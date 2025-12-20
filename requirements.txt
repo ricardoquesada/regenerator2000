@@ -22,5 +22,5 @@ Have 6502 diassembler with a Turbo Assembler / Turbo Debugger (from Borland in 8
     * prg: tipical c64 format, where the first 2 bytes represents the load address (Hi/lo)
 * It should be possible to change the origin (if the user made a mistake when loading a bin, it should be able to re set the origin)
 * It should use Rust and Ratatui for the interface. It is going to be a TUI, like Tuber Assembler from Borland.
-* The project should contain README.md describing the project and explaining how to compile and run it.
-* The project should reasonable .gitignore file, and should follow modern Rust best practices
+* The project should contain a README.md describing the project and explaining how to compile and run it.
+* The project should have a reasonable .gitignore file, and should follow modern Rust best practices
