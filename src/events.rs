@@ -29,7 +29,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
 
                             // We need to account for origin.
                             let target_addr = addr;
-                             // We iterate to find the line that covers this address
+                            // We iterate to find the line that covers this address
                             let mut found_idx = None;
                             for (i, line) in state.disassembly.iter().enumerate() {
                                 if line.address == target_addr {
@@ -55,7 +55,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                                 if !state.disassembly.is_empty() {
                                     state.navigation_history.push(state.cursor_index);
                                     state.cursor_index = state.disassembly.len() - 1;
-                                    state.status_message = format!("Jumped to end");
+                                    state.status_message = "Jumped to end".to_string();
                                 }
                             }
                             state.jump_dialog.close();
@@ -67,11 +67,9 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                         state.jump_dialog.input.pop();
                     }
                     KeyCode::Char(c) => {
-                         if c.is_digit(16) {
-                             if state.jump_dialog.input.len() < 4 {
-                                 state.jump_dialog.input.push(c.to_ascii_uppercase());
-                             }
-                         }
+                        if c.is_ascii_hexdigit() && state.jump_dialog.input.len() < 4 {
+                            state.jump_dialog.input.push(c.to_ascii_uppercase());
+                        }
                     }
                     _ => {}
                 }
@@ -207,15 +205,15 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
 
                     KeyCode::Backspace => {
                         if let Some(prev_idx) = state.navigation_history.pop() {
-                             // Verify index is still valid
-                             if prev_idx < state.disassembly.len() {
-                                 state.cursor_index = prev_idx;
-                                 state.status_message = "Navigated back".to_string();
-                             } else {
-                                 state.status_message = "History invalid".to_string();
-                             }
+                            // Verify index is still valid
+                            if prev_idx < state.disassembly.len() {
+                                state.cursor_index = prev_idx;
+                                state.status_message = "Navigated back".to_string();
+                            } else {
+                                state.status_message = "History invalid".to_string();
+                            }
                         } else {
-                             state.status_message = "No history".to_string();
+                            state.status_message = "No history".to_string();
                         }
                     }
 
@@ -368,81 +366,96 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
             state.status_message = "Enter address (Hex)".to_string();
         }
         "Jump to operand" => {
-             if let Some(line) = state.disassembly.get(state.cursor_index) {
+            if let Some(line) = state.disassembly.get(state.cursor_index) {
                 // Try to extract address from operand.
                 // We utilize the opcode mode if available.
                 if let Some(opcode) = &line.opcode {
-                     use crate::cpu::AddressingMode;
-                     let target = match opcode.mode {
-                         AddressingMode::Absolute | AddressingMode::AbsoluteX | AddressingMode::AbsoluteY => {
-                             if line.bytes.len() >= 3 {
-                                 Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
-                             } else { None }
-                         }
-                         AddressingMode::Indirect => {
-                             // JMP ($1234) -> target is $1234
-                              if line.bytes.len() >= 3 {
-                                 Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
-                             } else { None }
-                         }
-                         AddressingMode::Relative => {
-                             // Branch
-                             if line.bytes.len() >= 2 {
-                                 let offset = line.bytes[1] as i8;
-                                 Some(line.address.wrapping_add(2).wrapping_add(offset as u16))
-                             } else { None }
-                         }
-                         AddressingMode::ZeroPage | AddressingMode::ZeroPageX | AddressingMode::ZeroPageY | AddressingMode::IndirectX | AddressingMode::IndirectY => {
-                             if line.bytes.len() >= 2 {
-                                 Some(line.bytes[1] as u16)
-                             } else { None }
-                         }
-                         _ => None,
-                     };
-
-                     if let Some(addr) = target {
-                         // Perform Jump
-                          let mut found_idx = None;
-                            for (i, l) in state.disassembly.iter().enumerate() {
-                                if l.address == addr {
-                                    found_idx = Some(i);
-                                    break;
-                                } else if l.address > addr {
-                                     // Closest before
-                                    if i > 0 {
-                                        found_idx = Some(i - 1);
-                                    } else {
-                                        found_idx = Some(0);
-                                    }
-                                    break;
-                                }
-                            }
-
-                            if let Some(idx) = found_idx {
-                                state.navigation_history.push(state.cursor_index);
-                                state.cursor_index = idx;
-                                state.status_message = format!("Jumped to ${:04X}", addr);
+                    use crate::cpu::AddressingMode;
+                    let target = match opcode.mode {
+                        AddressingMode::Absolute
+                        | AddressingMode::AbsoluteX
+                        | AddressingMode::AbsoluteY => {
+                            if line.bytes.len() >= 3 {
+                                Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
                             } else {
-                                // Maybe valid address but not in loaded range?
-                                // Or at end
-                                 if !state.disassembly.is_empty() {
-                                    if addr >= state.disassembly.last().unwrap().address {
-                                         state.navigation_history.push(state.cursor_index);
-                                         state.cursor_index = state.disassembly.len() - 1;
-                                         state.status_message = format!("Jumped to end");
-                                    } else {
-                                         state.status_message = format!("Address ${:04X} not found", addr);
-                                    }
+                                None
+                            }
+                        }
+                        AddressingMode::Indirect => {
+                            // JMP ($1234) -> target is $1234
+                            if line.bytes.len() >= 3 {
+                                Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                            } else {
+                                None
+                            }
+                        }
+                        AddressingMode::Relative => {
+                            // Branch
+                            if line.bytes.len() >= 2 {
+                                let offset = line.bytes[1] as i8;
+                                Some(line.address.wrapping_add(2).wrapping_add(offset as u16))
+                            } else {
+                                None
+                            }
+                        }
+                        AddressingMode::ZeroPage
+                        | AddressingMode::ZeroPageX
+                        | AddressingMode::ZeroPageY
+                        | AddressingMode::IndirectX
+                        | AddressingMode::IndirectY => {
+                            if line.bytes.len() >= 2 {
+                                Some(line.bytes[1] as u16)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    };
+
+                    if let Some(addr) = target {
+                        // Perform Jump
+                        let mut found_idx = None;
+                        for (i, l) in state.disassembly.iter().enumerate() {
+                            if l.address == addr {
+                                found_idx = Some(i);
+                                break;
+                            } else if l.address > addr {
+                                // Closest before
+                                if i > 0 {
+                                    found_idx = Some(i - 1);
+                                } else {
+                                    found_idx = Some(0);
+                                }
+                                break;
+                            }
+                        }
+
+                        if let Some(idx) = found_idx {
+                            state.navigation_history.push(state.cursor_index);
+                            state.cursor_index = idx;
+                            state.status_message = format!("Jumped to ${:04X}", addr);
+                        } else {
+                            // Maybe valid address but not in loaded range?
+                            // Or at end
+                            if !state.disassembly.is_empty() {
+                                if addr >= state.disassembly.last().unwrap().address {
+                                    state.navigation_history.push(state.cursor_index);
+                                    state.cursor_index = state.disassembly.len() - 1;
+                                    state.status_message = "Jumped to end".to_string();
+                                } else {
+                                    state.status_message =
+                                        format!("Address ${:04X} not found", addr);
                                 }
                             }
-                     } else {
-                         state.status_message = "No target address".to_string();
-                     }
+                        }
+                    } else {
+                        state.status_message = "No target address".to_string();
+                    }
                 } else {
                     // Maybe it is a .WORD or .PTR?
                     // Not specified in requirements, but "Jump to operand" generally implies instruction operands.
                 }
-             }
+            }
         }
         _ => {}
     }

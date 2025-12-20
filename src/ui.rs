@@ -15,7 +15,7 @@ pub fn ui(f: &mut Frame, state: &mut AppState) {
             Constraint::Min(0),    // Main content
             Constraint::Length(1), // Status bar
         ])
-        .split(f.size());
+        .split(f.area());
 
     render_menu(f, chunks[0], &state.menu);
     render_main_view(f, chunks[1], state);
@@ -27,11 +27,11 @@ pub fn ui(f: &mut Frame, state: &mut AppState) {
     }
 
     if state.file_picker.active {
-        render_file_picker(f, f.size(), &state.file_picker);
+        render_file_picker(f, f.area(), &state.file_picker);
     }
 
     if state.jump_dialog.active {
-        render_jump_dialog(f, f.size(), &state.jump_dialog);
+        render_jump_dialog(f, f.area(), &state.jump_dialog);
     }
 }
 
@@ -44,9 +44,11 @@ fn render_jump_dialog(f: &mut Frame, area: Rect, dialog: &crate::state::JumpDial
     let area = centered_rect(40, 20, area);
     f.render_widget(ratatui::widgets::Clear, area);
 
-    let input = Paragraph::new(dialog.input.clone())
-        .block(block)
-        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+    let input = Paragraph::new(dialog.input.clone()).block(block).style(
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    );
     f.render_widget(input, area);
 }
 
@@ -144,7 +146,8 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::state::M
     let mut max_shortcut_len = 0;
     for item in &category.items {
         max_name_len = max_name_len.max(item.name.len());
-        max_shortcut_len = max_shortcut_len.max(item.shortcut.as_ref().map(|s| s.len()).unwrap_or(0));
+        max_shortcut_len =
+            max_shortcut_len.max(item.shortcut.as_ref().map(|s| s.len()).unwrap_or(0));
     }
 
     // Width = name + spacing + shortcut + borders/padding
@@ -172,7 +175,8 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::state::M
             let shortcut = item.shortcut.clone().unwrap_or_default();
             let name = &item.name;
             // Dynamic formatting
-            let content = format!("{:<name_w$}  {:>short_w$}",
+            let content = format!(
+                "{:<name_w$}  {:>short_w$}",
                 name,
                 shortcut,
                 name_w = max_name_len,

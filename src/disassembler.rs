@@ -42,7 +42,6 @@ impl Disassembler {
 
                     if let Some(opcode) = opcode_opt {
                         let mut bytes = vec![opcode_byte];
-                        let mut operand_str = String::new();
 
                         // Check if we have enough bytes
                         if pc + opcode.size as usize <= data.len() {
@@ -62,7 +61,7 @@ impl Disassembler {
                                     bytes.push(data[pc + i as usize]);
                                 }
 
-                                operand_str = self.format_operand(opcode, &bytes[1..], address);
+                                let operand_str = self.format_operand(opcode, &bytes[1..], address);
                                 pc += opcode.size as usize;
 
                                 lines.push(DisassemblyLine {

@@ -104,6 +104,7 @@ pub struct AppState {
 
     // UI State
     pub cursor_index: usize,
+    #[allow(dead_code)]
     pub scroll_index: usize,
     pub should_quit: bool,
     pub status_message: String,
@@ -249,7 +250,6 @@ impl MenuState {
                         },
                     ],
                 },
-
                 MenuCategory {
                     name: "Jump".to_string(),
                     items: vec![
