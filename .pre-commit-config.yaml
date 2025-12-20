@@ -15,7 +15,7 @@ repos:
         entry: cargo fmt
         language: system
         types: [rust]
-        args: ["--", "--check"]
+        args: ["--"]
 
       - id: cargo-check
         name: cargo check
