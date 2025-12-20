@@ -1,4 +1,5 @@
 use crate::disassembler::{Disassembler, DisassemblyLine};
+use ratatui::widgets::ListState;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -97,6 +98,7 @@ pub struct AppState {
     pub menu: MenuState,
 
     pub navigation_history: Vec<usize>,
+    pub disassembly_state: ListState,
 
     // Data Conversion State
     pub address_types: Vec<AddressType>,
@@ -122,6 +124,7 @@ impl AppState {
             jump_dialog: JumpDialogState::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),
+            disassembly_state: ListState::default(),
             address_types: Vec::new(),
             selection_start: None,
             cursor_index: 0,

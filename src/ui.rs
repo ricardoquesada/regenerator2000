@@ -268,10 +268,9 @@ fn render_main_view(f: &mut Frame, area: Rect, state: &mut AppState) {
 
     // We need to manage the ListState in AppState or here.
     // If we use `cursor_index` as the selected item.
-    let mut list_state = ListState::default();
-    list_state.select(Some(state.cursor_index));
+    state.disassembly_state.select(Some(state.cursor_index));
 
-    f.render_stateful_widget(list, area, &mut list_state);
+    f.render_stateful_widget(list, area, &mut state.disassembly_state);
 }
 
 fn render_status_bar(f: &mut Frame, area: Rect, state: &AppState) {
