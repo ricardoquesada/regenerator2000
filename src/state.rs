@@ -185,85 +185,39 @@ impl MenuState {
                 MenuCategory {
                     name: "File".to_string(),
                     items: vec![
-                        MenuItem {
-                            name: "New".to_string(),
-                            shortcut: Some("Ctrl+N".to_string()),
-                        },
-                        MenuItem {
-                            name: "Open".to_string(),
-                            shortcut: Some("Ctrl+O".to_string()),
-                        },
-                        MenuItem {
-                            name: "Save".to_string(),
-                            shortcut: Some("Ctrl+S".to_string()),
-                        },
-                        MenuItem {
-                            name: "Save As".to_string(),
-                            shortcut: Some("Ctrl+Shift+S".to_string()),
-                        },
-                        MenuItem {
-                            name: "Exit".to_string(),
-                            shortcut: Some("Ctrl+Q".to_string()),
-                        },
+                        MenuItem::new("New", Some("Ctrl+N")),
+                        MenuItem::new("Open", Some("Ctrl+O")),
+                        MenuItem::new("Save", Some("Ctrl+S")),
+                        MenuItem::new("Save As", Some("Ctrl+Shift+S")),
+                        MenuItem::separator(),
+                        MenuItem::new("Exit", Some("Ctrl+Q")),
                     ],
                 },
                 MenuCategory {
                     name: "Edit".to_string(),
                     items: vec![
-                        MenuItem {
-                            name: "Undo".to_string(),
-                            shortcut: Some("Ctrl+Z".to_string()),
-                        },
-                        MenuItem {
-                            name: "Redo".to_string(),
-                            shortcut: Some("Ctrl+Shift+Z".to_string()),
-                        },
-                        MenuItem {
-                            name: "Code".to_string(),
-                            shortcut: Some("C".to_string()),
-                        },
-                        MenuItem {
-                            name: "Byte".to_string(),
-                            shortcut: Some("B".to_string()),
-                        },
-                        MenuItem {
-                            name: "Word".to_string(),
-                            shortcut: Some("W".to_string()),
-                        },
-                        MenuItem {
-                            name: "Pointer".to_string(),
-                            shortcut: Some("P".to_string()),
-                        },
+                        MenuItem::new("Undo", Some("Ctrl+Z")),
+                        MenuItem::new("Redo", Some("Ctrl+Shift+Z")),
+                        MenuItem::separator(),
+                        MenuItem::new("Code", Some("C")),
+                        MenuItem::new("Byte", Some("B")),
+                        MenuItem::new("Word", Some("W")),
+                        MenuItem::new("Pointer", Some("P")),
                     ],
                 },
                 MenuCategory {
                     name: "View".to_string(),
                     items: vec![
-                        MenuItem {
-                            name: "Zoom In".to_string(),
-                            shortcut: Some("Ctrl++".to_string()),
-                        },
-                        MenuItem {
-                            name: "Zoom Out".to_string(),
-                            shortcut: Some("Ctrl+-".to_string()),
-                        },
-                        MenuItem {
-                            name: "Reset Zoom".to_string(),
-                            shortcut: Some("Ctrl+0".to_string()),
-                        },
+                        MenuItem::new("Zoom In", Some("Ctrl++")),
+                        MenuItem::new("Zoom Out", Some("Ctrl+-")),
+                        MenuItem::new("Reset Zoom", Some("Ctrl+0")),
                     ],
                 },
                 MenuCategory {
                     name: "Jump".to_string(),
                     items: vec![
-                        MenuItem {
-                            name: "Jump to address".to_string(),
-                            shortcut: Some("G".to_string()),
-                        },
-                        MenuItem {
-                            name: "Jump to operand".to_string(),
-                            shortcut: Some("Enter".to_string()),
-                        },
+                        MenuItem::new("Jump to address", Some("G")),
+                        MenuItem::new("Jump to operand", Some("Enter")),
                     ],
                 },
             ],
@@ -274,7 +228,10 @@ impl MenuState {
 
     pub fn next_category(&mut self) {
         self.selected_category = (self.selected_category + 1) % self.categories.len();
-        self.selected_item = None;
+        // If we are active, select the first non-separator item
+        if self.active {
+            self.selected_item = Some(0);
+        }
     }
 
     pub fn previous_category(&mut self) {
@@ -283,29 +240,42 @@ impl MenuState {
         } else {
             self.selected_category -= 1;
         }
-        self.selected_item = None;
-    }
-
-    pub fn next_item(&mut self) {
-        if let Some(index) = self.selected_item {
-            let count = self.categories[self.selected_category].items.len();
-            self.selected_item = Some((index + 1) % count);
-        } else {
+        if self.active {
             self.selected_item = Some(0);
         }
     }
 
+    pub fn next_item(&mut self) {
+        let count = self.categories[self.selected_category].items.len();
+        let current = self.selected_item.unwrap_or(0);
+        let mut next = (current + 1) % count;
+
+        // Skip separators
+        while self.categories[self.selected_category].items[next].is_separator {
+            next = (next + 1) % count;
+            if next == current {
+                break;
+            } // Avoid infinite loop if all separators (unlikely)
+        }
+
+        self.selected_item = Some(next);
+    }
+
     pub fn previous_item(&mut self) {
         let count = self.categories[self.selected_category].items.len();
-        if let Some(index) = self.selected_item {
-            if index == 0 {
-                self.selected_item = Some(count - 1);
-            } else {
-                self.selected_item = Some(index - 1);
+        let current = self.selected_item.unwrap_or(0);
+
+        let mut prev = if current == 0 { count - 1 } else { current - 1 };
+
+        // Skip separators
+        while self.categories[self.selected_category].items[prev].is_separator {
+            prev = if prev == 0 { count - 1 } else { prev - 1 };
+            if prev == current {
+                break;
             }
-        } else {
-            self.selected_item = Some(count - 1);
         }
+
+        self.selected_item = Some(prev);
     }
 }
 
@@ -314,7 +284,27 @@ pub struct MenuCategory {
     pub items: Vec<MenuItem>,
 }
 
+#[derive(Clone)]
 pub struct MenuItem {
     pub name: String,
     pub shortcut: Option<String>,
+    pub is_separator: bool,
+}
+
+impl MenuItem {
+    pub fn new(name: &str, shortcut: Option<&str>) -> Self {
+        Self {
+            name: name.to_string(),
+            shortcut: shortcut.map(|s| s.to_string()),
+            is_separator: false,
+        }
+    }
+
+    pub fn separator() -> Self {
+        Self {
+            name: String::new(),
+            shortcut: None,
+            is_separator: true,
+        }
+    }
 }

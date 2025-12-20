@@ -159,6 +159,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                     }
                     KeyCode::F(10) => {
                         state.menu.active = true;
+                        state.menu.selected_item = Some(0);
                         state.status_message = "Menu Active".to_string();
                     }
                     // Global Shortcuts

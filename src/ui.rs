@@ -166,6 +166,12 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::state::M
         .iter()
         .enumerate()
         .map(|(i, item)| {
+            if item.is_separator {
+                let separator_len = (width as usize).saturating_sub(2);
+                let separator = "─".repeat(separator_len);
+                return ListItem::new(separator).style(Style::default().fg(Color::White));
+            }
+
             let style = if Some(i) == menu_state.selected_item {
                 Style::default().bg(Color::Cyan).fg(Color::Black)
             } else {
