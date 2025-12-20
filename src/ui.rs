@@ -138,7 +138,7 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::state::M
     }
 
     let category = &menu_state.categories[menu_state.selected_category];
-    
+
     // Calculate dynamic width
     let mut max_name_len = 0;
     let mut max_shortcut_len = 0;
@@ -146,11 +146,11 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::state::M
         max_name_len = max_name_len.max(item.name.len());
         max_shortcut_len = max_shortcut_len.max(item.shortcut.as_ref().map(|s| s.len()).unwrap_or(0));
     }
-    
+
     // Width = name + spacing + shortcut + borders/padding
     let content_width = max_name_len + 2 + max_shortcut_len; // 2 spaces gap
     let width = (content_width as u16 + 2).max(20); // +2 for list item padding/borders, min 20
-    
+
     let height = category.items.len() as u16 + 2;
 
     let area = Rect::new(top_area.x + x_offset, top_area.y + 1, width, height);
@@ -172,8 +172,8 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::state::M
             let shortcut = item.shortcut.clone().unwrap_or_default();
             let name = &item.name;
             // Dynamic formatting
-            let content = format!("{:<name_w$}  {:>short_w$}", 
-                name, 
+            let content = format!("{:<name_w$}  {:>short_w$}",
+                name,
                 shortcut,
                 name_w = max_name_len,
                 short_w = max_shortcut_len

@@ -23,10 +23,10 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                             // But map is easier.
                             // Better: convert address to index.
                             // We need to find the line that contains this address.
-                            
-                            // Simple linear search for now or binary search if vector is sorted. 
+
+                            // Simple linear search for now or binary search if vector is sorted.
                             // It is sorted by definition of disassembly.
-                            
+
                             // We need to account for origin.
                             let target_addr = addr;
                              // We iterate to find the line that covers this address
@@ -45,7 +45,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                                     break;
                                 }
                             }
-                            
+
                             if let Some(idx) = found_idx {
                                 state.navigation_history.push(state.cursor_index);
                                 state.cursor_index = idx;
@@ -199,7 +199,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                     KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::SHIFT) => {
                         handle_menu_action(&mut state, "Jump to address");
                     }
-                    
+
                     // Only handle Enter for Jump to Operand if NO modifiers (to avoid conflict)
                     KeyCode::Enter if key.modifiers.is_empty() => {
                         handle_menu_action(&mut state, "Jump to operand");
@@ -399,7 +399,7 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
                          }
                          _ => None,
                      };
-                     
+
                      if let Some(addr) = target {
                          // Perform Jump
                           let mut found_idx = None;
@@ -417,13 +417,13 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
                                     break;
                                 }
                             }
-                            
+
                             if let Some(idx) = found_idx {
                                 state.navigation_history.push(state.cursor_index);
                                 state.cursor_index = idx;
                                 state.status_message = format!("Jumped to ${:04X}", addr);
                             } else {
-                                // Maybe valid address but not in loaded range? 
+                                // Maybe valid address but not in loaded range?
                                 // Or at end
                                  if !state.disassembly.is_empty() {
                                     if addr >= state.disassembly.last().unwrap().address {

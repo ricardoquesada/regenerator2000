@@ -72,12 +72,12 @@ impl JumpDialogState {
             input: String::new(),
         }
     }
-    
+
     pub fn open(&mut self) {
         self.active = true;
         self.input.clear();
     }
-    
+
     pub fn close(&mut self) {
         self.active = false;
         self.input.clear();
