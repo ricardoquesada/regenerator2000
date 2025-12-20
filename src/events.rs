@@ -130,15 +130,43 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                         handle_menu_action(&mut state, "Reset Zoom")
                     }
 
+                    // Data Conversion Shortcuts
+                    KeyCode::Char('c') => handle_menu_action(&mut state, "Code"),
+                    KeyCode::Char('b') => handle_menu_action(&mut state, "Byte"),
+                    KeyCode::Char('w') => handle_menu_action(&mut state, "Word"),
+                    KeyCode::Char('p') => handle_menu_action(&mut state, "Pointer"),
+
                     // Normal Navigation
                     KeyCode::Down | KeyCode::Char('j') => {
+                        if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            if state.selection_start.is_none() {
+                                state.selection_start = Some(state.cursor_index);
+                            }
+                        } else {
+                            state.selection_start = None;
+                        }
+
                         if state.cursor_index < state.disassembly.len().saturating_sub(1) {
                             state.cursor_index += 1;
                         }
                     }
                     KeyCode::Up | KeyCode::Char('k') => {
+                        if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            if state.selection_start.is_none() {
+                                state.selection_start = Some(state.cursor_index);
+                            }
+                        } else {
+                            state.selection_start = None;
+                        }
+
                         if state.cursor_index > 0 {
                             state.cursor_index -= 1;
+                        }
+                    }
+                    KeyCode::Esc => {
+                        if state.selection_start.is_some() {
+                            state.selection_start = None;
+                            state.status_message = "Selection cleared".to_string();
                         }
                     }
                     KeyCode::PageDown => {
@@ -167,6 +195,61 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
 
 fn handle_menu_action(state: &mut AppState, action: &str) {
     state.status_message = format!("Action: {}", action);
+
+    // Helper to get range, returns Option
+    let get_range = |state: &AppState| -> Option<(usize, usize)> {
+        if let Some(selection_start) = state.selection_start {
+            let (s, e) = if selection_start < state.cursor_index {
+                (selection_start, state.cursor_index)
+            } else {
+                (state.cursor_index, selection_start)
+            };
+
+            if let (Some(start_line), Some(end_line)) =
+                (state.disassembly.get(s), state.disassembly.get(e))
+            {
+                let start_addr = start_line.address;
+                let end_addr_inclusive = end_line.address + end_line.bytes.len() as u16 - 1;
+
+                let start_idx = (start_addr.wrapping_sub(state.origin)) as usize;
+                let end_idx = (end_addr_inclusive.wrapping_sub(state.origin)) as usize;
+
+                Some((start_idx, end_idx))
+            } else {
+                None
+            }
+        } else {
+            // Single line action
+            if let Some(line) = state.disassembly.get(state.cursor_index) {
+                let start_addr = line.address;
+                let end_addr_inclusive = line.address + line.bytes.len() as u16 - 1;
+
+                let start_idx = (start_addr.wrapping_sub(state.origin)) as usize;
+                let end_idx = (end_addr_inclusive.wrapping_sub(state.origin)) as usize;
+                Some((start_idx, end_idx))
+            } else {
+                None
+            }
+        }
+    };
+
+    // Helper to update range
+    let mut update_type = |new_type: crate::state::AddressType| {
+        if let Some((start, end)) = get_range(state) {
+            // Boundary check
+            let max_len = state.address_types.len();
+            if start < max_len {
+                let valid_end = end.min(max_len - 1);
+                for i in start..=valid_end {
+                    state.address_types[i] = new_type;
+                }
+                // Clear selection after action
+                state.selection_start = None;
+                state.disassemble();
+            }
+        }
+    };
+
     match action {
         "Exit" => state.should_quit = true,
         "New" => {
@@ -187,6 +270,10 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
         "Zoom In" => {}
         "Zoom Out" => {}
         "Reset Zoom" => {}
+        "Code" => update_type(crate::state::AddressType::Code),
+        "Byte" => update_type(crate::state::AddressType::DataByte),
+        "Word" => update_type(crate::state::AddressType::DataWord),
+        "Pointer" => update_type(crate::state::AddressType::DataPtr),
         _ => {}
     }
 }

@@ -1,6 +1,14 @@
 use crate::disassembler::{Disassembler, DisassemblyLine};
 use std::path::PathBuf;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AddressType {
+    Code,
+    DataByte,
+    DataWord,
+    DataPtr, // Simple word pointer for now
+}
+
 pub struct FilePickerState {
     pub active: bool,
     pub current_dir: PathBuf,
@@ -63,6 +71,10 @@ pub struct AppState {
 
     pub menu: MenuState,
 
+    // Data Conversion State
+    pub address_types: Vec<AddressType>,
+    pub selection_start: Option<usize>,
+
     // UI State
     pub cursor_index: usize,
     pub scroll_index: usize,
@@ -80,6 +92,8 @@ impl AppState {
             origin: 0,
             file_picker: FilePickerState::new(),
             menu: MenuState::new(),
+            address_types: Vec::new(),
+            selection_start: None,
             cursor_index: 0,
             scroll_index: 0,
             should_quit: false,
@@ -110,12 +124,16 @@ impl AppState {
             self.raw_data = data;
         }
 
+        self.address_types = vec![AddressType::Code; self.raw_data.len()];
+
         self.disassemble();
         Ok(())
     }
 
     pub fn disassemble(&mut self) {
-        self.disassembly = self.disassembler.disassemble(&self.raw_data, self.origin);
+        self.disassembly =
+            self.disassembler
+                .disassemble(&self.raw_data, &self.address_types, self.origin);
     }
 }
 
@@ -166,6 +184,22 @@ impl MenuState {
                         MenuItem {
                             name: "Redo".to_string(),
                             shortcut: Some("Ctrl+Shift+Z".to_string()),
+                        },
+                        MenuItem {
+                            name: "Code".to_string(),
+                            shortcut: Some("C".to_string()),
+                        },
+                        MenuItem {
+                            name: "Byte".to_string(),
+                            shortcut: Some("B".to_string()),
+                        },
+                        MenuItem {
+                            name: "Word".to_string(),
+                            shortcut: Some("W".to_string()),
+                        },
+                        MenuItem {
+                            name: "Pointer".to_string(),
+                            shortcut: Some("P".to_string()),
                         },
                     ],
                 },

@@ -161,8 +161,21 @@ fn render_main_view(f: &mut Frame, area: Rect, state: &mut AppState) {
         .iter()
         .enumerate()
         .map(|(i, line)| {
+            let is_selected = if let Some(selection_start) = state.selection_start {
+                let (start, end) = if selection_start < state.cursor_index {
+                    (selection_start, state.cursor_index)
+                } else {
+                    (state.cursor_index, selection_start)
+                };
+                i >= start && i <= end
+            } else {
+                false
+            };
+
             let style = if i == state.cursor_index {
                 Style::default().bg(Color::Cyan).fg(Color::Black)
+            } else if is_selected {
+                Style::default().bg(Color::DarkGray).fg(Color::White)
             } else {
                 Style::default()
             };
@@ -223,7 +236,7 @@ fn render_main_view(f: &mut Frame, area: Rect, state: &mut AppState) {
 
 fn render_status_bar(f: &mut Frame, area: Rect, state: &AppState) {
     let status = format!(
-        " Cursor: {:04X} | Origin: {:04X} | File: {:?}",
+        " Cursor: {:04X} | Origin: {:04X} | File: {:?}{}",
         state
             .disassembly
             .get(state.cursor_index)
@@ -234,7 +247,13 @@ fn render_status_bar(f: &mut Frame, area: Rect, state: &AppState) {
             .file_path
             .as_ref()
             .map(|p| p.file_name().unwrap_or_default())
-            .unwrap_or_default()
+            .unwrap_or_default(),
+        if let Some(start) = state.selection_start {
+            let count = (state.cursor_index as isize - start as isize).abs() + 1;
+            format!(" | Selected: {} lines", count)
+        } else {
+            "".to_string()
+        }
     );
     let bar = Paragraph::new(status).style(Style::default().bg(Color::Blue).fg(Color::White));
     f.render_widget(bar, area);
