@@ -9,7 +9,73 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
         terminal.draw(|f| ui(f, &mut state))?;
 
         if let Event::Key(key) = event::read()? {
-            if state.file_picker.active {
+            if state.jump_dialog.active {
+                match key.code {
+                    KeyCode::Esc => {
+                        state.jump_dialog.close();
+                        state.status_message = "Ready".to_string();
+                    }
+                    KeyCode::Enter => {
+                        let input = &state.jump_dialog.input;
+                        if let Ok(addr) = u16::from_str_radix(input, 16) {
+                            // Find closest address in disassembly
+                            // Since disassembly is sorted by address (mostly), we can find it.
+                            // But map is easier.
+                            // Better: convert address to index.
+                            // We need to find the line that contains this address.
+                            
+                            // Simple linear search for now or binary search if vector is sorted. 
+                            // It is sorted by definition of disassembly.
+                            
+                            // We need to account for origin.
+                            let target_addr = addr;
+                             // We iterate to find the line that covers this address
+                            let mut found_idx = None;
+                            for (i, line) in state.disassembly.iter().enumerate() {
+                                if line.address == target_addr {
+                                    found_idx = Some(i);
+                                    break;
+                                } else if line.address > target_addr {
+                                    // We went past it, give the previous one (closest)
+                                    if i > 0 {
+                                        found_idx = Some(i - 1);
+                                    } else {
+                                        found_idx = Some(0);
+                                    }
+                                    break;
+                                }
+                            }
+                            
+                            if let Some(idx) = found_idx {
+                                state.navigation_history.push(state.cursor_index);
+                                state.cursor_index = idx;
+                                state.status_message = format!("Jumped to ${:04X}", target_addr);
+                            } else {
+                                // Address might be beyond the last line
+                                if !state.disassembly.is_empty() {
+                                    state.navigation_history.push(state.cursor_index);
+                                    state.cursor_index = state.disassembly.len() - 1;
+                                    state.status_message = format!("Jumped to end");
+                                }
+                            }
+                            state.jump_dialog.close();
+                        } else {
+                            state.status_message = "Invalid Hex Address".to_string();
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        state.jump_dialog.input.pop();
+                    }
+                    KeyCode::Char(c) => {
+                         if c.is_digit(16) {
+                             if state.jump_dialog.input.len() < 4 {
+                                 state.jump_dialog.input.push(c.to_ascii_uppercase());
+                             }
+                         }
+                    }
+                    _ => {}
+                }
+            } else if state.file_picker.active {
                 match key.code {
                     KeyCode::Esc => {
                         state.file_picker.close();
@@ -128,6 +194,29 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                     }
                     KeyCode::Char('0') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         handle_menu_action(&mut state, "Reset Zoom")
+                    }
+
+                    KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+                        handle_menu_action(&mut state, "Jump to address");
+                    }
+                    
+                    // Only handle Enter for Jump to Operand if NO modifiers (to avoid conflict)
+                    KeyCode::Enter if key.modifiers.is_empty() => {
+                        handle_menu_action(&mut state, "Jump to operand");
+                    }
+
+                    KeyCode::Backspace => {
+                        if let Some(prev_idx) = state.navigation_history.pop() {
+                             // Verify index is still valid
+                             if prev_idx < state.disassembly.len() {
+                                 state.cursor_index = prev_idx;
+                                 state.status_message = "Navigated back".to_string();
+                             } else {
+                                 state.status_message = "History invalid".to_string();
+                             }
+                        } else {
+                             state.status_message = "No history".to_string();
+                        }
                     }
 
                     // Data Conversion Shortcuts
@@ -274,6 +363,87 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
         "Byte" => update_type(crate::state::AddressType::DataByte),
         "Word" => update_type(crate::state::AddressType::DataWord),
         "Pointer" => update_type(crate::state::AddressType::DataPtr),
+        "Jump to address" => {
+            state.jump_dialog.open();
+            state.status_message = "Enter address (Hex)".to_string();
+        }
+        "Jump to operand" => {
+             if let Some(line) = state.disassembly.get(state.cursor_index) {
+                // Try to extract address from operand.
+                // We utilize the opcode mode if available.
+                if let Some(opcode) = &line.opcode {
+                     use crate::cpu::AddressingMode;
+                     let target = match opcode.mode {
+                         AddressingMode::Absolute | AddressingMode::AbsoluteX | AddressingMode::AbsoluteY => {
+                             if line.bytes.len() >= 3 {
+                                 Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                             } else { None }
+                         }
+                         AddressingMode::Indirect => {
+                             // JMP ($1234) -> target is $1234
+                              if line.bytes.len() >= 3 {
+                                 Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                             } else { None }
+                         }
+                         AddressingMode::Relative => {
+                             // Branch
+                             if line.bytes.len() >= 2 {
+                                 let offset = line.bytes[1] as i8;
+                                 Some(line.address.wrapping_add(2).wrapping_add(offset as u16))
+                             } else { None }
+                         }
+                         AddressingMode::ZeroPage | AddressingMode::ZeroPageX | AddressingMode::ZeroPageY | AddressingMode::IndirectX | AddressingMode::IndirectY => {
+                             if line.bytes.len() >= 2 {
+                                 Some(line.bytes[1] as u16)
+                             } else { None }
+                         }
+                         _ => None,
+                     };
+                     
+                     if let Some(addr) = target {
+                         // Perform Jump
+                          let mut found_idx = None;
+                            for (i, l) in state.disassembly.iter().enumerate() {
+                                if l.address == addr {
+                                    found_idx = Some(i);
+                                    break;
+                                } else if l.address > addr {
+                                     // Closest before
+                                    if i > 0 {
+                                        found_idx = Some(i - 1);
+                                    } else {
+                                        found_idx = Some(0);
+                                    }
+                                    break;
+                                }
+                            }
+                            
+                            if let Some(idx) = found_idx {
+                                state.navigation_history.push(state.cursor_index);
+                                state.cursor_index = idx;
+                                state.status_message = format!("Jumped to ${:04X}", addr);
+                            } else {
+                                // Maybe valid address but not in loaded range? 
+                                // Or at end
+                                 if !state.disassembly.is_empty() {
+                                    if addr >= state.disassembly.last().unwrap().address {
+                                         state.navigation_history.push(state.cursor_index);
+                                         state.cursor_index = state.disassembly.len() - 1;
+                                         state.status_message = format!("Jumped to end");
+                                    } else {
+                                         state.status_message = format!("Address ${:04X} not found", addr);
+                                    }
+                                }
+                            }
+                     } else {
+                         state.status_message = "No target address".to_string();
+                     }
+                } else {
+                    // Maybe it is a .WORD or .PTR?
+                    // Not specified in requirements, but "Jump to operand" generally implies instruction operands.
+                }
+             }
+        }
         _ => {}
     }
 }

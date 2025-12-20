@@ -29,6 +29,25 @@ pub fn ui(f: &mut Frame, state: &mut AppState) {
     if state.file_picker.active {
         render_file_picker(f, f.size(), &state.file_picker);
     }
+
+    if state.jump_dialog.active {
+        render_jump_dialog(f, f.size(), &state.jump_dialog);
+    }
+}
+
+fn render_jump_dialog(f: &mut Frame, area: Rect, dialog: &crate::state::JumpDialogState) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Jump to Address (Hex) ")
+        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+
+    let area = centered_rect(40, 20, area);
+    f.render_widget(ratatui::widgets::Clear, area);
+
+    let input = Paragraph::new(dialog.input.clone())
+        .block(block)
+        .style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+    f.render_widget(input, area);
 }
 
 fn render_file_picker(f: &mut Frame, area: Rect, picker: &crate::state::FilePickerState) {
@@ -119,7 +138,19 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::state::M
     }
 
     let category = &menu_state.categories[menu_state.selected_category];
-    let width = 20; // Fixed width for now
+    
+    // Calculate dynamic width
+    let mut max_name_len = 0;
+    let mut max_shortcut_len = 0;
+    for item in &category.items {
+        max_name_len = max_name_len.max(item.name.len());
+        max_shortcut_len = max_shortcut_len.max(item.shortcut.as_ref().map(|s| s.len()).unwrap_or(0));
+    }
+    
+    // Width = name + spacing + shortcut + borders/padding
+    let content_width = max_name_len + 2 + max_shortcut_len; // 2 spaces gap
+    let width = (content_width as u16 + 2).max(20); // +2 for list item padding/borders, min 20
+    
     let height = category.items.len() as u16 + 2;
 
     let area = Rect::new(top_area.x + x_offset, top_area.y + 1, width, height);
@@ -140,8 +171,13 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::state::M
 
             let shortcut = item.shortcut.clone().unwrap_or_default();
             let name = &item.name;
-            // Simple spacing
-            let content = format!("{:<10} {:>8}", name, shortcut);
+            // Dynamic formatting
+            let content = format!("{:<name_w$}  {:>short_w$}", 
+                name, 
+                shortcut,
+                name_w = max_name_len,
+                short_w = max_shortcut_len
+            );
             ListItem::new(content).style(style)
         })
         .collect();

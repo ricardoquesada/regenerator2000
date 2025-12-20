@@ -60,6 +60,30 @@ impl FilePickerState {
     }
 }
 
+pub struct JumpDialogState {
+    pub active: bool,
+    pub input: String,
+}
+
+impl JumpDialogState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            input: String::new(),
+        }
+    }
+    
+    pub fn open(&mut self) {
+        self.active = true;
+        self.input.clear();
+    }
+    
+    pub fn close(&mut self) {
+        self.active = false;
+        self.input.clear();
+    }
+}
+
 pub struct AppState {
     pub file_path: Option<PathBuf>,
     pub raw_data: Vec<u8>,
@@ -68,8 +92,11 @@ pub struct AppState {
     pub origin: u16,
 
     pub file_picker: FilePickerState,
+    pub jump_dialog: JumpDialogState,
 
     pub menu: MenuState,
+
+    pub navigation_history: Vec<usize>,
 
     // Data Conversion State
     pub address_types: Vec<AddressType>,
@@ -91,7 +118,9 @@ impl AppState {
             disassembler: Disassembler::new(),
             origin: 0,
             file_picker: FilePickerState::new(),
+            jump_dialog: JumpDialogState::new(),
             menu: MenuState::new(),
+            navigation_history: Vec::new(),
             address_types: Vec::new(),
             selection_start: None,
             cursor_index: 0,
@@ -217,6 +246,20 @@ impl MenuState {
                         MenuItem {
                             name: "Reset Zoom".to_string(),
                             shortcut: Some("Ctrl+0".to_string()),
+                        },
+                    ],
+                },
+
+                MenuCategory {
+                    name: "Jump".to_string(),
+                    items: vec![
+                        MenuItem {
+                            name: "Jump to address".to_string(),
+                            shortcut: Some("G".to_string()),
+                        },
+                        MenuItem {
+                            name: "Jump to operand".to_string(),
+                            shortcut: Some("Enter".to_string()),
                         },
                     ],
                 },
