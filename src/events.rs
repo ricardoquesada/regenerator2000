@@ -73,6 +73,36 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                     }
                     _ => {}
                 }
+            } else if state.save_dialog.active {
+                match key.code {
+                    KeyCode::Esc => {
+                        state.save_dialog.close();
+                        state.status_message = "Ready".to_string();
+                    }
+                    KeyCode::Enter => {
+                        let filename = state.save_dialog.input.clone();
+                        if !filename.is_empty() {
+                            let mut path = state.file_picker.current_dir.join(filename);
+                            if path.extension().is_none() {
+                                path.set_extension("json");
+                            }
+                            state.project_path = Some(path);
+                            if let Err(e) = state.save_project() {
+                                state.status_message = format!("Error saving: {}", e);
+                            } else {
+                                state.status_message = "Project saved".to_string();
+                                state.save_dialog.close();
+                            }
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        state.save_dialog.input.pop();
+                    }
+                    KeyCode::Char(c) => {
+                        state.save_dialog.input.push(c);
+                    }
+                    _ => {}
+                }
             } else if state.file_picker.active {
                 match key.code {
                     KeyCode::Esc => {
@@ -348,10 +378,20 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
             state.status_message = "Select a file to open".to_string();
         }
         "Save" => {
-            // Placeholder
+            if state.project_path.is_some() {
+                if let Err(e) = state.save_project() {
+                    state.status_message = format!("Error saving: {}", e);
+                } else {
+                    state.status_message = "Project saved".to_string();
+                }
+            } else {
+                state.save_dialog.open();
+                state.status_message = "Enter filename".to_string();
+            }
         }
         "Save As" => {
-            // Placeholder
+            state.save_dialog.open();
+            state.status_message = "Enter filename".to_string();
         }
         "Undo" => {}
         "Redo" => {}

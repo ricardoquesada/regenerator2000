@@ -33,6 +33,27 @@ pub fn ui(f: &mut Frame, state: &mut AppState) {
     if state.jump_dialog.active {
         render_jump_dialog(f, f.area(), &state.jump_dialog);
     }
+
+    if state.save_dialog.active {
+        render_save_dialog(f, f.area(), &state.save_dialog);
+    }
+}
+
+fn render_save_dialog(f: &mut Frame, area: Rect, dialog: &crate::state::SaveDialogState) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Save Project As... ")
+        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+
+    let area = centered_rect(50, 20, area);
+    f.render_widget(ratatui::widgets::Clear, area);
+
+    let input = Paragraph::new(dialog.input.clone()).block(block).style(
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    );
+    f.render_widget(input, area);
 }
 
 fn render_jump_dialog(f: &mut Frame, area: Rect, dialog: &crate::state::JumpDialogState) {
