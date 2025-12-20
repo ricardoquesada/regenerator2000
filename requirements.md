@@ -1,3 +1,4 @@
+# Requirements
 
 Have 6502 diassembler with a Turbo Assembler / Turbo Debugger (from Borland in 80's and 90s) look and feel, but with modern features from IDA Pro 5.0.
 
@@ -11,15 +12,15 @@ Have 6502 diassembler with a Turbo Assembler / Turbo Debugger (from Borland in 8
 * Everything can be done from the keyboard. Navigating the code should support vi-like keys.
 * Mouse support is welcome. But if the user doesn't have a mouse, it should work as well.
 * The "Menu" at the top should have all the tipical Menu entries like:
-     * File: Open binary, Open project, save project, export diassembly
-     * Edit: Undo, Redo, Code, Data, Undefined, (data can have: Byte, Word, Lookup table, Lo/Hi, Hi/Lo), Add comment, Rename  (label)
-     * Jump: Jump to operand, Jump to address, Jump by name
-     * View: Show opcodes, show auto-comments
+  * File: Open binary, Open project, save project, export diassembly
+  * Edit: Undo, Redo, Code, Data, Undefined, (data can have: Byte, Word, Lookup table, Lo/Hi, Hi/Lo), Add comment, Rename  (label)
+  * Jump: Jump to operand, Jump to address, Jump by name
+  * View: Show opcodes, show auto-comments
 * The main view, where the disassembly is should be "tabulated", in the sense that address, opcodes, comments, should have its own "tab order".
-    * it should also have arrows pointing up/down when there is a jump, similar to IDA Pro, at least IDA Pro 5.0 (the old version)
+  * it should also have arrows pointing up/down when there is a jump, similar to IDA Pro, at least IDA Pro 5.0 (the old version)
 * It should support different binary formats like:
-    * bin: pure data
-    * prg: tipical c64 format, where the first 2 bytes represents the load address (Hi/lo)
+  * bin: pure data
+  * prg: tipical c64 format, where the first 2 bytes represents the load address (Hi/lo)
 * It should be possible to change the origin (if the user made a mistake when loading a bin, it should be able to re set the origin)
 * It should use Rust and Ratatui for the interface. It is going to be a TUI, like Tuber Assembler from Borland.
 * The project should contain a README.md describing the project and explaining how to compile and run it.
