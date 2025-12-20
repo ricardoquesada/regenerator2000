@@ -1,3 +1,4 @@
+use crate::state::AppState;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -5,7 +6,6 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     Frame,
 };
-use crate::state::AppState;
 
 pub fn ui(f: &mut Frame, state: &mut AppState) {
     let chunks = Layout::default()
@@ -17,20 +17,147 @@ pub fn ui(f: &mut Frame, state: &mut AppState) {
         ])
         .split(f.size());
 
-    render_menu(f, chunks[0]);
+    render_menu(f, chunks[0], &state.menu);
     render_main_view(f, chunks[1], state);
     render_status_bar(f, chunks[2], state);
+
+    // Render Popup if needed
+    if state.menu.active && state.menu.selected_item.is_some() {
+        render_menu_popup(f, chunks[0], &state.menu);
+    }
+
+    if state.file_picker.active {
+        render_file_picker(f, f.size(), &state.file_picker);
+    }
 }
 
-fn render_menu(f: &mut Frame, area: Rect) {
-    let menu_text = " File  Edit  Jump  View ";
-    let menu = Paragraph::new(menu_text)
-        .style(Style::default().bg(Color::Blue).fg(Color::White));
-    f.render_widget(menu, area);
+fn render_file_picker(f: &mut Frame, area: Rect, picker: &crate::state::FilePickerState) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Open File (Space to Open, Backspace to Go Back, Esc to Cancel) ")
+        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+
+    let area = centered_rect(60, 50, area);
+    f.render_widget(ratatui::widgets::Clear, area); // Clear background
+
+    let items: Vec<ListItem> = picker
+        .files
+        .iter()
+        .map(|path| {
+            let name = path.file_name().unwrap_or_default().to_string_lossy();
+            let name = if path.is_dir() {
+                format!("{}/", name)
+            } else {
+                name.to_string()
+            };
+
+            ListItem::new(name)
+        })
+        .collect();
+
+    let list = List::new(items)
+        .block(block)
+        .highlight_style(
+            Style::default()
+                .bg(Color::Cyan)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD),
+        )
+        .highlight_symbol(">> ");
+
+    let mut state = ListState::default();
+    state.select(Some(picker.selected_index));
+
+    f.render_stateful_widget(list, area, &mut state);
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_x),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
+}
+
+fn render_menu(f: &mut Frame, area: Rect, menu_state: &crate::state::MenuState) {
+    let mut spans = Vec::new();
+
+    for (i, category) in menu_state.categories.iter().enumerate() {
+        let style = if menu_state.active && i == menu_state.selected_category {
+            Style::default().bg(Color::White).fg(Color::Black)
+        } else {
+            Style::default().bg(Color::Blue).fg(Color::White)
+        };
+
+        spans.push(Span::styled(format!(" {} ", category.name), style));
+    }
+
+    // Fill the rest of the line
+    let menu_bar =
+        Paragraph::new(Line::from(spans)).style(Style::default().bg(Color::Blue).fg(Color::White));
+    f.render_widget(menu_bar, area);
+}
+
+fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::state::MenuState) {
+    // Calculate position based on selected category
+    // This is a bit hacky without exact text width calculation, but we can estimate.
+    let mut x_offset = 0;
+    for i in 0..menu_state.selected_category {
+        x_offset += menu_state.categories[i].name.len() as u16 + 2; // +2 for padding
+    }
+
+    let category = &menu_state.categories[menu_state.selected_category];
+    let width = 20; // Fixed width for now
+    let height = category.items.len() as u16 + 2;
+
+    let area = Rect::new(top_area.x + x_offset, top_area.y + 1, width, height);
+
+    use ratatui::widgets::Clear;
+    f.render_widget(Clear, area);
+
+    let items: Vec<ListItem> = category
+        .items
+        .iter()
+        .enumerate()
+        .map(|(i, item)| {
+            let style = if Some(i) == menu_state.selected_item {
+                Style::default().bg(Color::Cyan).fg(Color::Black)
+            } else {
+                Style::default()
+            };
+
+            let shortcut = item.shortcut.clone().unwrap_or_default();
+            let name = &item.name;
+            // Simple spacing
+            let content = format!("{:<10} {:>8}", name, shortcut);
+            ListItem::new(content).style(style)
+        })
+        .collect();
+
+    let list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().bg(Color::DarkGray)),
+    );
+
+    f.render_widget(list, area);
 }
 
 fn render_main_view(f: &mut Frame, area: Rect, state: &mut AppState) {
-    let items: Vec<ListItem> = state.disassembly
+    let items: Vec<ListItem> = state
+        .disassembly
         .iter()
         .enumerate()
         .map(|(i, line)| {
@@ -41,13 +168,30 @@ fn render_main_view(f: &mut Frame, area: Rect, state: &mut AppState) {
             };
 
             let content = Line::from(vec![
-                Span::styled(format!("{:04X}  ", line.address), Style::default().fg(Color::Yellow)),
-                Span::styled(format!("{: <12}", hex_bytes(&line.bytes)), Style::default().fg(Color::DarkGray)),
-                Span::styled(format!("{: <4} ", line.mnemonic), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-                Span::styled(format!("{: <15}", line.operand), Style::default().fg(Color::White)),
-                Span::styled(format!("; {}", line.comment), Style::default().fg(Color::Gray)),
+                Span::styled(
+                    format!("{:04X}  ", line.address),
+                    Style::default().fg(Color::Yellow),
+                ),
+                Span::styled(
+                    format!("{: <12}", hex_bytes(&line.bytes)),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::styled(
+                    format!("{: <4} ", line.mnemonic),
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!("{: <15}", line.operand),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled(
+                    format!("; {}", line.comment),
+                    Style::default().fg(Color::Gray),
+                ),
             ]);
-            
+
             ListItem::new(content).style(style)
         })
         .collect();
@@ -57,33 +201,49 @@ fn render_main_view(f: &mut Frame, area: Rect, state: &mut AppState) {
     // Ideally we use a ListState, but here we just render items.
     // Ratatui's List widget handles scrolling if we pass the state, but we are managing state manually for now via `state.disassembly` slice maybe?
     // Or we just pass the full list and set the state.
-    
+
     // For large lists, we should only render what's visible or use ListState.
     // Let's use ListState and passing the items.
-    
+
     let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title(" Disassembly "))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Disassembly "),
+        )
         .highlight_style(Style::default().bg(Color::Cyan).fg(Color::Black)); // This is if we use state select
 
     // We need to manage the ListState in AppState or here.
     // If we use `cursor_index` as the selected item.
     let mut list_state = ListState::default();
     list_state.select(Some(state.cursor_index));
-    
+
     f.render_stateful_widget(list, area, &mut list_state);
 }
 
 fn render_status_bar(f: &mut Frame, area: Rect, state: &AppState) {
-    let status = format!(" Cursor: {:04X} | Origin: {:04X} | File: {:?}", 
-        state.disassembly.get(state.cursor_index).map(|l| l.address).unwrap_or(0),
+    let status = format!(
+        " Cursor: {:04X} | Origin: {:04X} | File: {:?}",
+        state
+            .disassembly
+            .get(state.cursor_index)
+            .map(|l| l.address)
+            .unwrap_or(0),
         state.origin,
-        state.file_path.as_ref().map(|p| p.file_name().unwrap_or_default()).unwrap_or_default()
+        state
+            .file_path
+            .as_ref()
+            .map(|p| p.file_name().unwrap_or_default())
+            .unwrap_or_default()
     );
-    let bar = Paragraph::new(status)
-        .style(Style::default().bg(Color::Blue).fg(Color::White));
+    let bar = Paragraph::new(status).style(Style::default().bg(Color::Blue).fg(Color::White));
     f.render_widget(bar, area);
 }
 
 fn hex_bytes(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{:02X}", b)).collect::<Vec<_>>().join(" ")
+    bytes
+        .iter()
+        .map(|b| format!("{:02X}", b))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
