@@ -119,12 +119,26 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                                 // Remove label
                                 state.labels.remove(&address);
                                 state.status_message = "Label removed".to_string();
+                                state.disassemble();
+                                state.label_dialog.close();
                             } else {
-                                state.labels.insert(address, label_name);
-                                state.status_message = "Label set".to_string();
+                                // Check for duplicates (exclude current address in case of rename/edit)
+                                let exists = state
+                                    .labels
+                                    .iter()
+                                    .any(|(addr, name)| name == &label_name && *addr != address);
+
+                                if exists {
+                                    state.status_message =
+                                        format!("Error: Label '{}' already exists", label_name);
+                                    // Do not close dialog, let user correct it
+                                } else {
+                                    state.labels.insert(address, label_name);
+                                    state.status_message = "Label set".to_string();
+                                    state.disassemble();
+                                    state.label_dialog.close();
+                                }
                             }
-                            state.disassemble();
-                            state.label_dialog.close();
                         }
                     }
                     KeyCode::Backspace => {
