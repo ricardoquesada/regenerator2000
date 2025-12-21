@@ -28,6 +28,19 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             continue;
         }
 
+        // Check for mid-instruction labels
+        // Only for instructions/data that have bytes.
+        // If we have a multi-byte instruction/data, we check if any byte inside has a label.
+        // We start from 1 because 0 is the address itself (handled above as label line).
+        if line.bytes.len() > 1 {
+            for i in 1..line.bytes.len() {
+                let mid_addr = line.address.wrapping_add(i as u16);
+                if let Some(label) = state.labels.get(&mid_addr) {
+                    output.push_str(&format!("{} = * + {}\n", label, i));
+                }
+            }
+        }
+
         if line.mnemonic == ".BYTE" || line.mnemonic == ".WORD" {
             output.push_str(&format!("    {} {}\n", line.mnemonic, line.operand));
         } else {
@@ -130,5 +143,79 @@ mod tests {
         // Let's check 64tass behavior. It usually just compiles.
         // If we want to be clean we should probably delete `64tass.output` if it creates one.
         // But for now, just deleting the asm file is good citizenship.
+    }
+
+    #[test]
+    fn test_export_mid_instruction_label() {
+        let mut state = AppState::new();
+        state.origin = 0xC000;
+
+        // STA $1234 -> 8D 34 12
+        // We want to simulate labels at C001 and C002.
+        // C000: STA ...
+        // C001: (mid)
+        // C002: (mid)
+
+        // Add 3 labels
+        state.labels.insert(0xC000, "aC000".to_string());
+        state.labels.insert(0xC001, "aC001".to_string());
+        state.labels.insert(0xC002, "aC002".to_string());
+
+        // Disassembly line for the STA instruction
+        state.disassembly.push(DisassemblyLine {
+            address: 0xC000,
+            mnemonic: "aC000:".to_string(), // The label line
+            operand: "".to_string(),
+            bytes: vec![],
+            comment: String::new(),
+            opcode: None,
+        });
+
+        state.disassembly.push(DisassemblyLine {
+            address: 0xC000,
+            mnemonic: "STA".to_string(),
+            operand: "$1234".to_string(),
+            bytes: vec![0x8D, 0x34, 0x12],
+            comment: String::new(),
+            opcode: None,
+        });
+
+        // Next instruction using those labels
+        // LDA aC001 -> AD 01 C0
+        state.disassembly.push(DisassemblyLine {
+            address: 0xC003,
+            mnemonic: "LDA".to_string(),
+            operand: "aC001".to_string(),
+            bytes: vec![0xAD, 0x01, 0xC0],
+            comment: String::new(),
+            opcode: None,
+        });
+
+        let file_name = "test_mid_labels.asm";
+        let path = PathBuf::from(file_name);
+
+        // Clean up
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        println!("Content:\n{}", content);
+
+        // Verify output contains the mid-instruction labels
+        assert!(content.contains("aC001 = * + 1"));
+        assert!(content.contains("aC002 = * + 2"));
+
+        // It should look like:
+        // aC000:
+        // aC001 = * + 1
+        // aC002 = * + 2
+        //     STA $1234
+
+        // Cleanup
+        let _ = std::fs::remove_file(&path);
     }
 }
