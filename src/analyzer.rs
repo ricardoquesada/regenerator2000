@@ -474,4 +474,39 @@ mod tests {
         // ZeroPage X -> f30
         assert_eq!(labels.get(&0x0030).map(|l| l.name.as_str()), Some("f30"));
     }
+
+    #[test]
+    fn test_internal_label_priority() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+
+        // Scenario: Internal address $1005 accessed via:
+        // 1. Branch (BNE $1005) -> D0 03 (assuming PC is 1000 + 2 = 1002. 1002+3=1005)
+        // 2. Jump (JMP $1005) -> 4C 05 10
+        // 3. Subroutine (JSR $1005) -> 20 05 10
+        //
+        // Priority should be Subroutine ("s") > Jump ("j") > Branch ("b").
+        // Result should be s1005.
+
+        // $1000: BNE $1005 (D0 03)
+        // $1002: JMP $1005 (4C 05 10)
+        // $1005: JSR $1005 (20 05 10) (recursive call just for usage)
+
+        let data = vec![
+            0xD0, 0x03, // 1000: BNE +3 -> 1005
+            0x4C, 0x05, 0x10, // 1002: JMP $1005
+            0x20, 0x05, 0x10, // 1005: JSR $1005
+        ];
+
+        state.raw_data = data;
+        state.address_types = vec![AddressType::Code; state.raw_data.len()];
+
+        let labels = analyze(&state);
+
+        // Check 1005
+        assert_eq!(labels.get(&0x1005).map(|l| l.name.as_str()), Some("s1005"));
+
+        // Also verify usage map contains all types?
+        // We can't easily check usage map here as it's internal to analyze, but we check the result name.
+    }
 }

@@ -26,10 +26,10 @@ pub enum LabelType {
     AbsoluteAddress = 3,
     Pointer = 4,
     ZeroPagePointer = 5,
-    ExternalJump = 6,
+    Branch = 6,
     Jump = 7,
     Subroutine = 8,
-    Branch = 9,
+    ExternalJump = 9,
     Predefined = 10,
     UserDefined = 11,
 }

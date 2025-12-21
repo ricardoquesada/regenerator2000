@@ -7,22 +7,43 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     // 1. Declare external addresses
     // Find all labels that are technically external addresses (or forced external like 'e' prefix)
     let data_len = state.raw_data.len();
-    let all_externals: Vec<(u16, crate::state::LabelType, &String)> = state
-        .labels
-        .iter()
-        .filter(|(addr, label)| {
-            label.name.starts_with('e') || is_external(**addr, state.origin, data_len)
-        })
-        .map(|(addr, label)| {
-            let label_type = label
-                .names
-                .iter()
-                .find(|(_, name)| *name == &label.name)
-                .map(|(k, _)| *k)
-                .unwrap_or(crate::state::LabelType::UserDefined);
-            (*addr, label_type, &label.name)
-        })
-        .collect();
+    let mut candidates: Vec<(u16, crate::state::LabelType, &String)> = Vec::new();
+
+    for (addr, label) in &state.labels {
+        // If the address is external
+        if is_external(*addr, state.origin, data_len) {
+            // 1. Collect all aliases from the map
+            for (l_type, name) in &label.names {
+                candidates.push((*addr, *l_type, name));
+            }
+
+            // 2. Include the default/primary name if not already in the map
+            // (User defined labels might just have `name` populated)
+            let covered = label.names.values().any(|n| n == &label.name);
+            if !covered {
+                // Determine a fallback type. If it's User, use UserDefined.
+                // Otherwise, it implies an Auto label without a mapping (rare), fallback to UserDefined or Absolute.
+                let l_type = if label.kind == crate::state::LabelKind::User {
+                    crate::state::LabelType::UserDefined
+                } else {
+                    crate::state::LabelType::UserDefined
+                };
+                candidates.push((*addr, l_type, &label.name));
+            }
+        }
+    }
+
+    // Deduplicate by name to prevent multiple definitions
+    let mut seen_names = std::collections::HashSet::new();
+    let mut all_externals = Vec::new();
+
+    for item in candidates {
+        let name = item.2;
+        if !seen_names.contains(name) {
+            seen_names.insert(name);
+            all_externals.push(item);
+        }
+    }
 
     // Grouping
     let mut zp_fields = Vec::new();
@@ -704,6 +725,112 @@ mod tests {
         assert_eq!(lines[idx], "; OTHERS");
         idx += 1;
         assert_eq!(lines[idx], "b5000 = $5000");
+
+        let _ = std::fs::remove_file(&path);
+    }
+    #[test]
+    fn test_export_multi_alias() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        state.raw_data = vec![0xEA];
+
+        // Address $0025 is external (ZP)
+        // It has multiple names: a25 (default), f25 (alias)
+        state.labels.insert(
+            0x0025,
+            crate::state::Label {
+                name: "a25".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                names: std::collections::HashMap::from([
+                    (
+                        crate::state::LabelType::ZeroPageAbsoluteAddress,
+                        "a25".to_string(),
+                    ),
+                    (crate::state::LabelType::ZeroPageField, "f25".to_string()),
+                ]),
+                refs: vec![],
+            },
+        );
+
+        let file_name = "test_export_multi_alias.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        println!("Content:\n{}", content);
+
+        // BOTH should be present
+        assert!(content.contains("a25 = $25"), "Missing a25");
+        assert!(content.contains("f25 = $25"), "Missing f25");
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_external_detection_no_name_check() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        state.raw_data = vec![0xEA]; // Range: 1000-1001
+
+        // Label at internal address 0x1000
+        // Name starts with "e" -> "eUser"
+        // Should NOT be treated as external (because it's internal address).
+
+        state.labels.insert(
+            0x1000,
+            crate::state::Label {
+                name: "eUser".to_string(),
+                kind: crate::state::LabelKind::User,
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::UserDefined,
+                    "eUser".to_string(),
+                )]),
+                refs: vec![],
+            },
+        );
+
+        // Disassembly line for the label
+        state.disassembly.push(DisassemblyLine {
+            address: 0x1000,
+            mnemonic: "eUser:".to_string(),
+            operand: "".to_string(),
+            bytes: vec![],
+            comment: String::new(),
+            label: Some("eUser".to_string()),
+            opcode: None,
+        });
+
+        // Disassembly line for the instruction
+        state.disassembly.push(DisassemblyLine {
+            address: 0x1000,
+            mnemonic: "NOP".to_string(),
+            operand: "".to_string(),
+            bytes: vec![0xEA],
+            comment: String::new(),
+            label: Some("eUser".to_string()),
+            opcode: None,
+        });
+
+        let file_name = "test_external_name_check.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        // Should be defined as label
+        assert!(content.contains("eUser:"));
+        // Should NOT be in external list
+        assert!(!content.contains("eUser = $1000"));
 
         let _ = std::fs::remove_file(&path);
     }
