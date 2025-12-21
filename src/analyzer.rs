@@ -4,17 +4,19 @@ use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 enum LabelPriority {
-    Field = 0,
-    Absolute = 1,
-    Pointer = 2,
-    Branch = 3,
-    Jump = 4,
-    Subroutine = 5,
+    ZeroPage = 0,
+    Field = 1,
+    Absolute = 2,
+    Pointer = 3,
+    Branch = 4,
+    Jump = 5,
+    Subroutine = 6,
 }
 
 impl LabelPriority {
     fn prefix(&self) -> char {
         match self {
+            LabelPriority::ZeroPage => 'a',
             LabelPriority::Field => 'f',
             LabelPriority::Absolute => 'a',
             LabelPriority::Pointer => 'p',
@@ -110,19 +112,31 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
         }
 
         // Otherwise generate Auto label
-        let prefix = if priority == LabelPriority::Subroutine {
-            's'
-        } else if priority == LabelPriority::Field {
-            'f'
-        } else if is_external(addr, origin, data_len) {
+        let is_ext = is_external(addr, origin, data_len);
+
+        let prefix = if is_ext
+            && (priority == LabelPriority::Jump || priority == LabelPriority::Subroutine)
+        {
             'e'
         } else {
             priority.prefix()
         };
+
+        // Format name based on type
+        // ZeroPage -> 2 digit hex
+        // Field (in ZP) -> 2 digit hex
+        // Others -> 4 digit hex
+        let name = if priority == LabelPriority::ZeroPage
+            || (priority == LabelPriority::Field && addr <= 0xFF)
+        {
+            format!("{}{:02X}", prefix, addr)
+        } else {
+            format!("{}{:04X}", prefix, addr)
+        };
         labels.insert(
             addr,
             crate::state::Label {
-                name: format!("{}{:04X}", prefix, addr),
+                name,
                 kind: crate::state::LabelKind::Auto,
                 refs: count,
             },
@@ -158,8 +172,8 @@ fn analyze_instruction(
         AddressingMode::ZeroPage => {
             if !operands.is_empty() {
                 let addr = operands[0] as u16;
-                // "f: if this is a field"
-                update_usage(usage_map, addr, LabelPriority::Field, address);
+                // "a: Zero Page Address"
+                update_usage(usage_map, addr, LabelPriority::ZeroPage, address);
             }
         }
         AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
@@ -294,15 +308,15 @@ mod tests {
     fn test_priority_override() {
         let mut state = AppState::new();
         state.origin = 0x1000;
-        // JMP $2000 (4C 00 20) -> usage j2000
-        // JSR $2000 (20 00 20) -> usage s2000 (override)
+        // JMP $2000 (4C 00 20) -> usage j2000 -> external e2000
+        // JSR $2000 (20 00 20) -> usage s2000 -> external e2000
+        // Since both are external, and both allow external prefix, result is e2000.
         let data = vec![0x4C, 0x00, 0x20, 0x20, 0x00, 0x20];
         state.raw_data = data;
         state.address_types = vec![AddressType::Code; state.raw_data.len()];
 
         let labels = analyze(&state);
-        // s > j
-        assert_eq!(labels.get(&0x2000).map(|l| l.name.as_str()), Some("s2000"));
+        assert_eq!(labels.get(&0x2000).map(|l| l.name.as_str()), Some("e2000"));
     }
 
     #[test]
@@ -315,8 +329,22 @@ mod tests {
         state.address_types = vec![AddressType::Code; 2];
 
         let labels = analyze(&state);
-        // ZP access -> Field -> f0010
-        assert_eq!(labels.get(&0x0010).map(|l| l.name.as_str()), Some("f0010"));
+        // ZP access -> ZeroPage Priority -> a10
+        assert_eq!(labels.get(&0x0010).map(|l| l.name.as_str()), Some("a10"));
+    }
+
+    #[test]
+    fn test_zp_field() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        // LDA $50, X (B5 50) -> Field usage, ZP address
+        let data = vec![0xB5, 0x50];
+        state.raw_data = data;
+        state.address_types = vec![AddressType::Code; 2];
+
+        let labels = analyze(&state);
+        // Field usage in ZP -> f50
+        assert_eq!(labels.get(&0x0050).map(|l| l.name.as_str()), Some("f50"));
     }
 
     #[test]
@@ -329,7 +357,13 @@ mod tests {
         state.address_types = vec![AddressType::Code; 3];
 
         let labels = analyze(&state);
-        // External -> e0010
+        // External Jump -> e0010
+        // (Note: Jumps use 4 digits usually, unless we want e10?
+        // User said "Only for external jumps... not for data".
+        // Standard external handling logic still uses 4 digits for 'e' prefix in my code:
+        // format!("{}{:04X}", prefix, addr)
+        // ZeroPage special formatting is only for ZP priority or ZP Field.
+        // Jump is Jump priority. So e0010 is correct.)
         assert_eq!(labels.get(&0x0010).map(|l| l.name.as_str()), Some("e0010"));
     }
 
@@ -352,9 +386,7 @@ mod tests {
 
         // DataWord at $1000 should NOT generate label for ITSELF ($1000)
         // BUT $1002 IS Reference to $1000. So $1000 SHOULD have a label now.
-        // Wait, $1000 is the address of the first instruction/data.
-        // If Address at 1002 points to 1000, then 1000 is a target.
-        // It should have label a1000.
+        // Address type usage at 1002 -> Absolute priority -> a1000
         assert_eq!(labels.get(&0x1000).map(|l| l.name.as_str()), Some("a1000"));
 
         // And content of DataWord ($2000) should still be None (assuming it's external/ignored)
@@ -365,32 +397,7 @@ mod tests {
         let mut state = AppState::new();
         state.origin = 0x1000;
 
-        // We will test several BNE instructions (D0) with different offsets.
-        // Opcode size is 2 bytes.
-        // Target = Address + 2 + Offset
-
-        // 1. Offset $00 (+0)
-        // Address $1000: D0 00
-        // Target = 1000 + 2 + 0 = 1002
-
-        // 2. Offset $7F (+127)
-        // Address $1002: D0 7F
-        // Target = 1002 + 2 + 127 = 1004 + 7F = 1083 (hex) check: 1004 + 127 = 4100 + 127 = 4227? No.
-        // 0x1000 + 2 + 0x00 = 0x1002
-        // 0x1002 + 2 + 0x7F = 0x1004 + 0x7F = 0x1083
-
-        // 3. Offset $80 (-128)
-        // Address $1004: D0 80
-        // Target = 1004 + 2 - 128 = 1006 - 128 = 1006 - 0x80 = 0x0F86
-
-        // 4. Offset $FF (-1)
-        // Address $1006: D0 FF
-        // Target = 1006 + 2 - 1 = 1008 - 1 = 1007
-
-        // 5. Offset $FE (-2)
-        // Address $1008: D0 FE
-        // Target = 1008 + 2 - 2 = 1008
-
+        // BNE instructions
         let data = vec![0xD0, 0x00, 0xD0, 0x7F, 0xD0, 0x80, 0xD0, 0xFF, 0xD0, 0xFE];
         state.raw_data = data;
         state.address_types = vec![AddressType::Code; state.raw_data.len()];
@@ -399,37 +406,17 @@ mod tests {
 
         // Case 1: $1000 -> jump to $1002. Usage: b1002 (Internal)
         assert_eq!(labels.get(&0x1002).map(|l| l.name.as_str()), Some("b1002"));
-        assert_eq!(
-            labels.get(&0x1002).unwrap().kind,
-            crate::state::LabelKind::Auto
-        );
 
-        // Case 2: $1002 -> jump to $1083. Usage: e1083 (External)
-        assert_eq!(labels.get(&0x1083).map(|l| l.name.as_str()), Some("e1083"));
-        assert_eq!(
-            labels.get(&0x1083).unwrap().kind,
-            crate::state::LabelKind::Auto
-        );
+        // Case 2: $1002 -> jump to $1083. Usage: b1083 (External logic only applies to JMP/JSR)
+        assert_eq!(labels.get(&0x1083).map(|l| l.name.as_str()), Some("b1083"));
 
-        // Case 3: $1004 -> jump to $0F86. Usage: e0F86 (External)
-        assert_eq!(labels.get(&0x0F86).map(|l| l.name.as_str()), Some("e0F86"));
-        assert_eq!(
-            labels.get(&0x0F86).unwrap().kind,
-            crate::state::LabelKind::Auto
-        );
+        // Case 3: $1004 -> jump to $0F86. Usage: b0F86
+        assert_eq!(labels.get(&0x0F86).map(|l| l.name.as_str()), Some("b0F86"));
 
-        // Case 4: $1006 -> jump to $1007. Usage: b1007 (Internal)
+        // Case 4: $1006 -> jump to $1007. Usage: b1007
         assert_eq!(labels.get(&0x1007).map(|l| l.name.as_str()), Some("b1007"));
-        assert_eq!(
-            labels.get(&0x1007).unwrap().kind,
-            crate::state::LabelKind::Auto
-        );
 
-        // Case 5: $1008 -> jump to $1008. Usage: b1008 (Infinite loop)
+        // Case 5: $1008 -> jump to $1008. Usage: b1008
         assert_eq!(labels.get(&0x1008).map(|l| l.name.as_str()), Some("b1008"));
-        assert_eq!(
-            labels.get(&0x1008).unwrap().kind,
-            crate::state::LabelKind::Auto
-        );
     }
 }

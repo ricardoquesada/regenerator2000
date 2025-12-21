@@ -5,11 +5,14 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let mut output = String::new();
 
     // 1. Declare external addresses
-    // Find all labels starting with 'e'
+    // Find all labels starting with 'e' OR that are technically external addresses
+    let data_len = state.raw_data.len();
     let mut externals: Vec<(u16, &String)> = state
         .labels
         .iter()
-        .filter(|(_, label)| label.name.starts_with('e'))
+        .filter(|(addr, label)| {
+            label.name.starts_with('e') || is_external(**addr, state.origin, data_len)
+        })
         .map(|(k, v)| (*k, &v.name))
         .collect();
     externals.sort_by_key(|(k, _)| *k);
@@ -59,6 +62,16 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     }
 
     std::fs::write(path, output)
+}
+
+fn is_external(addr: u16, origin: u16, len: usize) -> bool {
+    let end = origin.wrapping_add(len as u16);
+    if origin < end {
+        addr < origin || addr >= end
+    } else {
+        // Wrap around case
+        !(addr >= origin || addr < end)
+    }
 }
 #[cfg(test)]
 mod tests {
@@ -319,6 +332,65 @@ mod tests {
         assert!(content.contains("; x-ref: 2000, 3000"));
         // Check for correct separation (at least 20 spaces)
         assert!(content.contains("                    ; x-ref"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_export_external_fields() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        // 1 byte of data: 1000
+        state.raw_data = vec![0x00];
+
+        // Define labels that are external:
+        // $0002 -> f0002 (Field)
+        // $FFD2 -> sFFD2 (Subroutine)
+        // Analyzer might produce these.
+
+        state.labels.insert(
+            0x0002,
+            crate::state::Label {
+                name: "f0002".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                refs: vec![],
+            },
+        );
+        state.labels.insert(
+            0xFFD2,
+            crate::state::Label {
+                name: "sFFD2".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                refs: vec![],
+            },
+        );
+
+        // Disassembly: invalid but unimportant for this test
+        state.disassembly.push(DisassemblyLine {
+            address: 0x1000,
+            mnemonic: "NOP".to_string(),
+            operand: "".to_string(),
+            bytes: vec![0xEA],
+            comment: String::new(),
+            label: None,
+            opcode: None,
+        });
+
+        let file_name = "test_external_fields.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        println!("Content:\n{}", content);
+
+        // These assertions should currently FAIL because they don't start with 'e'
+        assert!(content.contains("f0002 = $0002"));
+        assert!(content.contains("sFFD2 = $FFD2"));
 
         let _ = std::fs::remove_file(&path);
     }
