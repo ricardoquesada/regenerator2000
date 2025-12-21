@@ -308,4 +308,56 @@ mod tests {
         // DataPtr at $1002 used to generate label p1002. Now it SHOULD NOT.
         assert_eq!(labels.get(&0x1002), None);
     }
+    #[test]
+    fn test_branch_offsets() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+
+        // We will test several BNE instructions (D0) with different offsets.
+        // Opcode size is 2 bytes.
+        // Target = Address + 2 + Offset
+
+        // 1. Offset $00 (+0)
+        // Address $1000: D0 00
+        // Target = 1000 + 2 + 0 = 1002
+
+        // 2. Offset $7F (+127)
+        // Address $1002: D0 7F
+        // Target = 1002 + 2 + 127 = 1004 + 7F = 1083 (hex) check: 1004 + 127 = 4100 + 127 = 4227? No.
+        // 0x1000 + 2 + 0x00 = 0x1002
+        // 0x1002 + 2 + 0x7F = 0x1004 + 0x7F = 0x1083
+
+        // 3. Offset $80 (-128)
+        // Address $1004: D0 80
+        // Target = 1004 + 2 - 128 = 1006 - 128 = 1006 - 0x80 = 0x0F86
+
+        // 4. Offset $FF (-1)
+        // Address $1006: D0 FF
+        // Target = 1006 + 2 - 1 = 1008 - 1 = 1007
+
+        // 5. Offset $FE (-2)
+        // Address $1008: D0 FE
+        // Target = 1008 + 2 - 2 = 1008
+
+        let data = vec![0xD0, 0x00, 0xD0, 0x7F, 0xD0, 0x80, 0xD0, 0xFF, 0xD0, 0xFE];
+        state.raw_data = data;
+        state.address_types = vec![AddressType::Code; state.raw_data.len()];
+
+        let labels = analyze(&state);
+
+        // Case 1: $1000 -> jump to $1002. Usage: b1002 (Internal)
+        assert_eq!(labels.get(&0x1002), Some(&"b1002".to_string()));
+
+        // Case 2: $1002 -> jump to $1083. Usage: e1083 (External)
+        assert_eq!(labels.get(&0x1083), Some(&"e1083".to_string()));
+
+        // Case 3: $1004 -> jump to $0F86. Usage: e0F86 (External)
+        assert_eq!(labels.get(&0x0F86), Some(&"e0F86".to_string()));
+
+        // Case 4: $1006 -> jump to $1007. Usage: b1007 (Internal)
+        assert_eq!(labels.get(&0x1007), Some(&"b1007".to_string()));
+
+        // Case 5: $1008 -> jump to $1008. Usage: b1008 (Infinite loop)
+        assert_eq!(labels.get(&0x1008), Some(&"b1008".to_string()));
+    }
 }
