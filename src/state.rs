@@ -185,6 +185,8 @@ pub struct AppState {
     pub scroll_index: usize,
     pub should_quit: bool,
     pub status_message: String,
+
+    pub undo_stack: crate::commands::UndoStack,
 }
 
 impl AppState {
@@ -210,6 +212,7 @@ impl AppState {
             scroll_index: 0,
             should_quit: false,
             status_message: "Ready".to_string(),
+            undo_stack: crate::commands::UndoStack::new(),
         }
     }
 
@@ -240,6 +243,7 @@ impl AppState {
         }
 
         self.address_types = vec![AddressType::Code; self.raw_data.len()];
+        self.undo_stack = crate::commands::UndoStack::new();
 
         self.disassemble();
         self.disassemble();
@@ -259,6 +263,7 @@ impl AppState {
         // Expand address types
         self.address_types = expand_address_ranges(&project.address_ranges, self.raw_data.len());
         self.labels = project.labels;
+        self.undo_stack = crate::commands::UndoStack::new();
 
         self.disassemble();
         Ok(())

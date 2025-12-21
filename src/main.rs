@@ -1,3 +1,4 @@
+mod commands;
 mod cpu;
 mod disassembler;
 mod events;

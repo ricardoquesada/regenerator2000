@@ -117,7 +117,17 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
 
                             if label_name.is_empty() {
                                 // Remove label
-                                state.labels.remove(&address);
+                                let old_label = state.labels.get(&address).cloned();
+
+                                let command = crate::commands::Command::SetLabel {
+                                    address,
+                                    new_label: None,
+                                    old_label,
+                                };
+
+                                command.apply(&mut state);
+                                state.undo_stack.push(command);
+
                                 state.status_message = "Label removed".to_string();
                                 state.disassemble();
                                 state.label_dialog.close();
@@ -133,7 +143,17 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                                         format!("Error: Label '{}' already exists", label_name);
                                     // Do not close dialog, let user correct it
                                 } else {
-                                    state.labels.insert(address, label_name);
+                                    let old_label = state.labels.get(&address).cloned();
+
+                                    let command = crate::commands::Command::SetLabel {
+                                        address,
+                                        new_label: Some(label_name),
+                                        old_label,
+                                    };
+
+                                    command.apply(&mut state);
+                                    state.undo_stack.push(command);
+
                                     state.status_message = "Label set".to_string();
                                     state.disassemble();
                                     state.label_dialog.close();
@@ -419,10 +439,25 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
             // Boundary check
             let max_len = state.address_types.len();
             if start < max_len {
-                let valid_end = end.min(max_len - 1);
-                for i in start..=valid_end {
-                    state.address_types[i] = new_type;
-                }
+                let valid_end = end.min(max_len);
+                // Note: valid_end is inclusive in previous code, but Command expects Range (exclusive end)
+                // Wait, previous code: for i in start..=valid_end
+                // So range is start..(valid_end + 1)
+
+                let range_end = valid_end + 1;
+                let range = start..range_end;
+
+                let old_types = state.address_types[range.clone()].to_vec();
+
+                let command = crate::commands::Command::SetAddressType {
+                    range: range.clone(),
+                    new_type,
+                    old_types,
+                };
+
+                command.apply(state);
+                state.undo_stack.push(command);
+
                 // Clear selection after action
                 state.selection_start = None;
                 state.disassemble();
@@ -455,8 +490,26 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
             state.save_dialog.open();
             state.status_message = "Enter filename".to_string();
         }
-        "Undo" => {}
-        "Redo" => {}
+        "Undo" => {
+            let mut stack =
+                std::mem::replace(&mut state.undo_stack, crate::commands::UndoStack::new());
+            if let Some(msg) = stack.undo(state) {
+                state.status_message = msg;
+            } else {
+                state.status_message = "Nothing to undo".to_string();
+            }
+            state.undo_stack = stack;
+        }
+        "Redo" => {
+            let mut stack =
+                std::mem::replace(&mut state.undo_stack, crate::commands::UndoStack::new());
+            if let Some(msg) = stack.redo(state) {
+                state.status_message = msg;
+            } else {
+                state.status_message = "Nothing to redo".to_string();
+            }
+            state.undo_stack = stack;
+        }
         "Zoom In" => {}
         "Zoom Out" => {}
         "Reset Zoom" => {}
