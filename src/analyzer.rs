@@ -86,9 +86,6 @@ pub fn analyze(state: &AppState) -> HashMap<u16, String> {
             // "p: if this is a pointer" -> This address holds a pointer.
 
             if current_type == AddressType::DataPtr {
-                // The address ITSELF is a pointer.
-                let addr = origin.wrapping_add(pc as u16);
-                update_usage(&mut usage_map, addr, LabelPriority::Pointer);
                 pc += 2; // words
             } else if current_type == AddressType::DataWord {
                 pc += 2;
@@ -284,5 +281,31 @@ mod tests {
         let labels = analyze(&state);
         // External -> e0010
         assert_eq!(labels.get(&0x0010), Some(&"e0010".to_string()));
+    }
+
+    #[test]
+    fn test_data_word_vs_ptr() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        // $1000: DataWord ($2000) -> 00 20
+        // $1002: DataPtr ($3000) -> 00 30
+        let data = vec![0x00, 0x20, 0x00, 0x30];
+        state.raw_data = data;
+        state.address_types = vec![
+            AddressType::DataWord,
+            AddressType::DataWord,
+            AddressType::DataPtr,
+            AddressType::DataPtr,
+        ];
+
+        let labels = analyze(&state);
+
+        // DataWord at $1000 should NOT generate label for ITSELF ($1000)
+        assert_eq!(labels.get(&0x1000), None);
+        // And NOT for its content ($2000)
+        assert_eq!(labels.get(&0x2000), None);
+
+        // DataPtr at $1002 used to generate label p1002. Now it SHOULD NOT.
+        assert_eq!(labels.get(&0x1002), None);
     }
 }
