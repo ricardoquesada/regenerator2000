@@ -1,0 +1,321 @@
+use ratatui::widgets::ListState;
+use std::path::PathBuf;
+
+pub struct FilePickerState {
+    pub active: bool,
+    pub current_dir: PathBuf,
+    pub files: Vec<PathBuf>,
+    pub selected_index: usize,
+    pub filter_extensions: Vec<String>,
+}
+
+impl FilePickerState {
+    pub fn new() -> Self {
+        let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        Self {
+            active: false,
+            current_dir,
+            files: Vec::new(),
+            selected_index: 0,
+            filter_extensions: vec![
+                "bin".to_string(),
+                "prg".to_string(),
+                "raw".to_string(),
+                "json".to_string(),
+            ],
+        }
+    }
+
+    pub fn open(&mut self) {
+        self.active = true;
+        self.refresh_files();
+        self.selected_index = 0;
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+    }
+
+    pub fn refresh_files(&mut self) {
+        self.files = crate::utils::list_files(&self.current_dir, &self.filter_extensions);
+    }
+
+    pub fn next(&mut self) {
+        if !self.files.is_empty() {
+            self.selected_index = (self.selected_index + 1) % self.files.len();
+        }
+    }
+
+    pub fn previous(&mut self) {
+        if !self.files.is_empty() {
+            if self.selected_index == 0 {
+                self.selected_index = self.files.len() - 1;
+            } else {
+                self.selected_index -= 1;
+            }
+        }
+    }
+}
+
+pub struct JumpDialogState {
+    pub active: bool,
+    pub input: String,
+}
+
+impl JumpDialogState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            input: String::new(),
+        }
+    }
+
+    pub fn open(&mut self) {
+        self.active = true;
+        self.input.clear();
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+        self.input.clear();
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum SaveDialogMode {
+    Project,
+    ExportAsm,
+}
+
+pub struct SaveDialogState {
+    pub active: bool,
+    pub input: String,
+    pub mode: SaveDialogMode,
+}
+
+impl SaveDialogState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            input: String::new(),
+            mode: SaveDialogMode::Project,
+        }
+    }
+
+    pub fn open(&mut self, mode: SaveDialogMode) {
+        self.active = true;
+        self.input.clear();
+        self.mode = mode;
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+        self.input.clear();
+    }
+}
+
+pub struct LabelDialogState {
+    pub active: bool,
+    pub input: String,
+}
+
+impl LabelDialogState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            input: String::new(),
+        }
+    }
+
+    pub fn open(&mut self, current_label: Option<&str>) {
+        self.active = true;
+        self.input = current_label.unwrap_or("").to_string();
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+        self.input.clear();
+    }
+}
+
+pub struct MenuState {
+    pub active: bool,
+    pub categories: Vec<MenuCategory>,
+    pub selected_category: usize,
+    pub selected_item: Option<usize>,
+}
+
+impl MenuState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            categories: vec![
+                MenuCategory {
+                    name: "File".to_string(),
+                    items: vec![
+                        MenuItem::new("New", Some("Ctrl+N")),
+                        MenuItem::new("Open", Some("Ctrl+O")),
+                        MenuItem::new("Save", Some("Ctrl+S")),
+                        MenuItem::new("Save As", Some("Ctrl+Shift+S")),
+                        MenuItem::new("Export ASM", None),
+                        MenuItem::separator(),
+                        MenuItem::new("Exit", Some("Ctrl+Q")),
+                    ],
+                },
+                MenuCategory {
+                    name: "Edit".to_string(),
+                    items: vec![
+                        MenuItem::new("Undo", Some("U")),
+                        MenuItem::new("Redo", Some("Ctrl+R")),
+                        MenuItem::separator(),
+                        MenuItem::new("Code", Some("C")),
+                        MenuItem::new("Byte", Some("B")),
+                        MenuItem::new("Word", Some("W")),
+                        MenuItem::new("Address", Some("A")),
+                    ],
+                },
+                MenuCategory {
+                    name: "View".to_string(),
+                    items: vec![
+                        MenuItem::new("Zoom In", Some("Ctrl++")),
+                        MenuItem::new("Zoom Out", Some("Ctrl+-")),
+                        MenuItem::new("Reset Zoom", Some("Ctrl+0")),
+                    ],
+                },
+                MenuCategory {
+                    name: "Jump".to_string(),
+                    items: vec![
+                        MenuItem::new("Jump to address", Some("G")),
+                        MenuItem::new("Jump to operand", Some("Enter")),
+                    ],
+                },
+                MenuCategory {
+                    name: "Tools".to_string(),
+                    items: vec![MenuItem::new("Analyze", None)],
+                },
+            ],
+            selected_category: 0,
+            selected_item: None,
+        }
+    }
+
+    pub fn next_category(&mut self) {
+        self.selected_category = (self.selected_category + 1) % self.categories.len();
+        // If we are active, select the first non-separator item
+        if self.active {
+            self.selected_item = Some(0);
+        }
+    }
+
+    pub fn previous_category(&mut self) {
+        if self.selected_category == 0 {
+            self.selected_category = self.categories.len() - 1;
+        } else {
+            self.selected_category -= 1;
+        }
+        if self.active {
+            self.selected_item = Some(0);
+        }
+    }
+
+    pub fn next_item(&mut self) {
+        let count = self.categories[self.selected_category].items.len();
+        let current = self.selected_item.unwrap_or(0);
+        let mut next = (current + 1) % count;
+
+        // Skip separators
+        while self.categories[self.selected_category].items[next].is_separator {
+            next = (next + 1) % count;
+            if next == current {
+                break;
+            } // Avoid infinite loop if all separators (unlikely)
+        }
+
+        self.selected_item = Some(next);
+    }
+
+    pub fn previous_item(&mut self) {
+        let count = self.categories[self.selected_category].items.len();
+        let current = self.selected_item.unwrap_or(0);
+
+        let mut prev = if current == 0 { count - 1 } else { current - 1 };
+
+        // Skip separators
+        while self.categories[self.selected_category].items[prev].is_separator {
+            prev = if prev == 0 { count - 1 } else { prev - 1 };
+            if prev == current {
+                break;
+            }
+        }
+
+        self.selected_item = Some(prev);
+    }
+}
+
+pub struct MenuCategory {
+    pub name: String,
+    pub items: Vec<MenuItem>,
+}
+
+#[derive(Clone)]
+pub struct MenuItem {
+    pub name: String,
+    pub shortcut: Option<String>,
+    pub is_separator: bool,
+}
+
+impl MenuItem {
+    pub fn new(name: &str, shortcut: Option<&str>) -> Self {
+        Self {
+            name: name.to_string(),
+            shortcut: shortcut.map(|s| s.to_string()),
+            is_separator: false,
+        }
+    }
+
+    pub fn separator() -> Self {
+        Self {
+            name: String::new(),
+            shortcut: None,
+            is_separator: true,
+        }
+    }
+}
+
+pub struct UIState {
+    pub file_picker: FilePickerState,
+    pub jump_dialog: JumpDialogState,
+    pub save_dialog: SaveDialogState,
+    pub label_dialog: LabelDialogState,
+    pub menu: MenuState,
+
+    pub navigation_history: Vec<usize>,
+    pub disassembly_state: ListState,
+
+    // UI Selection/Cursor
+    pub selection_start: Option<usize>,
+    pub cursor_index: usize,
+    #[allow(dead_code)]
+    pub scroll_index: usize,
+    pub should_quit: bool,
+    pub status_message: String,
+}
+
+impl UIState {
+    pub fn new() -> Self {
+        Self {
+            file_picker: FilePickerState::new(),
+            jump_dialog: JumpDialogState::new(),
+            save_dialog: SaveDialogState::new(),
+            label_dialog: LabelDialogState::new(),
+            menu: MenuState::new(),
+            navigation_history: Vec::new(),
+            disassembly_state: ListState::default(),
+            selection_start: None,
+            cursor_index: 0,
+            scroll_index: 0,
+            should_quit: false,
+            status_message: "Ready".to_string(),
+        }
+    }
+}

@@ -1,4 +1,5 @@
 use crate::state::AppState;
+use crate::ui_state::UIState;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -7,7 +8,7 @@ use ratatui::{
     Frame,
 };
 
-pub fn ui(f: &mut Frame, state: &mut AppState) {
+pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -17,33 +18,33 @@ pub fn ui(f: &mut Frame, state: &mut AppState) {
         ])
         .split(f.area());
 
-    render_menu(f, chunks[0], &state.menu);
-    render_main_view(f, chunks[1], state);
-    render_status_bar(f, chunks[2], state);
+    render_menu(f, chunks[0], &ui_state.menu);
+    render_main_view(f, chunks[1], app_state, ui_state);
+    render_status_bar(f, chunks[2], app_state, ui_state);
 
     // Render Popup if needed
-    if state.menu.active && state.menu.selected_item.is_some() {
-        render_menu_popup(f, chunks[0], &state.menu);
+    if ui_state.menu.active && ui_state.menu.selected_item.is_some() {
+        render_menu_popup(f, chunks[0], &ui_state.menu);
     }
 
-    if state.file_picker.active {
-        render_file_picker(f, f.area(), &state.file_picker);
+    if ui_state.file_picker.active {
+        render_file_picker(f, f.area(), &ui_state.file_picker);
     }
 
-    if state.jump_dialog.active {
-        render_jump_dialog(f, f.area(), &state.jump_dialog);
+    if ui_state.jump_dialog.active {
+        render_jump_dialog(f, f.area(), &ui_state.jump_dialog);
     }
 
-    if state.save_dialog.active {
-        render_save_dialog(f, f.area(), &state.save_dialog);
+    if ui_state.save_dialog.active {
+        render_save_dialog(f, f.area(), &ui_state.save_dialog);
     }
 
-    if state.label_dialog.active {
-        render_label_dialog(f, f.area(), &state.label_dialog);
+    if ui_state.label_dialog.active {
+        render_label_dialog(f, f.area(), &ui_state.label_dialog);
     }
 }
 
-fn render_label_dialog(f: &mut Frame, area: Rect, dialog: &crate::state::LabelDialogState) {
+fn render_label_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::LabelDialogState) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Enter Label Name ")
@@ -60,7 +61,7 @@ fn render_label_dialog(f: &mut Frame, area: Rect, dialog: &crate::state::LabelDi
     f.render_widget(input, area);
 }
 
-fn render_save_dialog(f: &mut Frame, area: Rect, dialog: &crate::state::SaveDialogState) {
+fn render_save_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::SaveDialogState) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Save Project As... ")
@@ -77,7 +78,7 @@ fn render_save_dialog(f: &mut Frame, area: Rect, dialog: &crate::state::SaveDial
     f.render_widget(input, area);
 }
 
-fn render_jump_dialog(f: &mut Frame, area: Rect, dialog: &crate::state::JumpDialogState) {
+fn render_jump_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::JumpDialogState) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Jump to Address (Hex) ")
@@ -94,7 +95,7 @@ fn render_jump_dialog(f: &mut Frame, area: Rect, dialog: &crate::state::JumpDial
     f.render_widget(input, area);
 }
 
-fn render_file_picker(f: &mut Frame, area: Rect, picker: &crate::state::FilePickerState) {
+fn render_file_picker(f: &mut Frame, area: Rect, picker: &crate::ui_state::FilePickerState) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Open File (Space to Open, Backspace to Go Back, Esc to Cancel) ")
@@ -154,7 +155,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-fn render_menu(f: &mut Frame, area: Rect, menu_state: &crate::state::MenuState) {
+fn render_menu(f: &mut Frame, area: Rect, menu_state: &crate::ui_state::MenuState) {
     let mut spans = Vec::new();
 
     for (i, category) in menu_state.categories.iter().enumerate() {
@@ -173,7 +174,7 @@ fn render_menu(f: &mut Frame, area: Rect, menu_state: &crate::state::MenuState) 
     f.render_widget(menu_bar, area);
 }
 
-fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::state::MenuState) {
+fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::ui_state::MenuState) {
     // Calculate position based on selected category
     // This is a bit hacky without exact text width calculation, but we can estimate.
     let mut x_offset = 0;
@@ -243,24 +244,24 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::state::M
     f.render_widget(list, area);
 }
 
-fn render_main_view(f: &mut Frame, area: Rect, state: &mut AppState) {
-    let items: Vec<ListItem> = state
+fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
+    let items: Vec<ListItem> = app_state
         .disassembly
         .iter()
         .enumerate()
         .map(|(i, line)| {
-            let is_selected = if let Some(selection_start) = state.selection_start {
-                let (start, end) = if selection_start < state.cursor_index {
-                    (selection_start, state.cursor_index)
+            let is_selected = if let Some(selection_start) = ui_state.selection_start {
+                let (start, end) = if selection_start < ui_state.cursor_index {
+                    (selection_start, ui_state.cursor_index)
                 } else {
-                    (state.cursor_index, selection_start)
+                    (ui_state.cursor_index, selection_start)
                 };
                 i >= start && i <= end
             } else {
                 false
             };
 
-            let style = if i == state.cursor_index {
+            let style = if i == ui_state.cursor_index {
                 Style::default().bg(Color::Cyan).fg(Color::Black)
             } else if is_selected {
                 Style::default().bg(Color::DarkGray).fg(Color::White)
@@ -343,27 +344,29 @@ fn render_main_view(f: &mut Frame, area: Rect, state: &mut AppState) {
 
     // We need to manage the ListState in AppState or here.
     // If we use `cursor_index` as the selected item.
-    state.disassembly_state.select(Some(state.cursor_index));
+    ui_state
+        .disassembly_state
+        .select(Some(ui_state.cursor_index));
 
-    f.render_stateful_widget(list, area, &mut state.disassembly_state);
+    f.render_stateful_widget(list, area, &mut ui_state.disassembly_state);
 }
 
-fn render_status_bar(f: &mut Frame, area: Rect, state: &AppState) {
+fn render_status_bar(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &UIState) {
     let status = format!(
         " Cursor: {:04X} | Origin: {:04X} | File: {:?}{}",
-        state
+        app_state
             .disassembly
-            .get(state.cursor_index)
+            .get(ui_state.cursor_index)
             .map(|l| l.address)
             .unwrap_or(0),
-        state.origin,
-        state
+        app_state.origin,
+        app_state
             .file_path
             .as_ref()
             .map(|p| p.file_name().unwrap_or_default())
             .unwrap_or_default(),
-        if let Some(start) = state.selection_start {
-            let count = (state.cursor_index as isize - start as isize).abs() + 1;
+        if let Some(start) = ui_state.selection_start {
+            let count = (ui_state.cursor_index as isize - start as isize).abs() + 1;
             format!(" | Selected: {} lines", count)
         } else {
             "".to_string()

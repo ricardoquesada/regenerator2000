@@ -6,6 +6,7 @@ mod events;
 mod exporter;
 mod state;
 mod ui;
+mod ui_state;
 mod utils;
 
 use anyhow::Result;
@@ -17,6 +18,7 @@ use crossterm::{
 use ratatui::{backend::CrosstermBackend, Terminal};
 use state::AppState;
 use std::io;
+use ui_state::UIState;
 
 fn main() -> Result<()> {
     // Setup terminal
@@ -26,25 +28,23 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // Create AppState
+    // Create States
     let mut app_state = AppState::new();
+    let mut ui_state = UIState::new();
 
-    // For now, load some dummy or user can load via cli args later.
-    // Ideally we parse CLI args here.
-    // Let's check args
+    // Check args
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {
         let path = std::path::PathBuf::from(&args[1]);
         if let Err(e) = app_state.load_file(path) {
             eprintln!("Error loading file: {}", e);
-            // We might want to show this in UI, but for now just log it or fail?
-            // Let's just start empty if fail, or panic?
-            // Better to let the UI show empty state.
+            // In a real app we might want to show this in the UI
+            ui_state.status_message = format!("Error loading file: {}", e);
         }
     }
 
     // Run app
-    let res = events::run_app(&mut terminal, app_state);
+    let res = events::run_app(&mut terminal, app_state, ui_state);
 
     // Restore terminal
     disable_raw_mode()?;

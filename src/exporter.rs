@@ -142,7 +142,22 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         let line_out = if line.mnemonic == ".BYTE" || line.mnemonic == ".WORD" {
             format!("    {} {}", line.mnemonic, line.operand)
         } else {
-            format!("    {} {}", line.mnemonic, line.operand)
+            let mut operand = line.operand.clone();
+            if let Some(opcode) = &line.opcode {
+                match opcode.mode {
+                    crate::cpu::AddressingMode::Absolute
+                    | crate::cpu::AddressingMode::AbsoluteX
+                    | crate::cpu::AddressingMode::AbsoluteY => {
+                        // Check if it targets Zero Page (High byte is 0x00)
+                        // Absolute instructions are 3 bytes: Opcode, Low, High
+                        if line.bytes.len() >= 3 && line.bytes[2] == 0x00 {
+                            operand = format!("@w {}", operand);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            format!("    {} {}", line.mnemonic, operand)
         };
 
         if !line.comment.is_empty() {
@@ -831,6 +846,98 @@ mod tests {
         assert!(content.contains("eUser:"));
         // Should NOT be in external list
         assert!(!content.contains("eUser = $1000"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_export_absolute_zp_forcing() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+
+        // AD 12 00: LDA $0012 (Absolute) targeting ZP
+        // BD 12 00: LDA $0012,X (Absolute X) targeting ZP
+        // 4C 12 00: JMP $0012 (Absolute) targeting ZP - JMP is always absolute, check if 64tass needs forcing.
+        // Actually JMP (abs) is 4C. JMP (indirect) is 6C. There is no JMP ZP.
+        // So JMP $0012 is 4C 12 00. 64tass doesn't optimize JMP to ZP because JMP ZP doesn't exist.
+        // So we only care about instructions that HAVE a ZP equivalent (LDA, STA, ADC, etc).
+        // Opcode AD is LDA Absolute. Opcode A5 is LDA ZP.
+
+        let data = vec![
+            0xAD, 0x12, 0x00, // LDA $0012 (Absolute)
+            0xBD, 0x12, 0x00, // LDA $0012,X (Absolute,X)
+        ];
+        state.raw_data = data.clone();
+        state.address_types = vec![crate::state::AddressType::Code; data.len()];
+
+        // Disassemble to populate state.disassembly
+        // We need to manually populate disassembly or call disassemble.
+        // Since we are mocking, let's just push lines as if disassembler did it correctly.
+        // Disassembler SHOULD preserve the opcode information which acts as the source of truth for "Original addressing mode".
+
+        // Note: The exporter relies on `line.opcode` to know it was Absolute.
+
+        use crate::cpu::AddressingMode;
+        use crate::cpu::Opcode;
+
+        // Line 1: LDA $0012 (Absolute)
+        state.disassembly.push(DisassemblyLine {
+            address: 0x1000,
+            mnemonic: "LDA".to_string(),
+            operand: "$0012".to_string(),
+            bytes: vec![0xAD, 0x12, 0x00],
+            comment: String::new(),
+            label: None,
+            opcode: Some(Opcode::new(
+                "LDA",
+                AddressingMode::Absolute,
+                3,
+                4,
+                "Load Accumulator",
+            )),
+        });
+
+        // Line 2: LDA $0012,X (Absolute X)
+        state.disassembly.push(DisassemblyLine {
+            address: 0x1003,
+            mnemonic: "LDA".to_string(),
+            operand: "$0012,X".to_string(),
+            bytes: vec![0xBD, 0x12, 0x00],
+            comment: String::new(),
+            label: None,
+            opcode: Some(Opcode::new(
+                "LDA",
+                AddressingMode::AbsoluteX,
+                3,
+                4,
+                "Load Accumulator",
+            )),
+        });
+
+        let file_name = "test_export_force_zp.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        println!("Content:\n{}", content);
+
+        // We expect prefix "@w" because it is Absolute addressing but address <= 0xFF.
+        // 64tass requires this to NOT optimize it to ZP.
+        assert!(
+            content.contains("LDA @w $0012"),
+            "Output missing @w prefix for Absolute ZP target. content: {}",
+            content
+        );
+        assert!(
+            content.contains("LDA @w $0012,X"),
+            "Output missing @w prefix for AbsoluteX ZP target. content: {}",
+            content
+        );
 
         let _ = std::fs::remove_file(&path);
     }
