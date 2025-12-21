@@ -230,6 +230,7 @@ mod tests {
         let label = crate::state::Label {
             name: "Start".to_string(),
             kind: crate::state::LabelKind::User,
+            names: std::collections::HashMap::new(),
             refs: Vec::new(),
         };
         let command = Command::SetLabel {

@@ -18,9 +18,42 @@ pub enum LabelKind {
     Auto,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub enum LabelType {
+    ZeroPage = 0,
+    Field = 1, // Field in ZeroPage
+    Absolute = 2,
+    AbsoluteField = 3,
+    Pointer = 4,
+    ZeroPagePointer = 5,
+    Branch = 6,
+    Jump = 7,
+    Subroutine = 8,
+    // External types... handled by logic, but maybe we want explicit type?
+    // The current logic in analyzer uses (Priority, Vec<u16>)
+}
+
+impl LabelType {
+    pub fn prefix(&self) -> char {
+        match self {
+            LabelType::ZeroPage => 'a',
+            LabelType::Field => 'f',
+            LabelType::Absolute => 'a',
+            LabelType::AbsoluteField => 'f',
+            LabelType::Pointer => 'p',
+            LabelType::ZeroPagePointer => 'p',
+            LabelType::Branch => 'b',
+            LabelType::Jump => 'j',
+            LabelType::Subroutine => 's',
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Label {
     pub name: String,
+    #[serde(default)]
+    pub names: HashMap<LabelType, String>,
     pub kind: LabelKind,
     pub refs: Vec<u16>,
 }

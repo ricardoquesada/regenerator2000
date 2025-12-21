@@ -2,33 +2,14 @@ use crate::cpu::{AddressingMode, Opcode};
 use crate::state::{AddressType, AppState};
 use std::collections::HashMap;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-enum LabelPriority {
-    ZeroPage = 0,
-    Field = 1,
-    Absolute = 2,
-    Pointer = 3,
-    Branch = 4,
-    Jump = 5,
-    Subroutine = 6,
-}
-
-impl LabelPriority {
-    fn prefix(&self) -> char {
-        match self {
-            LabelPriority::ZeroPage => 'a',
-            LabelPriority::Field => 'f',
-            LabelPriority::Absolute => 'a',
-            LabelPriority::Pointer => 'p',
-            LabelPriority::Branch => 'b',
-            LabelPriority::Jump => 'j',
-            LabelPriority::Subroutine => 's',
-        }
-    }
-}
+use crate::state::LabelType;
 
 pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
-    let mut usage_map: HashMap<u16, (LabelPriority, Vec<u16>)> = HashMap::new();
+    // We want to track ALL usages, illegal or not, and then pick the best ones.
+    // Map: Address -> Set of used LabelTypes
+    // We also need ref counts.
+    // Map: Address -> (HashMap<LabelType, usize>, Vec<u16>)
+    let mut usage_map: HashMap<u16, (HashMap<LabelType, usize>, Vec<u16>)> = HashMap::new();
     let mut pc = 0;
     let data_len = state.raw_data.len();
     let origin = state.origin;
@@ -76,7 +57,7 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
                     update_usage(
                         &mut usage_map,
                         val,
-                        LabelPriority::Absolute,
+                        LabelType::Absolute,
                         origin.wrapping_add(pc as u16),
                     );
                     pc += 2;
@@ -95,7 +76,7 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
     let mut labels = HashMap::new();
 
     // 1. Process all used addresses
-    for (addr, (priority, count)) in usage_map {
+    for (addr, (types_map, refs)) in usage_map {
         // Check if there is an existing User label
         if let Some(existing) = state.labels.get(&addr) {
             if existing.kind == crate::state::LabelKind::User {
@@ -103,6 +84,9 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
                     addr,
                     crate::state::Label {
                         name: existing.name.clone(),
+                        names: existing.names.clone(), // Preserve existing context names if any (or should we overwrite auto ones?)
+                        // If it is user label, we trust the user. But ideally we might want to Add new auto-detected context names if they are missing?
+                        // For now, let's just preserve.
                         kind: crate::state::LabelKind::User,
                         refs: existing.refs.clone(),
                     },
@@ -111,45 +95,66 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
             }
         }
 
-        // Otherwise generate Auto label
+        // Generate Auto label
         let is_ext = is_external(addr, origin, data_len);
 
-        let prefix = if is_ext
-            && (priority == LabelPriority::Jump || priority == LabelPriority::Subroutine)
-        {
-            'e'
-        } else {
-            priority.prefix()
-        };
+        // Generate names for all discovered types
+        let mut names = HashMap::new();
+        for (l_type, _) in &types_map {
+            let prefix =
+                if is_ext && (*l_type == LabelType::Jump || *l_type == LabelType::Subroutine) {
+                    'e'
+                } else {
+                    l_type.prefix()
+                };
 
-        // Format name based on type
-        // ZeroPage -> 2 digit hex
-        // Field (in ZP) -> 2 digit hex
-        // Others -> 4 digit hex
-        let name = if priority == LabelPriority::ZeroPage
-            || (priority == LabelPriority::Field && addr <= 0xFF)
-        {
-            format!("{}{:02X}", prefix, addr)
-        } else {
-            format!("{}{:04X}", prefix, addr)
-        };
+            let name = if *l_type == LabelType::ZeroPage
+                || (*l_type == LabelType::Field && addr <= 0xFF)
+                || *l_type == LabelType::ZeroPagePointer
+            {
+                format!("{}{:02X}", prefix, addr)
+            } else {
+                format!("{}{:04X}", prefix, addr)
+            };
+            names.insert(*l_type, name);
+        }
+
+        // Determine default name (highest priority)
+        // We can sort types or just pick one. `LabelType` derives Ord. Higher enum value = higher priority?
+        // In the enum definition:
+        // ZeroPage=0, Field=1, Absolute=2, Pointer=3, Branch=4, Jump=5, Subroutine=6
+        // Probably Subroutine/Jump are "more code-like" but for a default label name?
+        // Usually if something is a Subroutine, we want sXXXX.
+        // So Max is good.
+        let best_type = types_map
+            .keys()
+            .max()
+            .copied()
+            .unwrap_or(LabelType::Absolute);
+        let default_name = names
+            .get(&best_type)
+            .cloned()
+            .unwrap_or_else(|| format!("a{:04X}", addr));
+
         labels.insert(
             addr,
             crate::state::Label {
-                name,
+                name: default_name,
+                names,
                 kind: crate::state::LabelKind::Auto,
-                refs: count,
+                refs, // We use all refs
             },
         );
     }
 
-    // 2. Preserve User labels that have 0 references
+    // 2. Preserve User labels that have 0 references (or weren't found in this pass)
     for (addr, label) in &state.labels {
         if label.kind == crate::state::LabelKind::User && !labels.contains_key(addr) {
             labels.insert(
                 *addr,
                 crate::state::Label {
                     name: label.name.clone(),
+                    names: label.names.clone(),
                     kind: crate::state::LabelKind::User,
                     refs: Vec::new(),
                 },
@@ -165,7 +170,7 @@ fn analyze_instruction(
     opcode: &Opcode,
     operands: &[u8],
     address: u16,
-    usage_map: &mut HashMap<u16, (LabelPriority, Vec<u16>)>,
+    usage_map: &mut HashMap<u16, (HashMap<LabelType, usize>, Vec<u16>)>,
 ) {
     match opcode.mode {
         AddressingMode::Implied | AddressingMode::Accumulator | AddressingMode::Immediate => {}
@@ -173,14 +178,14 @@ fn analyze_instruction(
             if !operands.is_empty() {
                 let addr = operands[0] as u16;
                 // "a: Zero Page Address"
-                update_usage(usage_map, addr, LabelPriority::ZeroPage, address);
+                update_usage(usage_map, addr, LabelType::ZeroPage, address);
             }
         }
         AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
             if !operands.is_empty() {
                 let addr = operands[0] as u16;
                 // Indexed zero page often used for arrays/fields
-                update_usage(usage_map, addr, LabelPriority::Field, address);
+                update_usage(usage_map, addr, LabelType::Field, address);
             }
         }
         AddressingMode::Relative => {
@@ -188,7 +193,7 @@ fn analyze_instruction(
                 let offset = operands[0] as i8;
                 let target = address.wrapping_add(2).wrapping_add(offset as u16);
                 // "b: ... branch opcodes"
-                update_usage(usage_map, target, LabelPriority::Branch, address);
+                update_usage(usage_map, target, LabelType::Branch, address);
             }
         }
         AddressingMode::Absolute => {
@@ -196,12 +201,12 @@ fn analyze_instruction(
                 let target = (operands[1] as u16) << 8 | (operands[0] as u16);
 
                 if opcode.mnemonic == "JSR" {
-                    update_usage(usage_map, target, LabelPriority::Subroutine, address);
+                    update_usage(usage_map, target, LabelType::Subroutine, address);
                 } else if opcode.mnemonic == "JMP" {
-                    update_usage(usage_map, target, LabelPriority::Jump, address);
+                    update_usage(usage_map, target, LabelType::Jump, address);
                 } else {
                     // "a: ... absolute address"
-                    update_usage(usage_map, target, LabelPriority::Absolute, address);
+                    update_usage(usage_map, target, LabelType::Absolute, address);
                 }
             }
         }
@@ -209,7 +214,7 @@ fn analyze_instruction(
             if operands.len() >= 2 {
                 let target = (operands[1] as u16) << 8 | (operands[0] as u16);
                 // Indexed absolute is also "absolute address" usage
-                update_usage(usage_map, target, LabelPriority::Absolute, address);
+                update_usage(usage_map, target, LabelType::AbsoluteField, address);
             }
         }
         AddressingMode::Indirect => {
@@ -217,7 +222,7 @@ fn analyze_instruction(
                 let pointer_addr = (operands[1] as u16) << 8 | (operands[0] as u16);
                 // "p: if this is a pointer"
                 // The address `pointer_addr` is BEING USED a pointer.
-                update_usage(usage_map, pointer_addr, LabelPriority::Pointer, address);
+                update_usage(usage_map, pointer_addr, LabelType::Pointer, address);
             }
         }
         AddressingMode::IndirectX => {
@@ -226,14 +231,14 @@ fn analyze_instruction(
                 // (base, X) -> points to a table of pointers in ZP? Or just ZP pointer?
                 // It is "Indirect" X. The address `base` (and base+1) holds the address.
                 // So `base` is a pointer.
-                update_usage(usage_map, base, LabelPriority::Pointer, address);
+                update_usage(usage_map, base, LabelType::ZeroPagePointer, address);
             }
         }
         AddressingMode::IndirectY => {
             if !operands.is_empty() {
                 let base = operands[0] as u16;
                 // (base), Y -> base is a ZP pointer.
-                update_usage(usage_map, base, LabelPriority::Pointer, address);
+                update_usage(usage_map, base, LabelType::ZeroPagePointer, address);
             }
         }
         AddressingMode::Unknown => {}
@@ -241,25 +246,22 @@ fn analyze_instruction(
 }
 
 fn update_usage(
-    map: &mut HashMap<u16, (LabelPriority, Vec<u16>)>,
+    map: &mut HashMap<u16, (HashMap<LabelType, usize>, Vec<u16>)>,
     addr: u16,
-    priority: LabelPriority,
+    priority: LabelType,
     from_addr: u16,
 ) {
     map.entry(addr)
-        .and_modify(|(p, refs)| {
-            if priority > *p {
-                *p = priority;
-            }
-            // Add reference if not already there (though duplications from same addr unlikely in single pass unless loop?)
-            // Actually multiple refs from same instruction? No.
-            // But we might want unique refs or all refs. Let's keep all for now, maybe sort/dedup later.
+        .and_modify(|(types, refs)| {
+            *types.entry(priority).or_insert(0) += 1;
             refs.push(from_addr);
         })
         .or_insert_with(|| {
+            let mut types = HashMap::new();
+            types.insert(priority, 1);
             let mut refs = Vec::new();
             refs.push(from_addr);
-            (priority, refs)
+            (types, refs)
         });
 }
 
@@ -418,5 +420,48 @@ mod tests {
 
         // Case 5: $1008 -> jump to $1008. Usage: b1008
         assert_eq!(labels.get(&0x1008).map(|l| l.name.as_str()), Some("b1008"));
+    }
+
+    #[test]
+    fn test_new_pointer_field_types() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+
+        // Indirect JMP (JMP ($1000)) -> 6C 00 10
+        // LDA ($10, X) -> A1 10
+        // LDA ($10), Y -> B1 10
+        // LDA $1000, X -> BD 00 10
+        // LDA $1000, Y -> B9 00 10
+        // LDA $10, X -> B5 10
+        let data = vec![
+            0x6C, 0x00, 0x10, // JMP ($1000) -> Indirect -> p1000
+            0xA1, 0x10, // LDA ($10, X) -> Indirect X -> p10
+            0xB1, 0x20, // LDA ($20), Y -> Indirect Y -> p20
+            0xBD, 0x50, 0x10, // LDA $1050, X -> Absolute X -> f1050
+            0xB9, 0x60, 0x10, // LDA $1060, Y -> Absolute Y -> f1060
+            0xB5, 0x30, // LDA $30, X -> ZeroPage X -> f30
+        ];
+        state.raw_data = data;
+        state.address_types = vec![AddressType::Code; state.raw_data.len()];
+
+        let labels = analyze(&state);
+
+        // Indirect JMP -> p1000
+        assert_eq!(labels.get(&0x1000).map(|l| l.name.as_str()), Some("p1000"));
+
+        // Indirect X -> p10
+        assert_eq!(labels.get(&0x0010).map(|l| l.name.as_str()), Some("p10"));
+
+        // Indirect Y -> p20
+        assert_eq!(labels.get(&0x0020).map(|l| l.name.as_str()), Some("p20"));
+
+        // Absolute X -> f1050
+        assert_eq!(labels.get(&0x1050).map(|l| l.name.as_str()), Some("f1050"));
+
+        // Absolute Y -> f1060
+        assert_eq!(labels.get(&0x1060).map(|l| l.name.as_str()), Some("f1060"));
+
+        // ZeroPage X -> f30
+        assert_eq!(labels.get(&0x0030).map(|l| l.name.as_str()), Some("f30"));
     }
 }

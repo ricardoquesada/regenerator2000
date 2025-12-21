@@ -160,6 +160,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                                     let new_label = crate::state::Label {
                                         name: label_name,
                                         kind: crate::state::LabelKind::User,
+                                        names: std::collections::HashMap::new(),
                                         refs: Vec::new(),
                                     };
 

@@ -1,5 +1,6 @@
 use crate::cpu::{get_opcodes, AddressingMode, Opcode};
 use crate::state::AddressType;
+use crate::state::LabelType;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -212,30 +213,38 @@ impl Disassembler {
         address: u16,
         labels: &HashMap<u16, crate::state::Label>,
     ) -> String {
+        let get_label = |addr: u16, l_type: LabelType| -> Option<String> {
+            labels.get(&addr).map(|l| {
+                l.names
+                    .get(&l_type)
+                    .cloned()
+                    .unwrap_or_else(|| l.name.clone())
+            })
+        };
+
         match opcode.mode {
             AddressingMode::Implied | AddressingMode::Accumulator => String::new(),
             AddressingMode::Immediate => format!("#${:02X}", operands[0]),
             AddressingMode::ZeroPage => {
                 let addr = operands[0] as u16; // Zero page address
-                if let Some(label) = labels.get(&addr) {
-                    label.name.clone()
+                if let Some(name) = get_label(addr, LabelType::ZeroPage) {
+                    name
                 } else {
                     format!("${:02X}", addr)
                 }
             }
             AddressingMode::ZeroPageX => {
                 let addr = operands[0] as u16;
-                // Maybe handle label math later? E.g. Label+X? For now just raw label if it matches base.
-                if let Some(label) = labels.get(&addr) {
-                    format!("{},X", label.name)
+                if let Some(name) = get_label(addr, LabelType::Field) {
+                    format!("{},X", name)
                 } else {
                     format!("${:02X},X", addr)
                 }
             }
             AddressingMode::ZeroPageY => {
                 let addr = operands[0] as u16;
-                if let Some(label) = labels.get(&addr) {
-                    format!("{},Y", label.name)
+                if let Some(name) = get_label(addr, LabelType::Field) {
+                    format!("{},Y", name)
                 } else {
                     format!("${:02X},Y", addr)
                 }
@@ -243,56 +252,64 @@ impl Disassembler {
             AddressingMode::Relative => {
                 let offset = operands[0] as i8;
                 let target = address.wrapping_add(2).wrapping_add(offset as u16);
-                if let Some(label) = labels.get(&target) {
-                    label.name.clone()
+                if let Some(name) = get_label(target, LabelType::Branch) {
+                    name
                 } else {
                     format!("${:04X}", target)
                 }
             }
             AddressingMode::Absolute => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                if let Some(label) = labels.get(&addr) {
-                    label.name.clone()
+                let l_type = if opcode.mnemonic == "JSR" {
+                    LabelType::Subroutine
+                } else if opcode.mnemonic == "JMP" {
+                    LabelType::Jump
+                } else {
+                    LabelType::Absolute
+                };
+
+                if let Some(name) = get_label(addr, l_type) {
+                    name
                 } else {
                     format!("${:04X}", addr)
                 }
             }
             AddressingMode::AbsoluteX => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                if let Some(label) = labels.get(&addr) {
-                    format!("{},X", label.name)
+                if let Some(name) = get_label(addr, LabelType::Absolute) {
+                    format!("{},X", name)
                 } else {
                     format!("${:04X},X", addr)
                 }
             }
             AddressingMode::AbsoluteY => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                if let Some(label) = labels.get(&addr) {
-                    format!("{},Y", label.name)
+                if let Some(name) = get_label(addr, LabelType::Absolute) {
+                    format!("{},Y", name)
                 } else {
                     format!("${:04X},Y", addr)
                 }
             }
             AddressingMode::Indirect => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                if let Some(label) = labels.get(&addr) {
-                    format!("({})", label.name)
+                if let Some(name) = get_label(addr, LabelType::Pointer) {
+                    format!("({})", name)
                 } else {
                     format!("(${:04X})", addr)
                 }
             }
             AddressingMode::IndirectX => {
                 let addr = operands[0] as u16;
-                if let Some(label) = labels.get(&addr) {
-                    format!("({},X)", label.name)
+                if let Some(name) = get_label(addr, LabelType::Pointer) {
+                    format!("({},X)", name)
                 } else {
                     format!("(${:02X},X)", addr)
                 }
             }
             AddressingMode::IndirectY => {
                 let addr = operands[0] as u16;
-                if let Some(label) = labels.get(&addr) {
-                    format!("({}),Y", label.name)
+                if let Some(name) = get_label(addr, LabelType::Pointer) {
+                    format!("({}),Y", name)
                 } else {
                     format!("(${:02X}),Y", addr)
                 }
@@ -377,6 +394,7 @@ mod tests {
             crate::state::Label {
                 name: "MyLabel".to_string(),
                 kind: crate::state::LabelKind::User,
+                names: HashMap::new(),
                 refs: Vec::new(),
             },
         );
@@ -420,6 +438,7 @@ mod tests {
             crate::state::Label {
                 name: "MyLabel".to_string(),
                 kind: crate::state::LabelKind::User,
+                names: HashMap::new(),
                 refs: vec![0x2000, 0x3000, 0x4000],
             },
         );
@@ -440,5 +459,44 @@ mod tests {
             .expect("Label line not found");
 
         assert!(label_line.comment.contains("x-ref: 2000, 3000, 4000"));
+    }
+
+    #[test]
+    fn test_context_aware_labels() {
+        let disassembler = Disassembler::new();
+        // Setup:
+        // $1000: JMP $3000 (4C 00 30)
+        // $1003: JSR $3000 (20 00 30)
+        let data = vec![0x4C, 0x00, 0x30, 0x20, 0x00, 0x30];
+        let address_types = vec![AddressType::Code; data.len()];
+
+        // Define label at $3000 with multiple names
+        let mut labels = HashMap::new();
+        let mut names = HashMap::new();
+        names.insert(LabelType::Jump, "j3000".to_string());
+        names.insert(LabelType::Subroutine, "s3000".to_string());
+        names.insert(LabelType::Absolute, "a3000".to_string());
+
+        labels.insert(
+            0x3000,
+            crate::state::Label {
+                name: "a3000".to_string(), // Default
+                kind: crate::state::LabelKind::Auto,
+                names,
+                refs: Vec::new(),
+            },
+        );
+
+        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
+
+        assert_eq!(lines.len(), 2);
+
+        // JMP $3000 -> Should use j3000
+        assert_eq!(lines[0].mnemonic, "JMP");
+        assert_eq!(lines[0].operand, "j3000");
+
+        // JSR $3000 -> Should use s3000
+        assert_eq!(lines[1].mnemonic, "JSR");
+        assert_eq!(lines[1].operand, "s3000");
     }
 }

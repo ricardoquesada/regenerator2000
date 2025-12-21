@@ -187,6 +187,7 @@ mod tests {
             crate::state::Label {
                 name: "aC000".to_string(),
                 kind: crate::state::LabelKind::User,
+                names: std::collections::HashMap::new(),
                 refs: Vec::new(),
             },
         );
@@ -195,6 +196,7 @@ mod tests {
             crate::state::Label {
                 name: "aC001".to_string(),
                 kind: crate::state::LabelKind::User,
+                names: std::collections::HashMap::new(),
                 refs: Vec::new(),
             },
         );
@@ -203,6 +205,7 @@ mod tests {
             crate::state::Label {
                 name: "aC002".to_string(),
                 kind: crate::state::LabelKind::User,
+                names: std::collections::HashMap::new(),
                 refs: Vec::new(),
             },
         );
@@ -279,6 +282,7 @@ mod tests {
             crate::state::Label {
                 name: "MyLabel".to_string(),
                 kind: crate::state::LabelKind::User,
+                names: std::collections::HashMap::new(),
                 refs: vec![0x2000, 0x3000], // Two refs
             },
         );
@@ -353,6 +357,7 @@ mod tests {
             crate::state::Label {
                 name: "f0002".to_string(),
                 kind: crate::state::LabelKind::Auto,
+                names: std::collections::HashMap::new(),
                 refs: vec![],
             },
         );
@@ -361,6 +366,7 @@ mod tests {
             crate::state::Label {
                 name: "sFFD2".to_string(),
                 kind: crate::state::LabelKind::Auto,
+                names: std::collections::HashMap::new(),
                 refs: vec![],
             },
         );
