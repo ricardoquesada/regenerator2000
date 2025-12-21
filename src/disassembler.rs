@@ -144,11 +144,7 @@ impl Disassembler {
                             address,
                             bytes: vec![low, high],
                             mnemonic: ".WORD".to_string(),
-                            operand: if let Some(label) = labels.get(&val) {
-                                label.name.clone()
-                            } else {
-                                format!("${:04X}", val)
-                            },
+                            operand: format!("${:04X}", val),
                             comment: String::new(),
                             label: label_name.clone(),
                             opcode: None,
@@ -169,7 +165,7 @@ impl Disassembler {
                         pc += 1;
                     }
                 }
-                AddressType::DataPtr => {
+                AddressType::Address => {
                     if pc + 2 <= data.len() {
                         let low = data[pc];
                         let high = data[pc + 1];
@@ -184,7 +180,7 @@ impl Disassembler {
                             } else {
                                 format!("${:04X}", val)
                             },
-                            comment: "Pointer".to_string(),
+                            comment: String::new(),
                             label: label_name.clone(),
                             opcode: None,
                         });
@@ -196,7 +192,7 @@ impl Disassembler {
                             bytes: vec![b],
                             mnemonic: ".BYTE".to_string(),
                             operand: format!("${:02X}", b),
-                            comment: "Partial Ptr".to_string(),
+                            comment: "Partial Address".to_string(),
                             label: label_name.clone(),
                             opcode: None,
                         });

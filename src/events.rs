@@ -335,7 +335,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                     KeyCode::Char('c') => handle_menu_action(&mut state, "Code"),
                     KeyCode::Char('b') => handle_menu_action(&mut state, "Byte"),
                     KeyCode::Char('w') => handle_menu_action(&mut state, "Word"),
-                    KeyCode::Char('p') => handle_menu_action(&mut state, "Pointer"),
+                    KeyCode::Char('a') => handle_menu_action(&mut state, "Address"),
 
                     // Label
                     KeyCode::Char('l') => {
@@ -562,7 +562,7 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
         "Code" => update_type(crate::state::AddressType::Code),
         "Byte" => update_type(crate::state::AddressType::DataByte),
         "Word" => update_type(crate::state::AddressType::DataWord),
-        "Pointer" => update_type(crate::state::AddressType::DataPtr),
+        "Address" => update_type(crate::state::AddressType::Address),
         "Jump to address" => {
             state.jump_dialog.open();
             state.status_message = "Enter address (Hex)".to_string();

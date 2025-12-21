@@ -9,7 +9,7 @@ pub enum AddressType {
     Code,
     DataByte,
     DataWord,
-    DataPtr, // Simple word pointer for now
+    Address, // Reference to an address
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -350,7 +350,7 @@ impl MenuState {
                         MenuItem::new("Code", Some("C")),
                         MenuItem::new("Byte", Some("B")),
                         MenuItem::new("Word", Some("W")),
-                        MenuItem::new("Pointer", Some("P")),
+                        MenuItem::new("Address", Some("A")),
                     ],
                 },
                 MenuCategory {

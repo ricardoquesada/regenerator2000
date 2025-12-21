@@ -66,8 +66,21 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
             }
         } else {
             // Data skip
-            if current_type == AddressType::DataPtr {
-                pc += 2; // words
+            if current_type == AddressType::Address {
+                if pc + 2 <= data_len {
+                    let low = state.raw_data[pc];
+                    let high = state.raw_data[pc + 1];
+                    let val = (high as u16) << 8 | (low as u16);
+                    update_usage(
+                        &mut usage_map,
+                        val,
+                        LabelPriority::Absolute,
+                        origin.wrapping_add(pc as u16),
+                    );
+                    pc += 2;
+                } else {
+                    pc += 1;
+                }
             } else if current_type == AddressType::DataWord {
                 pc += 2;
             } else {
@@ -321,29 +334,31 @@ mod tests {
     }
 
     #[test]
-    fn test_data_word_vs_ptr() {
+    fn test_data_word_vs_address() {
         let mut state = AppState::new();
         state.origin = 0x1000;
         // $1000: DataWord ($2000) -> 00 20
-        // $1002: DataPtr ($3000) -> 00 30
-        let data = vec![0x00, 0x20, 0x00, 0x30];
+        // $1002: Address ($1000) -> 00 10 (Internal)
+        let data = vec![0x00, 0x20, 0x00, 0x10];
         state.raw_data = data;
         state.address_types = vec![
             AddressType::DataWord,
             AddressType::DataWord,
-            AddressType::DataPtr,
-            AddressType::DataPtr,
+            AddressType::Address,
+            AddressType::Address,
         ];
 
         let labels = analyze(&state);
 
         // DataWord at $1000 should NOT generate label for ITSELF ($1000)
-        assert_eq!(labels.get(&0x1000), None);
-        // And NOT for its content ($2000)
-        assert_eq!(labels.get(&0x2000), None);
+        // BUT $1002 IS Reference to $1000. So $1000 SHOULD have a label now.
+        // Wait, $1000 is the address of the first instruction/data.
+        // If Address at 1002 points to 1000, then 1000 is a target.
+        // It should have label a1000.
+        assert_eq!(labels.get(&0x1000).map(|l| l.name.as_str()), Some("a1000"));
 
-        // DataPtr at $1002 used to generate label p1002. Now it SHOULD NOT.
-        assert_eq!(labels.get(&0x1002), None);
+        // And content of DataWord ($2000) should still be None (assuming it's external/ignored)
+        assert_eq!(labels.get(&0x2000), None);
     }
     #[test]
     fn test_branch_offsets() {
