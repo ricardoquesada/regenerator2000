@@ -474,7 +474,7 @@ fn expand_address_ranges(ranges: &[AddressRange], len: usize) -> Vec<AddressType
 }
 
 fn encode_raw_data(data: &[u8]) -> Vec<String> {
-    data.chunks(16)
+    data.chunks(32)
         .map(|chunk| {
             chunk
                 .iter()
@@ -486,7 +486,7 @@ fn encode_raw_data(data: &[u8]) -> Vec<String> {
 }
 
 fn decode_raw_data(data: &[String]) -> anyhow::Result<Vec<u8>> {
-    let mut raw = Vec::with_capacity(data.len() * 16);
+    let mut raw = Vec::with_capacity(data.len() * 32);
     for line in data {
         for byte_str in line.split_whitespace() {
             let byte = u8::from_str_radix(byte_str, 16)?;
@@ -554,16 +554,16 @@ mod serialization_tests {
 
     #[test]
     fn test_encode_raw_data() {
-        let data: Vec<u8> = (0..20).collect();
+        let data: Vec<u8> = (0..40).collect();
         let encoded = encode_raw_data(&data);
         assert_eq!(encoded.len(), 2);
-        // First chunk 16 bytes: 00 01 ... 0F
-        assert_eq!(
-            encoded[0],
-            "00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F"
-        );
-        // Second chunk 4 bytes: 10 11 12 13
-        assert_eq!(encoded[1], "10 11 12 13");
+        // First chunk 32 bytes: 00 01 ... 1F
+        let chunk1: Vec<String> = (0..32).map(|b| format!("{:02X}", b)).collect();
+        assert_eq!(encoded[0], chunk1.join(" "));
+
+        // Second chunk 6 bytes: 20 21 22 23 24 25 26 27
+        let chunk2: Vec<String> = (32..40).map(|b| format!("{:02X}", b)).collect();
+        assert_eq!(encoded[1], chunk2.join(" "));
     }
 
     #[test]
