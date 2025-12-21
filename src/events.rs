@@ -160,7 +160,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                                     let new_label = crate::state::Label {
                                         name: label_name,
                                         kind: crate::state::LabelKind::User,
-                                        refs: 0,
+                                        refs: Vec::new(),
                                     };
 
                                     let command = crate::commands::Command::SetLabel {

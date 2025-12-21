@@ -230,7 +230,7 @@ mod tests {
         let label = crate::state::Label {
             name: "Start".to_string(),
             kind: crate::state::LabelKind::User,
-            refs: 0,
+            refs: Vec::new(),
         };
         let command = Command::SetLabel {
             address,
@@ -275,7 +275,7 @@ mod tests {
 
         // Assert label exists
         assert!(app_state.labels.get(&0x1005).is_some());
-        assert_eq!(app_state.labels.get(&0x1005).unwrap().refs, 1);
+        assert_eq!(app_state.labels.get(&0x1005).unwrap().refs.len(), 1);
         assert_eq!(
             app_state.labels.get(&0x1005).unwrap().kind,
             crate::state::LabelKind::Auto
@@ -316,6 +316,6 @@ mod tests {
 
         // Verify label is BACK
         assert!(app_state.labels.get(&0x1005).is_some());
-        assert_eq!(app_state.labels.get(&0x1005).unwrap().refs, 1);
+        assert_eq!(app_state.labels.get(&0x1005).unwrap().refs.len(), 1);
     }
 }

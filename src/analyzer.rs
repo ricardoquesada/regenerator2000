@@ -26,7 +26,7 @@ impl LabelPriority {
 }
 
 pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
-    let mut usage_map: HashMap<u16, (LabelPriority, u32)> = HashMap::new();
+    let mut usage_map: HashMap<u16, (LabelPriority, Vec<u16>)> = HashMap::new();
     let mut pc = 0;
     let data_len = state.raw_data.len();
     let origin = state.origin;
@@ -89,7 +89,7 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
                     crate::state::Label {
                         name: existing.name.clone(),
                         kind: crate::state::LabelKind::User,
-                        refs: count,
+                        refs: existing.refs.clone(),
                     },
                 );
                 continue;
@@ -124,7 +124,7 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
                 crate::state::Label {
                     name: label.name.clone(),
                     kind: crate::state::LabelKind::User,
-                    refs: 0,
+                    refs: Vec::new(),
                 },
             );
         }
@@ -138,7 +138,7 @@ fn analyze_instruction(
     opcode: &Opcode,
     operands: &[u8],
     address: u16,
-    usage_map: &mut HashMap<u16, (LabelPriority, u32)>,
+    usage_map: &mut HashMap<u16, (LabelPriority, Vec<u16>)>,
 ) {
     match opcode.mode {
         AddressingMode::Implied | AddressingMode::Accumulator | AddressingMode::Immediate => {}
@@ -146,14 +146,14 @@ fn analyze_instruction(
             if !operands.is_empty() {
                 let addr = operands[0] as u16;
                 // "f: if this is a field"
-                update_usage(usage_map, addr, LabelPriority::Field);
+                update_usage(usage_map, addr, LabelPriority::Field, address);
             }
         }
         AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
             if !operands.is_empty() {
                 let addr = operands[0] as u16;
                 // Indexed zero page often used for arrays/fields
-                update_usage(usage_map, addr, LabelPriority::Field);
+                update_usage(usage_map, addr, LabelPriority::Field, address);
             }
         }
         AddressingMode::Relative => {
@@ -161,7 +161,7 @@ fn analyze_instruction(
                 let offset = operands[0] as i8;
                 let target = address.wrapping_add(2).wrapping_add(offset as u16);
                 // "b: ... branch opcodes"
-                update_usage(usage_map, target, LabelPriority::Branch);
+                update_usage(usage_map, target, LabelPriority::Branch, address);
             }
         }
         AddressingMode::Absolute => {
@@ -169,12 +169,12 @@ fn analyze_instruction(
                 let target = (operands[1] as u16) << 8 | (operands[0] as u16);
 
                 if opcode.mnemonic == "JSR" {
-                    update_usage(usage_map, target, LabelPriority::Subroutine);
+                    update_usage(usage_map, target, LabelPriority::Subroutine, address);
                 } else if opcode.mnemonic == "JMP" {
-                    update_usage(usage_map, target, LabelPriority::Jump);
+                    update_usage(usage_map, target, LabelPriority::Jump, address);
                 } else {
                     // "a: ... absolute address"
-                    update_usage(usage_map, target, LabelPriority::Absolute);
+                    update_usage(usage_map, target, LabelPriority::Absolute, address);
                 }
             }
         }
@@ -182,7 +182,7 @@ fn analyze_instruction(
             if operands.len() >= 2 {
                 let target = (operands[1] as u16) << 8 | (operands[0] as u16);
                 // Indexed absolute is also "absolute address" usage
-                update_usage(usage_map, target, LabelPriority::Absolute);
+                update_usage(usage_map, target, LabelPriority::Absolute, address);
             }
         }
         AddressingMode::Indirect => {
@@ -190,7 +190,7 @@ fn analyze_instruction(
                 let pointer_addr = (operands[1] as u16) << 8 | (operands[0] as u16);
                 // "p: if this is a pointer"
                 // The address `pointer_addr` is BEING USED a pointer.
-                update_usage(usage_map, pointer_addr, LabelPriority::Pointer);
+                update_usage(usage_map, pointer_addr, LabelPriority::Pointer, address);
             }
         }
         AddressingMode::IndirectX => {
@@ -199,29 +199,41 @@ fn analyze_instruction(
                 // (base, X) -> points to a table of pointers in ZP? Or just ZP pointer?
                 // It is "Indirect" X. The address `base` (and base+1) holds the address.
                 // So `base` is a pointer.
-                update_usage(usage_map, base, LabelPriority::Pointer);
+                update_usage(usage_map, base, LabelPriority::Pointer, address);
             }
         }
         AddressingMode::IndirectY => {
             if !operands.is_empty() {
                 let base = operands[0] as u16;
                 // (base), Y -> base is a ZP pointer.
-                update_usage(usage_map, base, LabelPriority::Pointer);
+                update_usage(usage_map, base, LabelPriority::Pointer, address);
             }
         }
         AddressingMode::Unknown => {}
     }
 }
 
-fn update_usage(map: &mut HashMap<u16, (LabelPriority, u32)>, addr: u16, priority: LabelPriority) {
+fn update_usage(
+    map: &mut HashMap<u16, (LabelPriority, Vec<u16>)>,
+    addr: u16,
+    priority: LabelPriority,
+    from_addr: u16,
+) {
     map.entry(addr)
-        .and_modify(|(p, count)| {
+        .and_modify(|(p, refs)| {
             if priority > *p {
                 *p = priority;
             }
-            *count += 1;
+            // Add reference if not already there (though duplications from same addr unlikely in single pass unless loop?)
+            // Actually multiple refs from same instruction? No.
+            // But we might want unique refs or all refs. Let's keep all for now, maybe sort/dedup later.
+            refs.push(from_addr);
         })
-        .or_insert((priority, 1));
+        .or_insert_with(|| {
+            let mut refs = Vec::new();
+            refs.push(from_addr);
+            (priority, refs)
+        });
 }
 
 fn is_external(addr: u16, origin: u16, len: usize) -> bool {

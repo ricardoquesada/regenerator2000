@@ -270,18 +270,29 @@ fn render_main_view(f: &mut Frame, area: Rect, state: &mut AppState) {
 
             let content = if line.bytes.is_empty() {
                 // Label Line
-                Line::from(vec![
+                let mut spans = vec![
                     Span::styled(
                         format!("{:04X}  ", line.address),
                         Style::default().fg(Color::DarkGray),
                     ),
                     Span::styled(
-                        format!("{}", line.mnemonic),
+                        format!("{:<32}", line.mnemonic),
                         Style::default()
                             .fg(Color::Magenta)
                             .add_modifier(Modifier::BOLD),
                     ),
-                ])
+                ];
+
+                if !line.comment.is_empty() {
+                    spans.push(Span::styled(
+                        format!("; {}", line.comment),
+                        Style::default()
+                            .fg(Color::Gray)
+                            .add_modifier(Modifier::ITALIC),
+                    ));
+                }
+
+                Line::from(spans)
             } else {
                 Line::from(vec![
                     Span::styled(

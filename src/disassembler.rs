@@ -40,12 +40,25 @@ impl Disassembler {
 
             // Check for Label (User or Auto) -> explicit line
             if let Some(name) = &label_name {
+                let mut comment = String::new();
+                if let Some(label) = labels.get(&address) {
+                    if !label.refs.is_empty() {
+                        let mut refs = label.refs.clone();
+                        refs.sort_unstable();
+                        refs.dedup(); // Optional: remove duplicates if any
+
+                        let refs_str: Vec<String> =
+                            refs.iter().take(5).map(|r| format!("{:04X}", r)).collect();
+                        comment = format!("x-ref: {}", refs_str.join(", "));
+                    }
+                }
+
                 lines.push(DisassemblyLine {
                     address,
                     bytes: Vec::new(),
                     mnemonic: format!("{}:", name),
                     operand: String::new(),
-                    comment: String::new(),
+                    comment,
                     label: Some(name.clone()),
                     opcode: None,
                 });
@@ -368,7 +381,7 @@ mod tests {
             crate::state::Label {
                 name: "MyLabel".to_string(),
                 kind: crate::state::LabelKind::User,
-                refs: 0,
+                refs: Vec::new(),
             },
         );
 
@@ -396,5 +409,40 @@ mod tests {
         assert_eq!(lines[1].bytes.len(), 0);
 
         assert_eq!(lines[2].mnemonic, "BRK");
+    }
+
+    #[test]
+    fn test_disassembly_with_xrefs() {
+        let disassembler = Disassembler::new();
+        // Just JMP $1000
+        let data = vec![0x4C, 0x00, 0x10];
+        let address_types = vec![AddressType::Code; data.len()];
+
+        let mut labels = HashMap::new();
+        labels.insert(
+            0x1000,
+            crate::state::Label {
+                name: "MyLabel".to_string(),
+                kind: crate::state::LabelKind::User,
+                refs: vec![0x2000, 0x3000, 0x4000],
+            },
+        );
+
+        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
+
+        // Accessing the line with the label
+        // Output lines:
+        // 1. JMP MyLabel (Address 1000)
+        // 2. MyLabel: (Address 1000)
+        // 3. BRK / .BYTE (Address 1003)
+        // Note: The disassembler is state machine.
+        // It processed 4C 00 10. PC=3. Address=1003.
+
+        let label_line = lines
+            .iter()
+            .find(|l| l.mnemonic == "MyLabel:")
+            .expect("Label line not found");
+
+        assert!(label_line.comment.contains("x-ref: 2000, 3000, 4000"));
     }
 }

@@ -22,7 +22,7 @@ pub enum LabelKind {
 pub struct Label {
     pub name: String,
     pub kind: LabelKind,
-    pub refs: u32,
+    pub refs: Vec<u16>,
 }
 
 pub struct FilePickerState {

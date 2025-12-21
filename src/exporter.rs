@@ -24,7 +24,11 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     for line in &state.disassembly {
         // Label line
         if line.mnemonic.ends_with(':') {
-            output.push_str(&format!("{}\n", line.mnemonic));
+            if !line.comment.is_empty() {
+                output.push_str(&format!("{:<40} ; {}\n", line.mnemonic, line.comment));
+            } else {
+                output.push_str(&format!("{}\n", line.mnemonic));
+            }
             continue;
         }
 
@@ -41,11 +45,16 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             }
         }
 
-        if line.mnemonic == ".BYTE" || line.mnemonic == ".WORD" {
-            output.push_str(&format!("    {} {}\n", line.mnemonic, line.operand));
+        let line_out = if line.mnemonic == ".BYTE" || line.mnemonic == ".WORD" {
+            format!("    {} {}", line.mnemonic, line.operand)
         } else {
-            // Opcode
-            output.push_str(&format!("    {} {}\n", line.mnemonic, line.operand));
+            format!("    {} {}", line.mnemonic, line.operand)
+        };
+
+        if !line.comment.is_empty() {
+            output.push_str(&format!("{:<40} ; {}\n", line_out, line.comment));
+        } else {
+            output.push_str(&format!("{}\n", line_out));
         }
     }
 
@@ -165,7 +174,7 @@ mod tests {
             crate::state::Label {
                 name: "aC000".to_string(),
                 kind: crate::state::LabelKind::User,
-                refs: 0,
+                refs: Vec::new(),
             },
         );
         state.labels.insert(
@@ -173,7 +182,7 @@ mod tests {
             crate::state::Label {
                 name: "aC001".to_string(),
                 kind: crate::state::LabelKind::User,
-                refs: 0,
+                refs: Vec::new(),
             },
         );
         state.labels.insert(
@@ -181,7 +190,7 @@ mod tests {
             crate::state::Label {
                 name: "aC002".to_string(),
                 kind: crate::state::LabelKind::User,
-                refs: 0,
+                refs: Vec::new(),
             },
         );
 
@@ -243,6 +252,74 @@ mod tests {
         //     STA $1234
 
         // Cleanup
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_export_includes_xrefs() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+
+        // Add a label with refs
+        state.labels.insert(
+            0x1000,
+            crate::state::Label {
+                name: "MyLabel".to_string(),
+                kind: crate::state::LabelKind::User,
+                refs: vec![0x2000, 0x3000], // Two refs
+            },
+        );
+
+        // Disassembly line for the label
+        // Note: Disassembler creates the comment. Here we manually fake it
+        // because we are testing EXPORTER, not disassembler integration here.
+        // BUT, real AppState uses disassembler to generate lines.
+        // Ideally we should call disassembler logic or manually construct the line AS IF it came from disassembler.
+        // Disassembler logic puts "; x-ref: ..." in the comment field.
+
+        state.disassembly.push(DisassemblyLine {
+            address: 0x1000,
+            mnemonic: "MyLabel:".to_string(),
+            operand: "".to_string(),
+            bytes: vec![],
+            comment: "x-ref: 2000, 3000".to_string(), // Simulated disassembler output without semicolon
+            label: Some("MyLabel".to_string()),
+            opcode: None,
+        });
+
+        // Instruction at 1000
+        state.disassembly.push(DisassemblyLine {
+            address: 0x1000,
+            mnemonic: "NOP".to_string(),
+            operand: "".to_string(),
+            bytes: vec![0xEA],
+            comment: "".to_string(),
+            label: Some("MyLabel".to_string()),
+            opcode: None,
+        });
+
+        let file_name = "test_xref_export.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        println!("Content:\n{}", content);
+
+        // Check for padding. MyLabel: is 8 chars.
+        // Format is {:-40} ; {comment}
+        // "MyLabel:                                 ; x-ref: 2000, 3000"
+        // Just checking it contains the aligned semi-colon and content is safer than exact spacing if we calculate wrong.
+        // But let's check basic structure.
+        assert!(content.contains("MyLabel:"));
+        assert!(content.contains("; x-ref: 2000, 3000"));
+        // Check for correct separation (at least 20 spaces)
+        assert!(content.contains("                    ; x-ref"));
+
         let _ = std::fs::remove_file(&path);
     }
 }
