@@ -1,5 +1,7 @@
 # Regenerator 2000
 
+![logo](docs/regenerator2000_logo.png)
+
 A 6502 disassembler with a TUI interface using Rust and Ratatui, inspired by Turbo Assembler/Debugger.
 
 ## Features

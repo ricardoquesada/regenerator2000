@@ -5,21 +5,91 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let mut output = String::new();
 
     // 1. Declare external addresses
-    // Find all labels starting with 'e' OR that are technically external addresses
+    // Find all labels that are technically external addresses (or forced external like 'e' prefix)
     let data_len = state.raw_data.len();
-    let mut externals: Vec<(u16, &String)> = state
+    let all_externals: Vec<(u16, crate::state::LabelType, &String)> = state
         .labels
         .iter()
         .filter(|(addr, label)| {
             label.name.starts_with('e') || is_external(**addr, state.origin, data_len)
         })
-        .map(|(k, v)| (*k, &v.name))
+        .map(|(addr, label)| {
+            let label_type = label
+                .names
+                .iter()
+                .find(|(_, name)| *name == &label.name)
+                .map(|(k, _)| *k)
+                .unwrap_or(crate::state::LabelType::UserDefined);
+            (*addr, label_type, &label.name)
+        })
         .collect();
-    externals.sort_by_key(|(k, _)| *k);
 
-    for (addr, name) in externals {
-        output.push_str(&format!("{} = ${:04X}\n", name, addr));
+    // Grouping
+    let mut zp_fields = Vec::new();
+    let mut zp_abs = Vec::new();
+    let mut zp_ptrs = Vec::new();
+    let mut fields = Vec::new();
+    let mut abs = Vec::new();
+    let mut ptrs = Vec::new();
+    let mut ext_jumps = Vec::new();
+    let mut others = Vec::new();
+
+    for (addr, l_type, name) in all_externals {
+        match l_type {
+            crate::state::LabelType::ZeroPageField => zp_fields.push((addr, name)),
+            crate::state::LabelType::ZeroPageAbsoluteAddress => zp_abs.push((addr, name)),
+            crate::state::LabelType::ZeroPagePointer => zp_ptrs.push((addr, name)),
+            crate::state::LabelType::Field => fields.push((addr, name)),
+            crate::state::LabelType::AbsoluteAddress => abs.push((addr, name)),
+            crate::state::LabelType::Pointer => ptrs.push((addr, name)),
+            crate::state::LabelType::ExternalJump => ext_jumps.push((addr, name)),
+            _ => others.push((addr, name)),
+        }
     }
+
+    // Sort each group
+    zp_fields.sort_by_key(|(a, _)| *a);
+    zp_abs.sort_by_key(|(a, _)| *a);
+    zp_ptrs.sort_by_key(|(a, _)| *a);
+    fields.sort_by_key(|(a, _)| *a);
+    abs.sort_by_key(|(a, _)| *a);
+    ptrs.sort_by_key(|(a, _)| *a);
+    ext_jumps.sort_by_key(|(a, _)| *a);
+    others.sort_by_key(|(a, _)| *a);
+
+    // Helper to write a group
+    let mut write_group = |title: &str, group: Vec<(u16, &String)>, is_zp_group: bool| {
+        if !group.is_empty() {
+            output.push_str(&format!("; {}\n", title));
+            for (addr, name) in group {
+                if is_zp_group && addr <= 0xFF {
+                    output.push_str(&format!("{} = ${:02X}\n", name, addr));
+                } else {
+                    output.push_str(&format!("{} = ${:04X}\n", name, addr));
+                }
+            }
+            output.push('\n');
+        }
+    };
+
+    // Output in requested order
+    // * ZP fields: e.g: f00
+    write_group("ZP FIELDS", zp_fields, true);
+    // * ZP absolute addresses. E.g: a00
+    write_group("ZP ABSOLUTE ADDRESSES", zp_abs, true);
+    // * ZP pointers. E.g: p00
+    write_group("ZP POINTERS", zp_ptrs, true);
+    // * fields. E.g: f0000
+    write_group("FIELDS", fields, false);
+    // * Absolute addresses. E.g: a0000
+    write_group("ABSOLUTE ADDRESSES", abs, false);
+    // * Pointers. E.g: p0000
+    write_group("POINTERS", ptrs, false);
+    // * External Jumps: e0000
+    write_group("EXTERNAL JUMPS", ext_jumps, false);
+    // * Others
+    write_group("OTHERS", others, false);
+
     output.push('\n');
 
     output.push_str(&format!("    * = ${:04X}\n", state.origin));
@@ -357,7 +427,10 @@ mod tests {
             crate::state::Label {
                 name: "f0002".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::new(),
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::ZeroPageField,
+                    "f0002".to_string(),
+                )]),
                 refs: vec![],
             },
         );
@@ -366,7 +439,10 @@ mod tests {
             crate::state::Label {
                 name: "sFFD2".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::new(),
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::Subroutine,
+                    "sFFD2".to_string(),
+                )]),
                 refs: vec![],
             },
         );
@@ -395,8 +471,239 @@ mod tests {
         println!("Content:\n{}", content);
 
         // These assertions should currently FAIL because they don't start with 'e'
-        assert!(content.contains("f0002 = $0002"));
+        assert!(content.contains("f0002 = $02")); // Now it should be $02 for ZP
         assert!(content.contains("sFFD2 = $FFD2"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_export_label_ordering() {
+        let mut state = AppState::new();
+        state.origin = 0xC000;
+        state.raw_data = vec![0xEA]; // NOP at C000
+
+        // Groups:
+        // ZP Fields: f10, f05
+        state.labels.insert(
+            0x0010,
+            crate::state::Label {
+                name: "f10".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::ZeroPageField,
+                    "f10".to_string(),
+                )]),
+                refs: vec![],
+            },
+        );
+        state.labels.insert(
+            0x0005,
+            crate::state::Label {
+                name: "f05".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::ZeroPageField,
+                    "f05".to_string(),
+                )]),
+                refs: vec![],
+            },
+        );
+
+        // ZP Abs: a20
+        state.labels.insert(
+            0x0020,
+            crate::state::Label {
+                name: "a20".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::ZeroPageAbsoluteAddress,
+                    "a20".to_string(),
+                )]),
+                refs: vec![],
+            },
+        );
+
+        // ZP Ptrs: p30
+        state.labels.insert(
+            0x0030,
+            crate::state::Label {
+                name: "p30".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::ZeroPagePointer,
+                    "p30".to_string(),
+                )]),
+                refs: vec![],
+            },
+        );
+
+        // Fields: f1000
+        state.labels.insert(
+            0x1000,
+            crate::state::Label {
+                name: "f1000".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::Field,
+                    "f1000".to_string(),
+                )]),
+                refs: vec![],
+            },
+        );
+
+        // Abs: a2000
+        state.labels.insert(
+            0x2000,
+            crate::state::Label {
+                name: "a2000".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::AbsoluteAddress,
+                    "a2000".to_string(),
+                )]),
+                refs: vec![],
+            },
+        );
+
+        // Ptrs: p3000
+        state.labels.insert(
+            0x3000,
+            crate::state::Label {
+                name: "p3000".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::Pointer,
+                    "p3000".to_string(),
+                )]),
+                refs: vec![],
+            },
+        );
+
+        // Ext Jump: e4000
+        state.labels.insert(
+            0x4000,
+            crate::state::Label {
+                name: "e4000".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::ExternalJump,
+                    "e4000".to_string(),
+                )]),
+                refs: vec![],
+            },
+        );
+
+        // Other: b5000
+        state.labels.insert(
+            0x5000,
+            crate::state::Label {
+                name: "b5000".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::Branch,
+                    "b5000".to_string(),
+                )]),
+                refs: vec![],
+            },
+        );
+
+        // Edge Case: Absolute Address at low address (should NOT be ZP Absolute)
+        state.labels.insert(
+            0x0011,
+            crate::state::Label {
+                name: "a0011".to_string(), // Manually named absolute
+                kind: crate::state::LabelKind::User,
+                names: std::collections::HashMap::from([(
+                    crate::state::LabelType::AbsoluteAddress,
+                    "a0011".to_string(),
+                )]),
+                refs: vec![],
+            },
+        );
+
+        let file_name = "test_label_ordering.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        println!("Content:\n{}", content);
+
+        let lines: Vec<&str> = content.lines().collect();
+        // Check order of lines before "* = $C000"
+        // Expected order:
+        // Fields with Headers. ZP addresses formatted as $XX
+        //
+        // ; ZP FIELDS
+        // f05 = $05
+        // f10 = $10
+        //
+        // ; ZP ABSOLUTE ADDRESSES
+        // a20 = $20
+        // ...
+
+        let mut idx = 0;
+        assert_eq!(lines[idx], "; ZP FIELDS");
+        idx += 1;
+        assert_eq!(lines[idx], "f05 = $05");
+        idx += 1;
+        assert_eq!(lines[idx], "f10 = $10");
+        idx += 1;
+        assert_eq!(lines[idx], "");
+        idx += 1;
+
+        assert_eq!(lines[idx], "; ZP ABSOLUTE ADDRESSES");
+        idx += 1;
+        assert_eq!(lines[idx], "a20 = $20");
+        idx += 1;
+        assert_eq!(lines[idx], "");
+        idx += 1;
+
+        assert_eq!(lines[idx], "; ZP POINTERS");
+        idx += 1;
+        assert_eq!(lines[idx], "p30 = $30");
+        idx += 1;
+        assert_eq!(lines[idx], "");
+        idx += 1;
+
+        assert_eq!(lines[idx], "; FIELDS");
+        idx += 1;
+        assert_eq!(lines[idx], "f1000 = $1000");
+        idx += 1;
+        assert_eq!(lines[idx], "");
+        idx += 1;
+
+        assert_eq!(lines[idx], "; ABSOLUTE ADDRESSES");
+        idx += 1;
+        assert_eq!(lines[idx], "a0011 = $0011"); // Added case
+        idx += 1;
+        assert_eq!(lines[idx], "a2000 = $2000");
+        idx += 1;
+        assert_eq!(lines[idx], "");
+        idx += 1;
+
+        assert_eq!(lines[idx], "; POINTERS");
+        idx += 1;
+        assert_eq!(lines[idx], "p3000 = $3000");
+        idx += 1;
+        assert_eq!(lines[idx], "");
+        idx += 1;
+
+        assert_eq!(lines[idx], "; EXTERNAL JUMPS");
+        idx += 1;
+        assert_eq!(lines[idx], "e4000 = $4000");
+        idx += 1;
+        assert_eq!(lines[idx], "");
+        idx += 1;
+
+        assert_eq!(lines[idx], "; OTHERS");
+        idx += 1;
+        assert_eq!(lines[idx], "b5000 = $5000");
 
         let _ = std::fs::remove_file(&path);
     }

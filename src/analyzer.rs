@@ -57,7 +57,7 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
                     update_usage(
                         &mut usage_map,
                         val,
-                        LabelType::Absolute,
+                        LabelType::AbsoluteAddress,
                         origin.wrapping_add(pc as u16),
                     );
                     pc += 2;
@@ -101,36 +101,45 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
         // Generate names for all discovered types
         let mut names = HashMap::new();
         for (l_type, _) in &types_map {
-            let prefix =
+            // Check for external jump case
+            let effective_type =
                 if is_ext && (*l_type == LabelType::Jump || *l_type == LabelType::Subroutine) {
-                    'e'
+                    LabelType::ExternalJump
                 } else {
-                    l_type.prefix()
+                    *l_type
                 };
 
-            let name = if *l_type == LabelType::ZeroPage
-                || (*l_type == LabelType::Field && addr <= 0xFF)
-                || *l_type == LabelType::ZeroPagePointer
+            let prefix = effective_type.prefix();
+
+            let name = if effective_type == LabelType::ZeroPageAbsoluteAddress
+                || effective_type == LabelType::ZeroPageField
+                || effective_type == LabelType::ZeroPagePointer
             {
                 format!("{}{:02X}", prefix, addr)
             } else {
                 format!("{}{:04X}", prefix, addr)
             };
-            names.insert(*l_type, name);
+            names.insert(effective_type, name);
         }
 
         // Determine default name (highest priority)
         // We can sort types or just pick one. `LabelType` derives Ord. Higher enum value = higher priority?
         // In the enum definition:
-        // ZeroPage=0, Field=1, Absolute=2, Pointer=3, Branch=4, Jump=5, Subroutine=6
-        // Probably Subroutine/Jump are "more code-like" but for a default label name?
-        // Usually if something is a Subroutine, we want sXXXX.
-        // So Max is good.
+        // ZeroPageField=0, Field=1, ZeroPageAbsoluteAddress=2, AbsoluteAddress=3, Pointer=4, ZeroPagePointer=5,
+        // ExternalJump=6, Jump=7, Subroutine=8, Branch=9, Predefined=10, UserDefined=11
         let best_type = types_map
             .keys()
+            .map(|t| {
+                // Map Jump/Subroutine to ExternalJump if external for priority calculation too?
+                if is_ext && (*t == LabelType::Jump || *t == LabelType::Subroutine) {
+                    LabelType::ExternalJump
+                } else {
+                    *t
+                }
+            })
             .max()
-            .copied()
-            .unwrap_or(LabelType::Absolute);
+            .unwrap_or(LabelType::AbsoluteAddress);
+
         let default_name = names
             .get(&best_type)
             .cloned()
@@ -178,14 +187,14 @@ fn analyze_instruction(
             if !operands.is_empty() {
                 let addr = operands[0] as u16;
                 // "a: Zero Page Address"
-                update_usage(usage_map, addr, LabelType::ZeroPage, address);
+                update_usage(usage_map, addr, LabelType::ZeroPageAbsoluteAddress, address);
             }
         }
         AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
             if !operands.is_empty() {
                 let addr = operands[0] as u16;
                 // Indexed zero page often used for arrays/fields
-                update_usage(usage_map, addr, LabelType::Field, address);
+                update_usage(usage_map, addr, LabelType::ZeroPageField, address);
             }
         }
         AddressingMode::Relative => {
@@ -206,7 +215,7 @@ fn analyze_instruction(
                     update_usage(usage_map, target, LabelType::Jump, address);
                 } else {
                     // "a: ... absolute address"
-                    update_usage(usage_map, target, LabelType::Absolute, address);
+                    update_usage(usage_map, target, LabelType::AbsoluteAddress, address);
                 }
             }
         }
@@ -214,7 +223,7 @@ fn analyze_instruction(
             if operands.len() >= 2 {
                 let target = (operands[1] as u16) << 8 | (operands[0] as u16);
                 // Indexed absolute is also "absolute address" usage
-                update_usage(usage_map, target, LabelType::AbsoluteField, address);
+                update_usage(usage_map, target, LabelType::Field, address);
             }
         }
         AddressingMode::Indirect => {
@@ -318,6 +327,7 @@ mod tests {
         state.address_types = vec![AddressType::Code; state.raw_data.len()];
 
         let labels = analyze(&state);
+        // Changed expectations: explicit ExternalJump type logic
         assert_eq!(labels.get(&0x2000).map(|l| l.name.as_str()), Some("e2000"));
     }
 

@@ -227,7 +227,7 @@ impl Disassembler {
             AddressingMode::Immediate => format!("#${:02X}", operands[0]),
             AddressingMode::ZeroPage => {
                 let addr = operands[0] as u16; // Zero page address
-                if let Some(name) = get_label(addr, LabelType::ZeroPage) {
+                if let Some(name) = get_label(addr, LabelType::ZeroPageAbsoluteAddress) {
                     name
                 } else {
                     format!("${:02X}", addr)
@@ -235,7 +235,7 @@ impl Disassembler {
             }
             AddressingMode::ZeroPageX => {
                 let addr = operands[0] as u16;
-                if let Some(name) = get_label(addr, LabelType::Field) {
+                if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
                     format!("{},X", name)
                 } else {
                     format!("${:02X},X", addr)
@@ -243,7 +243,7 @@ impl Disassembler {
             }
             AddressingMode::ZeroPageY => {
                 let addr = operands[0] as u16;
-                if let Some(name) = get_label(addr, LabelType::Field) {
+                if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
                     format!("{},Y", name)
                 } else {
                     format!("${:02X},Y", addr)
@@ -265,7 +265,7 @@ impl Disassembler {
                 } else if opcode.mnemonic == "JMP" {
                     LabelType::Jump
                 } else {
-                    LabelType::Absolute
+                    LabelType::AbsoluteAddress
                 };
 
                 if let Some(name) = get_label(addr, l_type) {
@@ -276,7 +276,7 @@ impl Disassembler {
             }
             AddressingMode::AbsoluteX => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                if let Some(name) = get_label(addr, LabelType::Absolute) {
+                if let Some(name) = get_label(addr, LabelType::Field) {
                     format!("{},X", name)
                 } else {
                     format!("${:04X},X", addr)
@@ -284,12 +284,13 @@ impl Disassembler {
             }
             AddressingMode::AbsoluteY => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                if let Some(name) = get_label(addr, LabelType::Absolute) {
+                if let Some(name) = get_label(addr, LabelType::Field) {
                     format!("{},Y", name)
                 } else {
                     format!("${:04X},Y", addr)
                 }
             }
+
             AddressingMode::Indirect => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
                 if let Some(name) = get_label(addr, LabelType::Pointer) {
@@ -300,7 +301,7 @@ impl Disassembler {
             }
             AddressingMode::IndirectX => {
                 let addr = operands[0] as u16;
-                if let Some(name) = get_label(addr, LabelType::Pointer) {
+                if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
                     format!("({},X)", name)
                 } else {
                     format!("(${:02X},X)", addr)
@@ -308,12 +309,13 @@ impl Disassembler {
             }
             AddressingMode::IndirectY => {
                 let addr = operands[0] as u16;
-                if let Some(name) = get_label(addr, LabelType::Pointer) {
+                if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
                     format!("({}),Y", name)
                 } else {
                     format!("(${:02X}),Y", addr)
                 }
             }
+
             AddressingMode::Unknown => "???".to_string(),
         }
     }
@@ -475,7 +477,7 @@ mod tests {
         let mut names = HashMap::new();
         names.insert(LabelType::Jump, "j3000".to_string());
         names.insert(LabelType::Subroutine, "s3000".to_string());
-        names.insert(LabelType::Absolute, "a3000".to_string());
+        names.insert(LabelType::AbsoluteAddress, "a3000".to_string());
 
         labels.insert(
             0x3000,
@@ -498,5 +500,75 @@ mod tests {
         // JSR $3000 -> Should use s3000
         assert_eq!(lines[1].mnemonic, "JSR");
         assert_eq!(lines[1].operand, "s3000");
+    }
+
+    #[test]
+    fn test_indirect_y_label_bug() {
+        let disassembler = Disassembler::new();
+        // 31 00: AND ($00), Y
+        // 4C 00 00: JMP $0000
+        let data = vec![0x31, 0x00, 0x4C, 0x00, 0x00];
+        let address_types = vec![AddressType::Code; data.len()];
+
+        // Manually construct labels as if Analyzer produced them
+        let mut labels = HashMap::new();
+        let mut names = HashMap::new();
+        names.insert(LabelType::ZeroPagePointer, "p00".to_string());
+        names.insert(LabelType::Jump, "e0000".to_string());
+
+        labels.insert(
+            0x0000,
+            crate::state::Label {
+                name: "e0000".to_string(), // Default name
+                kind: crate::state::LabelKind::Auto,
+                names,
+                refs: Vec::new(),
+            },
+        );
+
+        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
+
+        // Line 0: AND (p00), Y
+        assert_eq!(lines[0].mnemonic, "AND");
+        assert_eq!(lines[0].operand, "(p00),Y");
+    }
+
+    #[test]
+    fn test_absolute_x_label_bug() {
+        let disassembler = Disassembler::new();
+        // 9D 4B 00: STA $004B, X (Absolute X)
+        // 31 4B:    AND ($4B), Y (Indirect Y - valid ZP pointer usage)
+        let data = vec![0x9D, 0x4B, 0x00, 0x31, 0x4B];
+        let address_types = vec![AddressType::Code; data.len()];
+
+        // Manually construct labels
+        // Address $004B is used as:
+        // 1. AbsoluteField (from STA $004B,X) -> f004B
+        // 2. ZeroPagePointer (from AND ($4B),Y) -> p4B
+
+        let mut labels = HashMap::new();
+        let mut names = HashMap::new();
+        names.insert(LabelType::Field, "f004B".to_string());
+        names.insert(LabelType::ZeroPagePointer, "p4B".to_string());
+
+        // ZeroPagePointer (5) > AbsoluteField (3), so default name is p4B
+        labels.insert(
+            0x004B,
+            crate::state::Label {
+                name: "p4B".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                names,
+                refs: Vec::new(),
+            },
+        );
+
+        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
+
+        // Line 0: STA f004B, X
+        assert_eq!(lines[0].mnemonic, "STA");
+        // BUG: Currently falls back to default label "p4B" because it looks for Absolute, not AbsoluteField
+        // Expected: "f004B,X"
+        // Actual (bug): "p4B,X"
+        assert_eq!(lines[0].operand, "f004B,X");
     }
 }
