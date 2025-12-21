@@ -8,8 +8,10 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
     // We want to track ALL usages, illegal or not, and then pick the best ones.
     // Map: Address -> Set of used LabelTypes
     // We also need ref counts.
-    // Map: Address -> (HashMap<LabelType, usize>, Vec<u16>)
-    let mut usage_map: HashMap<u16, (HashMap<LabelType, usize>, Vec<u16>)> = HashMap::new();
+    // Map: Address -> (HashMap<LabelType, usize>, Vec<u16>, LabelType)
+    // storing (counts, refs, first_seen_type)
+    let mut usage_map: HashMap<u16, (HashMap<LabelType, usize>, Vec<u16>, LabelType)> =
+        HashMap::new();
     let mut pc = 0;
     let data_len = state.raw_data.len();
     let origin = state.origin;
@@ -76,7 +78,7 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
     let mut labels = HashMap::new();
 
     // 1. Process all used addresses
-    for (addr, (types_map, refs)) in usage_map {
+    for (addr, (types_map, refs, first_type)) in usage_map {
         // Check if there is an existing User label
         if let Some(existing) = state.labels.get(&addr) {
             if existing.kind == crate::state::LabelKind::User {
@@ -102,12 +104,15 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
         let mut names = HashMap::new();
         for (l_type, _) in &types_map {
             // Check for external jump case
-            let effective_type =
-                if is_ext && (*l_type == LabelType::Jump || *l_type == LabelType::Subroutine) {
-                    LabelType::ExternalJump
-                } else {
-                    *l_type
-                };
+            let effective_type = if is_ext
+                && (*l_type == LabelType::Jump
+                    || *l_type == LabelType::Subroutine
+                    || *l_type == LabelType::Branch)
+            {
+                LabelType::ExternalJump
+            } else {
+                *l_type
+            };
 
             let prefix = effective_type.prefix();
 
@@ -127,18 +132,29 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
         // In the enum definition:
         // ZeroPageField=0, Field=1, ZeroPageAbsoluteAddress=2, AbsoluteAddress=3, Pointer=4, ZeroPagePointer=5,
         // ExternalJump=6, Jump=7, Subroutine=8, Branch=9, Predefined=10, UserDefined=11
-        let best_type = types_map
-            .keys()
-            .map(|t| {
-                // Map Jump/Subroutine to ExternalJump if external for priority calculation too?
-                if is_ext && (*t == LabelType::Jump || *t == LabelType::Subroutine) {
-                    LabelType::ExternalJump
-                } else {
-                    *t
-                }
-            })
-            .max()
-            .unwrap_or(LabelType::AbsoluteAddress);
+
+        // Determine default name (highest priority)
+        // If INTERNAL, we use the `first_type` (the type of the first instruction that referenced it).
+        // If EXTERNAL, we stick to the priority logic (usually ExternalJump or Absolute).
+        let best_type = if !is_ext {
+            first_type
+        } else {
+            types_map
+                .keys()
+                .map(|t| {
+                    if is_ext
+                        && (*t == LabelType::Jump
+                            || *t == LabelType::Subroutine
+                            || *t == LabelType::Branch)
+                    {
+                        LabelType::ExternalJump
+                    } else {
+                        *t
+                    }
+                })
+                .max()
+                .unwrap_or(LabelType::AbsoluteAddress)
+        };
 
         let default_name = names
             .get(&best_type)
@@ -179,7 +195,7 @@ fn analyze_instruction(
     opcode: &Opcode,
     operands: &[u8],
     address: u16,
-    usage_map: &mut HashMap<u16, (HashMap<LabelType, usize>, Vec<u16>)>,
+    usage_map: &mut HashMap<u16, (HashMap<LabelType, usize>, Vec<u16>, LabelType)>,
 ) {
     match opcode.mode {
         AddressingMode::Implied | AddressingMode::Accumulator | AddressingMode::Immediate => {}
@@ -255,13 +271,13 @@ fn analyze_instruction(
 }
 
 fn update_usage(
-    map: &mut HashMap<u16, (HashMap<LabelType, usize>, Vec<u16>)>,
+    map: &mut HashMap<u16, (HashMap<LabelType, usize>, Vec<u16>, LabelType)>,
     addr: u16,
     priority: LabelType,
     from_addr: u16,
 ) {
     map.entry(addr)
-        .and_modify(|(types, refs)| {
+        .and_modify(|(types, refs, _)| {
             *types.entry(priority).or_insert(0) += 1;
             refs.push(from_addr);
         })
@@ -270,7 +286,7 @@ fn update_usage(
             types.insert(priority, 1);
             let mut refs = Vec::new();
             refs.push(from_addr);
-            (types, refs)
+            (types, refs, priority)
         });
 }
 
@@ -486,7 +502,7 @@ mod tests {
         // 3. Subroutine (JSR $1005) -> 20 05 10
         //
         // Priority should be Subroutine ("s") > Jump ("j") > Branch ("b").
-        // Result should be s1005.
+        // Result should be b1005 (First usage wins).
 
         // $1000: BNE $1005 (D0 03)
         // $1002: JMP $1005 (4C 05 10)
@@ -504,9 +520,82 @@ mod tests {
         let labels = analyze(&state);
 
         // Check 1005
-        assert_eq!(labels.get(&0x1005).map(|l| l.name.as_str()), Some("s1005"));
+        // Expect 'b' because it was referenced by Branch FIRST.
+        assert_eq!(labels.get(&0x1005).map(|l| l.name.as_str()), Some("b1005"));
 
         // Also verify usage map contains all types?
         // We can't easily check usage map here as it's internal to analyze, but we check the result name.
+    }
+
+    #[test]
+    fn test_internal_label_first_wins() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+
+        // BEQ $1005 (D0 03) -> Branch type
+        // JMP $1005 (4C 05 10) -> Jump type
+        // Internal address $1005.
+        // BEQ appears first, so it should define the label as 'b1005'.
+        let data = vec![
+            0xD0, 0x03, // 1000: BEQ $1005
+            0x4C, 0x05, 0x10, // 1002: JMP $1005
+            0xEA, // 1005: NOP (make it valid internal address)
+        ];
+        state.raw_data = data;
+        state.address_types = vec![AddressType::Code; state.raw_data.len()];
+
+        let labels = analyze(&state);
+
+        // Expectation: b1005 (Branch) because it was first.
+        // (Before fix, this would likely be j1005 because Jump > Branch in priority)
+        assert_eq!(labels.get(&0x1005).map(|l| l.name.as_str()), Some("b1005"));
+    }
+
+    #[test]
+    fn test_external_label_still_prioritized() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        let len = 100;
+        state.raw_data = vec![0; len]; // Just dummy data placeholder
+        state.address_types = vec![AddressType::Code; len];
+
+        // We construct a specific scenario:
+        // LDA $E000 (AD 00 E0) -> Absolute usage
+        // JMP $E000 (4C 00 E0) -> Jump usage
+        // Address $E000 is external.
+        // LDA appears first.
+        // IF we applied "first wins" to external, we'd get aE000.
+        // BUT for external, we want "best wins" (ExternalJump > Absolute).
+        // So we expect eE000.
+
+        let data = vec![
+            0xAD, 0x00, 0xE0, // 1000: LDA $E000
+            0x4C, 0x00, 0xE0, // 1003: JMP $E000
+        ];
+        // replace beginning of dummy data
+        for (i, b) in data.iter().enumerate() {
+            state.raw_data[i] = *b;
+        }
+
+        let labels = analyze(&state);
+
+        assert_eq!(labels.get(&0xE000).map(|l| l.name.as_str()), Some("eE000"));
+    }
+    #[test]
+    fn test_external_branch() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        // BNE target that is out of range
+        // Origin 1000. Data len 2. Range 1000..1002.
+        // 1000: D0 7F (BNE +$7F) -> Target: 1002 + 7F = 1081.
+        // 1081 is >= origin+len (1002), so it is external.
+
+        let data = vec![0xD0, 0x7F];
+        state.raw_data = data;
+        state.address_types = vec![AddressType::Code; 2];
+
+        let labels = analyze(&state);
+        // Should be e1081 (ExternalJump type), NOT b1081 (Branch type).
+        assert_eq!(labels.get(&0x1081).map(|l| l.name.as_str()), Some("e1081"));
     }
 }

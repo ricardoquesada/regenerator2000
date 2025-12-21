@@ -92,8 +92,14 @@ impl Disassembler {
                                     bytes.push(data[pc + i as usize]);
                                 }
 
-                                let operand_str =
-                                    self.format_operand(opcode, &bytes[1..], address, labels);
+                                let operand_str = self.format_operand(
+                                    opcode,
+                                    &bytes[1..],
+                                    address,
+                                    labels,
+                                    origin,
+                                    data.len(),
+                                );
                                 pc += opcode.size as usize;
 
                                 lines.push(DisassemblyLine {
@@ -212,13 +218,28 @@ impl Disassembler {
         operands: &[u8],
         address: u16,
         labels: &HashMap<u16, crate::state::Label>,
+        origin: u16,
+        data_len: usize,
     ) -> String {
+        let is_ext = |addr: u16| -> bool {
+            let end = origin.wrapping_add(data_len as u16);
+            if origin < end {
+                addr < origin || addr >= end
+            } else {
+                !(addr >= origin || addr < end)
+            }
+        };
+
         let get_label = |addr: u16, l_type: LabelType| -> Option<String> {
             labels.get(&addr).map(|l| {
-                l.names
-                    .get(&l_type)
-                    .cloned()
-                    .unwrap_or_else(|| l.name.clone())
+                if !is_ext(addr) {
+                    l.name.clone()
+                } else {
+                    l.names
+                        .get(&l_type)
+                        .cloned()
+                        .unwrap_or_else(|| l.name.clone())
+                }
             })
         };
 
@@ -570,5 +591,63 @@ mod tests {
         // Expected: "f004B,X"
         // Actual (bug): "p4B,X"
         assert_eq!(lines[0].operand, "f004B,X");
+    }
+    #[test]
+    fn test_consistent_internal_label_usage() {
+        let disassembler = Disassembler::new();
+        let origin = 0x0814;
+
+        // F0 1A (BEQ +$1A -> $0830)
+        // 20 30 08 (JSR $0830)
+        // 4C 30 08 (JMP $0830)
+        // 6C 30 08 (JMP ($0830))
+        let data = vec![
+            0xF0, 0x1A, // 0814: BEQ $0830
+            0x20, 0x30, 0x08, // 0816: JSR $0830
+            0x4C, 0x30, 0x08, // 0819: JMP $0830
+            0x6C, 0x30, 0x08, // 081C: JMP ($0830)
+        ];
+        // Padding until 0830 so it is internal
+        // 081C + 3 = 081F. Need to pad until 0831 to cover it.
+        // Size: 0x30 - 0x14 + 1 = 0x1D (29 bytes) total roughly.
+        let mut full_data = data.clone();
+        full_data.resize((0x0830 - 0x0814) + 1, 0xEA); // Pad with NOP
+
+        let address_types = vec![AddressType::Code; full_data.len()];
+
+        let mut labels = HashMap::new();
+        let mut names = HashMap::new();
+        names.insert(LabelType::Branch, "b0830".to_string());
+        names.insert(LabelType::Subroutine, "s0830".to_string());
+        names.insert(LabelType::Jump, "j0830".to_string());
+        names.insert(LabelType::Pointer, "p0830".to_string());
+
+        labels.insert(
+            0x0830,
+            crate::state::Label {
+                name: "b0830".to_string(), // Canonical name determined by Analyzer (BEQ first)
+                kind: crate::state::LabelKind::Auto,
+                names,
+                refs: Vec::new(),
+            },
+        );
+
+        let lines = disassembler.disassemble(&full_data, &address_types, &labels, origin);
+
+        // BEQ b0830
+        assert_eq!(lines[0].mnemonic, "BEQ");
+        assert_eq!(lines[0].operand, "b0830");
+
+        // JSR s0830 -> Should be b0830 (Canonical Internal)
+        assert_eq!(lines[1].mnemonic, "JSR");
+        assert_eq!(lines[1].operand, "b0830");
+
+        // JMP j0830 -> Should be b0830
+        assert_eq!(lines[2].mnemonic, "JMP");
+        assert_eq!(lines[2].operand, "b0830");
+
+        // JMP (p0830) -> Should be (b0830)
+        assert_eq!(lines[3].mnemonic, "JMP");
+        assert_eq!(lines[3].operand, "(b0830)");
     }
 }
