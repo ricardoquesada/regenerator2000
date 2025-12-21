@@ -9,12 +9,12 @@ pub enum Command {
     },
     SetLabel {
         address: u16,
-        new_label: Option<String>,
-        old_label: Option<String>,
+        new_label: Option<crate::state::Label>,
+        old_label: Option<crate::state::Label>,
     },
     SetLabels {
-        labels: std::collections::HashMap<u16, Option<String>>, // Addr -> New Label (None to remove)
-        old_labels: std::collections::HashMap<u16, Option<String>>,
+        labels: std::collections::HashMap<u16, Option<crate::state::Label>>, // Addr -> New Label (None to remove)
+        old_labels: std::collections::HashMap<u16, Option<crate::state::Label>>,
     },
 }
 
@@ -34,6 +34,9 @@ impl Command {
                     for i in start..end {
                         state.address_types[i] = *new_type;
                     }
+
+                    // Re-analyze reference counts and labels
+                    state.labels = crate::analyzer::analyze(state);
                 }
             }
             Command::SetLabel {
@@ -77,6 +80,9 @@ impl Command {
                     for (i, old_type) in (start..end).zip(old_types.iter()) {
                         state.address_types[i] = *old_type;
                     }
+
+                    // Re-analyze reference counts and labels
+                    state.labels = crate::analyzer::analyze(state);
                 }
             }
             Command::SetLabel {
@@ -221,16 +227,21 @@ mod tests {
         let address = 0x1000;
 
         // Action 1: Set Label
+        let label = crate::state::Label {
+            name: "Start".to_string(),
+            kind: crate::state::LabelKind::User,
+            refs: 0,
+        };
         let command = Command::SetLabel {
             address,
-            new_label: Some("Start".to_string()),
+            new_label: Some(label.clone()),
             old_label: None,
         };
 
         command.apply(&mut app_state);
         app_state.undo_stack.push(command);
 
-        assert_eq!(app_state.labels.get(&address), Some(&"Start".to_string()));
+        assert_eq!(app_state.labels.get(&address), Some(&label));
 
         // Undo
         let mut stack = std::mem::replace(&mut app_state.undo_stack, UndoStack::new());
@@ -244,6 +255,67 @@ mod tests {
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
-        assert_eq!(app_state.labels.get(&address), Some(&"Start".to_string()));
+        assert_eq!(app_state.labels.get(&address), Some(&label));
+    }
+
+    #[test]
+    fn test_dynamic_label_update() {
+        let mut app_state = AppState::new();
+        app_state.origin = 0x1000;
+        // JMP $1005 (4C 05 10)
+        // NOP (EA)
+        // NOP (EA)
+        // Target: $1005 (EA)
+        let data = vec![0x4C, 0x05, 0x10, 0xEA, 0xEA, 0xEA];
+        app_state.raw_data = data;
+        app_state.address_types = vec![AddressType::Code; 6];
+
+        // Initial Analysis
+        app_state.labels = crate::analyzer::analyze(&app_state);
+
+        // Assert label exists
+        assert!(app_state.labels.get(&0x1005).is_some());
+        assert_eq!(app_state.labels.get(&0x1005).unwrap().refs, 1);
+        assert_eq!(
+            app_state.labels.get(&0x1005).unwrap().kind,
+            crate::state::LabelKind::Auto
+        );
+
+        // Action: Change JMP (3 bytes) to DataByte
+        let range = 0..3;
+        let old_types = vec![AddressType::Code; 3];
+        let command = Command::SetAddressType {
+            range: range.clone(),
+            new_type: AddressType::DataByte,
+            old_types,
+        };
+
+        command.apply(&mut app_state);
+        app_state.undo_stack.push(command);
+
+        // Verify label is GONE because reference count dropped to 0
+        assert!(app_state.labels.get(&0x1005).is_none());
+
+        // Undo
+        let mut stack = std::mem::replace(&mut app_state.undo_stack, AppState::new().undo_stack);
+        // Wait, AppState::new() creates empty stack.
+        // My previous test code used `UndoStack::new()`. I should respect imports.
+        // But `UndoStack` is in this module (super).
+        // Let's check imports in tests module. `use super::*;`.
+        // So `UndoStack::new()` is valid.
+
+        // Retrying with correct stack replacement logic
+        // But wait, `app_state.undo_stack` is `UndoStack`.
+        // `std::mem::replace` needs same type.
+        // `UndoStack::new()` returns `UndoStack`.
+        // So `stack` is `UndoStack`.
+        // `stack.undo` needs `&mut AppState`.
+
+        stack.undo(&mut app_state);
+        app_state.undo_stack = stack;
+
+        // Verify label is BACK
+        assert!(app_state.labels.get(&0x1005).is_some());
+        assert_eq!(app_state.labels.get(&0x1005).unwrap().refs, 1);
     }
 }

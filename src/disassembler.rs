@@ -9,6 +9,7 @@ pub struct DisassemblyLine {
     pub mnemonic: String,
     pub operand: String,
     pub comment: String,
+    pub label: Option<String>,
     pub opcode: Option<Opcode>,
 }
 
@@ -27,7 +28,7 @@ impl Disassembler {
         &self,
         data: &[u8],
         address_types: &[AddressType],
-        labels: &HashMap<u16, String>,
+        labels: &std::collections::HashMap<u16, crate::state::Label>,
         origin: u16,
     ) -> Vec<DisassemblyLine> {
         let mut lines = Vec::new();
@@ -35,15 +36,17 @@ impl Disassembler {
 
         while pc < data.len() {
             let address = origin.wrapping_add(pc as u16);
+            let label_name = labels.get(&address).map(|l| l.name.clone());
 
-            // Check for Label
-            if let Some(label) = labels.get(&address) {
+            // Check for Label (User or Auto) -> explicit line
+            if let Some(name) = &label_name {
                 lines.push(DisassemblyLine {
                     address,
                     bytes: Vec::new(),
-                    mnemonic: format!("{}:", label),
+                    mnemonic: format!("{}:", name),
                     operand: String::new(),
                     comment: String::new(),
+                    label: Some(name.clone()),
                     opcode: None,
                 });
             }
@@ -60,13 +63,6 @@ impl Disassembler {
 
                         // Check if we have enough bytes
                         if pc + opcode.size as usize <= data.len() {
-                            // Check if any of the subsequent bytes are NOT Code
-                            // Also check if any of the subsequent bytes have a label!
-                            // If a label exists in the middle of an instruction, it's a collision/anomaly.
-                            // But usually, we just prioritize the instruction.
-                            // However, strictly speaking, if there is a label at pc+1, maybe we should treat it as data?
-                            // For now, let's stick to type check collision.
-
                             let mut collision = false;
                             for i in 1..opcode.size {
                                 if let Some(t) = address_types.get(pc + i as usize) {
@@ -74,12 +70,6 @@ impl Disassembler {
                                         collision = true;
                                         break;
                                     }
-                                }
-                                // Check for label collision inside instruction?
-                                let sub_addr = address.wrapping_add(i as u16);
-                                if labels.contains_key(&sub_addr) {
-                                    // This is up to policy. For now, let's ignore mid-instruction labels or treat as collision?
-                                    // Let's treat as OK for now, label will just be hidden/skipped or pointing to mid-instruction.
                                 }
                             }
 
@@ -98,6 +88,7 @@ impl Disassembler {
                                     mnemonic: opcode.mnemonic.to_string(),
                                     operand: operand_str,
                                     comment: String::new(),
+                                    label: label_name.clone(),
                                     opcode: Some(opcode.clone()),
                                 });
                                 continue;
@@ -105,13 +96,14 @@ impl Disassembler {
                         }
                     }
 
-                    // Fallthrough to fallback byte handling if opcode is invalid or data collision
+                    // Fallthrough
                     lines.push(DisassemblyLine {
                         address,
                         bytes: vec![opcode_byte],
                         mnemonic: ".BYTE".to_string(),
                         operand: format!("${:02X}", opcode_byte),
                         comment: "Invalid or partial instruction".to_string(),
+                        label: label_name.clone(),
                         opcode: None,
                     });
                     pc += 1;
@@ -124,6 +116,7 @@ impl Disassembler {
                         mnemonic: ".BYTE".to_string(),
                         operand: format!("${:02X}", b),
                         comment: String::new(),
+                        label: label_name.clone(),
                         opcode: None,
                     });
                     pc += 1;
@@ -139,16 +132,17 @@ impl Disassembler {
                             bytes: vec![low, high],
                             mnemonic: ".WORD".to_string(),
                             operand: if let Some(label) = labels.get(&val) {
-                                label.clone()
+                                label.name.clone()
                             } else {
                                 format!("${:04X}", val)
                             },
                             comment: String::new(),
+                            label: label_name.clone(),
                             opcode: None,
                         });
                         pc += 2;
                     } else {
-                        // Not enough data, just byte
+                        // Not enough data
                         let b = data[pc];
                         lines.push(DisassemblyLine {
                             address,
@@ -156,6 +150,7 @@ impl Disassembler {
                             mnemonic: ".BYTE".to_string(),
                             operand: format!("${:02X}", b),
                             comment: "Partial Word".to_string(),
+                            label: label_name.clone(),
                             opcode: None,
                         });
                         pc += 1;
@@ -172,11 +167,12 @@ impl Disassembler {
                             bytes: vec![low, high],
                             mnemonic: ".WORD".to_string(),
                             operand: if let Some(label) = labels.get(&val) {
-                                label.clone()
+                                label.name.clone()
                             } else {
                                 format!("${:04X}", val)
                             },
                             comment: "Pointer".to_string(),
+                            label: label_name.clone(),
                             opcode: None,
                         });
                         pc += 2;
@@ -188,6 +184,7 @@ impl Disassembler {
                             mnemonic: ".BYTE".to_string(),
                             operand: format!("${:02X}", b),
                             comment: "Partial Ptr".to_string(),
+                            label: label_name.clone(),
                             opcode: None,
                         });
                         pc += 1;
@@ -204,7 +201,7 @@ impl Disassembler {
         opcode: &Opcode,
         operands: &[u8],
         address: u16,
-        labels: &HashMap<u16, String>,
+        labels: &HashMap<u16, crate::state::Label>,
     ) -> String {
         match opcode.mode {
             AddressingMode::Implied | AddressingMode::Accumulator => String::new(),
@@ -212,7 +209,7 @@ impl Disassembler {
             AddressingMode::ZeroPage => {
                 let addr = operands[0] as u16; // Zero page address
                 if let Some(label) = labels.get(&addr) {
-                    label.clone()
+                    label.name.clone()
                 } else {
                     format!("${:02X}", addr)
                 }
@@ -221,7 +218,7 @@ impl Disassembler {
                 let addr = operands[0] as u16;
                 // Maybe handle label math later? E.g. Label+X? For now just raw label if it matches base.
                 if let Some(label) = labels.get(&addr) {
-                    format!("{},X", label)
+                    format!("{},X", label.name)
                 } else {
                     format!("${:02X},X", addr)
                 }
@@ -229,7 +226,7 @@ impl Disassembler {
             AddressingMode::ZeroPageY => {
                 let addr = operands[0] as u16;
                 if let Some(label) = labels.get(&addr) {
-                    format!("{},Y", label)
+                    format!("{},Y", label.name)
                 } else {
                     format!("${:02X},Y", addr)
                 }
@@ -238,7 +235,7 @@ impl Disassembler {
                 let offset = operands[0] as i8;
                 let target = address.wrapping_add(2).wrapping_add(offset as u16);
                 if let Some(label) = labels.get(&target) {
-                    label.clone()
+                    label.name.clone()
                 } else {
                     format!("${:04X}", target)
                 }
@@ -246,7 +243,7 @@ impl Disassembler {
             AddressingMode::Absolute => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
                 if let Some(label) = labels.get(&addr) {
-                    label.clone()
+                    label.name.clone()
                 } else {
                     format!("${:04X}", addr)
                 }
@@ -254,7 +251,7 @@ impl Disassembler {
             AddressingMode::AbsoluteX => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
                 if let Some(label) = labels.get(&addr) {
-                    format!("{},X", label)
+                    format!("{},X", label.name)
                 } else {
                     format!("${:04X},X", addr)
                 }
@@ -262,7 +259,7 @@ impl Disassembler {
             AddressingMode::AbsoluteY => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
                 if let Some(label) = labels.get(&addr) {
-                    format!("{},Y", label)
+                    format!("{},Y", label.name)
                 } else {
                     format!("${:04X},Y", addr)
                 }
@@ -270,7 +267,7 @@ impl Disassembler {
             AddressingMode::Indirect => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
                 if let Some(label) = labels.get(&addr) {
-                    format!("({})", label)
+                    format!("({})", label.name)
                 } else {
                     format!("(${:04X})", addr)
                 }
@@ -278,7 +275,7 @@ impl Disassembler {
             AddressingMode::IndirectX => {
                 let addr = operands[0] as u16;
                 if let Some(label) = labels.get(&addr) {
-                    format!("({},X)", label)
+                    format!("({},X)", label.name)
                 } else {
                     format!("(${:02X},X)", addr)
                 }
@@ -286,7 +283,7 @@ impl Disassembler {
             AddressingMode::IndirectY => {
                 let addr = operands[0] as u16;
                 if let Some(label) = labels.get(&addr) {
-                    format!("({}),Y", label)
+                    format!("({}),Y", label.name)
                 } else {
                     format!("(${:02X}),Y", addr)
                 }
@@ -366,7 +363,14 @@ mod tests {
         let address_types = vec![AddressType::Code; data.len()];
 
         let mut labels = HashMap::new();
-        labels.insert(0x1003, "MyLabel".to_string());
+        labels.insert(
+            0x1003,
+            crate::state::Label {
+                name: "MyLabel".to_string(),
+                kind: crate::state::LabelKind::User,
+                refs: 0,
+            },
+        );
 
         let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
 

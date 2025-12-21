@@ -12,6 +12,19 @@ pub enum AddressType {
     DataPtr, // Simple word pointer for now
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LabelKind {
+    User,
+    Auto,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Label {
+    pub name: String,
+    pub kind: LabelKind,
+    pub refs: u32,
+}
+
 pub struct FilePickerState {
     pub active: bool,
     pub current_dir: PathBuf,
@@ -162,7 +175,7 @@ pub struct ProjectState {
     pub raw_data: Vec<String>, // Chunked Hex
     pub address_ranges: Vec<AddressRange>,
     #[serde(default)]
-    pub labels: HashMap<u16, String>,
+    pub labels: HashMap<u16, Label>,
 }
 
 pub struct AppState {
@@ -185,7 +198,7 @@ pub struct AppState {
 
     // Data Conversion State
     pub address_types: Vec<AddressType>,
-    pub labels: HashMap<u16, String>,
+    pub labels: HashMap<u16, Label>,
     pub selection_start: Option<usize>,
 
     // UI State

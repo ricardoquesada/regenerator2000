@@ -25,8 +25,8 @@ impl LabelPriority {
     }
 }
 
-pub fn analyze(state: &AppState) -> HashMap<u16, String> {
-    let mut usage_map: HashMap<u16, LabelPriority> = HashMap::new();
+pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
+    let mut usage_map: HashMap<u16, (LabelPriority, u32)> = HashMap::new();
     let mut pc = 0;
     let data_len = state.raw_data.len();
     let origin = state.origin;
@@ -66,25 +66,6 @@ pub fn analyze(state: &AppState) -> HashMap<u16, String> {
             }
         } else {
             // Data skip
-            // Note: If we have explicit pointers (DataPtr), we should mark them?
-            // "p: if this is a pointer".
-            // If the user marked it as DataPtr, it IS a pointer.
-            // But usually we label the DESTINATION?
-            // "The automatic label should have the name of the address ... with a single letter as prefix"
-            // "if this address is being called from..."
-            // "p: if this is a pointer" - this sounds like the address ITSELF is a pointer.
-            // If I have `AddressType::DataPtr` at $1000, then $1000 *contains* a pointer.
-            // But is $1000 a pointer? Or is the value inside?
-            // Usually we label the address. If I label $1000 as `p1000`, it implies $1000 is a pointer.
-            // I will stick to usage-based for now, as that covers "being called from".
-            // If I see JMP ($1234), I label $1234 as `p`.
-
-            // However, iterating data to find pointers (if type is DataPtr) might be useful?
-            // If AddressType::DataPtr is set, we treat the VALUE as an address that is pointed to?
-            // No, DataPtr at $1000 means $1000 holds 2 bytes which is an address.
-            // Does that mean $1000 should be labeled 'p'? Yes.
-            // "p: if this is a pointer" -> This address holds a pointer.
-
             if current_type == AddressType::DataPtr {
                 pc += 2; // words
             } else if current_type == AddressType::DataWord {
@@ -95,15 +76,58 @@ pub fn analyze(state: &AppState) -> HashMap<u16, String> {
         }
     }
 
-    // Generate strings
+    // Generate labels
     let mut labels = HashMap::new();
-    for (addr, priority) in usage_map {
-        let prefix = if is_external(addr, origin, data_len) {
+
+    // 1. Process all used addresses
+    for (addr, (priority, count)) in usage_map {
+        // Check if there is an existing User label
+        if let Some(existing) = state.labels.get(&addr) {
+            if existing.kind == crate::state::LabelKind::User {
+                labels.insert(
+                    addr,
+                    crate::state::Label {
+                        name: existing.name.clone(),
+                        kind: crate::state::LabelKind::User,
+                        refs: count,
+                    },
+                );
+                continue;
+            }
+        }
+
+        // Otherwise generate Auto label
+        let prefix = if priority == LabelPriority::Subroutine {
+            's'
+        } else if priority == LabelPriority::Field {
+            'f'
+        } else if is_external(addr, origin, data_len) {
             'e'
         } else {
             priority.prefix()
         };
-        labels.insert(addr, format!("{}{:04X}", prefix, addr));
+        labels.insert(
+            addr,
+            crate::state::Label {
+                name: format!("{}{:04X}", prefix, addr),
+                kind: crate::state::LabelKind::Auto,
+                refs: count,
+            },
+        );
+    }
+
+    // 2. Preserve User labels that have 0 references
+    for (addr, label) in &state.labels {
+        if label.kind == crate::state::LabelKind::User && !labels.contains_key(addr) {
+            labels.insert(
+                *addr,
+                crate::state::Label {
+                    name: label.name.clone(),
+                    kind: crate::state::LabelKind::User,
+                    refs: 0,
+                },
+            );
+        }
     }
 
     labels
@@ -114,7 +138,7 @@ fn analyze_instruction(
     opcode: &Opcode,
     operands: &[u8],
     address: u16,
-    usage_map: &mut HashMap<u16, LabelPriority>,
+    usage_map: &mut HashMap<u16, (LabelPriority, u32)>,
 ) {
     match opcode.mode {
         AddressingMode::Implied | AddressingMode::Accumulator | AddressingMode::Immediate => {}
@@ -189,14 +213,15 @@ fn analyze_instruction(
     }
 }
 
-fn update_usage(map: &mut HashMap<u16, LabelPriority>, addr: u16, priority: LabelPriority) {
+fn update_usage(map: &mut HashMap<u16, (LabelPriority, u32)>, addr: u16, priority: LabelPriority) {
     map.entry(addr)
-        .and_modify(|p| {
+        .and_modify(|(p, count)| {
             if priority > *p {
-                *p = priority
+                *p = priority;
             }
+            *count += 1;
         })
-        .or_insert(priority);
+        .or_insert((priority, 1));
 }
 
 fn is_external(addr: u16, origin: u16, len: usize) -> bool {
@@ -233,11 +258,11 @@ mod tests {
         let labels = analyze(&state);
 
         // $1005 is JMP target -> j1005
-        assert_eq!(labels.get(&0x1005), Some(&"j1005".to_string()));
+        assert_eq!(labels.get(&0x1005).map(|l| l.name.as_str()), Some("j1005"));
         // $1008 is JSR target -> s1008
-        assert_eq!(labels.get(&0x1008), Some(&"s1008".to_string()));
+        assert_eq!(labels.get(&0x1008).map(|l| l.name.as_str()), Some("s1008"));
         // $1000 is accessed via LDA (Absolute) -> a1000
-        assert_eq!(labels.get(&0x1000), Some(&"a1000".to_string()));
+        assert_eq!(labels.get(&0x1000).map(|l| l.name.as_str()), Some("a1000"));
     }
 
     #[test]
@@ -252,7 +277,7 @@ mod tests {
 
         let labels = analyze(&state);
         // s > j
-        assert_eq!(labels.get(&0x2000), Some(&"s2000".to_string()));
+        assert_eq!(labels.get(&0x2000).map(|l| l.name.as_str()), Some("s2000"));
     }
 
     #[test]
@@ -266,7 +291,7 @@ mod tests {
 
         let labels = analyze(&state);
         // ZP access -> Field -> f0010
-        assert_eq!(labels.get(&0x0010), Some(&"f0010".to_string()));
+        assert_eq!(labels.get(&0x0010).map(|l| l.name.as_str()), Some("f0010"));
     }
 
     #[test]
@@ -280,7 +305,7 @@ mod tests {
 
         let labels = analyze(&state);
         // External -> e0010
-        assert_eq!(labels.get(&0x0010), Some(&"e0010".to_string()));
+        assert_eq!(labels.get(&0x0010).map(|l| l.name.as_str()), Some("e0010"));
     }
 
     #[test]
@@ -346,18 +371,38 @@ mod tests {
         let labels = analyze(&state);
 
         // Case 1: $1000 -> jump to $1002. Usage: b1002 (Internal)
-        assert_eq!(labels.get(&0x1002), Some(&"b1002".to_string()));
+        assert_eq!(labels.get(&0x1002).map(|l| l.name.as_str()), Some("b1002"));
+        assert_eq!(
+            labels.get(&0x1002).unwrap().kind,
+            crate::state::LabelKind::Auto
+        );
 
         // Case 2: $1002 -> jump to $1083. Usage: e1083 (External)
-        assert_eq!(labels.get(&0x1083), Some(&"e1083".to_string()));
+        assert_eq!(labels.get(&0x1083).map(|l| l.name.as_str()), Some("e1083"));
+        assert_eq!(
+            labels.get(&0x1083).unwrap().kind,
+            crate::state::LabelKind::Auto
+        );
 
         // Case 3: $1004 -> jump to $0F86. Usage: e0F86 (External)
-        assert_eq!(labels.get(&0x0F86), Some(&"e0F86".to_string()));
+        assert_eq!(labels.get(&0x0F86).map(|l| l.name.as_str()), Some("e0F86"));
+        assert_eq!(
+            labels.get(&0x0F86).unwrap().kind,
+            crate::state::LabelKind::Auto
+        );
 
         // Case 4: $1006 -> jump to $1007. Usage: b1007 (Internal)
-        assert_eq!(labels.get(&0x1007), Some(&"b1007".to_string()));
+        assert_eq!(labels.get(&0x1007).map(|l| l.name.as_str()), Some("b1007"));
+        assert_eq!(
+            labels.get(&0x1007).unwrap().kind,
+            crate::state::LabelKind::Auto
+        );
 
         // Case 5: $1008 -> jump to $1008. Usage: b1008 (Infinite loop)
-        assert_eq!(labels.get(&0x1008), Some(&"b1008".to_string()));
+        assert_eq!(labels.get(&0x1008).map(|l| l.name.as_str()), Some("b1008"));
+        assert_eq!(
+            labels.get(&0x1008).unwrap().kind,
+            crate::state::LabelKind::Auto
+        );
     }
 }

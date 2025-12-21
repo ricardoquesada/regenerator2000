@@ -146,10 +146,9 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                                 state.label_dialog.close();
                             } else {
                                 // Check for duplicates (exclude current address in case of rename/edit)
-                                let exists = state
-                                    .labels
-                                    .iter()
-                                    .any(|(addr, name)| name == &label_name && *addr != address);
+                                let exists = state.labels.iter().any(|(addr, label)| {
+                                    label.name == label_name && *addr != address
+                                });
 
                                 if exists {
                                     state.status_message =
@@ -158,9 +157,15 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                                 } else {
                                     let old_label = state.labels.get(&address).cloned();
 
+                                    let new_label = crate::state::Label {
+                                        name: label_name,
+                                        kind: crate::state::LabelKind::User,
+                                        refs: 0,
+                                    };
+
                                     let command = crate::commands::Command::SetLabel {
                                         address,
-                                        new_label: Some(label_name),
+                                        new_label: Some(new_label),
                                         old_label,
                                     };
 
@@ -341,7 +346,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                         {
                             if let Some(line) = state.disassembly.get(state.cursor_index) {
                                 let addr = line.address;
-                                let text = state.labels.get(&addr).map(|s| s.as_str());
+                                let text = state.labels.get(&addr).map(|l| l.name.as_str());
                                 state.label_dialog.open(text);
                                 state.status_message = "Enter Label".to_string();
                             }
@@ -509,12 +514,12 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
         "Analyze" => {
             let labels = crate::analyzer::analyze(state);
             let mut new_labels_map = std::collections::HashMap::new();
-            for (addr, name) in labels {
+            for (addr, label) in labels {
                 // Only add if not exists? Or overwrite? automatic labels usually overwrite or fill gaps.
                 // Requirement: "automatic label should have..."
                 // Probably overwrite if it's an automatic label, but preserve user labels?
                 // For simplicity, let's overwrite or better: just set them. User can undo.
-                new_labels_map.insert(addr, Some(name));
+                new_labels_map.insert(addr, Some(label));
             }
             // Capture old labels
             let mut old_labels_map = std::collections::HashMap::new();

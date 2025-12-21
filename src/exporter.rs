@@ -9,8 +9,8 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let mut externals: Vec<(u16, &String)> = state
         .labels
         .iter()
-        .filter(|(_, name)| name.starts_with('e'))
-        .map(|(k, v)| (*k, v))
+        .filter(|(_, label)| label.name.starts_with('e'))
+        .map(|(k, v)| (*k, &v.name))
         .collect();
     externals.sort_by_key(|(k, _)| *k);
 
@@ -36,7 +36,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             for i in 1..line.bytes.len() {
                 let mid_addr = line.address.wrapping_add(i as u16);
                 if let Some(label) = state.labels.get(&mid_addr) {
-                    output.push_str(&format!("{} = * + {}\n", label, i));
+                    output.push_str(&format!("{} = * + {}\n", label.name, i));
                 }
             }
         }
@@ -72,6 +72,7 @@ mod tests {
             operand: "#$00".to_string(),
             bytes: vec![0xA9, 0x00],
             comment: String::new(),
+            label: None,
             opcode: None,
         });
         // STA $D020
@@ -81,6 +82,7 @@ mod tests {
             operand: "$D020".to_string(),
             bytes: vec![0x8D, 0x20, 0xD0],
             comment: String::new(),
+            label: None,
             opcode: None,
         });
         // RTS
@@ -90,6 +92,7 @@ mod tests {
             operand: "".to_string(),
             bytes: vec![0x60],
             comment: String::new(),
+            label: None,
             opcode: None,
         });
 
@@ -157,9 +160,30 @@ mod tests {
         // C002: (mid)
 
         // Add 3 labels
-        state.labels.insert(0xC000, "aC000".to_string());
-        state.labels.insert(0xC001, "aC001".to_string());
-        state.labels.insert(0xC002, "aC002".to_string());
+        state.labels.insert(
+            0xC000,
+            crate::state::Label {
+                name: "aC000".to_string(),
+                kind: crate::state::LabelKind::User,
+                refs: 0,
+            },
+        );
+        state.labels.insert(
+            0xC001,
+            crate::state::Label {
+                name: "aC001".to_string(),
+                kind: crate::state::LabelKind::User,
+                refs: 0,
+            },
+        );
+        state.labels.insert(
+            0xC002,
+            crate::state::Label {
+                name: "aC002".to_string(),
+                kind: crate::state::LabelKind::User,
+                refs: 0,
+            },
+        );
 
         // Disassembly line for the STA instruction
         state.disassembly.push(DisassemblyLine {
@@ -168,6 +192,7 @@ mod tests {
             operand: "".to_string(),
             bytes: vec![],
             comment: String::new(),
+            label: Some("aC000".to_string()),
             opcode: None,
         });
 
@@ -177,6 +202,7 @@ mod tests {
             operand: "$1234".to_string(),
             bytes: vec![0x8D, 0x34, 0x12],
             comment: String::new(),
+            label: Some("aC000".to_string()),
             opcode: None,
         });
 
@@ -188,6 +214,7 @@ mod tests {
             operand: "aC001".to_string(),
             bytes: vec![0xAD, 0x01, 0xC0],
             comment: String::new(),
+            label: None,
             opcode: None,
         });
 
