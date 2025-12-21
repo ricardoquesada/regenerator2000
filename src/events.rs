@@ -272,12 +272,11 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                             handle_menu_action(&mut state, "Save");
                         }
                     }
-                    KeyCode::Char('z') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            handle_menu_action(&mut state, "Redo");
-                        } else {
-                            handle_menu_action(&mut state, "Undo");
-                        }
+                    KeyCode::Char('u') => {
+                        handle_menu_action(&mut state, "Undo");
+                    }
+                    KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        handle_menu_action(&mut state, "Redo");
                     }
                     KeyCode::Char('+') | KeyCode::Char('=')
                         if key.modifiers.contains(KeyModifiers::CONTROL) =>

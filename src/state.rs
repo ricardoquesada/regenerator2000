@@ -321,8 +321,8 @@ impl MenuState {
                 MenuCategory {
                     name: "Edit".to_string(),
                     items: vec![
-                        MenuItem::new("Undo", Some("Ctrl+Z")),
-                        MenuItem::new("Redo", Some("Ctrl+Shift+Z")),
+                        MenuItem::new("Undo", Some("U")),
+                        MenuItem::new("Redo", Some("Ctrl+R")),
                         MenuItem::separator(),
                         MenuItem::new("Code", Some("C")),
                         MenuItem::new("Byte", Some("B")),
