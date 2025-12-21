@@ -344,6 +344,109 @@ impl AppState {
         }
     }
 
+    pub fn perform_analysis(&mut self) {
+        let labels = crate::analyzer::analyze(self);
+        let mut new_labels_map = std::collections::HashMap::new();
+        for (addr, label) in labels {
+            new_labels_map.insert(addr, Some(label));
+        }
+        // Capture old labels
+        let mut old_labels_map = std::collections::HashMap::new();
+        for k in new_labels_map.keys() {
+            old_labels_map.insert(*k, self.labels.get(k).cloned());
+        }
+
+        let command = crate::commands::Command::SetLabels {
+            labels: new_labels_map,
+            old_labels: old_labels_map,
+        };
+        command.apply(self);
+        self.undo_stack.push(command);
+        self.status_message = "Analysis Complete".to_string();
+        self.disassemble();
+    }
+
+    pub fn set_address_type_region(&mut self, new_type: AddressType) {
+        let range_opt = if let Some(selection_start) = self.selection_start {
+            let (s, e) = if selection_start < self.cursor_index {
+                (selection_start, self.cursor_index)
+            } else {
+                (self.cursor_index, selection_start)
+            };
+
+            if let (Some(start_line), Some(end_line)) =
+                (self.disassembly.get(s), self.disassembly.get(e))
+            {
+                let start_addr = start_line.address;
+                let end_addr_inclusive = end_line.address + end_line.bytes.len() as u16 - 1;
+
+                let start_idx = (start_addr.wrapping_sub(self.origin)) as usize;
+                let end_idx = (end_addr_inclusive.wrapping_sub(self.origin)) as usize;
+
+                Some((start_idx, end_idx))
+            } else {
+                None
+            }
+        } else {
+            // Single line action
+            if let Some(line) = self.disassembly.get(self.cursor_index) {
+                let start_addr = line.address;
+                let end_addr_inclusive = line.address + line.bytes.len() as u16 - 1;
+
+                let start_idx = (start_addr.wrapping_sub(self.origin)) as usize;
+                let end_idx = (end_addr_inclusive.wrapping_sub(self.origin)) as usize;
+                Some((start_idx, end_idx))
+            } else {
+                None
+            }
+        };
+
+        if let Some((start, end)) = range_opt {
+            // Boundary check
+            let max_len = self.address_types.len();
+            if start < max_len {
+                let valid_end = end.min(max_len);
+                let range_end = valid_end + 1;
+                let range = start..range_end;
+
+                let old_types = self.address_types[range.clone()].to_vec();
+
+                let command = crate::commands::Command::SetAddressType {
+                    range: range.clone(),
+                    new_type,
+                    old_types,
+                };
+
+                command.apply(self);
+                self.undo_stack.push(command);
+
+                // Clear selection after action
+                self.selection_start = None;
+                self.disassemble();
+            }
+        }
+    }
+
+    pub fn undo_last_command(&mut self) {
+        let mut stack = std::mem::replace(&mut self.undo_stack, crate::commands::UndoStack::new());
+        if let Some(msg) = stack.undo(self) {
+            self.status_message = msg;
+        } else {
+            self.status_message = "Nothing to undo".to_string();
+        }
+        self.undo_stack = stack;
+    }
+
+    pub fn redo_last_command(&mut self) {
+        let mut stack = std::mem::replace(&mut self.undo_stack, crate::commands::UndoStack::new());
+        if let Some(msg) = stack.redo(self) {
+            self.status_message = msg;
+        } else {
+            self.status_message = "Nothing to redo".to_string();
+        }
+        self.undo_stack = stack;
+    }
+
     pub fn disassemble(&mut self) {
         self.disassembly = self.disassembler.disassemble(
             &self.raw_data,

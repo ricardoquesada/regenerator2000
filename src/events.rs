@@ -224,6 +224,17 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                                 } else {
                                     state.status_message = format!("Loaded: {:?}", selected_path);
                                     state.file_picker.close();
+
+                                    // Auto-analyze if it's a binary file (not json)
+                                    let is_project = selected_path
+                                        .extension()
+                                        .and_then(|e| e.to_str())
+                                        .map(|e| e.eq_ignore_ascii_case("json"))
+                                        .unwrap_or(false);
+
+                                    if !is_project {
+                                        state.perform_analysis();
+                                    }
                                 }
                             }
                         }
@@ -290,6 +301,13 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                         } else {
                             handle_menu_action(&mut state, "Save");
                         }
+                    }
+                    KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        state.cursor_index = state.cursor_index.saturating_sub(10);
+                    }
+                    KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        state.cursor_index = (state.cursor_index + 10)
+                            .min(state.disassembly.len().saturating_sub(1));
                     }
                     KeyCode::Char('u') => {
                         handle_menu_action(&mut state, "Undo");
@@ -414,75 +432,6 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
 fn handle_menu_action(state: &mut AppState, action: &str) {
     state.status_message = format!("Action: {}", action);
 
-    // Helper to get range, returns Option
-    let get_range = |state: &AppState| -> Option<(usize, usize)> {
-        if let Some(selection_start) = state.selection_start {
-            let (s, e) = if selection_start < state.cursor_index {
-                (selection_start, state.cursor_index)
-            } else {
-                (state.cursor_index, selection_start)
-            };
-
-            if let (Some(start_line), Some(end_line)) =
-                (state.disassembly.get(s), state.disassembly.get(e))
-            {
-                let start_addr = start_line.address;
-                let end_addr_inclusive = end_line.address + end_line.bytes.len() as u16 - 1;
-
-                let start_idx = (start_addr.wrapping_sub(state.origin)) as usize;
-                let end_idx = (end_addr_inclusive.wrapping_sub(state.origin)) as usize;
-
-                Some((start_idx, end_idx))
-            } else {
-                None
-            }
-        } else {
-            // Single line action
-            if let Some(line) = state.disassembly.get(state.cursor_index) {
-                let start_addr = line.address;
-                let end_addr_inclusive = line.address + line.bytes.len() as u16 - 1;
-
-                let start_idx = (start_addr.wrapping_sub(state.origin)) as usize;
-                let end_idx = (end_addr_inclusive.wrapping_sub(state.origin)) as usize;
-                Some((start_idx, end_idx))
-            } else {
-                None
-            }
-        }
-    };
-
-    // Helper to update range
-    let mut update_type = |new_type: crate::state::AddressType| {
-        if let Some((start, end)) = get_range(state) {
-            // Boundary check
-            let max_len = state.address_types.len();
-            if start < max_len {
-                let valid_end = end.min(max_len);
-                // Note: valid_end is inclusive in previous code, but Command expects Range (exclusive end)
-                // Wait, previous code: for i in start..=valid_end
-                // So range is start..(valid_end + 1)
-
-                let range_end = valid_end + 1;
-                let range = start..range_end;
-
-                let old_types = state.address_types[range.clone()].to_vec();
-
-                let command = crate::commands::Command::SetAddressType {
-                    range: range.clone(),
-                    new_type,
-                    old_types,
-                };
-
-                command.apply(state);
-                state.undo_stack.push(command);
-
-                // Clear selection after action
-                state.selection_start = None;
-                state.disassemble();
-            }
-        }
-    };
-
     match action {
         "Exit" => state.should_quit = true,
         "New" => {
@@ -513,57 +462,21 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
             state.status_message = "Enter filename for ASM".to_string();
         }
         "Analyze" => {
-            let labels = crate::analyzer::analyze(state);
-            let mut new_labels_map = std::collections::HashMap::new();
-            for (addr, label) in labels {
-                // Only add if not exists? Or overwrite? automatic labels usually overwrite or fill gaps.
-                // Requirement: "automatic label should have..."
-                // Probably overwrite if it's an automatic label, but preserve user labels?
-                // For simplicity, let's overwrite or better: just set them. User can undo.
-                new_labels_map.insert(addr, Some(label));
-            }
-            // Capture old labels
-            let mut old_labels_map = std::collections::HashMap::new();
-            for k in new_labels_map.keys() {
-                old_labels_map.insert(*k, state.labels.get(k).cloned());
-            }
-
-            let command = crate::commands::Command::SetLabels {
-                labels: new_labels_map,
-                old_labels: old_labels_map,
-            };
-            command.apply(state);
-            state.undo_stack.push(command);
-            state.status_message = "Analysis Complete".to_string();
-            state.disassemble();
+            state.perform_analysis();
         }
         "Undo" => {
-            let mut stack =
-                std::mem::replace(&mut state.undo_stack, crate::commands::UndoStack::new());
-            if let Some(msg) = stack.undo(state) {
-                state.status_message = msg;
-            } else {
-                state.status_message = "Nothing to undo".to_string();
-            }
-            state.undo_stack = stack;
+            state.undo_last_command();
         }
         "Redo" => {
-            let mut stack =
-                std::mem::replace(&mut state.undo_stack, crate::commands::UndoStack::new());
-            if let Some(msg) = stack.redo(state) {
-                state.status_message = msg;
-            } else {
-                state.status_message = "Nothing to redo".to_string();
-            }
-            state.undo_stack = stack;
+            state.redo_last_command();
         }
         "Zoom In" => {}
         "Zoom Out" => {}
         "Reset Zoom" => {}
-        "Code" => update_type(crate::state::AddressType::Code),
-        "Byte" => update_type(crate::state::AddressType::DataByte),
-        "Word" => update_type(crate::state::AddressType::DataWord),
-        "Address" => update_type(crate::state::AddressType::Address),
+        "Code" => state.set_address_type_region(crate::state::AddressType::Code),
+        "Byte" => state.set_address_type_region(crate::state::AddressType::DataByte),
+        "Word" => state.set_address_type_region(crate::state::AddressType::DataWord),
+        "Address" => state.set_address_type_region(crate::state::AddressType::Address),
         "Jump to address" => {
             state.jump_dialog.open();
             state.status_message = "Enter address (Hex)".to_string();
