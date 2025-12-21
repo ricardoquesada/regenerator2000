@@ -1,6 +1,7 @@
 use crate::disassembler::{Disassembler, DisassemblyLine};
 use ratatui::widgets::ListState;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -115,6 +116,30 @@ impl SaveDialogState {
     }
 }
 
+pub struct LabelDialogState {
+    pub active: bool,
+    pub input: String,
+}
+
+impl LabelDialogState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            input: String::new(),
+        }
+    }
+
+    pub fn open(&mut self, current_label: Option<&str>) {
+        self.active = true;
+        self.input = current_label.unwrap_or("").to_string();
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+        self.input.clear();
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AddressRange {
     pub start: usize,
@@ -127,6 +152,8 @@ pub struct ProjectState {
     pub origin: u16,
     pub raw_data: Vec<String>, // Chunked Hex
     pub address_ranges: Vec<AddressRange>,
+    #[serde(default)]
+    pub labels: HashMap<u16, String>,
 }
 
 pub struct AppState {
@@ -140,6 +167,7 @@ pub struct AppState {
     pub file_picker: FilePickerState,
     pub jump_dialog: JumpDialogState,
     pub save_dialog: SaveDialogState,
+    pub label_dialog: LabelDialogState,
 
     pub menu: MenuState,
 
@@ -148,6 +176,7 @@ pub struct AppState {
 
     // Data Conversion State
     pub address_types: Vec<AddressType>,
+    pub labels: HashMap<u16, String>,
     pub selection_start: Option<usize>,
 
     // UI State
@@ -170,10 +199,12 @@ impl AppState {
             file_picker: FilePickerState::new(),
             jump_dialog: JumpDialogState::new(),
             save_dialog: SaveDialogState::new(),
+            label_dialog: LabelDialogState::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),
             disassembly_state: ListState::default(),
             address_types: Vec::new(),
+            labels: HashMap::new(),
             selection_start: None,
             cursor_index: 0,
             scroll_index: 0,
@@ -227,6 +258,7 @@ impl AppState {
 
         // Expand address types
         self.address_types = expand_address_ranges(&project.address_ranges, self.raw_data.len());
+        self.labels = project.labels;
 
         self.disassemble();
         Ok(())
@@ -238,6 +270,7 @@ impl AppState {
                 origin: self.origin,
                 raw_data: encode_raw_data(&self.raw_data),
                 address_ranges: compress_address_types(&self.address_types),
+                labels: self.labels.clone(),
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;
@@ -248,9 +281,12 @@ impl AppState {
     }
 
     pub fn disassemble(&mut self) {
-        self.disassembly =
-            self.disassembler
-                .disassemble(&self.raw_data, &self.address_types, self.origin);
+        self.disassembly = self.disassembler.disassemble(
+            &self.raw_data,
+            &self.address_types,
+            &self.labels,
+            self.origin,
+        );
     }
 }
 

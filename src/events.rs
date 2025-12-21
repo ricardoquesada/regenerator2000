@@ -103,6 +103,38 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                     }
                     _ => {}
                 }
+            } else if state.label_dialog.active {
+                match key.code {
+                    KeyCode::Esc => {
+                        state.label_dialog.close();
+                        state.status_message = "Ready".to_string();
+                    }
+                    KeyCode::Enter => {
+                        // Get current address
+                        if let Some(line) = state.disassembly.get(state.cursor_index) {
+                            let address = line.address;
+                            let label_name = state.label_dialog.input.trim().to_string();
+
+                            if label_name.is_empty() {
+                                // Remove label
+                                state.labels.remove(&address);
+                                state.status_message = "Label removed".to_string();
+                            } else {
+                                state.labels.insert(address, label_name);
+                                state.status_message = "Label set".to_string();
+                            }
+                            state.disassemble();
+                            state.label_dialog.close();
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        state.label_dialog.input.pop();
+                    }
+                    KeyCode::Char(c) => {
+                        state.label_dialog.input.push(c);
+                    }
+                    _ => {}
+                }
             } else if state.file_picker.active {
                 match key.code {
                     KeyCode::Esc => {
@@ -253,6 +285,22 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                     KeyCode::Char('b') => handle_menu_action(&mut state, "Byte"),
                     KeyCode::Char('w') => handle_menu_action(&mut state, "Word"),
                     KeyCode::Char('p') => handle_menu_action(&mut state, "Pointer"),
+
+                    // Label
+                    KeyCode::Char('l') => {
+                        if !state.menu.active
+                            && !state.jump_dialog.active
+                            && !state.save_dialog.active
+                            && !state.file_picker.active
+                        {
+                            if let Some(line) = state.disassembly.get(state.cursor_index) {
+                                let addr = line.address;
+                                let text = state.labels.get(&addr).map(|s| s.as_str());
+                                state.label_dialog.open(text);
+                                state.status_message = "Enter Label".to_string();
+                            }
+                        }
+                    }
 
                     // Normal Navigation
                     KeyCode::Down | KeyCode::Char('j') => {

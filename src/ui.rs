@@ -37,6 +37,27 @@ pub fn ui(f: &mut Frame, state: &mut AppState) {
     if state.save_dialog.active {
         render_save_dialog(f, f.area(), &state.save_dialog);
     }
+
+    if state.label_dialog.active {
+        render_label_dialog(f, f.area(), &state.label_dialog);
+    }
+}
+
+fn render_label_dialog(f: &mut Frame, area: Rect, dialog: &crate::state::LabelDialogState) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Enter Label Name ")
+        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+
+    let area = centered_rect(50, 20, area);
+    f.render_widget(ratatui::widgets::Clear, area);
+
+    let input = Paragraph::new(dialog.input.clone()).block(block).style(
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    );
+    f.render_widget(input, area);
 }
 
 fn render_save_dialog(f: &mut Frame, area: Rect, dialog: &crate::state::SaveDialogState) {
@@ -247,30 +268,46 @@ fn render_main_view(f: &mut Frame, area: Rect, state: &mut AppState) {
                 Style::default()
             };
 
-            let content = Line::from(vec![
-                Span::styled(
-                    format!("{:04X}  ", line.address),
-                    Style::default().fg(Color::Yellow),
-                ),
-                Span::styled(
-                    format!("{: <12}", hex_bytes(&line.bytes)),
-                    Style::default().fg(Color::DarkGray),
-                ),
-                Span::styled(
-                    format!("{: <4} ", line.mnemonic),
-                    Style::default()
-                        .fg(Color::Green)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::styled(
-                    format!("{: <15}", line.operand),
-                    Style::default().fg(Color::White),
-                ),
-                Span::styled(
-                    format!("; {}", line.comment),
-                    Style::default().fg(Color::Gray),
-                ),
-            ]);
+            let content = if line.bytes.is_empty() {
+                // Label Line
+                Line::from(vec![
+                    Span::styled(
+                        format!("{:04X}  ", line.address),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::styled(
+                        format!("{}", line.mnemonic),
+                        Style::default()
+                            .fg(Color::Magenta)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                ])
+            } else {
+                Line::from(vec![
+                    Span::styled(
+                        format!("{:04X}  ", line.address),
+                        Style::default().fg(Color::Yellow),
+                    ),
+                    Span::styled(
+                        format!("{: <12}", hex_bytes(&line.bytes)),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::styled(
+                        format!("{: <4} ", line.mnemonic),
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        format!("{: <15}", line.operand),
+                        Style::default().fg(Color::White),
+                    ),
+                    Span::styled(
+                        format!("; {}", line.comment),
+                        Style::default().fg(Color::Gray),
+                    ),
+                ])
+            };
 
             ListItem::new(content).style(style)
         })
