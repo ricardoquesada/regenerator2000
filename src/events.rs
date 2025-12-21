@@ -1,4 +1,4 @@
-use crate::state::AppState;
+use crate::state::{AppState, SaveDialogMode};
 use crate::ui::ui;
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::{backend::Backend, Terminal};
@@ -83,15 +83,28 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                         let filename = state.save_dialog.input.clone();
                         if !filename.is_empty() {
                             let mut path = state.file_picker.current_dir.join(filename);
-                            if path.extension().is_none() {
-                                path.set_extension("json");
-                            }
-                            state.project_path = Some(path);
-                            if let Err(e) = state.save_project() {
-                                state.status_message = format!("Error saving: {}", e);
+                            if state.save_dialog.mode == SaveDialogMode::Project {
+                                if path.extension().is_none() {
+                                    path.set_extension("json");
+                                }
+                                state.project_path = Some(path);
+                                if let Err(e) = state.save_project() {
+                                    state.status_message = format!("Error saving: {}", e);
+                                } else {
+                                    state.status_message = "Project saved".to_string();
+                                    state.save_dialog.close();
+                                }
                             } else {
-                                state.status_message = "Project saved".to_string();
-                                state.save_dialog.close();
+                                // Export ASM
+                                if path.extension().is_none() {
+                                    path.set_extension("asm");
+                                }
+                                if let Err(e) = export_asm(&state, &path) {
+                                    state.status_message = format!("Error exporting: {}", e);
+                                } else {
+                                    state.status_message = "ASM Exported".to_string();
+                                    state.save_dialog.close();
+                                }
                             }
                         }
                     }
@@ -481,13 +494,42 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
                     state.status_message = "Project saved".to_string();
                 }
             } else {
-                state.save_dialog.open();
+                state.save_dialog.open(SaveDialogMode::Project);
                 state.status_message = "Enter filename".to_string();
             }
         }
         "Save As" => {
-            state.save_dialog.open();
+            state.save_dialog.open(SaveDialogMode::Project);
             state.status_message = "Enter filename".to_string();
+        }
+        "Export ASM" => {
+            state.save_dialog.open(SaveDialogMode::ExportAsm);
+            state.status_message = "Enter filename for ASM".to_string();
+        }
+        "Analyze" => {
+            let labels = crate::analyzer::analyze(state);
+            let mut new_labels_map = std::collections::HashMap::new();
+            for (addr, name) in labels {
+                // Only add if not exists? Or overwrite? automatic labels usually overwrite or fill gaps.
+                // Requirement: "automatic label should have..."
+                // Probably overwrite if it's an automatic label, but preserve user labels?
+                // For simplicity, let's overwrite or better: just set them. User can undo.
+                new_labels_map.insert(addr, Some(name));
+            }
+            // Capture old labels
+            let mut old_labels_map = std::collections::HashMap::new();
+            for k in new_labels_map.keys() {
+                old_labels_map.insert(*k, state.labels.get(k).cloned());
+            }
+
+            let command = crate::commands::Command::SetLabels {
+                labels: new_labels_map,
+                old_labels: old_labels_map,
+            };
+            command.apply(state);
+            state.undo_stack.push(command);
+            state.status_message = "Analysis Complete".to_string();
+            state.disassemble();
         }
         "Undo" => {
             let mut stack =
@@ -614,4 +656,42 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
         }
         _ => {}
     }
+}
+
+fn export_asm(state: &AppState, path: &std::path::PathBuf) -> std::io::Result<()> {
+    let mut output = String::new();
+
+    // 1. Declare external addresses
+    // Find all labels starting with 'e'
+    let mut externals: Vec<(u16, &String)> = state
+        .labels
+        .iter()
+        .filter(|(_, name)| name.starts_with('e'))
+        .map(|(k, v)| (*k, v))
+        .collect();
+    externals.sort_by_key(|(k, _)| *k);
+
+    for (addr, name) in externals {
+        output.push_str(&format!("{} = ${:04X}\n", name, addr));
+    }
+    output.push('\n');
+
+    output.push_str(&format!("    * = ${:04X}\n", state.origin));
+
+    for line in &state.disassembly {
+        // Label line
+        if line.mnemonic.ends_with(':') {
+            output.push_str(&format!("{}\n", line.mnemonic));
+            continue;
+        }
+
+        if line.mnemonic == ".BYTE" || line.mnemonic == ".WORD" {
+            output.push_str(&format!("    {} {}\n", line.mnemonic, line.operand));
+        } else {
+            // Opcode
+            output.push_str(&format!("    {} {}\n", line.mnemonic, line.operand));
+        }
+    }
+
+    std::fs::write(path, output)
 }

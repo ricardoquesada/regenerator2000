@@ -92,9 +92,16 @@ impl JumpDialogState {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum SaveDialogMode {
+    Project,
+    ExportAsm,
+}
+
 pub struct SaveDialogState {
     pub active: bool,
     pub input: String,
+    pub mode: SaveDialogMode,
 }
 
 impl SaveDialogState {
@@ -102,12 +109,14 @@ impl SaveDialogState {
         Self {
             active: false,
             input: String::new(),
+            mode: SaveDialogMode::Project,
         }
     }
 
-    pub fn open(&mut self) {
+    pub fn open(&mut self, mode: SaveDialogMode) {
         self.active = true;
         self.input.clear();
+        self.mode = mode;
     }
 
     pub fn close(&mut self) {
@@ -314,6 +323,7 @@ impl MenuState {
                         MenuItem::new("Open", Some("Ctrl+O")),
                         MenuItem::new("Save", Some("Ctrl+S")),
                         MenuItem::new("Save As", Some("Ctrl+Shift+S")),
+                        MenuItem::new("Export ASM", None),
                         MenuItem::separator(),
                         MenuItem::new("Exit", Some("Ctrl+Q")),
                     ],
@@ -344,6 +354,10 @@ impl MenuState {
                         MenuItem::new("Jump to address", Some("G")),
                         MenuItem::new("Jump to operand", Some("Enter")),
                     ],
+                },
+                MenuCategory {
+                    name: "Tools".to_string(),
+                    items: vec![MenuItem::new("Analyze", None)],
                 },
             ],
             selected_category: 0,

@@ -1,3 +1,4 @@
+mod analyzer;
 mod commands;
 mod cpu;
 mod disassembler;

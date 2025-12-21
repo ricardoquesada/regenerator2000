@@ -12,6 +12,10 @@ pub enum Command {
         new_label: Option<String>,
         old_label: Option<String>,
     },
+    SetLabels {
+        labels: std::collections::HashMap<u16, Option<String>>, // Addr -> New Label (None to remove)
+        old_labels: std::collections::HashMap<u16, Option<String>>,
+    },
 }
 
 impl Command {
@@ -43,6 +47,18 @@ impl Command {
                     state.labels.remove(address);
                 }
             }
+            Command::SetLabels {
+                labels,
+                old_labels: _,
+            } => {
+                for (address, label_opt) in labels {
+                    if let Some(label) = label_opt {
+                        state.labels.insert(*address, label.clone());
+                    } else {
+                        state.labels.remove(address);
+                    }
+                }
+            }
         }
     }
 
@@ -72,6 +88,18 @@ impl Command {
                     state.labels.insert(*address, label.clone());
                 } else {
                     state.labels.remove(address);
+                }
+            }
+            Command::SetLabels {
+                labels: _,
+                old_labels,
+            } => {
+                for (address, label_opt) in old_labels {
+                    if let Some(label) = label_opt {
+                        state.labels.insert(*address, label.clone());
+                    } else {
+                        state.labels.remove(address);
+                    }
                 }
             }
         }

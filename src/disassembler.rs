@@ -13,7 +13,7 @@ pub struct DisassemblyLine {
 }
 
 pub struct Disassembler {
-    opcodes: [Option<Opcode>; 256],
+    pub opcodes: [Option<Opcode>; 256],
 }
 
 impl Disassembler {
