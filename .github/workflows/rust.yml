@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - name: Install 64tass
+      run: sudo apt-get update && sudo apt-get install -y 64tass
     - name: Build
       run: cargo build --verbose
     - name: Run tests
