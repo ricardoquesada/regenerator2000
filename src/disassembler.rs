@@ -10,6 +10,7 @@ pub struct DisassemblyLine {
     pub mnemonic: String,
     pub operand: String,
     pub comment: String,
+    #[allow(dead_code)]
     pub label: Option<String>,
     pub opcode: Option<Opcode>,
 }

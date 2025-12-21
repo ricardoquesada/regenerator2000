@@ -158,10 +158,12 @@ impl UndoStack {
         }
     }
 
+    #[allow(dead_code)]
     pub fn can_undo(&self) -> bool {
         self.pointer > 0
     }
 
+    #[allow(dead_code)]
     pub fn can_redo(&self) -> bool {
         self.pointer < self.commands.len()
     }

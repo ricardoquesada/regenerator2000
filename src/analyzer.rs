@@ -435,11 +435,11 @@ mod tests {
         // Case 1: $1000 -> jump to $1002. Usage: b1002 (Internal)
         assert_eq!(labels.get(&0x1002).map(|l| l.name.as_str()), Some("b1002"));
 
-        // Case 2: $1002 -> jump to $1083. Usage: b1083 (External logic only applies to JMP/JSR)
-        assert_eq!(labels.get(&0x1083).map(|l| l.name.as_str()), Some("b1083"));
+        // Case 2: $1002 -> jump to $1083. Usage: e1083 (External logic applies to Branch too now)
+        assert_eq!(labels.get(&0x1083).map(|l| l.name.as_str()), Some("e1083"));
 
-        // Case 3: $1004 -> jump to $0F86. Usage: b0F86
-        assert_eq!(labels.get(&0x0F86).map(|l| l.name.as_str()), Some("b0F86"));
+        // Case 3: $1004 -> jump to $0F86. Usage: e0F86
+        assert_eq!(labels.get(&0x0F86).map(|l| l.name.as_str()), Some("e0F86"));
 
         // Case 4: $1006 -> jump to $1007. Usage: b1007
         assert_eq!(labels.get(&0x1007).map(|l| l.name.as_str()), Some("b1007"));
