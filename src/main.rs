@@ -3,6 +3,7 @@ mod commands;
 mod cpu;
 mod disassembler;
 mod events;
+mod exporter;
 mod state;
 mod ui;
 mod utils;

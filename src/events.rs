@@ -99,7 +99,7 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut state: AppState) -> i
                                 if path.extension().is_none() {
                                     path.set_extension("asm");
                                 }
-                                if let Err(e) = export_asm(&state, &path) {
+                                if let Err(e) = crate::exporter::export_asm(&state, &path) {
                                     state.status_message = format!("Error exporting: {}", e);
                                 } else {
                                     state.status_message = "ASM Exported".to_string();
@@ -656,42 +656,4 @@ fn handle_menu_action(state: &mut AppState, action: &str) {
         }
         _ => {}
     }
-}
-
-fn export_asm(state: &AppState, path: &std::path::PathBuf) -> std::io::Result<()> {
-    let mut output = String::new();
-
-    // 1. Declare external addresses
-    // Find all labels starting with 'e'
-    let mut externals: Vec<(u16, &String)> = state
-        .labels
-        .iter()
-        .filter(|(_, name)| name.starts_with('e'))
-        .map(|(k, v)| (*k, v))
-        .collect();
-    externals.sort_by_key(|(k, _)| *k);
-
-    for (addr, name) in externals {
-        output.push_str(&format!("{} = ${:04X}\n", name, addr));
-    }
-    output.push('\n');
-
-    output.push_str(&format!("    * = ${:04X}\n", state.origin));
-
-    for line in &state.disassembly {
-        // Label line
-        if line.mnemonic.ends_with(':') {
-            output.push_str(&format!("{}\n", line.mnemonic));
-            continue;
-        }
-
-        if line.mnemonic == ".BYTE" || line.mnemonic == ".WORD" {
-            output.push_str(&format!("    {} {}\n", line.mnemonic, line.operand));
-        } else {
-            // Opcode
-            output.push_str(&format!("    {} {}\n", line.mnemonic, line.operand));
-        }
-    }
-
-    std::fs::write(path, output)
 }
