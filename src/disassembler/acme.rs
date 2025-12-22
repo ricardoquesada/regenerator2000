@@ -21,7 +21,7 @@ impl Formatter for AcmeFormatter {
         address: u16,
         target_context: Option<LabelType>,
         labels: &HashMap<u16, Vec<Label>>,
-        _settings: &crate::state::DocumentSettings,
+        settings: &crate::state::DocumentSettings,
     ) -> String {
         let get_label = |addr: u16, l_type: LabelType| -> Option<String> {
             if let Some(label_vec) = labels.get(&addr) {
@@ -46,7 +46,7 @@ impl Formatter for AcmeFormatter {
 
         match opcode.mode {
             AddressingMode::Implied => String::new(),
-            AddressingMode::Accumulator => "a".to_string(), // ACME often uses lowercase 'a' or implied? Standard usually allows 'A'. Let's stick to 'A' or omit? ACME docs say 'lsr' implies A, or 'lsr a'. 'a' is safe.
+            AddressingMode::Accumulator => "A".to_string(),
             AddressingMode::Immediate => format!("#${:02X}", operands[0]),
             AddressingMode::ZeroPage => {
                 let addr = operands[0] as u16;
@@ -91,33 +91,20 @@ impl Formatter for AcmeFormatter {
                     LabelType::AbsoluteAddress
                 };
 
-                // ACME: use '+' to force 16-bit address if it could be ZP.
-                // e.g. `lda+ $00`
-                // But here we are processing ABSOLUTE addressing mode instructions.
-                // If the address is <= 0xFF, it WOULD be ZP if we didn't force it.
-                // 64tass uses `@w $00`. ACME uses `+offset` or just proper opcode selection?
-                // ACME supports `lda+ $00` to force absolute.
-                // Wait, `lda+` is not standard syntax.
-                // Checking ACME documentation (common behaviors):
-                // To force absolute: `lda $0012` is usually sufficient if value is > 255.
-                // If value < 255, ACME optimizes to ZP unless told otherwise.
-                // `!al` or `+` suffix to mnemonic? `lda+ $00`?
-                // The most common ACME way is `lda $0012` might optimize.
-                // Standard ACME syntax for forcing non-zeropage is `+` before argument: `lda +$10`
-                // OR `bit $0020` -> `bit $0020`
-                // Let's assume we output address. If we need to force, we format differently.
-
-                // Logic: IF Absolute mode AND address <= 0xFF, print `+$0010`.
-
-                if let Some(name) = get_label(addr, l_type) {
+                let base = if let Some(name) = get_label(addr, l_type) {
                     name
                 } else {
-                    // For now standard hex. The Exporter might add forcing?
-                    // Better to handle it here if we want `operand` to be correct.
-                    // But if we use Label, we rely on assembler to decide or we force?
-                    // If we use a label `lbl = $0010`, `lda lbl` might become ZP.
-                    // If we want absolute: `lda +lbl`?
                     format!("${:04X}", addr)
+                };
+
+                // Check for @w forcing
+                // Only if settings.use_w_prefix is true AND address fits in ZP (<= 0xFF)
+                // This logic mirrors what was in exporter.rs
+                if settings.use_w_prefix && addr <= 0xFF {
+                    // FIXME
+                    format!("{}", base)
+                } else {
+                    base
                 }
             }
             AddressingMode::AbsoluteX => {
