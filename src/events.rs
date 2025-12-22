@@ -246,23 +246,10 @@ pub fn run_app<B: Backend>(
                                     }
 
                                     // Move cursor to origin
-                                    let target_addr = app_state.origin;
-                                    if let Some(idx) = app_state
-                                        .disassembly
-                                        .iter()
-                                        .position(|line| line.address == target_addr)
+                                    if let Some(idx) =
+                                        app_state.get_line_index_for_address(app_state.origin)
                                     {
                                         ui_state.cursor_index = idx;
-                                    } else {
-                                        // Fallback if exact match not found (e.g. external labels at 0)
-                                        // Try to find first address >= origin
-                                        if let Some(idx) = app_state
-                                            .disassembly
-                                            .iter()
-                                            .position(|line| line.address >= target_addr)
-                                        {
-                                            ui_state.cursor_index = idx;
-                                        }
                                     }
                                 }
                             }
@@ -736,19 +723,7 @@ fn handle_menu_action(
         MenuAction::Analyze => {
             ui_state.status_message = app_state.perform_analysis();
             // Move cursor to origin
-            let target_addr = app_state.origin;
-            if let Some(idx) = app_state
-                .disassembly
-                .iter()
-                .position(|line| line.address == target_addr)
-            {
-                ui_state.cursor_index = idx;
-            } else if let Some(idx) = app_state
-                .disassembly
-                .iter()
-                .position(|line| line.address >= target_addr)
-            {
-                // Fallback
+            if let Some(idx) = app_state.get_line_index_for_address(app_state.origin) {
                 ui_state.cursor_index = idx;
             }
         }

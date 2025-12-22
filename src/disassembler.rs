@@ -220,7 +220,7 @@ impl Disassembler {
 
                     lines.push(DisassemblyLine {
                         address,
-                        bytes: Vec::new(),
+                        bytes, // <--- Fixed
                         mnemonic: formatter.byte_directive().to_string(),
                         operand: operands.join(", "),
                         comment: comment.clone(),
@@ -265,7 +265,7 @@ impl Disassembler {
                     if count > 0 {
                         lines.push(DisassemblyLine {
                             address,
-                            bytes: Vec::new(),
+                            bytes,
                             mnemonic: formatter.word_directive().to_string(),
                             operand: operands.join(", "),
                             comment: comment.clone(),
@@ -283,7 +283,9 @@ impl Disassembler {
                             }
                             lines.push(DisassemblyLine {
                                 address,
-                                bytes: Vec::new(),
+                                bytes: vec![b], // <--- Fixed (was partial so bytes not collected in vec, need to create one, wait 'bytes' var is not valid here?)
+                                // Actually 'bytes' var above is for the loop.
+                                // For partial word, we just have 'b'.
                                 mnemonic: formatter.byte_directive().to_string(),
                                 operand: format!("${:02X}", b),
                                 comment: line_comment,
@@ -343,7 +345,7 @@ impl Disassembler {
                     if count > 0 {
                         lines.push(DisassemblyLine {
                             address,
-                            bytes: Vec::new(),
+                            bytes,
                             mnemonic: formatter.word_directive().to_string(),
                             operand: operands.join(", "),
                             comment: comment.clone(),
@@ -360,7 +362,7 @@ impl Disassembler {
                         }
                         lines.push(DisassemblyLine {
                             address,
-                            bytes: Vec::new(),
+                            bytes: vec![b], // <--- Fixed
                             mnemonic: formatter.byte_directive().to_string(),
                             operand: format!("${:02X}", b),
                             comment: line_comment,

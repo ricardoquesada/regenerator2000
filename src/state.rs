@@ -584,6 +584,31 @@ impl AppState {
 
         self.disassembly = lines;
     }
+    pub fn get_line_index_for_address(&self, address: u16) -> Option<usize> {
+        // First pass: try to find exact match with content (bytes not empty)
+        // This avoids matching external label headers that might be at the same address (e.g. 0)
+        if let Some(idx) = self
+            .disassembly
+            .iter()
+            .position(|line| line.address == address && !line.bytes.is_empty())
+        {
+            return Some(idx);
+        }
+
+        // Second pass: try to find any exact match
+        if let Some(idx) = self
+            .disassembly
+            .iter()
+            .position(|line| line.address == address)
+        {
+            return Some(idx);
+        }
+
+        // Third pass: find first address >= target
+        self.disassembly
+            .iter()
+            .position(|line| line.address >= address)
+    }
 }
 
 fn compress_address_types(types: &[AddressType]) -> Vec<AddressRange> {
@@ -855,5 +880,73 @@ mod save_project_tests {
 
         // Cleanup
         let _ = std::fs::remove_file(path);
+    }
+}
+#[cfg(test)]
+mod cursor_tests {
+    use super::*;
+
+    #[test]
+    fn test_get_line_index_skips_headers() {
+        let mut app_state = AppState::new();
+        app_state.origin = 0x1000;
+
+        // Simulate external label definition at 0
+        app_state.disassembly.push(DisassemblyLine {
+            address: 0,
+            bytes: vec![],
+            mnemonic: "; EXTERNAL".to_string(),
+            operand: "".to_string(),
+            comment: "".to_string(),
+            label: None,
+            opcode: None,
+        });
+
+        // Simulate code at origin
+        app_state.disassembly.push(DisassemblyLine {
+            address: 0x1000,
+            bytes: vec![0xEA],
+            mnemonic: "NOP".to_string(),
+            operand: "".to_string(),
+            comment: "".to_string(),
+            label: None,
+            opcode: None,
+        });
+
+        // Should return index 1 (the code), not index 0 (the header)
+        // Note: address 0 is NOT the origin here, but if origin WAS 0, we'd want to skip index 0 if it's empty.
+        // Let's test the case where origin is 0 and we have external labels for 0.
+
+        let mut app_state_zero = AppState::new();
+        app_state_zero.origin = 0;
+
+        // External label for $0000
+        app_state_zero.disassembly.push(DisassemblyLine {
+            address: 0,
+            bytes: vec![],
+            mnemonic: "ExtLabel".to_string(),
+            operand: "".to_string(),
+            comment: "".to_string(),
+            label: None,
+            opcode: None,
+        });
+
+        // Actual code at $0000
+        app_state_zero.disassembly.push(DisassemblyLine {
+            address: 0,
+            bytes: vec![0xEA],
+            mnemonic: "NOP".to_string(),
+            operand: "".to_string(),
+            comment: "".to_string(),
+            label: None,
+            opcode: None,
+        });
+
+        let idx = app_state_zero.get_line_index_for_address(0);
+        assert_eq!(
+            idx,
+            Some(1),
+            "Should skip empty line at address 0 and find code line"
+        );
     }
 }

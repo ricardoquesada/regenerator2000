@@ -45,6 +45,10 @@ fn main() -> Result<()> {
             eprintln!("Error loading file: {}", e);
             // In a real app we might want to show this in the UI
             ui_state.status_message = format!("Error loading file: {}", e);
+        } else {
+            if let Some(idx) = app_state.get_line_index_for_address(app_state.origin) {
+                ui_state.cursor_index = idx;
+            }
         }
     }
 
