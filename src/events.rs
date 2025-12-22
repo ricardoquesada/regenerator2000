@@ -761,26 +761,66 @@ fn handle_menu_action(
         MenuAction::ZoomIn => {}
         MenuAction::ZoomOut => {}
         MenuAction::ResetZoom => {}
-        MenuAction::Code => app_state.set_address_type_region(
-            crate::state::AddressType::Code,
-            ui_state.selection_start,
-            ui_state.cursor_index,
-        ),
-        MenuAction::Byte => app_state.set_address_type_region(
-            crate::state::AddressType::DataByte,
-            ui_state.selection_start,
-            ui_state.cursor_index,
-        ),
-        MenuAction::Word => app_state.set_address_type_region(
-            crate::state::AddressType::DataWord,
-            ui_state.selection_start,
-            ui_state.cursor_index,
-        ),
-        MenuAction::Address => app_state.set_address_type_region(
-            crate::state::AddressType::Address,
-            ui_state.selection_start,
-            ui_state.cursor_index,
-        ),
+        MenuAction::Code => {
+            let new_cursor = ui_state
+                .selection_start
+                .map(|start| start.min(ui_state.cursor_index));
+
+            app_state.set_address_type_region(
+                crate::state::AddressType::Code,
+                ui_state.selection_start,
+                ui_state.cursor_index,
+            );
+            if let Some(idx) = new_cursor {
+                ui_state.cursor_index = idx;
+            }
+            ui_state.selection_start = None;
+        }
+        MenuAction::Byte => {
+            let new_cursor = ui_state
+                .selection_start
+                .map(|start| start.min(ui_state.cursor_index));
+
+            app_state.set_address_type_region(
+                crate::state::AddressType::DataByte,
+                ui_state.selection_start,
+                ui_state.cursor_index,
+            );
+            if let Some(idx) = new_cursor {
+                ui_state.cursor_index = idx;
+            }
+            ui_state.selection_start = None;
+        }
+        MenuAction::Word => {
+            let new_cursor = ui_state
+                .selection_start
+                .map(|start| start.min(ui_state.cursor_index));
+
+            app_state.set_address_type_region(
+                crate::state::AddressType::DataWord,
+                ui_state.selection_start,
+                ui_state.cursor_index,
+            );
+            if let Some(idx) = new_cursor {
+                ui_state.cursor_index = idx;
+            }
+            ui_state.selection_start = None;
+        }
+        MenuAction::Address => {
+            let new_cursor = ui_state
+                .selection_start
+                .map(|start| start.min(ui_state.cursor_index));
+
+            app_state.set_address_type_region(
+                crate::state::AddressType::Address,
+                ui_state.selection_start,
+                ui_state.cursor_index,
+            );
+            if let Some(idx) = new_cursor {
+                ui_state.cursor_index = idx;
+            }
+            ui_state.selection_start = None;
+        }
         MenuAction::JumpToAddress => {
             ui_state.jump_dialog.open();
             ui_state.status_message = "Enter address (Hex)".to_string();
