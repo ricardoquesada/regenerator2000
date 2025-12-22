@@ -110,6 +110,8 @@ impl AppState {
     pub fn load_file(&mut self, path: PathBuf) -> anyhow::Result<()> {
         let data = std::fs::read(&path)?;
         self.file_path = Some(path.clone());
+        self.project_path = None; // clear project path
+        self.labels.clear(); // clear existing labels
 
         if let Some(ext) = self
             .file_path
@@ -578,5 +580,51 @@ mod serialization_tests {
         let encoded = vec!["00 01 02".to_string(), "FF".to_string()];
         let decoded = decode_raw_data(&encoded).unwrap();
         assert_eq!(decoded, vec![0x00, 0x01, 0x02, 0xFF]);
+    }
+}
+
+#[cfg(test)]
+mod load_file_tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn test_load_file_clears_state() {
+        let mut app_state = AppState::new();
+
+        // 1. Set some initial state
+        app_state.labels.insert(
+            0x1234,
+            Label {
+                name: "DeleteMe".to_string(),
+                names: HashMap::new(),
+                kind: LabelKind::User,
+                refs: vec![],
+            },
+        );
+        app_state.project_path = Some(PathBuf::from("fake_project.json"));
+
+        // 2. Create a dummy binary file
+        let mut path = std::env::temp_dir();
+        path.push("dummy_test.bin");
+        let mut file = std::fs::File::create(&path).unwrap();
+        file.write_all(&[0xEA, 0xEA, 0xEA]).unwrap();
+
+        // 3. Load the new file
+        app_state.load_file(path.clone()).unwrap();
+
+        // 4. Verify state is cleared
+        // This is expected to FAIL before the fix
+        assert!(
+            app_state.labels.is_empty(),
+            "Labels should be empty after loading new file"
+        );
+        assert!(
+            app_state.project_path.is_none(),
+            "Project path should be None"
+        );
+
+        // Cleanup
+        let _ = std::fs::remove_file(path);
     }
 }
