@@ -79,7 +79,7 @@ pub fn run_app<B: Backend>(
                             let mut path = ui_state.file_picker.current_dir.join(filename);
                             if ui_state.save_dialog.mode == SaveDialogMode::Project {
                                 if path.extension().is_none() {
-                                    path.set_extension("json");
+                                    path.set_extension("regen2000proj");
                                 }
                                 app_state.project_path = Some(path);
                                 if let Err(e) = app_state.save_project() {
@@ -238,7 +238,7 @@ pub fn run_app<B: Backend>(
                                     let is_project = selected_path
                                         .extension()
                                         .and_then(|e| e.to_str())
-                                        .map(|e| e.eq_ignore_ascii_case("json"))
+                                        .map(|e| e.eq_ignore_ascii_case("regen2000proj"))
                                         .unwrap_or(false);
 
                                     if !is_project {

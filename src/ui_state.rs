@@ -66,7 +66,7 @@ impl FilePickerState {
                 "bin".to_string(),
                 "prg".to_string(),
                 "raw".to_string(),
-                "json".to_string(),
+                "regen2000proj".to_string(),
             ],
         }
     }

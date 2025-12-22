@@ -257,7 +257,7 @@ impl AppState {
             .and_then(|p| p.extension())
             .and_then(|e| e.to_str())
         {
-            if ext.eq_ignore_ascii_case("json") {
+            if ext.eq_ignore_ascii_case("regen2000proj") {
                 return self.load_project(path);
             }
 
@@ -750,7 +750,7 @@ mod load_file_tests {
                 refs: vec![],
             }],
         );
-        app_state.project_path = Some(PathBuf::from("fake_project.json"));
+        app_state.project_path = Some(PathBuf::from("fake_project.regen2000proj"));
 
         // 2. Create a dummy binary file
         let mut path = std::env::temp_dir();
@@ -784,7 +784,7 @@ mod save_project_tests {
     #[test]
     fn test_save_excludes_auto_and_names() {
         let mut app_state = AppState::new();
-        app_state.project_path = Some(PathBuf::from("test_project.json"));
+        app_state.project_path = Some(PathBuf::from("test_project.regen2000proj"));
 
         // 1. Add USER label
         app_state.labels.insert(

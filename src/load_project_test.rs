@@ -42,7 +42,7 @@ mod tests {
         let json = serde_json::to_string(&project).unwrap();
 
         let mut path = std::env::temp_dir();
-        path.push("test_regen_labels.json");
+        path.push("test_regen_labels.regen2000proj");
         std::fs::write(&path, json).unwrap();
 
         // 2. Load it
