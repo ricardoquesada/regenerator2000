@@ -14,4 +14,12 @@ pub trait Formatter {
         labels: &HashMap<u16, Vec<Label>>,
         settings: &crate::state::DocumentSettings,
     ) -> String;
+
+    fn format_mnemonic(&self, mnemonic: &str) -> String;
+    fn format_label(&self, name: &str) -> String;
+
+    fn format_byte(&self, byte: u8) -> String;
+    fn format_word(&self, word: u16) -> String;
+    fn format_header_origin(&self, origin: u16) -> String;
+    fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String;
 }

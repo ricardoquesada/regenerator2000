@@ -3,7 +3,7 @@ use crate::state::{AddressType, Assembler, DocumentSettings, Label};
 use std::collections::HashMap;
 
 mod acme;
-mod formatter;
+pub mod formatter;
 mod tass;
 
 use acme::AcmeFormatter;
@@ -36,6 +36,13 @@ impl Disassembler {
         }
     }
 
+    pub fn create_formatter(assembler: Assembler) -> Box<dyn Formatter> {
+        match assembler {
+            Assembler::Tass64 => Box::new(TassFormatter),
+            Assembler::Acme => Box::new(AcmeFormatter),
+        }
+    }
+
     pub fn disassemble(
         &self,
         data: &[u8],
@@ -44,10 +51,7 @@ impl Disassembler {
         origin: u16,
         settings: &DocumentSettings,
     ) -> Vec<DisassemblyLine> {
-        let formatter: Box<dyn Formatter> = match settings.assembler {
-            Assembler::Tass64 => Box::new(TassFormatter),
-            Assembler::Acme => Box::new(AcmeFormatter),
-        };
+        let formatter = Self::create_formatter(settings.assembler);
 
         let mut lines = Vec::new();
         let mut pc = 0;
@@ -60,7 +64,7 @@ impl Disassembler {
             let label_name = labels
                 .get(&address)
                 .and_then(|v| v.first())
-                .map(|l| l.name.clone());
+                .map(|l| formatter.format_label(&l.name));
 
             let mut comment = String::new();
             if let Some(label_vec) = labels.get(&address) {
@@ -162,7 +166,7 @@ impl Disassembler {
                                 lines.push(DisassemblyLine {
                                     address,
                                     bytes,
-                                    mnemonic: opcode.mnemonic.to_string(),
+                                    mnemonic: formatter.format_mnemonic(&opcode.mnemonic),
                                     operand: operand_str,
                                     comment: comment.clone(),
                                     label: label_name.clone(),

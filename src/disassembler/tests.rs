@@ -58,7 +58,7 @@ fn test_acme_formatting_basic() {
     let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
 
     assert_eq!(lines.len(), 1);
-    assert_eq!(lines[0].mnemonic, "LDA");
+    assert_eq!(lines[0].mnemonic, "lda");
     assert_eq!(lines[0].operand, "$3412");
 }
 
@@ -194,4 +194,52 @@ fn test_contextual_label_formatting() {
     // Checking DocumentSettings::default(). use_w_prefix defaults to TRUE?
     // Wait, let's just accept what the tool output said: left: "@w a00A0".
     assert_eq!(lines[2].operand, "@w a00A0");
+}
+
+#[test]
+fn test_acme_lowercase_output() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Acme;
+
+    let disassembler = Disassembler::new();
+    let mut labels = HashMap::new();
+    let origin = 0x1000;
+
+    // Add a label with MixedCase name
+    labels.insert(
+        0x1005,
+        vec![crate::state::Label {
+            name: "MixedCaseLabel".to_string(),
+            kind: crate::state::LabelKind::User,
+            label_type: crate::state::LabelType::AbsoluteAddress,
+            refs: vec![],
+        }],
+    );
+
+    // Code:
+    // LDA #$FF  -> lda #$ff
+    // JMP $1005 -> jmp mixedcaselabel
+    let code = vec![
+        0xA9, 0xFF, // LDA #$FF
+        0x4C, 0x05, 0x10, // JMP $1005
+    ];
+    let address_types = vec![
+        AddressType::Code,
+        AddressType::Code,
+        AddressType::Code,
+        AddressType::Code,
+        AddressType::Code,
+    ];
+
+    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+
+    assert_eq!(lines.len(), 2);
+
+    // Line 1: lda #$ff
+    assert_eq!(lines[0].mnemonic, "lda");
+    assert_eq!(lines[0].operand, "#$ff");
+
+    // Line 2: jmp mixedcaselabel
+    assert_eq!(lines[1].mnemonic, "jmp");
+    assert_eq!(lines[1].operand, "mixedcaselabel");
 }

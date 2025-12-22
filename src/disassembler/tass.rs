@@ -163,4 +163,33 @@ impl Formatter for TassFormatter {
             AddressingMode::Unknown => "???".to_string(),
         }
     }
+
+    fn format_mnemonic(&self, mnemonic: &str) -> String {
+        mnemonic.to_string()
+    }
+
+    fn format_label(&self, name: &str) -> String {
+        name.to_string()
+    }
+
+    fn format_byte(&self, byte: u8) -> String {
+        format!("${:02X}", byte)
+    }
+
+    fn format_word(&self, word: u16) -> String {
+        format!("${:04X}", word)
+    }
+
+    fn format_header_origin(&self, origin: u16) -> String {
+        format!("* = ${:04X}", origin)
+    }
+
+    fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String {
+        let operand = if is_zp && value <= 0xFF {
+            format!("${:02X}", value)
+        } else {
+            format!("${:04X}", value)
+        };
+        format!("{} = {}", name, operand)
+    }
 }

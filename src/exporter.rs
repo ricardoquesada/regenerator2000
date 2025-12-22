@@ -3,7 +3,9 @@ use std::path::PathBuf;
 
 pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let mut output = String::new();
+
     let mut origin_printed = false;
+    let formatter = state.get_formatter();
 
     for line in &state.disassembly {
         // Special case: Header (starts with ;)
@@ -27,7 +29,10 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         // If we reach here, it's a code/data/label line.
         // Ensure origin is printed before the first code line.
         if !origin_printed {
-            output.push_str(&format!("    * = ${:04X}\n", state.origin));
+            output.push_str(&format!(
+                "{}\n",
+                formatter.format_header_origin(state.origin)
+            ));
             origin_printed = true;
         }
 
@@ -40,7 +45,8 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 let mid_addr = line.address.wrapping_add(i as u16);
                 if let Some(label_vec) = state.labels.get(&mid_addr) {
                     for label in label_vec {
-                        output.push_str(&format!("{} = * + {}\n", label.name, i));
+                        let formatted_name = formatter.format_label(&label.name);
+                        output.push_str(&format!("{} = * + {}\n", formatted_name, i));
                     }
                 }
             }
@@ -73,7 +79,10 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
 
     // Fallback if no code labels/instructions found (empty file?)
     if !origin_printed {
-        output.push_str(&format!("    * = ${:04X}\n", state.origin));
+        output.push_str(&format!(
+            "{}\n",
+            formatter.format_header_origin(state.origin)
+        ));
     }
 
     std::fs::write(path, output)

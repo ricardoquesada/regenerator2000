@@ -233,6 +233,10 @@ impl AppState {
         }
     }
 
+    pub fn get_formatter(&self) -> Box<dyn crate::disassembler::formatter::Formatter> {
+        Disassembler::create_formatter(self.settings.assembler)
+    }
+
     pub fn load_file(&mut self, path: PathBuf) -> anyhow::Result<()> {
         let data = std::fs::read(&path)?;
         self.file_path = Some(path.clone());
@@ -504,6 +508,8 @@ impl AppState {
 
         let mut lines = Vec::new();
 
+        let formatter = self.get_formatter();
+
         let mut add_group = |title: &str, group: Vec<(u16, &String)>, is_zp: bool| {
             if !group.is_empty() {
                 lines.push(DisassemblyLine {
@@ -517,16 +523,10 @@ impl AppState {
                 });
 
                 for (addr, name) in group {
-                    let operand = if is_zp && addr <= 0xFF {
-                        format!("${:02X}", addr)
-                    } else {
-                        format!("${:04X}", addr)
-                    };
-
                     lines.push(DisassemblyLine {
                         address: 0,
                         bytes: vec![],
-                        mnemonic: format!("{} = {}", name, operand),
+                        mnemonic: formatter.format_definition(name, addr, is_zp),
                         operand: String::new(),
                         comment: String::new(),
                         label: None,
