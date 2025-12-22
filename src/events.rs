@@ -14,6 +14,7 @@ pub fn run_app<B: Backend>(
         terminal.draw(|f| ui(f, &app_state, &mut ui_state))?;
 
         if let Event::Key(key) = event::read()? {
+            ui_state.dismiss_logo = true;
             if ui_state.jump_dialog.active {
                 match key.code {
                     KeyCode::Esc => {
@@ -292,6 +293,11 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     _ => {}
+                }
+            } else if ui_state.about_dialog.active {
+                if let KeyCode::Esc | KeyCode::Enter | KeyCode::Char(_) = key.code {
+                    ui_state.about_dialog.close();
+                    ui_state.status_message = "Ready".to_string();
                 }
             } else if ui_state.settings_dialog.active {
                 match key.code {
@@ -704,6 +710,10 @@ fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: 
                     // Not specified in requirements, but "Jump to operand" generally implies instruction operands.
                 }
             }
+        }
+        "About" => {
+            ui_state.about_dialog.open();
+            ui_state.status_message = "About Regenerator2000".to_string();
         }
         _ => {}
     }

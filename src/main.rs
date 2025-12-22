@@ -1,4 +1,5 @@
 mod analyzer;
+
 mod commands;
 mod cpu;
 mod disassembler;
@@ -8,7 +9,6 @@ mod state;
 mod ui;
 mod ui_state;
 mod utils;
-
 use anyhow::Result;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},

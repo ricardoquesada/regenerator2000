@@ -7,6 +7,7 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     Frame,
 };
+use ratatui_image::StatefulImage;
 
 pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     let chunks = Layout::default()
@@ -45,6 +46,85 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
 
     if ui_state.settings_dialog.active {
         render_settings_dialog(f, f.area(), app_state, &ui_state.settings_dialog);
+    }
+
+    if ui_state.about_dialog.active {
+        render_about_dialog(f, ui_state, f.area());
+    }
+}
+
+fn render_about_dialog(f: &mut Frame, ui_state: &UIState, area: Rect) {
+    if let Some(logo) = &ui_state.logo {
+        if let Some(picker) = &ui_state.picker {
+            // Center popup
+            let percent_x = 60;
+            let percent_y = 60;
+            let popup_width = area.width * percent_x / 100;
+            let popup_height = area.height * percent_y / 100;
+            let x = (area.width - popup_width) / 2;
+            let y = (area.height - popup_height) / 2;
+
+            let popup_area = ratatui::layout::Rect::new(x, y, popup_width, popup_height);
+
+            f.render_widget(ratatui::widgets::Clear, popup_area);
+
+            let block = Block::default().title(" About ").borders(Borders::ALL);
+            let inner = block.inner(popup_area);
+            f.render_widget(block, popup_area);
+
+            // Split inner area: Top (Image), Bottom (Text)
+            let chunks = Layout::default()
+                .direction(ratatui::layout::Direction::Vertical)
+                .constraints([
+                    ratatui::layout::Constraint::Percentage(70),
+                    ratatui::layout::Constraint::Percentage(30),
+                ])
+                .split(inner);
+
+            // 1. Render Logo (Scaled & Centered in chunks[0])
+            let img_area = chunks[0];
+            let img_width = logo.width() as u16;
+            let img_height = logo.height() as u16;
+
+            let term_height_scale = 2;
+            let img_width_f = img_width as f64;
+            let img_height_f = (img_height / term_height_scale) as f64;
+
+            let avail_width_f = img_area.width as f64;
+            let avail_height_f = img_area.height as f64;
+
+            let width_scale = avail_width_f / img_width_f;
+            let height_scale = avail_height_f / img_height_f;
+
+            let scale = width_scale.min(height_scale).min(1.0);
+
+            let render_width = (img_width_f * scale) as u16;
+            let render_height = (img_height_f * scale) as u16;
+
+            let x = img_area.x + (img_area.width.saturating_sub(render_width)) / 2;
+            let y = img_area.y + (img_area.height.saturating_sub(render_height)) / 2;
+
+            let centered_area = ratatui::layout::Rect::new(x, y, render_width, render_height);
+
+            let mut protocol = picker.new_resize_protocol(logo.clone());
+            let widget = StatefulImage::new();
+            f.render_stateful_widget(widget, centered_area, &mut protocol);
+
+            // 2. Render Text
+            let text_area = chunks[1];
+            let text = "Regenerator2000\n(c) Ricardo Quesada 2026";
+            let paragraph = Paragraph::new(text)
+                .alignment(ratatui::layout::Alignment::Center)
+                .block(Block::default());
+
+            // Vertically center text in text_area
+            let text_height = 2;
+            let text_y = text_area.y + (text_area.height.saturating_sub(text_height)) / 2;
+            let centered_text_area =
+                ratatui::layout::Rect::new(text_area.x, text_y, text_area.width, text_height);
+
+            f.render_widget(paragraph, centered_text_area);
+        }
     }
 }
 
@@ -426,6 +506,7 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         .borders(Borders::ALL)
         .title(" Disassembly ");
     let inner_area = block.inner(area);
+
     let visible_height = inner_area.height as usize;
     let total_items = app_state.disassembly.len();
     let context_lines = visible_height / 2;

@@ -1,5 +1,25 @@
+use image::DynamicImage;
 use ratatui::widgets::ListState;
+use ratatui_image::picker::Picker;
 use std::path::PathBuf;
+
+pub struct AboutDialogState {
+    pub active: bool,
+}
+
+impl AboutDialogState {
+    pub fn new() -> Self {
+        Self { active: false }
+    }
+
+    pub fn open(&mut self) {
+        self.active = true;
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+    }
+}
 
 pub struct FilePickerState {
     pub active: bool,
@@ -238,6 +258,10 @@ impl MenuState {
                     ],
                 },
                 MenuCategory {
+                    name: "Help".to_string(),
+                    items: vec![MenuItem::new("About", None)],
+                },
+                MenuCategory {
                     name: "Tools".to_string(),
                     items: vec![MenuItem::new("Analyze", None)],
                 },
@@ -336,6 +360,7 @@ pub struct UIState {
     pub save_dialog: SaveDialogState,
     pub label_dialog: LabelDialogState,
     pub settings_dialog: SettingsDialogState,
+    pub about_dialog: AboutDialogState,
     pub menu: MenuState,
 
     pub navigation_history: Vec<usize>,
@@ -349,6 +374,10 @@ pub struct UIState {
     pub scroll_index: usize,
     pub should_quit: bool,
     pub status_message: String,
+
+    pub logo: Option<DynamicImage>,
+    pub picker: Option<Picker>,
+    pub dismiss_logo: bool,
 }
 
 impl UIState {
@@ -359,6 +388,7 @@ impl UIState {
             save_dialog: SaveDialogState::new(),
             label_dialog: LabelDialogState::new(),
             settings_dialog: SettingsDialogState::new(),
+            about_dialog: AboutDialogState::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),
             disassembly_state: ListState::default(),
@@ -367,6 +397,9 @@ impl UIState {
             scroll_index: 0,
             should_quit: false,
             status_message: "Ready".to_string(),
+            logo: crate::utils::load_logo(),
+            picker: crate::utils::create_picker(),
+            dismiss_logo: false,
         }
     }
 }

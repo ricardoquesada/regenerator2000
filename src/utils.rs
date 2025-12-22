@@ -1,3 +1,5 @@
+use image::DynamicImage;
+use ratatui_image::picker::Picker;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -32,4 +34,18 @@ pub fn list_files(dir: &Path, extensions: &[String]) -> Vec<PathBuf> {
     });
 
     files
+}
+
+pub fn load_logo() -> Option<DynamicImage> {
+    let path = Path::new("docs/regenerator2000_logo.png");
+    if path.exists() {
+        if let Ok(img) = image::open(path) {
+            return Some(img);
+        }
+    }
+    None
+}
+pub fn create_picker() -> Option<Picker> {
+    let font_size = (8, 16);
+    Some(Picker::from_fontsize(font_size))
 }
