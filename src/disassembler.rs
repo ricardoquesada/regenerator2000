@@ -153,7 +153,7 @@ impl Disassembler {
                                     _ => None,
                                 };
 
-                                let operand_str = formatter.format_operand(
+                                let (mnemonic, operand_str) = formatter.format_instruction(
                                     opcode,
                                     &bytes[1..],
                                     address,
@@ -166,7 +166,7 @@ impl Disassembler {
                                 lines.push(DisassemblyLine {
                                     address,
                                     bytes,
-                                    mnemonic: formatter.format_mnemonic(&opcode.mnemonic),
+                                    mnemonic,
                                     operand: operand_str,
                                     comment: comment.clone(),
                                     label: label_name.clone(),

@@ -21,7 +21,7 @@ impl Formatter for AcmeFormatter {
         address: u16,
         target_context: Option<LabelType>,
         labels: &HashMap<u16, Vec<Label>>,
-        settings: &crate::state::DocumentSettings,
+        _settings: &crate::state::DocumentSettings,
     ) -> String {
         let get_label = |addr: u16, l_type: LabelType| -> Option<String> {
             if let Some(label_vec) = labels.get(&addr) {
@@ -91,48 +91,26 @@ impl Formatter for AcmeFormatter {
                     LabelType::AbsoluteAddress
                 };
 
-                let base = if let Some(name) = get_label(addr, l_type) {
+                if let Some(name) = get_label(addr, l_type) {
                     name
                 } else {
                     format!("${:04x}", addr)
-                };
-
-                // Check for @w forcing
-                // Only if settings.use_w_prefix is true AND address fits in ZP (<= 0xFF)
-                // This logic mirrors what was in exporter.rs
-                if settings.use_w_prefix && addr <= 0xFF {
-                    // FIXME
-                    format!("+2 {}", base)
-                } else {
-                    base
                 }
             }
             AddressingMode::AbsoluteX => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                let base = if let Some(name) = get_label(addr, LabelType::Field) {
+                if let Some(name) = get_label(addr, LabelType::Field) {
                     format!("{},x", name)
                 } else {
                     format!("${:04x},x", addr)
-                };
-
-                if settings.use_w_prefix && addr <= 0xFF {
-                    format!("+2 {}", base)
-                } else {
-                    base
                 }
             }
             AddressingMode::AbsoluteY => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                let base = if let Some(name) = get_label(addr, LabelType::Field) {
+                if let Some(name) = get_label(addr, LabelType::Field) {
                     format!("{},y", name)
                 } else {
                     format!("${:04x},y", addr)
-                };
-
-                if settings.use_w_prefix && addr <= 0xFF {
-                    format!("+2 {}", base)
-                } else {
-                    base
                 }
             }
 
@@ -192,5 +170,44 @@ impl Formatter for AcmeFormatter {
             format!("${:04x}", value)
         };
         format!("{} = {}", name.to_lowercase(), operand)
+    }
+
+    fn format_instruction(
+        &self,
+        opcode: &Opcode,
+        operands: &[u8],
+        address: u16,
+        target_context: Option<LabelType>,
+        labels: &HashMap<u16, Vec<Label>>,
+        settings: &crate::state::DocumentSettings,
+    ) -> (String, String) {
+        let mnemonic = self.format_mnemonic(&opcode.mnemonic);
+        let operand =
+            self.format_operand(opcode, operands, address, target_context, labels, settings);
+
+        // Check if we need to force 16-bit addressing with +2
+        // Only if settings.use_w_prefix is true AND address fits in ZP (<= 0xFF)
+        // And addressing mode is Absolute, AbsoluteX, or AbsoluteY
+        if settings.use_w_prefix {
+            let should_force = match opcode.mode {
+                AddressingMode::Absolute
+                | AddressingMode::AbsoluteX
+                | AddressingMode::AbsoluteY => {
+                    if operands.len() >= 2 {
+                        let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                        addr <= 0xFF
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            };
+
+            if should_force {
+                return (format!("{}+2", mnemonic), operand);
+            }
+        }
+
+        (mnemonic, operand)
     }
 }

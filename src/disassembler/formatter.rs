@@ -22,4 +22,19 @@ pub trait Formatter {
     fn format_word(&self, word: u16) -> String;
     fn format_header_origin(&self, origin: u16) -> String;
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String;
+
+    fn format_instruction(
+        &self,
+        opcode: &Opcode,
+        operands: &[u8],
+        address: u16,
+        target_context: Option<crate::state::LabelType>,
+        labels: &HashMap<u16, Vec<Label>>,
+        settings: &crate::state::DocumentSettings,
+    ) -> (String, String) {
+        (
+            self.format_mnemonic(&opcode.mnemonic),
+            self.format_operand(opcode, operands, address, target_context, labels, settings),
+        )
+    }
 }

@@ -243,3 +243,26 @@ fn test_acme_lowercase_output() {
     assert_eq!(lines[1].mnemonic, "jmp");
     assert_eq!(lines[1].operand, "mixedcaselabel");
 }
+
+#[test]
+fn test_acme_plus2_formatting() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Acme;
+    settings.use_w_prefix = true;
+
+    let disassembler = Disassembler::new();
+    let labels = HashMap::new();
+    let origin = 0x1000;
+
+    // LDA $0012 (Absolute) -> should be lda+2 $0012
+    let code = vec![0xAD, 0x12, 0x00]; // AD = LDA Abs
+    let address_types = vec![AddressType::Code, AddressType::Code, AddressType::Code];
+
+    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+
+    assert_eq!(lines.len(), 1);
+    let line = &lines[0];
+    assert_eq!(line.mnemonic, "lda+2");
+    // ACME formatter uses 4 digits for absolute addresses
+    assert_eq!(line.operand, "$0012");
+}
