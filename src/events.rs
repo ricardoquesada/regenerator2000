@@ -292,14 +292,15 @@ pub fn run_app<B: Backend>(
                     KeyCode::Enter => {
                         if let Some(item_idx) = ui_state.menu.selected_item {
                             let category_idx = ui_state.menu.selected_category;
-                            let action_name = ui_state.menu.categories[category_idx].items
-                                [item_idx]
-                                .name
+                            let action = ui_state.menu.categories[category_idx].items[item_idx]
+                                .action
                                 .clone();
-                            handle_menu_action(&mut app_state, &mut ui_state, &action_name);
-                            // Close menu after valid action
-                            ui_state.menu.active = false;
-                            ui_state.menu.selected_item = None;
+                            if let Some(action) = action {
+                                handle_menu_action(&mut app_state, &mut ui_state, action);
+                                // Close menu after valid action
+                                ui_state.menu.active = false;
+                                ui_state.menu.selected_item = None;
+                            }
                         } else {
                             // Enter on category -> open first item?
                             ui_state.menu.selected_item = Some(0);
@@ -461,23 +462,55 @@ pub fn run_app<B: Backend>(
                     }
                     // Global Shortcuts
                     KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        handle_menu_action(&mut app_state, &mut ui_state, "New")
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::New,
+                        )
                     }
                     KeyCode::Char('o') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        handle_menu_action(&mut app_state, &mut ui_state, "Open")
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::Open,
+                        )
                     }
                     KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            handle_menu_action(&mut app_state, &mut ui_state, "Save As");
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::SaveAs,
+                            );
                         } else {
-                            handle_menu_action(&mut app_state, &mut ui_state, "Save");
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::Save,
+                            );
                         }
                     }
                     KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        handle_menu_action(&mut app_state, &mut ui_state, "Export ASM");
+                        if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::ExportAsmAs,
+                            );
+                        } else {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::ExportAsm,
+                            );
+                        }
                     }
                     KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        handle_menu_action(&mut app_state, &mut ui_state, "Document Settings");
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::DocumentSettings,
+                        );
                     }
                     KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
@@ -487,30 +520,58 @@ pub fn run_app<B: Backend>(
                             .min(app_state.disassembly.len().saturating_sub(1));
                     }
                     KeyCode::Char('u') => {
-                        handle_menu_action(&mut app_state, &mut ui_state, "Undo");
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::Undo,
+                        );
                     }
                     KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        handle_menu_action(&mut app_state, &mut ui_state, "Redo");
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::Redo,
+                        );
                     }
                     KeyCode::Char('+') | KeyCode::Char('=')
                         if key.modifiers.contains(KeyModifiers::CONTROL) =>
                     {
-                        handle_menu_action(&mut app_state, &mut ui_state, "Zoom In")
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::ZoomIn,
+                        )
                     }
                     KeyCode::Char('-') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        handle_menu_action(&mut app_state, &mut ui_state, "Zoom Out")
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::ZoomOut,
+                        )
                     }
                     KeyCode::Char('0') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        handle_menu_action(&mut app_state, &mut ui_state, "Reset Zoom")
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::ResetZoom,
+                        )
                     }
 
                     KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::SHIFT) => {
-                        handle_menu_action(&mut app_state, &mut ui_state, "Jump to address");
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::JumpToAddress,
+                        );
                     }
 
                     // Only handle Enter for Jump to Operand if NO modifiers (to avoid conflict)
                     KeyCode::Enter if key.modifiers.is_empty() => {
-                        handle_menu_action(&mut app_state, &mut ui_state, "Jump to operand");
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::JumpToOperand,
+                        );
                     }
 
                     KeyCode::Backspace => {
@@ -528,12 +589,26 @@ pub fn run_app<B: Backend>(
                     }
 
                     // Data Conversion Shortcuts
-                    KeyCode::Char('c') => handle_menu_action(&mut app_state, &mut ui_state, "Code"),
-                    KeyCode::Char('b') => handle_menu_action(&mut app_state, &mut ui_state, "Byte"),
-                    KeyCode::Char('w') => handle_menu_action(&mut app_state, &mut ui_state, "Word"),
-                    KeyCode::Char('a') => {
-                        handle_menu_action(&mut app_state, &mut ui_state, "Address")
-                    }
+                    KeyCode::Char('c') => handle_menu_action(
+                        &mut app_state,
+                        &mut ui_state,
+                        crate::ui_state::MenuAction::Code,
+                    ),
+                    KeyCode::Char('b') => handle_menu_action(
+                        &mut app_state,
+                        &mut ui_state,
+                        crate::ui_state::MenuAction::Byte,
+                    ),
+                    KeyCode::Char('w') => handle_menu_action(
+                        &mut app_state,
+                        &mut ui_state,
+                        crate::ui_state::MenuAction::Word,
+                    ),
+                    KeyCode::Char('a') => handle_menu_action(
+                        &mut app_state,
+                        &mut ui_state,
+                        crate::ui_state::MenuAction::Address,
+                    ),
 
                     // Label
                     KeyCode::Char('l') => {
@@ -612,19 +687,25 @@ pub fn run_app<B: Backend>(
     }
 }
 
-fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: &str) {
-    ui_state.status_message = format!("Action: {}", action);
+fn handle_menu_action(
+    app_state: &mut AppState,
+    ui_state: &mut UIState,
+    action: crate::ui_state::MenuAction,
+) {
+    ui_state.status_message = format!("Action: {:?}", action);
+
+    use crate::ui_state::MenuAction;
 
     match action {
-        "Exit" => ui_state.should_quit = true,
-        "New" => {
+        MenuAction::Exit => ui_state.should_quit = true,
+        MenuAction::New => {
             // Placeholder
         }
-        "Open" => {
+        MenuAction::Open => {
             ui_state.file_picker.open();
             ui_state.status_message = "Select a file to open".to_string();
         }
-        "Save" => {
+        MenuAction::Save => {
             if app_state.project_path.is_some() {
                 if let Err(e) = app_state.save_project() {
                     ui_state.status_message = format!("Error saving: {}", e);
@@ -636,23 +717,23 @@ fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: 
                 ui_state.status_message = "Enter filename".to_string();
             }
         }
-        "Save As" => {
+        MenuAction::SaveAs => {
             ui_state.save_dialog.open(SaveDialogMode::Project);
             ui_state.status_message = "Enter filename".to_string();
         }
-        "Export ASM" => {
+        MenuAction::ExportAsm => {
             ui_state.save_dialog.open(SaveDialogMode::ExportAsm);
             ui_state.status_message = "Enter filename for ASM".to_string();
         }
-        "Export ASM As..." => {
+        MenuAction::ExportAsmAs => {
             ui_state.save_dialog.open(SaveDialogMode::ExportAsm);
             ui_state.status_message = "Enter filename for ASM".to_string();
         }
-        "Document Settings" => {
+        MenuAction::DocumentSettings => {
             ui_state.settings_dialog.open();
             ui_state.status_message = "Document Settings".to_string();
         }
-        "Analyze" => {
+        MenuAction::Analyze => {
             ui_state.status_message = app_state.perform_analysis();
             // Move cursor to origin
             let target_addr = app_state.origin;
@@ -671,40 +752,40 @@ fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: 
                 ui_state.cursor_index = idx;
             }
         }
-        "Undo" => {
+        MenuAction::Undo => {
             ui_state.status_message = app_state.undo_last_command();
         }
-        "Redo" => {
+        MenuAction::Redo => {
             ui_state.status_message = app_state.redo_last_command();
         }
-        "Zoom In" => {}
-        "Zoom Out" => {}
-        "Reset Zoom" => {}
-        "Code" => app_state.set_address_type_region(
+        MenuAction::ZoomIn => {}
+        MenuAction::ZoomOut => {}
+        MenuAction::ResetZoom => {}
+        MenuAction::Code => app_state.set_address_type_region(
             crate::state::AddressType::Code,
             ui_state.selection_start,
             ui_state.cursor_index,
         ),
-        "Byte" => app_state.set_address_type_region(
+        MenuAction::Byte => app_state.set_address_type_region(
             crate::state::AddressType::DataByte,
             ui_state.selection_start,
             ui_state.cursor_index,
         ),
-        "Word" => app_state.set_address_type_region(
+        MenuAction::Word => app_state.set_address_type_region(
             crate::state::AddressType::DataWord,
             ui_state.selection_start,
             ui_state.cursor_index,
         ),
-        "Address" => app_state.set_address_type_region(
+        MenuAction::Address => app_state.set_address_type_region(
             crate::state::AddressType::Address,
             ui_state.selection_start,
             ui_state.cursor_index,
         ),
-        "Jump to address" => {
+        MenuAction::JumpToAddress => {
             ui_state.jump_dialog.open();
             ui_state.status_message = "Enter address (Hex)".to_string();
         }
-        "Jump to operand" => {
+        MenuAction::JumpToOperand => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                 // Try to extract address from operand.
                 // We utilize the opcode mode if available.
@@ -796,10 +877,9 @@ fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: 
                 }
             }
         }
-        "About" => {
+        MenuAction::About => {
             ui_state.about_dialog.open();
             ui_state.status_message = "About Regenerator2000".to_string();
         }
-        _ => {}
     }
 }

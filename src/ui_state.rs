@@ -3,6 +3,31 @@ use ratatui::widgets::ListState;
 use ratatui_image::picker::Picker;
 use std::path::PathBuf;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MenuAction {
+    Exit,
+    New,
+    Open,
+    Save,
+    SaveAs,
+    ExportAsm,
+    ExportAsmAs,
+    Undo,
+    Redo,
+    Code,
+    Byte,
+    Word,
+    Address,
+    Analyze,
+    DocumentSettings,
+    ZoomIn,
+    ZoomOut,
+    ResetZoom,
+    JumpToAddress,
+    JumpToOperand,
+    About,
+}
+
 pub struct AboutDialogState {
     pub active: bool,
 }
@@ -230,51 +255,67 @@ impl MenuState {
                 MenuCategory {
                     name: "File".to_string(),
                     items: vec![
-                        MenuItem::new("New", Some("Ctrl+N")),
-                        MenuItem::new("Open", Some("Ctrl+O")),
-                        MenuItem::new("Save", Some("Ctrl+S")),
-                        MenuItem::new("Save As...", Some("Ctrl+Shift+S")),
+                        MenuItem::new("New", Some("Ctrl+N"), Some(MenuAction::New)),
+                        MenuItem::new("Open", Some("Ctrl+O"), Some(MenuAction::Open)),
+                        MenuItem::new("Save", Some("Ctrl+S"), Some(MenuAction::Save)),
+                        MenuItem::new("Save As...", Some("Ctrl+Shift+S"), Some(MenuAction::SaveAs)),
                         MenuItem::separator(),
-                        MenuItem::new("Export ASM", Some("Ctrl+E")),
-                        MenuItem::new("Export ASM As...", Some("Ctrl+Shift+E")),
+                        MenuItem::new("Export ASM", Some("Ctrl+E"), Some(MenuAction::ExportAsm)),
+                        MenuItem::new(
+                            "Export ASM As...",
+                            Some("Ctrl+Shift+E"),
+                            Some(MenuAction::ExportAsmAs),
+                        ),
                         MenuItem::separator(),
-                        MenuItem::new("Exit", Some("Ctrl+Q")),
+                        MenuItem::new("Exit", Some("Ctrl+Q"), Some(MenuAction::Exit)),
                     ],
                 },
                 MenuCategory {
                     name: "Edit".to_string(),
                     items: vec![
-                        MenuItem::new("Undo", Some("U")),
-                        MenuItem::new("Redo", Some("Ctrl+R")),
+                        MenuItem::new("Undo", Some("U"), Some(MenuAction::Undo)),
+                        MenuItem::new("Redo", Some("Ctrl+R"), Some(MenuAction::Redo)),
                         MenuItem::separator(),
-                        MenuItem::new("Code", Some("C")),
-                        MenuItem::new("Byte", Some("B")),
-                        MenuItem::new("Word", Some("W")),
-                        MenuItem::new("Address", Some("A")),
+                        MenuItem::new("Code", Some("C"), Some(MenuAction::Code)),
+                        MenuItem::new("Byte", Some("B"), Some(MenuAction::Byte)),
+                        MenuItem::new("Word", Some("W"), Some(MenuAction::Word)),
+                        MenuItem::new("Address", Some("A"), Some(MenuAction::Address)),
                         MenuItem::separator(),
-                        MenuItem::new("Analyze", None),
+                        MenuItem::new("Analyze", None, Some(MenuAction::Analyze)),
                         MenuItem::separator(),
-                        MenuItem::new("Document Settings", Some("Ctrl+P")),
+                        MenuItem::new(
+                            "Document Settings",
+                            Some("Ctrl+P"),
+                            Some(MenuAction::DocumentSettings),
+                        ),
                     ],
                 },
                 MenuCategory {
                     name: "View".to_string(),
                     items: vec![
-                        MenuItem::new("Zoom In", Some("Ctrl++")),
-                        MenuItem::new("Zoom Out", Some("Ctrl+-")),
-                        MenuItem::new("Reset Zoom", Some("Ctrl+0")),
+                        MenuItem::new("Zoom In", Some("Ctrl++"), Some(MenuAction::ZoomIn)),
+                        MenuItem::new("Zoom Out", Some("Ctrl+-"), Some(MenuAction::ZoomOut)),
+                        MenuItem::new("Reset Zoom", Some("Ctrl+0"), Some(MenuAction::ResetZoom)),
                     ],
                 },
                 MenuCategory {
                     name: "Jump".to_string(),
                     items: vec![
-                        MenuItem::new("Jump to address", Some("G")),
-                        MenuItem::new("Jump to operand", Some("Enter")),
+                        MenuItem::new(
+                            "Jump to address",
+                            Some("G"),
+                            Some(MenuAction::JumpToAddress),
+                        ),
+                        MenuItem::new(
+                            "Jump to operand",
+                            Some("Enter"),
+                            Some(MenuAction::JumpToOperand),
+                        ),
                     ],
                 },
                 MenuCategory {
                     name: "Help".to_string(),
-                    items: vec![MenuItem::new("About", None)],
+                    items: vec![MenuItem::new("About", None, Some(MenuAction::About))],
                 },
             ],
             selected_category: 0,
@@ -345,14 +386,16 @@ pub struct MenuItem {
     pub name: String,
     pub shortcut: Option<String>,
     pub is_separator: bool,
+    pub action: Option<MenuAction>,
 }
 
 impl MenuItem {
-    pub fn new(name: &str, shortcut: Option<&str>) -> Self {
+    pub fn new(name: &str, shortcut: Option<&str>, action: Option<MenuAction>) -> Self {
         Self {
             name: name.to_string(),
             shortcut: shortcut.map(|s| s.to_string()),
             is_separator: false,
+            action,
         }
     }
 
@@ -361,6 +404,7 @@ impl MenuItem {
             name: String::new(),
             shortcut: None,
             is_separator: true,
+            action: None,
         }
     }
 }
