@@ -121,74 +121,163 @@ impl Disassembler {
                     pc += 1;
                 }
                 AddressType::DataByte => {
-                    let b = data[pc];
+                    let mut bytes = Vec::new();
+                    let mut operands = Vec::new();
+                    let mut count = 0;
+
+                    while pc + count < data.len() && count < 8 {
+                        let current_pc = pc + count;
+                        let current_address = origin.wrapping_add(current_pc as u16);
+
+                        // Stop if type changes
+                        if address_types.get(current_pc) != Some(&AddressType::DataByte) {
+                            break;
+                        }
+
+                        // Stop if label exists (except for the first byte, which is handled by outer loop logic)
+                        if count > 0 && labels.contains_key(&current_address) {
+                            break;
+                        }
+
+                        let b = data[current_pc];
+                        bytes.push(b);
+                        operands.push(format!("${:02X}", b));
+                        count += 1;
+                    }
+
                     lines.push(DisassemblyLine {
                         address,
-                        bytes: vec![b],
+                        bytes: Vec::new(),
                         mnemonic: ".BYTE".to_string(),
-                        operand: format!("${:02X}", b),
+                        operand: operands.join(", "),
                         comment: comment.clone(),
                         label: label_name.clone(),
                         opcode: None,
                     });
-                    pc += 1;
+                    pc += count;
                 }
                 AddressType::DataWord => {
-                    if pc + 2 <= data.len() {
-                        let low = data[pc];
-                        let high = data[pc + 1];
+                    let mut bytes = Vec::new();
+                    let mut operands = Vec::new();
+                    let mut count = 0; // Number of words
+
+                    while pc + (count * 2) + 1 < data.len() && count < 4 {
+                        let current_pc_start = pc + (count * 2);
+                        let current_address = origin.wrapping_add(current_pc_start as u16);
+
+                        // Stop if type changes for the first byte of word
+                        if address_types.get(current_pc_start) != Some(&AddressType::DataWord) {
+                            break;
+                        }
+                        // Stop if type changes for the second byte of word (should be consistent, but check)
+                        if address_types.get(current_pc_start + 1) != Some(&AddressType::DataWord) {
+                            break;
+                        }
+
+                        // Stop if label exists at word start (except for first one)
+                        if count > 0 && labels.contains_key(&current_address) {
+                            break;
+                        }
+
+                        let low = data[current_pc_start];
+                        let high = data[current_pc_start + 1];
                         let val = (high as u16) << 8 | (low as u16);
 
+                        bytes.push(low);
+                        bytes.push(high);
+                        operands.push(format!("${:04X}", val));
+                        count += 1;
+                    }
+
+                    if count > 0 {
                         lines.push(DisassemblyLine {
                             address,
-                            bytes: vec![low, high],
+                            bytes: Vec::new(),
                             mnemonic: ".WORD".to_string(),
-                            operand: format!("${:04X}", val),
+                            operand: operands.join(", "),
                             comment: comment.clone(),
                             label: label_name.clone(),
                             opcode: None,
                         });
-                        pc += 2;
+                        pc += count * 2;
                     } else {
-                        // Not enough data
-                        let b = data[pc];
-                        let mut line_comment = "Partial Word".to_string();
-                        if !comment.is_empty() {
-                            line_comment = format!("{}; {}", comment, line_comment);
+                        // Fallback for partial word at end of data or mismatched types
+                        // Should handle as single byte if strictly needed,
+                        // but logic suggests we at least have 1 byte if we are here.
+                        // Only case count == 0 is if len check failed immediately for +1,
+                        // meaning we have 1 trailing byte marked as DataWord.
+                        if pc < data.len() {
+                            let b = data[pc];
+                            let mut line_comment = "Partial Word".to_string();
+                            if !comment.is_empty() {
+                                line_comment = format!("{}; {}", comment, line_comment);
+                            }
+                            lines.push(DisassemblyLine {
+                                address,
+                                bytes: Vec::new(),
+                                mnemonic: ".BYTE".to_string(),
+                                operand: format!("${:02X}", b),
+                                comment: line_comment,
+                                label: label_name.clone(),
+                                opcode: None,
+                            });
+                            pc += 1;
                         }
-                        lines.push(DisassemblyLine {
-                            address,
-                            bytes: vec![b],
-                            mnemonic: ".BYTE".to_string(),
-                            operand: format!("${:02X}", b),
-                            comment: line_comment,
-                            label: label_name.clone(),
-                            opcode: None,
-                        });
-                        pc += 1;
                     }
                 }
                 AddressType::Address => {
-                    if pc + 2 <= data.len() {
-                        let low = data[pc];
-                        let high = data[pc + 1];
+                    let mut bytes = Vec::new();
+                    let mut operands = Vec::new();
+                    let mut count = 0;
+
+                    while pc + (count * 2) + 1 < data.len() && count < 4 {
+                        let current_pc_start = pc + (count * 2);
+                        let current_address = origin.wrapping_add(current_pc_start as u16);
+
+                        // Stop if type changes for the first byte of word
+                        if address_types.get(current_pc_start) != Some(&AddressType::Address) {
+                            break;
+                        }
+                        // Stop if type changes for the second byte
+                        if address_types.get(current_pc_start + 1) != Some(&AddressType::Address) {
+                            break;
+                        }
+
+                        // Stop if label exists at word start (except for first one)
+                        if count > 0 && labels.contains_key(&current_address) {
+                            break;
+                        }
+
+                        let low = data[current_pc_start];
+                        let high = data[current_pc_start + 1];
                         let val = (high as u16) << 8 | (low as u16);
 
+                        bytes.push(low);
+                        bytes.push(high);
+
+                        let operand = if let Some(label) = labels.get(&val) {
+                            label.name.clone()
+                        } else {
+                            format!("${:04X}", val)
+                        };
+                        operands.push(operand);
+
+                        count += 1;
+                    }
+
+                    if count > 0 {
                         lines.push(DisassemblyLine {
                             address,
-                            bytes: vec![low, high],
+                            bytes: Vec::new(),
                             mnemonic: ".WORD".to_string(),
-                            operand: if let Some(label) = labels.get(&val) {
-                                label.name.clone()
-                            } else {
-                                format!("${:04X}", val)
-                            },
+                            operand: operands.join(", "),
                             comment: comment.clone(),
                             label: label_name.clone(),
                             opcode: None,
                         });
-                        pc += 2;
+                        pc += count * 2;
                     } else {
+                        // Fallback for partial word
                         let b = data[pc];
                         let mut line_comment = "Partial Address".to_string();
                         if !comment.is_empty() {
@@ -196,7 +285,7 @@ impl Disassembler {
                         }
                         lines.push(DisassemblyLine {
                             address,
-                            bytes: vec![b],
+                            bytes: Vec::new(),
                             mnemonic: ".BYTE".to_string(),
                             operand: format!("${:02X}", b),
                             comment: line_comment,
@@ -397,11 +486,13 @@ mod tests {
         assert_eq!(lines[1].address, 0x1002);
         assert_eq!(lines[1].mnemonic, ".BYTE");
         assert_eq!(lines[1].operand, "$02");
+        assert!(lines[1].bytes.is_empty());
 
         // Line 2: Word
         assert_eq!(lines[2].address, 0x1003);
         assert_eq!(lines[2].mnemonic, ".WORD");
         assert_eq!(lines[2].operand, "$0403"); // Little Endian
+        assert!(lines[2].bytes.is_empty());
     }
 
     #[test]
@@ -668,5 +759,110 @@ mod tests {
 
         assert_eq!(lines[3].mnemonic, "ROL");
         assert_eq!(lines[3].operand, "A");
+    }
+
+    #[test]
+    fn test_disassembly_grouping() {
+        let disassembler = Disassembler::new();
+        // 10 bytes: 01 02 03 04 05 06 07 08 09 0A
+        // 6 words: 01 00 02 00 03 00 04 00 05 00 06 00 -> $0001, $0002, ...
+        // Total 22 bytes.
+        let mut data = Vec::new();
+        for i in 1..=10 {
+            data.push(i);
+        }
+        for i in 1..=6 {
+            data.push(i);
+            data.push(0);
+        }
+
+        let mut address_types = vec![AddressType::Code; data.len()];
+        // Mark first 10 as DataByte
+        for i in 0..10 {
+            address_types[i] = AddressType::DataByte;
+        }
+        // Mark rest as DataWord
+        for i in 10..22 {
+            address_types[i] = AddressType::DataWord;
+        }
+
+        let mut labels = HashMap::new();
+        // Insert label at index 9 (address 1009) to break grouping of bytes
+        // 1000..1007 (8 bytes) -> Group 1
+        // 1008 (1 byte) -> Group 2 (because 1009 has label)
+
+        labels.insert(
+            0x1009,
+            crate::state::Label {
+                name: "SplitBytes".to_string(),
+                kind: crate::state::LabelKind::User,
+                names: HashMap::new(),
+                refs: Vec::new(),
+            },
+        );
+
+        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
+
+        assert_eq!(lines.len(), 5);
+
+        // Line 1
+        assert_eq!(lines[0].mnemonic, ".BYTE");
+        assert_eq!(lines[0].operand.matches(',').count(), 7); // 8 items = 7 commas
+        assert!(lines[0].bytes.is_empty());
+
+        // Line 2
+        assert_eq!(lines[1].mnemonic, ".BYTE");
+        assert_eq!(lines[1].operand, "$09");
+        assert!(lines[1].bytes.is_empty());
+
+        // Line 3
+        assert_eq!(lines[2].mnemonic, ".BYTE");
+        assert_eq!(lines[2].operand, "$0A");
+        assert_eq!(lines[2].label, Some("SplitBytes".to_string()));
+
+        // Line 4
+        assert_eq!(lines[3].mnemonic, ".WORD");
+        assert_eq!(lines[3].operand.matches(',').count(), 3); // 4 items
+        assert!(lines[3].bytes.is_empty());
+
+        // Line 5
+        assert_eq!(lines[4].mnemonic, ".WORD");
+        assert_eq!(lines[4].operand.matches(',').count(), 1); // 2 items
+        assert!(lines[4].bytes.is_empty());
+    }
+
+    #[test]
+    fn test_address_grouping() {
+        let disassembler = Disassembler::new();
+        // 3 Addresses: 07 00 08 00 09 00 -> $0007, $0008, $0009
+        let mut data = Vec::new();
+        for i in 7..=9 {
+            data.push(i);
+            data.push(0);
+        }
+
+        let address_types = vec![AddressType::Address; data.len()];
+        let mut labels = HashMap::new();
+        // Label at address 7 "MyAddr"
+        labels.insert(
+            0x0007,
+            crate::state::Label {
+                name: "MyAddr".to_string(),
+                kind: crate::state::LabelKind::User,
+                names: HashMap::new(),
+                refs: Vec::new(),
+            },
+        );
+
+        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
+
+        assert_eq!(lines.len(), 1);
+
+        // Line 1: .WORD MyAddr, $0008, $0009 (3 Addresses)
+        assert_eq!(lines[0].mnemonic, ".WORD");
+        assert_eq!(lines[0].operand.matches(',').count(), 2); // 3 items
+        assert!(lines[0].operand.contains("MyAddr"));
+        assert!(lines[0].operand.contains("$0008"));
+        assert!(lines[0].operand.contains("$0009"));
     }
 }

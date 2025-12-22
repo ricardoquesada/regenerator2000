@@ -8,6 +8,13 @@ A 6502 disassembler with a TUI interface. A modern take on [Regenerator][regener
 
 ## Features
 
+Modern features not present in the original Regenerator:
+
+- Undo / Redo
+- Cross References
+
+Common features:
+
 - Disassemble 6502 code including undocumented opcodes
 - Interactive TUI.
 - Support for .bin and .prg files
