@@ -102,25 +102,37 @@ impl Formatter for AcmeFormatter {
                 // This logic mirrors what was in exporter.rs
                 if settings.use_w_prefix && addr <= 0xFF {
                     // FIXME
-                    format!("{}", base)
+                    format!("+2 {}", base)
                 } else {
                     base
                 }
             }
             AddressingMode::AbsoluteX => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{},x", name)
+                let base = if let Some(name) = get_label(addr, LabelType::Field) {
+                    format!("{},X", name)
                 } else {
-                    format!("${:04X},x", addr)
+                    format!("${:04X},X", addr)
+                };
+
+                if settings.use_w_prefix && addr <= 0xFF {
+                    format!("+2 {}", base)
+                } else {
+                    base
                 }
             }
             AddressingMode::AbsoluteY => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{},y", name)
+                let base = if let Some(name) = get_label(addr, LabelType::Field) {
+                    format!("{},Y", name)
                 } else {
-                    format!("${:04X},y", addr)
+                    format!("${:04X},Y", addr)
+                };
+
+                if settings.use_w_prefix && addr <= 0xFF {
+                    format!("+2 {}", base)
+                } else {
+                    base
                 }
             }
 
