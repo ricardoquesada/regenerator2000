@@ -154,6 +154,7 @@ pub fn analyze(state: &AppState) -> HashMap<u16, Vec<crate::state::Label>> {
                     if l_type == LabelType::ExternalJump
                         || l_type == LabelType::AbsoluteAddress
                         || l_type == LabelType::Field
+                        || l_type == LabelType::Pointer
                     {
                         format!("{}{:04X}", prefix, addr)
                     } else {
@@ -818,5 +819,65 @@ mod tests {
             "Should be Field type (Absolute Indexed)"
         );
         assert_eq!(label.name, "f00A0");
+    }
+
+    #[test]
+    fn test_dual_pointer_labels() {
+        let mut app_state = AppState::new();
+        // Scenario: Two instructions using address $00FB.
+        // 1. Indirect JMP ($00FB) -> JMP ($00FB) -> 6C FB 00
+        //    - This is AddressingMode::Indirect.
+        //    - It targets $FB but the operands are $FB $00.
+        //    - It should generate LabelType::Pointer ("p")
+        //    - The USER wants this to be "p00FB" (4 digits) because it's used as a 16-bit pointer.
+
+        // 2. LDA ($FB), Y -> B1 FB
+        //    - This is AddressingMode::IndirectY.
+        //    - It targets $FB.
+        //    - It should generate LabelType::ZeroPagePointer ("p")
+        //    - The USER wants this to be "pFB" (2 digits).
+
+        app_state.origin = 0x1000;
+        let data = vec![
+            0x6C, 0xFB, 0x00, // JMP ($00FB)
+            0xB1, 0xFB, // LDA ($FB), Y
+        ];
+        app_state.raw_data = data;
+        app_state.address_types = vec![AddressType::Code; 5];
+
+        // Mock Opcode info
+        // JMP Indirect
+        app_state.disassembler.opcodes[0x6C] = Some(crate::cpu::Opcode {
+            mnemonic: "JMP",
+            mode: AddressingMode::Indirect,
+            size: 3,
+            cycles: 5,
+            description: "Jump Indirect",
+        });
+        // LDA IndirectY
+        app_state.disassembler.opcodes[0xB1] = Some(crate::cpu::Opcode {
+            mnemonic: "LDA",
+            mode: AddressingMode::IndirectY,
+            size: 2,
+            cycles: 5,
+            description: "Load Accumulator Indirect Y",
+        });
+
+        let labels_map = analyze(&app_state);
+        let labels = labels_map.get(&0x00FB);
+        assert!(labels.is_some(), "Should have labels at $00FB");
+
+        let label_vec = labels.unwrap();
+        // We expect TWO labels now: "p00FB" (Pointer) and "pFB" (ZeroPagePointer).
+
+        let has_p00fb = label_vec
+            .iter()
+            .any(|l| l.name == "p00FB" && l.label_type == LabelType::Pointer);
+        let has_pfb = label_vec
+            .iter()
+            .any(|l| l.name == "pFB" && l.label_type == LabelType::ZeroPagePointer);
+
+        assert!(has_p00fb, "Should have p00FB label for JMP ($00FB)");
+        assert!(has_pfb, "Should have pFB label for LDA ($FB),Y");
     }
 }
