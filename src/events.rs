@@ -557,7 +557,7 @@ pub fn run_app<B: Backend>(
                         )
                     }
 
-                    KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+                    KeyCode::Char('g') => {
                         handle_menu_action(
                             &mut app_state,
                             &mut ui_state,
