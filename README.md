@@ -1,8 +1,8 @@
-# Regenerator 2000
+# Regenerator2000
 
 ![logo](docs/regenerator2000_logo.png)
 
-A 6502 disassembler with a TUI interface. A modern take on [Regenerator][regenerator].
+A 6502 disassembler with a TUI. A modern take on [Regenerator][regenerator].
 
 [regenerator]: https://csdb.dk/release/?id=247992
 
