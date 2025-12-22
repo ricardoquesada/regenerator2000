@@ -196,7 +196,7 @@ pub struct ProjectState {
     pub raw_data: Vec<String>, // Chunked Hex
     pub address_ranges: Vec<AddressRange>,
     #[serde(default)]
-    pub labels: HashMap<u16, Label>,
+    pub labels: HashMap<u16, Vec<Label>>,
     #[serde(default)]
     pub settings: DocumentSettings,
 }
@@ -211,7 +211,7 @@ pub struct AppState {
 
     // Data Conversion State
     pub address_types: Vec<AddressType>,
-    pub labels: HashMap<u16, Label>,
+    pub labels: HashMap<u16, Vec<Label>>,
     pub settings: DocumentSettings,
 
     pub undo_stack: crate::commands::UndoStack,
@@ -304,7 +304,15 @@ impl AppState {
                     .labels
                     .clone()
                     .into_iter()
-                    .filter(|(_, label)| label.kind == LabelKind::User)
+                    .map(|(k, v)| {
+                        (
+                            k,
+                            v.into_iter()
+                                .filter(|label| label.kind == LabelKind::User)
+                                .collect::<Vec<_>>(),
+                        )
+                    })
+                    .filter(|(_, v)| !v.is_empty())
                     .collect(),
                 settings: self.settings,
             };
@@ -318,18 +326,21 @@ impl AppState {
 
     pub fn perform_analysis(&mut self) -> String {
         let labels = crate::analyzer::analyze(self);
-        let mut new_labels_map = std::collections::HashMap::new();
-        for (addr, label) in labels {
-            new_labels_map.insert(addr, Some(label));
-        }
+
         // Capture old labels
         let mut old_labels_map = std::collections::HashMap::new();
-        for k in new_labels_map.keys() {
-            old_labels_map.insert(*k, self.labels.get(k).cloned());
+        for k in labels.keys() {
+            old_labels_map.insert(*k, self.labels.get(k).cloned().unwrap_or_default());
         }
+        // Also verify any removed labels? analyze replaces everything?
+        // analyze returns ALL labels.
+        // Assuming analyze returns the complete set of labels for the program.
+
+        // But wait, user defined labels might not be in analyzer result if the analyzer doesn't preserve them?
+        // Analyzer SHOULD preserve user labels.
 
         let command = crate::commands::Command::SetLabels {
-            labels: new_labels_map,
+            labels: labels, // SetLabels now expects HashMap<u16, Vec<Label>>
             old_labels: old_labels_map,
         };
         command.apply(self);
@@ -437,9 +448,11 @@ impl AppState {
     pub fn get_external_label_definitions(&self) -> Vec<DisassemblyLine> {
         let mut candidates: Vec<(u16, LabelType, &String)> = Vec::new();
 
-        for (addr, label) in &self.labels {
+        for (addr, labels) in &self.labels {
             if self.is_external(*addr) {
-                candidates.push((*addr, label.label_type, &label.name));
+                for label in labels {
+                    candidates.push((*addr, label.label_type, &label.name));
+                }
             }
         }
 
@@ -723,12 +736,12 @@ mod load_file_tests {
         // 1. Set some initial state
         app_state.labels.insert(
             0x1234,
-            Label {
+            vec![Label {
                 name: "DeleteMe".to_string(),
                 label_type: LabelType::UserDefined,
                 kind: LabelKind::User,
                 refs: vec![],
-            },
+            }],
         );
         app_state.project_path = Some(PathBuf::from("fake_project.json"));
 
@@ -769,23 +782,23 @@ mod save_project_tests {
         // 1. Add USER label
         app_state.labels.insert(
             0x1000,
-            Label {
+            vec![Label {
                 name: "UserLabel".to_string(),
                 label_type: LabelType::AbsoluteAddress,
                 kind: LabelKind::User,
                 refs: vec![0x2000],
-            },
+            }],
         );
 
         // 2. Add AUTO label
         app_state.labels.insert(
             0x1005,
-            Label {
+            vec![Label {
                 name: "AutoLabel".to_string(),
                 label_type: LabelType::Branch,
                 kind: LabelKind::Auto,
                 refs: vec![0x2002],
-            },
+            }],
         );
 
         // 3. Save Project (mocking write separately, but logic is in save_project internal construction)
@@ -813,8 +826,8 @@ mod save_project_tests {
             .labels
             .get(&0x1000)
             .expect("User label should be saved");
-        assert_eq!(user_label.name, "UserLabel");
-        assert_eq!(user_label.kind, LabelKind::User);
+        assert_eq!(user_label.first().unwrap().name, "UserLabel");
+        assert_eq!(user_label.first().unwrap().kind, LabelKind::User);
 
         // 7. Verify `names` map is EMPTY (skipped)
         // When deserialized, because it was skipped, it should get the default value (empty Map)
@@ -828,7 +841,7 @@ mod save_project_tests {
         // So `user_label.names` should be empty.
 
         assert_eq!(
-            user_label.label_type,
+            user_label.first().unwrap().label_type,
             LabelType::AbsoluteAddress,
             "Label type should be preserved"
         );

@@ -40,7 +40,7 @@ impl Disassembler {
         &self,
         data: &[u8],
         address_types: &[AddressType],
-        labels: &HashMap<u16, Label>,
+        labels: &HashMap<u16, Vec<Label>>,
         origin: u16,
         settings: &DocumentSettings,
     ) -> Vec<DisassemblyLine> {
@@ -54,17 +54,30 @@ impl Disassembler {
 
         while pc < data.len() {
             let address = origin.wrapping_add(pc as u16);
-            let label_name = labels.get(&address).map(|l| l.name.clone());
+            // Default label name logic: Pick first one found?
+            // Or maybe join comments? Disassembler usually shows ONE primary label next to the address.
+            // Let's pick the first one for now.
+            let label_name = labels
+                .get(&address)
+                .and_then(|v| v.first())
+                .map(|l| l.name.clone());
 
             let mut comment = String::new();
-            if let Some(label) = labels.get(&address) {
-                if !label.refs.is_empty() {
-                    let mut refs = label.refs.clone();
-                    refs.sort_unstable();
-                    refs.dedup();
+            if let Some(label_vec) = labels.get(&address) {
+                // Collect refs from all labels at this address?
+                let mut all_refs: Vec<u16> = Vec::new();
+                for l in label_vec {
+                    all_refs.extend(l.refs.iter().cloned());
+                }
+                if !all_refs.is_empty() {
+                    all_refs.sort_unstable();
+                    all_refs.dedup();
 
-                    let refs_str: Vec<String> =
-                        refs.iter().take(5).map(|r| format!("{:04X}", r)).collect();
+                    let refs_str: Vec<String> = all_refs
+                        .iter()
+                        .take(5)
+                        .map(|r| format!("{:04X}", r))
+                        .collect();
                     comment = format!("x-ref: {}", refs_str.join(", "));
                 }
             }
@@ -96,10 +109,51 @@ impl Disassembler {
                                     bytes.push(data[pc + i as usize]);
                                 }
 
+                                let target_context = match opcode.mode {
+                                    crate::cpu::AddressingMode::ZeroPage => {
+                                        Some(crate::state::LabelType::ZeroPageAbsoluteAddress)
+                                    }
+                                    crate::cpu::AddressingMode::ZeroPageX => {
+                                        Some(crate::state::LabelType::ZeroPageField)
+                                    }
+                                    crate::cpu::AddressingMode::ZeroPageY => {
+                                        Some(crate::state::LabelType::ZeroPageField)
+                                    }
+                                    crate::cpu::AddressingMode::Relative => {
+                                        Some(crate::state::LabelType::Branch)
+                                    }
+                                    crate::cpu::AddressingMode::Absolute => {
+                                        if opcode.mnemonic == "JSR" {
+                                            Some(crate::state::LabelType::Subroutine)
+                                        } else if opcode.mnemonic == "JMP" {
+                                            Some(crate::state::LabelType::Jump)
+                                        } else {
+                                            Some(crate::state::LabelType::AbsoluteAddress)
+                                        }
+                                    }
+                                    crate::cpu::AddressingMode::AbsoluteX => {
+                                        Some(crate::state::LabelType::Field)
+                                    }
+                                    crate::cpu::AddressingMode::AbsoluteY => {
+                                        Some(crate::state::LabelType::Field)
+                                    }
+                                    crate::cpu::AddressingMode::Indirect => {
+                                        Some(crate::state::LabelType::Pointer)
+                                    }
+                                    crate::cpu::AddressingMode::IndirectX => {
+                                        Some(crate::state::LabelType::ZeroPagePointer)
+                                    }
+                                    crate::cpu::AddressingMode::IndirectY => {
+                                        Some(crate::state::LabelType::ZeroPagePointer)
+                                    }
+                                    _ => None,
+                                };
+
                                 let operand_str = formatter.format_operand(
                                     opcode,
                                     &bytes[1..],
                                     address,
+                                    target_context,
                                     labels,
                                     settings,
                                 );
@@ -266,8 +320,14 @@ impl Disassembler {
                         bytes.push(low);
                         bytes.push(high);
 
-                        let operand = if let Some(label) = labels.get(&val) {
-                            label.name.clone()
+                        let operand = if let Some(label_vec) = labels.get(&val) {
+                            // Address context usually implies AbsoluteAddress or similar.
+                            // But here we're just picking ONE name to display in the data block.
+                            // Pick the first one?
+                            label_vec
+                                .first()
+                                .map(|l| l.name.clone())
+                                .unwrap_or(format!("${:04X}", val))
                         } else {
                             format!("${:04X}", val)
                         };

@@ -19,11 +19,29 @@ impl Formatter for TassFormatter {
         opcode: &Opcode,
         operands: &[u8],
         address: u16,
-        labels: &HashMap<u16, Label>,
+        target_context: Option<LabelType>,
+        labels: &HashMap<u16, Vec<Label>>,
         settings: &crate::state::DocumentSettings,
     ) -> String {
-        let get_label = |addr: u16, _l_type: LabelType| -> Option<String> {
-            labels.get(&addr).map(|l| l.name.clone())
+        let get_label = |addr: u16, l_type: LabelType| -> Option<String> {
+            if let Some(label_vec) = labels.get(&addr) {
+                // 1. Try to match target_context if provided
+                if let Some(target) = target_context {
+                    if let Some(l) = label_vec.iter().find(|l| l.label_type == target) {
+                        return Some(l.name.clone());
+                    }
+                }
+                // 2. Try to match l_type (the type implied by addressing mode)
+                if let Some(l) = label_vec.iter().find(|l| l.label_type == l_type) {
+                    return Some(l.name.clone());
+                }
+
+                // 3. Fallback to first label
+                if let Some(l) = label_vec.first() {
+                    return Some(l.name.clone());
+                }
+            }
+            None
         };
 
         match opcode.mode {

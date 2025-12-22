@@ -140,8 +140,9 @@ pub fn run_app<B: Backend>(
                                 ui_state.label_dialog.close();
                             } else {
                                 // Check for duplicates (exclude current address in case of rename/edit)
-                                let exists = app_state.labels.iter().any(|(addr, label)| {
-                                    label.name == label_name && *addr != address
+                                let exists = app_state.labels.iter().any(|(addr, label_vec)| {
+                                    *addr != address
+                                        && label_vec.iter().any(|l| l.name == label_name)
                                 });
 
                                 if exists {
@@ -149,19 +150,31 @@ pub fn run_app<B: Backend>(
                                         format!("Error: Label '{}' already exists", label_name);
                                     // Do not close dialog, let user correct it
                                 } else {
-                                    let old_label = app_state.labels.get(&address).cloned();
+                                    let old_label_vec = app_state.labels.get(&address).cloned();
 
-                                    let new_label = crate::state::Label {
+                                    let mut new_label_vec =
+                                        old_label_vec.clone().unwrap_or_default();
+
+                                    let new_label_entry = crate::state::Label {
                                         name: label_name,
                                         kind: crate::state::LabelKind::User,
                                         label_type: crate::state::LabelType::UserDefined,
                                         refs: Vec::new(),
                                     };
 
+                                    // If vector has items, we assume we are editing the first one (as that's what we showed).
+                                    // If we want to SUPPORT multiple, we need a better UI.
+                                    // For now, replace 0 or push.
+                                    if !new_label_vec.is_empty() {
+                                        new_label_vec[0] = new_label_entry;
+                                    } else {
+                                        new_label_vec.push(new_label_entry);
+                                    }
+
                                     let command = crate::commands::Command::SetLabel {
                                         address,
-                                        new_label: Some(new_label),
-                                        old_label,
+                                        new_label: Some(new_label_vec),
+                                        old_label: old_label_vec,
                                     };
 
                                     command.apply(&mut app_state);
@@ -495,7 +508,11 @@ pub fn run_app<B: Backend>(
                         {
                             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                                 let addr = line.address;
-                                let text = app_state.labels.get(&addr).map(|l| l.name.as_str());
+                                let text = app_state
+                                    .labels
+                                    .get(&addr)
+                                    .and_then(|v| v.first())
+                                    .map(|l| l.name.as_str());
                                 ui_state.label_dialog.open(text);
                                 ui_state.status_message = "Enter Label".to_string();
                             }

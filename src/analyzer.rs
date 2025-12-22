@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::state::LabelType;
 
-pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
+pub fn analyze(state: &AppState) -> HashMap<u16, Vec<crate::state::Label>> {
     // We want to track ALL usages, illegal or not, and then pick the best ones.
     // Map: Address -> Set of used LabelTypes
     // We also need ref counts.
@@ -75,100 +75,152 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
     }
 
     // Generate labels
-    let mut labels = HashMap::new();
+    let mut labels: HashMap<u16, Vec<crate::state::Label>> = HashMap::new();
 
     // 1. Process all used addresses
     for (addr, (types_map, refs, first_type)) in usage_map {
-        // Check if there is an existing User label
-        if let Some(existing) = state.labels.get(&addr) {
-            if existing.kind == crate::state::LabelKind::User {
-                labels.insert(
-                    addr,
-                    crate::state::Label {
-                        name: existing.name.clone(),
-                        label_type: if existing.label_type == LabelType::UserDefined {
-                            // Try to infer if possible, otherwise default
-                            LabelType::UserDefined
-                        } else {
-                            existing.label_type
-                        },
-                        kind: crate::state::LabelKind::User,
-                        refs: existing.refs.clone(),
-                    },
-                );
+        let mut addr_labels = Vec::new();
 
-                continue;
+        // Check for existing User labels (preserve them all)
+        if let Some(existing_vec) = state.labels.get(&addr) {
+            for existing in existing_vec {
+                if existing.kind == crate::state::LabelKind::User {
+                    addr_labels.push(crate::state::Label {
+                        name: existing.name.clone(),
+                        label_type: existing.label_type,
+                        kind: crate::state::LabelKind::User,
+                        refs: existing.refs.clone(), // Keep manual refs? Or overwrite with analyzed refs?
+                                                     // Ideally we MERGE analyzed refs into existing refs if we want to show updated xrefs.
+                                                     // But `usage_map` refs are freshly calculated.
+                                                     // For now, let's keep existing refs from `state`? No, those might be stale.
+                                                     // But `refs` in `Label` is usually populated by analysis.
+                                                     // If it's a User label, we should probably update its refs with `refs` from analysis.
+                                                     // Let's use `refs` from `usage_map`.
+                    });
+                    // Assign refs to the last pushed label
+                    if let Some(l) = addr_labels.last_mut() {
+                        l.refs = refs.clone();
+                    }
+                }
             }
         }
 
-        // Generate Auto label
+        // If we have User labels for *all* needed contexts, we might skip Auto generation?
+        // But for now, let's just generate Auto labels if needed.
+
         let is_ext = state.is_external(addr);
 
-        // Generate names for all discovered types
-
-        // Determine default name (highest priority)
-        // We can sort types or just pick one. `LabelType` derives Ord. Higher enum value = higher priority?
-        // In the enum definition:
-        // ZeroPageField=0, Field=1, ZeroPageAbsoluteAddress=2, AbsoluteAddress=3, Pointer=4, ZeroPagePointer=5,
-        // ExternalJump=6, Jump=7, Subroutine=8, Branch=9, Predefined=10, UserDefined=11
-
-        // Determine default name (highest priority)
-        // If INTERNAL, we use the `first_type` (the type of the first instruction that referenced it).
-        // If EXTERNAL, we stick to the priority logic (usually ExternalJump or Absolute).
-        let best_type = if !is_ext {
-            first_type
-        } else {
-            types_map
-                .keys()
-                .map(|t| {
-                    if is_ext
-                        && (*t == LabelType::Jump
-                            || *t == LabelType::Subroutine
-                            || *t == LabelType::Branch)
-                    {
-                        LabelType::ExternalJump
-                    } else {
-                        *t
+        if is_ext {
+            // External: Generate for EACH type found
+            let mut types_to_generate: Vec<LabelType> = Vec::new();
+            for t in types_map.keys() {
+                let canonical = if *t == LabelType::Jump
+                    || *t == LabelType::Subroutine
+                    || *t == LabelType::Branch
+                {
+                    LabelType::ExternalJump
+                } else {
+                    *t
+                };
+                if !types_to_generate.contains(&canonical) {
+                    types_to_generate.push(canonical);
+                }
+            }
+            // Sort to ensure deterministic order and priority (e.g. ExternalJump 'e' before others)
+            // LabelType doesn't implement Ord, so we sort by string repr or arbitrary priority.
+            // Let's assume ExternalJump should be first.
+            types_to_generate.sort_by(|a, b| {
+                fn priority(t: &LabelType) -> i32 {
+                    match t {
+                        LabelType::ExternalJump => 0,
+                        LabelType::Subroutine => 1,
+                        LabelType::Jump => 2,
+                        LabelType::Branch => 3,
+                        LabelType::AbsoluteAddress => 4,
+                        _ => 10,
                     }
-                })
-                .max()
-                .unwrap_or(LabelType::AbsoluteAddress)
-        };
+                }
+                priority(a).cmp(&priority(b))
+            });
 
-        let prefix = best_type.prefix();
+            for l_type in types_to_generate {
+                // Check if we already have this type in addr_labels (User defined)
+                if addr_labels.iter().any(|l| l.label_type == l_type) {
+                    continue;
+                }
 
-        let default_name = if best_type == LabelType::ZeroPageAbsoluteAddress
-            || best_type == LabelType::ZeroPageField
-            || best_type == LabelType::ZeroPagePointer
-        {
-            format!("{}{:02X}", prefix, addr)
+                let prefix = l_type.prefix();
+                let name = if addr <= 0xFF {
+                    if l_type == LabelType::ExternalJump
+                        || l_type == LabelType::AbsoluteAddress
+                        || l_type == LabelType::Field
+                    {
+                        format!("{}{:04X}", prefix, addr)
+                    } else {
+                        format!("{}{:02X}", prefix, addr)
+                    }
+                } else {
+                    format!("{}{:04X}", prefix, addr)
+                };
+
+                // Add Auto Label
+                addr_labels.push(crate::state::Label {
+                    name,
+                    label_type: l_type,
+                    kind: crate::state::LabelKind::Auto,
+                    refs: refs.clone(),
+                });
+            }
         } else {
-            format!("{}{:04X}", prefix, addr)
-        };
+            // Internal: Single canonical label (first_type or best?)
+            // If User label exists, do we add Auto label? No, User label supersedes.
+            if addr_labels.is_empty() {
+                // Match ignored types logic from earlier or just rely on first found?
+                // Logic: if usage contains Subroutine, promote to 's'.
+                // Internal: Single canonical label (first_wins)
+                let final_type = first_type;
+                let prefix = final_type.prefix();
 
-        labels.insert(
-            addr,
-            crate::state::Label {
-                name: default_name,
-                label_type: best_type,
-                kind: crate::state::LabelKind::Auto,
-                refs, // We use all refs
-            },
-        );
+                let name = if addr <= 0xFF {
+                    format!("{}{:02X}", prefix, addr)
+                } else {
+                    format!("{}{:04X}", prefix, addr)
+                };
+
+                addr_labels.push(crate::state::Label {
+                    name,
+                    label_type: final_type,
+                    kind: crate::state::LabelKind::Auto,
+                    refs: refs.clone(),
+                });
+            } else {
+                // User label exists. Update its refs?
+                for l in addr_labels.iter_mut() {
+                    l.refs = refs.clone();
+                }
+            }
+        }
+
+        labels.insert(addr, addr_labels);
     }
 
-    // 2. Preserve User labels that have 0 references (or weren't found in this pass)
-    for (addr, label) in &state.labels {
-        if label.kind == crate::state::LabelKind::User && !labels.contains_key(addr) {
-            labels.insert(
-                *addr,
-                crate::state::Label {
-                    name: label.name.clone(),
-                    label_type: label.label_type,
-                    kind: crate::state::LabelKind::User,
-                    refs: Vec::new(),
-                },
-            );
+    // 2. Preserve strictly unused User labels
+    for (addr, label_vec) in &state.labels {
+        if !labels.contains_key(addr) {
+            let mut preserved = Vec::new();
+            for label in label_vec {
+                if label.kind == crate::state::LabelKind::User {
+                    preserved.push(crate::state::Label {
+                        name: label.name.clone(),
+                        label_type: label.label_type,
+                        kind: crate::state::LabelKind::User,
+                        refs: Vec::new(), // No refs found in analysis
+                    });
+                }
+            }
+            if !preserved.is_empty() {
+                labels.insert(*addr, preserved);
+            }
         }
     }
 
@@ -295,11 +347,29 @@ mod tests {
         let labels = analyze(&state);
 
         // $1005 is JMP target -> j1005
-        assert_eq!(labels.get(&0x1005).map(|l| l.name.as_str()), Some("j1005"));
+        assert_eq!(
+            labels
+                .get(&0x1005)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("j1005")
+        );
         // $1008 is JSR target -> s1008
-        assert_eq!(labels.get(&0x1008).map(|l| l.name.as_str()), Some("s1008"));
+        assert_eq!(
+            labels
+                .get(&0x1008)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("s1008")
+        );
         // $1000 is accessed via LDA (Absolute) -> a1000
-        assert_eq!(labels.get(&0x1000).map(|l| l.name.as_str()), Some("a1000"));
+        assert_eq!(
+            labels
+                .get(&0x1000)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("a1000")
+        );
     }
 
     #[test]
@@ -315,7 +385,13 @@ mod tests {
 
         let labels = analyze(&state);
         // Changed expectations: explicit ExternalJump type logic
-        assert_eq!(labels.get(&0x2000).map(|l| l.name.as_str()), Some("e2000"));
+        assert_eq!(
+            labels
+                .get(&0x2000)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("e2000")
+        );
     }
 
     #[test]
@@ -329,7 +405,13 @@ mod tests {
 
         let labels = analyze(&state);
         // ZP access -> ZeroPage Priority -> a10
-        assert_eq!(labels.get(&0x0010).map(|l| l.name.as_str()), Some("a10"));
+        assert_eq!(
+            labels
+                .get(&0x0010)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("a10")
+        );
     }
 
     #[test]
@@ -343,7 +425,13 @@ mod tests {
 
         let labels = analyze(&state);
         // Field usage in ZP -> f50
-        assert_eq!(labels.get(&0x0050).map(|l| l.name.as_str()), Some("f50"));
+        assert_eq!(
+            labels
+                .get(&0x0050)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("f50")
+        );
     }
 
     #[test]
@@ -363,7 +451,13 @@ mod tests {
         // format!("{}{:04X}", prefix, addr)
         // ZeroPage special formatting is only for ZP priority or ZP Field.
         // Jump is Jump priority. So e0010 is correct.)
-        assert_eq!(labels.get(&0x0010).map(|l| l.name.as_str()), Some("e0010"));
+        assert_eq!(
+            labels
+                .get(&0x0010)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("e0010")
+        );
     }
 
     #[test]
@@ -386,7 +480,13 @@ mod tests {
         // DataWord at $1000 should NOT generate label for ITSELF ($1000)
         // BUT $1002 IS Reference to $1000. So $1000 SHOULD have a label now.
         // Address type usage at 1002 -> Absolute priority -> a1000
-        assert_eq!(labels.get(&0x1000).map(|l| l.name.as_str()), Some("a1000"));
+        assert_eq!(
+            labels
+                .get(&0x1000)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("a1000")
+        );
 
         // And content of DataWord ($2000) should still be None (assuming it's external/ignored)
         assert_eq!(labels.get(&0x2000), None);
@@ -404,19 +504,49 @@ mod tests {
         let labels = analyze(&state);
 
         // Case 1: $1000 -> jump to $1002. Usage: b1002 (Internal)
-        assert_eq!(labels.get(&0x1002).map(|l| l.name.as_str()), Some("b1002"));
+        assert_eq!(
+            labels
+                .get(&0x1002)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("b1002")
+        );
 
         // Case 2: $1002 -> jump to $1083. Usage: e1083 (External logic applies to Branch too now)
-        assert_eq!(labels.get(&0x1083).map(|l| l.name.as_str()), Some("e1083"));
+        assert_eq!(
+            labels
+                .get(&0x1083)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("e1083")
+        );
 
         // Case 3: $1004 -> jump to $0F86. Usage: e0F86
-        assert_eq!(labels.get(&0x0F86).map(|l| l.name.as_str()), Some("e0F86"));
+        assert_eq!(
+            labels
+                .get(&0x0F86)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("e0F86")
+        );
 
         // Case 4: $1006 -> jump to $1007. Usage: b1007
-        assert_eq!(labels.get(&0x1007).map(|l| l.name.as_str()), Some("b1007"));
+        assert_eq!(
+            labels
+                .get(&0x1007)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("b1007")
+        );
 
         // Case 5: $1008 -> jump to $1008. Usage: b1008
-        assert_eq!(labels.get(&0x1008).map(|l| l.name.as_str()), Some("b1008"));
+        assert_eq!(
+            labels
+                .get(&0x1008)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("b1008")
+        );
     }
 
     #[test]
@@ -444,22 +574,58 @@ mod tests {
         let labels = analyze(&state);
 
         // Indirect JMP -> p1000
-        assert_eq!(labels.get(&0x1000).map(|l| l.name.as_str()), Some("p1000"));
+        assert_eq!(
+            labels
+                .get(&0x1000)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("p1000")
+        );
 
         // Indirect X -> p10
-        assert_eq!(labels.get(&0x0010).map(|l| l.name.as_str()), Some("p10"));
+        assert_eq!(
+            labels
+                .get(&0x0010)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("p10")
+        );
 
         // Indirect Y -> p20
-        assert_eq!(labels.get(&0x0020).map(|l| l.name.as_str()), Some("p20"));
+        assert_eq!(
+            labels
+                .get(&0x0020)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("p20")
+        );
 
         // Absolute X -> f1050
-        assert_eq!(labels.get(&0x1050).map(|l| l.name.as_str()), Some("f1050"));
+        assert_eq!(
+            labels
+                .get(&0x1050)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("f1050")
+        );
 
         // Absolute Y -> f1060
-        assert_eq!(labels.get(&0x1060).map(|l| l.name.as_str()), Some("f1060"));
+        assert_eq!(
+            labels
+                .get(&0x1060)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("f1060")
+        );
 
         // ZeroPage X -> f30
-        assert_eq!(labels.get(&0x0030).map(|l| l.name.as_str()), Some("f30"));
+        assert_eq!(
+            labels
+                .get(&0x0030)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("f30")
+        );
     }
 
     #[test]
@@ -492,7 +658,13 @@ mod tests {
 
         // Check 1005
         // Expect 'b' because it was referenced by Branch FIRST.
-        assert_eq!(labels.get(&0x1005).map(|l| l.name.as_str()), Some("b1005"));
+        assert_eq!(
+            labels
+                .get(&0x1005)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("b1005")
+        );
 
         // Also verify usage map contains all types?
         // We can't easily check usage map here as it's internal to analyze, but we check the result name.
@@ -519,7 +691,13 @@ mod tests {
 
         // Expectation: b1005 (Branch) because it was first.
         // (Before fix, this would likely be j1005 because Jump > Branch in priority)
-        assert_eq!(labels.get(&0x1005).map(|l| l.name.as_str()), Some("b1005"));
+        assert_eq!(
+            labels
+                .get(&0x1005)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("b1005")
+        );
     }
 
     #[test]
@@ -550,8 +728,16 @@ mod tests {
 
         let labels = analyze(&state);
 
-        assert_eq!(labels.get(&0xE000).map(|l| l.name.as_str()), Some("eE000"));
+        // Result should be eE000
+        assert_eq!(
+            labels
+                .get(&0xE000)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("eE000")
+        );
     }
+
     #[test]
     fn test_external_branch() {
         let mut state = AppState::new();
@@ -567,6 +753,70 @@ mod tests {
 
         let labels = analyze(&state);
         // Should be e1081 (ExternalJump type), NOT b1081 (Branch type).
-        assert_eq!(labels.get(&0x1081).map(|l| l.name.as_str()), Some("e1081"));
+        assert_eq!(
+            labels
+                .get(&0x1081)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("e1081")
+        );
+    }
+
+    #[test]
+    fn test_absolute_addressing_on_zp_formatting() {
+        let mut app_state = AppState::new();
+        // 8D A0 00 -> STA $00A0 (Answer to Life, Universe, and Everything)
+        // Absolute addressing mode targeting a ZP address.
+        app_state.raw_data = vec![0x8D, 0xA0, 0x00];
+        app_state.origin = 0x1000;
+        app_state.address_types = vec![AddressType::Code; 3];
+        // Fill opcodes
+        app_state.disassembler.opcodes[0x8D] = Some(crate::cpu::Opcode {
+            mnemonic: "STA",
+            mode: AddressingMode::Absolute,
+            size: 3,
+            cycles: 4,
+            description: "Store Accumulator",
+        });
+
+        let labels_map = analyze(&app_state);
+        let labels = labels_map.get(&0x00A0);
+        assert!(labels.is_some(), "Should have a label at $00A0");
+        let label = labels.unwrap().first().unwrap();
+
+        // User wants "a00A0" because it was forced absolute / accessed absolutely.
+        // Current bug: "aA0"
+        assert_eq!(label.name, "a00A0");
+    }
+
+    #[test]
+    fn test_field_formatting_on_zp() {
+        let mut app_state = AppState::new();
+        // 9D A0 00 -> STA $00A0, X (Absolute, X)
+        // Absolute indexed addressing mode targeting a ZP address.
+        // Should generate "f00A0" (Field, 4 digits) NOT "fA0" (ZP Field, 2 digits).
+        app_state.raw_data = vec![0x9D, 0xA0, 0x00];
+        app_state.origin = 0x1000;
+        app_state.address_types = vec![AddressType::Code; 3];
+        // Fill opcodes
+        app_state.disassembler.opcodes[0x9D] = Some(crate::cpu::Opcode {
+            mnemonic: "STA",
+            mode: AddressingMode::AbsoluteX,
+            size: 3,
+            cycles: 5,
+            description: "Store Accumulator",
+        });
+
+        let labels_map = analyze(&app_state);
+        let labels = labels_map.get(&0x00A0);
+        assert!(labels.is_some(), "Should have a label at $00A0");
+        let label = labels.unwrap().first().unwrap();
+
+        assert_eq!(
+            label.label_type,
+            LabelType::Field,
+            "Should be Field type (Absolute Indexed)"
+        );
+        assert_eq!(label.name, "f00A0");
     }
 }

@@ -10,7 +10,8 @@ pub trait Formatter {
         opcode: &Opcode,
         operands: &[u8],
         address: u16,
-        labels: &HashMap<u16, Label>,
+        target_context: Option<crate::state::LabelType>,
+        labels: &HashMap<u16, Vec<Label>>,
         settings: &crate::state::DocumentSettings,
     ) -> String;
 }

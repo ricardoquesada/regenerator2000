@@ -38,8 +38,10 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         if line.bytes.len() > 1 {
             for i in 1..line.bytes.len() {
                 let mid_addr = line.address.wrapping_add(i as u16);
-                if let Some(label) = state.labels.get(&mid_addr) {
-                    output.push_str(&format!("{} = * + {}\n", label.name, i));
+                if let Some(label_vec) = state.labels.get(&mid_addr) {
+                    for label in label_vec {
+                        output.push_str(&format!("{} = * + {}\n", label.name, i));
+                    }
                 }
             }
         }
@@ -187,30 +189,30 @@ mod tests {
         // Add 3 labels
         state.labels.insert(
             0xC000,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "aC000".to_string(),
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::UserDefined,
                 refs: Vec::new(),
-            },
+            }],
         );
         state.labels.insert(
             0xC001,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "aC001".to_string(),
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::UserDefined,
                 refs: Vec::new(),
-            },
+            }],
         );
         state.labels.insert(
             0xC002,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "aC002".to_string(),
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::UserDefined,
                 refs: Vec::new(),
-            },
+            }],
         );
 
         // Disassembly line for the STA instruction
@@ -272,12 +274,12 @@ mod tests {
         // Add a label with refs
         state.labels.insert(
             0x1000,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "MyLabel".to_string(),
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::UserDefined,
                 refs: vec![0x2000, 0x3000], // Two refs
-            },
+            }],
         );
 
         // Disassembly line for the label
@@ -343,21 +345,21 @@ mod tests {
 
         state.labels.insert(
             0x0002,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "f0002".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageField,
                 refs: vec![],
-            },
+            }],
         );
         state.labels.insert(
             0xFFD2,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "sFFD2".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::Subroutine,
                 refs: vec![],
-            },
+            }],
         );
 
         // Disassembly: invalid but unimportant for this test
@@ -406,109 +408,109 @@ mod tests {
         // ZP Fields: f10, f05
         state.labels.insert(
             0x0010,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "f10".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageField,
                 refs: vec![],
-            },
+            }],
         );
         state.labels.insert(
             0x0005,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "f05".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageField,
                 refs: vec![],
-            },
+            }],
         );
 
         // ZP Abs: a20
         state.labels.insert(
             0x0020,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "a20".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageAbsoluteAddress,
                 refs: vec![],
-            },
+            }],
         );
 
         // ZP Ptrs: p30
         state.labels.insert(
             0x0030,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "p30".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPagePointer,
                 refs: vec![],
-            },
+            }],
         );
 
         // Fields: f1000
         state.labels.insert(
             0x1000,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "f1000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::Field,
                 refs: vec![],
-            },
+            }],
         );
 
         // Abs: a2000
         state.labels.insert(
             0x2000,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "a2000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::AbsoluteAddress,
                 refs: vec![],
-            },
+            }],
         );
 
         // Ptrs: p3000
         state.labels.insert(
             0x3000,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "p3000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::Pointer,
                 refs: vec![],
-            },
+            }],
         );
 
         // Ext Jump: e4000
         state.labels.insert(
             0x4000,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "e4000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ExternalJump,
                 refs: vec![],
-            },
+            }],
         );
 
         // Other: b5000
         state.labels.insert(
             0x5000,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "b5000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::Branch,
                 refs: vec![],
-            },
+            }],
         );
 
         // Edge Case: Absolute Address at low address (should NOT be ZP Absolute)
         state.labels.insert(
             0x0011,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "a0011".to_string(), // Manually named absolute
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::AbsoluteAddress,
                 refs: vec![],
-            },
+            }],
         );
 
         let file_name = "test_label_ordering.asm";
@@ -615,12 +617,12 @@ mod tests {
 
         state.labels.insert(
             0x1000,
-            crate::state::Label {
+            vec![crate::state::Label {
                 name: "eUser".to_string(),
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::UserDefined,
                 refs: vec![],
-            },
+            }],
         );
 
         // Disassembly line for the label and instruction

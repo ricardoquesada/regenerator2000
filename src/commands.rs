@@ -9,12 +9,12 @@ pub enum Command {
     },
     SetLabel {
         address: u16,
-        new_label: Option<crate::state::Label>,
-        old_label: Option<crate::state::Label>,
+        new_label: Option<Vec<crate::state::Label>>,
+        old_label: Option<Vec<crate::state::Label>>,
     },
     SetLabels {
-        labels: std::collections::HashMap<u16, Option<crate::state::Label>>, // Addr -> New Label (None to remove)
-        old_labels: std::collections::HashMap<u16, Option<crate::state::Label>>,
+        labels: std::collections::HashMap<u16, Vec<crate::state::Label>>,
+        old_labels: std::collections::HashMap<u16, Vec<crate::state::Label>>,
     },
 }
 
@@ -54,13 +54,8 @@ impl Command {
                 labels,
                 old_labels: _,
             } => {
-                for (address, label_opt) in labels {
-                    if let Some(label) = label_opt {
-                        state.labels.insert(*address, label.clone());
-                    } else {
-                        state.labels.remove(address);
-                    }
-                }
+                // Complete replacement of the map
+                state.labels = labels.clone();
             }
         }
     }
@@ -100,13 +95,7 @@ impl Command {
                 labels: _,
                 old_labels,
             } => {
-                for (address, label_opt) in old_labels {
-                    if let Some(label) = label_opt {
-                        state.labels.insert(*address, label.clone());
-                    } else {
-                        state.labels.remove(address);
-                    }
-                }
+                state.labels = old_labels.clone();
             }
         }
     }
@@ -237,14 +226,17 @@ mod tests {
         };
         let command = Command::SetLabel {
             address,
-            new_label: Some(label.clone()),
+            new_label: Some(vec![label.clone()]),
             old_label: None,
         };
 
         command.apply(&mut app_state);
         app_state.undo_stack.push(command);
 
-        assert_eq!(app_state.labels.get(&address), Some(&label));
+        assert_eq!(
+            app_state.labels.get(&address).map(|v| v.as_slice()),
+            Some(vec![label.clone()].as_slice())
+        );
 
         // Undo
         let mut stack = std::mem::replace(&mut app_state.undo_stack, UndoStack::new());
@@ -258,7 +250,10 @@ mod tests {
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
-        assert_eq!(app_state.labels.get(&address), Some(&label));
+        assert_eq!(
+            app_state.labels.get(&address).map(|v| v.as_slice()),
+            Some(vec![label.clone()].as_slice())
+        );
     }
 
     #[test]
@@ -278,9 +273,19 @@ mod tests {
 
         // Assert label exists
         assert!(app_state.labels.get(&0x1005).is_some());
-        assert_eq!(app_state.labels.get(&0x1005).unwrap().refs.len(), 1);
         assert_eq!(
-            app_state.labels.get(&0x1005).unwrap().kind,
+            app_state
+                .labels
+                .get(&0x1005)
+                .unwrap()
+                .first()
+                .unwrap()
+                .refs
+                .len(),
+            1
+        );
+        assert_eq!(
+            app_state.labels.get(&0x1005).unwrap().first().unwrap().kind,
             crate::state::LabelKind::Auto
         );
 
@@ -319,6 +324,16 @@ mod tests {
 
         // Verify label is BACK
         assert!(app_state.labels.get(&0x1005).is_some());
-        assert_eq!(app_state.labels.get(&0x1005).unwrap().refs.len(), 1);
+        assert_eq!(
+            app_state
+                .labels
+                .get(&0x1005)
+                .unwrap()
+                .first()
+                .unwrap()
+                .refs
+                .len(),
+            1
+        );
     }
 }
