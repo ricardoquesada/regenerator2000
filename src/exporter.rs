@@ -3,119 +3,34 @@ use std::path::PathBuf;
 
 pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let mut output = String::new();
-
-    // 1. Declare external addresses
-    // Find all labels that are technically external addresses (or forced external like 'e' prefix)
-    let data_len = state.raw_data.len();
-    let mut candidates: Vec<(u16, crate::state::LabelType, &String)> = Vec::new();
-
-    for (addr, label) in &state.labels {
-        // If the address is external
-        if is_external(*addr, state.origin, data_len) {
-            // 1. Collect all aliases from the map
-            for (l_type, name) in &label.names {
-                candidates.push((*addr, *l_type, name));
-            }
-
-            // 2. Include the default/primary name if not already in the map
-            // (User defined labels might just have `name` populated)
-            let covered = label.names.values().any(|n| n == &label.name);
-            if !covered {
-                // Determine a fallback type. If it's User, use UserDefined.
-                // Otherwise, it implies an Auto label without a mapping (rare), fallback to UserDefined or Absolute.
-                let l_type = if label.kind == crate::state::LabelKind::User {
-                    crate::state::LabelType::UserDefined
-                } else {
-                    crate::state::LabelType::UserDefined
-                };
-                candidates.push((*addr, l_type, &label.name));
-            }
-        }
-    }
-
-    // Deduplicate by name to prevent multiple definitions
-    let mut seen_names = std::collections::HashSet::new();
-    let mut all_externals = Vec::new();
-
-    for item in candidates {
-        let name = item.2;
-        if !seen_names.contains(name) {
-            seen_names.insert(name);
-            all_externals.push(item);
-        }
-    }
-
-    // Grouping
-    let mut zp_fields = Vec::new();
-    let mut zp_abs = Vec::new();
-    let mut zp_ptrs = Vec::new();
-    let mut fields = Vec::new();
-    let mut abs = Vec::new();
-    let mut ptrs = Vec::new();
-    let mut ext_jumps = Vec::new();
-    let mut others = Vec::new();
-
-    for (addr, l_type, name) in all_externals {
-        match l_type {
-            crate::state::LabelType::ZeroPageField => zp_fields.push((addr, name)),
-            crate::state::LabelType::ZeroPageAbsoluteAddress => zp_abs.push((addr, name)),
-            crate::state::LabelType::ZeroPagePointer => zp_ptrs.push((addr, name)),
-            crate::state::LabelType::Field => fields.push((addr, name)),
-            crate::state::LabelType::AbsoluteAddress => abs.push((addr, name)),
-            crate::state::LabelType::Pointer => ptrs.push((addr, name)),
-            crate::state::LabelType::ExternalJump => ext_jumps.push((addr, name)),
-            _ => others.push((addr, name)),
-        }
-    }
-
-    // Sort each group
-    zp_fields.sort_by_key(|(a, _)| *a);
-    zp_abs.sort_by_key(|(a, _)| *a);
-    zp_ptrs.sort_by_key(|(a, _)| *a);
-    fields.sort_by_key(|(a, _)| *a);
-    abs.sort_by_key(|(a, _)| *a);
-    ptrs.sort_by_key(|(a, _)| *a);
-    ext_jumps.sort_by_key(|(a, _)| *a);
-    others.sort_by_key(|(a, _)| *a);
-
-    // Helper to write a group
-    let mut write_group = |title: &str, group: Vec<(u16, &String)>, is_zp_group: bool| {
-        if !group.is_empty() {
-            output.push_str(&format!("; {}\n", title));
-            for (addr, name) in group {
-                if is_zp_group && addr <= 0xFF {
-                    output.push_str(&format!("{} = ${:02X}\n", name, addr));
-                } else {
-                    output.push_str(&format!("{} = ${:04X}\n", name, addr));
-                }
-            }
-            output.push('\n');
-        }
-    };
-
-    // Output in requested order
-    // * ZP fields: e.g: f00
-    write_group("ZP FIELDS", zp_fields, true);
-    // * ZP absolute addresses. E.g: a00
-    write_group("ZP ABSOLUTE ADDRESSES", zp_abs, true);
-    // * ZP pointers. E.g: p00
-    write_group("ZP POINTERS", zp_ptrs, true);
-    // * fields. E.g: f0000
-    write_group("FIELDS", fields, false);
-    // * Absolute addresses. E.g: a0000
-    write_group("ABSOLUTE ADDRESSES", abs, false);
-    // * Pointers. E.g: p0000
-    write_group("POINTERS", ptrs, false);
-    // * External Jumps: e0000
-    write_group("EXTERNAL JUMPS", ext_jumps, false);
-    // * Others
-    write_group("OTHERS", others, false);
-
-    output.push('\n');
-
-    output.push_str(&format!("    * = ${:04X}\n", state.origin));
+    let mut origin_printed = false;
 
     for line in &state.disassembly {
+        // Special case: Header (starts with ;)
+        if line.mnemonic.starts_with(';') {
+            output.push_str(&format!("{}\n", line.mnemonic));
+            continue;
+        }
+
+        // Special case: Equate (contains =)
+        if line.mnemonic.contains('=') {
+            output.push_str(&format!("{}\n", line.mnemonic));
+            continue;
+        }
+
+        // Special case: Empty line (separator)
+        if line.mnemonic.is_empty() && line.bytes.is_empty() && line.comment.is_empty() {
+            output.push('\n');
+            continue;
+        }
+
+        // If we reach here, it's a code/data/label line.
+        // Ensure origin is printed before the first code line.
+        if !origin_printed {
+            output.push_str(&format!("    * = ${:04X}\n", state.origin));
+            origin_printed = true;
+        }
+
         // Label line
         if line.mnemonic.ends_with(':') {
             if !line.comment.is_empty() {
@@ -167,17 +82,12 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         }
     }
 
-    std::fs::write(path, output)
-}
-
-fn is_external(addr: u16, origin: u16, len: usize) -> bool {
-    let end = origin.wrapping_add(len as u16);
-    if origin < end {
-        addr < origin || addr >= end
-    } else {
-        // Wrap around case
-        !(addr >= origin || addr < end)
+    // Fallback if no code labels/instructions found (empty file?)
+    if !origin_printed {
+        output.push_str(&format!("    * = ${:04X}\n", state.origin));
     }
+
+    std::fs::write(path, output)
 }
 #[cfg(test)]
 mod tests {
@@ -500,6 +410,12 @@ mod tests {
             let _ = std::fs::remove_file(&path);
         }
 
+        // Sync external labels into disassembly
+        let externals = state.get_external_label_definitions();
+        let mut new_disassembly = externals;
+        new_disassembly.extend(state.disassembly);
+        state.disassembly = new_disassembly;
+
         let res = export_asm(&state, &path);
         assert!(res.is_ok());
 
@@ -664,6 +580,12 @@ mod tests {
             let _ = std::fs::remove_file(&path);
         }
 
+        // Sync external labels into disassembly
+        let externals = state.get_external_label_definitions();
+        let mut new_disassembly = externals;
+        new_disassembly.extend(state.disassembly);
+        state.disassembly = new_disassembly;
+
         let res = export_asm(&state, &path);
         assert!(res.is_ok());
 
@@ -772,6 +694,12 @@ mod tests {
         if path.exists() {
             let _ = std::fs::remove_file(&path);
         }
+
+        // Sync external labels into disassembly
+        let externals = state.get_external_label_definitions();
+        let mut new_disassembly = externals;
+        new_disassembly.extend(state.disassembly);
+        state.disassembly = new_disassembly;
 
         let res = export_asm(&state, &path);
         assert!(res.is_ok());

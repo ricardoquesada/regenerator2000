@@ -283,13 +283,156 @@ impl AppState {
         msg
     }
 
+    pub fn is_external(&self, addr: u16) -> bool {
+        let len = self.raw_data.len();
+        let end = self.origin.wrapping_add(len as u16);
+        if self.origin < end {
+            addr < self.origin || addr >= end
+        } else {
+            !(addr >= self.origin || addr < end)
+        }
+    }
+
+    pub fn get_external_label_definitions(&self) -> Vec<DisassemblyLine> {
+        let mut candidates: Vec<(u16, LabelType, &String)> = Vec::new();
+
+        for (addr, label) in &self.labels {
+            if self.is_external(*addr) {
+                for (l_type, name) in &label.names {
+                    candidates.push((*addr, *l_type, name));
+                }
+
+                let covered = label.names.values().any(|n| n == &label.name);
+                if !covered {
+                    let l_type = if label.kind == crate::state::LabelKind::User {
+                        LabelType::UserDefined
+                    } else {
+                        LabelType::UserDefined
+                    };
+                    candidates.push((*addr, l_type, &label.name));
+                }
+            }
+        }
+
+        let mut seen_names = std::collections::HashSet::new();
+        let mut all_externals = Vec::new();
+
+        for item in candidates {
+            let name = item.2;
+            if !seen_names.contains(name) {
+                seen_names.insert(name);
+                all_externals.push(item);
+            }
+        }
+
+        let mut zp_fields = Vec::new();
+        let mut zp_abs = Vec::new();
+        let mut zp_ptrs = Vec::new();
+        let mut fields = Vec::new();
+        let mut abs = Vec::new();
+        let mut ptrs = Vec::new();
+        let mut ext_jumps = Vec::new();
+        let mut others = Vec::new();
+
+        for (addr, l_type, name) in all_externals {
+            match l_type {
+                LabelType::ZeroPageField => zp_fields.push((addr, name)),
+                LabelType::ZeroPageAbsoluteAddress => zp_abs.push((addr, name)),
+                LabelType::ZeroPagePointer => zp_ptrs.push((addr, name)),
+                LabelType::Field => fields.push((addr, name)),
+                LabelType::AbsoluteAddress => abs.push((addr, name)),
+                LabelType::Pointer => ptrs.push((addr, name)),
+                LabelType::ExternalJump => ext_jumps.push((addr, name)),
+                _ => others.push((addr, name)),
+            }
+        }
+
+        let sort_group = |group: &mut Vec<(u16, &String)>| {
+            group.sort_by_key(|(a, _)| *a);
+        };
+
+        sort_group(&mut zp_fields);
+        sort_group(&mut zp_abs);
+        sort_group(&mut zp_ptrs);
+        sort_group(&mut fields);
+        sort_group(&mut abs);
+        sort_group(&mut ptrs);
+        sort_group(&mut ext_jumps);
+        sort_group(&mut others);
+
+        let mut lines = Vec::new();
+
+        let mut add_group = |title: &str, group: Vec<(u16, &String)>, is_zp: bool| {
+            if !group.is_empty() {
+                lines.push(DisassemblyLine {
+                    address: 0,
+                    bytes: vec![],
+                    mnemonic: format!("; {}", title),
+                    operand: String::new(),
+                    comment: String::new(),
+                    label: None,
+                    opcode: None,
+                });
+
+                for (addr, name) in group {
+                    let operand = if is_zp && addr <= 0xFF {
+                        format!("${:02X}", addr)
+                    } else {
+                        format!("${:04X}", addr)
+                    };
+
+                    lines.push(DisassemblyLine {
+                        address: 0,
+                        bytes: vec![],
+                        mnemonic: format!("{} = {}", name, operand),
+                        operand: String::new(),
+                        comment: String::new(),
+                        label: None,
+                        opcode: None,
+                    });
+                }
+
+                lines.push(DisassemblyLine {
+                    address: 0,
+                    bytes: vec![],
+                    mnemonic: String::new(),
+                    operand: String::new(),
+                    comment: String::new(),
+                    label: None,
+                    opcode: None,
+                });
+            }
+        };
+
+        add_group("ZP FIELDS", zp_fields, true);
+        add_group("ZP ABSOLUTE ADDRESSES", zp_abs, true);
+        add_group("ZP POINTERS", zp_ptrs, true);
+        add_group("FIELDS", fields, false);
+        add_group("ABSOLUTE ADDRESSES", abs, false);
+        add_group("POINTERS", ptrs, false);
+        add_group("EXTERNAL JUMPS", ext_jumps, false);
+        add_group("OTHERS", others, false);
+
+        lines
+    }
+
     pub fn disassemble(&mut self) {
-        self.disassembly = self.disassembler.disassemble(
+        let mut lines = self.disassembler.disassemble(
             &self.raw_data,
             &self.address_types,
             &self.labels,
             self.origin,
         );
+
+        // Add external label definitions at the top
+        let external_lines = self.get_external_label_definitions();
+        if !external_lines.is_empty() {
+            let mut all_lines = external_lines;
+            all_lines.extend(lines);
+            lines = all_lines;
+        }
+
+        self.disassembly = lines;
     }
 }
 

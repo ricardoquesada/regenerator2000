@@ -98,7 +98,7 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
         }
 
         // Generate Auto label
-        let is_ext = is_external(addr, origin, data_len);
+        let is_ext = state.is_external(addr);
 
         // Generate names for all discovered types
         let mut names = HashMap::new();
@@ -288,20 +288,6 @@ fn update_usage(
             refs.push(from_addr);
             (types, refs, priority)
         });
-}
-
-fn is_external(addr: u16, origin: u16, len: usize) -> bool {
-    let end = origin.wrapping_add(len as u16);
-    if origin < end {
-        addr < origin || addr >= end
-    } else {
-        // Wrap around case (rare but possible in u16)
-        // If origin=F000, len=2000 (0x11000) -> end=1000
-        // range is [F000..FFFF] U [0000..0FFF]
-        // addr is external if it is in [1000..EFFF]
-        // logic: if addr >= origin || addr < end -> internal.
-        !(addr >= origin || addr < end)
-    }
 }
 
 #[cfg(test)]
