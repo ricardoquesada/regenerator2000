@@ -4,6 +4,99 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Platform {
+    AppleII,
+    Atari8Bit,
+    BBCMicro,
+    Commodore128,
+    Commodore1541,
+    Commodore64,
+    CommodorePET20,
+    CommodorePET40,
+    CommodorePlus4,
+    CommodoreVIC20,
+    NES,
+    Oric10,
+    Oric11,
+}
+
+impl Default for Platform {
+    fn default() -> Self {
+        Platform::Commodore64
+    }
+}
+
+impl std::fmt::Display for Platform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Platform::AppleII => write!(f, "Apple II"),
+            Platform::Atari8Bit => write!(f, "Atari 8 bit"),
+            Platform::BBCMicro => write!(f, "BBC Micro"),
+            Platform::Commodore128 => write!(f, "Commodore 128"),
+            Platform::Commodore1541 => write!(f, "Commodore 1541"),
+            Platform::Commodore64 => write!(f, "Commodore 64"),
+            Platform::CommodorePET20 => write!(f, "Commodore PET 2.0"),
+            Platform::CommodorePET40 => write!(f, "Commodore PET 4.0"),
+            Platform::CommodorePlus4 => write!(f, "Commodore Plus/4"),
+            Platform::CommodoreVIC20 => write!(f, "Commodore VIC 20"),
+            Platform::NES => write!(f, "NES"),
+            Platform::Oric10 => write!(f, "Oric 1.0"),
+            Platform::Oric11 => write!(f, "Oric 1.1"),
+        }
+    }
+}
+
+impl Platform {
+    pub fn all() -> &'static [Platform] {
+        &[
+            Platform::AppleII,
+            Platform::Atari8Bit,
+            Platform::BBCMicro,
+            Platform::Commodore128,
+            Platform::Commodore1541,
+            Platform::Commodore64,
+            Platform::CommodorePET20,
+            Platform::CommodorePET40,
+            Platform::CommodorePlus4,
+            Platform::CommodoreVIC20,
+            Platform::NES,
+            Platform::Oric10,
+            Platform::Oric11,
+        ]
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DocumentSettings {
+    #[serde(default)]
+    pub all_labels: bool, // default false
+    #[serde(default = "default_true")]
+    pub use_w_prefix: bool, // default true
+    #[serde(default)]
+    pub brk_single_byte: bool, // default false
+    #[serde(default)]
+    pub patch_brk: bool, // default false
+    #[serde(default)]
+    pub platform: Platform, // default C64
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for DocumentSettings {
+    fn default() -> Self {
+        Self {
+            all_labels: false,
+            use_w_prefix: true,
+            brk_single_byte: false,
+            patch_brk: false,
+            platform: Platform::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AddressType {
     Code,
     DataByte,
@@ -75,6 +168,8 @@ pub struct ProjectState {
     pub address_ranges: Vec<AddressRange>,
     #[serde(default)]
     pub labels: HashMap<u16, Label>,
+    #[serde(default)]
+    pub settings: DocumentSettings,
 }
 
 pub struct AppState {
@@ -88,6 +183,7 @@ pub struct AppState {
     // Data Conversion State
     pub address_types: Vec<AddressType>,
     pub labels: HashMap<u16, Label>,
+    pub settings: DocumentSettings,
 
     pub undo_stack: crate::commands::UndoStack,
 }
@@ -103,6 +199,7 @@ impl AppState {
             origin: 0,
             address_types: Vec::new(),
             labels: HashMap::new(),
+            settings: DocumentSettings::default(),
             undo_stack: crate::commands::UndoStack::new(),
         }
     }
@@ -112,6 +209,7 @@ impl AppState {
         self.file_path = Some(path.clone());
         self.project_path = None; // clear project path
         self.labels.clear(); // clear existing labels
+        self.settings = DocumentSettings::default(); // reset settings
 
         if let Some(ext) = self
             .file_path
@@ -155,6 +253,7 @@ impl AppState {
         // Expand address types
         self.address_types = expand_address_ranges(&project.address_ranges, self.raw_data.len());
         self.labels = project.labels;
+        self.settings = project.settings;
         self.undo_stack = crate::commands::UndoStack::new();
 
         self.disassemble();
@@ -168,6 +267,7 @@ impl AppState {
                 raw_data: encode_raw_data(&self.raw_data),
                 address_ranges: compress_address_types(&self.address_types),
                 labels: self.labels.clone(),
+                settings: self.settings,
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;

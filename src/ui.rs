@@ -42,6 +42,183 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     if ui_state.label_dialog.active {
         render_label_dialog(f, f.area(), &ui_state.label_dialog);
     }
+
+    if ui_state.settings_dialog.active {
+        render_settings_dialog(f, f.area(), app_state, &ui_state.settings_dialog);
+    }
+}
+
+fn render_settings_dialog(
+    f: &mut Frame,
+    area: Rect,
+    app_state: &AppState,
+    dialog: &crate::ui_state::SettingsDialogState,
+) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Document Settings ")
+        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+
+    let area = centered_rect(60, 60, area);
+    f.render_widget(ratatui::widgets::Clear, area);
+    f.render_widget(block.clone(), area);
+
+    let inner = block.inner(area);
+
+    let settings = &app_state.settings;
+
+    // Helper for checkboxes
+    let checkbox = |label: &str, checked: bool, selected: bool, disabled: bool| {
+        let check_char = if checked { "[X]" } else { "[ ]" };
+        let style = if disabled {
+            if selected {
+                Style::default()
+                    .fg(Color::Gray)
+                    .add_modifier(Modifier::BOLD | Modifier::ITALIC) // Selected but disabled
+            } else {
+                Style::default()
+                    .fg(Color::Gray)
+                    .add_modifier(Modifier::ITALIC) // Disabled and Italic
+            }
+        } else if selected {
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+        Span::styled(format!("{} {}", check_char, label), style)
+    };
+
+    let patch_brk_disabled = settings.brk_single_byte;
+
+    let items = vec![
+        checkbox(
+            "All Labels",
+            settings.all_labels,
+            dialog.selected_index == 0,
+            false,
+        ),
+        checkbox(
+            "Use @w for long bytes",
+            settings.use_w_prefix,
+            dialog.selected_index == 1,
+            false,
+        ),
+        checkbox(
+            "BRK single byte",
+            settings.brk_single_byte,
+            dialog.selected_index == 2,
+            false,
+        ),
+        checkbox(
+            "Patch BRK",
+            settings.patch_brk,
+            dialog.selected_index == 3,
+            patch_brk_disabled,
+        ),
+    ];
+
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(items.len() as u16 + 1), // Checkboxes + padding
+            Constraint::Min(1),                         // Platform list
+        ])
+        .split(inner);
+
+    for (i, item) in items.into_iter().enumerate() {
+        f.render_widget(
+            Paragraph::new(item),
+            Rect::new(
+                layout[0].x + 2,
+                layout[0].y + 1 + i as u16,
+                layout[0].width - 4,
+                1,
+            ),
+        );
+    }
+
+    // Platform Section
+    let platform_label = Span::styled(
+        "Platform:",
+        Style::default().add_modifier(Modifier::UNDERLINED),
+    );
+    f.render_widget(
+        Paragraph::new(platform_label),
+        Rect::new(layout[1].x + 2, layout[1].y, layout[1].width - 4, 1),
+    );
+
+    let platforms = crate::state::Platform::all();
+
+    // We need to show the list of platforms. Since it's long, we can scroll it?
+    // Or just show all if it fits. 13 items. 60% of screen height should fit 13 items + 5 checkboes = 18 lines.
+
+    // Check if platform is selected
+    let platform_selected = dialog.selected_index == 4;
+
+    let platform_text = format!("Platform: < {} >", settings.platform);
+    let platform_widget = Paragraph::new(platform_text).style(if platform_selected {
+        if dialog.is_selecting_platform {
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD) // Active
+        } else {
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        }
+    } else {
+        Style::default().fg(Color::White)
+    });
+
+    f.render_widget(
+        platform_widget,
+        Rect::new(layout[1].x + 2, layout[1].y, layout[1].width - 4, 1),
+    );
+
+    // If selecting platform, show the list popup
+    if dialog.is_selecting_platform {
+        let popup_area = centered_rect(40, 50, area);
+        f.render_widget(ratatui::widgets::Clear, popup_area);
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(" Select Platform ");
+
+        let list_items: Vec<ListItem> = platforms
+            .iter()
+            .map(|p| {
+                let is_selected = *p == settings.platform;
+                let style = if is_selected {
+                    Style::default().bg(Color::Blue).fg(Color::White)
+                } else {
+                    Style::default()
+                };
+                ListItem::new(p.to_string()).style(style)
+            })
+            .collect();
+
+        // We need a ListState to scroll to current selection.
+        // Since we don't have a persistent ListState for this in UIState (my bad),
+        // I'll create a temporary one here. It won't remember scroll position between frames perfectly if the list is huge,
+        // but for 13 items it might fit or basic scrolling defaults to 0.
+        // Wait, to support scrolling I need to persist the state or correct index.
+        // The `settings.platform` acts as the "selected index" equivalent.
+        // I can find the index of `settings.platform` in `platforms`.
+
+        let selected_idx = platforms
+            .iter()
+            .position(|p| *p == settings.platform)
+            .unwrap_or(0);
+
+        let mut list_state = ListState::default();
+        list_state.select(Some(selected_idx));
+
+        let list = List::new(list_items)
+            .block(block)
+            .highlight_style(Style::default().add_modifier(Modifier::BOLD));
+        f.render_stateful_widget(list, popup_area, &mut list_state);
+    }
 }
 
 fn render_label_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::LabelDialogState) {

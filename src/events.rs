@@ -283,13 +283,91 @@ pub fn run_app<B: Backend>(
                                 .name
                                 .clone();
                             handle_menu_action(&mut app_state, &mut ui_state, &action_name);
-                            // Start with closing menu after action? Or keep it open?
-                            // Usually valid action closes menu.
+                            // Close menu after valid action
                             ui_state.menu.active = false;
                             ui_state.menu.selected_item = None;
                         } else {
                             // Enter on category -> open first item?
                             ui_state.menu.selected_item = Some(0);
+                        }
+                    }
+                    _ => {}
+                }
+            } else if ui_state.settings_dialog.active {
+                match key.code {
+                    KeyCode::Esc => {
+                        if ui_state.settings_dialog.is_selecting_platform {
+                            ui_state.settings_dialog.is_selecting_platform = false;
+                        } else {
+                            ui_state.settings_dialog.close();
+                            ui_state.status_message = "Ready".to_string();
+                        }
+                    }
+                    KeyCode::Up => {
+                        if ui_state.settings_dialog.is_selecting_platform {
+                            // Cycle platforms backwards
+                            let platforms = crate::state::Platform::all();
+                            let current_idx = platforms
+                                .iter()
+                                .position(|p| *p == app_state.settings.platform)
+                                .unwrap_or(0);
+                            let new_idx = if current_idx == 0 {
+                                platforms.len() - 1
+                            } else {
+                                current_idx - 1
+                            };
+                            app_state.settings.platform = platforms[new_idx];
+                        } else {
+                            ui_state.settings_dialog.previous();
+                        }
+                    }
+                    KeyCode::Down => {
+                        if ui_state.settings_dialog.is_selecting_platform {
+                            // Cycle platforms forwards
+                            let platforms = crate::state::Platform::all();
+                            let current_idx = platforms
+                                .iter()
+                                .position(|p| *p == app_state.settings.platform)
+                                .unwrap_or(0);
+                            let new_idx = (current_idx + 1) % platforms.len();
+                            app_state.settings.platform = platforms[new_idx];
+                        } else {
+                            ui_state.settings_dialog.next();
+                        }
+                    }
+                    KeyCode::Enter | KeyCode::Char(' ') => {
+                        if ui_state.settings_dialog.is_selecting_platform {
+                            // Confirm selection (already done by moving), acts as close popup
+                            ui_state.settings_dialog.is_selecting_platform = false;
+                        } else {
+                            // Toggle checkbox or enter platform mode
+                            match ui_state.settings_dialog.selected_index {
+                                0 => app_state.settings.all_labels = !app_state.settings.all_labels,
+                                1 => {
+                                    app_state.settings.use_w_prefix =
+                                        !app_state.settings.use_w_prefix
+                                }
+                                2 => {
+                                    app_state.settings.brk_single_byte =
+                                        !app_state.settings.brk_single_byte;
+                                    // If we just enabled single byte, force patch_brk to false?
+                                    // Requirement didn't strictly say so, but it makes sense to ensure consistency.
+                                    // "Disabled" usually implies "Unchecked" or "Value ignored".
+                                    if app_state.settings.brk_single_byte {
+                                        app_state.settings.patch_brk = false;
+                                    }
+                                }
+                                3 => {
+                                    if !app_state.settings.brk_single_byte {
+                                        app_state.settings.patch_brk =
+                                            !app_state.settings.patch_brk;
+                                    }
+                                }
+                                4 => {
+                                    ui_state.settings_dialog.is_selecting_platform = true;
+                                }
+                                _ => {}
+                            }
                         }
                     }
                     _ => {}
@@ -478,6 +556,10 @@ fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: 
         "Export ASM" => {
             ui_state.save_dialog.open(SaveDialogMode::ExportAsm);
             ui_state.status_message = "Enter filename for ASM".to_string();
+        }
+        "Document Settings" => {
+            ui_state.settings_dialog.open();
+            ui_state.status_message = "Document Settings".to_string();
         }
         "Analyze" => {
             ui_state.status_message = app_state.perform_analysis();

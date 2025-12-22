@@ -138,6 +138,52 @@ impl LabelDialogState {
     }
 }
 
+pub struct SettingsDialogState {
+    pub active: bool,
+    pub selected_index: usize,
+    pub is_selecting_platform: bool,
+}
+
+impl SettingsDialogState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            selected_index: 0,
+            is_selecting_platform: false,
+        }
+    }
+
+    pub fn open(&mut self) {
+        self.active = true;
+        self.selected_index = 0;
+        self.is_selecting_platform = false;
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+    }
+
+    pub fn next(&mut self) {
+        // Items:
+        // 0: All Labels
+        // 1: Use @w
+        // 2: BRK single byte
+        // 3: Patch BRK
+        // 4: Platform
+        let max_items = 5;
+        self.selected_index = (self.selected_index + 1) % max_items;
+    }
+
+    pub fn previous(&mut self) {
+        let max_items = 5;
+        if self.selected_index == 0 {
+            self.selected_index = max_items - 1;
+        } else {
+            self.selected_index -= 1;
+        }
+    }
+}
+
 pub struct MenuState {
     pub active: bool,
     pub categories: Vec<MenuCategory>,
@@ -172,6 +218,8 @@ impl MenuState {
                         MenuItem::new("Byte", Some("B")),
                         MenuItem::new("Word", Some("W")),
                         MenuItem::new("Address", Some("A")),
+                        MenuItem::separator(),
+                        MenuItem::new("Document Settings", None),
                     ],
                 },
                 MenuCategory {
@@ -287,6 +335,7 @@ pub struct UIState {
     pub jump_dialog: JumpDialogState,
     pub save_dialog: SaveDialogState,
     pub label_dialog: LabelDialogState,
+    pub settings_dialog: SettingsDialogState,
     pub menu: MenuState,
 
     pub navigation_history: Vec<usize>,
@@ -309,6 +358,7 @@ impl UIState {
             jump_dialog: JumpDialogState::new(),
             save_dialog: SaveDialogState::new(),
             label_dialog: LabelDialogState::new(),
+            settings_dialog: SettingsDialogState::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),
             disassembly_state: ListState::default(),
