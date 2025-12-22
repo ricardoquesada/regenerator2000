@@ -31,16 +31,6 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             origin_printed = true;
         }
 
-        // Label line
-        if line.mnemonic.ends_with(':') {
-            if !line.comment.is_empty() {
-                output.push_str(&format!("{:<40} ; {}\n", line.mnemonic, line.comment));
-            } else {
-                output.push_str(&format!("{}\n", line.mnemonic));
-            }
-            continue;
-        }
-
         // Check for mid-instruction labels
         // Only for instructions/data that have bytes.
         // If we have a multi-byte instruction/data, we check if any byte inside has a label.
@@ -54,8 +44,14 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             }
         }
 
-        let line_out = if line.mnemonic == ".BYTE" || line.mnemonic == ".WORD" {
-            format!("    {} {}", line.mnemonic, line.operand)
+        let label_part = if let Some(label) = &line.label {
+            format!("{}:", label)
+        } else {
+            String::new()
+        };
+
+        let instruction_part = if line.mnemonic == ".BYTE" || line.mnemonic == ".WORD" {
+            format!("{} {}", line.mnemonic, line.operand)
         } else {
             let mut operand = line.operand.clone();
             if let Some(opcode) = &line.opcode {
@@ -72,8 +68,10 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                     _ => {}
                 }
             }
-            format!("    {} {}", line.mnemonic, operand)
+            format!("{} {}", line.mnemonic, operand)
         };
+
+        let line_out = format!("{:<24}{}", label_part, instruction_part);
 
         if !line.comment.is_empty() {
             output.push_str(&format!("{:<40} ; {}\n", line_out, line.comment));
@@ -229,16 +227,6 @@ mod tests {
         // Disassembly line for the STA instruction
         state.disassembly.push(DisassemblyLine {
             address: 0xC000,
-            mnemonic: "aC000:".to_string(), // The label line
-            operand: "".to_string(),
-            bytes: vec![],
-            comment: String::new(),
-            label: Some("aC000".to_string()),
-            opcode: None,
-        });
-
-        state.disassembly.push(DisassemblyLine {
-            address: 0xC000,
             mnemonic: "STA".to_string(),
             operand: "$1234".to_string(),
             bytes: vec![0x8D, 0x34, 0x12],
@@ -310,23 +298,13 @@ mod tests {
         // Ideally we should call disassembler logic or manually construct the line AS IF it came from disassembler.
         // Disassembler logic puts "; x-ref: ..." in the comment field.
 
-        state.disassembly.push(DisassemblyLine {
-            address: 0x1000,
-            mnemonic: "MyLabel:".to_string(),
-            operand: "".to_string(),
-            bytes: vec![],
-            comment: "x-ref: 2000, 3000".to_string(), // Simulated disassembler output without semicolon
-            label: Some("MyLabel".to_string()),
-            opcode: None,
-        });
-
-        // Instruction at 1000
+        // Instruction at 1000 with label and x-ref
         state.disassembly.push(DisassemblyLine {
             address: 0x1000,
             mnemonic: "NOP".to_string(),
             operand: "".to_string(),
             bytes: vec![0xEA],
-            comment: "".to_string(),
+            comment: "x-ref: 2000, 3000".to_string(),
             label: Some("MyLabel".to_string()),
             opcode: None,
         });
@@ -347,11 +325,17 @@ mod tests {
         // Format is {:-40} ; {comment}
         // "MyLabel:                                 ; x-ref: 2000, 3000"
         // Just checking it contains the aligned semi-colon and content is safer than exact spacing if we calculate wrong.
-        // But let's check basic structure.
+        // Check that label, instruction and comment are on the same line
         assert!(content.contains("MyLabel:"));
+        assert!(content.contains("NOP"));
         assert!(content.contains("; x-ref: 2000, 3000"));
-        // Check for correct separation (at least 20 spaces)
-        assert!(content.contains("                    ; x-ref"));
+
+        // Ensure they appear in correct order on the line?
+        // Since we read whole file, finding them separately is enough for basic correctness.
+        // But let's check one line content.
+        let line = content.lines().find(|l| l.contains("MyLabel:")).unwrap();
+        assert!(line.contains("NOP"));
+        assert!(line.contains("; x-ref"));
 
         let _ = std::fs::remove_file(&path);
     }
@@ -737,18 +721,7 @@ mod tests {
             },
         );
 
-        // Disassembly line for the label
-        state.disassembly.push(DisassemblyLine {
-            address: 0x1000,
-            mnemonic: "eUser:".to_string(),
-            operand: "".to_string(),
-            bytes: vec![],
-            comment: String::new(),
-            label: Some("eUser".to_string()),
-            opcode: None,
-        });
-
-        // Disassembly line for the instruction
+        // Disassembly line for the label and instruction
         state.disassembly.push(DisassemblyLine {
             address: 0x1000,
             mnemonic: "NOP".to_string(),

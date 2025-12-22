@@ -281,57 +281,42 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
                 Style::default()
             };
 
-            let content = if line.bytes.is_empty() {
-                // Label Line
-                let mut spans = vec![
-                    Span::styled(
-                        format!("{:04X}  ", line.address),
-                        Style::default().fg(Color::DarkGray),
-                    ),
-                    Span::styled(
-                        format!("{:<32}", line.mnemonic),
-                        Style::default()
-                            .fg(Color::Magenta)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                ];
-
-                if !line.comment.is_empty() {
-                    spans.push(Span::styled(
-                        format!("; {}", line.comment),
-                        Style::default()
-                            .fg(Color::Gray)
-                            .add_modifier(Modifier::ITALIC),
-                    ));
-                }
-
-                Line::from(spans)
+            let label_text = if let Some(label) = &line.label {
+                format!("{}:", label)
             } else {
-                Line::from(vec![
-                    Span::styled(
-                        format!("{:04X}  ", line.address),
-                        Style::default().fg(Color::Yellow),
-                    ),
-                    Span::styled(
-                        format!("{: <12}", hex_bytes(&line.bytes)),
-                        Style::default().fg(Color::DarkGray),
-                    ),
-                    Span::styled(
-                        format!("{: <4} ", line.mnemonic),
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(
-                        format!("{: <15}", line.operand),
-                        Style::default().fg(Color::White),
-                    ),
-                    Span::styled(
-                        format!("; {}", line.comment),
-                        Style::default().fg(Color::Gray),
-                    ),
-                ])
+                String::new()
             };
+
+            let content = Line::from(vec![
+                Span::styled(
+                    format!("{:04X}  ", line.address),
+                    Style::default().fg(Color::Yellow),
+                ),
+                Span::styled(
+                    format!("{: <12}", hex_bytes(&line.bytes)),
+                    Style::default().fg(Color::DarkGray),
+                ),
+                Span::styled(
+                    format!("{: <16}", label_text),
+                    Style::default()
+                        .fg(Color::Magenta)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!("{: <4} ", line.mnemonic),
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    format!("{: <15}", line.operand),
+                    Style::default().fg(Color::White),
+                ),
+                Span::styled(
+                    format!("; {}", line.comment),
+                    Style::default().fg(Color::Gray),
+                ),
+            ]);
 
             ListItem::new(content).style(style)
         })

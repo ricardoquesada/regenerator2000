@@ -40,30 +40,17 @@ impl Disassembler {
             let address = origin.wrapping_add(pc as u16);
             let label_name = labels.get(&address).map(|l| l.name.clone());
 
-            // Check for Label (User or Auto) -> explicit line
-            if let Some(name) = &label_name {
-                let mut comment = String::new();
-                if let Some(label) = labels.get(&address) {
-                    if !label.refs.is_empty() {
-                        let mut refs = label.refs.clone();
-                        refs.sort_unstable();
-                        refs.dedup(); // Optional: remove duplicates if any
+            let mut comment = String::new();
+            if let Some(label) = labels.get(&address) {
+                if !label.refs.is_empty() {
+                    let mut refs = label.refs.clone();
+                    refs.sort_unstable();
+                    refs.dedup();
 
-                        let refs_str: Vec<String> =
-                            refs.iter().take(5).map(|r| format!("{:04X}", r)).collect();
-                        comment = format!("x-ref: {}", refs_str.join(", "));
-                    }
+                    let refs_str: Vec<String> =
+                        refs.iter().take(5).map(|r| format!("{:04X}", r)).collect();
+                    comment = format!("x-ref: {}", refs_str.join(", "));
                 }
-
-                lines.push(DisassemblyLine {
-                    address,
-                    bytes: Vec::new(),
-                    mnemonic: format!("{}:", name),
-                    operand: String::new(),
-                    comment,
-                    label: Some(name.clone()),
-                    opcode: None,
-                });
             }
 
             let current_type = address_types.get(pc).copied().unwrap_or(AddressType::Code);
@@ -108,7 +95,7 @@ impl Disassembler {
                                     bytes,
                                     mnemonic: opcode.mnemonic.to_string(),
                                     operand: operand_str,
-                                    comment: String::new(),
+                                    comment: comment.clone(),
                                     label: label_name.clone(),
                                     opcode: Some(opcode.clone()),
                                 });
@@ -118,12 +105,16 @@ impl Disassembler {
                     }
 
                     // Fallthrough
+                    let mut line_comment = "Invalid or partial instruction".to_string();
+                    if !comment.is_empty() {
+                        line_comment = format!("{}; {}", comment, line_comment);
+                    }
                     lines.push(DisassemblyLine {
                         address,
                         bytes: vec![opcode_byte],
                         mnemonic: ".BYTE".to_string(),
                         operand: format!("${:02X}", opcode_byte),
-                        comment: "Invalid or partial instruction".to_string(),
+                        comment: line_comment,
                         label: label_name.clone(),
                         opcode: None,
                     });
@@ -136,7 +127,7 @@ impl Disassembler {
                         bytes: vec![b],
                         mnemonic: ".BYTE".to_string(),
                         operand: format!("${:02X}", b),
-                        comment: String::new(),
+                        comment: comment.clone(),
                         label: label_name.clone(),
                         opcode: None,
                     });
@@ -153,7 +144,7 @@ impl Disassembler {
                             bytes: vec![low, high],
                             mnemonic: ".WORD".to_string(),
                             operand: format!("${:04X}", val),
-                            comment: String::new(),
+                            comment: comment.clone(),
                             label: label_name.clone(),
                             opcode: None,
                         });
@@ -161,12 +152,16 @@ impl Disassembler {
                     } else {
                         // Not enough data
                         let b = data[pc];
+                        let mut line_comment = "Partial Word".to_string();
+                        if !comment.is_empty() {
+                            line_comment = format!("{}; {}", comment, line_comment);
+                        }
                         lines.push(DisassemblyLine {
                             address,
                             bytes: vec![b],
                             mnemonic: ".BYTE".to_string(),
                             operand: format!("${:02X}", b),
-                            comment: "Partial Word".to_string(),
+                            comment: line_comment,
                             label: label_name.clone(),
                             opcode: None,
                         });
@@ -188,19 +183,23 @@ impl Disassembler {
                             } else {
                                 format!("${:04X}", val)
                             },
-                            comment: String::new(),
+                            comment: comment.clone(),
                             label: label_name.clone(),
                             opcode: None,
                         });
                         pc += 2;
                     } else {
                         let b = data[pc];
+                        let mut line_comment = "Partial Address".to_string();
+                        if !comment.is_empty() {
+                            line_comment = format!("{}; {}", comment, line_comment);
+                        }
                         lines.push(DisassemblyLine {
                             address,
                             bytes: vec![b],
                             mnemonic: ".BYTE".to_string(),
                             operand: format!("${:02X}", b),
-                            comment: "Partial Address".to_string(),
+                            comment: line_comment,
                             label: label_name.clone(),
                             opcode: None,
                         });
@@ -245,7 +244,8 @@ impl Disassembler {
         };
 
         match opcode.mode {
-            AddressingMode::Implied | AddressingMode::Accumulator => String::new(),
+            AddressingMode::Implied => String::new(),
+            AddressingMode::Accumulator => "A".to_string(),
             AddressingMode::Immediate => format!("#${:02X}", operands[0]),
             AddressingMode::ZeroPage => {
                 let addr = operands[0] as u16; // Zero page address
@@ -426,27 +426,26 @@ mod tests {
         let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
 
         // Expected:
-        // JMP MyLabel
-        // MyLabel:
-        // .BYTE $00 (actually JMP is 3 bytes, so next is at 1003) Wait...
-        // 1000: JMP $1003
-        // 1003: 00 -> treated as BRK by default if Code, or something else.
-        // Let's assume default Code.
-        // But we added a label at 0x1003.
+        // 1000: JMP $1003 (Label: MyLabel)
+        // 1003: BRK
 
         // Output lines:
-        // 1. JMP MyLabel
-        // 2. MyLabel:  (Label line)
-        // 3. BRK / .BYTE depending on opcode (00 is BRK)
+        // 1. JMP MyLabel (Address 1000) - labeled as MyLabel ? No, label is at 1003.
+        // Wait, the label is at 1003. JMP is at 1000.
+        // JMP $1003. $1003 has label "MyLabel".
+        // The instruction at 1003 is 00 (BRK).
+        // So line 1 (address 1003) should have the label.
 
-        assert_eq!(lines.len(), 3);
+        assert_eq!(lines.len(), 2);
+
+        // Line 0: JMP MyLabel
         assert_eq!(lines[0].mnemonic, "JMP");
         assert_eq!(lines[0].operand, "MyLabel");
+        assert!(lines[0].label.is_none());
 
-        assert_eq!(lines[1].mnemonic, "MyLabel:");
-        assert_eq!(lines[1].bytes.len(), 0);
-
-        assert_eq!(lines[2].mnemonic, "BRK");
+        // Line 1: BRK (at 1003), with label MyLabel
+        assert_eq!(lines[1].mnemonic, "BRK");
+        assert_eq!(lines[1].label, Some("MyLabel".to_string()));
     }
 
     #[test]
@@ -471,17 +470,12 @@ mod tests {
 
         // Accessing the line with the label
         // Output lines:
-        // 1. JMP MyLabel (Address 1000)
-        // 2. MyLabel: (Address 1000)
-        // 3. BRK / .BYTE (Address 1003)
-        // Note: The disassembler is state machine.
-        // It processed 4C 00 10. PC=3. Address=1003.
+        // 1. JMP MyLabel (Address 1000) with label MyLabel and x-ref
 
-        let label_line = lines
-            .iter()
-            .find(|l| l.mnemonic == "MyLabel:")
-            .expect("Label line not found");
-
+        assert_eq!(lines.len(), 1);
+        let label_line = &lines[0];
+        assert_eq!(label_line.label, Some("MyLabel".to_string()));
+        // Comment should contain x-ref
         assert!(label_line.comment.contains("x-ref: 2000, 3000, 4000"));
     }
 
@@ -650,5 +644,29 @@ mod tests {
         // JMP (p0830) -> Should be (b0830)
         assert_eq!(lines[3].mnemonic, "JMP");
         assert_eq!(lines[3].operand, "(b0830)");
+    }
+
+    #[test]
+    fn test_accumulator_explicit_variant() {
+        let disassembler = Disassembler::new();
+        // 4A: LSR A, 6A: ROR A, 0A: ASL A, 2A: ROL A
+        let data = vec![0x4A, 0x6A, 0x0A, 0x2A];
+        let address_types = vec![AddressType::Code; data.len()];
+        let labels = HashMap::new();
+        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
+
+        assert_eq!(lines.len(), 4);
+
+        assert_eq!(lines[0].mnemonic, "LSR");
+        assert_eq!(lines[0].operand, "A");
+
+        assert_eq!(lines[1].mnemonic, "ROR");
+        assert_eq!(lines[1].operand, "A");
+
+        assert_eq!(lines[2].mnemonic, "ASL");
+        assert_eq!(lines[2].operand, "A");
+
+        assert_eq!(lines[3].mnemonic, "ROL");
+        assert_eq!(lines[3].operand, "A");
     }
 }

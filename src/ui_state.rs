@@ -290,6 +290,7 @@ pub struct UIState {
     pub menu: MenuState,
 
     pub navigation_history: Vec<usize>,
+    #[allow(dead_code)]
     pub disassembly_state: ListState,
 
     // UI Selection/Cursor
