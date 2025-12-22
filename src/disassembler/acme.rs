@@ -28,17 +28,17 @@ impl Formatter for AcmeFormatter {
                 // 1. Try to match target_context if provided
                 if let Some(target) = target_context {
                     if let Some(l) = label_vec.iter().find(|l| l.label_type == target) {
-                        return Some(l.name.to_lowercase());
+                        return Some(l.name.clone());
                     }
                 }
                 // 2. Try to match l_type (the type implied by addressing mode)
                 if let Some(l) = label_vec.iter().find(|l| l.label_type == l_type) {
-                    return Some(l.name.to_lowercase());
+                    return Some(l.name.clone());
                 }
 
                 // 3. Fallback to first label
                 if let Some(l) = label_vec.first() {
-                    return Some(l.name.to_lowercase());
+                    return Some(l.name.clone());
                 }
             }
             None
@@ -148,7 +148,7 @@ impl Formatter for AcmeFormatter {
     }
 
     fn format_label(&self, name: &str) -> String {
-        name.to_lowercase()
+        name.to_string()
     }
 
     fn format_byte(&self, byte: u8) -> String {
@@ -169,7 +169,7 @@ impl Formatter for AcmeFormatter {
         } else {
             format!("${:04x}", value)
         };
-        format!("{} = {}", name.to_lowercase(), operand)
+        format!("{} = {}", name, operand)
     }
 
     fn format_instruction(

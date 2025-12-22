@@ -239,9 +239,9 @@ fn test_acme_lowercase_output() {
     assert_eq!(lines[0].mnemonic, "lda");
     assert_eq!(lines[0].operand, "#$ff");
 
-    // Line 2: jmp mixedcaselabel
+    // Line 2: jmp MixedCaseLabel
     assert_eq!(lines[1].mnemonic, "jmp");
-    assert_eq!(lines[1].operand, "mixedcaselabel");
+    assert_eq!(lines[1].operand, "MixedCaseLabel");
 }
 
 #[test]
