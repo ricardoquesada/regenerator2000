@@ -154,7 +154,7 @@ pub fn run_app<B: Backend>(
                                     let new_label = crate::state::Label {
                                         name: label_name,
                                         kind: crate::state::LabelKind::User,
-                                        names: std::collections::HashMap::new(),
+                                        label_type: crate::state::LabelType::UserDefined,
                                         refs: Vec::new(),
                                     };
 

@@ -8,7 +8,12 @@ mod exporter;
 mod state;
 mod ui;
 mod ui_state;
+
 mod utils;
+
+#[cfg(test)]
+mod load_project_test;
+
 use anyhow::Result;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},

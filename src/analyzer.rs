@@ -86,13 +86,17 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
                     addr,
                     crate::state::Label {
                         name: existing.name.clone(),
-                        names: existing.names.clone(), // Preserve existing context names if any (or should we overwrite auto ones?)
-                        // If it is user label, we trust the user. But ideally we might want to Add new auto-detected context names if they are missing?
-                        // For now, let's just preserve.
+                        label_type: if existing.label_type == LabelType::UserDefined {
+                            // Try to infer if possible, otherwise default
+                            LabelType::UserDefined
+                        } else {
+                            existing.label_type
+                        },
                         kind: crate::state::LabelKind::User,
                         refs: existing.refs.clone(),
                     },
                 );
+
                 continue;
             }
         }
@@ -101,31 +105,6 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
         let is_ext = state.is_external(addr);
 
         // Generate names for all discovered types
-        let mut names = HashMap::new();
-        for (l_type, _) in &types_map {
-            // Check for external jump case
-            let effective_type = if is_ext
-                && (*l_type == LabelType::Jump
-                    || *l_type == LabelType::Subroutine
-                    || *l_type == LabelType::Branch)
-            {
-                LabelType::ExternalJump
-            } else {
-                *l_type
-            };
-
-            let prefix = effective_type.prefix();
-
-            let name = if effective_type == LabelType::ZeroPageAbsoluteAddress
-                || effective_type == LabelType::ZeroPageField
-                || effective_type == LabelType::ZeroPagePointer
-            {
-                format!("{}{:02X}", prefix, addr)
-            } else {
-                format!("{}{:04X}", prefix, addr)
-            };
-            names.insert(effective_type, name);
-        }
 
         // Determine default name (highest priority)
         // We can sort types or just pick one. `LabelType` derives Ord. Higher enum value = higher priority?
@@ -156,16 +135,22 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
                 .unwrap_or(LabelType::AbsoluteAddress)
         };
 
-        let default_name = names
-            .get(&best_type)
-            .cloned()
-            .unwrap_or_else(|| format!("a{:04X}", addr));
+        let prefix = best_type.prefix();
+
+        let default_name = if best_type == LabelType::ZeroPageAbsoluteAddress
+            || best_type == LabelType::ZeroPageField
+            || best_type == LabelType::ZeroPagePointer
+        {
+            format!("{}{:02X}", prefix, addr)
+        } else {
+            format!("{}{:04X}", prefix, addr)
+        };
 
         labels.insert(
             addr,
             crate::state::Label {
                 name: default_name,
-                names,
+                label_type: best_type,
                 kind: crate::state::LabelKind::Auto,
                 refs, // We use all refs
             },
@@ -179,7 +164,7 @@ pub fn analyze(state: &AppState) -> HashMap<u16, crate::state::Label> {
                 *addr,
                 crate::state::Label {
                     name: label.name.clone(),
-                    names: label.names.clone(),
+                    label_type: label.label_type,
                     kind: crate::state::LabelKind::User,
                     refs: Vec::new(),
                 },

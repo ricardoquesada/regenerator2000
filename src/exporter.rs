@@ -201,7 +201,7 @@ mod tests {
             crate::state::Label {
                 name: "aC000".to_string(),
                 kind: crate::state::LabelKind::User,
-                names: std::collections::HashMap::new(),
+                label_type: crate::state::LabelType::UserDefined,
                 refs: Vec::new(),
             },
         );
@@ -210,7 +210,7 @@ mod tests {
             crate::state::Label {
                 name: "aC001".to_string(),
                 kind: crate::state::LabelKind::User,
-                names: std::collections::HashMap::new(),
+                label_type: crate::state::LabelType::UserDefined,
                 refs: Vec::new(),
             },
         );
@@ -219,7 +219,7 @@ mod tests {
             crate::state::Label {
                 name: "aC002".to_string(),
                 kind: crate::state::LabelKind::User,
-                names: std::collections::HashMap::new(),
+                label_type: crate::state::LabelType::UserDefined,
                 refs: Vec::new(),
             },
         );
@@ -286,7 +286,7 @@ mod tests {
             crate::state::Label {
                 name: "MyLabel".to_string(),
                 kind: crate::state::LabelKind::User,
-                names: std::collections::HashMap::new(),
+                label_type: crate::state::LabelType::UserDefined,
                 refs: vec![0x2000, 0x3000], // Two refs
             },
         );
@@ -357,10 +357,7 @@ mod tests {
             crate::state::Label {
                 name: "f0002".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::ZeroPageField,
-                    "f0002".to_string(),
-                )]),
+                label_type: crate::state::LabelType::ZeroPageField,
                 refs: vec![],
             },
         );
@@ -369,10 +366,7 @@ mod tests {
             crate::state::Label {
                 name: "sFFD2".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::Subroutine,
-                    "sFFD2".to_string(),
-                )]),
+                label_type: crate::state::LabelType::Subroutine,
                 refs: vec![],
             },
         );
@@ -426,10 +420,7 @@ mod tests {
             crate::state::Label {
                 name: "f10".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::ZeroPageField,
-                    "f10".to_string(),
-                )]),
+                label_type: crate::state::LabelType::ZeroPageField,
                 refs: vec![],
             },
         );
@@ -438,10 +429,7 @@ mod tests {
             crate::state::Label {
                 name: "f05".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::ZeroPageField,
-                    "f05".to_string(),
-                )]),
+                label_type: crate::state::LabelType::ZeroPageField,
                 refs: vec![],
             },
         );
@@ -452,10 +440,7 @@ mod tests {
             crate::state::Label {
                 name: "a20".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::ZeroPageAbsoluteAddress,
-                    "a20".to_string(),
-                )]),
+                label_type: crate::state::LabelType::ZeroPageAbsoluteAddress,
                 refs: vec![],
             },
         );
@@ -466,10 +451,7 @@ mod tests {
             crate::state::Label {
                 name: "p30".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::ZeroPagePointer,
-                    "p30".to_string(),
-                )]),
+                label_type: crate::state::LabelType::ZeroPagePointer,
                 refs: vec![],
             },
         );
@@ -480,10 +462,7 @@ mod tests {
             crate::state::Label {
                 name: "f1000".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::Field,
-                    "f1000".to_string(),
-                )]),
+                label_type: crate::state::LabelType::Field,
                 refs: vec![],
             },
         );
@@ -494,10 +473,7 @@ mod tests {
             crate::state::Label {
                 name: "a2000".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::AbsoluteAddress,
-                    "a2000".to_string(),
-                )]),
+                label_type: crate::state::LabelType::AbsoluteAddress,
                 refs: vec![],
             },
         );
@@ -508,10 +484,7 @@ mod tests {
             crate::state::Label {
                 name: "p3000".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::Pointer,
-                    "p3000".to_string(),
-                )]),
+                label_type: crate::state::LabelType::Pointer,
                 refs: vec![],
             },
         );
@@ -522,10 +495,7 @@ mod tests {
             crate::state::Label {
                 name: "e4000".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::ExternalJump,
-                    "e4000".to_string(),
-                )]),
+                label_type: crate::state::LabelType::ExternalJump,
                 refs: vec![],
             },
         );
@@ -536,10 +506,7 @@ mod tests {
             crate::state::Label {
                 name: "b5000".to_string(),
                 kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::Branch,
-                    "b5000".to_string(),
-                )]),
+                label_type: crate::state::LabelType::Branch,
                 refs: vec![],
             },
         );
@@ -550,10 +517,7 @@ mod tests {
             crate::state::Label {
                 name: "a0011".to_string(), // Manually named absolute
                 kind: crate::state::LabelKind::User,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::AbsoluteAddress,
-                    "a0011".to_string(),
-                )]),
+                label_type: crate::state::LabelType::AbsoluteAddress,
                 refs: vec![],
             },
         );
@@ -649,54 +613,6 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
-    #[test]
-    fn test_export_multi_alias() {
-        let mut state = AppState::new();
-        state.origin = 0x1000;
-        state.raw_data = vec![0xEA];
-
-        // Address $0025 is external (ZP)
-        // It has multiple names: a25 (default), f25 (alias)
-        state.labels.insert(
-            0x0025,
-            crate::state::Label {
-                name: "a25".to_string(),
-                kind: crate::state::LabelKind::Auto,
-                names: std::collections::HashMap::from([
-                    (
-                        crate::state::LabelType::ZeroPageAbsoluteAddress,
-                        "a25".to_string(),
-                    ),
-                    (crate::state::LabelType::ZeroPageField, "f25".to_string()),
-                ]),
-                refs: vec![],
-            },
-        );
-
-        let file_name = "test_export_multi_alias.asm";
-        let path = PathBuf::from(file_name);
-        if path.exists() {
-            let _ = std::fs::remove_file(&path);
-        }
-
-        // Sync external labels into disassembly
-        let externals = state.get_external_label_definitions();
-        let mut new_disassembly = externals;
-        new_disassembly.extend(state.disassembly);
-        state.disassembly = new_disassembly;
-
-        let res = export_asm(&state, &path);
-        assert!(res.is_ok());
-
-        let content = std::fs::read_to_string(&path).unwrap();
-        println!("Content:\n{}", content);
-
-        // BOTH should be present
-        assert!(content.contains("a25 = $25"), "Missing a25");
-        assert!(content.contains("f25 = $25"), "Missing f25");
-
-        let _ = std::fs::remove_file(&path);
-    }
 
     #[test]
     fn test_external_detection_no_name_check() {
@@ -713,10 +629,7 @@ mod tests {
             crate::state::Label {
                 name: "eUser".to_string(),
                 kind: crate::state::LabelKind::User,
-                names: std::collections::HashMap::from([(
-                    crate::state::LabelType::UserDefined,
-                    "eUser".to_string(),
-                )]),
+                label_type: crate::state::LabelType::UserDefined,
                 refs: vec![],
             },
         );
