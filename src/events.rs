@@ -443,6 +443,12 @@ pub fn run_app<B: Backend>(
                             handle_menu_action(&mut app_state, &mut ui_state, "Save");
                         }
                     }
+                    KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        handle_menu_action(&mut app_state, &mut ui_state, "Export ASM");
+                    }
+                    KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        handle_menu_action(&mut app_state, &mut ui_state, "Document Settings");
+                    }
                     KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
                     }
