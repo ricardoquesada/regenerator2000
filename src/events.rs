@@ -304,6 +304,8 @@ pub fn run_app<B: Backend>(
                     KeyCode::Esc => {
                         if ui_state.settings_dialog.is_selecting_platform {
                             ui_state.settings_dialog.is_selecting_platform = false;
+                        } else if ui_state.settings_dialog.is_selecting_assembler {
+                            ui_state.settings_dialog.is_selecting_assembler = false;
                         } else {
                             ui_state.settings_dialog.close();
                             ui_state.status_message = "Ready".to_string();
@@ -323,6 +325,20 @@ pub fn run_app<B: Backend>(
                                 current_idx - 1
                             };
                             app_state.settings.platform = platforms[new_idx];
+                        } else if ui_state.settings_dialog.is_selecting_assembler {
+                            // Cycle assemblers backwards
+                            let assemblers = crate::state::Assembler::all();
+                            let current_idx = assemblers
+                                .iter()
+                                .position(|a| *a == app_state.settings.assembler)
+                                .unwrap_or(0);
+                            let new_idx = if current_idx == 0 {
+                                assemblers.len() - 1
+                            } else {
+                                current_idx - 1
+                            };
+                            app_state.settings.assembler = assemblers[new_idx];
+                            app_state.disassemble(); // Refresh disassembly on change
                         } else {
                             ui_state.settings_dialog.previous();
                         }
@@ -337,28 +353,37 @@ pub fn run_app<B: Backend>(
                                 .unwrap_or(0);
                             let new_idx = (current_idx + 1) % platforms.len();
                             app_state.settings.platform = platforms[new_idx];
+                        } else if ui_state.settings_dialog.is_selecting_assembler {
+                            // Cycle assemblers forwards
+                            let assemblers = crate::state::Assembler::all();
+                            let current_idx = assemblers
+                                .iter()
+                                .position(|a| *a == app_state.settings.assembler)
+                                .unwrap_or(0);
+                            let new_idx = (current_idx + 1) % assemblers.len();
+                            app_state.settings.assembler = assemblers[new_idx];
+                            app_state.disassemble(); // Refresh disassembly on change
                         } else {
                             ui_state.settings_dialog.next();
                         }
                     }
                     KeyCode::Enter | KeyCode::Char(' ') => {
                         if ui_state.settings_dialog.is_selecting_platform {
-                            // Confirm selection (already done by moving), acts as close popup
                             ui_state.settings_dialog.is_selecting_platform = false;
+                        } else if ui_state.settings_dialog.is_selecting_assembler {
+                            ui_state.settings_dialog.is_selecting_assembler = false;
                         } else {
                             // Toggle checkbox or enter platform mode
                             match ui_state.settings_dialog.selected_index {
                                 0 => app_state.settings.all_labels = !app_state.settings.all_labels,
                                 1 => {
                                     app_state.settings.use_w_prefix =
-                                        !app_state.settings.use_w_prefix
+                                        !app_state.settings.use_w_prefix;
+                                    app_state.disassemble(); // Refresh for @w change
                                 }
                                 2 => {
                                     app_state.settings.brk_single_byte =
                                         !app_state.settings.brk_single_byte;
-                                    // If we just enabled single byte, force patch_brk to false?
-                                    // Requirement didn't strictly say so, but it makes sense to ensure consistency.
-                                    // "Disabled" usually implies "Unchecked" or "Value ignored".
                                     if app_state.settings.brk_single_byte {
                                         app_state.settings.patch_brk = false;
                                     }
@@ -371,6 +396,9 @@ pub fn run_app<B: Backend>(
                                 }
                                 4 => {
                                     ui_state.settings_dialog.is_selecting_platform = true;
+                                }
+                                5 => {
+                                    ui_state.settings_dialog.is_selecting_assembler = true;
                                 }
                                 _ => {}
                             }

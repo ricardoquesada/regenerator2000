@@ -162,6 +162,7 @@ pub struct SettingsDialogState {
     pub active: bool,
     pub selected_index: usize,
     pub is_selecting_platform: bool,
+    pub is_selecting_assembler: bool,
 }
 
 impl SettingsDialogState {
@@ -170,6 +171,7 @@ impl SettingsDialogState {
             active: false,
             selected_index: 0,
             is_selecting_platform: false,
+            is_selecting_assembler: false,
         }
     }
 
@@ -177,6 +179,7 @@ impl SettingsDialogState {
         self.active = true;
         self.selected_index = 0;
         self.is_selecting_platform = false;
+        self.is_selecting_assembler = false;
     }
 
     pub fn close(&mut self) {
@@ -190,12 +193,13 @@ impl SettingsDialogState {
         // 2: BRK single byte
         // 3: Patch BRK
         // 4: Platform
-        let max_items = 5;
+        // 5: Assembler
+        let max_items = 6;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 5;
+        let max_items = 6;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {

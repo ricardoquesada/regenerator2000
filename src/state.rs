@@ -67,6 +67,33 @@ impl Platform {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Assembler {
+    Tass64,
+    Acme,
+}
+
+impl Default for Assembler {
+    fn default() -> Self {
+        Assembler::Tass64
+    }
+}
+
+impl std::fmt::Display for Assembler {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Assembler::Tass64 => write!(f, "64tass"),
+            Assembler::Acme => write!(f, "ACME"),
+        }
+    }
+}
+
+impl Assembler {
+    pub fn all() -> &'static [Assembler] {
+        &[Assembler::Tass64, Assembler::Acme]
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DocumentSettings {
     #[serde(default)]
     pub all_labels: bool, // default false
@@ -78,6 +105,8 @@ pub struct DocumentSettings {
     pub patch_brk: bool, // default false
     #[serde(default)]
     pub platform: Platform, // default C64
+    #[serde(default)]
+    pub assembler: Assembler, // default Tass64
 }
 
 fn default_true() -> bool {
@@ -92,6 +121,7 @@ impl Default for DocumentSettings {
             brk_single_byte: false,
             patch_brk: false,
             platform: Platform::default(),
+            assembler: Assembler::default(),
         }
     }
 }
@@ -521,6 +551,7 @@ impl AppState {
             &self.address_types,
             &self.labels,
             self.origin,
+            &self.settings,
         );
 
         // Add external label definitions at the top

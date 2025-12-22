@@ -50,25 +50,14 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             String::new()
         };
 
-        let instruction_part = if line.mnemonic == ".BYTE" || line.mnemonic == ".WORD" {
+        let instruction_part = if line.opcode.is_none() && !line.bytes.is_empty() {
+            // Data directive (or invalid instruction rendered as byte)
+            // The mnemonic is already set by Disassembler (.BYTE, !byte, etc.)
             format!("{} {}", line.mnemonic, line.operand)
         } else {
-            let mut operand = line.operand.clone();
-            if let Some(opcode) = &line.opcode {
-                match opcode.mode {
-                    crate::cpu::AddressingMode::Absolute
-                    | crate::cpu::AddressingMode::AbsoluteX
-                    | crate::cpu::AddressingMode::AbsoluteY => {
-                        // Check if it targets Zero Page (High byte is 0x00)
-                        // Absolute instructions are 3 bytes: Opcode, Low, High
-                        if line.bytes.len() >= 3 && line.bytes[2] == 0x00 {
-                            operand = format!("@w {}", operand);
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            format!("{} {}", line.mnemonic, operand)
+            // Valid instruction
+            // The operand is already formatted by Disassembler (including forcing if needed)
+            format!("{} {}", line.mnemonic, line.operand)
         };
 
         let line_out = format!("{:<24}{}", label_part, instruction_part);
@@ -698,7 +687,7 @@ mod tests {
         state.disassembly.push(DisassemblyLine {
             address: 0x1000,
             mnemonic: "LDA".to_string(),
-            operand: "$0012".to_string(),
+            operand: "@w $0012".to_string(),
             bytes: vec![0xAD, 0x12, 0x00],
             comment: String::new(),
             label: None,
@@ -715,7 +704,9 @@ mod tests {
         state.disassembly.push(DisassemblyLine {
             address: 0x1003,
             mnemonic: "LDA".to_string(),
-            operand: "$0012,X".to_string(),
+            // Exporter no longer adds @w, it expects Disassembler to have done it.
+            // So we simulate the input having @w to verify Exporter preserves it.
+            operand: "@w $0012,X".to_string(),
             bytes: vec![0xBD, 0x12, 0x00],
             comment: String::new(),
             label: None,
@@ -740,8 +731,7 @@ mod tests {
         let content = std::fs::read_to_string(&path).unwrap();
         println!("Content:\n{}", content);
 
-        // We expect prefix "@w" because it is Absolute addressing but address <= 0xFF.
-        // 64tass requires this to NOT optimize it to ZP.
+        // Verify Exporter preserves the @w prefix
         assert!(
             content.contains("LDA @w $0012"),
             "Output missing @w prefix for Absolute ZP target. content: {}",

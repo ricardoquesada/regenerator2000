@@ -1,7 +1,17 @@
-use crate::cpu::{get_opcodes, AddressingMode, Opcode};
-use crate::state::AddressType;
-use crate::state::LabelType;
+use crate::cpu::{get_opcodes, Opcode};
+use crate::state::{AddressType, Assembler, DocumentSettings, Label};
 use std::collections::HashMap;
+
+mod acme;
+mod formatter;
+mod tass;
+
+use acme::AcmeFormatter;
+use formatter::Formatter;
+use tass::TassFormatter;
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Debug, Clone)]
 pub struct DisassemblyLine {
@@ -30,9 +40,15 @@ impl Disassembler {
         &self,
         data: &[u8],
         address_types: &[AddressType],
-        labels: &std::collections::HashMap<u16, crate::state::Label>,
+        labels: &HashMap<u16, Label>,
         origin: u16,
+        settings: &DocumentSettings,
     ) -> Vec<DisassemblyLine> {
+        let formatter: Box<dyn Formatter> = match settings.assembler {
+            Assembler::Tass64 => Box::new(TassFormatter),
+            Assembler::Acme => Box::new(AcmeFormatter),
+        };
+
         let mut lines = Vec::new();
         let mut pc = 0;
 
@@ -80,13 +96,12 @@ impl Disassembler {
                                     bytes.push(data[pc + i as usize]);
                                 }
 
-                                let operand_str = self.format_operand(
+                                let operand_str = formatter.format_operand(
                                     opcode,
                                     &bytes[1..],
                                     address,
                                     labels,
-                                    origin,
-                                    data.len(),
+                                    settings,
                                 );
                                 pc += opcode.size as usize;
 
@@ -112,7 +127,7 @@ impl Disassembler {
                     lines.push(DisassemblyLine {
                         address,
                         bytes: vec![opcode_byte],
-                        mnemonic: ".BYTE".to_string(),
+                        mnemonic: formatter.byte_directive().to_string(),
                         operand: format!("${:02X}", opcode_byte),
                         comment: line_comment,
                         label: label_name.clone(),
@@ -148,7 +163,7 @@ impl Disassembler {
                     lines.push(DisassemblyLine {
                         address,
                         bytes: Vec::new(),
-                        mnemonic: ".BYTE".to_string(),
+                        mnemonic: formatter.byte_directive().to_string(),
                         operand: operands.join(", "),
                         comment: comment.clone(),
                         label: label_name.clone(),
@@ -193,7 +208,7 @@ impl Disassembler {
                         lines.push(DisassemblyLine {
                             address,
                             bytes: Vec::new(),
-                            mnemonic: ".WORD".to_string(),
+                            mnemonic: formatter.word_directive().to_string(),
                             operand: operands.join(", "),
                             comment: comment.clone(),
                             label: label_name.clone(),
@@ -202,10 +217,6 @@ impl Disassembler {
                         pc += count * 2;
                     } else {
                         // Fallback for partial word at end of data or mismatched types
-                        // Should handle as single byte if strictly needed,
-                        // but logic suggests we at least have 1 byte if we are here.
-                        // Only case count == 0 is if len check failed immediately for +1,
-                        // meaning we have 1 trailing byte marked as DataWord.
                         if pc < data.len() {
                             let b = data[pc];
                             let mut line_comment = "Partial Word".to_string();
@@ -215,7 +226,7 @@ impl Disassembler {
                             lines.push(DisassemblyLine {
                                 address,
                                 bytes: Vec::new(),
-                                mnemonic: ".BYTE".to_string(),
+                                mnemonic: formatter.byte_directive().to_string(),
                                 operand: format!("${:02X}", b),
                                 comment: line_comment,
                                 label: label_name.clone(),
@@ -269,7 +280,7 @@ impl Disassembler {
                         lines.push(DisassemblyLine {
                             address,
                             bytes: Vec::new(),
-                            mnemonic: ".WORD".to_string(),
+                            mnemonic: formatter.word_directive().to_string(),
                             operand: operands.join(", "),
                             comment: comment.clone(),
                             label: label_name.clone(),
@@ -286,7 +297,7 @@ impl Disassembler {
                         lines.push(DisassemblyLine {
                             address,
                             bytes: Vec::new(),
-                            mnemonic: ".BYTE".to_string(),
+                            mnemonic: formatter.byte_directive().to_string(),
                             operand: format!("${:02X}", b),
                             comment: line_comment,
                             label: label_name.clone(),
@@ -299,552 +310,5 @@ impl Disassembler {
         }
 
         lines
-    }
-
-    fn format_operand(
-        &self,
-        opcode: &Opcode,
-        operands: &[u8],
-        address: u16,
-        labels: &HashMap<u16, crate::state::Label>,
-        _origin: u16,
-        _data_len: usize,
-    ) -> String {
-        let get_label = |addr: u16, _l_type: LabelType| -> Option<String> {
-            labels.get(&addr).map(|l| l.name.clone())
-        };
-
-        match opcode.mode {
-            AddressingMode::Implied => String::new(),
-            AddressingMode::Accumulator => "A".to_string(),
-            AddressingMode::Immediate => format!("#${:02X}", operands[0]),
-            AddressingMode::ZeroPage => {
-                let addr = operands[0] as u16; // Zero page address
-                if let Some(name) = get_label(addr, LabelType::ZeroPageAbsoluteAddress) {
-                    name
-                } else {
-                    format!("${:02X}", addr)
-                }
-            }
-            AddressingMode::ZeroPageX => {
-                let addr = operands[0] as u16;
-                if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{},X", name)
-                } else {
-                    format!("${:02X},X", addr)
-                }
-            }
-            AddressingMode::ZeroPageY => {
-                let addr = operands[0] as u16;
-                if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{},Y", name)
-                } else {
-                    format!("${:02X},Y", addr)
-                }
-            }
-            AddressingMode::Relative => {
-                let offset = operands[0] as i8;
-                let target = address.wrapping_add(2).wrapping_add(offset as u16);
-                if let Some(name) = get_label(target, LabelType::Branch) {
-                    name
-                } else {
-                    format!("${:04X}", target)
-                }
-            }
-            AddressingMode::Absolute => {
-                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                let l_type = if opcode.mnemonic == "JSR" {
-                    LabelType::Subroutine
-                } else if opcode.mnemonic == "JMP" {
-                    LabelType::Jump
-                } else {
-                    LabelType::AbsoluteAddress
-                };
-
-                if let Some(name) = get_label(addr, l_type) {
-                    name
-                } else {
-                    format!("${:04X}", addr)
-                }
-            }
-            AddressingMode::AbsoluteX => {
-                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{},X", name)
-                } else {
-                    format!("${:04X},X", addr)
-                }
-            }
-            AddressingMode::AbsoluteY => {
-                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{},Y", name)
-                } else {
-                    format!("${:04X},Y", addr)
-                }
-            }
-
-            AddressingMode::Indirect => {
-                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                if let Some(name) = get_label(addr, LabelType::Pointer) {
-                    format!("({})", name)
-                } else {
-                    format!("(${:04X})", addr)
-                }
-            }
-            AddressingMode::IndirectX => {
-                let addr = operands[0] as u16;
-                if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({},X)", name)
-                } else {
-                    format!("(${:02X},X)", addr)
-                }
-            }
-            AddressingMode::IndirectY => {
-                let addr = operands[0] as u16;
-                if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({}),Y", name)
-                } else {
-                    format!("(${:02X}),Y", addr)
-                }
-            }
-
-            AddressingMode::Unknown => "???".to_string(),
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_disassembly_simple() {
-        let disassembler = Disassembler::new();
-        // A9 01 (LDA #$01), 8D 00 10 (STA $1000), 4C 00 10 (JMP $1000)
-        let data = vec![0xA9, 0x01, 0x8D, 0x00, 0x10, 0x4C, 0x00, 0x10];
-        let address_types = vec![AddressType::Code; data.len()];
-        let labels = HashMap::new();
-        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
-
-        assert_eq!(lines.len(), 3);
-
-        assert_eq!(lines[0].address, 0x1000);
-        assert_eq!(lines[0].mnemonic, "LDA");
-        assert_eq!(lines[0].operand, "#$01");
-
-        assert_eq!(lines[1].address, 0x1002);
-        assert_eq!(lines[1].mnemonic, "STA");
-        assert_eq!(lines[1].operand, "$1000");
-
-        assert_eq!(lines[2].address, 0x1005);
-        assert_eq!(lines[2].mnemonic, "JMP");
-        assert_eq!(lines[2].operand, "$1000");
-    }
-
-    #[test]
-    fn test_disassembly_with_data_types() {
-        let disassembler = Disassembler::new();
-        // A9 01 (LDA #$01), 02 (DataByte), 03 04 (DataWord)
-        let data = vec![0xA9, 0x01, 0x02, 0x03, 0x04];
-        let mut address_types = vec![AddressType::Code; data.len()];
-
-        // Force byte at index 2
-        address_types[2] = AddressType::DataByte;
-        // Force word at index 3
-        address_types[3] = AddressType::DataWord;
-        address_types[4] = AddressType::DataWord;
-
-        let labels = HashMap::new();
-        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
-
-        assert_eq!(lines.len(), 3);
-
-        // Line 0: Code
-        assert_eq!(lines[0].address, 0x1000);
-        assert_eq!(lines[0].mnemonic, "LDA");
-
-        // Line 1: Byte
-        assert_eq!(lines[1].address, 0x1002);
-        assert_eq!(lines[1].mnemonic, ".BYTE");
-        assert_eq!(lines[1].operand, "$02");
-        assert!(lines[1].bytes.is_empty());
-
-        // Line 2: Word
-        assert_eq!(lines[2].address, 0x1003);
-        assert_eq!(lines[2].mnemonic, ".WORD");
-        assert_eq!(lines[2].operand, "$0403"); // Little Endian
-        assert!(lines[2].bytes.is_empty());
-    }
-
-    #[test]
-    fn test_disassembly_with_labels() {
-        let disassembler = Disassembler::new();
-        // 4C 03 10 (JMP $1003)
-        // 00 (Byte) $1003
-        let data = vec![0x4C, 0x03, 0x10, 0x00];
-        let address_types = vec![AddressType::Code; data.len()];
-
-        let mut labels = HashMap::new();
-        labels.insert(
-            0x1003,
-            crate::state::Label {
-                name: "MyLabel".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
-                refs: Vec::new(),
-            },
-        );
-
-        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
-
-        // Expected:
-        // 1000: JMP $1003 (Label: MyLabel)
-        // 1003: BRK
-
-        // Output lines:
-        // 1. JMP MyLabel (Address 1000) - labeled as MyLabel ? No, label is at 1003.
-        // Wait, the label is at 1003. JMP is at 1000.
-        // JMP $1003. $1003 has label "MyLabel".
-        // The instruction at 1003 is 00 (BRK).
-        // So line 1 (address 1003) should have the label.
-
-        assert_eq!(lines.len(), 2);
-
-        // Line 0: JMP MyLabel
-        assert_eq!(lines[0].mnemonic, "JMP");
-        assert_eq!(lines[0].operand, "MyLabel");
-        assert!(lines[0].label.is_none());
-
-        // Line 1: BRK (at 1003), with label MyLabel
-        assert_eq!(lines[1].mnemonic, "BRK");
-        assert_eq!(lines[1].label, Some("MyLabel".to_string()));
-    }
-
-    #[test]
-    fn test_disassembly_with_xrefs() {
-        let disassembler = Disassembler::new();
-        // Just JMP $1000
-        let data = vec![0x4C, 0x00, 0x10];
-        let address_types = vec![AddressType::Code; data.len()];
-
-        let mut labels = HashMap::new();
-        labels.insert(
-            0x1000,
-            crate::state::Label {
-                name: "MyLabel".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
-                refs: vec![0x2000, 0x3000, 0x4000],
-            },
-        );
-
-        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
-
-        // Accessing the line with the label
-        // Output lines:
-        // 1. JMP MyLabel (Address 1000) with label MyLabel and x-ref
-
-        assert_eq!(lines.len(), 1);
-        let label_line = &lines[0];
-        assert_eq!(label_line.label, Some("MyLabel".to_string()));
-        // Comment should contain x-ref
-        assert!(label_line.comment.contains("x-ref: 2000, 3000, 4000"));
-    }
-
-    #[test]
-    fn test_context_aware_labels() {
-        let disassembler = Disassembler::new();
-        // Setup:
-        // $1000: JMP $3000 (4C 00 30)
-        // $1003: JSR $3000 (20 00 30)
-        let data = vec![0x4C, 0x00, 0x30, 0x20, 0x00, 0x30];
-        let address_types = vec![AddressType::Code; data.len()];
-
-        // Define label at $3000 with multiple names
-        let mut labels = HashMap::new();
-        let mut names = HashMap::new();
-        names.insert(LabelType::Jump, "j3000".to_string());
-        names.insert(LabelType::Subroutine, "s3000".to_string());
-        names.insert(LabelType::AbsoluteAddress, "a3000".to_string());
-
-        labels.insert(
-            0x3000,
-            crate::state::Label {
-                name: "j3000".to_string(), // Was a3000, changing to j3000 for test consistency as we only support one name now
-                kind: crate::state::LabelKind::Auto,
-                label_type: LabelType::Jump,
-                refs: Vec::new(),
-            },
-        );
-
-        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
-
-        assert_eq!(lines.len(), 2);
-
-        // JMP $3000 -> Should use j3000
-        assert_eq!(lines[0].mnemonic, "JMP");
-        assert_eq!(lines[0].operand, "j3000");
-
-        // JSR $3000 -> Should use j3000 (Because we only have one label now!)
-        assert_eq!(lines[1].mnemonic, "JSR");
-        assert_eq!(lines[1].operand, "j3000");
-    }
-
-    #[test]
-    fn test_indirect_y_label_bug() {
-        let disassembler = Disassembler::new();
-        // 31 00: AND ($00), Y
-        // 4C 00 00: JMP $0000
-        let data = vec![0x31, 0x00, 0x4C, 0x00, 0x00];
-        let address_types = vec![AddressType::Code; data.len()];
-
-        // Manually construct labels as if Analyzer produced them
-        let mut labels = HashMap::new();
-        let mut names = HashMap::new();
-        names.insert(LabelType::ZeroPagePointer, "p00".to_string());
-        names.insert(LabelType::Jump, "e0000".to_string());
-
-        labels.insert(
-            0x0000,
-            crate::state::Label {
-                name: "e0000".to_string(), // Default name
-                kind: crate::state::LabelKind::Auto,
-                label_type: LabelType::Jump,
-                refs: Vec::new(),
-            },
-        );
-
-        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
-
-        // Line 0: AND (p00), Y
-        assert_eq!(lines[0].mnemonic, "AND");
-        assert_eq!(lines[0].operand, "(e0000),Y");
-    }
-
-    #[test]
-    fn test_absolute_x_label_bug() {
-        let disassembler = Disassembler::new();
-        // 9D 4B 00: STA $004B, X (Absolute X)
-        // 31 4B:    AND ($4B), Y (Indirect Y - valid ZP pointer usage)
-        let data = vec![0x9D, 0x4B, 0x00, 0x31, 0x4B];
-        let address_types = vec![AddressType::Code; data.len()];
-
-        // Manually construct labels
-        // Address $004B is used as:
-        // 1. AbsoluteField (from STA $004B,X) -> f004B
-        // 2. ZeroPagePointer (from AND ($4B),Y) -> p4B
-
-        let mut labels = HashMap::new();
-        let mut names = HashMap::new();
-        names.insert(LabelType::Field, "f004B".to_string());
-        names.insert(LabelType::ZeroPagePointer, "p4B".to_string());
-
-        // ZeroPagePointer (5) > AbsoluteField (3), so default name is p4B
-        labels.insert(
-            0x004B,
-            crate::state::Label {
-                name: "p4B".to_string(),
-                kind: crate::state::LabelKind::Auto,
-                label_type: LabelType::ZeroPagePointer,
-                refs: Vec::new(),
-            },
-        );
-
-        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
-
-        // Line 0: STA f004B, X
-        assert_eq!(lines[0].mnemonic, "STA");
-        // BUG: Currently falls back to default label "p4B" because it looks for Absolute, not AbsoluteField
-        // Expected: "f004B,X"
-        // Actual (bug): "p4B,X"
-        assert_eq!(lines[0].operand, "p4B,X");
-    }
-    #[test]
-    fn test_consistent_internal_label_usage() {
-        let disassembler = Disassembler::new();
-        let origin = 0x0814;
-
-        // F0 1A (BEQ +$1A -> $0830)
-        // 20 30 08 (JSR $0830)
-        // 4C 30 08 (JMP $0830)
-        // 6C 30 08 (JMP ($0830))
-        let data = vec![
-            0xF0, 0x1A, // 0814: BEQ $0830
-            0x20, 0x30, 0x08, // 0816: JSR $0830
-            0x4C, 0x30, 0x08, // 0819: JMP $0830
-            0x6C, 0x30, 0x08, // 081C: JMP ($0830)
-        ];
-        // Padding until 0830 so it is internal
-        // 081C + 3 = 081F. Need to pad until 0831 to cover it.
-        // Size: 0x30 - 0x14 + 1 = 0x1D (29 bytes) total roughly.
-        let mut full_data = data.clone();
-        full_data.resize((0x0830 - 0x0814) + 1, 0xEA); // Pad with NOP
-
-        let address_types = vec![AddressType::Code; full_data.len()];
-
-        let mut labels = HashMap::new();
-        let mut names = HashMap::new();
-        names.insert(LabelType::Branch, "b0830".to_string());
-        names.insert(LabelType::Subroutine, "s0830".to_string());
-        names.insert(LabelType::Jump, "j0830".to_string());
-        names.insert(LabelType::Pointer, "p0830".to_string());
-
-        labels.insert(
-            0x0830,
-            crate::state::Label {
-                name: "b0830".to_string(), // Canonical name determined by Analyzer (BEQ first)
-                kind: crate::state::LabelKind::Auto,
-                label_type: LabelType::Branch,
-                refs: Vec::new(),
-            },
-        );
-
-        let lines = disassembler.disassemble(&full_data, &address_types, &labels, origin);
-
-        // BEQ b0830
-        assert_eq!(lines[0].mnemonic, "BEQ");
-        assert_eq!(lines[0].operand, "b0830");
-
-        // JSR s0830 -> Should be b0830 (Canonical Internal)
-        assert_eq!(lines[1].mnemonic, "JSR");
-        assert_eq!(lines[1].operand, "b0830");
-
-        // JMP j0830 -> Should be b0830
-        assert_eq!(lines[2].mnemonic, "JMP");
-        assert_eq!(lines[2].operand, "b0830");
-
-        // JMP (p0830) -> Should be (b0830)
-        assert_eq!(lines[3].mnemonic, "JMP");
-        assert_eq!(lines[3].operand, "(b0830)");
-    }
-
-    #[test]
-    fn test_accumulator_explicit_variant() {
-        let disassembler = Disassembler::new();
-        // 4A: LSR A, 6A: ROR A, 0A: ASL A, 2A: ROL A
-        let data = vec![0x4A, 0x6A, 0x0A, 0x2A];
-        let address_types = vec![AddressType::Code; data.len()];
-        let labels = HashMap::new();
-        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
-
-        assert_eq!(lines.len(), 4);
-
-        assert_eq!(lines[0].mnemonic, "LSR");
-        assert_eq!(lines[0].operand, "A");
-
-        assert_eq!(lines[1].mnemonic, "ROR");
-        assert_eq!(lines[1].operand, "A");
-
-        assert_eq!(lines[2].mnemonic, "ASL");
-        assert_eq!(lines[2].operand, "A");
-
-        assert_eq!(lines[3].mnemonic, "ROL");
-        assert_eq!(lines[3].operand, "A");
-    }
-
-    #[test]
-    fn test_disassembly_grouping() {
-        let disassembler = Disassembler::new();
-        // 10 bytes: 01 02 03 04 05 06 07 08 09 0A
-        // 6 words: 01 00 02 00 03 00 04 00 05 00 06 00 -> $0001, $0002, ...
-        // Total 22 bytes.
-        let mut data = Vec::new();
-        for i in 1..=10 {
-            data.push(i);
-        }
-        for i in 1..=6 {
-            data.push(i);
-            data.push(0);
-        }
-
-        let mut address_types = vec![AddressType::Code; data.len()];
-        // Mark first 10 as DataByte
-        for i in 0..10 {
-            address_types[i] = AddressType::DataByte;
-        }
-        // Mark rest as DataWord
-        for i in 10..22 {
-            address_types[i] = AddressType::DataWord;
-        }
-
-        let mut labels = HashMap::new();
-        // Insert label at index 9 (address 1009) to break grouping of bytes
-        // 1000..1007 (8 bytes) -> Group 1
-        // 1008 (1 byte) -> Group 2 (because 1009 has label)
-
-        labels.insert(
-            0x1009,
-            crate::state::Label {
-                name: "SplitBytes".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
-                refs: Vec::new(),
-            },
-        );
-
-        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
-
-        assert_eq!(lines.len(), 5);
-
-        // Line 1
-        assert_eq!(lines[0].mnemonic, ".BYTE");
-        assert_eq!(lines[0].operand.matches(',').count(), 7); // 8 items = 7 commas
-        assert!(lines[0].bytes.is_empty());
-
-        // Line 2
-        assert_eq!(lines[1].mnemonic, ".BYTE");
-        assert_eq!(lines[1].operand, "$09");
-        assert!(lines[1].bytes.is_empty());
-
-        // Line 3
-        assert_eq!(lines[2].mnemonic, ".BYTE");
-        assert_eq!(lines[2].operand, "$0A");
-        assert_eq!(lines[2].label, Some("SplitBytes".to_string()));
-
-        // Line 4
-        assert_eq!(lines[3].mnemonic, ".WORD");
-        assert_eq!(lines[3].operand.matches(',').count(), 3); // 4 items
-        assert!(lines[3].bytes.is_empty());
-
-        // Line 5
-        assert_eq!(lines[4].mnemonic, ".WORD");
-        assert_eq!(lines[4].operand.matches(',').count(), 1); // 2 items
-        assert!(lines[4].bytes.is_empty());
-    }
-
-    #[test]
-    fn test_address_grouping() {
-        let disassembler = Disassembler::new();
-        // 3 Addresses: 07 00 08 00 09 00 -> $0007, $0008, $0009
-        let mut data = Vec::new();
-        for i in 7..=9 {
-            data.push(i);
-            data.push(0);
-        }
-
-        let address_types = vec![AddressType::Address; data.len()];
-        let mut labels = HashMap::new();
-        // Label at address 7 "MyAddr"
-        labels.insert(
-            0x0007,
-            crate::state::Label {
-                name: "MyAddr".to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
-                refs: Vec::new(),
-            },
-        );
-
-        let lines = disassembler.disassemble(&data, &address_types, &labels, 0x1000);
-
-        assert_eq!(lines.len(), 1);
-
-        // Line 1: .WORD MyAddr, $0008, $0009 (3 Addresses)
-        assert_eq!(lines[0].mnemonic, ".WORD");
-        assert_eq!(lines[0].operand.matches(',').count(), 2); // 3 items
-        assert!(lines[0].operand.contains("MyAddr"));
-        assert!(lines[0].operand.contains("$0008"));
-        assert!(lines[0].operand.contains("$0009"));
     }
 }

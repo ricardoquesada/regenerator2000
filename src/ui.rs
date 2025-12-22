@@ -207,7 +207,8 @@ fn render_settings_dialog(
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(items.len() as u16 + 1), // Checkboxes + padding
-            Constraint::Min(1),                         // Platform list
+            Constraint::Length(2),                      // Platform
+            Constraint::Min(1),                         // Assembler
         ])
         .split(inner);
 
@@ -235,9 +236,6 @@ fn render_settings_dialog(
 
     let platforms = crate::state::Platform::all();
 
-    // We need to show the list of platforms. Since it's long, we can scroll it?
-    // Or just show all if it fits. 13 items. 60% of screen height should fit 13 items + 5 checkboes = 18 lines.
-
     // Check if platform is selected
     let platform_selected = dialog.selected_index == 4;
 
@@ -261,7 +259,40 @@ fn render_settings_dialog(
         Rect::new(layout[1].x + 2, layout[1].y, layout[1].width - 4, 1),
     );
 
-    // If selecting platform, show the list popup
+    // Assembler Section
+    // Use layout[2] for assembler
+    // We can render label if we want, or just the selection line like Platform does (Platform: < C64 >)
+    // The code above renders "Platform: < ... >" OVER the "Platform:" label?
+    // Wait, the previous code rendered valid label at layout[1].y
+    // And THEN rendered platform_text at layout[1].y
+    // So it overwrites it?
+    // "Platform:" vs "Platform: < C64 >".
+    // Yes, it seems redundant or intentional. "Platform: < C64 >" contains the label text too.
+    // I'll stick to the "Platform: < ... >" format for Assembler too.
+
+    let assembler_selected = dialog.selected_index == 5;
+    let assembler_text = format!("Assembler: < {} >", settings.assembler);
+
+    let assembler_widget = Paragraph::new(assembler_text).style(if assembler_selected {
+        if dialog.is_selecting_assembler {
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        }
+    } else {
+        Style::default().fg(Color::White)
+    });
+
+    f.render_widget(
+        assembler_widget,
+        Rect::new(layout[2].x + 2, layout[2].y, layout[2].width - 4, 1),
+    );
+
+    // Platform Popup
     if dialog.is_selecting_platform {
         let popup_area = centered_rect(40, 50, area);
         f.render_widget(ratatui::widgets::Clear, popup_area);
@@ -282,17 +313,45 @@ fn render_settings_dialog(
             })
             .collect();
 
-        // We need a ListState to scroll to current selection.
-        // Since we don't have a persistent ListState for this in UIState (my bad),
-        // I'll create a temporary one here. It won't remember scroll position between frames perfectly if the list is huge,
-        // but for 13 items it might fit or basic scrolling defaults to 0.
-        // Wait, to support scrolling I need to persist the state or correct index.
-        // The `settings.platform` acts as the "selected index" equivalent.
-        // I can find the index of `settings.platform` in `platforms`.
-
         let selected_idx = platforms
             .iter()
             .position(|p| *p == settings.platform)
+            .unwrap_or(0);
+
+        let mut list_state = ListState::default();
+        list_state.select(Some(selected_idx));
+
+        let list = List::new(list_items)
+            .block(block)
+            .highlight_style(Style::default().add_modifier(Modifier::BOLD));
+        f.render_stateful_widget(list, popup_area, &mut list_state);
+    }
+
+    // Assembler Popup
+    if dialog.is_selecting_assembler {
+        let popup_area = centered_rect(40, 30, area); // Smaller height for fewer items
+        f.render_widget(ratatui::widgets::Clear, popup_area);
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(" Select Assembler ");
+
+        let assemblers = crate::state::Assembler::all();
+        let list_items: Vec<ListItem> = assemblers
+            .iter()
+            .map(|a| {
+                let is_selected = *a == settings.assembler;
+                let style = if is_selected {
+                    Style::default().bg(Color::Blue).fg(Color::White)
+                } else {
+                    Style::default()
+                };
+                ListItem::new(a.to_string()).style(style)
+            })
+            .collect();
+
+        let selected_idx = assemblers
+            .iter()
+            .position(|a| *a == settings.assembler)
             .unwrap_or(0);
 
         let mut list_state = ListState::default();

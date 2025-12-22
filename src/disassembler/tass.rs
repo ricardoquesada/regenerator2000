@@ -1,0 +1,148 @@
+use super::formatter::Formatter;
+use crate::cpu::{AddressingMode, Opcode};
+use crate::state::{Label, LabelType};
+use std::collections::HashMap;
+
+pub struct TassFormatter;
+
+impl Formatter for TassFormatter {
+    fn byte_directive(&self) -> &'static str {
+        ".BYTE"
+    }
+
+    fn word_directive(&self) -> &'static str {
+        ".WORD"
+    }
+
+    fn format_operand(
+        &self,
+        opcode: &Opcode,
+        operands: &[u8],
+        address: u16,
+        labels: &HashMap<u16, Label>,
+        settings: &crate::state::DocumentSettings,
+    ) -> String {
+        let get_label = |addr: u16, _l_type: LabelType| -> Option<String> {
+            labels.get(&addr).map(|l| l.name.clone())
+        };
+
+        match opcode.mode {
+            AddressingMode::Implied => String::new(),
+            AddressingMode::Accumulator => "A".to_string(),
+            AddressingMode::Immediate => format!("#${:02X}", operands[0]),
+            AddressingMode::ZeroPage => {
+                let addr = operands[0] as u16; // Zero page address
+                if let Some(name) = get_label(addr, LabelType::ZeroPageAbsoluteAddress) {
+                    name
+                } else {
+                    format!("${:02X}", addr)
+                }
+            }
+            AddressingMode::ZeroPageX => {
+                let addr = operands[0] as u16;
+                if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
+                    format!("{},X", name)
+                } else {
+                    format!("${:02X},X", addr)
+                }
+            }
+            AddressingMode::ZeroPageY => {
+                let addr = operands[0] as u16;
+                if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
+                    format!("{},Y", name)
+                } else {
+                    format!("${:02X},Y", addr)
+                }
+            }
+            AddressingMode::Relative => {
+                let offset = operands[0] as i8;
+                let target = address.wrapping_add(2).wrapping_add(offset as u16);
+                if let Some(name) = get_label(target, LabelType::Branch) {
+                    name
+                } else {
+                    format!("${:04X}", target)
+                }
+            }
+            AddressingMode::Absolute => {
+                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let l_type = if opcode.mnemonic == "JSR" {
+                    LabelType::Subroutine
+                } else if opcode.mnemonic == "JMP" {
+                    LabelType::Jump
+                } else {
+                    LabelType::AbsoluteAddress
+                };
+
+                let base = if let Some(name) = get_label(addr, l_type) {
+                    name
+                } else {
+                    format!("${:04X}", addr)
+                };
+
+                // Check for @w forcing
+                // Only if settings.use_w_prefix is true AND address fits in ZP (<= 0xFF)
+                // This logic mirrors what was in exporter.rs
+                if settings.use_w_prefix && addr <= 0xFF {
+                    format!("@w {}", base)
+                } else {
+                    base
+                }
+            }
+            AddressingMode::AbsoluteX => {
+                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let base = if let Some(name) = get_label(addr, LabelType::Field) {
+                    format!("{},X", name)
+                } else {
+                    format!("${:04X},X", addr)
+                };
+
+                if settings.use_w_prefix && addr <= 0xFF {
+                    format!("@w {}", base)
+                } else {
+                    base
+                }
+            }
+            AddressingMode::AbsoluteY => {
+                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let base = if let Some(name) = get_label(addr, LabelType::Field) {
+                    format!("{},Y", name)
+                } else {
+                    format!("${:04X},Y", addr)
+                };
+
+                if settings.use_w_prefix && addr <= 0xFF {
+                    format!("@w {}", base)
+                } else {
+                    base
+                }
+            }
+
+            AddressingMode::Indirect => {
+                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                if let Some(name) = get_label(addr, LabelType::Pointer) {
+                    format!("({})", name)
+                } else {
+                    format!("(${:04X})", addr)
+                }
+            }
+            AddressingMode::IndirectX => {
+                let addr = operands[0] as u16;
+                if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
+                    format!("({},X)", name)
+                } else {
+                    format!("(${:02X},X)", addr)
+                }
+            }
+            AddressingMode::IndirectY => {
+                let addr = operands[0] as u16;
+                if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
+                    format!("({}),Y", name)
+                } else {
+                    format!("(${:02X}),Y", addr)
+                }
+            }
+
+            AddressingMode::Unknown => "???".to_string(),
+        }
+    }
+}
