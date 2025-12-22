@@ -73,14 +73,14 @@ impl Disassembler {
                 for l in label_vec {
                     all_refs.extend(l.refs.iter().cloned());
                 }
-                if !all_refs.is_empty() {
+                if !all_refs.is_empty() && settings.max_xref_count > 0 {
                     all_refs.sort_unstable();
                     all_refs.dedup();
 
                     let refs_str: Vec<String> = all_refs
                         .iter()
-                        .take(5)
-                        .map(|r| format!("{:04X}", r))
+                        .take(settings.max_xref_count)
+                        .map(|r| format!("${:04X}", r))
                         .collect();
                     comment = format!("x-ref: {}", refs_str.join(", "));
                 }

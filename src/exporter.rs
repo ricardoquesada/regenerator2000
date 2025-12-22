@@ -304,7 +304,7 @@ mod tests {
             mnemonic: "NOP".to_string(),
             operand: "".to_string(),
             bytes: vec![0xEA],
-            comment: "x-ref: 2000, 3000".to_string(),
+            comment: "x-ref: $2000, $3000".to_string(),
             label: Some("MyLabel".to_string()),
             opcode: None,
         });
@@ -323,12 +323,12 @@ mod tests {
 
         // Check for padding. MyLabel: is 8 chars.
         // Format is {:-40} ; {comment}
-        // "MyLabel:                                 ; x-ref: 2000, 3000"
+        // "MyLabel:                                 ; x-ref: $2000, $3000"
         // Just checking it contains the aligned semi-colon and content is safer than exact spacing if we calculate wrong.
         // Check that label, instruction and comment are on the same line
         assert!(content.contains("MyLabel:"));
         assert!(content.contains("NOP"));
-        assert!(content.contains("; x-ref: 2000, 3000"));
+        assert!(content.contains("; x-ref: $2000, $3000"));
 
         // Ensure they appear in correct order on the line?
         // Since we read whole file, finding them separately is enough for basic correctness.

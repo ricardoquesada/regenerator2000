@@ -163,6 +163,8 @@ pub struct SettingsDialogState {
     pub selected_index: usize,
     pub is_selecting_platform: bool,
     pub is_selecting_assembler: bool,
+    pub is_editing_xref_count: bool,
+    pub xref_count_input: String,
 }
 
 impl SettingsDialogState {
@@ -172,6 +174,8 @@ impl SettingsDialogState {
             selected_index: 0,
             is_selecting_platform: false,
             is_selecting_assembler: false,
+            is_editing_xref_count: false,
+            xref_count_input: String::new(),
         }
     }
 
@@ -180,6 +184,8 @@ impl SettingsDialogState {
         self.selected_index = 0;
         self.is_selecting_platform = false;
         self.is_selecting_assembler = false;
+        self.is_editing_xref_count = false;
+        self.xref_count_input.clear();
     }
 
     pub fn close(&mut self) {
@@ -194,12 +200,13 @@ impl SettingsDialogState {
         // 3: Patch BRK
         // 4: Platform
         // 5: Assembler
-        let max_items = 6;
+        // 6: Max X-Refs
+        let max_items = 7;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 6;
+        let max_items = 7;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {

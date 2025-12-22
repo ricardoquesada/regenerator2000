@@ -107,10 +107,16 @@ pub struct DocumentSettings {
     pub platform: Platform, // default C64
     #[serde(default)]
     pub assembler: Assembler, // default Tass64
+    #[serde(default = "default_max_xref")]
+    pub max_xref_count: usize, // default 5
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn default_max_xref() -> usize {
+    5
 }
 
 impl Default for DocumentSettings {
@@ -122,6 +128,7 @@ impl Default for DocumentSettings {
             patch_brk: false,
             platform: Platform::default(),
             assembler: Assembler::default(),
+            max_xref_count: 5,
         }
     }
 }

@@ -266,3 +266,80 @@ fn test_acme_plus2_formatting() {
     // ACME formatter uses 4 digits for absolute addresses
     assert_eq!(line.operand, "$0012");
 }
+
+#[test]
+fn test_xref_formatting_with_dollar() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let mut labels = HashMap::new();
+    let origin = 0x1000;
+
+    // Create a label with references
+    labels.insert(
+        0x1000,
+        vec![crate::state::Label {
+            name: "TestLabel".to_string(),
+            kind: crate::state::LabelKind::User,
+            label_type: crate::state::LabelType::AbsoluteAddress,
+            refs: vec![0x2000, 0x3000],
+        }],
+    );
+
+    // Code: NOP
+    let code = vec![0xEA];
+    let address_types = vec![AddressType::Code];
+
+    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+
+    assert_eq!(lines.len(), 1);
+    // Check that the comment contains "x-ref: $2000, $3000"
+    // Note: refs are sorted and deduped.
+    assert!(lines[0].comment.contains("x-ref: $2000, $3000"));
+}
+
+#[test]
+fn test_xref_count_configurable() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let mut labels = HashMap::new();
+    let origin = 0x1000;
+
+    // Create a label with many references
+    labels.insert(
+        0x1000,
+        vec![crate::state::Label {
+            name: "ManyRefs".to_string(),
+            kind: crate::state::LabelKind::User,
+            label_type: crate::state::LabelType::AbsoluteAddress,
+            refs: vec![0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005], // 6 Refs
+        }],
+    );
+
+    let code = vec![0xEA];
+    let address_types = vec![AddressType::Code];
+
+    // Case 1: Default (5)
+    settings.max_xref_count = 5;
+    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    assert_eq!(lines.len(), 1);
+    // Should show 5 items
+    let comment = &lines[0].comment;
+    assert!(comment.contains("$2004"));
+    assert!(!comment.contains("$2005"));
+
+    // Case 2: Limit to 2
+    settings.max_xref_count = 2;
+    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let comment = &lines[0].comment;
+    assert!(comment.contains("$2000, $2001"));
+    assert!(!comment.contains("$2002"));
+
+    // Case 3: Zero (Off)
+    settings.max_xref_count = 0;
+    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    assert!(lines[0].comment.is_empty());
+}

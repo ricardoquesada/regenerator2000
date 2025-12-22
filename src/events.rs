@@ -319,9 +319,14 @@ pub fn run_app<B: Backend>(
                             ui_state.settings_dialog.is_selecting_platform = false;
                         } else if ui_state.settings_dialog.is_selecting_assembler {
                             ui_state.settings_dialog.is_selecting_assembler = false;
+                        } else if ui_state.settings_dialog.is_editing_xref_count {
+                            ui_state.settings_dialog.is_editing_xref_count = false;
+                            // Reset input to current value
+                            ui_state.settings_dialog.xref_count_input.clear();
                         } else {
                             ui_state.settings_dialog.close();
                             ui_state.status_message = "Ready".to_string();
+                            app_state.disassemble(); // Disassemble on close to apply all settings
                         }
                     }
                     KeyCode::Up => {
@@ -351,8 +356,7 @@ pub fn run_app<B: Backend>(
                                 current_idx - 1
                             };
                             app_state.settings.assembler = assemblers[new_idx];
-                            app_state.disassemble(); // Refresh disassembly on change
-                        } else {
+                        } else if !ui_state.settings_dialog.is_editing_xref_count {
                             ui_state.settings_dialog.previous();
                         }
                     }
@@ -375,8 +379,7 @@ pub fn run_app<B: Backend>(
                                 .unwrap_or(0);
                             let new_idx = (current_idx + 1) % assemblers.len();
                             app_state.settings.assembler = assemblers[new_idx];
-                            app_state.disassemble(); // Refresh disassembly on change
-                        } else {
+                        } else if !ui_state.settings_dialog.is_editing_xref_count {
                             ui_state.settings_dialog.next();
                         }
                     }
@@ -385,14 +388,24 @@ pub fn run_app<B: Backend>(
                             ui_state.settings_dialog.is_selecting_platform = false;
                         } else if ui_state.settings_dialog.is_selecting_assembler {
                             ui_state.settings_dialog.is_selecting_assembler = false;
+                        } else if ui_state.settings_dialog.is_editing_xref_count {
+                            // Commit value
+                            if let Ok(val) =
+                                ui_state.settings_dialog.xref_count_input.parse::<usize>()
+                            {
+                                app_state.settings.max_xref_count = val;
+                                ui_state.settings_dialog.is_editing_xref_count = false;
+                            } else {
+                                // Invalid input, maybe keep editing or reset?
+                                // For now, keep editing.
+                            }
                         } else {
-                            // Toggle checkbox or enter platform mode
+                            // Toggle checkbox or enter mode
                             match ui_state.settings_dialog.selected_index {
                                 0 => app_state.settings.all_labels = !app_state.settings.all_labels,
                                 1 => {
                                     app_state.settings.use_w_prefix =
                                         !app_state.settings.use_w_prefix;
-                                    app_state.disassemble(); // Refresh for @w change
                                 }
                                 2 => {
                                     app_state.settings.brk_single_byte =
@@ -413,7 +426,24 @@ pub fn run_app<B: Backend>(
                                 5 => {
                                     ui_state.settings_dialog.is_selecting_assembler = true;
                                 }
+                                6 => {
+                                    ui_state.settings_dialog.is_editing_xref_count = true;
+                                    ui_state.settings_dialog.xref_count_input =
+                                        app_state.settings.max_xref_count.to_string();
+                                }
                                 _ => {}
+                            }
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        if ui_state.settings_dialog.is_editing_xref_count {
+                            ui_state.settings_dialog.xref_count_input.pop();
+                        }
+                    }
+                    KeyCode::Char(c) => {
+                        if ui_state.settings_dialog.is_editing_xref_count {
+                            if c.is_ascii_digit() {
+                                ui_state.settings_dialog.xref_count_input.push(c);
                             }
                         }
                     }

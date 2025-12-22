@@ -208,7 +208,8 @@ fn render_settings_dialog(
         .constraints([
             Constraint::Length(items.len() as u16 + 1), // Checkboxes + padding
             Constraint::Length(2),                      // Platform
-            Constraint::Min(1),                         // Assembler
+            Constraint::Length(2), // Assembler (increased to 2 to match platform spacing style/consistency if needed, or keeping previous logic) -- Previous was Min(1). Let's stick to consistent spacing.
+            Constraint::Length(2), // Max X-Refs
         ])
         .split(inner);
 
@@ -287,9 +288,38 @@ fn render_settings_dialog(
         Style::default().fg(Color::White)
     });
 
+    // Assembler uses layout[2]
     f.render_widget(
         assembler_widget,
         Rect::new(layout[2].x + 2, layout[2].y, layout[2].width - 4, 1),
+    );
+
+    // X-Refs uses layout[3]
+    let xref_selected = dialog.selected_index == 6;
+    let xref_value_str = if dialog.is_editing_xref_count {
+        dialog.xref_count_input.clone()
+    } else {
+        settings.max_xref_count.to_string()
+    };
+
+    let xref_text = format!("Max X-Refs: < {} >", xref_value_str);
+    let xref_widget = Paragraph::new(xref_text).style(if xref_selected {
+        if dialog.is_editing_xref_count {
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        }
+    } else {
+        Style::default().fg(Color::White)
+    });
+
+    f.render_widget(
+        xref_widget,
+        Rect::new(layout[3].x + 2, layout[3].y, layout[3].width - 4, 1),
     );
 
     // Platform Popup
