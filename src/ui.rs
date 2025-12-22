@@ -81,31 +81,35 @@ fn render_about_dialog(f: &mut Frame, ui_state: &UIState, area: Rect) {
                 ])
                 .split(inner);
 
-            // 1. Render Logo (Scaled & Centered in chunks[0])
+            // 1. Render Logo
             let img_area = chunks[0];
-            let img_width = logo.width() as u16;
-            let img_height = logo.height() as u16;
 
-            let term_height_scale = 2;
-            let img_width_f = img_width as f64;
-            let img_height_f = (img_height / term_height_scale) as f64;
+            // Calculate native size in cells (assuming 8x16 font)
+            let font_width = 8.0;
+            let font_height = 16.0;
 
-            let avail_width_f = img_area.width as f64;
-            let avail_height_f = img_area.height as f64;
+            let native_width_cells = logo.width() as f64 / font_width;
+            let native_height_cells = logo.height() as f64 / font_height;
 
-            let width_scale = avail_width_f / img_width_f;
-            let height_scale = avail_height_f / img_height_f;
+            let avail_width_cells = img_area.width as f64;
+            let avail_height_cells = img_area.height as f64;
 
-            let scale = width_scale.min(height_scale).min(1.0);
+            // Calculate scale to fit
+            let scale_w = avail_width_cells / native_width_cells;
+            let scale_h = avail_height_cells / native_height_cells;
 
-            let render_width = (img_width_f * scale) as u16;
-            let render_height = (img_height_f * scale) as u16;
+            // Limit scale to 1.0 (don't upscale)
+            let scale = scale_w.min(scale_h).min(1.0);
+
+            let render_width = (native_width_cells * scale).max(1.0) as u16;
+            let render_height = (native_height_cells * scale).max(1.0) as u16;
 
             let x = img_area.x + (img_area.width.saturating_sub(render_width)) / 2;
             let y = img_area.y + (img_area.height.saturating_sub(render_height)) / 2;
 
             let centered_area = ratatui::layout::Rect::new(x, y, render_width, render_height);
 
+            // Use the original logo and let the library handle the downsampling into the target rect
             let mut protocol = picker.new_resize_protocol(logo.clone());
             let widget = StatefulImage::new();
             f.render_stateful_widget(widget, centered_area, &mut protocol);
