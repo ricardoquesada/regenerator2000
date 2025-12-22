@@ -245,11 +245,23 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::ui_state
 }
 
 fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Disassembly ");
+    let inner_area = block.inner(area);
+    let visible_height = inner_area.height as usize;
+    let total_items = app_state.disassembly.len();
+    let context_lines = visible_height / 2;
+    let offset = ui_state.cursor_index.saturating_sub(context_lines);
+
     let items: Vec<ListItem> = app_state
         .disassembly
         .iter()
+        .skip(offset)
+        .take(visible_height)
         .enumerate()
-        .map(|(i, line)| {
+        .map(|(local_i, line)| {
+            let i = offset + local_i;
             let is_selected = if let Some(selection_start) = ui_state.selection_start {
                 let (start, end) = if selection_start < ui_state.cursor_index {
                     (selection_start, ui_state.cursor_index)
@@ -334,21 +346,17 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
     // For large lists, we should only render what's visible or use ListState.
     // Let's use ListState and passing the items.
 
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Disassembly "),
-        )
-        .highlight_style(Style::default().bg(Color::Cyan).fg(Color::Black)); // This is if we use state select
+    let list = List::new(items).block(block);
 
-    // We need to manage the ListState in AppState or here.
-    // If we use `cursor_index` as the selected item.
-    ui_state
-        .disassembly_state
-        .select(Some(ui_state.cursor_index));
-
-    f.render_stateful_widget(list, area, &mut ui_state.disassembly_state);
+    let mut state = ListState::default();
+    if total_items > 0 {
+        let local_cursor = ui_state.cursor_index.saturating_sub(offset);
+        if local_cursor < visible_height {
+            state.select(Some(local_cursor));
+        }
+    }
+    f.render_stateful_widget(list, area, &mut state);
+    ui_state.scroll_index = offset;
 }
 
 fn render_status_bar(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &UIState) {

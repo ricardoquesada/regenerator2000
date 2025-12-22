@@ -230,6 +230,26 @@ pub fn run_app<B: Backend>(
                                     if !is_project {
                                         app_state.perform_analysis();
                                     }
+
+                                    // Move cursor to origin
+                                    let target_addr = app_state.origin;
+                                    if let Some(idx) = app_state
+                                        .disassembly
+                                        .iter()
+                                        .position(|line| line.address == target_addr)
+                                    {
+                                        ui_state.cursor_index = idx;
+                                    } else {
+                                        // Fallback if exact match not found (e.g. external labels at 0)
+                                        // Try to find first address >= origin
+                                        if let Some(idx) = app_state
+                                            .disassembly
+                                            .iter()
+                                            .position(|line| line.address >= target_addr)
+                                        {
+                                            ui_state.cursor_index = idx;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -461,6 +481,22 @@ fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: 
         }
         "Analyze" => {
             ui_state.status_message = app_state.perform_analysis();
+            // Move cursor to origin
+            let target_addr = app_state.origin;
+            if let Some(idx) = app_state
+                .disassembly
+                .iter()
+                .position(|line| line.address == target_addr)
+            {
+                ui_state.cursor_index = idx;
+            } else if let Some(idx) = app_state
+                .disassembly
+                .iter()
+                .position(|line| line.address >= target_addr)
+            {
+                // Fallback
+                ui_state.cursor_index = idx;
+            }
         }
         "Undo" => {
             ui_state.status_message = app_state.undo_last_command();
