@@ -644,6 +644,10 @@ fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: 
             ui_state.save_dialog.open(SaveDialogMode::ExportAsm);
             ui_state.status_message = "Enter filename for ASM".to_string();
         }
+        "Export ASM As..." => {
+            ui_state.save_dialog.open(SaveDialogMode::ExportAsm);
+            ui_state.status_message = "Enter filename for ASM".to_string();
+        }
         "Document Settings" => {
             ui_state.settings_dialog.open();
             ui_state.status_message = "Document Settings".to_string();
