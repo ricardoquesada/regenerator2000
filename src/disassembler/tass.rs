@@ -191,7 +191,7 @@ impl Formatter for TassFormatter {
 
         if is_start {
             lines.push((".ENCODE".to_string(), String::new(), false));
-            lines.push((".ENC".to_string(), "\"ASCII\"".to_string(), false)); // Or "NONE", but "ASCII" usually implies raw
+            lines.push((".ENC".to_string(), "\"NONE\"".to_string(), false));
         }
 
         // Special handling for single byte logic if needed, but for now standard text

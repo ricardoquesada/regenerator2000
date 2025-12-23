@@ -613,7 +613,7 @@ mod tests {
     use std::collections::HashMap;
 
     #[test]
-    fn test_repro_text_issue() {
+    fn test_tass_screencode_case_mapping() {
         let mut settings = DocumentSettings::default();
         settings.assembler = Assembler::Tass64;
 
@@ -621,42 +621,33 @@ mod tests {
         let labels = HashMap::new();
         let origin = 0x1000;
 
-        // Case A: 30 2d 39 2c 20 48 4f 4c 41 20 43 4f 4d 4f (0-9, HOLA COMO)
+        // Case A: 30 2d 39 2c 20 08 0f 0c 01 20 03 0f 0d 0f (0-9, HOLA COMO)
         let bytes_a = vec![
-            0x30, 0x2d, 0x39, 0x2c, 0x20, 0x48, 0x4F, 0x4C, 0x41, 0x20, 0x43, 0x4F, 0x4D, 0x4F,
+            0x30, 0x2d, 0x39, 0x2c, 0x20, 0x08, 0x0F, 0x0C, 0x01, 0x20, 0x03, 0x0F, 0x0D, 0x0F,
         ];
-        let block_types_a = vec![BlockType::Text; bytes_a.len()];
+        let block_types_a = vec![BlockType::Screencode; bytes_a.len()];
 
         let lines_a =
             disassembler.disassemble(&bytes_a, &block_types_a, &labels, origin, &settings);
 
-        // Print output for debugging
-        for line in &lines_a {
-            println!("A: {} {}", line.mnemonic, line.operand);
-        }
-
         assert_eq!(lines_a.len(), 4);
         assert_eq!(lines_a[0].mnemonic, ".ENCODE");
-        assert_eq!(lines_a[1].operand, "\"ASCII\"");
+        assert_eq!(lines_a[1].operand, "\"SCREEN\"");
         assert_eq!(lines_a[2].mnemonic, ".TEXT");
         assert_eq!(lines_a[2].operand, "\"0-9, HOLA COMO\"");
         assert_eq!(lines_a[3].mnemonic, ".ENDENCODE");
 
-        // Case B: 30 2d 39 2c 20 68 6f 6c 61 20 63 6f 6d 6f (0-9, hola como)
+        // Case B: 30 2d 39 2c 20 48 4f 4c 41 20 43 4f 4d 4f (0-9, hola como)
         let bytes_b = vec![
-            0x30, 0x2d, 0x39, 0x2c, 0x20, 0x68, 0x6F, 0x6C, 0x61, 0x20, 0x63, 0x6F, 0x6D, 0x6F,
+            0x30, 0x2d, 0x39, 0x2c, 0x20, 0x48, 0x4F, 0x4C, 0x41, 0x20, 0x43, 0x4F, 0x4D, 0x4F,
         ];
-        let block_types_b = vec![BlockType::Text; bytes_b.len()];
+        let block_types_b = vec![BlockType::Screencode; bytes_b.len()];
 
         let lines_b =
             disassembler.disassemble(&bytes_b, &block_types_b, &labels, origin, &settings);
 
-        // Print output for debugging
-        for line in &lines_b {
-            println!("B: {} {}", line.mnemonic, line.operand);
-        }
-
         assert_eq!(lines_b.len(), 4);
+        assert_eq!(lines_b[1].operand, "\"SCREEN\"");
         assert_eq!(lines_b[2].mnemonic, ".TEXT");
         assert_eq!(lines_b[2].operand, "\"0-9, hola como\"");
     }

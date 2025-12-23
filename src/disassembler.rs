@@ -614,6 +614,8 @@ impl Disassembler {
                 b + 64
             } else if b < 64 {
                 b
+            } else if b < 96 {
+                b + 32
             } else {
                 // Extended/Reverse codes
                 // Just pass through as is, we'll filter printability later
