@@ -97,10 +97,7 @@ impl Formatter for TassFormatter {
                     format!("${:04X}", addr)
                 };
 
-                // Check for @w forcing
-                // Only if settings.use_w_prefix is true AND address fits in ZP (<= 0xFF)
-                // This logic mirrors what was in exporter.rs
-                if settings.use_w_prefix && addr <= 0xFF {
+                if settings.preserve_long_bytes && addr <= 0xFF {
                     format!("@w {}", base)
                 } else {
                     base
@@ -114,7 +111,7 @@ impl Formatter for TassFormatter {
                     format!("${:04X},X", addr)
                 };
 
-                if settings.use_w_prefix && addr <= 0xFF {
+                if settings.preserve_long_bytes && addr <= 0xFF {
                     format!("@w {}", base)
                 } else {
                     base
@@ -128,7 +125,7 @@ impl Formatter for TassFormatter {
                     format!("${:04X},Y", addr)
                 };
 
-                if settings.use_w_prefix && addr <= 0xFF {
+                if settings.preserve_long_bytes && addr <= 0xFF {
                     format!("@w {}", base)
                 } else {
                     base

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 fn test_tass_formatting_force_w() {
     let mut settings = DocumentSettings::default();
     settings.assembler = Assembler::Tass64;
-    settings.use_w_prefix = true;
+    settings.preserve_long_bytes = true;
 
     let disassembler = Disassembler::new();
     let labels = HashMap::new();
@@ -28,7 +28,7 @@ fn test_tass_formatting_force_w() {
 fn test_tass_formatting_no_force_if_disabled() {
     let mut settings = DocumentSettings::default();
     settings.assembler = Assembler::Tass64;
-    settings.use_w_prefix = false;
+    settings.preserve_long_bytes = false;
 
     let disassembler = Disassembler::new();
     let labels = HashMap::new();
@@ -190,8 +190,8 @@ fn test_contextual_label_formatting() {
     // `AddressingMode::Absolute => { ... if let Some(name) = get_label(...) { name } ... }`
     // So it will just be "a00A0".
     // EDIT: Actually, TassFormatter NOW enforces @w if address <= 0xFF and settings.use_w_prefix is true.
-    // Default settings might have use_w_prefix = true?
-    // Checking DocumentSettings::default(). use_w_prefix defaults to TRUE?
+    // Default settings might have preserve_long_bytes = true?
+    // Checking DocumentSettings::default(). preserve_long_bytes defaults to TRUE?
     // Wait, let's just accept what the tool output said: left: "@w a00A0".
     assert_eq!(lines[2].operand, "@w a00A0");
 }
@@ -248,7 +248,7 @@ fn test_acme_lowercase_output() {
 fn test_acme_plus2_formatting() {
     let mut settings = DocumentSettings::default();
     settings.assembler = Assembler::Acme;
-    settings.use_w_prefix = true;
+    settings.preserve_long_bytes = true;
 
     let disassembler = Disassembler::new();
     let labels = HashMap::new();

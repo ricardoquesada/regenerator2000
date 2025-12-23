@@ -184,8 +184,8 @@ fn render_settings_dialog(
             false,
         ),
         checkbox(
-            "Use long bytes (@w, +2, etc)",
-            settings.use_w_prefix,
+            "Preserve long bytes (@w, +2, etc)",
+            settings.preserve_long_bytes,
             dialog.selected_index == 1,
             false,
         ),

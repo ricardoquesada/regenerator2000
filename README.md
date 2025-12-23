@@ -11,7 +11,7 @@ A 6502 disassembler with a TUI. A modern take on [Regenerator][regenerator].
 Regenerator2000 brings modern conveniences to 6502 disassembly:
 
 - **Disassembly**: Full 6502 support including undocumented opcodes.
-- **Platforms**: Supports a wide range of platforms including C64, VIC20, NES, Apple II, Atari 8-bit, BBC Micro, Oric, and more.
+- **Platforms**: Supports Commodore 8-bit machines like C64, C128, Plus/4, etc.
 - **Import**: Load `.prg`, `.bin`, and `.regen2000proj` files.
 - **Export**: Generate compatible assembly source for:
   - **64tass**

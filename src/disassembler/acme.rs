@@ -210,7 +210,7 @@ impl Formatter for AcmeFormatter {
         // Check if we need to force 16-bit addressing with +2
         // Only if settings.use_w_prefix is true AND address fits in ZP (<= 0xFF)
         // And addressing mode is Absolute, AbsoluteX, or AbsoluteY
-        if settings.use_w_prefix {
+        if settings.preserve_long_bytes {
             let should_force = match opcode.mode {
                 AddressingMode::Absolute
                 | AddressingMode::AbsoluteX

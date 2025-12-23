@@ -416,8 +416,8 @@ pub fn run_app<B: Backend>(
                             match ui_state.settings_dialog.selected_index {
                                 0 => app_state.settings.all_labels = !app_state.settings.all_labels,
                                 1 => {
-                                    app_state.settings.use_w_prefix =
-                                        !app_state.settings.use_w_prefix;
+                                    app_state.settings.preserve_long_bytes =
+                                        !app_state.settings.preserve_long_bytes;
                                 }
                                 2 => {
                                     app_state.settings.brk_single_byte =

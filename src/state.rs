@@ -5,9 +5,6 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Platform {
-    AppleII,
-    Atari8Bit,
-    BBCMicro,
     Commodore128,
     Commodore1541,
     Commodore64,
@@ -15,9 +12,6 @@ pub enum Platform {
     CommodorePET40,
     CommodorePlus4,
     CommodoreVIC20,
-    NES,
-    Oric10,
-    Oric11,
 }
 
 impl Default for Platform {
@@ -29,9 +23,6 @@ impl Default for Platform {
 impl std::fmt::Display for Platform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Platform::AppleII => write!(f, "Apple II"),
-            Platform::Atari8Bit => write!(f, "Atari 8 bit"),
-            Platform::BBCMicro => write!(f, "BBC Micro"),
             Platform::Commodore128 => write!(f, "Commodore 128"),
             Platform::Commodore1541 => write!(f, "Commodore 1541"),
             Platform::Commodore64 => write!(f, "Commodore 64"),
@@ -39,9 +30,6 @@ impl std::fmt::Display for Platform {
             Platform::CommodorePET40 => write!(f, "Commodore PET 4.0"),
             Platform::CommodorePlus4 => write!(f, "Commodore Plus/4"),
             Platform::CommodoreVIC20 => write!(f, "Commodore VIC 20"),
-            Platform::NES => write!(f, "NES"),
-            Platform::Oric10 => write!(f, "Oric 1.0"),
-            Platform::Oric11 => write!(f, "Oric 1.1"),
         }
     }
 }
@@ -49,9 +37,6 @@ impl std::fmt::Display for Platform {
 impl Platform {
     pub fn all() -> &'static [Platform] {
         &[
-            Platform::AppleII,
-            Platform::Atari8Bit,
-            Platform::BBCMicro,
             Platform::Commodore128,
             Platform::Commodore1541,
             Platform::Commodore64,
@@ -59,9 +44,6 @@ impl Platform {
             Platform::CommodorePET40,
             Platform::CommodorePlus4,
             Platform::CommodoreVIC20,
-            Platform::NES,
-            Platform::Oric10,
-            Platform::Oric11,
         ]
     }
 }
@@ -93,12 +75,12 @@ impl Assembler {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DocumentSettings {
     #[serde(default)]
     pub all_labels: bool, // default false
     #[serde(default = "default_true")]
-    pub use_w_prefix: bool, // default true
+    pub preserve_long_bytes: bool, // default true
     #[serde(default)]
     pub brk_single_byte: bool, // default false
     #[serde(default)]
@@ -123,7 +105,7 @@ impl Default for DocumentSettings {
     fn default() -> Self {
         Self {
             all_labels: false,
-            use_w_prefix: true,
+            preserve_long_bytes: true,
             brk_single_byte: false,
             patch_brk: false,
             platform: Platform::default(),
