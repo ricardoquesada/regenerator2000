@@ -202,7 +202,8 @@ pub struct Block {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectState {
     pub origin: u16,
-    pub raw_data: Vec<String>, // Chunked Hex
+    #[serde(rename = "raw_data_base64")]
+    pub raw_data: String,
     pub blocks: Vec<Block>,
     #[serde(default)]
     pub labels: HashMap<u16, Vec<Label>>,
@@ -290,7 +291,7 @@ impl AppState {
         self.origin = project.origin;
 
         // Decode raw data
-        self.raw_data = decode_raw_data(&project.raw_data)?;
+        self.raw_data = decode_raw_data_from_base64(&project.raw_data)?;
 
         // Expand address types
         self.block_types = expand_blocks(&project.blocks, self.raw_data.len());
@@ -311,7 +312,7 @@ impl AppState {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
                 origin: self.origin,
-                raw_data: encode_raw_data(&self.raw_data),
+                raw_data: encode_raw_data_to_base64(&self.raw_data),
                 blocks: compress_block_types(&self.block_types),
                 labels: self
                     .labels
@@ -660,27 +661,26 @@ fn expand_blocks(ranges: &[Block], len: usize) -> Vec<BlockType> {
     types
 }
 
-fn encode_raw_data(data: &[u8]) -> Vec<String> {
-    data.chunks(32)
-        .map(|chunk| {
-            chunk
-                .iter()
-                .map(|b| format!("{:02X}", b))
-                .collect::<Vec<_>>()
-                .join(" ")
-        })
-        .collect()
+use base64::{engine::general_purpose, Engine as _};
+use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
+use flate2::Compression;
+use std::io::Read;
+use std::io::Write;
+
+pub(crate) fn encode_raw_data_to_base64(data: &[u8]) -> String {
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(data).unwrap();
+    let compressed_data = encoder.finish().unwrap();
+    general_purpose::STANDARD.encode(compressed_data)
 }
 
-fn decode_raw_data(data: &[String]) -> anyhow::Result<Vec<u8>> {
-    let mut raw = Vec::with_capacity(data.len() * 32);
-    for line in data {
-        for byte_str in line.split_whitespace() {
-            let byte = u8::from_str_radix(byte_str, 16)?;
-            raw.push(byte);
-        }
-    }
-    Ok(raw)
+pub(crate) fn decode_raw_data_from_base64(data: &str) -> anyhow::Result<Vec<u8>> {
+    let decoded_compressed = general_purpose::STANDARD.decode(data)?;
+    let mut decoder = GzDecoder::new(&decoded_compressed[..]);
+    let mut raw_data = Vec::new();
+    decoder.read_to_end(&mut raw_data)?;
+    Ok(raw_data)
 }
 
 #[cfg(test)]
@@ -740,27 +740,16 @@ mod serialization_tests {
     }
 
     #[test]
-    fn test_encode_raw_data() {
-        let data: Vec<u8> = (0..40).collect();
-        let encoded = encode_raw_data(&data);
-        assert_eq!(encoded.len(), 2);
-        // First chunk 32 bytes: 00 01 ... 1F
-        let chunk1: Vec<String> = (0..32).map(|b| format!("{:02X}", b)).collect();
-        assert_eq!(encoded[0], chunk1.join(" "));
+    fn test_encode_decode_raw_data() {
+        let data: Vec<u8> = (0..100).collect();
+        let encoded = encode_raw_data_to_base64(&data);
+        // Base64 string should not contain spaces
+        assert!(!encoded.contains(' '));
 
-        // Second chunk 6 bytes: 20 21 22 23 24 25 26 27
-        let chunk2: Vec<String> = (32..40).map(|b| format!("{:02X}", b)).collect();
-        assert_eq!(encoded[1], chunk2.join(" "));
-    }
-
-    #[test]
-    fn test_decode_raw_data() {
-        let encoded = vec!["00 01 02".to_string(), "FF".to_string()];
-        let decoded = decode_raw_data(&encoded).unwrap();
-        assert_eq!(decoded, vec![0x00, 0x01, 0x02, 0xFF]);
+        let decoded = decode_raw_data_from_base64(&encoded).unwrap();
+        assert_eq!(data, decoded);
     }
 }
-
 #[cfg(test)]
 mod load_file_tests {
     use super::*;

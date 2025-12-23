@@ -12,22 +12,13 @@ mod tests {
         // 4C 05 10  -> JMP $1005. Should generate auto label j1005 (or b1005 depending on logic, but definitely an auto label).
         // The project JSON will have NO labels map (empty).
 
-        let _raw_data_hex = vec!["4C 05 10 EA EA".to_string()]; // JMP $1005, NOP, NOP. Origin 1000.
-                                                                // 1000: 4C 05 10
-                                                                // 1003: EA
-                                                                // 1004: EA
-                                                                // 1005: (End of file, but target is 1005).
-                                                                // Wait, if target is 1005 and len is 5, origin 1000...
-                                                                // 1000, 1001, 1002, 1003, 1004.
-                                                                // 1005 is External if data len is 5.
-                                                                // Let's make data len 6. "4C 05 10 EA EA EA".
-                                                                // 1000..1005 (inclusive).
-
-        let chunk = "4C 05 10 EA EA EA";
+        // Create raw bytes: 4C 05 10 EA EA EA
+        let raw_bytes: Vec<u8> = vec![0x4C, 0x05, 0x10, 0xEA, 0xEA, 0xEA];
+        let raw_data_base64 = crate::state::encode_raw_data_to_base64(&raw_bytes);
 
         let project = ProjectState {
             origin: 0x1000,
-            raw_data: vec![chunk.to_string()],
+            raw_data: raw_data_base64,
             blocks: vec![Block {
                 start: 0,
                 end: 5,
