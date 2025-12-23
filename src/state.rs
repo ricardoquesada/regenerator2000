@@ -529,6 +529,7 @@ impl AppState {
                     comment: String::new(),
                     label: None,
                     opcode: None,
+                    show_bytes: true,
                 });
 
                 for (addr, name) in group {
@@ -540,6 +541,7 @@ impl AppState {
                         comment: String::new(),
                         label: None,
                         opcode: None,
+                        show_bytes: true,
                     });
                 }
 
@@ -551,6 +553,7 @@ impl AppState {
                     comment: String::new(),
                     label: None,
                     opcode: None,
+                    show_bytes: true,
                 });
             }
         };
@@ -902,6 +905,7 @@ mod cursor_tests {
             comment: "".to_string(),
             label: None,
             opcode: None,
+            show_bytes: true,
         });
 
         // Simulate code at origin
@@ -913,6 +917,7 @@ mod cursor_tests {
             comment: "".to_string(),
             label: None,
             opcode: None,
+            show_bytes: true,
         });
 
         // Should return index 1 (the code), not index 0 (the header)
@@ -931,6 +936,7 @@ mod cursor_tests {
             comment: "".to_string(),
             label: None,
             opcode: None,
+            show_bytes: true,
         });
 
         // Actual code at $0000
@@ -942,6 +948,7 @@ mod cursor_tests {
             comment: "".to_string(),
             label: None,
             opcode: None,
+            show_bytes: true,
         });
 
         let idx = app_state_zero.get_line_index_for_address(0);

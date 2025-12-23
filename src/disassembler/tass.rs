@@ -184,8 +184,26 @@ impl Formatter for TassFormatter {
         (".TEXT".to_string(), format!("\"{}\"", text))
     }
 
-    fn format_screencode(&self, text: &str) -> (String, String) {
-        ("!TEXT".to_string(), format!("\"{}\"", text))
+    fn format_screencode(
+        &self,
+        text: &str,
+        is_start: bool,
+        is_end: bool,
+    ) -> Vec<(String, String, bool)> {
+        let mut lines = Vec::new();
+
+        if is_start {
+            lines.push((".ENCODE".to_string(), String::new(), false));
+            lines.push((".ENC SCREEN".to_string(), String::new(), false));
+        }
+
+        lines.push((".TEXT".to_string(), format!("\"{}\"", text), true));
+
+        if is_end {
+            lines.push((".ENDENCODE".to_string(), String::new(), false));
+        }
+
+        lines
     }
 
     fn format_header_origin(&self, origin: u16) -> String {

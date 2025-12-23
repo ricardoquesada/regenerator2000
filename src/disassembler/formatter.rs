@@ -21,7 +21,12 @@ pub trait Formatter {
     fn format_byte(&self, byte: u8) -> String;
     fn format_word(&self, word: u16) -> String;
     fn format_text(&self, text: &str) -> (String, String);
-    fn format_screencode(&self, text: &str) -> (String, String);
+    fn format_screencode(
+        &self,
+        text: &str,
+        is_start: bool,
+        is_end: bool,
+    ) -> Vec<(String, String, bool)>;
     fn format_header_origin(&self, origin: u16) -> String;
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String;
 

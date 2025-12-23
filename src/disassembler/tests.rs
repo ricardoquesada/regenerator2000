@@ -392,3 +392,171 @@ fn test_text_and_screencode_disassembly() {
     assert_eq!(lines[0].mnemonic, "!byte");
     assert_eq!(lines[0].operand, "$FF");
 }
+
+#[test]
+fn test_tass_screencode_enc_wrapping() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let labels = HashMap::new();
+    let origin = 0x1000;
+
+    // "ABC" in screencode (0x01, 0x02, 0x03)
+    let code = vec![0x01, 0x02, 0x03];
+    let address_types = vec![
+        AddressType::Screencode,
+        AddressType::Screencode,
+        AddressType::Screencode,
+    ];
+
+    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+
+    assert_eq!(lines.len(), 4);
+
+    // 1. Start Block
+    assert_eq!(lines[0].mnemonic, ".ENCODE");
+    assert_eq!(lines[1].mnemonic, ".ENC SCREEN");
+
+    // 2. Content
+    assert_eq!(lines[2].mnemonic, ".TEXT");
+    assert!(lines[2].operand.contains("\"ABC\""));
+
+    // 3. End Block
+    assert_eq!(lines[3].mnemonic, ".ENDENCODE");
+}
+
+#[test]
+fn test_tass_screencode_multiline_wrapping() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let labels = HashMap::new();
+    let origin = 0x1000;
+
+    // 40 bytes of screencode (exceeds 32 byte limit per line)
+    // 0x01 * 40
+    let code = vec![0x01; 40];
+    let address_types = vec![AddressType::Screencode; 40];
+
+    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+
+    // Expected:
+    // 1. .ENCODE
+    // 2. .ENC SCREEN
+    // 3. .TEXT "..." (32 bytes)
+    // 4. .TEXT "..." (8 bytes)
+    // 5. .ENDENCODE
+
+    assert_eq!(lines.len(), 5);
+
+    // Line 1-2: Header
+    assert_eq!(lines[0].mnemonic, ".ENCODE");
+    assert_eq!(lines[1].mnemonic, ".ENC SCREEN");
+
+    // Line 3: First chunk
+    assert_eq!(lines[2].mnemonic, ".TEXT");
+    // Verify bytes presence?
+    assert_eq!(lines[2].bytes.len(), 32);
+
+    // Line 4: Second chunk
+    assert_eq!(lines[3].mnemonic, ".TEXT");
+    assert_eq!(lines[3].bytes.len(), 8);
+
+    // Line 5: Footer
+    assert_eq!(lines[4].mnemonic, ".ENDENCODE");
+}
+
+#[test]
+fn test_tass_block_separation() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+    let disassembler = Disassembler::new();
+    let labels = HashMap::new();
+    let origin = 0x1000;
+
+    // SC (1 byte), Code (1 byte), SC (1 byte)
+    let code = vec![0x01, 0xEA, 0x02];
+    let address_types = vec![
+        AddressType::Screencode,
+        AddressType::Code,
+        AddressType::Screencode,
+    ];
+
+    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+
+    // Block 1 (SC) -> 4 lines (Start, Enc, Text, End)
+    // Code -> 1 line
+    // Block 2 (SC) -> 4 lines (Start, Enc, Text, End)
+    // Total 9 lines
+    assert_eq!(lines.len(), 9);
+
+    assert_eq!(lines[0].mnemonic, ".ENCODE");
+    assert_eq!(lines[3].mnemonic, ".ENDENCODE");
+
+    // Code
+    assert_eq!(lines[4].mnemonic, "NOP");
+
+    // Block 2
+    assert_eq!(lines[5].mnemonic, ".ENCODE");
+    assert_eq!(lines[8].mnemonic, ".ENDENCODE");
+}
+
+#[test]
+fn test_tass_label_interruption() {
+    use crate::state::{Label, LabelKind, LabelType};
+
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+    let disassembler = Disassembler::new();
+    let mut labels = HashMap::new();
+
+    // Label at index 1 (0x1001)
+    labels.insert(
+        0x1001,
+        vec![Label {
+            name: "MID".to_string(),
+            kind: LabelKind::Auto,
+            label_type: LabelType::Field,
+            refs: vec![],
+        }],
+    );
+
+    let origin = 0x1000;
+
+    // SC (2 bytes)
+    let code = vec![0x01, 0x02];
+    let address_types = vec![AddressType::Screencode, AddressType::Screencode];
+
+    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+
+    // Expectation:
+    // Label breaks the chunk processing loop, but types are contiguous.
+    // Chunk 1: byte 0x01. is_start=True. Next byte is SC, but Label present -> is_end=False?
+    // Wait, handle_screencode logic:
+    // Loop breaks at count=1 because label at next addr.
+    // is_end check: next_pc=1. address_types[1] IS Screencode. So is_end=False.
+    // Output: .ENCODE, .ENC, .TEXT (No END).
+
+    // Chunk 2: byte 0x02. Label attached here.
+    // is_start check: prev (0x00) was Screencode. is_start=False.
+    // is_end check: next (EOF) or non-SC. is_end=True.
+    // Output: .TEXT, .ENDENCODE.
+
+    // Total lines:
+    // Chunk 1: 3 lines (.ENCODE, .ENC, .TEXT)
+    // Chunk 2: 2 lines (.TEXT, .ENDENCODE)
+    // Total 5 lines.
+
+    assert_eq!(lines.len(), 5);
+
+    assert_eq!(lines[0].mnemonic, ".ENCODE");
+    assert_eq!(lines[2].mnemonic, ".TEXT");
+
+    // Label should be on the first line of the second chunk
+    assert_eq!(lines[3].label, Some("MID".to_string()));
+    assert_eq!(lines[3].mnemonic, ".TEXT");
+
+    assert_eq!(lines[4].mnemonic, ".ENDENCODE");
+}

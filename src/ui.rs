@@ -644,7 +644,14 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
                     Style::default().fg(Color::Yellow),
                 ),
                 Span::styled(
-                    format!("{: <12}", hex_bytes(&line.bytes)),
+                    format!(
+                        "{: <12}",
+                        if line.show_bytes {
+                            hex_bytes(&line.bytes)
+                        } else {
+                            String::new()
+                        }
+                    ),
                     Style::default().fg(Color::DarkGray),
                 ),
                 Span::styled(

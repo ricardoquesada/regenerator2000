@@ -23,6 +23,7 @@ pub struct DisassemblyLine {
     #[allow(dead_code)]
     pub label: Option<String>,
     pub opcode: Option<Opcode>,
+    pub show_bytes: bool,
 }
 
 pub struct Disassembler {
@@ -63,7 +64,7 @@ impl Disassembler {
 
             let current_type = address_types.get(pc).copied().unwrap_or(AddressType::Code);
 
-            let (bytes_consumed, line) = match current_type {
+            let (bytes_consumed, new_lines) = match current_type {
                 AddressType::Code => self.handle_code(
                     pc,
                     data,
@@ -132,7 +133,7 @@ impl Disassembler {
                 ),
             };
 
-            lines.push(line);
+            lines.extend(new_lines);
             pc += bytes_consumed;
         }
 
@@ -189,7 +190,7 @@ impl Disassembler {
         settings: &DocumentSettings,
         label_name: Option<String>,
         comment: String,
-    ) -> (usize, DisassemblyLine) {
+    ) -> (usize, Vec<DisassemblyLine>) {
         let opcode_byte = data[pc];
         let opcode_opt = &self.opcodes[opcode_byte as usize];
 
@@ -264,7 +265,7 @@ impl Disassembler {
 
                     return (
                         opcode.size as usize,
-                        DisassemblyLine {
+                        vec![DisassemblyLine {
                             address,
                             bytes,
                             mnemonic,
@@ -272,7 +273,8 @@ impl Disassembler {
                             comment,
                             label: label_name,
                             opcode: Some(opcode.clone()),
-                        },
+                            show_bytes: true,
+                        }],
                     );
                 }
             }
@@ -285,7 +287,7 @@ impl Disassembler {
         }
         (
             1,
-            DisassemblyLine {
+            vec![DisassemblyLine {
                 address,
                 bytes: vec![opcode_byte],
                 mnemonic: formatter.byte_directive().to_string(),
@@ -293,7 +295,8 @@ impl Disassembler {
                 comment: line_comment,
                 label: label_name,
                 opcode: None,
-            },
+                show_bytes: true,
+            }],
         )
     }
 
@@ -309,7 +312,7 @@ impl Disassembler {
         origin: u16,
         label_name: Option<String>,
         comment: String,
-    ) -> (usize, DisassemblyLine) {
+    ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0;
@@ -336,7 +339,7 @@ impl Disassembler {
 
         (
             count,
-            DisassemblyLine {
+            vec![DisassemblyLine {
                 address,
                 bytes,
                 mnemonic: formatter.byte_directive().to_string(),
@@ -344,7 +347,8 @@ impl Disassembler {
                 comment,
                 label: label_name,
                 opcode: None,
-            },
+                show_bytes: true,
+            }],
         )
     }
 
@@ -360,7 +364,7 @@ impl Disassembler {
         origin: u16,
         label_name: Option<String>,
         comment: String,
-    ) -> (usize, DisassemblyLine) {
+    ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0; // Number of words
@@ -392,7 +396,7 @@ impl Disassembler {
         if count > 0 {
             (
                 count * 2,
-                DisassemblyLine {
+                vec![DisassemblyLine {
                     address,
                     bytes,
                     mnemonic: formatter.word_directive().to_string(),
@@ -400,7 +404,8 @@ impl Disassembler {
                     comment,
                     label: label_name,
                     opcode: None,
-                },
+                    show_bytes: true,
+                }],
             )
         } else {
             // Fallback for partial word
@@ -420,7 +425,7 @@ impl Disassembler {
         origin: u16,
         label_name: Option<String>,
         comment: String,
-    ) -> (usize, DisassemblyLine) {
+    ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0;
@@ -462,7 +467,7 @@ impl Disassembler {
         if count > 0 {
             (
                 count * 2,
-                DisassemblyLine {
+                vec![DisassemblyLine {
                     address,
                     bytes,
                     mnemonic: formatter.word_directive().to_string(),
@@ -470,7 +475,8 @@ impl Disassembler {
                     comment,
                     label: label_name,
                     opcode: None,
-                },
+                    show_bytes: true,
+                }],
             )
         } else {
             self.handle_partial_data(pc, data, address, formatter, label_name, comment, "Address")
@@ -489,7 +495,7 @@ impl Disassembler {
         origin: u16,
         label_name: Option<String>,
         comment: String,
-    ) -> (usize, DisassemblyLine) {
+    ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut text_content = String::new();
         let mut count = 0;
@@ -536,7 +542,7 @@ impl Disassembler {
 
             (
                 count,
-                DisassemblyLine {
+                vec![DisassemblyLine {
                     address,
                     bytes,
                     mnemonic,
@@ -544,7 +550,8 @@ impl Disassembler {
                     comment,
                     label: label_name,
                     opcode: None,
-                },
+                    show_bytes: false, // Text lines should not show bytes
+                }],
             )
         } else {
             // Fallback to byte if no valid text found
@@ -564,7 +571,7 @@ impl Disassembler {
         origin: u16,
         label_name: Option<String>,
         comment: String,
-    ) -> (usize, DisassemblyLine) {
+    ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut text_content = String::new();
         let mut count = 0;
@@ -612,21 +619,43 @@ impl Disassembler {
             count += 1;
         }
 
-        if count > 0 {
-            let (mnemonic, operand) = formatter.format_screencode(&text_content);
+        let is_start = pc == 0 || address_types.get(pc - 1) != Some(&AddressType::Screencode);
+        let next_pc = pc + count;
+        let is_end =
+            next_pc >= data.len() || address_types.get(next_pc) != Some(&AddressType::Screencode);
 
-            (
-                count,
-                DisassemblyLine {
+        if count > 0 {
+            let formatted_lines = formatter.format_screencode(&text_content, is_start, is_end);
+            let mut disassembly_lines = Vec::new();
+
+            for (i, (mnemonic, operand, has_bytes)) in formatted_lines.iter().enumerate() {
+                // Attach bytes only to marked lines.
+                // Attach label and comment only to the first line.
+                let line_bytes = if *has_bytes {
+                    bytes.clone()
+                } else {
+                    Vec::new()
+                };
+                let line_label = if i == 0 { label_name.clone() } else { None };
+                let line_comment = if i == 0 {
+                    comment.clone()
+                } else {
+                    String::new()
+                };
+
+                disassembly_lines.push(DisassemblyLine {
                     address,
-                    bytes,
-                    mnemonic,
-                    operand,
-                    comment,
-                    label: label_name,
+                    bytes: line_bytes,
+                    mnemonic: mnemonic.clone(),
+                    operand: operand.clone(),
+                    comment: line_comment,
+                    label: line_label,
                     opcode: None,
-                },
-            )
+                    show_bytes: false, // Hide bytes for screencode blocks logic
+                });
+            }
+
+            (count, disassembly_lines)
         } else {
             self.handle_partial_data(
                 pc,
@@ -649,7 +678,7 @@ impl Disassembler {
         label_name: Option<String>,
         comment: String,
         type_name: &str,
-    ) -> (usize, DisassemblyLine) {
+    ) -> (usize, Vec<DisassemblyLine>) {
         if pc < data.len() {
             let b = data[pc];
             let mut line_comment = format!("Partial {}", type_name);
@@ -658,7 +687,7 @@ impl Disassembler {
             }
             (
                 1,
-                DisassemblyLine {
+                vec![DisassemblyLine {
                     address,
                     bytes: vec![b],
                     mnemonic: formatter.byte_directive().to_string(),
@@ -666,13 +695,14 @@ impl Disassembler {
                     comment: line_comment,
                     label: label_name,
                     opcode: None,
-                },
+                    show_bytes: true,
+                }],
             )
         } else {
             // Should not happen if loop condition is correct
             (
                 0,
-                DisassemblyLine {
+                vec![DisassemblyLine {
                     address,
                     bytes: vec![],
                     mnemonic: "???".to_string(),
@@ -680,7 +710,8 @@ impl Disassembler {
                     comment: "Error: Out of bounds".to_string(),
                     label: None,
                     opcode: None,
-                },
+                    show_bytes: true,
+                }],
             )
         }
     }
