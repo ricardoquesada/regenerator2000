@@ -26,6 +26,7 @@ mod tests {
             }],
             labels: HashMap::new(), // EMPTY! No saved labels.
             settings: DocumentSettings::default(),
+            cursor_address: None,
         };
 
         let json = serde_json::to_string(&project).unwrap();

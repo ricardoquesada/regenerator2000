@@ -83,7 +83,11 @@ pub fn run_app<B: Backend>(
                                     path.set_extension("regen2000proj");
                                 }
                                 app_state.project_path = Some(path);
-                                if let Err(e) = app_state.save_project() {
+                                let cursor_addr = app_state
+                                    .disassembly
+                                    .get(ui_state.cursor_index)
+                                    .map(|l| l.address);
+                                if let Err(e) = app_state.save_project(cursor_addr) {
                                     ui_state.set_status_message(format!("Error saving: {}", e));
                                 } else {
                                     ui_state.set_status_message("Project saved");
@@ -230,30 +234,46 @@ pub fn run_app<B: Backend>(
                                 ui_state.file_picker.selected_index = 0;
                             } else {
                                 // Load file
-                                if let Err(e) = app_state.load_file(selected_path.clone()) {
-                                    ui_state
-                                        .set_status_message(format!("Error loading file: {}", e));
-                                } else {
-                                    ui_state
-                                        .set_status_message(format!("Loaded: {:?}", selected_path));
-                                    ui_state.file_picker.close();
-
-                                    // Auto-analyze if it's a binary file (not json)
-                                    let is_project = selected_path
-                                        .extension()
-                                        .and_then(|e| e.to_str())
-                                        .map(|e| e.eq_ignore_ascii_case("regen2000proj"))
-                                        .unwrap_or(false);
-
-                                    if !is_project {
-                                        app_state.perform_analysis();
+                                match app_state.load_file(selected_path.clone()) {
+                                    Err(e) => {
+                                        ui_state.set_status_message(format!(
+                                            "Error loading file: {}",
+                                            e
+                                        ));
                                     }
+                                    Ok(loaded_cursor) => {
+                                        ui_state.set_status_message(format!(
+                                            "Loaded: {:?}",
+                                            selected_path
+                                        ));
+                                        ui_state.file_picker.close();
 
-                                    // Move cursor to origin
-                                    if let Some(idx) =
-                                        app_state.get_line_index_for_address(app_state.origin)
-                                    {
-                                        ui_state.cursor_index = idx;
+                                        // Auto-analyze if it's a binary file (not json)
+                                        let is_project = selected_path
+                                            .extension()
+                                            .and_then(|e| e.to_str())
+                                            .map(|e| e.eq_ignore_ascii_case("regen2000proj"))
+                                            .unwrap_or(false);
+
+                                        if !is_project {
+                                            app_state.perform_analysis();
+                                        }
+
+                                        // Move cursor
+                                        if let Some(cursor_addr) = loaded_cursor {
+                                            if let Some(idx) =
+                                                app_state.get_line_index_for_address(cursor_addr)
+                                            {
+                                                ui_state.cursor_index = idx;
+                                            }
+                                        } else {
+                                            // Default to origin
+                                            if let Some(idx) = app_state
+                                                .get_line_index_for_address(app_state.origin)
+                                            {
+                                                ui_state.cursor_index = idx;
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -708,7 +728,11 @@ fn handle_menu_action(
         }
         MenuAction::Save => {
             if app_state.project_path.is_some() {
-                if let Err(e) = app_state.save_project() {
+                let cursor_addr = app_state
+                    .disassembly
+                    .get(ui_state.cursor_index)
+                    .map(|l| l.address);
+                if let Err(e) = app_state.save_project(cursor_addr) {
                     ui_state.set_status_message(format!("Error saving: {}", e));
                 } else {
                     ui_state.set_status_message("Project saved");

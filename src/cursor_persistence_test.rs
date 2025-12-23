@@ -1,0 +1,79 @@
+#[cfg(test)]
+mod tests {
+    use crate::state::{AppState, BlockType};
+
+    #[test]
+    fn test_save_and_restore_cursor() {
+        // 1. Setup initial state
+        let mut app_state = AppState::new();
+        app_state.origin = 0x1000;
+        let start_cursor_addr = 0x1005;
+
+        // Dummy raw data
+        let raw_bytes: Vec<u8> = vec![0xEA; 10];
+        app_state.raw_data = raw_bytes.clone();
+        app_state.block_types = vec![BlockType::Code; 10];
+        app_state.disassemble(); // Must disassemble to populate disassembly for save
+
+        // 2. Save project with specific cursor
+        let mut path = std::env::temp_dir();
+        path.push("test_cursor_persist.regen2000proj");
+        app_state.project_path = Some(path.clone());
+
+        app_state
+            .save_project(Some(start_cursor_addr))
+            .expect("Failed to save project");
+
+        // 3. Create fresh app state and load
+        let mut loaded_state = AppState::new();
+        let loaded_cursor = loaded_state
+            .load_project(path.clone())
+            .expect("Failed to load project");
+
+        // 4. Verify cursor address is returned
+        assert_eq!(
+            loaded_cursor,
+            Some(start_cursor_addr),
+            "Cursor address should be restored"
+        );
+
+        // 5. Test loading legacy project (without cursor_address)
+        // Manually create JSON without cursor_address
+        let legacy_raw_data = crate::state::encode_raw_data_to_base64(&raw_bytes);
+        let json = format!(
+            r#"{{
+            "origin": 4096,
+            "raw_data_base64": "{}", 
+            "blocks": [],
+            "labels": {{}},
+            "settings": {{
+                "all_labels": false,
+                "use_w_prefix": true,
+                "brk_single_byte": false,
+                "patch_brk": false,
+                "platform": "Commodore64",
+                "assembler": "Tass64",
+                "max_xref_count": 5
+            }}
+        }}"#,
+            legacy_raw_data
+        );
+        // removed "cursor_address" field
+
+        let mut leg_path = std::env::temp_dir();
+        leg_path.push("test_legacy.regen2000proj");
+        std::fs::write(&leg_path, json).unwrap();
+
+        let mut leg_state = AppState::new();
+        let leg_cursor = leg_state.load_project(leg_path.clone()).unwrap();
+
+        assert_eq!(
+            leg_cursor, None,
+            "Legacy project should return None for cursor"
+        );
+
+        // Cleanup
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(leg_path);
+    }
+}

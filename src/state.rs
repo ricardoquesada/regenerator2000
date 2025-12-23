@@ -209,6 +209,8 @@ pub struct ProjectState {
     pub labels: HashMap<u16, Vec<Label>>,
     #[serde(default)]
     pub settings: DocumentSettings,
+    #[serde(default)]
+    pub cursor_address: Option<u16>,
 }
 
 pub struct AppState {
@@ -247,7 +249,7 @@ impl AppState {
         Disassembler::create_formatter(self.settings.assembler)
     }
 
-    pub fn load_file(&mut self, path: PathBuf) -> anyhow::Result<()> {
+    pub fn load_file(&mut self, path: PathBuf) -> anyhow::Result<Option<u16>> {
         let data = std::fs::read(&path)?;
         self.file_path = Some(path.clone());
         self.project_path = None; // clear project path
@@ -280,10 +282,10 @@ impl AppState {
         self.undo_stack = crate::commands::UndoStack::new();
 
         self.disassemble();
-        Ok(())
+        Ok(None)
     }
 
-    pub fn load_project(&mut self, path: PathBuf) -> anyhow::Result<()> {
+    pub fn load_project(&mut self, path: PathBuf) -> anyhow::Result<Option<u16>> {
         let data = std::fs::read_to_string(&path)?;
         let project: ProjectState = serde_json::from_str(&data)?;
 
@@ -305,10 +307,10 @@ impl AppState {
         self.undo_stack = crate::commands::UndoStack::new();
 
         self.disassemble();
-        Ok(())
+        Ok(project.cursor_address)
     }
 
-    pub fn save_project(&mut self) -> anyhow::Result<()> {
+    pub fn save_project(&mut self, cursor_address: Option<u16>) -> anyhow::Result<()> {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
                 origin: self.origin,
@@ -329,6 +331,7 @@ impl AppState {
                     .filter(|(_, v)| !v.is_empty())
                     .collect(),
                 settings: self.settings,
+                cursor_address,
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;
@@ -835,7 +838,7 @@ mod save_project_tests {
         path.push("test_project_serialization.json");
         app_state.project_path = Some(path.clone());
 
-        app_state.save_project().expect("Save failed");
+        app_state.save_project(None).expect("Save failed");
 
         // 4. Read back JSON manually to inspect
         let data = std::fs::read_to_string(&path).expect("Read failed");
