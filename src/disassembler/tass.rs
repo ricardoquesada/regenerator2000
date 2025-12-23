@@ -180,8 +180,32 @@ impl Formatter for TassFormatter {
         format!("${:04X}", word)
     }
 
-    fn format_text(&self, text: &str) -> (String, String) {
-        (".TEXT".to_string(), format!("\"{}\"", text))
+    fn format_text(
+        &self,
+        bytes: &[u8],
+        text: &str,
+        is_start: bool,
+        is_end: bool,
+    ) -> Vec<(String, String, bool)> {
+        let mut lines = Vec::new();
+
+        if is_start {
+            lines.push((".ENCODE".to_string(), String::new(), false));
+            lines.push((".ENC".to_string(), "\"ASCII\"".to_string(), false)); // Or "NONE", but "ASCII" usually implies raw
+        }
+
+        // Special handling for single byte logic if needed, but for now standard text
+        if bytes.len() == 1 {
+            lines.push((".BYTE".to_string(), format!("${:02X}", bytes[0]), true));
+        } else {
+            lines.push((".TEXT".to_string(), format!("\"{}\"", text), true));
+        }
+
+        if is_end {
+            lines.push((".ENDENCODE".to_string(), String::new(), false));
+        }
+
+        lines
     }
 
     fn format_screencode(

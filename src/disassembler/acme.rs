@@ -159,8 +159,14 @@ impl Formatter for AcmeFormatter {
         format!("${:04x}", word)
     }
 
-    fn format_text(&self, text: &str) -> (String, String) {
-        ("!text".to_string(), format!("\"{}\"", text))
+    fn format_text(
+        &self,
+        _bytes: &[u8],
+        text: &str,
+        _is_start: bool,
+        _is_end: bool,
+    ) -> Vec<(String, String, bool)> {
+        vec![("!text".to_string(), format!("\"{}\"", text), true)]
     }
 
     fn format_screencode(

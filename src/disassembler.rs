@@ -536,23 +536,41 @@ impl Disassembler {
             count += 1;
         }
 
+        let is_start = pc == 0 || block_types.get(pc - 1) != Some(&BlockType::Text);
+        let next_pc = pc + count;
+        let is_end = next_pc >= data.len() || block_types.get(next_pc) != Some(&BlockType::Text);
+
         if count > 0 && valid_text {
             // Check for assembler type based on formatter directives
-            let (mnemonic, operand) = formatter.format_text(&text_content);
+            let formatted_lines = formatter.format_text(&bytes, &text_content, is_start, is_end);
+            let mut disassembly_lines = Vec::new();
 
-            (
-                count,
-                vec![DisassemblyLine {
+            for (i, (mnemonic, operand, has_bytes)) in formatted_lines.iter().enumerate() {
+                let line_bytes = if *has_bytes {
+                    bytes.clone()
+                } else {
+                    Vec::new()
+                };
+                let line_label = if i == 0 { label_name.clone() } else { None };
+                let line_comment = if i == 0 {
+                    comment.clone()
+                } else {
+                    String::new()
+                };
+
+                disassembly_lines.push(DisassemblyLine {
                     address,
-                    bytes,
-                    mnemonic,
-                    operand,
-                    comment,
-                    label: label_name,
+                    bytes: line_bytes,
+                    mnemonic: mnemonic.clone(),
+                    operand: operand.clone(),
+                    comment: line_comment,
+                    label: line_label,
                     opcode: None,
                     show_bytes: false, // Text lines should not show bytes
-                }],
-            )
+                });
+            }
+
+            (count, disassembly_lines)
         } else {
             // Fallback to byte if no valid text found
             self.handle_partial_data(pc, data, address, formatter, label_name, comment, "Text")
