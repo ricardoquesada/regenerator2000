@@ -696,8 +696,27 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
 }
 
 fn render_status_bar(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &UIState) {
-    let status = format!(
-        " Cursor: {:04X} | Origin: {:04X} | File: {:?}{}",
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(50), // Message
+            Constraint::Percentage(50), // Info
+        ])
+        .split(area);
+
+    // Left: Status Message
+    let status_msg = Paragraph::new(Span::styled(
+        format!(" {}", ui_state.status_message),
+        Style::default().add_modifier(Modifier::BOLD),
+    ))
+    .style(Style::default().bg(Color::Blue).fg(Color::White));
+    f.render_widget(status_msg, chunks[0]);
+
+    // Right: Info
+    let info = format!(
+        "{} | {} | Cursor: {:04X} | Origin: {:04X} | File: {:?}{}",
+        app_state.settings.platform,
+        app_state.settings.assembler,
         app_state
             .disassembly
             .get(ui_state.cursor_index)
@@ -711,13 +730,16 @@ fn render_status_bar(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: 
             .unwrap_or_default(),
         if let Some(start) = ui_state.selection_start {
             let count = (ui_state.cursor_index as isize - start as isize).abs() + 1;
-            format!(" | Selected: {} lines", count)
+            format!(" | Selected: {}", count)
         } else {
             "".to_string()
         }
     );
-    let bar = Paragraph::new(status).style(Style::default().bg(Color::Blue).fg(Color::White));
-    f.render_widget(bar, area);
+
+    let info_widget = Paragraph::new(info)
+        .alignment(ratatui::layout::Alignment::Right)
+        .style(Style::default().bg(Color::Blue).fg(Color::White));
+    f.render_widget(info_widget, chunks[1]);
 }
 
 fn hex_bytes(bytes: &[u8]) -> String {

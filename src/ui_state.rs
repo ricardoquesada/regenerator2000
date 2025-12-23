@@ -457,4 +457,8 @@ impl UIState {
             dismiss_logo: false,
         }
     }
+
+    pub fn set_status_message(&mut self, message: impl Into<String>) {
+        self.status_message = message.into();
+    }
 }

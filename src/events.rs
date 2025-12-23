@@ -19,7 +19,7 @@ pub fn run_app<B: Backend>(
                 match key.code {
                     KeyCode::Esc => {
                         ui_state.jump_dialog.close();
-                        ui_state.status_message = "Ready".to_string();
+                        ui_state.set_status_message("Ready");
                     }
                     KeyCode::Enter => {
                         let input = &ui_state.jump_dialog.input;
@@ -44,17 +44,18 @@ pub fn run_app<B: Backend>(
                             if let Some(idx) = found_idx {
                                 ui_state.navigation_history.push(ui_state.cursor_index);
                                 ui_state.cursor_index = idx;
-                                ui_state.status_message = format!("Jumped to ${:04X}", target_addr);
+                                ui_state
+                                    .set_status_message(format!("Jumped to ${:04X}", target_addr));
                             } else {
                                 if !app_state.disassembly.is_empty() {
                                     ui_state.navigation_history.push(ui_state.cursor_index);
                                     ui_state.cursor_index = app_state.disassembly.len() - 1;
-                                    ui_state.status_message = "Jumped to end".to_string();
+                                    ui_state.set_status_message("Jumped to end");
                                 }
                             }
                             ui_state.jump_dialog.close();
                         } else {
-                            ui_state.status_message = "Invalid Hex Address".to_string();
+                            ui_state.set_status_message("Invalid Hex Address");
                         }
                     }
                     KeyCode::Backspace => {
@@ -71,7 +72,7 @@ pub fn run_app<B: Backend>(
                 match key.code {
                     KeyCode::Esc => {
                         ui_state.save_dialog.close();
-                        ui_state.status_message = "Ready".to_string();
+                        ui_state.set_status_message("Ready");
                     }
                     KeyCode::Enter => {
                         let filename = ui_state.save_dialog.input.clone();
@@ -83,9 +84,9 @@ pub fn run_app<B: Backend>(
                                 }
                                 app_state.project_path = Some(path);
                                 if let Err(e) = app_state.save_project() {
-                                    ui_state.status_message = format!("Error saving: {}", e);
+                                    ui_state.set_status_message(format!("Error saving: {}", e));
                                 } else {
-                                    ui_state.status_message = "Project saved".to_string();
+                                    ui_state.set_status_message("Project saved");
                                     ui_state.save_dialog.close();
                                 }
                             } else {
@@ -94,9 +95,9 @@ pub fn run_app<B: Backend>(
                                     path.set_extension("asm");
                                 }
                                 if let Err(e) = crate::exporter::export_asm(&app_state, &path) {
-                                    ui_state.status_message = format!("Error exporting: {}", e);
+                                    ui_state.set_status_message(format!("Error exporting: {}", e));
                                 } else {
-                                    ui_state.status_message = "ASM Exported".to_string();
+                                    ui_state.set_status_message("ASM Exported");
                                     ui_state.save_dialog.close();
                                 }
                             }
@@ -114,7 +115,7 @@ pub fn run_app<B: Backend>(
                 match key.code {
                     KeyCode::Esc => {
                         ui_state.label_dialog.close();
-                        ui_state.status_message = "Ready".to_string();
+                        ui_state.set_status_message("Ready");
                     }
                     KeyCode::Enter => {
                         // Get current address
@@ -135,7 +136,7 @@ pub fn run_app<B: Backend>(
                                 command.apply(&mut app_state);
                                 app_state.undo_stack.push(command);
 
-                                ui_state.status_message = "Label removed".to_string();
+                                ui_state.set_status_message("Label removed");
                                 app_state.disassemble();
                                 ui_state.label_dialog.close();
                             } else {
@@ -146,8 +147,10 @@ pub fn run_app<B: Backend>(
                                 });
 
                                 if exists {
-                                    ui_state.status_message =
-                                        format!("Error: Label '{}' already exists", label_name);
+                                    ui_state.set_status_message(format!(
+                                        "Error: Label '{}' already exists",
+                                        label_name
+                                    ));
                                     // Do not close dialog, let user correct it
                                 } else {
                                     let old_label_vec = app_state.labels.get(&address).cloned();
@@ -180,7 +183,7 @@ pub fn run_app<B: Backend>(
                                     command.apply(&mut app_state);
                                     app_state.undo_stack.push(command);
 
-                                    ui_state.status_message = "Label set".to_string();
+                                    ui_state.set_status_message("Label set");
                                     app_state.disassemble();
                                     ui_state.label_dialog.close();
                                 }
@@ -199,7 +202,7 @@ pub fn run_app<B: Backend>(
                 match key.code {
                     KeyCode::Esc => {
                         ui_state.file_picker.close();
-                        ui_state.status_message = "Ready".to_string();
+                        ui_state.set_status_message("Ready");
                     }
                     KeyCode::Down => ui_state.file_picker.next(),
                     KeyCode::Up => ui_state.file_picker.previous(),
@@ -228,10 +231,11 @@ pub fn run_app<B: Backend>(
                             } else {
                                 // Load file
                                 if let Err(e) = app_state.load_file(selected_path.clone()) {
-                                    ui_state.status_message = format!("Error loading file: {}", e);
+                                    ui_state
+                                        .set_status_message(format!("Error loading file: {}", e));
                                 } else {
-                                    ui_state.status_message =
-                                        format!("Loaded: {:?}", selected_path);
+                                    ui_state
+                                        .set_status_message(format!("Loaded: {:?}", selected_path));
                                     ui_state.file_picker.close();
 
                                     // Auto-analyze if it's a binary file (not json)
@@ -262,7 +266,7 @@ pub fn run_app<B: Backend>(
                     KeyCode::Esc => {
                         ui_state.menu.active = false;
                         ui_state.menu.selected_item = None;
-                        ui_state.status_message = "Ready".to_string();
+                        ui_state.set_status_message("Ready");
                     }
                     KeyCode::Right => {
                         ui_state.menu.next_category();
@@ -298,7 +302,7 @@ pub fn run_app<B: Backend>(
             } else if ui_state.about_dialog.active {
                 if let KeyCode::Esc | KeyCode::Enter | KeyCode::Char(_) = key.code {
                     ui_state.about_dialog.close();
-                    ui_state.status_message = "Ready".to_string();
+                    ui_state.set_status_message("Ready");
                 }
             } else if ui_state.settings_dialog.active {
                 match key.code {
@@ -313,7 +317,7 @@ pub fn run_app<B: Backend>(
                             ui_state.settings_dialog.xref_count_input.clear();
                         } else {
                             ui_state.settings_dialog.close();
-                            ui_state.status_message = "Ready".to_string();
+                            ui_state.set_status_message("Ready");
                             app_state.disassemble(); // Disassemble on close to apply all settings
                         }
                     }
@@ -445,7 +449,7 @@ pub fn run_app<B: Backend>(
                     KeyCode::F(10) => {
                         ui_state.menu.active = true;
                         ui_state.menu.selected_item = Some(0);
-                        ui_state.status_message = "Menu Active".to_string();
+                        ui_state.set_status_message("Menu Active");
                     }
                     // Global Shortcuts
                     KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -566,12 +570,12 @@ pub fn run_app<B: Backend>(
                             // Verify index is still valid
                             if prev_idx < app_state.disassembly.len() {
                                 ui_state.cursor_index = prev_idx;
-                                ui_state.status_message = "Navigated back".to_string();
+                                ui_state.set_status_message("Navigated back");
                             } else {
-                                ui_state.status_message = "History invalid".to_string();
+                                ui_state.set_status_message("History invalid");
                             }
                         } else {
-                            ui_state.status_message = "No history".to_string();
+                            ui_state.set_status_message("No history");
                         }
                     }
 
@@ -612,7 +616,7 @@ pub fn run_app<B: Backend>(
                                     .and_then(|v| v.first())
                                     .map(|l| l.name.as_str());
                                 ui_state.label_dialog.open(text);
-                                ui_state.status_message = "Enter Label".to_string();
+                                ui_state.set_status_message("Enter Label");
                             }
                         }
                     }
@@ -647,7 +651,7 @@ pub fn run_app<B: Backend>(
                     KeyCode::Esc => {
                         if ui_state.selection_start.is_some() {
                             ui_state.selection_start = None;
-                            ui_state.status_message = "Selection cleared".to_string();
+                            ui_state.set_status_message("Selection cleared");
                         }
                     }
                     KeyCode::PageDown => {
@@ -679,7 +683,7 @@ fn handle_menu_action(
     ui_state: &mut UIState,
     action: crate::ui_state::MenuAction,
 ) {
-    ui_state.status_message = format!("Action: {:?}", action);
+    ui_state.set_status_message(format!("Action: {:?}", action));
 
     use crate::ui_state::MenuAction;
 
@@ -690,48 +694,48 @@ fn handle_menu_action(
         }
         MenuAction::Open => {
             ui_state.file_picker.open();
-            ui_state.status_message = "Select a file to open".to_string();
+            ui_state.set_status_message("Select a file to open");
         }
         MenuAction::Save => {
             if app_state.project_path.is_some() {
                 if let Err(e) = app_state.save_project() {
-                    ui_state.status_message = format!("Error saving: {}", e);
+                    ui_state.set_status_message(format!("Error saving: {}", e));
                 } else {
-                    ui_state.status_message = "Project saved".to_string();
+                    ui_state.set_status_message("Project saved");
                 }
             } else {
                 ui_state.save_dialog.open(SaveDialogMode::Project);
-                ui_state.status_message = "Enter filename".to_string();
+                ui_state.set_status_message("Enter filename");
             }
         }
         MenuAction::SaveAs => {
             ui_state.save_dialog.open(SaveDialogMode::Project);
-            ui_state.status_message = "Enter filename".to_string();
+            ui_state.set_status_message("Enter filename");
         }
         MenuAction::ExportAsm => {
             ui_state.save_dialog.open(SaveDialogMode::ExportAsm);
-            ui_state.status_message = "Enter filename for ASM".to_string();
+            ui_state.set_status_message("Enter filename for ASM");
         }
         MenuAction::ExportAsmAs => {
             ui_state.save_dialog.open(SaveDialogMode::ExportAsm);
-            ui_state.status_message = "Enter filename for ASM".to_string();
+            ui_state.set_status_message("Enter filename for ASM");
         }
         MenuAction::DocumentSettings => {
             ui_state.settings_dialog.open();
-            ui_state.status_message = "Document Settings".to_string();
+            ui_state.set_status_message("Document Settings");
         }
         MenuAction::Analyze => {
-            ui_state.status_message = app_state.perform_analysis();
+            ui_state.set_status_message(app_state.perform_analysis());
             // Move cursor to origin
             if let Some(idx) = app_state.get_line_index_for_address(app_state.origin) {
                 ui_state.cursor_index = idx;
             }
         }
         MenuAction::Undo => {
-            ui_state.status_message = app_state.undo_last_command();
+            ui_state.set_status_message(app_state.undo_last_command());
         }
         MenuAction::Redo => {
-            ui_state.status_message = app_state.redo_last_command();
+            ui_state.set_status_message(app_state.redo_last_command());
         }
         MenuAction::ZoomIn => {}
         MenuAction::ZoomOut => {}
