@@ -755,8 +755,8 @@ fn handle_menu_action(
                 .selection_start
                 .map(|start| start.min(ui_state.cursor_index));
 
-            app_state.set_address_type_region(
-                crate::state::AddressType::Code,
+            app_state.set_block_type_region(
+                crate::state::BlockType::Code,
                 ui_state.selection_start,
                 ui_state.cursor_index,
             );
@@ -770,8 +770,8 @@ fn handle_menu_action(
                 .selection_start
                 .map(|start| start.min(ui_state.cursor_index));
 
-            app_state.set_address_type_region(
-                crate::state::AddressType::DataByte,
+            app_state.set_block_type_region(
+                crate::state::BlockType::DataByte,
                 ui_state.selection_start,
                 ui_state.cursor_index,
             );
@@ -785,8 +785,8 @@ fn handle_menu_action(
                 .selection_start
                 .map(|start| start.min(ui_state.cursor_index));
 
-            app_state.set_address_type_region(
-                crate::state::AddressType::DataWord,
+            app_state.set_block_type_region(
+                crate::state::BlockType::DataWord,
                 ui_state.selection_start,
                 ui_state.cursor_index,
             );
@@ -800,8 +800,8 @@ fn handle_menu_action(
                 .selection_start
                 .map(|start| start.min(ui_state.cursor_index));
 
-            app_state.set_address_type_region(
-                crate::state::AddressType::Address,
+            app_state.set_block_type_region(
+                crate::state::BlockType::Address,
                 ui_state.selection_start,
                 ui_state.cursor_index,
             );
@@ -815,8 +815,8 @@ fn handle_menu_action(
                 .selection_start
                 .map(|start| start.min(ui_state.cursor_index));
 
-            app_state.set_address_type_region(
-                crate::state::AddressType::Text,
+            app_state.set_block_type_region(
+                crate::state::BlockType::Text,
                 ui_state.selection_start,
                 ui_state.cursor_index,
             );
@@ -830,8 +830,8 @@ fn handle_menu_action(
                 .selection_start
                 .map(|start| start.min(ui_state.cursor_index));
 
-            app_state.set_address_type_region(
-                crate::state::AddressType::Screencode,
+            app_state.set_block_type_region(
+                crate::state::BlockType::Screencode,
                 ui_state.selection_start,
                 ui_state.cursor_index,
             );

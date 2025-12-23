@@ -1,5 +1,5 @@
 use crate::cpu::{AddressingMode, Opcode};
-use crate::state::{AddressType, AppState};
+use crate::state::{AppState, BlockType};
 use std::collections::HashMap;
 
 use crate::state::LabelType;
@@ -18,12 +18,12 @@ pub fn analyze(state: &AppState) -> HashMap<u16, Vec<crate::state::Label>> {
 
     while pc < data_len {
         let current_type = state
-            .address_types
+            .block_types
             .get(pc)
             .copied()
-            .unwrap_or(AddressType::Code);
+            .unwrap_or(BlockType::Code);
 
-        if current_type == AddressType::Code {
+        if current_type == BlockType::Code {
             let opcode_byte = state.raw_data[pc];
             if let Some(opcode) = &state.disassembler.opcodes[opcode_byte as usize] {
                 // Check if we have enough bytes
@@ -51,7 +51,7 @@ pub fn analyze(state: &AppState) -> HashMap<u16, Vec<crate::state::Label>> {
             }
         } else {
             // Data skip
-            if current_type == AddressType::Address {
+            if current_type == BlockType::Address {
                 if pc + 2 <= data_len {
                     let low = state.raw_data[pc];
                     let high = state.raw_data[pc + 1];
@@ -66,7 +66,7 @@ pub fn analyze(state: &AppState) -> HashMap<u16, Vec<crate::state::Label>> {
                 } else {
                     pc += 1;
                 }
-            } else if current_type == AddressType::DataWord {
+            } else if current_type == BlockType::DataWord {
                 pc += 2;
             } else {
                 pc += 1;
@@ -331,7 +331,7 @@ fn update_usage(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{AddressType, AppState};
+    use crate::state::{AppState, BlockType};
 
     #[test]
     fn test_analyze_simple() {
@@ -343,7 +343,7 @@ mod tests {
         // LDA $1000 (AD 00 10)
         let data = vec![0x4C, 0x05, 0x10, 0x20, 0x08, 0x10, 0xEA, 0xAD, 0x00, 0x10];
         state.raw_data = data;
-        state.address_types = vec![AddressType::Code; state.raw_data.len()];
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
         let labels = analyze(&state);
 
@@ -382,7 +382,7 @@ mod tests {
         // Since both are external, and both allow external prefix, result is e2000.
         let data = vec![0x4C, 0x00, 0x20, 0x20, 0x00, 0x20];
         state.raw_data = data;
-        state.address_types = vec![AddressType::Code; state.raw_data.len()];
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
         let labels = analyze(&state);
         // Changed expectations: explicit ExternalJump type logic
@@ -402,7 +402,7 @@ mod tests {
         // LDA $10 (ZP) -> A5 10
         let data = vec![0xA5, 0x10];
         state.raw_data = data;
-        state.address_types = vec![AddressType::Code; 2];
+        state.block_types = vec![BlockType::Code; 2];
 
         let labels = analyze(&state);
         // ZP access -> ZeroPage Priority -> a10
@@ -422,7 +422,7 @@ mod tests {
         // LDA $50, X (B5 50) -> Field usage, ZP address
         let data = vec![0xB5, 0x50];
         state.raw_data = data;
-        state.address_types = vec![AddressType::Code; 2];
+        state.block_types = vec![BlockType::Code; 2];
 
         let labels = analyze(&state);
         // Field usage in ZP -> f50
@@ -442,7 +442,7 @@ mod tests {
         // JMP $0010 (External, out of range [1000..1003])
         let data = vec![0x4C, 0x10, 0x00];
         state.raw_data = data;
-        state.address_types = vec![AddressType::Code; 3];
+        state.block_types = vec![BlockType::Code; 3];
 
         let labels = analyze(&state);
         // External Jump -> e0010
@@ -469,11 +469,11 @@ mod tests {
         // $1002: Address ($1000) -> 00 10 (Internal)
         let data = vec![0x00, 0x20, 0x00, 0x10];
         state.raw_data = data;
-        state.address_types = vec![
-            AddressType::DataWord,
-            AddressType::DataWord,
-            AddressType::Address,
-            AddressType::Address,
+        state.block_types = vec![
+            BlockType::DataWord,
+            BlockType::DataWord,
+            BlockType::Address,
+            BlockType::Address,
         ];
 
         let labels = analyze(&state);
@@ -500,7 +500,7 @@ mod tests {
         // BNE instructions
         let data = vec![0xD0, 0x00, 0xD0, 0x7F, 0xD0, 0x80, 0xD0, 0xFF, 0xD0, 0xFE];
         state.raw_data = data;
-        state.address_types = vec![AddressType::Code; state.raw_data.len()];
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
         let labels = analyze(&state);
 
@@ -570,7 +570,7 @@ mod tests {
             0xB5, 0x30, // LDA $30, X -> ZeroPage X -> f30
         ];
         state.raw_data = data;
-        state.address_types = vec![AddressType::Code; state.raw_data.len()];
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
         let labels = analyze(&state);
 
@@ -653,7 +653,7 @@ mod tests {
         ];
 
         state.raw_data = data;
-        state.address_types = vec![AddressType::Code; state.raw_data.len()];
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
         let labels = analyze(&state);
 
@@ -686,7 +686,7 @@ mod tests {
             0xEA, // 1005: NOP (make it valid internal address)
         ];
         state.raw_data = data;
-        state.address_types = vec![AddressType::Code; state.raw_data.len()];
+        state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
         let labels = analyze(&state);
 
@@ -707,7 +707,7 @@ mod tests {
         state.origin = 0x1000;
         let len = 100;
         state.raw_data = vec![0; len]; // Just dummy data placeholder
-        state.address_types = vec![AddressType::Code; len];
+        state.block_types = vec![BlockType::Code; len];
 
         // We construct a specific scenario:
         // LDA $E000 (AD 00 E0) -> Absolute usage
@@ -750,7 +750,7 @@ mod tests {
 
         let data = vec![0xD0, 0x7F];
         state.raw_data = data;
-        state.address_types = vec![AddressType::Code; 2];
+        state.block_types = vec![BlockType::Code; 2];
 
         let labels = analyze(&state);
         // Should be e1081 (ExternalJump type), NOT b1081 (Branch type).
@@ -770,7 +770,7 @@ mod tests {
         // Absolute addressing mode targeting a ZP address.
         app_state.raw_data = vec![0x8D, 0xA0, 0x00];
         app_state.origin = 0x1000;
-        app_state.address_types = vec![AddressType::Code; 3];
+        app_state.block_types = vec![BlockType::Code; 3];
         // Fill opcodes
         app_state.disassembler.opcodes[0x8D] = Some(crate::cpu::Opcode {
             mnemonic: "STA",
@@ -798,7 +798,7 @@ mod tests {
         // Should generate "f00A0" (Field, 4 digits) NOT "fA0" (ZP Field, 2 digits).
         app_state.raw_data = vec![0x9D, 0xA0, 0x00];
         app_state.origin = 0x1000;
-        app_state.address_types = vec![AddressType::Code; 3];
+        app_state.block_types = vec![BlockType::Code; 3];
         // Fill opcodes
         app_state.disassembler.opcodes[0x9D] = Some(crate::cpu::Opcode {
             mnemonic: "STA",
@@ -843,7 +843,7 @@ mod tests {
             0xB1, 0xFB, // LDA ($FB), Y
         ];
         app_state.raw_data = data;
-        app_state.address_types = vec![AddressType::Code; 5];
+        app_state.block_types = vec![BlockType::Code; 5];
 
         // Mock Opcode info
         // JMP Indirect

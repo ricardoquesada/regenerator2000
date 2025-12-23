@@ -14,9 +14,9 @@ fn test_tass_formatting_force_w() {
 
     // LDA $0012 (Absolute) -> should be LDA @w $0012
     let code = vec![0xAD, 0x12, 0x00]; // AD = LDA Abs
-    let address_types = vec![AddressType::Code, AddressType::Code, AddressType::Code];
+    let block_types = vec![BlockType::Code, BlockType::Code, BlockType::Code];
 
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
 
     assert_eq!(lines.len(), 1);
     let line = &lines[0];
@@ -35,9 +35,9 @@ fn test_tass_formatting_no_force_if_disabled() {
     let origin = 0x1000;
 
     let code = vec![0xAD, 0x12, 0x00];
-    let address_types = vec![AddressType::Code, AddressType::Code, AddressType::Code];
+    let block_types = vec![BlockType::Code, BlockType::Code, BlockType::Code];
 
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
 
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].operand, "$0012");
@@ -53,9 +53,9 @@ fn test_acme_formatting_basic() {
     let origin = 0x1000;
 
     let code = vec![0xAD, 0x12, 0x34]; // LDA $3412
-    let address_types = vec![AddressType::Code, AddressType::Code, AddressType::Code];
+    let block_types = vec![BlockType::Code, BlockType::Code, BlockType::Code];
 
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
 
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "lda");
@@ -73,9 +73,9 @@ fn test_acme_directives() {
 
     // .BYTE equivalent
     let code = vec![0xFF];
-    let address_types = vec![AddressType::DataByte];
+    let block_types = vec![BlockType::DataByte];
 
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
 
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!byte");
@@ -138,17 +138,17 @@ fn test_contextual_label_formatting() {
         0x91, 0xA0, // STA ($A0),y
         0x8D, 0xA0, 0x00, // STA $00A0
     ];
-    let address_types = vec![
-        AddressType::Code,
-        AddressType::Code,
-        AddressType::Code,
-        AddressType::Code,
-        AddressType::Code,
-        AddressType::Code,
-        AddressType::Code,
+    let block_types = vec![
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
     ];
 
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
 
     assert_eq!(lines.len(), 3);
 
@@ -223,15 +223,15 @@ fn test_acme_lowercase_output() {
         0xA9, 0xFF, // LDA #$FF
         0x4C, 0x05, 0x10, // JMP $1005
     ];
-    let address_types = vec![
-        AddressType::Code,
-        AddressType::Code,
-        AddressType::Code,
-        AddressType::Code,
-        AddressType::Code,
+    let block_types = vec![
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
     ];
 
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
 
     assert_eq!(lines.len(), 2);
 
@@ -256,9 +256,9 @@ fn test_acme_plus2_formatting() {
 
     // LDA $0012 (Absolute) -> should be lda+2 $0012
     let code = vec![0xAD, 0x12, 0x00]; // AD = LDA Abs
-    let address_types = vec![AddressType::Code, AddressType::Code, AddressType::Code];
+    let block_types = vec![BlockType::Code, BlockType::Code, BlockType::Code];
 
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
 
     assert_eq!(lines.len(), 1);
     let line = &lines[0];
@@ -289,9 +289,9 @@ fn test_xref_formatting_with_dollar() {
 
     // Code: NOP
     let code = vec![0xEA];
-    let address_types = vec![AddressType::Code];
+    let block_types = vec![BlockType::Code];
 
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
 
     assert_eq!(lines.len(), 1);
     // Check that the comment contains "x-ref: $2000, $3000"
@@ -320,11 +320,11 @@ fn test_xref_count_configurable() {
     );
 
     let code = vec![0xEA];
-    let address_types = vec![AddressType::Code];
+    let block_types = vec![BlockType::Code];
 
     // Case 1: Default (5)
     settings.max_xref_count = 5;
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
     assert_eq!(lines.len(), 1);
     // Should show 5 items
     let comment = &lines[0].comment;
@@ -333,14 +333,14 @@ fn test_xref_count_configurable() {
 
     // Case 2: Limit to 2
     settings.max_xref_count = 2;
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
     let comment = &lines[0].comment;
     assert!(comment.contains("$2000, $2001"));
     assert!(!comment.contains("$2002"));
 
     // Case 3: Zero (Off)
     settings.max_xref_count = 0;
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
     assert!(lines[0].comment.is_empty());
 }
 
@@ -356,38 +356,38 @@ fn test_text_and_screencode_disassembly() {
 
     // "ABC"
     let code = vec![0x41, 0x42, 0x43];
-    let address_types = vec![AddressType::Text, AddressType::Text, AddressType::Text];
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let block_types = vec![BlockType::Text, BlockType::Text, BlockType::Text];
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, ".TEXT");
     assert_eq!(lines[0].operand, "\"ABC\"");
 
     // 2. Test Acme Text
     settings.assembler = Assembler::Acme;
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!text");
     assert_eq!(lines[0].operand, "\"ABC\"");
 
     // 3. Test Screencode (using "ABC" screen codes 1, 2, 3)
     let code_scr = vec![0x01, 0x02, 0x03]; // A, B, C in Screen Code (0x01=A, 0x02=B, 0x03=C)
-    let address_types_scr = vec![
-        AddressType::Screencode,
-        AddressType::Screencode,
-        AddressType::Screencode,
+    let block_types_scr = vec![
+        BlockType::Screencode,
+        BlockType::Screencode,
+        BlockType::Screencode,
     ];
 
     // Acme Screencode
     settings.assembler = Assembler::Acme;
-    let lines = disassembler.disassemble(&code_scr, &address_types_scr, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code_scr, &block_types_scr, &labels, origin, &settings);
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!scr");
     assert_eq!(lines[0].operand, "\"ABC\"");
 
     // 4. Test fallback for invalid text
     let code_bad = vec![0xFF];
-    let address_types_bad = vec![AddressType::Text];
-    let lines = disassembler.disassemble(&code_bad, &address_types_bad, &labels, origin, &settings);
+    let block_types_bad = vec![BlockType::Text];
+    let lines = disassembler.disassemble(&code_bad, &block_types_bad, &labels, origin, &settings);
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!byte");
     assert_eq!(lines[0].operand, "$FF");
@@ -404,13 +404,13 @@ fn test_tass_screencode_enc_wrapping() {
 
     // "ABC" in screencode (0x01, 0x02, 0x03)
     let code = vec![0x01, 0x02, 0x03];
-    let address_types = vec![
-        AddressType::Screencode,
-        AddressType::Screencode,
-        AddressType::Screencode,
+    let block_types = vec![
+        BlockType::Screencode,
+        BlockType::Screencode,
+        BlockType::Screencode,
     ];
 
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
 
     assert_eq!(lines.len(), 4);
 
@@ -438,9 +438,9 @@ fn test_tass_screencode_multiline_wrapping() {
     // 40 bytes of screencode (exceeds 32 byte limit per line)
     // 0x01 * 40
     let code = vec![0x01; 40];
-    let address_types = vec![AddressType::Screencode; 40];
+    let block_types = vec![BlockType::Screencode; 40];
 
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
 
     // Expected:
     // 1. .ENCODE
@@ -478,13 +478,13 @@ fn test_tass_block_separation() {
 
     // SC (1 byte), Code (1 byte), SC (1 byte)
     let code = vec![0x01, 0xEA, 0x02];
-    let address_types = vec![
-        AddressType::Screencode,
-        AddressType::Code,
-        AddressType::Screencode,
+    let block_types = vec![
+        BlockType::Screencode,
+        BlockType::Code,
+        BlockType::Screencode,
     ];
 
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
 
     // Block 1 (SC) -> 4 lines (Start, Enc, Text, End)
     // Code -> 1 line
@@ -527,9 +527,9 @@ fn test_tass_label_interruption() {
 
     // SC (2 bytes)
     let code = vec![0x01, 0x02];
-    let address_types = vec![AddressType::Screencode, AddressType::Screencode];
+    let block_types = vec![BlockType::Screencode, BlockType::Screencode];
 
-    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
 
     // Expectation:
     // Label breaks the chunk processing loop, but types are contiguous.

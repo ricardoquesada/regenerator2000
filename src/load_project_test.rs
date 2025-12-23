@@ -1,8 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::state::{
-        AddressRange, AddressType, AppState, DocumentSettings, LabelKind, ProjectState,
-    };
+    use crate::state::{AppState, Block, BlockType, DocumentSettings, LabelKind, ProjectState};
     use std::collections::HashMap;
 
     #[test]
@@ -30,10 +28,10 @@ mod tests {
         let project = ProjectState {
             origin: 0x1000,
             raw_data: vec![chunk.to_string()],
-            address_ranges: vec![AddressRange {
+            blocks: vec![Block {
                 start: 0,
                 end: 5,
-                type_: AddressType::Code,
+                type_: BlockType::Code,
             }],
             labels: HashMap::new(), // EMPTY! No saved labels.
             settings: DocumentSettings::default(),

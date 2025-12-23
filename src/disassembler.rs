@@ -1,5 +1,5 @@
 use crate::cpu::{get_opcodes, Opcode};
-use crate::state::{AddressType, Assembler, DocumentSettings, Label};
+use crate::state::{Assembler, BlockType, DocumentSettings, Label};
 use std::collections::HashMap;
 
 mod acme;
@@ -47,7 +47,7 @@ impl Disassembler {
     pub fn disassemble(
         &self,
         data: &[u8],
-        address_types: &[AddressType],
+        block_types: &[BlockType],
         labels: &HashMap<u16, Vec<Label>>,
         origin: u16,
         settings: &DocumentSettings,
@@ -62,13 +62,13 @@ impl Disassembler {
             let label_name = self.get_label_name(address, labels, formatter.as_ref());
             let comment = self.get_comment(address, labels, settings);
 
-            let current_type = address_types.get(pc).copied().unwrap_or(AddressType::Code);
+            let current_type = block_types.get(pc).copied().unwrap_or(BlockType::Code);
 
             let (bytes_consumed, new_lines) = match current_type {
-                AddressType::Code => self.handle_code(
+                BlockType::Code => self.handle_code(
                     pc,
                     data,
-                    address_types,
+                    block_types,
                     address,
                     formatter.as_ref(),
                     labels,
@@ -76,10 +76,10 @@ impl Disassembler {
                     label_name,
                     comment,
                 ),
-                AddressType::DataByte => self.handle_data_byte(
+                BlockType::DataByte => self.handle_data_byte(
                     pc,
                     data,
-                    address_types,
+                    block_types,
                     address,
                     formatter.as_ref(),
                     labels,
@@ -87,10 +87,10 @@ impl Disassembler {
                     label_name,
                     comment,
                 ),
-                AddressType::DataWord => self.handle_data_word(
+                BlockType::DataWord => self.handle_data_word(
                     pc,
                     data,
-                    address_types,
+                    block_types,
                     address,
                     formatter.as_ref(),
                     labels,
@@ -98,10 +98,10 @@ impl Disassembler {
                     label_name,
                     comment,
                 ),
-                AddressType::Address => self.handle_address(
+                BlockType::Address => self.handle_address(
                     pc,
                     data,
-                    address_types,
+                    block_types,
                     address,
                     formatter.as_ref(),
                     labels,
@@ -109,10 +109,10 @@ impl Disassembler {
                     label_name,
                     comment,
                 ),
-                AddressType::Text => self.handle_text(
+                BlockType::Text => self.handle_text(
                     pc,
                     data,
-                    address_types,
+                    block_types,
                     address,
                     formatter.as_ref(),
                     labels,
@@ -120,10 +120,10 @@ impl Disassembler {
                     label_name,
                     comment,
                 ),
-                AddressType::Screencode => self.handle_screencode(
+                BlockType::Screencode => self.handle_screencode(
                     pc,
                     data,
-                    address_types,
+                    block_types,
                     address,
                     formatter.as_ref(),
                     labels,
@@ -183,7 +183,7 @@ impl Disassembler {
         &self,
         pc: usize,
         data: &[u8],
-        address_types: &[AddressType],
+        block_types: &[BlockType],
         address: u16,
         formatter: &dyn Formatter,
         labels: &HashMap<u16, Vec<Label>>,
@@ -201,8 +201,8 @@ impl Disassembler {
             if pc + opcode.size as usize <= data.len() {
                 let mut collision = false;
                 for i in 1..opcode.size {
-                    if let Some(t) = address_types.get(pc + i as usize) {
-                        if *t != AddressType::Code {
+                    if let Some(t) = block_types.get(pc + i as usize) {
+                        if *t != BlockType::Code {
                             collision = true;
                             break;
                         }
@@ -305,7 +305,7 @@ impl Disassembler {
         &self,
         pc: usize,
         data: &[u8],
-        address_types: &[AddressType],
+        block_types: &[BlockType],
         address: u16,
         formatter: &dyn Formatter,
         labels: &HashMap<u16, Vec<Label>>,
@@ -322,7 +322,7 @@ impl Disassembler {
             let current_address = origin.wrapping_add(current_pc as u16);
 
             // Stop if type changes
-            if address_types.get(current_pc) != Some(&AddressType::DataByte) {
+            if block_types.get(current_pc) != Some(&BlockType::DataByte) {
                 break;
             }
 
@@ -357,7 +357,7 @@ impl Disassembler {
         &self,
         pc: usize,
         data: &[u8],
-        address_types: &[AddressType],
+        block_types: &[BlockType],
         address: u16,
         formatter: &dyn Formatter,
         labels: &HashMap<u16, Vec<Label>>,
@@ -373,8 +373,8 @@ impl Disassembler {
             let current_pc_start = pc + (count * 2);
             let current_address = origin.wrapping_add(current_pc_start as u16);
 
-            if address_types.get(current_pc_start) != Some(&AddressType::DataWord)
-                || address_types.get(current_pc_start + 1) != Some(&AddressType::DataWord)
+            if block_types.get(current_pc_start) != Some(&BlockType::DataWord)
+                || block_types.get(current_pc_start + 1) != Some(&BlockType::DataWord)
             {
                 break;
             }
@@ -418,7 +418,7 @@ impl Disassembler {
         &self,
         pc: usize,
         data: &[u8],
-        address_types: &[AddressType],
+        block_types: &[BlockType],
         address: u16,
         formatter: &dyn Formatter,
         labels: &HashMap<u16, Vec<Label>>,
@@ -434,8 +434,8 @@ impl Disassembler {
             let current_pc_start = pc + (count * 2);
             let current_address = origin.wrapping_add(current_pc_start as u16);
 
-            if address_types.get(current_pc_start) != Some(&AddressType::Address)
-                || address_types.get(current_pc_start + 1) != Some(&AddressType::Address)
+            if block_types.get(current_pc_start) != Some(&BlockType::Address)
+                || block_types.get(current_pc_start + 1) != Some(&BlockType::Address)
             {
                 break;
             }
@@ -488,7 +488,7 @@ impl Disassembler {
         &self,
         pc: usize,
         data: &[u8],
-        address_types: &[AddressType],
+        block_types: &[BlockType],
         address: u16,
         formatter: &dyn Formatter,
         labels: &HashMap<u16, Vec<Label>>,
@@ -505,7 +505,7 @@ impl Disassembler {
             let current_pc = pc + count;
             let current_address = origin.wrapping_add(current_pc as u16);
 
-            if address_types.get(current_pc) != Some(&AddressType::Text) {
+            if block_types.get(current_pc) != Some(&BlockType::Text) {
                 break;
             }
 
@@ -564,7 +564,7 @@ impl Disassembler {
         &self,
         pc: usize,
         data: &[u8],
-        address_types: &[AddressType],
+        block_types: &[BlockType],
         address: u16,
         formatter: &dyn Formatter,
         labels: &HashMap<u16, Vec<Label>>,
@@ -580,7 +580,7 @@ impl Disassembler {
             let current_pc = pc + count;
             let current_address = origin.wrapping_add(current_pc as u16);
 
-            if address_types.get(current_pc) != Some(&AddressType::Screencode) {
+            if block_types.get(current_pc) != Some(&BlockType::Screencode) {
                 break;
             }
 
@@ -619,10 +619,10 @@ impl Disassembler {
             count += 1;
         }
 
-        let is_start = pc == 0 || address_types.get(pc - 1) != Some(&AddressType::Screencode);
+        let is_start = pc == 0 || block_types.get(pc - 1) != Some(&BlockType::Screencode);
         let next_pc = pc + count;
         let is_end =
-            next_pc >= data.len() || address_types.get(next_pc) != Some(&AddressType::Screencode);
+            next_pc >= data.len() || block_types.get(next_pc) != Some(&BlockType::Screencode);
 
         if count > 0 {
             let formatted_lines = formatter.format_screencode(&text_content, is_start, is_end);

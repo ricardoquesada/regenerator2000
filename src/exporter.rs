@@ -690,7 +690,7 @@ mod tests {
             0xBD, 0x12, 0x00, // LDA $0012,X (Absolute,X)
         ];
         state.raw_data = data.clone();
-        state.address_types = vec![crate::state::AddressType::Code; data.len()];
+        state.block_types = vec![crate::state::BlockType::Code; data.len()];
 
         // Disassemble to populate state.disassembly
         // We need to manually populate disassembly or call disassemble.

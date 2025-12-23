@@ -1,11 +1,11 @@
-use crate::state::{AddressType, AppState};
+use crate::state::{AppState, BlockType};
 
 #[derive(Debug, Clone)]
 pub enum Command {
-    SetAddressType {
+    SetBlockType {
         range: std::ops::Range<usize>,
-        new_type: AddressType,
-        old_types: Vec<AddressType>,
+        new_type: BlockType,
+        old_types: Vec<BlockType>,
     },
     SetLabel {
         address: u16,
@@ -21,18 +21,18 @@ pub enum Command {
 impl Command {
     pub fn apply(&self, state: &mut AppState) {
         match self {
-            Command::SetAddressType {
+            Command::SetBlockType {
                 range,
                 new_type,
                 old_types: _,
             } => {
-                let max_len = state.address_types.len();
+                let max_len = state.block_types.len();
                 let start = range.start;
                 let end = range.end.min(max_len);
 
                 if start < end {
                     for i in start..end {
-                        state.address_types[i] = *new_type;
+                        state.block_types[i] = *new_type;
                     }
 
                     // Re-analyze reference counts and labels
@@ -62,18 +62,18 @@ impl Command {
 
     pub fn undo(&self, state: &mut AppState) {
         match self {
-            Command::SetAddressType {
+            Command::SetBlockType {
                 range,
                 new_type: _,
                 old_types,
             } => {
-                let max_len = state.address_types.len();
+                let max_len = state.block_types.len();
                 let start = range.start;
                 let end = range.end.min(max_len);
 
                 if start < end {
                     for (i, old_type) in (start..end).zip(old_types.iter()) {
-                        state.address_types[i] = *old_type;
+                        state.block_types[i] = *old_type;
                     }
 
                     // Re-analyze reference counts and labels
@@ -161,7 +161,7 @@ impl UndoStack {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{AddressType, AppState};
+    use crate::state::{AppState, BlockType};
 
     #[test]
     fn test_undo_stack_push_undo_redo() {
@@ -169,14 +169,14 @@ mod tests {
         // Setup initial state: 10 lines of Code
         // We need to allow app_state to have some raw data to be valid for address types
         app_state.raw_data = vec![0xEA; 10]; // NOPs
-        app_state.address_types = vec![AddressType::Code; 10];
+        app_state.block_types = vec![BlockType::Code; 10];
 
         // Action: Change first 5 bytes to DataByte
         let range = 0..5;
-        let old_types = vec![AddressType::Code; 5];
-        let command = Command::SetAddressType {
+        let old_types = vec![BlockType::Code; 5];
+        let command = Command::SetBlockType {
             range: range.clone(),
-            new_type: AddressType::DataByte,
+            new_type: BlockType::DataByte,
             old_types,
         };
 
@@ -185,10 +185,10 @@ mod tests {
 
         // Verify application
         for i in 0..5 {
-            assert_eq!(app_state.address_types[i], AddressType::DataByte);
+            assert_eq!(app_state.block_types[i], BlockType::DataByte);
         }
         for i in 5..10 {
-            assert_eq!(app_state.address_types[i], AddressType::Code);
+            assert_eq!(app_state.block_types[i], BlockType::Code);
         }
 
         // Undo
@@ -198,7 +198,7 @@ mod tests {
 
         // Verify Undo
         for i in 0..10 {
-            assert_eq!(app_state.address_types[i], AddressType::Code);
+            assert_eq!(app_state.block_types[i], BlockType::Code);
         }
 
         // Redo
@@ -208,7 +208,7 @@ mod tests {
 
         // Verify Redo
         for i in 0..5 {
-            assert_eq!(app_state.address_types[i], AddressType::DataByte);
+            assert_eq!(app_state.block_types[i], BlockType::DataByte);
         }
     }
 
@@ -266,7 +266,7 @@ mod tests {
         // Target: $1005 (EA)
         let data = vec![0x4C, 0x05, 0x10, 0xEA, 0xEA, 0xEA];
         app_state.raw_data = data;
-        app_state.address_types = vec![AddressType::Code; 6];
+        app_state.block_types = vec![BlockType::Code; 6];
 
         // Initial Analysis
         app_state.labels = crate::analyzer::analyze(&app_state);
@@ -291,10 +291,10 @@ mod tests {
 
         // Action: Change JMP (3 bytes) to DataByte
         let range = 0..3;
-        let old_types = vec![AddressType::Code; 3];
-        let command = Command::SetAddressType {
+        let old_types = vec![BlockType::Code; 3];
+        let command = Command::SetBlockType {
             range: range.clone(),
-            new_type: AddressType::DataByte,
+            new_type: BlockType::DataByte,
             old_types,
         };
 

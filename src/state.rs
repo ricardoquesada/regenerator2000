@@ -134,7 +134,7 @@ impl Default for DocumentSettings {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum AddressType {
+pub enum BlockType {
     Code,
     DataByte,
     DataWord,
@@ -193,17 +193,17 @@ pub struct Label {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct AddressRange {
+pub struct Block {
     pub start: usize,
     pub end: usize,
-    pub type_: AddressType,
+    pub type_: BlockType,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectState {
     pub origin: u16,
     pub raw_data: Vec<String>, // Chunked Hex
-    pub address_ranges: Vec<AddressRange>,
+    pub blocks: Vec<Block>,
     #[serde(default)]
     pub labels: HashMap<u16, Vec<Label>>,
     #[serde(default)]
@@ -219,7 +219,7 @@ pub struct AppState {
     pub origin: u16,
 
     // Data Conversion State
-    pub address_types: Vec<AddressType>,
+    pub block_types: Vec<BlockType>,
     pub labels: HashMap<u16, Vec<Label>>,
     pub settings: DocumentSettings,
 
@@ -235,7 +235,7 @@ impl AppState {
             disassembly: Vec::new(),
             disassembler: Disassembler::new(),
             origin: 0,
-            address_types: Vec::new(),
+            block_types: Vec::new(),
             labels: HashMap::new(),
             settings: DocumentSettings::default(),
             undo_stack: crate::commands::UndoStack::new(),
@@ -275,7 +275,7 @@ impl AppState {
             self.raw_data = data;
         }
 
-        self.address_types = vec![AddressType::Code; self.raw_data.len()];
+        self.block_types = vec![BlockType::Code; self.raw_data.len()];
         self.undo_stack = crate::commands::UndoStack::new();
 
         self.disassemble();
@@ -293,7 +293,7 @@ impl AppState {
         self.raw_data = decode_raw_data(&project.raw_data)?;
 
         // Expand address types
-        self.address_types = expand_address_ranges(&project.address_ranges, self.raw_data.len());
+        self.block_types = expand_blocks(&project.blocks, self.raw_data.len());
         self.labels = project.labels;
         self.settings = project.settings;
 
@@ -312,7 +312,7 @@ impl AppState {
             let project = ProjectState {
                 origin: self.origin,
                 raw_data: encode_raw_data(&self.raw_data),
-                address_ranges: compress_address_types(&self.address_types),
+                blocks: compress_block_types(&self.block_types),
                 labels: self
                     .labels
                     .clone()
@@ -362,9 +362,9 @@ impl AppState {
         "Analysis Complete".to_string()
     }
 
-    pub fn set_address_type_region(
+    pub fn set_block_type_region(
         &mut self,
-        new_type: AddressType,
+        new_type: BlockType,
         selection_start: Option<usize>,
         cursor_index: usize,
     ) {
@@ -404,15 +404,15 @@ impl AppState {
 
         if let Some((start, end)) = range_opt {
             // Boundary check
-            let max_len = self.address_types.len();
+            let max_len = self.block_types.len();
             if start < max_len {
                 let valid_end = end.min(max_len);
                 let range_end = valid_end + 1;
                 let range = start..range_end;
 
-                let old_types = self.address_types[range.clone()].to_vec();
+                let old_types = self.block_types[range.clone()].to_vec();
 
-                let command = crate::commands::Command::SetAddressType {
+                let command = crate::commands::Command::SetBlockType {
                     range: range.clone(),
                     new_type,
                     old_types,
@@ -573,7 +573,7 @@ impl AppState {
     pub fn disassemble(&mut self) {
         let mut lines = self.disassembler.disassemble(
             &self.raw_data,
-            &self.address_types,
+            &self.block_types,
             &self.labels,
             self.origin,
             &self.settings,
@@ -616,7 +616,7 @@ impl AppState {
     }
 }
 
-fn compress_address_types(types: &[AddressType]) -> Vec<AddressRange> {
+fn compress_block_types(types: &[BlockType]) -> Vec<Block> {
     if types.is_empty() {
         return Vec::new();
     }
@@ -627,7 +627,7 @@ fn compress_address_types(types: &[AddressType]) -> Vec<AddressRange> {
 
     for (i, t) in types.iter().enumerate().skip(1) {
         if *t != current_type {
-            ranges.push(AddressRange {
+            ranges.push(Block {
                 start,
                 end: i - 1,
                 type_: current_type,
@@ -638,7 +638,7 @@ fn compress_address_types(types: &[AddressType]) -> Vec<AddressRange> {
     }
 
     // Last range
-    ranges.push(AddressRange {
+    ranges.push(Block {
         start,
         end: types.len() - 1,
         type_: current_type,
@@ -647,8 +647,8 @@ fn compress_address_types(types: &[AddressType]) -> Vec<AddressRange> {
     ranges
 }
 
-fn expand_address_ranges(ranges: &[AddressRange], len: usize) -> Vec<AddressType> {
-    let mut types = vec![AddressType::Code; len];
+fn expand_blocks(ranges: &[Block], len: usize) -> Vec<BlockType> {
+    let mut types = vec![BlockType::Code; len];
 
     for range in ranges {
         let end = range.end.min(len - 1);
@@ -688,55 +688,55 @@ mod serialization_tests {
     use super::*;
 
     #[test]
-    fn test_compress_address_types() {
+    fn test_compress_block_types() {
         let types = vec![
-            AddressType::Code,
-            AddressType::Code,
-            AddressType::DataByte,
-            AddressType::DataByte,
-            AddressType::Code,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::DataByte,
+            BlockType::DataByte,
+            BlockType::Code,
         ];
-        let ranges = compress_address_types(&types);
+        let ranges = compress_block_types(&types);
         assert_eq!(ranges.len(), 3);
         assert_eq!(ranges[0].start, 0);
         assert_eq!(ranges[0].end, 1);
-        assert_eq!(ranges[0].type_, AddressType::Code);
+        assert_eq!(ranges[0].type_, BlockType::Code);
 
         assert_eq!(ranges[1].start, 2);
         assert_eq!(ranges[1].end, 3);
-        assert_eq!(ranges[1].type_, AddressType::DataByte);
+        assert_eq!(ranges[1].type_, BlockType::DataByte);
 
         assert_eq!(ranges[2].start, 4);
         assert_eq!(ranges[2].end, 4);
-        assert_eq!(ranges[2].type_, AddressType::Code);
+        assert_eq!(ranges[2].type_, BlockType::Code);
     }
 
     #[test]
-    fn test_expand_address_ranges() {
+    fn test_expand_blocks() {
         let ranges = vec![
-            AddressRange {
+            Block {
                 start: 0,
                 end: 1,
-                type_: AddressType::Code,
+                type_: BlockType::Code,
             },
-            AddressRange {
+            Block {
                 start: 2,
                 end: 3,
-                type_: AddressType::DataByte,
+                type_: BlockType::DataByte,
             },
-            AddressRange {
+            Block {
                 start: 4,
                 end: 4,
-                type_: AddressType::Code,
+                type_: BlockType::Code,
             },
         ];
-        let types = expand_address_ranges(&ranges, 5);
+        let types = expand_blocks(&ranges, 5);
         assert_eq!(types.len(), 5);
-        assert_eq!(types[0], AddressType::Code);
-        assert_eq!(types[1], AddressType::Code);
-        assert_eq!(types[2], AddressType::DataByte);
-        assert_eq!(types[3], AddressType::DataByte);
-        assert_eq!(types[4], AddressType::Code);
+        assert_eq!(types[0], BlockType::Code);
+        assert_eq!(types[1], BlockType::Code);
+        assert_eq!(types[2], BlockType::DataByte);
+        assert_eq!(types[3], BlockType::DataByte);
+        assert_eq!(types[4], BlockType::Code);
     }
 
     #[test]
