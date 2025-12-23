@@ -644,13 +644,30 @@ impl Disassembler {
             next_pc >= data.len() || block_types.get(next_pc) != Some(&BlockType::Screencode);
 
         if count > 0 {
-            let formatted_lines =
-                formatter.format_screencode(&bytes, &text_content, is_start, is_end);
+            let mut all_formatted_parts = Vec::new();
+
+            if is_start {
+                let pre_lines = formatter.format_screencode_pre();
+                for (m, o) in pre_lines {
+                    all_formatted_parts.push((m, o, false));
+                }
+            }
+
+            let body_lines = formatter.format_screencode(&bytes, &text_content);
+            all_formatted_parts.extend(body_lines);
+
+            if is_end {
+                let post_lines = formatter.format_screencode_post();
+                for (m, o) in post_lines {
+                    all_formatted_parts.push((m, o, false));
+                }
+            }
+
             let mut disassembly_lines = Vec::new();
 
-            for (i, (mnemonic, operand, has_bytes)) in formatted_lines.iter().enumerate() {
-                // Attach bytes only to marked lines.
-                // Attach label and comment only to the first line.
+            for (i, (mnemonic, operand, has_bytes)) in all_formatted_parts.iter().enumerate() {
+                // Attach bytes only to marked lines by the formatter (usually the body lines).
+                // Attach label and comment only to the very first line of the entire block.
                 let line_bytes = if *has_bytes {
                     bytes.clone()
                 } else {

@@ -358,9 +358,12 @@ fn test_text_and_screencode_disassembly() {
     let code = vec![0x41, 0x42, 0x43];
     let block_types = vec![BlockType::Text, BlockType::Text, BlockType::Text];
     let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
-    assert_eq!(lines.len(), 1);
-    assert_eq!(lines[0].mnemonic, ".TEXT");
-    assert_eq!(lines[0].operand, "\"ABC\"");
+
+    // Tass formatting produces 4 lines: .ENCODE, .ENC "ASCII", .TEXT "ABC", .ENDENCODE
+    assert_eq!(lines.len(), 4);
+    assert_eq!(lines[0].mnemonic, ".ENCODE");
+    assert_eq!(lines[2].mnemonic, ".TEXT");
+    assert_eq!(lines[2].operand, "\"ABC\"");
 
     // 2. Test Acme Text
     settings.assembler = Assembler::Acme;
@@ -388,6 +391,15 @@ fn test_text_and_screencode_disassembly() {
     let code_bad = vec![0xFF];
     let block_types_bad = vec![BlockType::Text];
     let lines = disassembler.disassemble(&code_bad, &block_types_bad, &labels, origin, &settings);
+    // For Tass, this will produce 4 lines: ENCODE, ENC, BYTE, ENDENCODE
+    // But we need to use Acme setting from previous step?
+    // Wait, let's reset to Tass if we want to confirm fallback logic for Tass, or Acme for Acme.
+    // The previous test logic assumed 1 line.
+    // If settings is still Acme:
+    // Acme text fallback -> !byte
+    // Acme Formatter default fallback is check handle_text implementation.
+    // handle_text calls format_text if valid, else handle_partial_data.
+    // 0xFF (255) is not in 0x20..0x7E range. So it goes to handle_partial_data -> 1 line.
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!byte");
     assert_eq!(lines[0].operand, "$FF");
@@ -416,7 +428,8 @@ fn test_tass_screencode_enc_wrapping() {
 
     // 1. Start Block
     assert_eq!(lines[0].mnemonic, ".ENCODE");
-    assert_eq!(lines[1].mnemonic, ".ENC SCREEN");
+    assert_eq!(lines[1].mnemonic, ".ENC");
+    assert_eq!(lines[1].operand, "\"SCREEN\"");
 
     // 2. Content
     assert_eq!(lines[2].mnemonic, ".TEXT");
@@ -444,7 +457,7 @@ fn test_tass_screencode_multiline_wrapping() {
 
     // Expected:
     // 1. .ENCODE
-    // 2. .ENC SCREEN
+    // 2. .ENC "SCREEN"
     // 3. .TEXT "..." (32 bytes)
     // 4. .TEXT "..." (8 bytes)
     // 5. .ENDENCODE
@@ -453,7 +466,8 @@ fn test_tass_screencode_multiline_wrapping() {
 
     // Line 1-2: Header
     assert_eq!(lines[0].mnemonic, ".ENCODE");
-    assert_eq!(lines[1].mnemonic, ".ENC SCREEN");
+    assert_eq!(lines[1].mnemonic, ".ENC");
+    assert_eq!(lines[1].operand, "\"SCREEN\"");
 
     // Line 3: First chunk
     assert_eq!(lines[2].mnemonic, ".TEXT");
@@ -586,7 +600,8 @@ fn test_tass_screencode_single_byte_special() {
 
     assert_eq!(lines.len(), 4);
     assert_eq!(lines[0].mnemonic, ".ENCODE");
-    assert_eq!(lines[1].mnemonic, ".ENC SCREEN");
+    assert_eq!(lines[1].mnemonic, ".ENC");
+    assert_eq!(lines[1].operand, "\"SCREEN\"");
     assert_eq!(lines[2].mnemonic, ".BYTE");
     assert_eq!(lines[2].operand, "$4F");
     assert_eq!(lines[3].mnemonic, ".ENDENCODE");

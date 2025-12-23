@@ -169,14 +169,16 @@ impl Formatter for AcmeFormatter {
         vec![("!text".to_string(), format!("\"{}\"", text), true)]
     }
 
-    fn format_screencode(
-        &self,
-        _bytes: &[u8],
-        text: &str,
-        _is_start: bool,
-        _is_end: bool,
-    ) -> Vec<(String, String, bool)> {
+    fn format_screencode_pre(&self) -> Vec<(String, String)> {
+        Vec::new()
+    }
+
+    fn format_screencode(&self, _bytes: &[u8], text: &str) -> Vec<(String, String, bool)> {
         vec![("!scr".to_string(), format!("\"{}\"", text), true)]
+    }
+
+    fn format_screencode_post(&self) -> Vec<(String, String)> {
+        Vec::new()
     }
 
     fn format_header_origin(&self, origin: u16) -> String {

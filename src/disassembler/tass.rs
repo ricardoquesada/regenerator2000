@@ -208,19 +208,15 @@ impl Formatter for TassFormatter {
         lines
     }
 
-    fn format_screencode(
-        &self,
-        bytes: &[u8],
-        text: &str,
-        is_start: bool,
-        is_end: bool,
-    ) -> Vec<(String, String, bool)> {
-        let mut lines = Vec::new();
+    fn format_screencode_pre(&self) -> Vec<(String, String)> {
+        vec![
+            (".ENCODE".to_string(), String::new()),
+            (".ENC".to_string(), "\"SCREEN\"".to_string()),
+        ]
+    }
 
-        if is_start {
-            lines.push((".ENCODE".to_string(), String::new(), false));
-            lines.push((".ENC \"SCREEN\"".to_string(), String::new(), false));
-        }
+    fn format_screencode(&self, bytes: &[u8], text: &str) -> Vec<(String, String, bool)> {
+        let mut lines = Vec::new();
 
         // Special handling for single byte or non-printable blocks
         if bytes.len() == 1 {
@@ -229,11 +225,11 @@ impl Formatter for TassFormatter {
             lines.push((".TEXT".to_string(), format!("\"{}\"", text), true));
         }
 
-        if is_end {
-            lines.push((".ENDENCODE".to_string(), String::new(), false));
-        }
-
         lines
+    }
+
+    fn format_screencode_post(&self) -> Vec<(String, String)> {
+        vec![(".ENDENCODE".to_string(), String::new())]
     }
 
     fn format_header_origin(&self, origin: u16) -> String {
