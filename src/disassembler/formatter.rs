@@ -23,6 +23,7 @@ pub trait Formatter {
     fn format_text(&self, text: &str) -> (String, String);
     fn format_screencode(
         &self,
+        bytes: &[u8],
         text: &str,
         is_start: bool,
         is_end: bool,

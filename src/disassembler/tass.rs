@@ -186,6 +186,7 @@ impl Formatter for TassFormatter {
 
     fn format_screencode(
         &self,
+        bytes: &[u8],
         text: &str,
         is_start: bool,
         is_end: bool,
@@ -194,10 +195,15 @@ impl Formatter for TassFormatter {
 
         if is_start {
             lines.push((".ENCODE".to_string(), String::new(), false));
-            lines.push((".ENC SCREEN".to_string(), String::new(), false));
+            lines.push((".ENC \"SCREEN\"".to_string(), String::new(), false));
         }
 
-        lines.push((".TEXT".to_string(), format!("\"{}\"", text), true));
+        // Special handling for single byte or non-printable blocks
+        if bytes.len() == 1 {
+            lines.push((".BYTE".to_string(), format!("${:02X}", bytes[0]), true));
+        } else {
+            lines.push((".TEXT".to_string(), format!("\"{}\"", text), true));
+        }
 
         if is_end {
             lines.push((".ENDENCODE".to_string(), String::new(), false));

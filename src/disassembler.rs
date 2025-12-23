@@ -597,14 +597,15 @@ impl Disassembler {
             } else if b < 64 {
                 b
             } else {
-                // Extended/Reverse codes - for now break sequence?
-                // Or just output as is?
-                // Let's stop at 64 for strictly "Text" screencodes.
-                break;
+                // Extended/Reverse codes
+                // Just pass through as is, we'll filter printability later
+                b
             };
 
             if !(0x20..=0x7E).contains(&ascii) {
-                break;
+                // For ScreenCode blocks, we allow all bytes now, as they might be mapped to non-standard chars
+                // or just be raw bytes we want to output as .BYTE in the block.
+                // We just won't add them to the text content string if they aren't printable.
             }
 
             bytes.push(b);
@@ -625,7 +626,8 @@ impl Disassembler {
             next_pc >= data.len() || block_types.get(next_pc) != Some(&BlockType::Screencode);
 
         if count > 0 {
-            let formatted_lines = formatter.format_screencode(&text_content, is_start, is_end);
+            let formatted_lines =
+                formatter.format_screencode(&bytes, &text_content, is_start, is_end);
             let mut disassembly_lines = Vec::new();
 
             for (i, (mnemonic, operand, has_bytes)) in formatted_lines.iter().enumerate() {

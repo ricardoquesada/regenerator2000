@@ -552,11 +552,42 @@ fn test_tass_label_interruption() {
     assert_eq!(lines.len(), 5);
 
     assert_eq!(lines[0].mnemonic, ".ENCODE");
-    assert_eq!(lines[2].mnemonic, ".TEXT");
+    assert_eq!(lines[2].mnemonic, ".BYTE");
+    assert_eq!(lines[2].operand, "$01"); // Was .TEXT "A"
 
     // Label should be on the first line of the second chunk
     assert_eq!(lines[3].label, Some("MID".to_string()));
-    assert_eq!(lines[3].mnemonic, ".TEXT");
+    assert_eq!(lines[3].mnemonic, ".BYTE");
+    assert_eq!(lines[3].operand, "$02"); // Was .TEXT "B"
 
     assert_eq!(lines[4].mnemonic, ".ENDENCODE");
+}
+
+#[test]
+fn test_tass_screencode_single_byte_special() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let labels = HashMap::new();
+    let origin = 0x1000;
+
+    // Single byte $4F
+    let code = vec![0x4F];
+    let block_types = vec![BlockType::Screencode];
+
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+
+    // Expected:
+    // .ENCODE
+    // .ENC SCREEN
+    // .BYTE $4F
+    // .ENDENCODE
+
+    assert_eq!(lines.len(), 4);
+    assert_eq!(lines[0].mnemonic, ".ENCODE");
+    assert_eq!(lines[1].mnemonic, ".ENC SCREEN");
+    assert_eq!(lines[2].mnemonic, ".BYTE");
+    assert_eq!(lines[2].operand, "$4F");
+    assert_eq!(lines[3].mnemonic, ".ENDENCODE");
 }

@@ -165,6 +165,7 @@ impl Formatter for AcmeFormatter {
 
     fn format_screencode(
         &self,
+        _bytes: &[u8],
         text: &str,
         _is_start: bool,
         _is_end: bool,
