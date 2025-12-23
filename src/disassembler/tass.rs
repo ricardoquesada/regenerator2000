@@ -180,6 +180,14 @@ impl Formatter for TassFormatter {
         format!("${:04X}", word)
     }
 
+    fn format_text(&self, text: &str) -> (String, String) {
+        (".TEXT".to_string(), format!("\"{}\"", text))
+    }
+
+    fn format_screencode(&self, text: &str) -> (String, String) {
+        ("!TEXT".to_string(), format!("\"{}\"", text))
+    }
+
     fn format_header_origin(&self, origin: u16) -> String {
         format!("* = ${:04X}", origin)
     }

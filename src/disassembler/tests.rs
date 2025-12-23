@@ -343,3 +343,52 @@ fn test_xref_count_configurable() {
     let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
     assert!(lines[0].comment.is_empty());
 }
+
+#[test]
+fn test_text_and_screencode_disassembly() {
+    let mut settings = DocumentSettings::default();
+
+    // 1. Test Tass Text
+    settings.assembler = Assembler::Tass64;
+    let disassembler = Disassembler::new();
+    let labels = HashMap::new();
+    let origin = 0x1000;
+
+    // "ABC"
+    let code = vec![0x41, 0x42, 0x43];
+    let address_types = vec![AddressType::Text, AddressType::Text, AddressType::Text];
+    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].mnemonic, ".TEXT");
+    assert_eq!(lines[0].operand, "\"ABC\"");
+
+    // 2. Test Acme Text
+    settings.assembler = Assembler::Acme;
+    let lines = disassembler.disassemble(&code, &address_types, &labels, origin, &settings);
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].mnemonic, "!text");
+    assert_eq!(lines[0].operand, "\"ABC\"");
+
+    // 3. Test Screencode (using "ABC" screen codes 1, 2, 3)
+    let code_scr = vec![0x01, 0x02, 0x03]; // A, B, C in Screen Code (0x01=A, 0x02=B, 0x03=C)
+    let address_types_scr = vec![
+        AddressType::Screencode,
+        AddressType::Screencode,
+        AddressType::Screencode,
+    ];
+
+    // Acme Screencode
+    settings.assembler = Assembler::Acme;
+    let lines = disassembler.disassemble(&code_scr, &address_types_scr, &labels, origin, &settings);
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].mnemonic, "!scr");
+    assert_eq!(lines[0].operand, "\"ABC\"");
+
+    // 4. Test fallback for invalid text
+    let code_bad = vec![0xFF];
+    let address_types_bad = vec![AddressType::Text];
+    let lines = disassembler.disassemble(&code_bad, &address_types_bad, &labels, origin, &settings);
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].mnemonic, "!byte");
+    assert_eq!(lines[0].operand, "$FF");
+}

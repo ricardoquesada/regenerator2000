@@ -600,6 +600,16 @@ pub fn run_app<B: Backend>(
                         &mut ui_state,
                         crate::ui_state::MenuAction::Address,
                     ),
+                    KeyCode::Char('t') => handle_menu_action(
+                        &mut app_state,
+                        &mut ui_state,
+                        crate::ui_state::MenuAction::Text,
+                    ),
+                    KeyCode::Char('s') => handle_menu_action(
+                        &mut app_state,
+                        &mut ui_state,
+                        crate::ui_state::MenuAction::Screencode,
+                    ),
 
                     // Label
                     KeyCode::Char('l') => {
@@ -792,6 +802,36 @@ fn handle_menu_action(
 
             app_state.set_address_type_region(
                 crate::state::AddressType::Address,
+                ui_state.selection_start,
+                ui_state.cursor_index,
+            );
+            if let Some(idx) = new_cursor {
+                ui_state.cursor_index = idx;
+            }
+            ui_state.selection_start = None;
+        }
+        MenuAction::Text => {
+            let new_cursor = ui_state
+                .selection_start
+                .map(|start| start.min(ui_state.cursor_index));
+
+            app_state.set_address_type_region(
+                crate::state::AddressType::Text,
+                ui_state.selection_start,
+                ui_state.cursor_index,
+            );
+            if let Some(idx) = new_cursor {
+                ui_state.cursor_index = idx;
+            }
+            ui_state.selection_start = None;
+        }
+        MenuAction::Screencode => {
+            let new_cursor = ui_state
+                .selection_start
+                .map(|start| start.min(ui_state.cursor_index));
+
+            app_state.set_address_type_region(
+                crate::state::AddressType::Screencode,
                 ui_state.selection_start,
                 ui_state.cursor_index,
             );

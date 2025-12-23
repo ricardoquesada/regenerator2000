@@ -108,6 +108,28 @@ impl Disassembler {
                     label_name,
                     comment,
                 ),
+                AddressType::Text => self.handle_text(
+                    pc,
+                    data,
+                    address_types,
+                    address,
+                    formatter.as_ref(),
+                    labels,
+                    origin,
+                    label_name,
+                    comment,
+                ),
+                AddressType::Screencode => self.handle_screencode(
+                    pc,
+                    data,
+                    address_types,
+                    address,
+                    formatter.as_ref(),
+                    labels,
+                    origin,
+                    label_name,
+                    comment,
+                ),
             };
 
             lines.push(line);
@@ -455,6 +477,169 @@ impl Disassembler {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn handle_text(
+        &self,
+        pc: usize,
+        data: &[u8],
+        address_types: &[AddressType],
+        address: u16,
+        formatter: &dyn Formatter,
+        labels: &HashMap<u16, Vec<Label>>,
+        origin: u16,
+        label_name: Option<String>,
+        comment: String,
+    ) -> (usize, DisassemblyLine) {
+        let mut bytes = Vec::new();
+        let mut text_content = String::new();
+        let mut count = 0;
+        let mut valid_text = true;
+
+        while pc + count < data.len() && count < 32 {
+            let current_pc = pc + count;
+            let current_address = origin.wrapping_add(current_pc as u16);
+
+            if address_types.get(current_pc) != Some(&AddressType::Text) {
+                break;
+            }
+
+            if count > 0 && labels.contains_key(&current_address) {
+                break;
+            }
+
+            let b = data[current_pc];
+            // Check if "printable" ASCII-ish from 0x20 to 0x7E
+            if !(0x20..=0x7E).contains(&b) {
+                valid_text = false;
+                // If we encounter a non-printable, we might want to stop the string here
+                // But for "Text" type, we might just fallback to bytes if it's mixed?
+                // Or split?
+                // Let's stop grouping if we hit non-text.
+                break;
+            }
+
+            bytes.push(b);
+            let c = b as char;
+            if c == '"' {
+                text_content.push_str("\\\"");
+            } else if c == '\\' {
+                text_content.push_str("\\\\");
+            } else {
+                text_content.push(c);
+            }
+            count += 1;
+        }
+
+        if count > 0 && valid_text {
+            // Check for assembler type based on formatter directives
+            let (mnemonic, operand) = formatter.format_text(&text_content);
+
+            (
+                count,
+                DisassemblyLine {
+                    address,
+                    bytes,
+                    mnemonic,
+                    operand,
+                    comment,
+                    label: label_name,
+                    opcode: None,
+                },
+            )
+        } else {
+            // Fallback to byte if no valid text found
+            self.handle_partial_data(pc, data, address, formatter, label_name, comment, "Text")
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn handle_screencode(
+        &self,
+        pc: usize,
+        data: &[u8],
+        address_types: &[AddressType],
+        address: u16,
+        formatter: &dyn Formatter,
+        labels: &HashMap<u16, Vec<Label>>,
+        origin: u16,
+        label_name: Option<String>,
+        comment: String,
+    ) -> (usize, DisassemblyLine) {
+        let mut bytes = Vec::new();
+        let mut text_content = String::new();
+        let mut count = 0;
+
+        while pc + count < data.len() && count < 32 {
+            let current_pc = pc + count;
+            let current_address = origin.wrapping_add(current_pc as u16);
+
+            if address_types.get(current_pc) != Some(&AddressType::Screencode) {
+                break;
+            }
+
+            if count > 0 && labels.contains_key(&current_address) {
+                break;
+            }
+
+            let b = data[current_pc];
+            // Map Screen Code to ASCII
+            // 0-31 (@..left arrow) -> 64..95
+            // 32-63 (space..?) -> 32..63
+            let ascii = if b < 32 {
+                b + 64
+            } else if b < 64 {
+                b
+            } else {
+                // Extended/Reverse codes - for now break sequence?
+                // Or just output as is?
+                // Let's stop at 64 for strictly "Text" screencodes.
+                break;
+            };
+
+            if !(0x20..=0x7E).contains(&ascii) {
+                break;
+            }
+
+            bytes.push(b);
+            let c = ascii as char;
+            if c == '"' {
+                text_content.push_str("\\\"");
+            } else if c == '\\' {
+                text_content.push_str("\\\\");
+            } else {
+                text_content.push(c);
+            }
+            count += 1;
+        }
+
+        if count > 0 {
+            let (mnemonic, operand) = formatter.format_screencode(&text_content);
+
+            (
+                count,
+                DisassemblyLine {
+                    address,
+                    bytes,
+                    mnemonic,
+                    operand,
+                    comment,
+                    label: label_name,
+                    opcode: None,
+                },
+            )
+        } else {
+            self.handle_partial_data(
+                pc,
+                data,
+                address,
+                formatter,
+                label_name,
+                comment,
+                "Screencode",
+            )
+        }
+    }
+
     fn handle_partial_data(
         &self,
         pc: usize,
@@ -485,15 +670,18 @@ impl Disassembler {
             )
         } else {
             // Should not happen if loop condition is correct
-            (0, DisassemblyLine {
-                address,
-                bytes: vec![],
-                mnemonic: "???".to_string(),
-                operand: "".to_string(),
-                comment: "Error: Out of bounds".to_string(),
-                label: None,
-                opcode: None,
-            })
+            (
+                0,
+                DisassemblyLine {
+                    address,
+                    bytes: vec![],
+                    mnemonic: "???".to_string(),
+                    operand: "".to_string(),
+                    comment: "Error: Out of bounds".to_string(),
+                    label: None,
+                    opcode: None,
+                },
+            )
         }
     }
 }

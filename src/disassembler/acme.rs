@@ -159,6 +159,14 @@ impl Formatter for AcmeFormatter {
         format!("${:04x}", word)
     }
 
+    fn format_text(&self, text: &str) -> (String, String) {
+        ("!text".to_string(), format!("\"{}\"", text))
+    }
+
+    fn format_screencode(&self, text: &str) -> (String, String) {
+        ("!scr".to_string(), format!("\"{}\"", text))
+    }
+
     fn format_header_origin(&self, origin: u16) -> String {
         format!("* = ${:04x}", origin)
     }

@@ -139,6 +139,8 @@ pub enum AddressType {
     DataByte,
     DataWord,
     Address, // Reference to an address
+    Text,
+    Screencode,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
