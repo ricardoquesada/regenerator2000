@@ -49,3 +49,57 @@ pub fn create_picker() -> Option<Picker> {
     let font_size = (8, 16);
     Some(Picker::from_fontsize(font_size))
 }
+
+pub fn petscii_to_unicode(byte: u8) -> char {
+    match byte {
+        0x00..=0x1F => '.',                   // Control codes
+        0x20..=0x40 => byte as char,          // Space + Punctuation + Numbers + @
+        0x41..=0x5A => (byte + 0x20) as char, // Lowercase letters (unshifted state)
+        // 0x5B..=0x5F -> [, pound, ], arrow up, arrow left
+        0x5B => '[',
+        0x5C => '£',
+        0x5D => ']',
+        0x5E => '↑',
+        0x5F => '←',
+        // 0x60..=0x7F -> Graphics
+        0x60..=0x7F => '░', // Placeholder for graphics
+        // 0x80..=0x9F -> Control codes?
+        0x80..=0x9F => '.',
+        // 0xA0..=0xBF -> Shifted Space + Graphics
+        0xA0 => ' ',
+        0xA1..=0xBF => '▒',
+        // 0xC0..=0xDF -> Uppercase?
+        0xC1..=0xDA => (byte - 0x80) as char, // A-Z (uppercase)
+        // Others
+        _ => '.',
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_petscii_to_unicode_alphanumeric() {
+        assert_eq!(petscii_to_unicode(0x41), 'a'); // 'A' unshifted -> 'a'
+        assert_eq!(petscii_to_unicode(0x5A), 'z');
+        assert_eq!(petscii_to_unicode(0xC1), 'A'); // 'A' shifted -> 'A'
+        assert_eq!(petscii_to_unicode(0xDA), 'Z');
+        assert_eq!(petscii_to_unicode(0x30), '0');
+        assert_eq!(petscii_to_unicode(0x39), '9');
+    }
+
+    #[test]
+    fn test_petscii_to_unicode_graphics() {
+        assert_eq!(petscii_to_unicode(0x60), '░');
+        assert_eq!(petscii_to_unicode(0xA0), ' ');
+        assert_eq!(petscii_to_unicode(0x5B), '[');
+    }
+
+    #[test]
+    fn test_petscii_to_unicode_control() {
+        assert_eq!(petscii_to_unicode(0x00), '.');
+        assert_eq!(petscii_to_unicode(0x1F), '.');
+        assert_eq!(petscii_to_unicode(0x90), '.');
+    }
+}

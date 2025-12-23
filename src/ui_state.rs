@@ -3,6 +3,12 @@ use ratatui::widgets::ListState;
 use ratatui_image::picker::Picker;
 use std::path::PathBuf;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActivePane {
+    Disassembly,
+    Hex,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuAction {
     Exit,
@@ -431,6 +437,13 @@ pub struct UIState {
     pub cursor_index: usize,
     #[allow(dead_code)]
     pub scroll_index: usize,
+
+    // Hex View State
+    pub hex_cursor_index: usize,
+    #[allow(dead_code)]
+    pub hex_scroll_index: usize,
+
+    pub active_pane: ActivePane,
     pub should_quit: bool,
     pub status_message: String,
 
@@ -454,6 +467,9 @@ impl UIState {
             selection_start: None,
             cursor_index: 0,
             scroll_index: 0,
+            hex_cursor_index: 0,
+            hex_scroll_index: 0,
+            active_pane: ActivePane::Disassembly,
             should_quit: false,
             status_message: "Ready".to_string(),
             logo: crate::utils::load_logo(),

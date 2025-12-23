@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui::ui;
-use crate::ui_state::{SaveDialogMode, UIState};
+use crate::ui_state::{ActivePane, SaveDialogMode, UIState};
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::{backend::Backend, Terminal};
 use std::io;
@@ -652,31 +652,55 @@ pub fn run_app<B: Backend>(
                     }
 
                     // Normal Navigation
-                    KeyCode::Down | KeyCode::Char('j') => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            if ui_state.selection_start.is_none() {
-                                ui_state.selection_start = Some(ui_state.cursor_index);
+                    KeyCode::Down | KeyCode::Char('j') => match ui_state.active_pane {
+                        ActivePane::Disassembly => {
+                            if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                if ui_state.selection_start.is_none() {
+                                    ui_state.selection_start = Some(ui_state.cursor_index);
+                                }
+                            } else {
+                                ui_state.selection_start = None;
                             }
-                        } else {
-                            ui_state.selection_start = None;
-                        }
 
-                        if ui_state.cursor_index < app_state.disassembly.len().saturating_sub(1) {
-                            ui_state.cursor_index += 1;
-                        }
-                    }
-                    KeyCode::Up | KeyCode::Char('k') => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            if ui_state.selection_start.is_none() {
-                                ui_state.selection_start = Some(ui_state.cursor_index);
+                            if ui_state.cursor_index < app_state.disassembly.len().saturating_sub(1)
+                            {
+                                ui_state.cursor_index += 1;
                             }
-                        } else {
-                            ui_state.selection_start = None;
                         }
+                        ActivePane::Hex => {
+                            let bytes_per_row = 16;
+                            let total_rows =
+                                (app_state.raw_data.len() + bytes_per_row - 1) / bytes_per_row;
+                            if ui_state.hex_cursor_index < total_rows.saturating_sub(1) {
+                                ui_state.hex_cursor_index += 1;
+                            }
+                        }
+                    },
+                    KeyCode::Up | KeyCode::Char('k') => match ui_state.active_pane {
+                        ActivePane::Disassembly => {
+                            if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                if ui_state.selection_start.is_none() {
+                                    ui_state.selection_start = Some(ui_state.cursor_index);
+                                }
+                            } else {
+                                ui_state.selection_start = None;
+                            }
 
-                        if ui_state.cursor_index > 0 {
-                            ui_state.cursor_index -= 1;
+                            if ui_state.cursor_index > 0 {
+                                ui_state.cursor_index -= 1;
+                            }
                         }
+                        ActivePane::Hex => {
+                            if ui_state.hex_cursor_index > 0 {
+                                ui_state.hex_cursor_index -= 1;
+                            }
+                        }
+                    },
+                    KeyCode::Tab => {
+                        ui_state.active_pane = match ui_state.active_pane {
+                            ActivePane::Disassembly => ActivePane::Hex,
+                            ActivePane::Hex => ActivePane::Disassembly,
+                        };
                     }
                     KeyCode::Esc => {
                         if ui_state.selection_start.is_some() {
@@ -684,19 +708,43 @@ pub fn run_app<B: Backend>(
                             ui_state.set_status_message("Selection cleared");
                         }
                     }
-                    KeyCode::PageDown => {
-                        ui_state.cursor_index = (ui_state.cursor_index + 10)
-                            .min(app_state.disassembly.len().saturating_sub(1));
-                    }
-                    KeyCode::PageUp => {
-                        ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
-                    }
-                    KeyCode::Home => {
-                        ui_state.cursor_index = 0;
-                    }
-                    KeyCode::End => {
-                        ui_state.cursor_index = app_state.disassembly.len().saturating_sub(1);
-                    }
+                    KeyCode::PageDown => match ui_state.active_pane {
+                        ActivePane::Disassembly => {
+                            ui_state.cursor_index = (ui_state.cursor_index + 10)
+                                .min(app_state.disassembly.len().saturating_sub(1));
+                        }
+                        ActivePane::Hex => {
+                            let bytes_per_row = 16;
+                            let total_rows =
+                                (app_state.raw_data.len() + bytes_per_row - 1) / bytes_per_row;
+                            ui_state.hex_cursor_index =
+                                (ui_state.hex_cursor_index + 10).min(total_rows.saturating_sub(1));
+                        }
+                    },
+                    KeyCode::PageUp => match ui_state.active_pane {
+                        ActivePane::Disassembly => {
+                            ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
+                        }
+                        ActivePane::Hex => {
+                            ui_state.hex_cursor_index =
+                                ui_state.hex_cursor_index.saturating_sub(10);
+                        }
+                    },
+                    KeyCode::Home => match ui_state.active_pane {
+                        ActivePane::Disassembly => ui_state.cursor_index = 0,
+                        ActivePane::Hex => ui_state.hex_cursor_index = 0,
+                    },
+                    KeyCode::End => match ui_state.active_pane {
+                        ActivePane::Disassembly => {
+                            ui_state.cursor_index = app_state.disassembly.len().saturating_sub(1)
+                        }
+                        ActivePane::Hex => {
+                            let bytes_per_row = 16;
+                            let total_rows =
+                                (app_state.raw_data.len() + bytes_per_row - 1) / bytes_per_row;
+                            ui_state.hex_cursor_index = total_rows.saturating_sub(1);
+                        }
+                    },
                     _ => {}
                 }
             }

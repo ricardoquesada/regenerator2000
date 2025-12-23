@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::ui_state::UIState;
+use crate::ui_state::{ActivePane, UIState};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -595,8 +595,129 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::ui_state
 }
 
 fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
+
+    render_disassembly(f, chunks[0], app_state, ui_state);
+    render_hex_view(f, chunks[1], app_state, ui_state);
+}
+
+fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
+    let is_active = ui_state.active_pane == ActivePane::Hex;
+    let border_style = if is_active {
+        Style::default().fg(Color::Green)
+    } else {
+        Style::default()
+    };
+
     let block = Block::default()
         .borders(Borders::ALL)
+        .border_style(border_style)
+        .title(" Hex View ");
+    let inner_area = block.inner(area);
+
+    let visible_height = inner_area.height as usize;
+    // Each row is 16 bytes
+    let bytes_per_row = 16;
+    let total_rows = (app_state.raw_data.len() + bytes_per_row - 1) / bytes_per_row;
+
+    let context_lines = visible_height / 2;
+    let offset = ui_state.hex_cursor_index.saturating_sub(context_lines);
+
+    let items: Vec<ListItem> = (0..visible_height)
+        .map(|i| {
+            let row_index = offset + i;
+            if row_index >= total_rows {
+                return ListItem::new("");
+            }
+
+            let address = app_state.origin as usize + (row_index * bytes_per_row);
+            let start_offset = row_index * bytes_per_row;
+            let end_offset = (start_offset + bytes_per_row).min(app_state.raw_data.len());
+            let row_data = &app_state.raw_data[start_offset..end_offset];
+
+            let mut hex_part = String::with_capacity(3 * 16);
+            let mut ascii_part = String::with_capacity(16);
+
+            for (j, &b) in row_data.iter().enumerate() {
+                hex_part.push_str(&format!("{:02X} ", b));
+                if j == 7 {
+                    hex_part.push(' '); // Extra space after 8 bytes
+                }
+                ascii_part.push(crate::utils::petscii_to_unicode(b));
+            }
+
+            // Padding if row is incomplete
+            if row_data.len() < bytes_per_row {
+                let missing = bytes_per_row - row_data.len();
+                for j in 0..missing {
+                    hex_part.push_str("   ");
+                    if (row_data.len() + j) == 7 {
+                        hex_part.push(' ');
+                    }
+                }
+            }
+
+            let is_selected = if let Some(selection_start) = ui_state.selection_start {
+                let (start, end) = if selection_start < ui_state.cursor_index {
+                    (selection_start, ui_state.cursor_index)
+                } else {
+                    (ui_state.cursor_index, selection_start)
+                };
+                row_index >= start && row_index <= end
+            } else {
+                false
+            };
+
+            let style = if row_index == ui_state.hex_cursor_index {
+                Style::default().bg(Color::Cyan).fg(Color::Black)
+            } else if is_selected {
+                Style::default().bg(Color::DarkGray).fg(Color::White)
+            } else {
+                Style::default()
+            };
+
+            let line = Line::from(vec![
+                Span::styled(
+                    format!("{:04X}  ", address),
+                    Style::default().fg(Color::Yellow),
+                ),
+                Span::styled(
+                    format!("{:<49}", hex_part),
+                    Style::default().fg(Color::White),
+                ), // 49 = 16*3 + 1 extra space
+                Span::styled(
+                    format!("| {}", ascii_part),
+                    Style::default().fg(Color::Green),
+                ),
+            ]);
+
+            ListItem::new(line).style(style)
+        })
+        .collect();
+
+    let list = List::new(items).block(block);
+
+    // We handle scrolling manually via offset, so no ListState needed for scrolling,
+    // but useful if we wanted ratatui to handle it.
+    // However, similar to render_disassembly, we render what's visible.
+    f.render_widget(list, area);
+    ui_state.hex_scroll_index = offset;
+}
+
+fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
+    let is_active = ui_state.active_pane == ActivePane::Disassembly;
+    let border_style = if is_active {
+        Style::default().fg(Color::Green)
+    } else {
+        Style::default()
+    };
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(border_style)
         .title(" Disassembly ");
     let inner_area = block.inner(area);
 
