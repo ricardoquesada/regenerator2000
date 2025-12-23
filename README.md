@@ -29,6 +29,11 @@ Regenerator2000 brings modern conveniences to 6502 disassembly:
 - **Customization**:
     - Configure document settings (max x-refs, platform, assembler).
     - Customizable display options (show/hide all labels, etc.).
+- **TUI**:
+    - Text User interface
+    - Everything can be done from the keyboard
+
+![screenshot](docs/regenerator2000_screenshot.png)
 
 ## Keyboard Shortcuts
 
