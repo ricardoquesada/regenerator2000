@@ -553,22 +553,13 @@ pub fn run_app<B: Backend>(
                         );
                     }
                     KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                crate::ui_state::MenuAction::SetPetsciiUnshifted,
-                            );
-                        } else {
-                            match ui_state.active_pane {
-                                ActivePane::Disassembly => {
-                                    ui_state.cursor_index =
-                                        ui_state.cursor_index.saturating_sub(10);
-                                }
-                                ActivePane::Hex => {
-                                    ui_state.hex_cursor_index =
-                                        ui_state.hex_cursor_index.saturating_sub(10);
-                                }
+                        match ui_state.active_pane {
+                            ActivePane::Disassembly => {
+                                ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
+                            }
+                            ActivePane::Hex => {
+                                ui_state.hex_cursor_index =
+                                    ui_state.hex_cursor_index.saturating_sub(10);
                             }
                         }
                     }
@@ -578,6 +569,12 @@ pub fn run_app<B: Backend>(
                                 &mut app_state,
                                 &mut ui_state,
                                 crate::ui_state::MenuAction::SetPetsciiShifted,
+                            );
+                        } else {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::SetPetsciiUnshifted,
                             );
                         }
                     }

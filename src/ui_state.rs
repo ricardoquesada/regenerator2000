@@ -317,12 +317,12 @@ impl MenuState {
                         MenuItem::separator(),
                         MenuItem::new(
                             "Unshifted PETSCII",
-                            Some("Ctrl+Shift+U"),
+                            Some("Ctrl+Shift+L"),
                             Some(MenuAction::SetPetsciiUnshifted),
                         ),
                         MenuItem::new(
                             "Shifted PETSCII",
-                            Some("Ctrl+Shift+L"),
+                            Some("Ctrl+L"),
                             Some(MenuAction::SetPetsciiShifted),
                         ),
                     ],
