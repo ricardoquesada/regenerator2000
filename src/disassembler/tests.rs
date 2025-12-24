@@ -401,8 +401,77 @@ fn test_text_and_screencode_disassembly() {
     // handle_text calls format_text if valid, else handle_partial_data.
     // 0xFF (255) is not in 0x20..0x7E range. So it goes to handle_partial_data -> 1 line.
     assert_eq!(lines.len(), 1);
-    assert_eq!(lines[0].mnemonic, "!byte");
-    assert_eq!(lines[0].operand, "$FF");
+    assert_eq!(lines[0].mnemonic, "!text");
+    assert_eq!(lines[0].operand, "$ff");
+}
+
+#[test]
+fn test_text_mixed_content() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let labels = HashMap::new();
+    let origin = 0x1000;
+
+    // $00, $01, "A", "B", $00
+    let code = vec![0x00, 0x01, 0x41, 0x42, 0x00];
+    let block_types = vec![
+        BlockType::Text,
+        BlockType::Text,
+        BlockType::Text,
+        BlockType::Text,
+        BlockType::Text,
+    ];
+
+    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+
+    // Filter relevant lines (Tass wraps in ENCODE)
+    // We expect .ENCODE, .ENC, .TEXT ..., .ENDENCODE
+    // The .TEXT line should be merged: .TEXT $00, $01, "AB", $00
+
+    let text_lines: Vec<&DisassemblyLine> =
+        lines.iter().filter(|l| l.mnemonic == ".TEXT").collect();
+
+    assert_eq!(text_lines.len(), 1);
+    assert_eq!(text_lines[0].operand, "$00, $01, \"AB\", $00");
+}
+
+#[test]
+fn test_text_escaping() {
+    let mut settings = DocumentSettings::default();
+    let disassembler = Disassembler::new();
+    let labels = HashMap::new();
+    let origin = 0x1000;
+
+    // String: Quote " Backslash \
+    // ASCII: 51 75 6f 74 65 20 22 20 42 61 63 6b 73 6c 61 73 68 20 5c
+    let code = vec![
+        0x51, 0x75, 0x6F, 0x74, 0x65, 0x20, 0x22, 0x20, 0x42, 0x61, 0x63, 0x6B, 0x73, 0x6C, 0x61,
+        0x73, 0x68, 0x20, 0x5C,
+    ];
+    let block_types = vec![BlockType::Text; code.len()];
+
+    // 1. Test ACME: "Quote \" Backslash \\"
+    settings.assembler = Assembler::Acme;
+    let lines_acme = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    assert_eq!(lines_acme.len(), 1);
+    assert_eq!(lines_acme[0].operand, "\"Quote \\\" Backslash \\\\\"");
+
+    // 2. Test Tass64: "Quote "" Backslash \"
+    settings.assembler = Assembler::Tass64;
+    let lines_tass = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+
+    // Tass output structure: .ENCODE, .ENC, .TEXT ..., .ENDENCODE
+    // Filter for .TEXT
+    let text_lines: Vec<&DisassemblyLine> = lines_tass
+        .iter()
+        .filter(|l| l.mnemonic == ".TEXT")
+        .collect();
+
+    assert_eq!(text_lines.len(), 1);
+    // Tass escapes " as "" and leaves \ alone
+    assert_eq!(text_lines[0].operand, "\"Quote \"\" Backslash \\\"");
 }
 
 #[test]

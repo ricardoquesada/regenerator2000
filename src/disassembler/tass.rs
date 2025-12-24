@@ -179,11 +179,11 @@ impl Formatter for TassFormatter {
 
     fn format_text(
         &self,
-        bytes: &[u8],
-        text: &str,
+        fragments: &[super::formatter::TextFragment],
         is_start: bool,
         is_end: bool,
     ) -> Vec<(String, String, bool)> {
+        use super::formatter::TextFragment;
         let mut lines = Vec::new();
 
         if is_start {
@@ -191,12 +191,17 @@ impl Formatter for TassFormatter {
             lines.push((".ENC".to_string(), "\"NONE\"".to_string(), false));
         }
 
-        // Special handling for single byte logic if needed, but for now standard text
-        if bytes.len() == 1 {
-            lines.push((".BYTE".to_string(), format!("${:02X}", bytes[0]), true));
-        } else {
-            lines.push((".TEXT".to_string(), format!("\"{}\"", text), true));
+        let mut parts = Vec::new();
+        for fragment in fragments {
+            match fragment {
+                TextFragment::Text(s) => {
+                    let escaped = s.replace('"', "\"\"");
+                    parts.push(format!("\"{}\"", escaped))
+                }
+                TextFragment::Byte(b) => parts.push(format!("${:02X}", b)),
+            }
         }
+        lines.push((".TEXT".to_string(), parts.join(", "), true));
 
         if is_end {
             lines.push((".ENDENCODE".to_string(), String::new(), false));
@@ -219,7 +224,8 @@ impl Formatter for TassFormatter {
         if bytes.len() == 1 {
             lines.push((".BYTE".to_string(), format!("${:02X}", bytes[0]), true));
         } else {
-            lines.push((".TEXT".to_string(), format!("\"{}\"", text), true));
+            let escaped = text.replace('"', "\"\"");
+            lines.push((".TEXT".to_string(), format!("\"{}\"", escaped), true));
         }
 
         lines

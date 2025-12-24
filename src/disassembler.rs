@@ -496,10 +496,11 @@ impl Disassembler {
         label_name: Option<String>,
         comment: String,
     ) -> (usize, Vec<DisassemblyLine>) {
-        let mut bytes = Vec::new();
-        let mut text_content = String::new();
+        use crate::disassembler::formatter::TextFragment;
+
+        let mut fragments = Vec::new();
+        let mut current_literal = String::new();
         let mut count = 0;
-        let mut valid_text = true;
 
         while pc + count < data.len() && count < 32 {
             let current_pc = pc + count;
@@ -515,39 +516,47 @@ impl Disassembler {
 
             let b = data[current_pc];
             // Check if "printable" ASCII-ish from 0x20 to 0x7E
-            if !(0x20..=0x7E).contains(&b) {
-                valid_text = false;
-                // If we encounter a non-printable, we might want to stop the string here
-                // But for "Text" type, we might just fallback to bytes if it's mixed?
-                // Or split?
-                // Let's stop grouping if we hit non-text.
-                break;
+            if (0x20..=0x7E).contains(&b) {
+                let c = b as char;
+                current_literal.push(c);
+            } else {
+                if !current_literal.is_empty() {
+                    fragments.push(TextFragment::Text(current_literal.clone()));
+                    current_literal.clear();
+                }
+                fragments.push(TextFragment::Byte(b));
             }
 
-            bytes.push(b);
-            let c = b as char;
-            if c == '"' {
-                text_content.push_str("\\\"");
-            } else if c == '\\' {
-                text_content.push_str("\\\\");
-            } else {
-                text_content.push(c);
-            }
             count += 1;
+        }
+
+        if !current_literal.is_empty() {
+            fragments.push(TextFragment::Text(current_literal));
         }
 
         let is_start = pc == 0 || block_types.get(pc - 1) != Some(&BlockType::Text);
         let next_pc = pc + count;
         let is_end = next_pc >= data.len() || block_types.get(next_pc) != Some(&BlockType::Text);
 
-        if count > 0 && valid_text {
+        if count > 0 {
             // Check for assembler type based on formatter directives
-            let formatted_lines = formatter.format_text(&bytes, &text_content, is_start, is_end);
+            let formatted_lines = formatter.format_text(&fragments, is_start, is_end);
             let mut disassembly_lines = Vec::new();
+
+            // We need to attach bytes to lines.
+            // Since we merged everything into one line (usually), we attach ALL bytes to that line ?
+            // Or if format_text returning multiple lines (header/footer), we attach to the main one.
+            // The formatter returns Vec<(mnemonic, operand, has_bytes)>.
+
+            // We need to collect all bytes consumed
+            let mut all_bytes = Vec::new();
+            for i in 0..count {
+                all_bytes.push(data[pc + i]);
+            }
 
             for (i, (mnemonic, operand, has_bytes)) in formatted_lines.iter().enumerate() {
                 let line_bytes = if *has_bytes {
-                    bytes.clone()
+                    all_bytes.clone()
                 } else {
                     Vec::new()
                 };
@@ -572,7 +581,7 @@ impl Disassembler {
 
             (count, disassembly_lines)
         } else {
-            // Fallback to byte if no valid text found
+            // Fallback to byte if no valid chunk (should not happen if block_type is text and len > 0)
             self.handle_partial_data(pc, data, address, formatter, label_name, comment, "Text")
         }
     }
@@ -630,13 +639,7 @@ impl Disassembler {
 
             bytes.push(b);
             let c = ascii as char;
-            if c == '"' {
-                text_content.push_str("\\\"");
-            } else if c == '\\' {
-                text_content.push_str("\\\\");
-            } else {
-                text_content.push(c);
-            }
+            text_content.push(c);
             count += 1;
         }
 

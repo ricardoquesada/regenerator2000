@@ -2,6 +2,11 @@ use crate::cpu::Opcode;
 use crate::state::Label;
 use std::collections::HashMap;
 
+pub enum TextFragment {
+    Text(String),
+    Byte(u8),
+}
+
 pub trait Formatter {
     fn byte_directive(&self) -> &'static str;
     fn word_directive(&self) -> &'static str;
@@ -22,8 +27,7 @@ pub trait Formatter {
     fn format_word(&self, word: u16) -> String;
     fn format_text(
         &self,
-        bytes: &[u8],
-        text: &str,
+        fragments: &[TextFragment],
         is_start: bool,
         is_end: bool,
     ) -> Vec<(String, String, bool)>;
