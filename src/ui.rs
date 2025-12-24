@@ -646,7 +646,8 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
                 if j == 7 {
                     hex_part.push(' '); // Extra space after 8 bytes
                 }
-                ascii_part.push(crate::utils::petscii_to_unicode(b));
+                let is_shifted = ui_state.petscii_mode == crate::ui_state::PetsciiMode::Shifted;
+                ascii_part.push(crate::utils::petscii_to_unicode(b, is_shifted));
             }
 
             // Padding if row is incomplete

@@ -9,6 +9,12 @@ pub enum ActivePane {
     Hex,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PetsciiMode {
+    Unshifted,
+    Shifted,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuAction {
     Exit,
@@ -33,6 +39,8 @@ pub enum MenuAction {
     ResetZoom,
     JumpToAddress,
     JumpToOperand,
+    SetPetsciiUnshifted,
+    SetPetsciiShifted,
     About,
 }
 
@@ -306,6 +314,17 @@ impl MenuState {
                         MenuItem::new("Zoom In", Some("Ctrl++"), Some(MenuAction::ZoomIn)),
                         MenuItem::new("Zoom Out", Some("Ctrl+-"), Some(MenuAction::ZoomOut)),
                         MenuItem::new("Reset Zoom", Some("Ctrl+0"), Some(MenuAction::ResetZoom)),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Unshifted PETSCII",
+                            Some("Ctrl+Shift+U"),
+                            Some(MenuAction::SetPetsciiUnshifted),
+                        ),
+                        MenuItem::new(
+                            "Shifted PETSCII",
+                            Some("Ctrl+Shift+L"),
+                            Some(MenuAction::SetPetsciiShifted),
+                        ),
                     ],
                 },
                 MenuCategory {
@@ -442,6 +461,7 @@ pub struct UIState {
     pub hex_cursor_index: usize,
     #[allow(dead_code)]
     pub hex_scroll_index: usize,
+    pub petscii_mode: PetsciiMode,
 
     pub active_pane: ActivePane,
     pub should_quit: bool,
@@ -469,6 +489,7 @@ impl UIState {
             scroll_index: 0,
             hex_cursor_index: 0,
             hex_scroll_index: 0,
+            petscii_mode: PetsciiMode::Unshifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,
             status_message: "Ready".to_string(),

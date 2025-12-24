@@ -50,30 +50,292 @@ pub fn create_picker() -> Option<Picker> {
     Some(Picker::from_fontsize(font_size))
 }
 
-pub fn petscii_to_unicode(byte: u8) -> char {
-    match byte {
-        0x00..=0x1F => '.',                   // Control codes
-        0x20..=0x40 => byte as char,          // Space + Punctuation + Numbers + @
-        0x41..=0x5A => (byte + 0x20) as char, // Lowercase letters (unshifted state)
-        // 0x5B..=0x5F -> [, pound, ], arrow up, arrow left
-        0x5B => '[',
-        0x5C => '£',
-        0x5D => ']',
-        0x5E => '↑',
-        0x5F => '←',
-        // 0x60..=0x7F -> Graphics
-        0x60..=0x7F => '░', // Placeholder for graphics
-        // 0x80..=0x9F -> Control codes?
-        0x80..=0x9F => '.',
-        // 0xA0..=0xBF -> Shifted Space + Graphics
-        0xA0 => ' ',
-        0xA1..=0xBF => '▒',
-        // 0xC0..=0xDF -> Uppercase?
-        0xC1..=0xDA => (byte - 0x80) as char, // A-Z (uppercase)
-        // Others
-        _ => '.',
+pub fn petscii_to_unicode(byte: u8, shifted: bool) -> char {
+    let (unshifted_char, shifted_char) = PETSCII_MAP[byte as usize];
+    if shifted {
+        shifted_char
+    } else {
+        unshifted_char
     }
 }
+
+// Mapping: (Unshifted, Shifted)
+// Based on https://github.com/9999years/Unicode-PETSCII/blob/master/table.txt
+// Control codes (0x00-0x1F, 0x80-0x9F) are mapped to '.' unless they have a specific meaning visualization like space
+static PETSCII_MAP: [(char, char); 256] = [
+    // $00 - $0F
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    // $10 - $1F
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    // $20 - $2F
+    (' ', ' '),
+    ('!', '!'),
+    ('\"', '\"'),
+    ('#', '#'),
+    ('$', '$'),
+    ('%', '%'),
+    ('&', '&'),
+    ('\'', '\''),
+    ('(', '('),
+    (')', ')'),
+    ('*', '*'),
+    ('+', '+'),
+    (',', ','),
+    ('-', '-'),
+    ('.', '.'),
+    ('/', '/'),
+    // $30 - $3F
+    ('0', '0'),
+    ('1', '1'),
+    ('2', '2'),
+    ('3', '3'),
+    ('4', '4'),
+    ('5', '5'),
+    ('6', '6'),
+    ('7', '7'),
+    ('8', '8'),
+    ('9', '9'),
+    (':', ':'),
+    (';', ';'),
+    ('<', '<'),
+    ('=', '='),
+    ('>', '>'),
+    ('?', '?'),
+    // $40 - $4F
+    ('@', '@'),
+    ('A', 'a'),
+    ('B', 'b'),
+    ('C', 'c'),
+    ('D', 'd'),
+    ('E', 'e'),
+    ('F', 'f'),
+    ('G', 'g'),
+    ('H', 'h'),
+    ('I', 'i'),
+    ('J', 'j'),
+    ('K', 'k'),
+    ('L', 'l'),
+    ('M', 'm'),
+    ('N', 'n'),
+    ('O', 'o'),
+    // $50 - $5F
+    ('P', 'p'),
+    ('Q', 'q'),
+    ('R', 'r'),
+    ('S', 's'),
+    ('T', 't'),
+    ('U', 'u'),
+    ('V', 'v'),
+    ('W', 'w'),
+    ('X', 'x'),
+    ('Y', 'y'),
+    ('Z', 'z'),
+    ('[', '['),
+    ('£', '£'),
+    (']', ']'),
+    ('↑', '↑'),
+    ('←', '←'),
+    // $60 - $6F
+    ('─', '─'),
+    ('♠', 'A'),
+    ('│', 'B'),
+    ('─', 'C'),
+    ('.', 'D'),
+    ('.', 'E'),
+    ('.', 'F'),
+    ('.', 'G'),
+    ('.', 'H'),
+    ('╮', 'I'),
+    ('╰', 'J'),
+    ('╯', 'K'),
+    ('.', 'L'),
+    ('╲', 'M'),
+    ('╱', 'N'),
+    ('.', 'O'),
+    // $70 - $7F
+    ('.', 'P'),
+    ('●', 'Q'),
+    ('.', 'R'),
+    ('♥', 'S'),
+    ('.', 'T'),
+    ('╭', 'U'),
+    ('╳', 'V'),
+    ('○', 'W'),
+    ('♣', 'X'),
+    ('.', 'Y'),
+    ('♦', 'Z'),
+    ('┼', '┼'),
+    ('|', '|'),
+    ('│', '│'),
+    ('π', '▒'),
+    ('◥', '.'),
+    // $80 - $8F
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    // $90 - $9F
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    // $A0 - $AF
+    (' ', ' '),
+    ('▌', '▌'),
+    ('▄', '▄'),
+    ('▔', '▔'),
+    (' ', ' '),
+    ('▏', '▏'),
+    ('▒', '▒'),
+    ('▕', '▕'),
+    ('.', '.'),
+    ('◤', '◤'),
+    ('.', '.'),
+    ('├', '├'),
+    ('▗', '▗'),
+    ('└', '└'),
+    ('┐', '┐'),
+    ('▂', '▂'),
+    // $B0 - $BF
+    ('┌', '┌'),
+    ('┴', '┴'),
+    ('┬', '┬'),
+    ('┤', '┤'),
+    ('▎', '▎'),
+    ('▍', '▍'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('▃', '▃'),
+    ('✓', '✓'),
+    ('▖', '▖'),
+    ('▝', '▝'),
+    ('┘', '┘'),
+    ('▘', '▘'),
+    ('▚', '▚'),
+    // $C0 - $CF
+    ('─', '─'),
+    ('♠', 'A'),
+    ('│', 'B'),
+    ('─', 'C'),
+    ('.', 'D'),
+    ('.', 'E'),
+    ('.', 'F'),
+    ('.', 'G'),
+    ('.', 'H'),
+    ('╮', 'I'),
+    ('╰', 'J'),
+    ('╯', 'K'),
+    ('.', 'L'),
+    ('╲', 'M'),
+    ('╱', 'N'),
+    ('.', 'O'),
+    // $D0 - $DF
+    ('.', 'P'),
+    ('●', 'Q'),
+    ('.', 'R'),
+    ('♥', 'S'),
+    ('.', 'T'),
+    ('╭', 'U'),
+    ('╳', 'V'),
+    ('○', 'W'),
+    ('♣', 'X'),
+    ('.', 'Y'),
+    ('♦', 'Z'),
+    ('┼', '┼'),
+    ('|', '|'),
+    ('│', '│'),
+    ('π', '▒'),
+    ('◥', '.'),
+    // $E0 - $EF
+    (' ', ' '),
+    ('▌', '▌'),
+    ('▄', '▄'),
+    ('▔', '▔'),
+    (' ', ' '),
+    ('▏', '▏'),
+    ('▒', '▒'),
+    ('▕', '▕'),
+    ('.', '.'),
+    ('◤', '◤'),
+    ('.', '.'),
+    ('├', '├'),
+    ('▗', '▗'),
+    ('└', '└'),
+    ('┐', '┐'),
+    ('▂', '▂'),
+    // $F0 - $FF
+    ('┌', '┌'),
+    ('┴', '┴'),
+    ('┬', '┬'),
+    ('┤', '┤'),
+    ('▎', '▎'),
+    ('▍', '▍'),
+    ('.', '.'),
+    ('.', '.'),
+    ('.', '.'),
+    ('▃', '▃'),
+    ('✓', '✓'),
+    ('▖', '▖'),
+    ('▝', '▝'),
+    ('┘', '┘'),
+    ('▘', '▘'),
+    ('π', '▒'),
+];
 
 #[cfg(test)]
 mod tests {
@@ -81,25 +343,43 @@ mod tests {
 
     #[test]
     fn test_petscii_to_unicode_alphanumeric() {
-        assert_eq!(petscii_to_unicode(0x41), 'a'); // 'A' unshifted -> 'a'
-        assert_eq!(petscii_to_unicode(0x5A), 'z');
-        assert_eq!(petscii_to_unicode(0xC1), 'A'); // 'A' shifted -> 'A'
-        assert_eq!(petscii_to_unicode(0xDA), 'Z');
-        assert_eq!(petscii_to_unicode(0x30), '0');
-        assert_eq!(petscii_to_unicode(0x39), '9');
+        // Unshifted: 0x41 is 'A'
+        assert_eq!(petscii_to_unicode(0x41, false), 'A');
+        assert_eq!(petscii_to_unicode(0x5A, false), 'Z');
+
+        // Shifted: 0x41 is 'a'
+        assert_eq!(petscii_to_unicode(0x41, true), 'a');
+        assert_eq!(petscii_to_unicode(0x5A, true), 'z');
+
+        assert_eq!(petscii_to_unicode(0x30, false), '0');
+        assert_eq!(petscii_to_unicode(0x39, false), '9');
     }
 
     #[test]
     fn test_petscii_to_unicode_graphics() {
-        assert_eq!(petscii_to_unicode(0x60), '░');
-        assert_eq!(petscii_to_unicode(0xA0), ' ');
-        assert_eq!(petscii_to_unicode(0x5B), '[');
+        // 0x61: Unshifted ♠ (Spade), Shifted 'A'
+        assert_eq!(petscii_to_unicode(0x61, false), '♠');
+        assert_eq!(petscii_to_unicode(0x61, true), 'A');
+
+        // 0x60: ─
+        assert_eq!(petscii_to_unicode(0x60, false), '─');
+
+        // 0x5E: ↑
+        assert_eq!(petscii_to_unicode(0x5E, false), '↑');
     }
 
     #[test]
     fn test_petscii_to_unicode_control() {
-        assert_eq!(petscii_to_unicode(0x00), '.');
-        assert_eq!(petscii_to_unicode(0x1F), '.');
-        assert_eq!(petscii_to_unicode(0x90), '.');
+        assert_eq!(petscii_to_unicode(0x00, false), '.');
+        assert_eq!(petscii_to_unicode(0x00, true), '.');
+    }
+
+    #[test]
+    fn test_petscii_to_unicode_upper_range() {
+        // 0xA0: Space
+        assert_eq!(petscii_to_unicode(0xA0, false), ' ');
+        // 0xFF: π / ▒
+        assert_eq!(petscii_to_unicode(0xFF, false), 'π');
+        assert_eq!(petscii_to_unicode(0xFF, true), '▒');
     }
 }

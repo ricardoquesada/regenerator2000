@@ -14,6 +14,9 @@ pub fn run_app<B: Backend>(
         terminal.draw(|f| ui(f, &app_state, &mut ui_state))?;
 
         if let Event::Key(key) = event::read()? {
+            if key.kind != event::KeyEventKind::Press {
+                continue;
+            }
             ui_state.dismiss_logo = true;
             if ui_state.jump_dialog.active {
                 match key.code {
@@ -550,16 +553,35 @@ pub fn run_app<B: Backend>(
                         );
                     }
                     KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        match ui_state.active_pane {
-                            ActivePane::Disassembly => {
-                                ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
-                            }
-                            ActivePane::Hex => {
-                                ui_state.hex_cursor_index =
-                                    ui_state.hex_cursor_index.saturating_sub(10);
+                        if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::SetPetsciiUnshifted,
+                            );
+                        } else {
+                            match ui_state.active_pane {
+                                ActivePane::Disassembly => {
+                                    ui_state.cursor_index =
+                                        ui_state.cursor_index.saturating_sub(10);
+                                }
+                                ActivePane::Hex => {
+                                    ui_state.hex_cursor_index =
+                                        ui_state.hex_cursor_index.saturating_sub(10);
+                                }
                             }
                         }
                     }
+                    KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::SetPetsciiShifted,
+                            );
+                        }
+                    }
+
                     KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         match ui_state.active_pane {
                             ActivePane::Disassembly => {
@@ -1082,6 +1104,14 @@ fn handle_menu_action(
         MenuAction::About => {
             ui_state.about_dialog.open();
             ui_state.status_message = "About Regenerator2000".to_string();
+        }
+        MenuAction::SetPetsciiUnshifted => {
+            ui_state.petscii_mode = crate::ui_state::PetsciiMode::Unshifted;
+            ui_state.set_status_message("PETSCII Mode: Unshifted");
+        }
+        MenuAction::SetPetsciiShifted => {
+            ui_state.petscii_mode = crate::ui_state::PetsciiMode::Shifted;
+            ui_state.set_status_message("PETSCII Mode: Shifted");
         }
     }
 }
