@@ -581,7 +581,6 @@ pub fn run_app<B: Backend>(
                             );
                         }
                     }
-
                     KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         match ui_state.active_pane {
                             ActivePane::Disassembly => {
