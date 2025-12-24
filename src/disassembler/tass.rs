@@ -217,17 +217,23 @@ impl Formatter for TassFormatter {
         ]
     }
 
-    fn format_screencode(&self, bytes: &[u8], text: &str) -> Vec<(String, String, bool)> {
+    fn format_screencode(
+        &self,
+        fragments: &[super::formatter::TextFragment],
+    ) -> Vec<(String, String, bool)> {
+        use super::formatter::TextFragment;
         let mut lines = Vec::new();
-
-        // Special handling for single byte or non-printable blocks
-        if bytes.len() == 1 {
-            lines.push((".BYTE".to_string(), format!("${:02X}", bytes[0]), true));
-        } else {
-            let escaped = text.replace('"', "\"\"");
-            lines.push((".TEXT".to_string(), format!("\"{}\"", escaped), true));
+        let mut parts = Vec::new();
+        for fragment in fragments {
+            match fragment {
+                TextFragment::Text(s) => {
+                    let escaped = s.replace('"', "\"\"");
+                    parts.push(format!("\"{}\"", escaped))
+                }
+                TextFragment::Byte(b) => parts.push(format!("${:02X}", b)),
+            }
         }
-
+        lines.push((".TEXT".to_string(), parts.join(", "), true));
         lines
     }
 

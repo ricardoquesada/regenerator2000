@@ -599,8 +599,10 @@ impl Disassembler {
         label_name: Option<String>,
         comment: String,
     ) -> (usize, Vec<DisassemblyLine>) {
-        let mut bytes = Vec::new();
-        let mut text_content = String::new();
+        use crate::disassembler::formatter::TextFragment;
+
+        let mut fragments = Vec::new();
+        let mut current_literal = String::new();
         let mut count = 0;
 
         while pc + count < data.len() && count < 32 {
@@ -626,21 +628,26 @@ impl Disassembler {
             } else if b < 96 {
                 b + 32
             } else {
-                // Extended/Reverse codes
-                // Just pass through as is, we'll filter printability later
+                // Extended/Reverse codes -> raw byte
                 b
             };
 
-            if !(0x20..=0x7E).contains(&ascii) {
-                // For ScreenCode blocks, we allow all bytes now, as they might be mapped to non-standard chars
-                // or just be raw bytes we want to output as .BYTE in the block.
-                // We just won't add them to the text content string if they aren't printable.
+            if (0x20..=0x7E).contains(&ascii) {
+                let c = ascii as char;
+                current_literal.push(c);
+            } else {
+                if !current_literal.is_empty() {
+                    fragments.push(TextFragment::Text(current_literal.clone()));
+                    current_literal.clear();
+                }
+                fragments.push(TextFragment::Byte(b)); // Use ORIGINAL byte
             }
 
-            bytes.push(b);
-            let c = ascii as char;
-            text_content.push(c);
             count += 1;
+        }
+
+        if !current_literal.is_empty() {
+            fragments.push(TextFragment::Text(current_literal));
         }
 
         let is_start = pc == 0 || block_types.get(pc - 1) != Some(&BlockType::Screencode);
@@ -658,7 +665,7 @@ impl Disassembler {
                 }
             }
 
-            let body_lines = formatter.format_screencode(&bytes, &text_content);
+            let body_lines = formatter.format_screencode(&fragments);
             all_formatted_parts.extend(body_lines);
 
             if is_end {
@@ -670,11 +677,17 @@ impl Disassembler {
 
             let mut disassembly_lines = Vec::new();
 
+            // Collect all consumed bytes for line association
+            let mut all_bytes = Vec::new();
+            for i in 0..count {
+                all_bytes.push(data[pc + i]);
+            }
+
             for (i, (mnemonic, operand, has_bytes)) in all_formatted_parts.iter().enumerate() {
                 // Attach bytes only to marked lines by the formatter (usually the body lines).
                 // Attach label and comment only to the very first line of the entire block.
                 let line_bytes = if *has_bytes {
-                    bytes.clone()
+                    all_bytes.clone()
                 } else {
                     Vec::new()
                 };

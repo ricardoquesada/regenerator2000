@@ -32,7 +32,7 @@ pub trait Formatter {
         is_end: bool,
     ) -> Vec<(String, String, bool)>;
     fn format_screencode_pre(&self) -> Vec<(String, String)>;
-    fn format_screencode(&self, bytes: &[u8], text: &str) -> Vec<(String, String, bool)>;
+    fn format_screencode(&self, fragments: &[TextFragment]) -> Vec<(String, String, bool)>;
     fn format_screencode_post(&self) -> Vec<(String, String)>;
     fn format_header_origin(&self, origin: u16) -> String;
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String;

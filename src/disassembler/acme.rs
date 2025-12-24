@@ -183,9 +183,22 @@ impl Formatter for AcmeFormatter {
         Vec::new()
     }
 
-    fn format_screencode(&self, _bytes: &[u8], text: &str) -> Vec<(String, String, bool)> {
-        let escaped = text.replace('\\', "\\\\").replace('"', "\\\"");
-        vec![("!scr".to_string(), format!("\"{}\"", escaped), true)]
+    fn format_screencode(
+        &self,
+        fragments: &[super::formatter::TextFragment],
+    ) -> Vec<(String, String, bool)> {
+        use super::formatter::TextFragment;
+        let mut parts = Vec::new();
+        for fragment in fragments {
+            match fragment {
+                TextFragment::Text(s) => {
+                    let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
+                    parts.push(format!("\"{}\"", escaped))
+                }
+                TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
+            }
+        }
+        vec![("!scr".to_string(), parts.join(", "), true)]
     }
 
     fn format_screencode_post(&self) -> Vec<(String, String)> {

@@ -475,6 +475,61 @@ fn test_text_escaping() {
 }
 
 #[test]
+fn test_screencode_mixed() {
+    let mut settings = DocumentSettings::default();
+    let disassembler = Disassembler::new();
+    let labels = HashMap::new();
+    let origin = 0x1000;
+
+    // Screencodes:
+    // 0x01 ('A'), 0x00 ('@'), 0x80 (Invalid/Reverse), 0x01 ('A')
+    // Expected: "A@", $80, "A"
+
+    // Tass SC map: 0->@, 1->A
+    // 0x00 -> '@' (ASCII 64)
+    // 0x01 -> 'A' (ASCII 65)
+
+    // Escaping check:
+    // Quote (0x22): mapped?
+    // 0x22 (34) -> 34 (ASCII 34 = ")
+    // So 0x22 is a quote in screencode too?
+    // Let's check handle_screencode map:
+    // b < 32 -> b+64
+    // b < 64 -> b
+    // 34 is in 32..64 range -> 34. Correct.
+
+    // So let's test: 0x22 ("), 0xFF (invalid), 0x22 (")
+    let code = vec![0x22, 0xFF, 0x22];
+    let block_types = vec![BlockType::Screencode; code.len()];
+
+    // 1. ACME
+    settings.assembler = Assembler::Acme;
+    let lines_acme = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    assert_eq!(lines_acme.len(), 1);
+    // !scr "\"" (escaped quote), $ff, "\""
+    // Expected: !scr "\"", $ff, "\""
+    assert_eq!(lines_acme[0].operand, "\"\\\"\", $ff, \"\\\"\"");
+
+    // 2. Tass
+    settings.assembler = Assembler::Tass64;
+    let lines_tass = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    // .TEXT """""", $FF, """"""
+    let text_lines: Vec<&DisassemblyLine> = lines_tass
+        .iter()
+        .filter(|l| l.mnemonic == ".TEXT")
+        .collect();
+
+    assert_eq!(text_lines.len(), 1);
+    // Tass escapes " as ""
+    // "" (escaped quote), $FF, ""
+    // Expected string in operand: """" (quote), $FF, """" (quote)
+    // Wait. " -> ""
+    // So one quote is "".
+    // Quoted string: """"""
+    assert_eq!(text_lines[0].operand, "\"\"\"\", $FF, \"\"\"\"");
+}
+
+#[test]
 fn test_tass_screencode_enc_wrapping() {
     let mut settings = DocumentSettings::default();
     settings.assembler = Assembler::Tass64;
@@ -635,13 +690,13 @@ fn test_tass_label_interruption() {
     assert_eq!(lines.len(), 5);
 
     assert_eq!(lines[0].mnemonic, ".ENCODE");
-    assert_eq!(lines[2].mnemonic, ".BYTE");
-    assert_eq!(lines[2].operand, "$01"); // Was .TEXT "A"
+    assert_eq!(lines[2].mnemonic, ".TEXT");
+    assert_eq!(lines[2].operand, "\"A\"");
 
     // Label should be on the first line of the second chunk
     assert_eq!(lines[3].label, Some("MID".to_string()));
-    assert_eq!(lines[3].mnemonic, ".BYTE");
-    assert_eq!(lines[3].operand, "$02"); // Was .TEXT "B"
+    assert_eq!(lines[3].mnemonic, ".TEXT");
+    assert_eq!(lines[3].operand, "\"B\"");
 
     assert_eq!(lines[4].mnemonic, ".ENDENCODE");
 }
@@ -671,8 +726,8 @@ fn test_tass_screencode_single_byte_special() {
     assert_eq!(lines[0].mnemonic, ".ENCODE");
     assert_eq!(lines[1].mnemonic, ".ENC");
     assert_eq!(lines[1].operand, "\"SCREEN\"");
-    assert_eq!(lines[2].mnemonic, ".BYTE");
-    assert_eq!(lines[2].operand, "$4F");
+    assert_eq!(lines[2].mnemonic, ".TEXT");
+    assert_eq!(lines[2].operand, "\"o\"");
     assert_eq!(lines[3].mnemonic, ".ENDENCODE");
 }
 #[cfg(test)]
