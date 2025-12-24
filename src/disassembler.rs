@@ -618,6 +618,18 @@ impl Disassembler {
             }
 
             let b = data[current_pc];
+
+            // User Request: bytes >= $5f should be treated as bytes. Not as screencodes.
+            if b >= 0x5f {
+                if !current_literal.is_empty() {
+                    fragments.push(TextFragment::Text(current_literal.clone()));
+                    current_literal.clear();
+                }
+                fragments.push(TextFragment::Byte(b));
+                count += 1;
+                continue;
+            }
+
             // Map Screen Code to ASCII
             // 0-31 (@..left arrow) -> 64..95
             // 32-63 (space..?) -> 32..63

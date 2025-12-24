@@ -775,4 +775,29 @@ mod tests {
         assert_eq!(lines_b[2].mnemonic, ".TEXT");
         assert_eq!(lines_b[2].operand, "\"0-9, hola como\"");
     }
+    #[test]
+    fn test_screencode_limit_0x5f() {
+        let mut settings = DocumentSettings::default();
+        settings.assembler = Assembler::Tass64;
+
+        let disassembler = Disassembler::new();
+        let labels = HashMap::new();
+        let origin = 0x1000;
+
+        // 0x5E (94) -> < 0x5f. Maps to '~' (126). Text.
+        // 0x5F (95) -> >= 0x5f. Byte.
+        // 0x60 (96) -> >= 0x5f. Byte.
+        let code = vec![0x5E, 0x5F, 0x60];
+        let block_types = vec![BlockType::Screencode; 3];
+
+        let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+
+        // Expected: .TEXT "~", $5F, $60
+        // Tass wraps in .ENCODE ... .ENDENCODE
+        let text_lines: Vec<&crate::disassembler::DisassemblyLine> =
+            lines.iter().filter(|l| l.mnemonic == ".TEXT").collect();
+
+        assert_eq!(text_lines.len(), 1);
+        assert_eq!(text_lines[0].operand, "\"~\", $5F, $60");
+    }
 }
