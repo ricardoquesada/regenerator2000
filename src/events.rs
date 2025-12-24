@@ -24,35 +24,61 @@ pub fn run_app<B: Backend>(
                     KeyCode::Enter => {
                         let input = &ui_state.jump_dialog.input;
                         if let Ok(addr) = u16::from_str_radix(input, 16) {
-                            // Find closest address in disassembly
                             let target_addr = addr;
-                            let mut found_idx = None;
-                            for (i, line) in app_state.disassembly.iter().enumerate() {
-                                if line.address == target_addr {
-                                    found_idx = Some(i);
-                                    break;
-                                } else if line.address > target_addr {
-                                    if i > 0 {
-                                        found_idx = Some(i - 1);
-                                    } else {
-                                        found_idx = Some(0);
+
+                            match ui_state.active_pane {
+                                ActivePane::Disassembly => {
+                                    // Find closest address in disassembly
+                                    let mut found_idx = None;
+                                    for (i, line) in app_state.disassembly.iter().enumerate() {
+                                        if line.address == target_addr {
+                                            found_idx = Some(i);
+                                            break;
+                                        } else if line.address > target_addr {
+                                            if i > 0 {
+                                                found_idx = Some(i - 1);
+                                            } else {
+                                                found_idx = Some(0);
+                                            }
+                                            break;
+                                        }
                                     }
-                                    break;
+
+                                    if let Some(idx) = found_idx {
+                                        ui_state.navigation_history.push(ui_state.cursor_index);
+                                        ui_state.cursor_index = idx;
+                                        ui_state.set_status_message(format!(
+                                            "Jumped to ${:04X}",
+                                            target_addr
+                                        ));
+                                    } else {
+                                        if !app_state.disassembly.is_empty() {
+                                            ui_state.navigation_history.push(ui_state.cursor_index);
+                                            ui_state.cursor_index = app_state.disassembly.len() - 1;
+                                            ui_state.set_status_message("Jumped to end");
+                                        }
+                                    }
+                                }
+                                ActivePane::Hex => {
+                                    let origin = app_state.origin as usize;
+                                    let target = target_addr as usize;
+                                    let data_len = app_state.raw_data.len();
+                                    let end_addr = origin + data_len;
+
+                                    if target >= origin && target < end_addr {
+                                        let offset = target - origin;
+                                        let row = offset / 16;
+                                        ui_state.hex_cursor_index = row;
+                                        ui_state.set_status_message(format!(
+                                            "Jumped to ${:04X}",
+                                            target_addr
+                                        ));
+                                    } else {
+                                        ui_state.set_status_message("Address out of range");
+                                    }
                                 }
                             }
 
-                            if let Some(idx) = found_idx {
-                                ui_state.navigation_history.push(ui_state.cursor_index);
-                                ui_state.cursor_index = idx;
-                                ui_state
-                                    .set_status_message(format!("Jumped to ${:04X}", target_addr));
-                            } else {
-                                if !app_state.disassembly.is_empty() {
-                                    ui_state.navigation_history.push(ui_state.cursor_index);
-                                    ui_state.cursor_index = app_state.disassembly.len() - 1;
-                                    ui_state.set_status_message("Jumped to end");
-                                }
-                            }
                             ui_state.jump_dialog.close();
                         } else {
                             ui_state.set_status_message("Invalid Hex Address");
@@ -524,11 +550,30 @@ pub fn run_app<B: Backend>(
                         );
                     }
                     KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
+                        match ui_state.active_pane {
+                            ActivePane::Disassembly => {
+                                ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
+                            }
+                            ActivePane::Hex => {
+                                ui_state.hex_cursor_index =
+                                    ui_state.hex_cursor_index.saturating_sub(10);
+                            }
+                        }
                     }
                     KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        ui_state.cursor_index = (ui_state.cursor_index + 10)
-                            .min(app_state.disassembly.len().saturating_sub(1));
+                        match ui_state.active_pane {
+                            ActivePane::Disassembly => {
+                                ui_state.cursor_index = (ui_state.cursor_index + 10)
+                                    .min(app_state.disassembly.len().saturating_sub(1));
+                            }
+                            ActivePane::Hex => {
+                                let bytes_per_row = 16;
+                                let total_rows =
+                                    (app_state.raw_data.len() + bytes_per_row - 1) / bytes_per_row;
+                                ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
+                                    .min(total_rows.saturating_sub(1));
+                            }
+                        }
                     }
                     KeyCode::Char('u') => {
                         handle_menu_action(
@@ -600,36 +645,61 @@ pub fn run_app<B: Backend>(
                     }
 
                     // Data Conversion Shortcuts
-                    KeyCode::Char('c') => handle_menu_action(
-                        &mut app_state,
-                        &mut ui_state,
-                        crate::ui_state::MenuAction::Code,
-                    ),
-                    KeyCode::Char('b') => handle_menu_action(
-                        &mut app_state,
-                        &mut ui_state,
-                        crate::ui_state::MenuAction::Byte,
-                    ),
-                    KeyCode::Char('w') => handle_menu_action(
-                        &mut app_state,
-                        &mut ui_state,
-                        crate::ui_state::MenuAction::Word,
-                    ),
-                    KeyCode::Char('a') => handle_menu_action(
-                        &mut app_state,
-                        &mut ui_state,
-                        crate::ui_state::MenuAction::Address,
-                    ),
-                    KeyCode::Char('t') => handle_menu_action(
-                        &mut app_state,
-                        &mut ui_state,
-                        crate::ui_state::MenuAction::Text,
-                    ),
-                    KeyCode::Char('s') => handle_menu_action(
-                        &mut app_state,
-                        &mut ui_state,
-                        crate::ui_state::MenuAction::Screencode,
-                    ),
+                    // Data Conversion Shortcuts
+                    KeyCode::Char('c') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::Code,
+                            )
+                        }
+                    }
+                    KeyCode::Char('b') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::Byte,
+                            )
+                        }
+                    }
+                    KeyCode::Char('w') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::Word,
+                            )
+                        }
+                    }
+                    KeyCode::Char('a') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::Address,
+                            )
+                        }
+                    }
+                    KeyCode::Char('t') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::Text,
+                            )
+                        }
+                    }
+                    KeyCode::Char('s') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::Screencode,
+                            )
+                        }
+                    }
 
                     // Label
                     KeyCode::Char('l') => {
@@ -637,6 +707,7 @@ pub fn run_app<B: Backend>(
                             && !ui_state.jump_dialog.active
                             && !ui_state.save_dialog.active
                             && !ui_state.file_picker.active
+                            && ui_state.active_pane == ActivePane::Disassembly
                         {
                             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                                 let addr = line.address;
