@@ -22,8 +22,8 @@ pub enum MenuAction {
     Open,
     Save,
     SaveAs,
-    ExportAsm,
-    ExportAsmAs,
+    ExportProject,
+    ExportProjectAs,
     Undo,
     Redo,
     Code,
@@ -145,7 +145,7 @@ impl JumpDialogState {
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum SaveDialogMode {
     Project,
-    ExportAsm,
+    ExportProject,
 }
 
 pub struct SaveDialogState {
@@ -276,11 +276,15 @@ impl MenuState {
                         MenuItem::new("Save", Some("Ctrl+S"), Some(MenuAction::Save)),
                         MenuItem::new("Save As...", Some("Ctrl+Shift+S"), Some(MenuAction::SaveAs)),
                         MenuItem::separator(),
-                        MenuItem::new("Export ASM", Some("Ctrl+E"), Some(MenuAction::ExportAsm)),
                         MenuItem::new(
-                            "Export ASM As...",
+                            "Export Project",
+                            Some("Ctrl+E"),
+                            Some(MenuAction::ExportProject),
+                        ),
+                        MenuItem::new(
+                            "Export Project As...",
                             Some("Ctrl+Shift+E"),
-                            Some(MenuAction::ExportAsmAs),
+                            Some(MenuAction::ExportProjectAs),
                         ),
                         MenuItem::separator(),
                         MenuItem::new("Exit", Some("Ctrl+Q"), Some(MenuAction::Exit)),

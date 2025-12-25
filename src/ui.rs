@@ -412,7 +412,7 @@ fn render_label_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::Labe
 }
 
 fn render_save_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::SaveDialogState) {
-    let title = if dialog.mode == crate::ui_state::SaveDialogMode::ExportAsm {
+    let title = if dialog.mode == crate::ui_state::SaveDialogMode::ExportProject {
         " Export Project As... "
     } else {
         " Save Project As... "

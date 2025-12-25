@@ -198,6 +198,7 @@ pub struct ProjectState {
 pub struct AppState {
     pub file_path: Option<PathBuf>,
     pub project_path: Option<PathBuf>,
+    pub export_path: Option<PathBuf>,
     pub raw_data: Vec<u8>,
     pub disassembly: Vec<DisassemblyLine>,
     pub disassembler: Disassembler,
@@ -216,6 +217,7 @@ impl AppState {
         Self {
             file_path: None,
             project_path: None,
+            export_path: None,
             raw_data: Vec::new(),
             disassembly: Vec::new(),
             disassembler: Disassembler::new(),

@@ -127,10 +127,11 @@ pub fn run_app<B: Backend>(
                                 if path.extension().is_none() {
                                     path.set_extension("asm");
                                 }
+                                app_state.export_path = Some(path.clone());
                                 if let Err(e) = crate::exporter::export_asm(&app_state, &path) {
                                     ui_state.set_status_message(format!("Error exporting: {}", e));
                                 } else {
-                                    ui_state.set_status_message("ASM Exported");
+                                    ui_state.set_status_message("Project Exported");
                                     ui_state.save_dialog.close();
                                 }
                             }
@@ -535,13 +536,13 @@ pub fn run_app<B: Backend>(
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
-                                crate::ui_state::MenuAction::ExportAsmAs,
+                                crate::ui_state::MenuAction::ExportProjectAs,
                             );
                         } else {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
-                                crate::ui_state::MenuAction::ExportAsm,
+                                crate::ui_state::MenuAction::ExportProject,
                             );
                         }
                     }
@@ -876,20 +877,28 @@ fn handle_menu_action(
                 }
             } else {
                 ui_state.save_dialog.open(SaveDialogMode::Project);
-                ui_state.set_status_message("Enter filename");
+                ui_state.set_status_message("Enter Project filename");
             }
         }
         MenuAction::SaveAs => {
             ui_state.save_dialog.open(SaveDialogMode::Project);
-            ui_state.set_status_message("Enter filename");
+            ui_state.set_status_message("Enter Project filename");
         }
-        MenuAction::ExportAsm => {
-            ui_state.save_dialog.open(SaveDialogMode::ExportAsm);
-            ui_state.set_status_message("Enter filename for ASM");
+        MenuAction::ExportProject => {
+            if let Some(path) = &app_state.export_path {
+                if let Err(e) = crate::exporter::export_asm(&app_state, &path) {
+                    ui_state.set_status_message(format!("Error exporting: {}", e));
+                } else {
+                    ui_state.set_status_message("Project Exported");
+                }
+            } else {
+                ui_state.save_dialog.open(SaveDialogMode::ExportProject);
+                ui_state.set_status_message("Enter .asm filename");
+            }
         }
-        MenuAction::ExportAsmAs => {
-            ui_state.save_dialog.open(SaveDialogMode::ExportAsm);
-            ui_state.set_status_message("Enter filename for ASM");
+        MenuAction::ExportProjectAs => {
+            ui_state.save_dialog.open(SaveDialogMode::ExportProject);
+            ui_state.set_status_message("Enter .asm filename");
         }
         MenuAction::DocumentSettings => {
             ui_state.settings_dialog.open();
