@@ -16,7 +16,14 @@ fn test_tass_formatting_force_w() {
     let code = vec![0xAD, 0x12, 0x00]; // AD = LDA Abs
     let block_types = vec![BlockType::Code, BlockType::Code, BlockType::Code];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     assert_eq!(lines.len(), 1);
     let line = &lines[0];
@@ -37,7 +44,14 @@ fn test_tass_formatting_no_force_if_disabled() {
     let code = vec![0xAD, 0x12, 0x00];
     let block_types = vec![BlockType::Code, BlockType::Code, BlockType::Code];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].operand, "$0012");
@@ -55,7 +69,14 @@ fn test_acme_formatting_basic() {
     let code = vec![0xAD, 0x12, 0x34]; // LDA $3412
     let block_types = vec![BlockType::Code, BlockType::Code, BlockType::Code];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "lda");
@@ -75,7 +96,14 @@ fn test_acme_directives() {
     let code = vec![0xFF];
     let block_types = vec![BlockType::DataByte];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!byte");
@@ -148,7 +176,14 @@ fn test_contextual_label_formatting() {
         BlockType::Code,
     ];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     assert_eq!(lines.len(), 3);
 
@@ -231,7 +266,14 @@ fn test_acme_lowercase_output() {
         BlockType::Code,
     ];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     assert_eq!(lines.len(), 2);
 
@@ -258,7 +300,14 @@ fn test_acme_plus2_formatting() {
     let code = vec![0xAD, 0x12, 0x00]; // AD = LDA Abs
     let block_types = vec![BlockType::Code, BlockType::Code, BlockType::Code];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     assert_eq!(lines.len(), 1);
     let line = &lines[0];
@@ -291,7 +340,14 @@ fn test_xref_formatting_with_dollar() {
     let code = vec![0xEA];
     let block_types = vec![BlockType::Code];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     assert_eq!(lines.len(), 1);
     // Check that the comment contains "x-ref: $2000, $3000"
@@ -324,7 +380,14 @@ fn test_xref_count_configurable() {
 
     // Case 1: Default (5)
     settings.max_xref_count = 5;
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
     assert_eq!(lines.len(), 1);
     // Should show 5 items
     let comment = &lines[0].comment;
@@ -333,14 +396,28 @@ fn test_xref_count_configurable() {
 
     // Case 2: Limit to 2
     settings.max_xref_count = 2;
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
     let comment = &lines[0].comment;
     assert!(comment.contains("$2000, $2001"));
     assert!(!comment.contains("$2002"));
 
     // Case 3: Zero (Off)
     settings.max_xref_count = 0;
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
     assert!(lines[0].comment.is_empty());
 }
 
@@ -357,7 +434,14 @@ fn test_text_and_screencode_disassembly() {
     // "ABC"
     let code = vec![0x41, 0x42, 0x43];
     let block_types = vec![BlockType::Text, BlockType::Text, BlockType::Text];
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     // Tass formatting produces 4 lines: .ENCODE, .ENC "ASCII", .TEXT "ABC", .ENDENCODE
     assert_eq!(lines.len(), 4);
@@ -367,7 +451,14 @@ fn test_text_and_screencode_disassembly() {
 
     // 2. Test Acme Text
     settings.assembler = Assembler::Acme;
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!text");
     assert_eq!(lines[0].operand, "\"ABC\"");
@@ -382,7 +473,14 @@ fn test_text_and_screencode_disassembly() {
 
     // Acme Screencode
     settings.assembler = Assembler::Acme;
-    let lines = disassembler.disassemble(&code_scr, &block_types_scr, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code_scr,
+        &block_types_scr,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!scr");
     assert_eq!(lines[0].operand, "\"ABC\"");
@@ -390,7 +488,14 @@ fn test_text_and_screencode_disassembly() {
     // 4. Test fallback for invalid text
     let code_bad = vec![0xFF];
     let block_types_bad = vec![BlockType::Text];
-    let lines = disassembler.disassemble(&code_bad, &block_types_bad, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code_bad,
+        &block_types_bad,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
     // For Tass, this will produce 4 lines: ENCODE, ENC, BYTE, ENDENCODE
     // But we need to use Acme setting from previous step?
     // Wait, let's reset to Tass if we want to confirm fallback logic for Tass, or Acme for Acme.
@@ -424,7 +529,14 @@ fn test_text_mixed_content() {
         BlockType::Text,
     ];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     // Filter relevant lines (Tass wraps in ENCODE)
     // We expect .ENCODE, .ENC, .TEXT ..., .ENDENCODE
@@ -454,13 +566,27 @@ fn test_text_escaping() {
 
     // 1. Test ACME: "Quote \" Backslash \\"
     settings.assembler = Assembler::Acme;
-    let lines_acme = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines_acme = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
     assert_eq!(lines_acme.len(), 1);
     assert_eq!(lines_acme[0].operand, "\"Quote \\\" Backslash \\\\\"");
 
     // 2. Test Tass64: "Quote "" Backslash \"
     settings.assembler = Assembler::Tass64;
-    let lines_tass = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines_tass = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     // Tass output structure: .ENCODE, .ENC, .TEXT ..., .ENDENCODE
     // Filter for .TEXT
@@ -504,7 +630,14 @@ fn test_screencode_mixed() {
 
     // 1. ACME
     settings.assembler = Assembler::Acme;
-    let lines_acme = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines_acme = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
     assert_eq!(lines_acme.len(), 1);
     // !scr "\"" (escaped quote), $ff, "\""
     // Expected: !scr "\"", $ff, "\""
@@ -512,7 +645,14 @@ fn test_screencode_mixed() {
 
     // 2. Tass
     settings.assembler = Assembler::Tass64;
-    let lines_tass = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines_tass = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
     // .TEXT """""", $FF, """"""
     let text_lines: Vec<&DisassemblyLine> = lines_tass
         .iter()
@@ -546,7 +686,14 @@ fn test_tass_screencode_enc_wrapping() {
         BlockType::Screencode,
     ];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     assert_eq!(lines.len(), 4);
 
@@ -577,7 +724,14 @@ fn test_tass_screencode_multiline_wrapping() {
     let code = vec![0x01; 40];
     let block_types = vec![BlockType::Screencode; 40];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     // Expected:
     // 1. .ENCODE
@@ -622,7 +776,14 @@ fn test_tass_block_separation() {
         BlockType::Screencode,
     ];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     // Block 1 (SC) -> 4 lines (Start, Enc, Text, End)
     // Code -> 1 line
@@ -667,7 +828,14 @@ fn test_tass_label_interruption() {
     let code = vec![0x01, 0x02];
     let block_types = vec![BlockType::Screencode, BlockType::Screencode];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     // Expectation:
     // Label breaks the chunk processing loop, but types are contiguous.
@@ -714,7 +882,14 @@ fn test_tass_screencode_single_byte_special() {
     let code = vec![0x4F];
     let block_types = vec![BlockType::Screencode];
 
-    let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+    );
 
     // Expected:
     // .ENCODE
@@ -751,8 +926,14 @@ mod tests {
         ];
         let block_types_a = vec![BlockType::Screencode; bytes_a.len()];
 
-        let lines_a =
-            disassembler.disassemble(&bytes_a, &block_types_a, &labels, origin, &settings);
+        let lines_a = disassembler.disassemble(
+            &bytes_a,
+            &block_types_a,
+            &labels,
+            origin,
+            &settings,
+            &HashMap::new(),
+        );
 
         assert_eq!(lines_a.len(), 4);
         assert_eq!(lines_a[0].mnemonic, ".ENCODE");
@@ -767,8 +948,14 @@ mod tests {
         ];
         let block_types_b = vec![BlockType::Screencode; bytes_b.len()];
 
-        let lines_b =
-            disassembler.disassemble(&bytes_b, &block_types_b, &labels, origin, &settings);
+        let lines_b = disassembler.disassemble(
+            &bytes_b,
+            &block_types_b,
+            &labels,
+            origin,
+            &settings,
+            &HashMap::new(),
+        );
 
         assert_eq!(lines_b.len(), 4);
         assert_eq!(lines_b[1].operand, "\"SCREEN\"");
@@ -790,7 +977,14 @@ mod tests {
         let code = vec![0x5E, 0x5F, 0x60];
         let block_types = vec![BlockType::Screencode; 3];
 
-        let lines = disassembler.disassemble(&code, &block_types, &labels, origin, &settings);
+        let lines = disassembler.disassemble(
+            &code,
+            &block_types,
+            &labels,
+            origin,
+            &settings,
+            &HashMap::new(),
+        );
 
         // Expected: .TEXT "~", $5F, $60
         // Tass wraps in .ENCODE ... .ENDENCODE

@@ -368,6 +368,7 @@ pub fn run_app<B: Backend>(
                         } else {
                             ui_state.settings_dialog.close();
                             ui_state.set_status_message("Ready");
+                            app_state.load_system_assets();
                             app_state.disassemble(); // Disassemble on close to apply all settings
                         }
                     }

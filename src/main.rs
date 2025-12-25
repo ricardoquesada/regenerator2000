@@ -1,4 +1,5 @@
 mod analyzer;
+pub mod assets;
 
 mod commands;
 mod cpu;

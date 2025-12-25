@@ -81,21 +81,17 @@ pub fn analyze(state: &AppState) -> HashMap<u16, Vec<crate::state::Label>> {
     for (addr, (types_map, refs, first_type)) in usage_map {
         let mut addr_labels = Vec::new();
 
-        // Check for existing User labels (preserve them all)
+        // Check for existing User or System labels (preserve them if used)
         if let Some(existing_vec) = state.labels.get(&addr) {
             for existing in existing_vec {
-                if existing.kind == crate::state::LabelKind::User {
+                if existing.kind == crate::state::LabelKind::User
+                    || existing.kind == crate::state::LabelKind::System
+                {
                     addr_labels.push(crate::state::Label {
                         name: existing.name.clone(),
                         label_type: existing.label_type,
-                        kind: crate::state::LabelKind::User,
-                        refs: existing.refs.clone(), // Keep manual refs? Or overwrite with analyzed refs?
-                                                     // Ideally we MERGE analyzed refs into existing refs if we want to show updated xrefs.
-                                                     // But `usage_map` refs are freshly calculated.
-                                                     // For now, let's keep existing refs from `state`? No, those might be stale.
-                                                     // But `refs` in `Label` is usually populated by analysis.
-                                                     // If it's a User label, we should probably update its refs with `refs` from analysis.
-                                                     // Let's use `refs` from `usage_map`.
+                        kind: existing.kind.clone(), // User or System
+                        refs: existing.refs.clone(), // Use manual refs or existing ones
                     });
                     // Assign refs to the last pushed label
                     if let Some(l) = addr_labels.last_mut() {

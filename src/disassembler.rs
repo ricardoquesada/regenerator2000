@@ -51,6 +51,7 @@ impl Disassembler {
         labels: &HashMap<u16, Vec<Label>>,
         origin: u16,
         settings: &DocumentSettings,
+        system_comments: &HashMap<u16, String>,
     ) -> Vec<DisassemblyLine> {
         let formatter = Self::create_formatter(settings.assembler);
 
@@ -59,8 +60,9 @@ impl Disassembler {
 
         while pc < data.len() {
             let address = origin.wrapping_add(pc as u16);
+
             let label_name = self.get_label_name(address, labels, formatter.as_ref());
-            let comment = self.get_comment(address, labels, settings);
+            let comment = self.get_comment(address, labels, settings, system_comments);
 
             let current_type = block_types.get(pc).copied().unwrap_or(BlockType::Code);
 
@@ -157,7 +159,15 @@ impl Disassembler {
         address: u16,
         labels: &HashMap<u16, Vec<Label>>,
         settings: &DocumentSettings,
+        system_comments: &HashMap<u16, String>,
     ) -> String {
+        let mut comment_parts = Vec::new();
+
+        // System comment
+        if let Some(sys_comment) = system_comments.get(&address) {
+            comment_parts.push(sys_comment.clone());
+        }
+
         if let Some(label_vec) = labels.get(&address) {
             let mut all_refs: Vec<u16> = Vec::new();
             for l in label_vec {
@@ -172,10 +182,11 @@ impl Disassembler {
                     .take(settings.max_xref_count)
                     .map(|r| format!("${:04X}", r))
                     .collect();
-                return format!("x-ref: {}", refs_str.join(", "));
+                comment_parts.push(format!("x-ref: {}", refs_str.join(", ")));
             }
         }
-        String::new()
+
+        comment_parts.join("; ")
     }
 
     #[allow(clippy::too_many_arguments)]
