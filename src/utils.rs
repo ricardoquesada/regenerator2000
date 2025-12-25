@@ -37,11 +37,9 @@ pub fn list_files(dir: &Path, extensions: &[String]) -> Vec<PathBuf> {
 }
 
 pub fn load_logo() -> Option<DynamicImage> {
-    let path = Path::new("docs/regenerator2000_logo.png");
-    if path.exists() {
-        if let Ok(img) = image::open(path) {
-            return Some(img);
-        }
+    let logo_bytes = include_bytes!("../docs/regenerator2000_logo.png");
+    if let Ok(img) = image::load_from_memory(logo_bytes) {
+        return Some(img);
     }
     None
 }

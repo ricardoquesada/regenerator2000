@@ -116,13 +116,13 @@ fn render_about_dialog(f: &mut Frame, ui_state: &UIState, area: Rect) {
 
             // 2. Render Text
             let text_area = chunks[1];
-            let text = "Regenerator2000\nby Ricardo Quesada (riq) / L.I.A";
+            let text = "Regenerator2000\n(c) Ricardo Quesada 2026\nriq / L.I.A\nInspired by Regenerator, by Tom-Cat / Nostalgia";
             let paragraph = Paragraph::new(text)
                 .alignment(ratatui::layout::Alignment::Center)
                 .block(Block::default());
 
             // Vertically center text in text_area
-            let text_height = 2;
+            let text_height = 4;
             let text_y = text_area.y + (text_area.height.saturating_sub(text_height)) / 2;
             let centered_text_area =
                 ratatui::layout::Rect::new(text_area.x, text_y, text_area.width, text_height);
