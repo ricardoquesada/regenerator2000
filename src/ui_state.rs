@@ -34,9 +34,6 @@ pub enum MenuAction {
     Screencode,
     Analyze,
     DocumentSettings,
-    ZoomIn,
-    ZoomOut,
-    ResetZoom,
     JumpToAddress,
     JumpToOperand,
     SetPetsciiUnshifted,
@@ -315,10 +312,6 @@ impl MenuState {
                 MenuCategory {
                     name: "View".to_string(),
                     items: vec![
-                        MenuItem::new("Zoom In", Some("Ctrl++"), Some(MenuAction::ZoomIn)),
-                        MenuItem::new("Zoom Out", Some("Ctrl+-"), Some(MenuAction::ZoomOut)),
-                        MenuItem::new("Reset Zoom", Some("Ctrl+0"), Some(MenuAction::ResetZoom)),
-                        MenuItem::separator(),
                         MenuItem::new(
                             "Unshifted PETSCII",
                             Some("Ctrl+Shift+L"),

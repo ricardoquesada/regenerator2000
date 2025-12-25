@@ -608,29 +608,6 @@ pub fn run_app<B: Backend>(
                             crate::ui_state::MenuAction::Redo,
                         );
                     }
-                    KeyCode::Char('+') | KeyCode::Char('=')
-                        if key.modifiers.contains(KeyModifiers::CONTROL) =>
-                    {
-                        handle_menu_action(
-                            &mut app_state,
-                            &mut ui_state,
-                            crate::ui_state::MenuAction::ZoomIn,
-                        )
-                    }
-                    KeyCode::Char('-') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        handle_menu_action(
-                            &mut app_state,
-                            &mut ui_state,
-                            crate::ui_state::MenuAction::ZoomOut,
-                        )
-                    }
-                    KeyCode::Char('0') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        handle_menu_action(
-                            &mut app_state,
-                            &mut ui_state,
-                            crate::ui_state::MenuAction::ResetZoom,
-                        )
-                    }
 
                     KeyCode::Char('g') => {
                         handle_menu_action(
@@ -917,9 +894,7 @@ fn handle_menu_action(
         MenuAction::Redo => {
             ui_state.set_status_message(app_state.redo_last_command());
         }
-        MenuAction::ZoomIn => {}
-        MenuAction::ZoomOut => {}
-        MenuAction::ResetZoom => {}
+
         MenuAction::Code => {
             let new_cursor = ui_state
                 .selection_start
