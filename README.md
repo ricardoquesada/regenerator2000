@@ -36,6 +36,8 @@ Regenerator2000 brings modern conveniences to 6502 disassembly:
 - **TUI**:
   - Text User interface
   - Everything can be done from the keyboard
+- **Fast**:
+  - Extremely fast
 
 ![screenshot](docs/regenerator2000_screenshot.png)
 
@@ -47,17 +49,14 @@ Regenerator2000 brings modern conveniences to 6502 disassembly:
 |                | **Open File**                | `Ctrl + O`                        |
 |                | **Save Project**             | `Ctrl + S`                        |
 |                | **Save Project As**          | `Ctrl + Shift + S`                |
-|                | **Export ASM**               | `Ctrl + E`                        |
-|                | **Export ASM As**            | `Ctrl + Shift + E`                |
+|                | **Export Project (ASM)**     | `Ctrl + E`                        |
+|                | **Export Project As (ASM)**  | `Ctrl + Shift + E`                |
 |                | **Document Settings**        | `Ctrl + P`                        |
 |                | **Undo**                     | `Ctrl + U` / `U`                  |
 |                | **Redo**                     | `Ctrl + R`                        |
 |                | **Switch Pane (Hex/Disasm)** | `Tab`                             |
-| **View**       | **Zoom In**                  | `Ctrl + +` / `Ctrl + =`           |
-|                | **Zoom Out**                 | `Ctrl + -`                        |
-|                | **Reset Zoom**               | `Ctrl + 0`                        |
-|                | **PETSCII Unshifted**        | `Ctrl + Shift + U`                |
-|                | **PETSCII Shifted**          | `Ctrl + Shift + L`                |
+| **View**       | **PETSCII Unshifted**        | `Ctrl + Shift + L`                |
+|                | **PETSCII Shifted**          | `Ctrl + L`                        |
 | **Navigation** | **Move Cursor**              | `Up` / `Down` / `j` / `k`         |
 |                | **Page Up/Down**             | `PageUp` / `PageDown`             |
 |                | **Home/End**                 | `Home` / `End`                    |
