@@ -1,0 +1,104 @@
+:JMP/JSR only
+BEF8 $BEF8 ProDOS- recovers from "NO BUFFERS AVAILABLE" error
+D683 $D683 Inits Applesoft stack- scraps false "OUT OF MEMORY" error.
+F328 $F328 Repairs Applesoft stack after an ONERR GOTO handles an error.
+F3D4 $F3D4 HGR2
+F3DE $F3DE HGR
+F3F2 $F3F2 Clear HI-RES screen to Black
+F3F6 $F3F6 Clear HI-RES screen to recent HCOLOR
+F5CB $F5CB Move HI-RES cursor coords to 224-226
+F800 $F800 PLOT a LO-RES POINT (AC:Y-COORD  Y:X-COORD)
+F819 $F819 DRAW a HORIZONTAL LO-RES LINE.
+F828 $F828 DRAW a VERTICAL LO-RES LINE.
+F832 $F832 CLEAR LO-RES SCREEN 1 and set GRAPHICS mode.
+F836 $F836 CLEAR top 20 lines of LO-RES Graphics
+F847 $F847 CALCULATE LO-RES Graphics base ADDRESS.
+F85F $F85F Change LO-RES COLOR to COLOR + 3
+F940 $F940 PRINT contents of X & Y (REG 9 as 4 HEX digits)
+F94C $F94C PRINT X BLANKS (X REG contains # to PRINT)
+FA86 $FA86 IRQ HANDLER
+FA92 $FA92 BREAK HANDLER
+FAA6 $FAA6 RE-BOOTS DISK SYSTEM
+FAD7 $FAD7 to display USER REGISTERS
+FB2F $FB2F TEXT- screen init
+FB39 $FB39 set SCREEN to TEXT mode
+FB40 $FB40 GR- set GRAPHICS mode
+FB4B $FB4B set NORMAL WINDOW
+FB60 $FB60 Prints the 'Apple ][' at the top of your screen.
+FBC1 $FBC1 CALCULATE TEXT BASE ADDRESS
+FBE4 $FBE4 SOUND BELL
+FBF4 $FBF4 to MOVE CURSOR RIGHT
+FBFD $FBFD OUTPUT A-REG as ASCII on TEXT SCREEN 1
+FC10 $FC10 to MOVE CURSOR LEFT
+FC1A $FC1A to MOVE CURSOR UP
+FC22 $FC22 PERFORM a VERTICAL TAB to ROW in ACCUMULATOR
+FC2C $FC2C PREFORM ESCAPE FUNCTION
+FC42 $FC42 CLEAR from CURSOR to END of PAGE (ESC -F)
+FC58 $FC58 HOME & CLEAR SCREEN (Destroys ACCUMULATOR & Y-REG)
+FC62 $FC62 PERFORM a CARRIAGE RETURN
+FC66 $FC66 PERFORM a LINE FEED
+FC70 $FC70 SCOLL UP 1 LINE (Destroys ACCUMULATOR & Y-REG)
+FC95 $FC95 Clear entire Text line.
+FC9C $FC9C CLEAR from CURSOR to END of LINE (ESC-E)
+FD0C $FD0C GET KEY from KEYBOARD (Destroys A & Y-REG) WAIT for KEY PRESS.
+FD5A $FD5A Wait for RETURN
+FD5C $FD5C Sound Bell and wait for RETURN
+FD67 $FD67 PREFORM CARRIAGE RETURN & GET LINE of TEXT.
+FD6A $FD6A GET LINE of TEXT from KEYBOARD (X RETND with # of CHARACTERS)
+FD6F $FD6F INPUT which accepts commas & colons.
+FD8E $FD8E PRINT CARRIAGE RETURN (Destroys ACCUMULATOR & Y-REG)
+FDDA $FDDA PRINT CONTENTS of ACCUMULATOR as 2 HEX DIGETS.
+FDE3 $FDE3 PRINT a HEX digit
+FDED $FDED OUTPUT CHARACTER IN ACCUMULATOR. (Destroys A & Y-REG COUNT)
+FDF0 $FDF0 GET MONITOR CHARACTER OUTPUT
+FE2C $FE2C PERFORM MEMORY MOVE A1-A2 TO A4.
+FE80 $FE80 set INVERSE mode
+FE84 $FE84 set NORMAL mode
+FEBF $FEBF DISPLAY A,S,Y,P,S REG. (CURRENT VALUES)
+FF2D $FF2D PRINT "ERR" & SOUNDS BELL (Destroys ACCUMULATOR & Y-REG)
+FF3A $FF3A PRINT BELL (Destroys ACCUMULATOR & Y-REG)
+FF59 $FF59 ENTER MONITOR RESET, TEXT mode, "COLD START"
+FF65 $FF65 ENTER MONITOR, ring BELL, "WARM START"
+FF69 $FF69 Go to MONITOR
+FF70 $FF70 SCAN INPUT BUFFER (ADDRESS $200...)
+
+:ALL
+0020 Text window left-edge (0-39)
+0021 Text window width (1-40)
+0022 Text window top-edge (0-23)
+0023 Text window bottom (1-24)
+0024 Horizontal cursor-position (0-39)
+0025 Vertical cursor-position (0-23)
+002B Boot slot * 16 (after boot only)
+002C Lo-res line end-point
+0030 Lo-res COLOR * 17
+0032 Text output format [63=INVERSE 255=NORMAL 127=FLASH]
+0033 Prompt-character
+004A LOMEM address (INT)
+004C HIMEM address (INT)
+004E Random-Number Field
+0067 Start of Applesoft program- normally set to $801
+0069 LOMEM Start of varible space & end of Applesoft prgm
+006B Start of array space  (FP)
+006D End of array space  (FP)
+006F Start of string-storage  (FP)
+0073 HIMEM- the highest available Applesoft address +1
+0075 Line# being executed.  (FP)
+0077 Line# where program stopped.  (FP)
+0079 Address of line executing.  (FP)
+007B Current DATA line#
+007D Next DATA address
+007F INPUT or DATA address
+0081 Var.last used. VAR$=CHR$(PEEK(129))+CHR$(PEEK(130))
+0083 Last-Used-Varible Address  (FP)
+00AF End of Applesoft Program (Normally=LOMEM)
+00CA Start of Program Address (INT)
+00CC End of Varible Storage (INT)
+00D6 RUN Flag (POKE 214,255 sets Applesoft run-only.)
+00D8 ONERR Flag (POKE 216,0 cancels ONERR; en norm errs)
+00DA Line# of ONERR Error
+00DE Error Code  (FP)
+00E0 Horizontal Coordinate of HPLOT
+00E2 Vertical Coordinate of HPLOT
+00E8 Start address of Shape Table
+00F1 256 - SPEED value (SPEED=255 --> $F1: 01)  (FP)

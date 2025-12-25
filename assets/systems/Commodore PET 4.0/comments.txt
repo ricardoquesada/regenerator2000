@@ -1,0 +1,509 @@
+:JMP/JSR only
+B322 $B322 FNDFOR  Find FOR/GOSUB Entry on Stack
+B350 $B350 BLTU    Open Space in Memory
+B393 $B393 GETSTK  Check Stack Depth
+B3A0 $B3A0 REASON  Check Memory Overlap
+B3CD $B3CD OMERR   Output ?OUT OF MEMORY Error
+B3CF $B3CF ERROR   Error Routine
+B3F4 $B3F4 ERRFIN  Break Entry
+B3FF $B3FF READY   Restart BASIC
+B406 $B406 MAIN    Input & Identify BASIC Line
+B41F $B41F MAIN1   Get Line Number & Tokenise Text
+B425 $B425 INSLIN  Insert BASIC Text
+B4B6 $B4B6 LINKPRG Rechain Lines
+B4E2 $B4E2 INLIN   Input Line Into Buffer
+B4FB $B4FB CRUNCH  Tokenise Input Buffer
+B5A3 $B5A3 FNDLIN  Search for Line Number
+B5D2 $B5D2 SCRTCH  Perform [new]
+B5EE $B5EE CLEAR   Perform [clr]
+B622 $B622 STXPT   Reset TXTPTR
+B630 $B630 LIST    Perform [list]
+B6AB $B6AB QPLOP   Handle LIST Character
+B6DE $B6DE FOR     Perform [for]
+B74A $B74A NEWSTT  BASIC Warm Start
+B75F $B75F CKEOL   Check End of Program
+B77C $B77C GONE    Prepare to execute statement
+B785 $B785 GONE3   Perform BASIC Key
+B7A7 $B7A7 Perform [go]
+B7B7 $B7B7 RESTOR  Perform [restore]
+B7C6 $B7C6 STOP    Perform [stop], [end], break
+B7EE $B7EE CONT    Perform [cont]
+B808 $B808 RUN     Perform [run]
+B813 $B813 GOSUB   Perform [gosub]
+B830 $B830 GOTO    Perform [goto]
+B85D $B85D RETURN  Perform [return]
+B883 $B883 Perform []
+B891 $B891 Search for Next Statement / Line
+B8B3 $B8B3 IF      Perform [if]
+B8C6 $B8C6 REM     Perform [rem]
+B8D6 $B8D6 ONGOTO  Perform [on]
+B8F6 $B8F6 LINGET  Fetch linnum From BASIC
+B930 $B930 LET     Perform [let]
+B94F $B94F PUTINT  Assign Integer
+B961 $B961 PTFLPT  Assign Floating Point
+B964 $B964 PUTSTR  Assign String
+B96E $B96E PUTTIM  Assign TI$
+B9AB $B9AB get character string
+B9BA $B9BA GETSPT  Add Digit to FAC#1
+BA88 $BA88 PRINTN  Perform [print#]
+BA8E $BA8E CMD     Perform [cmd]
+BAA2 $BAA2 STRDON  Print String From Memory
+BAA8 $BAA8 PRINT   Perform [print]
+BAC0 $BAC0 VAROP   Output Variable
+BAD2 $BAD2 Add zero terminator to string
+BADF $BADF CRDO    Output CR/LF
+BAF0 $BAF0 COMPRT  Handle comma, TAB(, SPC(
+BB1D $BB1D STROUT  Output String
+BB3A $BB3A OUTSPC  Output Format Character
+BB41 $BB41 Print '<cursor right>'
+BB44 $BB44 Print '?'
+BB46 $BB46 Output Character in A
+BB4C $BB4C DOAGIN  Handle Bad
+BB7A $BB7A GET     Perform [get]
+BBA4 $BBA4 INPUTN  Perform [input#]
+BBBE $BBBE INPUT   Perform [input]
+BBE8 $BBE8 BUFFUL  Read Input Buffer
+BBF5 $BBF5 QINLIN  Do Input Prompt
+BC02 $BC02 READ    Perform [read]
+BC31 $BC31 RDGET   General Purpose Read Routine
+BCF6 EXINT   Input Error Messages
+BD19 $BD19 NEXT    Perform [next]
+BD5B $BD5B DONEXT  Check Valid Loop
+BD84 $BD84 FRMNUM  Confirm Result
+BD98 $BD98 FRMEVL  Evaluate Expression in Text
+BE81 $BE81 EVAL    Evaluate Single Term
+BEA5 $BEA5 QDOT    Continue Expression
+BECC $BECC Evaluate <equal>
+BEE9 $BEE9 PARCHK  Expression in Brackets
+BEEF $BEEF CHKCLS  Confirm Character
+BEEF $BEEF Test ')'-
+BEF2 $BEF2 Test '('-
+BEF5 $BEF5 Test comma-
+BEF7 $BEF7 Confirm Character in A
+BF00 $BF00 SYNERR  Output ?SYNTAX Error
+BF05 $BF05 DOMIN   Set up NOT Function
+BF8C $BF8C ISVAR   Search for Variable
+BFAD $BFAD TISASC  Convert TI to ASCII String
+C003 $C003 read real time clock
+C047 $C047 ISFUN   Identify Function Type
+C051 $C051 STRFUN  Evaluate String Function
+C071 $C071 NUMFUN  Evaluate Numeric Function
+C086 $C086 OROP    Evaluate <or>
+C089 $C089 Evaluate <and>
+C0B6 $C0B6 DOREL   Evaluate <less> (comparison)
+C0BB $C0BB NUMREL  Numeric Comparison
+C0CE $C0CE STRREL  String Comparison
+C11E $C11E DIM     Perform [dim]
+C12B $C12B PTRGET  Identify Variable
+C187 $C187 ORDVAR  Locate Ordinary Variable
+C1B6 $C1B6 ISLETC  Does A hold an alphabetic character?
+C1C0 $C1C0 NOTFNS  Create New Variable
+C1CB $C1CB NOTEVL  Create Variable
+C2C8 $C2C8 ARYGET  Allocate Array Pointer Space
+C2DD $C2DD INTIDX  Evaluate Text for Integer
+C2EA $C2EA AYINT   FAC#1 to Positive Integer
+C2FC $C2FC ISARY   Get Array Parameters
+C343 $C343 FNDARY  Find Array
+C370 $C370 BSERR   ?BAD SUBSCRIPT
+C373 $C373 ?ILLEGAL QUANTITY
+C378 $C378 ?REDIM'D ARRAY
+C38C $C38C NOTFDD  Create Array
+C439 $C439 INLPN2  Locate Element in Array
+C477 $C477 UMULT   Number of Bytes in Subscript
+C4A8 $C4A8 FRE     Evaluate <fre>
+C4BC $C4BC GIVAYF  Convert Integer in (AC/YR) to Flpt
+C4C9 $C4C9 POS     Evaluate <pos>
+C4CF $C4CF ERRDIR  Confirm Program Mode
+C4D7 $C4D7 ?UNDEF'D FUNCTION
+C4DC $C4DC Perform [def]
+C50A $C50A GETFNM  Check Syntax of FN
+C51D $C51D FNDOER  Perform [fn]
+C58E $C58E STRD    Evaluate <str$>
+C598 $C598 STRLIT  Set Up String
+C5FE $C5FE PUTNW1  Save String Descriptor
+C61D $C61D GETSPA  Allocate Space for String
+C74F $C74F CAT     Concatenate Two Strings
+C78C $C78C MOVINS  Store String in High RAM
+C7B5 $C7B5 FRESTR  Perform String Housekeeping
+C811 $C811 FREFAC  Clean Descriptor Stack
+C822 $C822 CHRD    Evaluate <chr$>
+C836 $C836 LEFTD   Evaluate <left$>
+C862 $C862 RIGHTD  Evaluate <right$>
+C86D $C86D MIDD    Evaluate <mid$>
+C897 $C897 PREAM   Pull String Parameters
+C8B2 $C8B2 LEN     Evaluate <len>
+C8B8 $C8B8 LEN1    Exit String Mode
+C8C1 $C8C1 ASC     Evaluate <asc>
+C8D1 $C8D1 GTBYTC  Evaluate Text to 1 Byte in XR
+C8D4 $C8D4 Eval Byte Parameter
+C8E3 $C8E3 VAL     Evaluate <val>
+C8EB $C8EB STRVAL  Convert ASCII String to Flpt
+C921 $C921 GETNUM  Get parameters for POKE/WAIT
+C92D $C92D GETADR  Convert FAC#1 to Integer in LINNUM
+C943 $C943 PEEK    Evaluate <peek>
+C95A $C95A POKE    Perform [poke]
+C963 $C963 WAIT    Perform [wait]
+C97F $C97F FADDH   Add 0.5 to FAC#1
+C986 $C986 FSUB    Perform Subtraction
+C989 $C989 Evaluate <subtract>
+C998 $C998 FADD5   Normalise Addition
+C99D $C99D FADD    Perform Addition
+C9A0 $C9A0 Evaluate <add>
+CA7D $CA7D NEGFAC  2's Complement FAC#1
+CAB4 $CAB4 OVERR   Output ?OVERFLOW Error
+CAB9 $CAB9 MULSHF  Multiply by Zero Byte
+CB20 $CB20 LOG     Evaluate <log>
+CB5E $CB5E FMULT   Perform Multiply
+CB61 $CB61 Evaluate <multiply>
+CB8F $CB8F MULPLY  Multiply by a Byte
+CBC2 $CBC2 CONUPK  Load FAC#2 From Memory
+CBED $CBED MULDIV  Test Both Accumulators
+CC0A $CC0A MLDVEX  Overflow / Underflow
+CC18 $CC18 MUL10   Multiply FAC#1 by 10
+CC34 $CC34 DIV10   Divide FAC#1 by 10
+CC3D $CC3D FDIV    Divide FAC#2 by Flpt at (AC/YR)
+CC45 $CC45 FDIVT   Divide FAC#2 by FAC#1
+CC48 $CC48 Evaluate <divide>
+CCD8 $CCD8 MOVFM   Load FAC#1 From Memory
+CCFD $CCFD MOV2F   Store FAC#1 in Memory
+CD0A $CD0A Store FAC#1 at (AC/YR)
+CD32 $CD32 MOVFA   Copy FAC#2 into FAC#1
+CD42 $CD42 MOVAF   Copy FAC#1 into FAC#2
+CD51 $CD51 ROUND   Round FAC#1
+CD61 $CD61 SIGN    Check Sign of FAC#1
+CD6F $CD6F SGN     Evaluate <sgn>
+CD8E $CD8E ABS     Evaluate <abs>
+CD91 $CD91 FCOMP   Compare FAC#1 With Memory
+CDD1 $CDD1 QINT    Convert FAC#1 to Integer
+CE02 $CE02 INT     Evaluate <int>
+CE29 $CE29 FIN     Convert ASCII String to a Number in FAC#1
+CEE9 N0999   String Conversion Constants
+CF78 $CF78 INPRT   Output 'IN' and Line Number
+CF93 $CF93 FOUT    Convert FAC#1 to ASCII String
+D01E $D01E FOUTIM  Convert TI to String
+D0C7 FHALF   Table of Constants
+D108 $D108 SQR     Evaluate <sqr>
+D112 $D112 FPWRT   Evaluate <power>
+D14B $D14B Evaluate <greater>
+D14B $D14B NEGOP   Negate FAC#1
+D184 $D184 EXP     Evaluate <exp>
+D1D7 $D1D7 POLYX   Series Evaluation
+D229 $D229 RND     Evaluate <rnd>
+D282 $D282 COS     Evaluate <cos>
+D289 $D289 SIN     Evaluate <sin>
+D2D2 $D2D2 TAN     Evaluate <tan>
+D32C $D32C ATN     Evaluate <atn>
+D399 $D399 INITAT  CHRGET For Zero-page
+D3B6 $D3B6 INIT    BASIC Cold Start
+D417 $D417 INITMS  Output Power-Up Message
+D4BA $D4BA *Get Command
+D531 $D531 Print Space
+D534 $D534 New Line
+D539 $D539 Increment Pointer
+D587 $D587 Perform [r]
+D5BC $D5BC Perform [m]
+D5FB $D5FB Perform [;]
+D61D $D61D Perform [:]
+D633 $D633 Perform [g]
+D66B $D66B Perform [x]
+D675 $D675 Perform [l/s]
+D717 $D717 WROA    Output contents of ($FB/$FC) as hex
+D722 $D722 WROB    Output single byte as hex
+D731 $D731 WRTWO   Output two characters (.X & .Y)
+D73A $D73A ASC     Convert 0-15 into ASCII chracter (.A)
+D744 $D744 T2T2    Exchange contents of $FB with $FD
+D754 $D754 RDOA    Input full hex address to $FB/$FC
+D763 $D763 RDOB    Input one hex byte to .A
+D78D $D78D HEXIT   Convert ASCII numeral in .A to hex
+D798 $D798 RDOC    Input character/await return
+D7A4 $D7A4 ERROPR  Print '?'
+D7AF $D7AF Perform [record]
+D873 $D873 Perform [catalog/directory]
+D942 $D942 Perform [dopen]
+D977 $D977 Perform [append]
+D9D2 $D9D2 Perform [header]
+DA07 $DA07 Perform [dclose]
+DA65 $DA65 Perform [collect]
+DA7E $DA7E Perform [backup]
+DAA7 $DAA7 Perform [copy]
+DAC7 $DAC7 Perform [concat]
+DB0D $DB0D Perform [dsave]
+DB3A $DB3A Perform [dload]
+DB55 $DB55 Perform [rename]
+DB66 $DB66 Perform [scratch]
+E202 $E202 Output to Screen
+E3B6 $E3B6 Output <CR>
+E442 $E442 Main IRQ Entry Point
+E600 $E600 Exit Interrupt
+F185 $F185 Output Kernal Error Message
+F266 $F266 CHROUT  Output One Character
+F2A6 $F2A6 CLRCHN  Restore Default I/O
+F2DD $F2DD CLOSET  Perform [close]
+F401 $F401 VERFYT  Perform [load]
+F4F6 $F4F6 VERFYT  Perform [verify]
+F560 $F560 OPENT   Perform [open]
+F6C3 $F6C3 SYST    Perform [sys]
+F6DD $F6DD SAVET   Perform [save]
+F7AF $F7AF CHKIN   Set Input Device
+F7FE $F7FE CHKOUT  Set Output Device
+FD16 $FD16 Power-Up RESET Entry
+FD49 $FD49 NMI Transfer Entry
+FD4C $FD4C Kernal Reset Vectors
+FF93 $FF93 Perform [concat]
+FF96 $FF96 Perform [dopen]
+FF99 $FF99 Perform [dclose]
+FF9C $FF9C Perform [record]
+FF9F $FF9F Perform [header]
+FFA2 $FFA2 Perform [collect]
+FFA5 $FFA5 Perform [backup]
+FFA8 $FFA8 Perform [copy]
+FFAB $FFAB Perform [append]
+FFAE $FFAE Perform [dsave]
+FFB1 $FFB1 Perform [dload]
+FFB4 $FFB4 Perform [catalog/directory]
+FFB7 $FFB7 Perform [rename]
+FFBA $FFBA Perform [scratch]
+FFC0 $FFC0 Perform [open]
+FFC3 $FFC3 Perform [close]
+FFC6 $FFC6 CHKIN   Set Input
+FFC9 $FFC9 CHKOUT  Set Output
+FFCC $FFCC CLRCH   Restore I/O Vector
+FFCF $FFCF CHRIN   Input Vector, chrin
+FFD2 $FFD2 CHROUT  Output Vector, chrout
+FFD5 $FFD5 Perform [load]
+FFD8 $FFD8 Perform [save]
+FFDB $FFDB Perform [verify]
+FFDE $FFDE SYS     Perform [sys]
+FFE4 $FFE4 GETIN   Get From Keyboad
+
+:ALL
+0000 USRPOK USR Function Jump Instr (4C)
+0001 USRADD USR Address Low Byte / High Byte
+0003 CHARAC Search Character
+0004 ENDCHR Flag: Scan for Quote at End of String
+0005 COUNT  Input Buffer Pointer / No. of Subscripts
+0006 DIMFLG Flag: Default Array DiMension / array name initial / AND, OR flag
+0007 VAUYP  Data Type: $FF = String, $00 = Numeric
+0008 INTFLG Data Type: $80 = Integer, $00 = Floating
+0009 GARBFL Flag: DATA scan/LlST quote/Garbage Coll
+000A SUBFLG Flag: Subscript Ref / User Function Call
+000B INPFLG Flag: $00 = INPUT, $40 = GET, $98 = READ
+000C TANSGN Flag TAN sign / Comparison Result
+000D Flag to suppress PRINT or PRINT# when -ve
+000E File# of current I/O device (as 0010)
+000F terminal width (unused-carried over from TTY)
+0010 width of source (unused - from TTY)
+0011 LINNUM Temp: Integer Value
+0013 TEMPPT Pointer Temporary String
+0014 LASTPT Last Temp String Address
+0016 TEMPST Stack for Temporary Strings
+001F INDEX  Utility Pointer Area
+0023 RESHO  Floating-Point Product of Multiply
+0028 TXTTAB Pointer: Start of BASIC Text
+002A VARTAB Pointer: Start of BASIC Variables
+002C ARYTAB Pointer: Start of BASIC Arrays
+002E STREND Pointer End of BASIC Arrays (+1)
+0030 FRETOP Pointer: Bottom of String Storage
+0032 FRESPC Utility String Pointer
+0034 MEMSIZ Pointer: Highest Address Used by BASIC
+0036 CURLIN Current BASIC Line Number
+0038 OLDLIN Previous BASIC Line Number
+003A OLDTXT Pointer: BASIC Statement for CONT
+003C DATLIN Current DATA Line Number
+003E DATPTR Pointer: Current DATA Item Address
+0040 INPPTR Vector: INPUT Routine
+0042 VARNAM Current BASIC Variable Name
+0044 VARPNT Pointer: Current BASIC Variable Data
+0046 FORPNT Pointer: Index Variable for FOR/NEXT
+0048 Y-save; op-save; BASIC pointer save
+004A Comparison symbol accumulator: bits 0,1,2 are <, =, >.
+004B Pointer to temp storage in RAM for FN DEF, TAN, &c
+004D Pointer to string, length and garbage collect constant
+0054 TEMPF1 Temporary storage for FLPT value.
+0059 TEMPF2 Temporary storage for FLPT value.
+005E FACEXP Floating-Point Accumulator #1: Exponent
+005F FACHO  Floating Accum. #1: Mantissa
+0063 FACSGN Floating Accum. #1: Sign
+0064 SGNFLG Pointer: Series Evaluation Constant Pointer
+0065 BITS   Floating -accum. #1: Overflow Digit
+0066 ARGEXP Floating-Point Accumulator #2: Exponent
+0067 ARGHO  Floating Accum. #2: Mantissa
+006B ARGSGN Floating Accum. #2: Sign
+006C ARISGN Sign Comparison Result: Accum. # 1 vs #2
+006D FACOV  Floating Accum. #1. Low-Order (Rounding)
+006E FBUFPT Pointer: Cassette Buffer
+0070 CHRGET Subroutine: Get Next Byte of BASIC Text
+0076 CHRGOT Entry to Get Same Byte of Text Again
+0077 TXTPTR Pointer: Current Byte of BASIC Text
+0088 RNDX   Floating RND Function Seed Value
+008D TIME   Real-Time Jiffy Clock (approx) 1/60 Sec
+0090 CINV   Vector: Hardware Interrupt
+0092 CBINV  Vector: BRK Instr. Interrupt
+0094 NMINV  Vector: Non-Maskable Interrupt
+0096 STATUS Kernal I/O Status Word: ST
+0097 LSTX   Current Key Pressed: 255 = No Key
+0098 SFDX   Flag: Print Shifted Chars.
+0099 Jiffy clock correction: 623rd 1/60 sec does not increment time
+009B STKEY  Flag: STOP key / RVS key
+009C SVXT   Timing Constant for Tape
+009D VERCK  Flag: 0 = Load, 1 = Verify (Kernel)
+009E NDX    No. of Chars. in Keyboard Buffer (Queue)
+009F RVS    Flag: Print Reverse Chars. -1=Yes, 0=No Used
+00A0 C3PO   Flag: Serial Bus-Output Char. Buffered
+00A1 INDX   Pointer: End of Logical Line for INPUT
+00A3 LXSP   Cursor Y-X Pos. at Start of INPUT
+00A5 BSOUR  Buffered Character for IEEE Bus
+00A6 Key Image
+00A7 BLNSW  Cursor Blink enable: 0 = Flash Cursor
+00A8 BLNCT  Timer: Countdown to Toggle Cursor
+00A9 GDBLN  Character Under Cursor
+00AA BLNON  Flag: Last Cursor Blink On/Off
+00AB NXTBIT Tape EOT Flag: EOT received from tape
+00AB SYNO   Cassette Sync No. (64#0096)
+00AC CRSW   Flag: INPUT or GET from Keyboard
+00AD X save in tape handling (saves cassette #)
+00AE LDTND  No. of Open Files / Index to File Table
+00AF DFLTN  Default Input Device (0)
+00B0 DFLTO  Default Output (CMD) Device (3)
+00B1 PRTY   Tape Character Parity
+00B2 DPSW   Flag: Tape Byte-Received PSW=DPSW
+00B3 Temporary save eg. logical address or DOS wedge
+00B7 Temp Data Area (64#00A3)
+00B9 Temp Data Area (64#00A4)
+00BB BUFPNT Pointer: Tape I/O Buffer #1
+00BC Pointer: Tape I/O Buffer #2
+00BD INBIT  Cassette Temp (64#00A7)
+00BE BITCI  Cassette Temp (64#00A8)
+00BF RINONE RS-232 Flag: Check for Start Bit (64#00A9)
+00C0 FNMIDX Index to Cassette File name/Header ID for Tape write.
+00C0 PTR1   Tape Pass 1 Error Log
+00C1 PTR2   Tape Pass 2 Error Log
+00C2 RIDATA Cassette Temp (64#00AA) read flags: 0=scan, 1-15=count, $40=load, $80=end of tape marker
+00C3 RIPRTY Cassette Short Cnt (64#00AB): counter of seconds before tape write / checksum
+00C4 PNT    Pointer: Current Screen Line Address
+00C6 PNTR   Cursor Column on Current Line
+00C7 SAL    Pointer: Tape Buffer/ Screen Scrolling
+00C9 EAL    Tape End Addresses/End of Program
+00CB CMP0   Tape Timing Constants
+00CD QTSW   Flag: Editor in Quote Mode, $00 = NO
+00CE BITTS  Cassette Temp (64#00B4): Tape read timer flag =IRQ enabled for Timer 1
+00CF End of tape read
+00D0 Read character error
+00D1 FNLEN  Length of Current File Name
+00D2 LA     Current Logical File Number
+00D3 SA     Current Secondary Address
+00D4 FA     Current Device Number
+00D5 LNMX   Physical Screen Line Length
+00D5 right side of window
+00D6 TAPE1  Pointer: Start of Tape Buffer
+00D8 TBLX   Current Cursor Physical Line Number
+00D9 DATAX  Current Character to Print
+00DA FNADR  Pointer: Current File Name
+00DC INSRT  Flag: Insert Mode, >0 = # INSTs
+00DD ROPRTY Cassette Temp
+00DE FSBLK  Cassette Read / Write Block Count
+00DF MYCH   Serial Word Buffer
+00E0 LDTB1  Screen Line Link Table / Editor Temps
+00E0 SCTOP  first line of window
+00E1 SCBOT  last line of window
+00E2 SCLF   first column of window
+00E3 XMAX   Size of Keyboard Buffer
+00E4 RPTFLG Flag: REPEAT Key Used, $80 = Repeat, $40 = disable
+00E5 KOUNT  Repeat Speed Counter
+00E6 DELAY  Repeat Delay Counter
+00E7 Chime Time
+00E8 Home Count
+00E9 input from screen vector (from E006)
+00EB print to screen vector (from E009)
+00F8 Counter to speed TI by 6/5
+00F9 CAS1   Tape Motor Interlock #1
+00FA CAS2   Tape Motor Interlock #2
+00FB STAL   I/O Start Address
+00FD MEMUSS Tape Load Temps
+0100 BAD    Tape Input Error Log
+0100 Floating to String Work Area
+0100 Micro-Processor System Stack Area
+0200 BUF    System INPUT Buffer
+0251 LAT    KERNAL Table: Active Logical File No's.
+025B FAT    KERNAL Table: Device No. for Each File
+0265 SAT    KERNAL Table: Second Address Each File
+026F KEYD   Keyboard Buffer Queue (FIFO)
+027A TBUFFR Tape I/O Buffer #1
+027A Type of tape file
+027B Start address for load
+027D End address for load
+027F File name
+033A 4: DOS byte parameter in RECORD / char ptr
+033A TBUFFR Tape I/O Buffer #2
+033B 4: DOS drive 1 number
+033C 4: DOS drive 2 number
+033D 4: DOS length / write flag
+033E 4: DOS 8-bit syntax checking flag
+033F 4: DOS diskette ID
+0341 4: Length of DOS command string
+0342 4: Buffer for filename
+0353 4: Full DOS command string buffer
+03EC Chime Time
+03EC Chime Time
+03ED Counter to speed TI by 6/5
+03ED Counter to speed TI by 6/5
+03EE Table of 80 bits to set TABs
+03F0 Table of 80 bits to set TABs
+03FC TIMOUT Flag: Kernal Variable for IEEE Timeout
+0400 0 byte at start of Basic program
+0401 first link to next Basic line
+0403 first line number
+0405 tokenized basic line, terminated with 00 followed by next link
+B000 STMDSP  BASIC Command Vectors
+B066 FUNDSP  BASIC Function Vectors
+B094 OPTAB   BASIC Operator Vectors
+B0B2 RESLST  BASIC Command Key Table
+B13D MSCLST  BASIC Misc. Key Table
+B154 OPLIST  BASIC Operator Key Table
+B161 FUNLST  BASIC Function Key Table
+B1B1 Additional Action Keys
+B20D ERRTAB  Error Message Table
+B306 OKK     Misc. Messages
+BEA0 PIVAL   Constant - PI
+C2D9 N32768  Constant 32768 in Flpt
+CAF2 FONE    Table of Flpt Constants
+CC2F TENC    Constant 10 in Flpt
+D156 LOGEB2  Table of Constants
+D221 RMULC   Constants for RND
+D2FE PI2     Table of Trig Constants
+D35C ATNCON  Table of ATN Constants
+D3B1 RNDSED  RND Seed For zero-page
+D44B WORDS   Power-Up Message
+D544 Commnds
+D54C CommAnd Vectors
+D55C '<cr>     pc  irq  sr ac xr yr sp'
+E810 PORT A or DDR A: Data Direction Register A
+E811 CRA: Control Register A
+E812 PORT B or DDR B: Data Direction Register B
+E813 CRB: Control Register B
+E820 PORT A Input buffer for IEEE data lines
+E821 CA2 IEEE NDAC out CA1 IEEE ATN in
+E822 PORT B Output buffer for IEEE data lines
+E823 CB2 IEEE DAV out CB1 IEEE SRQ in
+E840 PORT B 7 DAV in
+E841 PORT A USER PORT with CA2 handshake (note 1)
+E842 DDRB 7-0 normal bits set to 0 0 0 1 1 1 1 0
+E843 DDRA 7-0 USER PORT data direction register
+E844 Timer 1 LO
+E845 Timer 1 HI  (set to $FF on system power-on)
+E846 Timer 1 latch LO
+E847 Timer 1 latch HI
+E848 Timer 2 LO
+E849 Timer 2 HI
+E84A Shift register
+E84B ACR Aux. control register; set to $00 at power on
+E84C PCR Peripheral Control Register; set to $0C or $0E at power on
+E84D IFR Intertrupt Flag Register; set to $00 at power on
+E84E IER Interrupt Enable Register; set to $80 at power on
+E84F PORTA USER PORT without CA2 handshake
+FFFA [FD49] NMI
+FFFB [FD49] NMI
+FFFC [FD16] RESET
+FFFD [FD16] RESET
+FFFE [E442] IRQ
+FFFF [E442] IRQ

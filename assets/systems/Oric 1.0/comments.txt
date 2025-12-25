@@ -1,0 +1,178 @@
+:JMP/JSR only
+C000 $C000 Jump to cold start.
+C003 $C003 Jump to warm start.
+C006 $C006 Addresses of subroutines to handle each token (-1)
+C0EA $C0EA BASIC tokens. The last character of each has its top bit set.
+C0EA $C0EA Search the stack until a ‘FOR’ entry is found.
+C3F8 $C3F8 A block move.
+C43B $C43B Check stack for free space.
+C448 $C448 Check an address against the top of memory
+C475 $C475 Warm start entry (does not clear program).
+C483 $C483 Input and process a line.
+C56F $C56F Recreate links between each line.
+C59C $C59C Input a line.
+C5F8 $C5F8 Wait for a keypress and return the ASCII code.
+C60A $C60A Translate a line into tokens.
+C6E4 $C6E4 Find the address of a given line.
+C719 $C719 The NEW command.
+C733 $C733 The RUN command.
+C738 $C738 The CLEAR command.
+C751 $C751 Reset the stack.
+C773 $C773 The LIST command.
+C824 $C824 The LLIST command.
+C832 $C832 The LPRINT command.
+C841 $C841 The FOR command.
+C8AD $C8AD Process a BASIC statement.
+C91F $C91F The RESTORE command.
+CBED $CBED Print ‘READY’.
+CE8B $CE8B The formula evaluation subroutine.
+D3ED $D3ED Integer to floating point.
+D4F0 $D4F0 Allocate string space.
+D539 $D539 Set up a new string.
+D595 $D595 Garbage collection subroutine.
+D7F1 $D7F1 Calculate the length of a string and clear temporary strings.
+D871 $D871 Floating point to integer.
+DA79 $DA79 Add 0.5 to accumulator.
+DA80 $DA80 Subtract accumulator from memory.
+DA97 $DA97 Add accumulator to memory.
+DC79 $DC79 Calculate LOG
+DCB7 $DCB7 Multiply the accumulator by memory.
+DD4D $DD4D Move memory to the second accumulator.
+DDA3 $DDA3 Multiply the accumulator by 10.
+DDBF $DDBF Divide the accumulator by 10.
+DDE0 $DDE0 Divide memory by the accumulator.
+DDE5 $DDE5 Divide the second accumulator by the main accumulator.
+DE73 $DE73 Move memory to the main accumulator.
+DEA5 $DEA5 Move the accumulator to memory.
+DECD $DECD Move the second accumulator to the main accumulator.
+DEDD $DEDD Move the main accumulator to the second accumulator.
+DF12 $DF12 Calculate SGN.
+DF31 $DF31 Calculate ABS.
+DFA5 $DFA5 Calculate INT.
+DFCF $DFCF Input a floating-point number from a string of ASCII characters.
+E0D1 $E0D1 Output a floating-point number into a string of ASCII characters.
+E22A $E22A Calculate the square root.
+E231 $E231 Raise the second accumulator to the power of a number in memory.
+E26D $E26D Negate the main accumulator.
+E34B $E34B Calculate RND.
+E387 $E387 Calculate COS.
+E38E $E38E Calculate SIN.
+E3D7 $E3D7 Calculate TAN.
+E43B $E43B Calculate ATN.
+E554 $E554 Test for the end of a load from tape.
+E563 $E563 Clear the top line.
+E576 $E576 Print message at far left of top line.
+E5C6 $E5C6 Output one byte to tape.
+E630 $E630 Read byte from tape.
+E696 $E696 Latch onto tape header.
+E6BA $E6BA Output a tape header.
+E6CA $E6CA Change the 6522 ready for cassette I/0.
+E6F0 $E6F0 Compare filenames.
+E804 $E804 Reset the 6522 after the completion of tape I/0.
+E905 $E905 Read a key without waiting.
+E9A9 $E9A9 Switch to text mode.
+E9BB $E9BB Switch to high-resolution mode.
+EC03 $EC03 Entry for interrupt handler.
+ECC7 $ECC7 Start clock.
+ED01 $ED01 Stop clock.
+ED09 $ED09 Poll timers.
+ED1B $ED1B Service timers.
+ED70 $ED70 Clear timers.
+ED81 $ED81 Read timer.
+ED8F $ED8F Set timer.
+EDAD $EDAD Wait for a given time.
+F02D $F02D CURSET
+F064 $F064 CURMOV
+F079 $F079 DRAW
+F0A5 $F0A5 CHAR
+F141 $F141 POINT
+F17F $F17F PAPER
+F18B $F18B INK
+F1E5 $F1E5 FILL
+F2E5 $F2E5 CIRCLE
+F412 $F412 PING
+F415 $F415 SHOOT
+F418 $F418 EXPLODE
+F41B $F41B ZAP
+F41E $F41E SOUND
+F421 $F421 PLAY
+F424 $F424 MUSIC
+F409 $F409 Output character from X register to screen.
+F430 $F430 Entry point for non-maskable interrupt (NMI)
+F436 $F436 Output message to top line at position X.
+F4C8 $F4C8 Poll keyboard.
+F535 $F535 Write to the 8912 chip.
+F57B $F57B Output character in A to the printer.
+F89B $F89B Set up the ASCII character set.
+FA6C $FA6C Load up all the 8912 registers.
+FAFA $FAFA The high-pitched click.
+FB10 $FB10 The low-pitched click.
+E4A8 $E4A8 Load a file from tape.
+E57B $E57B Save a file on tape.
+E70E $E70E Print author's names.
+
+:ALL
+0010 Address of current HIRES position.
+0012 Address of start of current line (in TEXT mode).
+0014 Used by the 8912 register load subroutine.
+0018 Used to point to the start of error messages.
+001A Contains a jump to the routine which prints ‘Ready’.
+001F Address of last PLOT position.
+0021 Contains the DEF USR jump.
+0028 The type of data which resulted from formula evaluation; 0 means numeric, #FF means a string.
+0029 A flag that indicates whether the last variable used was an integer.
+002A A flag which is used in several places.
+0033 Various uses, but often used to store a line number that is being located.
+0035 The BASIC input buffer. 
+0086 Address of last temporary string.
+0088 A table of temporary strings.
+009A Start of BASIC pointer.
+009C Start of variables pointer.
+009E Start of arrays pointer.
+00A0 End of arrays pointer.
+00A2 Pointer to next free string space.
+00A6 Highest available memory location available to BASIC.
+00A8 Current line number (read-only).
+00AA The current line number – saved for error messages.
+00AC Address of the start of the current instruction – 1.
+00AE Current DATA line number – used only when printing error messy ges.
+00B0 The address of the next DATA item – 1.
+00B4 The identity of the last variable used.
+00D0 The main floating-point accumulator.
+00D8 The second accumulator.
+00E2 The get-character routine.
+00E8 The second part of the get-character routine.
+00FA The current random number is stored here as a floating-point number
+0204 Used when checking the range of values used in sound and graphics commands.
+0208 Contains details of the last ordinary key pressed (but not the ASCII code).
+0209 Contains details about the last shift or control key pressed.
+020C Caps lock. This contains either #7F or #FF – no other value will work!
+0212 Contains the HIRES FB flag to indicate whether to draw, erase, or invert.
+0213 The pattern register is stored here. You can POKE values here instead of using the PATTERN command.
+0215 The graphics cursor mask.
+0219 The HIRES cursor X value.
+021A The HIRES cursor Y value (do not forget to alter #10 and #11 as well)
+021F A graphics flag; 0 is TEXT, 1 is graphics.
+0220 Memory size indicator; 0 means 48K, 1 means 16K.
+0228 Jump vector to the fast interrupt routine.
+022B Jump vector to the non-maskable interrupt routine.
+0230 Jump vector to the slow interrupt routine.
+0268 Cursor position down the screen, relative to the start address of the screen.
+0269 Cursor position across the screen.
+026A Oric status byte.
+026B Text screen paper colour.
+026C Text screen ink colour.
+026D Start of the TEXT screen – #28.
+026F Number of lines to scroll.
+0272 Timer 1 (used for reading the keyboard). W274 – t275 – Timer 2 (used by the flashing cursor).
+0276 Timer 3 (used by WAIT, HIRES, and TEXT). #278 – #2BF – (version 1.0)
+02C0 Graphics enable: 0 means TEXT with GRAB, 1 means TEXT with RELEASE, and 3 means HIRES.
+02C1 Highest address with graphics enabled + 1.
+02DF The AS’CII code for the last key pressed (with top bit set).
+02E0 The parameter area for graphics and sound commands.
+02F1 Print flag – set to 128 to make all print go to the printer, 0 for it to go to the screen.
+02F2 A flag set by the EDIT command.
+02F4 The trace flag.
+02F5 Address of the ! extension command.
+02F7 (version 1.0 only). The inverse flag. Try out different values!
+02FB A jump command to the & extension.

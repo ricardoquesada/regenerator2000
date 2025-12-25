@@ -1,0 +1,314 @@
+:JMP/JSR only
+D800 $D800 AFP
+D8E6 $D8E6 FASC
+D9AA $D9AA IFP
+D9D2 $D9D2 FPI
+DA44 $DA44 ZFR0
+DA46 $DA46 ZF1
+DA60 $DA60 FSUB
+DA66 $DA66 FADD
+DADB $DADB FMUL
+DB28 $DB28 FDIV
+DD40 $DD40 PLYEVL
+DD89 $DD89 FLD0R
+DD8D $DD8D FLD0P
+DD98 $DD98 FLD1R
+DD9C $DD9C FLD1P
+DDA7 $DDA7 FST0R
+DDAB $DDAB FST0P
+DDB6 $DDB6 FMOVE
+DDC0 $DDC0 EXP
+DDCC $DDCC EXP10
+DECD $DECD LOG
+DED1 $DED1 LOG10
+E450 $E450 (jmp) DISKIV
+E453 $E453 (jmp) DISKINV
+E456 $E456 (jmp) CIOV
+E459 $E459 (jmp) SIOV
+E45C $E45C (jmp) SETBV
+E45F $E45F (jmp) SYSBV
+E462 $E462 (jmp) XITBV
+E465 $E465 (jmp) SIOINV
+E468 $E468 (jmp) SENDEV
+E46B $E46B (jmp) INTINV
+E46E $E46E (jmp) CIOINV
+E471 $E471 (jmp) SELFSV
+E474 $E474 (jmp) WARMSV
+E477 $E477 (jmp) COLDSV
+E47A $E47A (jmp) RBLOKV
+E47D $E47D (jmp) CSOPIV
+E480 $E480 (jmp) PUPDIV
+E483 $E483 (jmp) SLFTSV
+E486 $E486 (jmp) PENTV
+E489 $E489 (jmp) PHUNLV
+E48C $E48C (jmp) PHINIV
+
+:ALL
+D000 HPOSP0
+D001 HPOSP1
+D002 HPOSP2
+D003 HPOSP3
+D004 HPOSM0
+D005 HPOSM1
+D006 HPOSM2
+D007 HPOSM3
+D008 SIZEP0
+D009 SIZEP1
+D00A SIZEP2
+D00B SIZEP3
+D00C SIZEM
+D00D GRAFP0
+D00E GRAFP1
+D00F GRAFP2
+D010 GRAFP3
+D011 GRAFM
+D012 TRIG2
+D013 TRIG3
+D014 PAL
+D015 COLPM3
+D016 COLPF0
+D017 COLPF1
+D018 COLPF2
+D019 COLPF3
+D01A COLBK
+D01B PRIOR
+D01C VDELAY
+D01D GRACTL
+D01F CONSOL
+D200 POT0
+D201 POT1
+D202 POT2
+D203 POT3
+D204 POT4
+D205 POT5
+D206 POT6
+D207 POT7
+D208 AUDCTL
+D209 KBCODE
+D20A SKRES
+D20B POTGO
+D20D SERIN
+D20E IRQEN
+D20F SKCTL
+D300 PORTA
+D301 PORTB
+D302 PACTL
+D303 PBCTL
+D400 DMACTL
+D401 CHACTL
+D402 DLISTL
+D403 DLISTH
+D404 HSCROL
+D405 VSCROL
+D407 PMBASE
+D409 CHBASE
+D40A WSYNC
+D40B VCOUNT
+D40C PENH
+D40D PENV
+D40E NMIEN
+D40F NMIST
+FFFA NMIVEC
+FFFB NMIVEC
+FFFC RESVEC
+FFFD RESVEC
+FFFE IRQVEC
+FFFF IRQVEC
+0002 CASINI  cassette initialization vector
+0004 RAMLO   
+0006 TRAMSZ  temporary ram size / cart A flag
+0007 TSTDAT  RAM test data register / cart B flag
+0008 WARMST  warmstart flag
+0009 BOOT?   boot flag; 0 if none, 1 for disk, 2 for cassette
+000a DOSVEC  
+000c DOSINI  
+000e APPMHI  
+0010 POKMSK  
+0011 BRKKEY  set on [BREAK]
+0012 RTCLOK  
+0015 BUFADR  indirect buffer address pointer (temp for disk buffer)
+0017 ICCOMT  CIO: command byte
+0020 ZIOCB   zero-page IOCB
+0020 ICHIDZ  Zero page IOCB: device index ($FF = not open)
+0021 ICDNOZ  Zero page IOCB: device number
+0022 ICCOMZ  Zero page IOCB: command byte
+0023 ICSTAZ  Zero page IOCB: status byte
+0024 ICBALZ  Zero page IOCB: address of device/filename spec lo
+0025 ICBAHZ  Zero page IOCB: address of device/filename spec hi
+0026 ICPTLZ  Zero page IOCB: put byte address lo (-1)
+0027 ICPTHZ  Zero page IOCB: put byte address hi (-1)
+0028 ICBLLZ  Zero page IOCB: buffer length/byte count lo (-1)
+0029 ICBLHZ  Zero page IOCB: buffer length/byte count hi (-1)
+002a ICAX1Z  Zero page IOCB: device-specific information 1
+002b ICAX2Z  Zero page IOCB: device-specific information 2
+002e ICIDNO  CIO: call X register save/restore
+002f CIOCHR  CIO: call A register save/restore
+0030 STATUS  SIO: temporay status byte
+0031 CHKSUM  SIO: temporary checksum byte (used by IRQ routines)
+0032 BUFRLO  SIO: buffer pointer lo (incremented by IRQ routines)
+0033 BUFRHI  SIO: buffer pointer hi (incremented by IRQ routines)
+0034 BFENLO  SIO: buffer end lo
+0035 BFENHI  SIO: buffer end hi
+0038 BUFRFL  SIO: buffer full flag
+0039 RECVDN  SIO: receive completed flag
+003a XMTDON  SIO: transmit completed flag
+003b CHKSNT  SIO: checksum sent flag
+003c NOCKSM  SIO: no-checksum flag
+003d BPTR    Cassette: Buffer pointer
+003e FTYPE   Cassette: Interrecord gap (IRG) type; bit7=1 means continuous mode
+003f FEOF    Cassette: EOF flag
+0042 CRITIC  critical flag for vbi
+004a CKEY    cassette boot key
+004d ATRACT  screen attract counter
+004e DRKMSK  screen attract mask
+004f COLRSH  screen attract color shift
+0052 LMARGN  left margin column
+0053 RMARGN  right margin column
+0054 ROWCRS  cursor row
+0055 COLCRS  cursor column
+0057 DINDEX  display mode index (0-15)
+0058 SAVMSC  lowest address of screen region
+005d OLDCHR  cursor character save/restore
+005e OLDADR  cursor memory address
+0062 PALNTS  [XL/XE] PAL/NTSC flag; 0=NTSC
+0063 LOGCOL  logical line column
+0064 ADRESS  temporary storage (display code)
+006a RAMTOP  ram size
+006b BUFCNT  
+007c HOLDCH  temporary key hold area prior to shift/control lock logic
+00d4 FR0     floating point register 0
+00e0 FR1     floating point register 1
+00f2 CIX     
+00f3 INBUFF  
+0200 VDSLST  display list interrupt vector
+0202 VPRCED  serial bus proceed interrupt vector
+0204 VINTER  serial bus interrupt vector
+0206 VBREAK  BRK instruction vector
+0208 VKEYBD  keyboard interrupt vector
+020a VSERIN  serial input ready interrupt vector
+020c VSEROR  serial output ready interrupt vector
+020e VSEROC  serial output completed interrupt vector
+0210 VTIMR1  pokey timer 1 interrupt vector
+0212 VTIMR2  pokey timer 2 interrupt vector
+0214 VTIMR4  pokey timer 4 interrupt vector
+0216 VIMIRQ  immediate IRQ vector
+0218 CDTMV1  countdown timer 1
+021a CDTMV2  countdown timer 2
+021c CDTMV3  countdown timer 3
+021e CDTMV4  countdown timer 4
+0220 CDTMV5  countdown timer 5
+0222 VVBLKI  vertical blank immediate vector
+0224 VVBLKD  vertical blank deferred vector
+0226 CDTMA1  timer 1 vector
+0228 CDTMA2  timer 2 vector
+022a CDTMF3  timer 3 flag
+022b SRTIMR  autorepeat timer
+022c CDTMF4  timer 4 flag
+022d INTEMP  temp value used by SETVBV
+022e CDTMF5  timer 5 flag
+022f SDMCTL  shadow for DMACTL ($D400)
+0230 SDLSTL  shadow for DLISTL ($D402)
+0231 SDLSTH  shadow for DLISTH ($D403)
+0232 SSKCTL  shadow for SKCTL ($D20F)
+0236 BRKKY   break key interrupt vector (OS B+ only)
+023a CDEVIC  SIO: command frame device ID
+023b CCOMND  SIO: command frame command ID
+023c CAUX1   SIO: command aux byte 1
+023d CAUX2   SIO: command aux byte 2
+023e TEMP    SIO: temp space
+023f ERRFLG  SIO: error flag
+0240 DFLAGS  disk boot flags
+0241 DBSECT  disk boot sector count
+0242 BOOTAD  disk boot address
+0244 COLDST  cold start flag
+026f GPRIOR  shadow for PRIOR ($D01B)
+0270 PADDL0  shadow for POT0 ($D200)
+0271 PADDL1  shadow for POT1 ($D201)
+0272 PADDL2  shadow for POT2 ($D202)
+0273 PADDL3  shadow for POT3 ($D203)
+0274 PADDL4  shadow for POT4 ($D204)
+0275 PADDL5  shadow for POT5 ($D205)
+0276 PADDL6  shadow for POT6 ($D206)
+0277 PADDL7  shadow for POT7 ($D207)
+0278 STICK0  shadow for PORTA lo ($D300)
+0279 STICK1  shadow for PORTA hi ($D300)
+027a STICK2  shadow for PORTB lo ($D302)
+027b STICK3  shadow for PORTB hih ($D302)
+027c PTRIG0  paddle 0 trigger
+027d PTRIG1  paddle 1 trigger
+027e PTRIG2  paddle 2 trigger
+027f PTRIG3  paddle 3 trigger
+0280 PTRIG4  paddle 4 trigger
+0281 PTRIG5  paddle 5 trigger
+0282 PTRIG6  paddle 6 trigger
+0283 PTRIG7  paddle 7 trigger
+0284 STRIG0  shadow for TRIG0 ($D001)
+0285 STRIG1  shadow for TRIG1 ($D002)
+0286 STRIG2  shadow for TRIG2 ($D003)
+0287 STRIG3  shadow for TRIG3 ($D004)
+0289 WMODE   Cassette: Write mode (00 = read, 80 = write)
+028a BLIM    Cassette: Buffer limit
+0294 TXTMSC  text window pointer
+02b2 LOGMAP  line logical map
+02be SHFLOK  shift/control lock flags
+02bf BOTSCR  number of text rows in text window
+02c0 PCOLR0  shadow for COLPM0 ($D012)
+02c1 PCOLR1  shadow for COLPM1 ($D013)
+02c2 PCOLR2  shadow for COLPM2 ($D014)
+02c3 PCOLR3  shadow for COLPM3 ($D015)
+02c4 COLOR0  shadow for COLPF0 ($D016)
+02c5 COLOR1  shadow for COLPF1 ($D017)
+02c6 COLOR2  shadow for COLPF2 ($D018)
+02c7 COLOR3  shadow for COLPF3 ($D019)
+02c8 COLOR4  shadow for COLBK ($D01A)
+02d5 DSCTLN  disk sector length (1200XL and newer only)
+02db NOCLIK  key click disable (XL/XE only)
+02e0 RUNAD   DOS run address
+02e5 MEMTOP  highest location for programs and data
+02e7 MEMLO   base of application memory
+02ea DVSTAT  DISK: Status request buffer area (4 bytes)
+02f0 CRSINH  Display/Editor: cursor inhibit flag
+02f1 KEYDEL  keyboard debounce delay (set to 3 vblanks per key)
+02f2 CH1     last keyboard code read
+02f3 CHACT   shadow for CHACTL ($D401)
+02f4 CHBAS   shadow for CHBASE ($D409)
+02fb ATACHR  
+02fc CH      keyboard FIFO byte
+02fe DSPFLG  enable/disable of control codes by screen editor (E:)
+02ff SSFLAG  display/screen editor suspend flag
+0300 DDEVIC  serial bus ID
+0301 DUNIT   device number
+0302 DCOMND  command byte
+0303 DSTATS  status byte
+0304 DBUFLO  buffer address lo
+0305 DBUFHI  buffer address hi
+0306 DTIMLO  disk timeout value
+0308 DBYTLO  byte count lo
+0309 DBYTHI  byte count hi
+030a DAUX1   sector number lo
+030b DAUX2   sector number hi
+030c TIMER1  baud rate determination - first timer value
+0310 TIMER2  baud rate determination - second timer value
+0317 TIMFLG  SIO: operation timeout flag (set by countdown timer 1 IRQ)
+0318 STACKP  SIO: stack pointer save
+031a HATABS  handler table
+0340 ICHID   IOCB #0 handler ID
+0341 ICDNO   IOCB #0 device number
+0342 ICCMD   IOCB #0 command byte
+0343 ICSTA   IOCB #0 status
+0344 ICBAL   IOCB #0 buffer address lo
+0345 ICBAH   IOCB #0 buffer address hi
+0346 ICPTL   IOCB #0 PUT address lo
+0347 ICPTH   IOCB #0 PUT address hi
+0348 ICBLL   IOCB #0 buffer length/byte count lo
+0349 ICBLH   IOCB #0 buffer length/byte count hi
+034a ICAX1   IOCB #0 auxiliary information lo
+034b ICAX2   IOCB #0 auxiliary information hi
+034c ICAX3   
+034d ICAX4   
+034e ICAX5   
+034f ICAX6   
+03f8 BASICF  XL/XE: BASIC flag (0 = enabled)
+03fd CASBUF  Cassette buffer (03FD-047F)
+05e0 PLYARG  FP: Polynomial evaluation temp register
+05e6 FPSCR   FP: Temp evaluation register (used by LOG/LOG10)

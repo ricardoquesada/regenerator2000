@@ -1,0 +1,374 @@
+:JMP/JSR only
+E000 $E000 Reset Code
+E056 $E056 -restor-
+E05B $E05B -vector-
+E093 $E093 -ramtas-
+E0CD $E0CD Move Code For High RAM Banks
+E109 $E109 -init-
+E1DC $E1DC Set Up CRTC Registers
+E1F0 $E1F0 Check Special Reset
+E242 $E242 Reset to 64/128
+E24B $E24B Switch to 64 Mode
+E263 $E263 Code to $02
+E26B $E26B Scan All ROMs
+E33B $E33B -talk-
+E33E $E33E -listen-
+E38C $E38C Send Data On Serial Bus
+E43E $E43E -acptr-
+E4D2 $E4D2 -second-
+E4E0 $E4E0 -tksa-
+E503 $E503 -ciout-  Print Serial
+E515 $E515 -untlk-
+E526 $E526 -unlsn-
+E535 $E535 Reset ATN
+E545 $E545 Set Clock High
+E54E $E54E Set Clock Low
+E557 $E557 Set Data High
+E560 $E560 Set Data Low
+E569 $E569 Read Serial Lines
+E573 $E573 Stabilize Timing
+E59F $E59F Restore Timing
+E5BC $E5BC Prepare For Response
+E5C3 $E5C3 Fast Disk Off
+E5D6 $E5D6 Fast Disk On
+E5FB $E5FB Fast Disk On/Off
+E5FF $E5FF (NMI) Transmit RS-232
+E64A $E64A RS-232 Handshake
+E68E $E68E Set RS-232 Bit Count
+E69D $E69D (NMI) RS-232 Receive
+E75F $E75F Send To RS-232
+E795 $E795 Connect RS-232 Input
+E7CE $E7CE Get From RS-232
+E7EC $E7EC Interlock RS-232/Serial
+E805 $E805 (NMI) RS-232 Control I/O
+E878 $E878 (NMI) RS-232 Receive Timing
+E8A9 $E8A9 (NMI) RS-232 Transmit Timing
+E8D0 $E8D0 Find Any Tape Header
+E919 $E919 Write Tape Header
+E980 $E980 Get Buffer Address
+E987 $E987 Get Tape Buffer Start & End Addrs
+E99A $E99A Find Specific Header
+E9BE $E9BE Bump Tape Pointer
+E9C8 $E9C8 Print 'press play on tape'
+E9DF $E9DF Check Tape Status
+E9E9 $E9E9 Print 'press record ...'
+E9F2 $E9F2 Initiate Tape Read
+EA15 $EA15 Initiate Tape Write
+EA26 $EA26 Common Tape Code
+EA7D $EA7D Wait For Tape
+EA8F $EA8F Check Tape Stop
+EAA1 $EAA1 Set Read Timing
+EAEB $EAEB (IRQ) Read Tape Bits
+EC1F $EC1F Store Tape Chars
+ED51 $ED51 Reset Pointer
+ED5A $ED5A New Char Set Up
+ED69 $ED69 Write Transition to Tape
+ED8B $ED8B Write Data to Tape
+ED90 $ED90 (IRQ) Tape Write
+EE2E $EE2E (IRQ) Tape Leader
+EE57 $EE57 Wind Up Tape I/O
+EE9B $EE9B Switch IRQ Vector
+EEB0 $EEB0 Kill Tape Motor
+EEB7 $EEB7 Check End Address
+EEC1 $EEC1 Bump Address
+EEC8 $EEC8 (IRQ) Clear Break
+EED0 $EED0 Control Tape Motor
+EEEB $EEEB -getin-
+EF06 $EF06 -chrin-
+EF48 $EF48 Get Char From Tape
+EF79 $EF79 -chrout-
+EFBD $EFBD -open-
+F0B0 $F0B0 Set CIA to RS-232
+F0CB $F0CB Check Serial Open
+F106 $F106 -chkin-
+F14C $F14C -chkout-
+F188 $F188 -close-
+F1E4 $F1E4 Delete File
+F202 $F202 Search For File
+F212 $F212 Set File Parameters
+F222 $F222 -clall-
+F226 $F226 -clrchn-
+F23D $F23D Clear I/O Path
+F265 $F265 -load-
+F27B $F27B Serial Load
+F32A $F32A Tape Load
+F3A1 $F3A1 Disk Load
+F3EA $F3EA Burst Load
+F48C $F48C Close Off Serial
+F4BA $F4BA Get Serial Byte
+F4C5 $F4C5 Receive Serial Byte
+F503 $F503 Toggle Clock Line
+F50F $F50F Print 'searching'
+F521 $F521 Send File Name
+F533 $F533 Print 'loading'
+F53E $F53E -save-
+F5B5 $F5B5 Terminate Serial Input
+F5BC $F5BC Print 'saving'
+F5C8 $F5C8 Save to Tape
+F5F8 $F5F8 -udtim-
+F63D $F63D Watch For RUN or Shift
+F65E $F65E -rdtim-
+F665 $F665 -settim-
+F66E $F66E -stop-
+F67C $F67C Print 'too many files'
+F67F $F67F Print 'file open'
+F682 $F682 Print 'file not open'
+F685 $F685 Print 'file not found'
+F688 $F688 Print 'device not present'
+F68B $F68B Print 'not input file'
+F68E $F68E Print 'not output file'
+F691 $F691 Print 'missing file name'
+F694 $F694 Print 'illegal device no'
+F697 $F697 Error #0
+F71E $F71E Print If Direct
+F722 $F722 Print I/O Message
+F731 $F731 -setnam-
+F738 $F738 -setlfs-
+F73F $F73F Set Load/Save Bank
+F744 $F744 -rdst-
+F757 $F757 Set Status Bit
+F75C $F75C -setmsg-
+F75F $F75F Set Serial Timeout
+F763 $F763 -memtop-
+F772 $F772 -membot-
+F781 $F781 -iobase-
+F786 $F786 Search For SA
+F79D $F79D Search & Set Up File
+F7A5 $F7A5 Trigger DMA
+F7AE $F7AE Get Char From Memory
+F7BC $F7BC Store Loaded Byte
+F7C9 $F7C9 Read Byte to be Saved
+F7D0 $F7D0 Get Char From Memory Bank
+F7DA $F7DA Store Char to Memory Bank
+F7E3 $F7E3 Compare Char With Memory Bank
+F7EC $F7EC Load Memory Control Mask
+F800 $F800 Subroutines to $02a2-$02fb
+F85A $F85A DMA Code to $03f0
+F867 $F867 Check Auto Start ROM
+F890 $F890 Check For Boot Disk
+F908 $F908 Print 'booting'
+F92C $F92C Print '...'
+F98B $F98B Wind Up Disk Boot
+F9B3 $F9B3 Read Next Boot Block
+F9FB $F9FB To 2-Digit Decimal
+FA17 $FA17 Print a Message
+FA40 $FA40 NMI Sequence
+FA65 $FA65 (IRQ) Normal Entry
+FC62 $FC62 Patch for Set Up CRTC Registers
+FC80 $FC80 ?
+FC87 $FC87 Init KBD Translation Tables
+FCC6 $FCC6 DIN Keyboard patch for Key Pickup
+FF05 $FF05 NMI Transfer Entry
+FF17 $FF17 IRQ Transfer Entry
+FF33 $FF33 Return From Interrupt
+FF3D $FF3D Reset Transfer Entry
+FF47 $FF47 (jmp) spinspout (fast serial)
+FF4A $FF4A (jmp) close all
+FF4D $FF4D (jmp) 64mode
+FF50 $FF50 (jmp) dma call
+FF53 $FF53 (jmp) boot call
+FF56 $FF56 (jmp) foenix
+FF59 $FF59 (jmp) lkupla (logical addr)
+FF5C $FF5C (jmp) lkupsa (second addr)
+FF5F $FF5F (jmp) swapper 40/80 swap
+FF62 $FF62 (jmp) dlchr Init 80col charam
+FF65 $FF65 (jmp) pfkey Prog Function Key
+FF68 $FF68 (jmp) setbnk
+FF6B $FF6B (jmp) setcfg
+FF6E $FF6E (jmp) jsrfar
+FF71 $FF71 (jmp) jmpfar
+FF74 $FF74 (jmp) indfet Bank LDA (fetchvec),y
+FF77 $FF77 (jmp) indsta Bank STA (stavec),y
+FF7A $FF7A (jmp) indcmp Bank CMP (cmpvec),y
+FF7D $FF7D (jmp) primm Print Immediate
+FF81 $FF81 (jmp) cint Init Editor & Video Chips
+FF84 $FF84 (jmp) ioinit Init I/O Devices, Ports & Timers
+FF87 $FF87 (jmp) ramtas Init Ram & Buffers
+FF8A $FF8A (jmp) restor Restore Vectors
+FF8D $FF8D (jmp) vector Change Vectors For User
+FF90 $FF90 (jmp) setmsg Control OS Messages
+FF93 $FF93 (jmp) secnd Send SA After Listen
+FF96 $FF96 (jmp) tksa Send SA After Talk
+FF99 $FF99 (jmp) memtop Set/Read System RAM Top
+FF9C $FF9C (jmp) membot Set/Read System RAM Bottom
+FF9F $FF9F (jmp) key Scan Keyboard
+FFA2 $FFA2 (jmp) settmo Set Timeout In IEEE
+FFA5 $FFA5 (jmp) acptr Handshake Serial Byte In
+FFA8 $FFA8 (jmp) ciout Handshake Serial Byte Out
+FFAB $FFAB (jmp) untlk Command Serial Bus UNTALK
+FFAE $FFAE (jmp) unlsn Command Serial Bus UNLISTEN
+FFB1 $FFB1 (jmp) listn Command Serial Bus LISTEN
+FFB4 $FFB4 (jmp) talk Command Serial Bus TALK
+FFB7 $FFB7 (jmp) readss Read I/O Status Word
+FFBA $FFBA (jmp) setlfs Set Logical File Parameters
+FFBD $FFBD (jmp) setnam Set Filename
+FFC0 $FFC0 (ind) iopen Open Vector [efbd]
+FFC3 $FFC3 (ind) iclose Close Vector [f188]
+FFC6 $FFC6 (ind) ichkin Set Input [f106]
+FFC9 $FFC9 (ind) ichkout Set Output [f14c]
+FFCC $FFCC (ind) iclrch Restore I/O Vector [f226]
+FFCF $FFCF (ind) ibasin Input Vector, chrin [ef06]
+FFD2 $FFD2 (ind) ibsout Output Vector, chrout [ef79]
+FFD5 $FFD5 (jmp) loadsp Load RAM From Device
+FFD8 $FFD8 (jmp) savesp Save RAM To Device
+FFDB $FFDB (jmp) settim Set Real-Time Clock
+FFDE $FFDE (jmp) rdtim Read Real-Time Clock
+FFE1 $FFE1 (ind) istop Test-Stop Vector [f66e]
+FFE4 $FFE4 (ind) igetin Get Vector [eeeb]
+FFE7 $FFE7 (ind) iclall Close All Channels And Files [f222]
+FFEA $FFEA (jmp) udtim Increment Real-Time Clock
+FFED $FFED (jmp) scrorg Return Screen Organization
+FFF0 $FFF0 (jmp) plot Read / Set Cursor X/Y Position
+FFF3 $FFF3 (jmp) iobase Return I/O Base Address
+
+:ALL
+D000 Sprite 0 X Pos
+D001 Sprite 0 Y Pos
+D002 Sprite 1 X Pos
+D003 Sprite 1 Y Pos
+D004 Sprite 2 X Pos
+D005 Sprite 2 Y Pos
+D006 Sprite 3 X Pos
+D007 Sprite 3 Y Pos
+D008 Sprite 4 X Pos
+D009 Sprite 4 Y Pos
+D00A Sprite 5 X Pos
+D00B Sprite 5 Y Pos
+D00C Sprite 6 X Pos
+D00D Sprite 6 Y Pos
+D00E Sprite 7 X Pos
+D00F Sprite 7 Y Pos
+D010 Sprites 0-7 MSB of X coordinate
+D011 VIC Control Register 1
+D012 Raster Position
+D013 Latch X Pos
+D014 Latch Y Pos
+D015 Sprite display Enable
+D016 VIC Control Register 2
+D017 Sprites Expand 2x Vertical (Y)
+D018 VIC Memory Control Register
+D019 VIC Interrupt Request Register (IRR)
+D01A VIC Interrupt Mask Register (IMR)
+D01B Sprite to Background Display Priority
+D01C Sprites Multi-Color Mode Select
+D01D Sprites Expand 2x Horizontal (X)
+D01E Sprite to Sprite Collision Detect
+D01F Sprite to Background Collision Detect
+D020 Border Color
+D021 Background Color 0
+D022 Background Color 1, Multi-Color Register 0
+D023 Background Color 2, Multi-Color Register 1
+D024 Background Color 3
+D025 Sprite Multi-Color Register 0
+D026 Sprite Multi-Color Register 1
+D027 Sprite 0 Color
+D028 Sprite 1 Color
+D029 Sprite 2 Color
+D02A Sprite 3 Color
+D02B Sprite 4 Color
+D02C Sprite 5 Color
+D02D Sprite 6 Color
+D02E Sprite 7 Color
+D02F C128: Port A* for Extended Keyboard
+D030 C128: Switch to FAST-Mode
+D400 Voice 1: Frequency Control - Low-Byte
+D401 Voice 1: Frequency Control - High-Byte
+D402 Voice 1: Pulse Waveform Width - Low-Byte
+D403 Voice 1: Pulse Waveform Width - High-Nybble
+D404 Voice 1: Control Register
+D405 Voice 1: Attack / Decay Cycle Control
+D406 Voice 1: Sustain / Release Cycle Control
+D407 Voice 2: Frequency Control - Low-Byte
+D408 Voice 2: Frequency Control - High-Byte
+D409 Voice 2: Pulse Waveform Width - Low-Byte
+D40A Voice 2: Pulse Waveform Width - High-Nybble
+D40B Voice 2: Control Register
+D40C Voice 2: Attack / Decay Cycle Control
+D40D Voice 2: Sustain / Release Cycle Control
+D40E Voice 3: Frequency Control - Low-Byte
+D40F Voice 3: Frequency Control - High-Byte
+D410 Voice 3: Pulse Waveform Width - Low-Byte
+D411 Voice 3: Pulse Waveform Width - High-Nybble
+D412 Voice 3: Control Register
+D413 Voice 3: Attack / Decay Cycle Control
+D414 Voice 3: Sustain / Release Cycle Control
+D415 Filter Cutoff Frequency: Low-Nybble
+D416 Filter Cutoff Frequency: High-Byte
+D417 Filter Resonance Control / Voice Input Control
+D418 Select Filter Mode and Volume
+D419 Analog/Digital Converter: Game Paddle 1
+D41A Analog/Digital Converter: Game Paddle 2
+D41B Oscillator 3 Output
+D41C Envelope Generator 3 Output
+DC00 CIA1: Data Port Register A
+DC01 CIA1: Data Port Register B
+DC02 CIA1: Data Direction Register A
+DC03 CIA1: Data Direction Register B
+DC04 CIA1: Timer A: Low-Byte
+DC05 CIA1: Timer A: High-Byte
+DC06 CIA1: Timer B: Low-Byte
+DC07 CIA1: Timer B: High-Byte
+DC08 CIA1: Time-of-Day Clock: 1/10 Seconds
+DC09 CIA1: Time-of-Day Clock: Seconds
+DC0A CIA1: Time-of-Day Clock: Minutes
+DC0B CIA1: Time-of-Day Clock: Hours + AM/PM Flag
+DC0C CIA1: Synchronous Serial I/O Data Buffer
+DC0D CIA1: CIA Interrupt Control Register
+DC0E CIA1: CIA Control Register A
+DC0F CIA1: CIA Control Register B
+DD00 CIA2: Data Port Register A
+DD01 CIA2: Data Port Register B
+DD02 CIA2: Data Direction Register A
+DD03 CIA2: Data Direction Register B
+DD04 CIA2: Timer A: Low-Byte
+DD05 CIA2: Timer A: High-Byte
+DD06 CIA2: Timer B: Low-Byte
+DD07 CIA2: Timer B: High-Byte
+DD08 CIA2: Time-of-Day Clock: 1/10 Seconds
+DD09 CIA2: Time-of-Day Clock: Seconds
+DD0A CIA2: Time-of-Day Clock: Minutes
+DD0B CIA2: Time-of-Day Clock: Hours + AM/PM Flag
+DD0C CIA2: Synchronous Serial I/O Data Buffer
+DD0D CIA2: CIA Interrupt Control Register
+DD0E CIA2: CIA Control Register A
+DD0F CIA2: CIA Control Register B
+FFFE IRQ
+FFFF IRQ
+FFFA NMI
+FFFB NMI
+FFFC Hardware Reset
+FFFD Hardware Reset
+fff6 C128: System Vector 1
+fff7 C128: System Vector 1
+fff8 C128: System Vector 2
+fff9 C128: System Vector 2
+D500 C128: Configuration Register (CR)
+D501 C128: Preconfiguration Register
+D502 C128: Preconfiguration Register
+D503 C128: Preconfiguration Register
+D504 C128: Preconfiguration Register
+D505 C128: 40/80 read only
+D506 C128: RAM Configuration Register (RCR)
+D507 C128: Zero Page Pointer Lo
+D508 C128: Zero Page Pointer Hi
+D509 C128: Stack Page Pointer Lo
+D50A C128: Stack Page Pointer Hi
+D50B C128: MMU Version Register
+D600 C128: VDC Register 1
+D601 C128: VDC Register 2
+DF00 C128: DMA ST STATUS
+DF01 C128: DMA CMD COMMAND
+DF02 C128: DMA ADL HOST ADDRESS LOW
+DF03 C128: DMA ADH HOST ADDRESS HIGH
+DF04 C128: DMA LO EXPANSION ADDRESS LOW
+DF05 C128: DMA HI EXPANSION ADDRESS HIGH
+DF06 C128: DMA BNK EXPANSION BANK
+DF07 C128: DMA DAL TRANSFER LENGTH LOW
+DF08 C128: DMA DAH TRANSFER LENGTH HIGH
+DF09 C128: DMA SUM INTERRUPT MASK REGISTER
+DF0A C128: DMA VER VERSION, MAXIMUM MEMORY
+ff00 C128: MMU Configuration Register
+ff01 C128: MMU LCR: Bank 0			CHIP
+ff02 C128: MMU LCR: Bank 1			CHIP
+ff03 C128: MMU LCR: Bank 14		CHIP
+ff04 C128: MMU LCR: Bank 14 Over RAM 1	CHIP

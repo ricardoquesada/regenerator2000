@@ -1,0 +1,467 @@
+:JMP/JSR only
+FF81 $FF81 CINT    Initialize screen editor
+FF84 $FF84 IOINIT  Initialize I/O devices
+FF87 $FF87 RAMTAS  Ram test
+FF8A $FF8A RESTOR  Restore vectors to initial values
+FF8D $FF8D VECTOR  Change vectors for user
+FF90 $FF90 SETMSG  Control O.S. messages
+FF93 $FF93 SECND   Send SA after LISTEN
+FF96 $FF96 TKSA    Send SA after TALK
+FF99 $FF99 MEMTOP  Set/Read top of memory
+FF9C $FF9C MEMBOT  Set/Read bottom of memory
+FF9F $FF9F SCNKEY  Scan keyboard
+FFA2 $FFA2 SETTMO  Set timeout in DMA disk
+FFA5 $FFA5 ACPTR   Handshake serial bus or DMA disk byte in
+FFA8 $FFA8 CIoUT   Handshake serial bus or DMA disk byte out
+FFAB $FFAB UNTLR   Send UNTALK out serial bus or DMA disk
+FFAE $FFAE UNLSN   Send UNLISTEN out serial bus or DMA disk
+FFB1 $FFB1 LISTN   Send LISTEN out serial bus or DMA disk
+FFB4 $FFB4 TALK    Send TALK out serial bus or DMA disk
+FFB7 $FFB7 READSS  Return I/O STATUS byte
+EF8A $EF8A SETLFS  Set LA, FA, SA
+FFBD $FFBD SETNAM  Set length and FN address
+FFC0 $FFC0 OPEN    Open logical file
+FFC3 $FFC3 CLOSE   Close logical file
+FFC6 $FFC6 CHKIN   Open channel in
+FEC9 $FEC9 CHOUT   open channel out
+FECC $FECC CLRCH   Close I/O channels
+FFCF $FFCF 8ASIN   Input from channel
+FFD2 $FFD2 BSOUT   output to channel
+FFD5 $FFD5 LOADSP  Load from file
+FFD8 $FFD8 SAYESP  Save to file
+FFDB $FFDB SETTIM  Set internal clock
+FFDE $FFDE RDTIM   Read internal clock
+FFE1 $FFE1 STOP    Scan STOP key
+FFE4 $FFE4 GETIN   Get character from queue
+FFE7 $FFE7 CLALL   Close all files
+FFEA $FFEA UDTIM   Increment clock
+FFED $FFED SCRORG  Screen org.
+FFF0 $FFF0 PLOT    Read/Set X,Y coord of cursor
+FFF3 $FFF3 IOBASE  Return location of start of I/O
+FCF1 $FCF1 JMP to cartridge IRQ routine
+FCF4 $FCF4 JMP to PHOENIX routine
+FCF7 $FCF7 JMP to LONG FETCH routine
+FCFA $FCFA JMP to LONG JUMP routine
+FCFD $FCFD JMP to LONG IRQ routine
+FF49 $FF49 JMP to define function key routine
+FF4C $FF4C JMP to PRINT routine
+FF4F $FF4F JMP to PRIMM routine
+FF52 $FF52 JMP to ENTRY routine
+
+:ALL
+FF0E Voice #1 frequency, bits 0-7
+FF0F Voice #2 frequency, bits 0-7
+FF10 Voice #2 frequency, bits 8 & 9
+FF11 Bits 0-3 : Volume control
+FF12 Bit 0-1 : Voice #1 frequency, bits 8 & 9
+FF13 Bit 0 :    Clock status
+FF14 Bits 3-7 : Video matrix/color memory base address
+FF15 Background color register
+FF16 Color register #1
+FF17 Color register #2
+FF18 Color registes #3
+FF19 Color register #4
+FF1A Bit map reload
+FF1B Bit map reload
+FF1C Bit 0 : Vertical line bit 8
+FF1D Bits 0-7 : Vertical line bits 0-7
+FF1E Horizontal position
+FF1F Blink, vertical sub address
+FF3E ROM select
+FF3F RAM select
+FF80 RELEASE # OF KERNAL (MSB: 0 = NTSC ; 1 = PAL)
+0000 PDIR    7501 on-chip data-direction register
+0001 PORT    7501 on-chip 8-bit Input/Output register
+0002 SRCHTK  Token 'search' looks for (run-time stack)
+0003 ZPVEC1  Temp (renumber)
+0005 ZPVEC2  Temp (renumber)
+0007 CHARAC  Search character
+0008 ENDCHR  Flag: scan for quote at end of string
+0009 TRMPOS  Screen column from last TAB
+000A VERCK   Flag: 0 = load 1 - verify
+000B COUNT   Input buffer pointer / No. of subsctipts
+000C DIMFLG  Flag: Default Array DIMension
+000D VALTYP  Data type: $FF = string   $00 = numeric
+000E INTFLG  Data type: $80 = integer, $00 = floating
+000F DORES   Flag: DATA scan/LIST quote/garbage coll
+0010 SUBFLG  Flag: subscript ref / user function coll
+0011 INPFLG  Flag: $00 = INPUT, $43 = GET, $98 = READ
+0012 TANSGN  Flag TAN siqn / comparison result
+0013 CHANNL  Flag: INPUT prompt
+0016 TEMPPT  Pointer: temporary string stack
+0014 LINNUM  Temp: integer value
+0317 LASTPT  Last temp string address
+0019 TEMPST  Stack for temporary strings
+0022 INDEX1  Utility pointer area
+0024 INDEX2  Utility pointer area
+0026 RESHO   
+0027 RESMOH  
+0028 RESMO   
+0029 RESLO   
+002B TXTTAB  Pointer: start of BASIC text
+002D VARTAB  Pointer: start of BASIC variables
+002E ARYTAB  Pointer: start of BASIC arrays
+0031 STREND  Pointer: end of BASIC arrays (+1)
+0033 FRFTOP  Pointer: bottom of string storage
+0035 FRESPC  Utility string pointer
+0037 MEMSIZ  Pointer: highest address used by BASIC
+0039 CURLIN  Current BASIC line number
+003B TXTPTR  
+003D FNDPNT  
+003F DATLIN  Current DATA line number
+0041 DATPTR  Pointer: Current DATA item address
+0043 INPPTR  Vector: INPUT routine
+0045 VARNAM  Current BASIC variable name
+0047 VARPNT  Pointer: Current BASIC variable data
+0049 FORPNT  Pointer: Index variable for FOR/NEXT
+0048 OPPTR   
+004D OPMASK  
+004E DEFPNT  
+0050 DSCPNT  
+0053 HELPER  
+0054 JMPER   
+0055 SIZE    
+0056 OLDOV   
+0057 TEMPF1  
+0058 HIGHDS  
+005A HIGHTR  
+005D LOWDS   
+005F LoWTR   
+0060 EXPSGN  
+0061 FACEXP  Floating-point accumulator #1: exponent
+0062 FACHO   Floating accum. #1: mantissa
+0063 FACMOH  
+0064 FACMO   
+0065 FACLo   
+0066 FACSGN  Floating accum. #1: sign
+0067 SGNFLG  Pointer: series evaluation constant
+0068 BITS    Floating accum. #1: overflow digit
+0069 ARGEXP  Floating-point accumulator #2: exponent
+006A ARGHO   Floating accum. #2: mantissa
+006B ARGMOH  
+006C ARGMO   
+006D ARGLO   
+006E ARGSGN  Floating accum. #2: sign
+006F ARISGN  Sign comparison result: accum. #1 vs #2
+0070 FACOV   Floating accum. #1. low-order (rounding)
+0071 FBUFPT  Pointer: cassette buffer
+0073 AUTINC  Increment value for auto (0 = off)
+0075 MVDFLG  Flag if 10K hires allocated
+0076 KEYNUM  
+0077 KEYSIZ  
+0078 SYNTMP  Used as temp Eor indirect loads
+0079 DSDESC  Descriptor for DSS
+007C TOS     Top of run time stack
+007E TMPTON  Temps used by music (tone & volume)
+0080 VOICNO  
+0081 RUNMOD  
+0082 POINT   
+0083 GRAPHM  Current graphic mode
+0084 COLSEL  Current color selected
+0085 MC1     Multicolor 1
+0086 FG      Foreground color
+0087 SCXMAX  Maximum # of columns
+0088 SCYMAX  Maximum # of rows
+0089 LTFLAG  Paint-left flag
+008A RTFLAG  Paint-Right flag
+008B STOPNH  Stop paint if not BG (Not same Color)
+008C GRAPNT  
+008E VTEMP1  
+008F VTEMP2  
+0090 STATUS  Kernal I/O status word: ST
+0091 STREY   Flag: STOP key / RVS key
+0092 SPVERR  Temp
+0093 VERFCK  Flag:  0 = load,  1 = verify
+0094 C3PO    Plag: serial bus - output char buffered
+0095 BSOUR   Buffered character for serial bus
+0096 XSAV    Temp for basin
+0097 LDTND   # of open files / index to file table
+0098 DFLTN   Default input device (0)
+0099 DFLTO   Default output (CMD) device (3)
+009A MSGFLG  Flag: $80 = direct mode  $00 = program
+009B SAL     Tape pass 1 error log
+009C SAH     Tape pass 2 error log
+009D EAL     
+009E EAH     
+009F T1      Temp data area
+00A1 T2      Temp data area
+00A3 TIME    Real-time jiffy clock (approx) 1/60 sec
+00A6 R2D2    Serial bus usage (EOI on output)
+00A7 TPBYTE  Byte to be written/read on/off tape
+00A8 BSOUR1  Temp used by serial routine
+00A9 FPVERR  
+00AA DCOUNT  
+00A8 FNLEN   Length of current file name
+00AC LA      Current logical fiie number
+00AD SA      Current seconda.y address
+00AE FA      Current device number
+00AF FNADR   Pointer: current file name
+00B1 ERRSUM  
+00B2 STAL    I/O start address
+00B3 STAH    
+00B4 MEMUSS  Load ram base
+00B6 TAPEBS  Base pointer to cassette base
+00B8 TMP2    
+00BA WRBASE  Pointer to data for tape writes
+00BC IMPARM  Pointer to immediate string for primms
+00BE FETPTR  Pointer to byte to be fetched in bank fetc
+00C0 SEDSAL  Temp for scrolling
+00C2 RVS     field flag on
+00C3 INDX    
+00C4 LSXP    X position at start
+00C5 LSTP    
+00C6 SFDX    Flag: shift mode for print
+00C7 CRSW    Flag: INPUT or GET from keyboard
+00C8 PNT     Pointer: current screen line address
+00CA PNTR    Cursor column on current line
+00CB QTSW    Flag: editor in quote mode, $00 = no
+00CC SEDT1   Editor temp use
+00CD TBLX    Current cursor physical line number
+00CE DATAX   Temp data area
+00CF INSRT   Flag: insert mode, >0 = # INSTs
+00E9 CIRSEG  Screen line link table / editor temps
+00EA USER    Screen editor color IP
+00EC KEYTAB  Key scan table indirect
+00EE TMPKEY  
+00EF NDX     Index to keyboard queue
+00F0 STPFLG  Pause flag
+00F1 TO      Monitor ZP storage
+00F3 CHRPTR  
+00F4 BUFEND  
+00F5 CHKSUM  Temp for checksum calculation
+00F6 LENGTH  
+00F7 PASS    Which pass we are doing str
+00F8 TYPE    Type of block
+00F9 USE4DY  (B.7 = 1)=> for wr, (B.6 = 1)=> for rd
+00FA XSTOP   Save xreg for quick stopkey test
+00FB CURBNK  Current bank configuration
+00FC XoN     Char to send for a x-on (RS232)
+00FD XoFF    Char to send for a x-off (RS232)
+00FE SEDT2   Editor temporary use
+00FF LOFBUF  
+025D XCNT    DOS loop counter
+025E PNBUFR  Area for filename
+026E DOSF1L  DOS filename 1 length
+026F DOSDS1  DOS disk drive 1
+0270 DOSF1A  DOS filename 1 addr
+0272 DOSF2L  DOS filename 2 length
+0273 DOSDS2  DOS disk drive 2
+0274 DOSF2A  DOS filename 2 addr
+0276 DOSLA   DOS logical address
+0277 DOSEA   DOS phys addr
+0278 DOSSA   DOS secordary address
+0279 DOSDID  DOS disk identifier
+0278 DIDCHK  DOS DID flag
+027C DOSSTR  DOS output string buffer
+027D DOSSPC  Area used to build DOS string
+02AD XPOS    Current x position
+02AE YPOS    Current y position
+02B1 XDEST   X coordinate destination
+02B3 YDEST   Y coordinate destination
+02B5 XABS    
+02B7 YABS    
+02B9 XSGN    
+02BB YSGN    
+02BD FCT1    
+02BF FCT2    
+02C1 ERRVAL  
+02E2 ADRAY1  Ptr to routine: convert float to integer
+02F4 ADRAY2  Ptr to routine: convert integer to float
+02FE BNKVEC  Vector for function cartridge users
+0300 IERROR  Indirect Error (Output Error in .X)
+0302 IMAIN   Indirect Main (System Direct Loop)
+0304 ICRNCH  Indirect Crunch (Tokenization Routine)
+0306 IOPLOP  Indirect List (Char List)
+0308 IGONE   Indirect Gone (Character Dispatch)
+030A IEVAL   Indirect Eval (Symbol Evaluation)
+030C IESCLK  Escape token crunch
+030E IESCPR  
+0310 IESCEX  
+0312 ITIME   
+0314 CINV    IRQ Ram Vector
+0316 CBINV   BRK Instr RAM Vector
+0318 IOPEN   Indirects for Code
+031A ICLOSE  
+031C ICHKIN  
+031E ICKOUT  
+0320 ICLRCH  
+0322 IBASIN  
+0324 IBSOUT  
+0326 ISTOP   
+0328 IGETIN  
+032A ICLALL  
+032C USRCMD  
+032E ILOAD   
+0330 ISAVE   Savesp
+03F3 WRLEN   Length of data to be written to tape
+03F5 RDCNT   Length of data to be read from tape
+03F7 INPQUE  RS-232 input queue
+0437 ESTARL  
+0455 ESTAKH  
+0485 QNUM    
+0494 INDSUB  Shared ROM fetch sub
+04A2 ZERO    Numeric constant for Basic
+04A5 INDTXT  Txtptr
+04B0 INDIN1  Index & Index1
+04BB INDIN2  Index2
+04C6 INDST1  Strng1
+04D1 INDLOW  Lowtr
+04DC INDFMO  Facmo
+04E7 PUFILL  Print using fill symbol [space]
+04E8 PUCOMA  Print using comma symbol [;]
+04E9 PUDOT   Print using D.P. symbol  [.]
+04EA PUMONY  Print using monetary symbol [$]
+04EB TMPDES  Temp for instr
+04EF ERRNUM  Last error number
+04F0 ERRLIN  Line # of last error
+04F2 TRAPNO  Line to go on error
+04F4 TMPTRP  Hold trap no. temporarily
+04F5 ERRTXT  
+04F7 OLDSTR  
+04F8 TMPTXT  
+04FA TMPLIN  
+04FC MTIMLO  Table of pending jiffies (2's comp)
+04FE MTIMHI  
+0500 USRPOK  
+0503 KERNDX  
+0508 DEJAVU  'cold' or 'warm' start status
+0509 LAT     Logical file numbers
+0513 FAT     Primary device numbers
+051D SAT     Secondary addresses
+0527 KEYD    IRQ keyboard buffer
+0531 MEMSTR  Start of memory [1000]
+0533 MSIZ    Top of memory [FD00]
+0535 TIMOUT  IEEE timeout flag
+0536 FILEND  File end reached = 1, 0 otherwise
+0537 CTALLY  # of chars left in buffer (for R & W)
+0538 CBUFVA  # of total valid chars in buffer (R)
+0539 TPTR    Ptr to next char in buffer (for R & W)
+053A FLTYPE  Contains type of current cass file
+053B COLOR   Active attribute byte
+053C FLASH   Character flash flag
+053E HIBASE  OC Base location of screen (top) [0C]
+053F XMAX    
+0540 RPTFLG  Key repeat flag
+0541 KOUUT   
+0542 DELAY   
+0543 SHFLAG  Shift flag byte
+0544 LSTSHF  Last shift pattern
+0545 KEYLOG  Indirect for keyboard table setup
+0547 MODE    shift, C=
+0548 AUTODN  Auto scroll down flag (0=on,0<>off)
+0549 LINTMP  
+054A ROLFLG  
+054B FORMAT  Monitor non-zpage storage
+054C MSAL    
+054F WRAP    
+0550 TMPC    
+0551 DIFF    
+0552 PCH     
+0553 PCL     
+0554 FLGS    
+0555 ACC     
+0556 XR      
+0557 YR      
+0558 SP      
+0559 INYL    
+055A INVH    
+055B CMPFLG  Used by various monitor routines
+055C BAD     
+055D KYNDX   Used for programmable keys
+055E KEYIDX  
+055F KEYBUF  Table of P.F. lengths
+0567 PKY9UF  P.F. Key storage area
+05E7 KDATA   Temp for data write to kennedy
+05E8 RDYCMD  Select for kennedy read or write
+05E9 KDYNUM  Kennedy's dev #
+05EA RDYPRS  Rennedy present = $ff, else = $00
+05EB KDYTYP  Temp for type of open for kennedy
+05EC SAVRAM  1 page used by banking routines
+05EC PAT     Physical Address Table
+05F0 LNGJMP  Long jump address
+05F2 FETARG  Long jump accumulator
+05F3 FETXRG  Long jump x register
+05F4 FETSRG  Long jump status register
+05F5 AREAS   RAM areas for banking
+065E ASPECH  RAM area for speech
+06EC STKTOP  BASIC run-time stack
+07B0 WROUT   Byte to be written on tape
+07B1 PARITY  Temp for parity calc
+07B2 TT1     Temp for write-header
+07B3 TT2     Temp for write-header
+07B5 RDBITS  Local index for READBYTE routine
+07B6 ERRSP   Pointer into the error stack
+07B7 FPERRS  Number of first pass errors
+07B8 DSAMP1  Time constant
+07BA DSAMP2  Time constant
+07BC ZCELL   Time constant
+07BE SRECOV  Stack marker for stopkey recover
+07BF DRECOV  Stack marker for dropkey recover
+07C0 TRSAVE  params passed to RDBLOK
+07C4 RDETMP  Temp stat save for RDBLOK
+07C5 LDRSCN  # consec shorts to find in leader
+07C6 CDERRM  # Errors fatal in RD countdown
+07C7 VSAVE   Temp for Verify command
+07C8 T1PIPE  Pipe temp for T1
+07CC ENEXT   Read error propagate
+07CD UOUTQ   User chracter to send
+07CE UOUTFG  0 = empty ; 1 = full
+07CF SOUT9   System character to send
+07D0 SOUNFG  0 = empty ; 1 = full
+07D1 INOFPT  Pntr to front of input queue
+07D2 INQRPT  Pntr to rear of input queue
+07D3 INQCNT  # of chars in input queue
+07D4 ASTAT   Temp status for ACIA
+07D5 AINTMP  Temp for input routine
+07D6 ALSTOP  FLG for local pause
+07D7 ARSTOP  FLG for remote pause
+07D8 APRES   FLG to indicate presence of ACIA
+07D9 RLUDES  Indirect routine downloaded
+07E5 SCBOT   Screen bottom (0...24)
+07E6 SCTOP   Screen top
+07E7 SCLF    Screen left (0...39)
+07E8 SCRT    Screen right
+07E9 SCRDIS  Negative = scroll out
+07EA INSFLG  Insert mode: FF = on, 00 = off
+07EB LSTCHR  
+07EC LOGSCR  
+07ED TCOLOR  
+07EE BITABL  
+07F2 SAREG   Registers for SYS command
+07F3 SXREG   
+07F4 SYREG   
+07F5 SPREG   
+07F6 LSTX    Key scan index
+07F7 STPDSB  Flag to disable CTRL-S pause
+07F8 RAMROM  MSB for monitor fetches from ROM=0;RAM=1
+07F9 COLSW   MSB for color/lim table in RAM=0;ROM=1
+07FA FFRMSK  ROM mask for split screen
+07FB VMBMSK  VM base mask for split screen
+07FC LSEM    Motor lock semaphore for cassette
+07FD PALCNT  PAL tod
+0800 TEDATR  TED attribute bytes
+0C00 TEDSCN  TED character pointers
+1000 BASBGN  Start of BASIC text area
+1800 BMLUM   Luminance for bit map screen
+1C00 BMCOLR  Color for bit map
+fffe IRQ Vector
+ffff IRQ Vector
+fffc RES Vector
+fffd RES Vector
+fffa NMI Vector
+fffb NMI Vector
+fd00 DATA port
+fd01 STATUS port
+fd02 COMMAND port
+fd03 CONTROL port
+fd04 ACIA copy
+fd08 ACIA copy
+fd0c ACIA copy
+fd10 User Port PIO (P0-P7)
+fd30 Keyboard PIO  Keyboard Matrix Connector
+fee0 (DATA)
+fee1 (STATUS)
+fee2 (HANDSHAKE)
+fee3 data direction register
+fee4 data direction register
+fee5 data direction register
