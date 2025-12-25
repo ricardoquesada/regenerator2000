@@ -412,9 +412,15 @@ fn render_label_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::Labe
 }
 
 fn render_save_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::SaveDialogState) {
+    let title = if dialog.mode == crate::ui_state::SaveDialogMode::ExportAsm {
+        " Export Project As... "
+    } else {
+        " Save Project As... "
+    };
+
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(" Save Project As... ")
+        .title(title)
         .style(Style::default().bg(Color::DarkGray).fg(Color::White));
 
     let area = centered_rect(50, 20, area);
