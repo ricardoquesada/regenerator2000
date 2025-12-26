@@ -59,14 +59,27 @@ pub fn load_comments(platform: Platform) -> HashMap<u16, String> {
 pub fn load_labels(platform: Platform) -> Vec<(u16, Label)> {
     let mut labels = Vec::new();
 
-    let content = if platform == Platform::Commodore64 {
-        // Bundle C64 labels
-        Some(include_str!("../assets/systems/Commodore 64/labels.txt").to_string())
-    } else {
-        let mut path = get_assets_path(platform);
-        path.push("labels.txt");
-        std::fs::read_to_string(path).ok()
-    };
+    macro_rules! bundled_labels {
+        ($($variant:ident => $path:expr),* $(,)?) => {
+            match platform {
+                $(Platform::$variant => Some(include_str!(concat!("../assets/systems/", $path, "/labels.txt")).to_string()),)*
+                _ => {
+                    let mut path = get_assets_path(platform);
+                    path.push("labels.txt");
+                    std::fs::read_to_string(path).ok()
+                }
+            }
+        };
+    }
+
+    let content = bundled_labels!(
+        Commodore64 => "Commodore 64",
+        Commodore128 => "Commodore 128",
+        CommodorePlus4 => "Commodore Plus4",
+        CommodoreVIC20 => "Commodore VIC-20",
+        CommodorePET20 => "Commodore PET 2.0",
+        CommodorePET40 => "Commodore PET 4.0"
+    );
 
     if let Some(content) = content {
         for line in content.lines() {
