@@ -794,9 +794,23 @@ mod load_file_tests {
 
         // 4. Verify state is cleared
         // This is expected to FAIL before the fix
+        // Verify that ALL remaining labels are System labels.
+        // "all labels should be cleared, except the system ones"
+        for labels in app_state.labels.values() {
+            for label in labels {
+                assert_eq!(
+                    label.kind,
+                    LabelKind::System,
+                    "Only System labels should remain after loading a new file. Found a {:?} label: {}",
+                    label.kind,
+                    label.name
+                );
+            }
+        }
+
         assert!(
-            app_state.labels.is_empty(),
-            "Labels should be empty after loading new file"
+             !app_state.labels.contains_key(&0x1234),
+             "Specific user label address should not exist (assuming it doesn't collide with system)"
         );
         assert!(
             app_state.project_path.is_none(),
