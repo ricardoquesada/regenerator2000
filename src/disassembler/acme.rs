@@ -192,8 +192,40 @@ impl Formatter for AcmeFormatter {
         for fragment in fragments {
             match fragment {
                 TextFragment::Text(s) => {
-                    let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
-                    parts.push(format!("\"{}\"", escaped))
+                    let mut current_literal = String::new();
+                    for c in s.chars() {
+                        if matches!(c, '{' | '|' | '}' | '~') {
+                            if !current_literal.is_empty() {
+                                let escaped =
+                                    current_literal.replace('\\', "\\\\").replace('"', "\\\"");
+                                parts.push(format!("\"{}\"", escaped));
+                                current_literal.clear();
+                            }
+                            // Output as hex
+                            let hex_val = match c {
+                                '{' => "$5b",
+                                '|' => "$5c",
+                                '}' => "$5d",
+                                '~' => "$5e",
+                                _ => unreachable!(),
+                            };
+                            parts.push(hex_val.to_string());
+                        } else {
+                            // Invert case: ACME assumes shifted charset in !scr
+                            let inverted_char = if c.is_ascii_lowercase() {
+                                c.to_ascii_uppercase()
+                            } else if c.is_ascii_uppercase() {
+                                c.to_ascii_lowercase()
+                            } else {
+                                c
+                            };
+                            current_literal.push(inverted_char);
+                        }
+                    }
+                    if !current_literal.is_empty() {
+                        let escaped = current_literal.replace('\\', "\\\\").replace('"', "\\\"");
+                        parts.push(format!("\"{}\"", escaped));
+                    }
                 }
                 TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
             }

@@ -483,7 +483,8 @@ fn test_text_and_screencode_disassembly() {
     );
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!scr");
-    assert_eq!(lines[0].operand, "\"ABC\"");
+    // ACME !scr is inverted: "a" -> 0x01 ("A")
+    assert_eq!(lines[0].operand, "\"abc\"");
 
     // 4. Test fallback for invalid text
     let code_bad = vec![0xFF];
@@ -993,5 +994,42 @@ mod tests {
 
         assert_eq!(text_lines.len(), 1);
         assert_eq!(text_lines[0].operand, "\"~\", $5F, $60");
+    }
+
+    #[test]
+    fn test_acme_screencode_case_inversion() {
+        let mut settings = DocumentSettings::default();
+        settings.assembler = Assembler::Acme;
+        let disassembler = Disassembler::new();
+        let labels = HashMap::new();
+        let origin = 0x1000;
+
+        // Screencodes:
+        // 0x01 -> 'A' (handle_screencode) -> "a" (format_screencode inverted)
+        // 0x41 -> 'a' (handle_screencode) -> "A" (format_screencode inverted)
+        // 0x1B -> '[' (handle_screencode 27+64=91) -> "['" (format_screencode not special)
+        // 0x1E -> '^' (handle_screencode 30+64=94) -> "^" (format_screencode not special)
+        // 0x5B -> '{' (handle_screencode 91+32=123) -> $5b (format_screencode hex)
+        // 0x5E -> '~' (handle_screencode 94+32=126) -> $5e (format_screencode hex)
+
+        let code = vec![
+            0x01, 0x41, // aA
+            0x1B, 0x1E, // [^
+            0x5B, 0x5E, // {~ -> $5b $5e
+        ];
+        let block_types = vec![BlockType::Screencode; code.len()];
+
+        let lines = disassembler.disassemble(
+            &code,
+            &block_types,
+            &labels,
+            origin,
+            &settings,
+            &HashMap::new(),
+        );
+
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].mnemonic, "!scr");
+        assert_eq!(lines[0].operand, "\"aA[^\", $5b, $5e");
     }
 }
