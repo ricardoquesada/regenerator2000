@@ -911,6 +911,12 @@ fn handle_menu_action(
                 ui_state.cursor_index = idx;
             }
             ui_state.selection_start = None;
+
+            // Clamp cursor
+            let max_idx = app_state.disassembly.len().saturating_sub(1);
+            if ui_state.cursor_index > max_idx {
+                ui_state.cursor_index = max_idx;
+            }
         }
         MenuAction::Byte => {
             let new_cursor = ui_state
@@ -926,6 +932,12 @@ fn handle_menu_action(
                 ui_state.cursor_index = idx;
             }
             ui_state.selection_start = None;
+
+            // Clamp cursor
+            let max_idx = app_state.disassembly.len().saturating_sub(1);
+            if ui_state.cursor_index > max_idx {
+                ui_state.cursor_index = max_idx;
+            }
         }
         MenuAction::Word => {
             let new_cursor = ui_state
@@ -941,6 +953,12 @@ fn handle_menu_action(
                 ui_state.cursor_index = idx;
             }
             ui_state.selection_start = None;
+
+            // Clamp cursor
+            let max_idx = app_state.disassembly.len().saturating_sub(1);
+            if ui_state.cursor_index > max_idx {
+                ui_state.cursor_index = max_idx;
+            }
         }
         MenuAction::Address => {
             let new_cursor = ui_state
@@ -956,6 +974,12 @@ fn handle_menu_action(
                 ui_state.cursor_index = idx;
             }
             ui_state.selection_start = None;
+
+            // Clamp cursor
+            let max_idx = app_state.disassembly.len().saturating_sub(1);
+            if ui_state.cursor_index > max_idx {
+                ui_state.cursor_index = max_idx;
+            }
         }
         MenuAction::Text => {
             let new_cursor = ui_state
@@ -971,6 +995,12 @@ fn handle_menu_action(
                 ui_state.cursor_index = idx;
             }
             ui_state.selection_start = None;
+
+            // Clamp cursor
+            let max_idx = app_state.disassembly.len().saturating_sub(1);
+            if ui_state.cursor_index > max_idx {
+                ui_state.cursor_index = max_idx;
+            }
         }
         MenuAction::Screencode => {
             let new_cursor = ui_state
@@ -986,6 +1016,12 @@ fn handle_menu_action(
                 ui_state.cursor_index = idx;
             }
             ui_state.selection_start = None;
+
+            // Clamp cursor
+            let max_idx = app_state.disassembly.len().saturating_sub(1);
+            if ui_state.cursor_index > max_idx {
+                ui_state.cursor_index = max_idx;
+            }
         }
         MenuAction::JumpToAddress => {
             ui_state.jump_dialog.open();
