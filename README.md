@@ -24,6 +24,7 @@ Regenerator2000 brings modern conveniences to 6502 disassembly:
 - **Analysis**: Auto-analysis to identify code and data regions.
 - **Editing**:
   - **Labels**: Add, edit, and remove local and global labels.
+  - **Comments**: Add side comments (`;`) and line comments (`:`).
   - **Data Types**: Convert regions to Code, Byte, Word, Address, Text, or Screencode.
   - **Undo/Redo**: Full history support for all actions.
 - **Navigation**:
@@ -46,17 +47,18 @@ Regenerator2000 brings modern conveniences to 6502 disassembly:
 | Context        | Action                       | Shortcut                          |
 |:---------------|:-----------------------------|:----------------------------------|
 | **Global**     | **Exit**                     | `Ctrl + Q`                        |
+|                | **New Project**              | `Ctrl + N`                        |
 |                | **Open File**                | `Ctrl + O`                        |
 |                | **Save Project**             | `Ctrl + S`                        |
 |                | **Save Project As**          | `Ctrl + Shift + S`                |
 |                | **Export Project (ASM)**     | `Ctrl + E`                        |
 |                | **Export Project As (ASM)**  | `Ctrl + Shift + E`                |
 |                | **Document Settings**        | `Ctrl + P`                        |
-|                | **Undo**                     | `Ctrl + U` / `U`                  |
+|                | **Undo**                     | `U`                               |
 |                | **Redo**                     | `Ctrl + R`                        |
 |                | **Switch Pane (Hex/Disasm)** | `Tab`                             |
-| **View**       | **PETSCII Unshifted**        | `Ctrl + Shift + L`                |
-|                | **PETSCII Shifted**          | `Ctrl + L`                        |
+| **View**       | **PETSCII Unshifted**        | `Ctrl + L`                        |
+|                | **PETSCII Shifted**          | `Ctrl + Shift + L`                |
 | **Navigation** | **Move Cursor**              | `Up` / `Down` / `j` / `k`         |
 |                | **Page Up/Down**             | `PageUp` / `PageDown`             |
 |                | **Home/End**                 | `Home` / `End`                    |
@@ -65,6 +67,8 @@ Regenerator2000 brings modern conveniences to 6502 disassembly:
 |                | **Jump Back (History)**      | `Backspace`                       |
 |                | **Previous/Next 10 Lines**   | `Ctrl + u` / `Ctrl + d`           |
 | **Editing**    | **Set Label**                | `l`                               |
+|                | **Add Side Comment**         | `;`                               |
+|                | **Add Line Comment**         | `:`                               |
 |                | **Convert to Code**          | `c`                               |
 |                | **Convert to Byte**          | `b`                               |
 |                | **Convert to Word**          | `w`                               |
