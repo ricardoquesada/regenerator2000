@@ -440,6 +440,16 @@ pub fn run_app<B: Backend>(
                     ui_state.about_dialog.close();
                     ui_state.set_status_message("Ready");
                 }
+            } else if ui_state.shortcuts_dialog.active {
+                match key.code {
+                    KeyCode::Esc | KeyCode::Enter => {
+                        ui_state.shortcuts_dialog.close();
+                        ui_state.set_status_message("Ready");
+                    }
+                    KeyCode::Down => ui_state.shortcuts_dialog.scroll_down(),
+                    KeyCode::Up => ui_state.shortcuts_dialog.scroll_up(),
+                    _ => {}
+                }
             } else if ui_state.settings_dialog.active {
                 match key.code {
                     KeyCode::Esc => {
@@ -1314,6 +1324,10 @@ fn handle_menu_action(
                     ui_state.active_pane = ActivePane::Disassembly;
                 }
             }
+        }
+        MenuAction::KeyboardShortcuts => {
+            ui_state.shortcuts_dialog.open();
+            ui_state.set_status_message("Keyboard Shortcuts");
         }
     }
 }

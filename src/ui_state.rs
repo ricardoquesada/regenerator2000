@@ -43,6 +43,7 @@ pub enum MenuAction {
     LineComment,
     ToggleHexView,
     About,
+    KeyboardShortcuts,
 }
 
 pub struct AboutDialogState {
@@ -60,6 +61,39 @@ impl AboutDialogState {
 
     pub fn close(&mut self) {
         self.active = false;
+    }
+}
+
+pub struct ShortcutsDialogState {
+    pub active: bool,
+    pub scroll_offset: usize,
+}
+
+impl ShortcutsDialogState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            scroll_offset: 0,
+        }
+    }
+
+    pub fn open(&mut self) {
+        self.active = true;
+        self.scroll_offset = 0;
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+    }
+
+    pub fn scroll_down(&mut self) {
+        self.scroll_offset += 1;
+    }
+
+    pub fn scroll_up(&mut self) {
+        if self.scroll_offset > 0 {
+            self.scroll_offset -= 1;
+        }
     }
 }
 
@@ -363,6 +397,26 @@ impl MenuState {
                     ],
                 },
                 MenuCategory {
+                    name: "Jump".to_string(),
+                    items: vec![
+                        MenuItem::new(
+                            "Jump to address",
+                            Some("G"),
+                            Some(MenuAction::JumpToAddress),
+                        ),
+                        MenuItem::new(
+                            "Jump to line",
+                            Some("Ctrl+Shift+G"),
+                            Some(MenuAction::JumpToLine),
+                        ),
+                        MenuItem::new(
+                            "Jump to operand",
+                            Some("Enter"),
+                            Some(MenuAction::JumpToOperand),
+                        ),
+                    ],
+                },
+                MenuCategory {
                     name: "View".to_string(),
                     items: vec![
                         MenuItem::new(
@@ -384,28 +438,16 @@ impl MenuState {
                     ],
                 },
                 MenuCategory {
-                    name: "Jump".to_string(),
+                    name: "Help".to_string(),
                     items: vec![
                         MenuItem::new(
-                            "Jump to address",
-                            Some("G"),
-                            Some(MenuAction::JumpToAddress),
+                            "Keyboard Shortcuts",
+                            None,
+                            Some(MenuAction::KeyboardShortcuts),
                         ),
-                        MenuItem::new(
-                            "Jump to line",
-                            Some("Ctrl+Shift+G"),
-                            Some(MenuAction::JumpToLine),
-                        ),
-                        MenuItem::new(
-                            "Jump to operand",
-                            Some("Enter"),
-                            Some(MenuAction::JumpToOperand),
-                        ),
+                        MenuItem::separator(),
+                        MenuItem::new("About", None, Some(MenuAction::About)),
                     ],
-                },
-                MenuCategory {
-                    name: "Help".to_string(),
-                    items: vec![MenuItem::new("About", None, Some(MenuAction::About))],
                 },
             ],
             selected_category: 0,
@@ -507,6 +549,7 @@ pub struct UIState {
     pub comment_dialog: CommentDialogState,
     pub settings_dialog: SettingsDialogState,
     pub about_dialog: AboutDialogState,
+    pub shortcuts_dialog: ShortcutsDialogState,
     pub menu: MenuState,
 
     pub navigation_history: Vec<usize>,
@@ -546,6 +589,7 @@ impl UIState {
             comment_dialog: CommentDialogState::new(),
             settings_dialog: SettingsDialogState::new(),
             about_dialog: AboutDialogState::new(),
+            shortcuts_dialog: ShortcutsDialogState::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),
             disassembly_state: ListState::default(),

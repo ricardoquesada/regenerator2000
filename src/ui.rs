@@ -55,6 +55,99 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     if ui_state.about_dialog.active {
         render_about_dialog(f, ui_state, f.area());
     }
+
+    if ui_state.shortcuts_dialog.active {
+        render_shortcuts_dialog(f, f.area(), &ui_state.shortcuts_dialog);
+    }
+}
+
+fn render_shortcuts_dialog(
+    f: &mut Frame,
+    area: Rect,
+    dialog: &crate::ui_state::ShortcutsDialogState,
+) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Keyboard Shortcuts ")
+        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+
+    let area = centered_rect(60, 80, area);
+    f.render_widget(ratatui::widgets::Clear, area);
+    f.render_widget(block.clone(), area);
+
+    let inner = block.inner(area);
+
+    let shortcuts = vec![
+        ("General", ""),
+        ("F10", "Activate Menu"),
+        ("Ctrl+Q", "Quit"),
+        ("Ctrl+N", "New Project"),
+        ("Ctrl+O", "Open File"),
+        ("Ctrl+S", "Save Project"),
+        ("Ctrl+Shift+S", "Save Project As..."),
+        ("Ctrl+E", "Export .asm"),
+        ("Ctrl+Shift+E", "Export .asm As..."),
+        ("Ctrl+P", "Document Settings"),
+        ("", ""),
+        ("Navigation", ""),
+        ("Up/Down/Left/Right", "Move Cursor"),
+        ("PageUp/PageDown", "Page Up/Down"),
+        ("Home/End", "Start/End of File"),
+        ("G", "Jump to Address"),
+        ("Ctrl+Shift+G", "Jump to Line"),
+        ("Enter", "Jump to Operand (if valid)"),
+        ("Backspace", "Navigate Back"),
+        ("Tab", "Switch Pane (Disasm/Hex)"),
+        ("", ""),
+        ("Editing", ""),
+        ("IsVisualMode (Shift+V)", "Toggle Visual Selection Mode"),
+        ("Shift+Arrows", "Select Text"),
+        ("C", "Code"),
+        ("B", "Byte"),
+        ("W", "Word"),
+        ("A", "Address"),
+        ("T", "Text"),
+        ("S", "Screencode"),
+        (";", "Side Comment"),
+        ("Shift+;", "Line Comment"),
+        ("L", "Label"),
+        ("", ""),
+        ("View", ""),
+        ("Ctrl+2", "Toggle Hex View"),
+        ("Ctrl+L", "Shifted PETSCII"),
+        ("Ctrl+Shift+L", "Unshifted PETSCII"),
+        ("", ""),
+        ("History", ""),
+        ("U/Ctrl+Z", "Undo"),
+        ("Ctrl+R/Shift+U", "Redo"),
+    ];
+
+    let items: Vec<ListItem> = shortcuts
+        .into_iter()
+        .map(|(key, desc)| {
+            if key.is_empty() && desc.is_empty() {
+                ListItem::new("").style(Style::default())
+            } else if desc.is_empty() {
+                // Header
+                ListItem::new(Span::styled(
+                    key,
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
+                ))
+            } else {
+                let content = format!("{:<25} {}", key, desc);
+                ListItem::new(content).style(Style::default().fg(Color::White))
+            }
+        })
+        .collect();
+
+    let list = List::new(items);
+
+    let mut state = ListState::default();
+    state.select(Some(dialog.scroll_offset));
+
+    f.render_stateful_widget(list, inner, &mut state);
 }
 
 fn render_about_dialog(f: &mut Frame, ui_state: &UIState, area: Rect) {
