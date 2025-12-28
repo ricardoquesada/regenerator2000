@@ -16,7 +16,12 @@ pub enum Command {
         labels: std::collections::HashMap<u16, Vec<crate::state::Label>>,
         old_labels: std::collections::HashMap<u16, Vec<crate::state::Label>>,
     },
-    SetUserComment {
+    SetUserSideComment {
+        address: u16,
+        new_comment: Option<String>,
+        old_comment: Option<String>,
+    },
+    SetUserLineComment {
         address: u16,
         new_comment: Option<String>,
         old_comment: Option<String>,
@@ -62,15 +67,26 @@ impl Command {
                 // Complete replacement of the map
                 state.labels = labels.clone();
             }
-            Command::SetUserComment {
+            Command::SetUserSideComment {
                 address,
                 new_comment,
                 old_comment: _,
             } => {
                 if let Some(comment) = new_comment {
-                    state.user_comments.insert(*address, comment.clone());
+                    state.user_side_comments.insert(*address, comment.clone());
                 } else {
-                    state.user_comments.remove(address);
+                    state.user_side_comments.remove(address);
+                }
+            }
+            Command::SetUserLineComment {
+                address,
+                new_comment,
+                old_comment: _,
+            } => {
+                if let Some(comment) = new_comment {
+                    state.user_line_comments.insert(*address, comment.clone());
+                } else {
+                    state.user_line_comments.remove(address);
                 }
             }
         }
@@ -113,15 +129,26 @@ impl Command {
             } => {
                 state.labels = old_labels.clone();
             }
-            Command::SetUserComment {
+            Command::SetUserSideComment {
                 address,
                 new_comment: _,
                 old_comment,
             } => {
                 if let Some(comment) = old_comment {
-                    state.user_comments.insert(*address, comment.clone());
+                    state.user_side_comments.insert(*address, comment.clone());
                 } else {
-                    state.user_comments.remove(address);
+                    state.user_side_comments.remove(address);
+                }
+            }
+            Command::SetUserLineComment {
+                address,
+                new_comment: _,
+                old_comment,
+            } => {
+                if let Some(comment) = old_comment {
+                    state.user_line_comments.insert(*address, comment.clone());
+                } else {
+                    state.user_line_comments.remove(address);
                 }
             }
         }
@@ -362,5 +389,37 @@ mod tests {
                 .len(),
             1
         );
+    }
+    #[test]
+    fn test_user_line_comment_undo_redo() {
+        let mut app_state = AppState::new();
+        let address = 0x1000;
+
+        // Action: Set User Line Comment
+        let comment = "Line Comment".to_string();
+        let command = Command::SetUserLineComment {
+            address,
+            new_comment: Some(comment.clone()),
+            old_comment: None,
+        };
+
+        command.apply(&mut app_state);
+        app_state.undo_stack.push(command);
+
+        assert_eq!(app_state.user_line_comments.get(&address), Some(&comment));
+
+        // Undo
+        let mut stack = std::mem::replace(&mut app_state.undo_stack, UndoStack::new());
+        stack.undo(&mut app_state);
+        app_state.undo_stack = stack;
+
+        assert!(app_state.user_line_comments.get(&address).is_none());
+
+        // Redo
+        let mut stack = std::mem::replace(&mut app_state.undo_stack, UndoStack::new());
+        stack.redo(&mut app_state);
+        app_state.undo_stack = stack;
+
+        assert_eq!(app_state.user_line_comments.get(&address), Some(&comment));
     }
 }

@@ -11,6 +11,8 @@ use formatter::Formatter;
 use tass::TassFormatter;
 
 #[cfg(test)]
+mod line_comment_tests;
+#[cfg(test)]
 mod system_comments_tests;
 #[cfg(test)]
 mod tests;
@@ -24,6 +26,7 @@ pub struct DisassemblyLine {
     pub mnemonic: String,
     pub operand: String,
     pub comment: String,
+    pub line_comment: Option<String>,
     #[allow(dead_code)]
     pub label: Option<String>,
     pub opcode: Option<Opcode>,
@@ -56,7 +59,8 @@ impl Disassembler {
         origin: u16,
         settings: &DocumentSettings,
         system_comments: &HashMap<u16, String>,
-        user_comments: &HashMap<u16, String>,
+        user_side_comments: &HashMap<u16, String>,
+        user_line_comments: &HashMap<u16, String>,
     ) -> Vec<DisassemblyLine> {
         let formatter = Self::create_formatter(settings.assembler);
 
@@ -67,8 +71,14 @@ impl Disassembler {
             let address = origin.wrapping_add(pc as u16);
 
             let label_name = self.get_label_name(address, labels, formatter.as_ref());
-            let comment =
-                self.get_comment(address, labels, settings, system_comments, user_comments);
+            let side_comment = self.get_side_comment(
+                address,
+                labels,
+                settings,
+                system_comments,
+                user_side_comments,
+            );
+            let line_comment = user_line_comments.get(&address).cloned();
 
             let current_type = block_types.get(pc).copied().unwrap_or(BlockType::Code);
 
@@ -82,9 +92,10 @@ impl Disassembler {
                     labels,
                     settings,
                     label_name,
-                    comment,
+                    side_comment,
+                    line_comment,
                     system_comments,
-                    user_comments,
+                    user_side_comments,
                 ),
                 BlockType::DataByte => self.handle_data_byte(
                     pc,
@@ -95,7 +106,8 @@ impl Disassembler {
                     labels,
                     origin,
                     label_name,
-                    comment,
+                    side_comment,
+                    line_comment,
                 ),
                 BlockType::DataWord => self.handle_data_word(
                     pc,
@@ -106,7 +118,8 @@ impl Disassembler {
                     labels,
                     origin,
                     label_name,
-                    comment,
+                    side_comment,
+                    line_comment,
                 ),
                 BlockType::Address => self.handle_address(
                     pc,
@@ -117,9 +130,10 @@ impl Disassembler {
                     labels,
                     origin,
                     label_name,
-                    comment,
+                    side_comment,
+                    line_comment,
                     system_comments,
-                    user_comments,
+                    user_side_comments,
                 ),
                 BlockType::Text => self.handle_text(
                     pc,
@@ -130,7 +144,8 @@ impl Disassembler {
                     labels,
                     origin,
                     label_name,
-                    comment,
+                    side_comment,
+                    line_comment,
                 ),
                 BlockType::Screencode => self.handle_screencode(
                     pc,
@@ -141,7 +156,8 @@ impl Disassembler {
                     labels,
                     origin,
                     label_name,
-                    comment,
+                    side_comment,
+                    line_comment,
                 ),
             };
 
@@ -201,17 +217,17 @@ impl Disassembler {
             .map(|l| formatter.format_label(&l.name))
     }
 
-    fn get_comment(
+    fn get_side_comment(
         &self,
         address: u16,
         labels: &HashMap<u16, Vec<Label>>,
         settings: &DocumentSettings,
         system_comments: &HashMap<u16, String>,
-        user_comments: &HashMap<u16, String>,
+        user_side_comments: &HashMap<u16, String>,
     ) -> String {
         let mut comment_parts = Vec::new();
 
-        if let Some(user_comment) = user_comments.get(&address) {
+        if let Some(user_comment) = user_side_comments.get(&address) {
             comment_parts.push(user_comment.clone());
         } else if let Some(sys_comment) = system_comments.get(&address) {
             comment_parts.push(sys_comment.clone());
@@ -249,9 +265,10 @@ impl Disassembler {
         labels: &HashMap<u16, Vec<Label>>,
         settings: &DocumentSettings,
         label_name: Option<String>,
-        mut comment: String,
+        mut side_comment: String,
+        line_comment: Option<String>,
         system_comments: &HashMap<u16, String>,
-        user_comments: &HashMap<u16, String>,
+        user_side_comments: &HashMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let opcode_byte = data[pc];
         let opcode_opt = &self.opcodes[opcode_byte as usize];
@@ -278,17 +295,17 @@ impl Disassembler {
 
                     // Append referenced address comment if any
                     if let Some(target_addr) = self.get_target_address(opcode, &bytes, address) {
-                        let target_comment = if let Some(c) = user_comments.get(&target_addr) {
+                        let target_comment = if let Some(c) = user_side_comments.get(&target_addr) {
                             Some(c)
                         } else {
                             system_comments.get(&target_addr)
                         };
 
                         if let Some(target_comment) = target_comment {
-                            if !comment.is_empty() {
-                                comment.push_str("; ");
+                            if !side_comment.is_empty() {
+                                side_comment.push_str("; ");
                             }
-                            comment.push_str(target_comment);
+                            side_comment.push_str(target_comment);
                         }
                     }
 
@@ -348,7 +365,8 @@ impl Disassembler {
                             bytes,
                             mnemonic,
                             operand: operand_str,
-                            comment,
+                            comment: side_comment,
+                            line_comment,
                             label: label_name,
                             opcode: Some(opcode.clone()),
                             show_bytes: true,
@@ -359,9 +377,9 @@ impl Disassembler {
         }
 
         // Fallthrough / Invalid instruction
-        let mut line_comment = "Invalid or partial instruction".to_string();
-        if !comment.is_empty() {
-            line_comment = format!("{}; {}", comment, line_comment);
+        let mut side_comment_final = "Invalid or partial instruction".to_string();
+        if !side_comment.is_empty() {
+            side_comment_final = format!("{}; {}", side_comment, side_comment_final);
         }
         (
             1,
@@ -370,7 +388,8 @@ impl Disassembler {
                 bytes: vec![opcode_byte],
                 mnemonic: formatter.byte_directive().to_string(),
                 operand: format!("${:02X}", opcode_byte),
-                comment: line_comment,
+                comment: side_comment_final,
+                line_comment,
                 label: label_name,
                 opcode: None,
                 show_bytes: true,
@@ -389,7 +408,8 @@ impl Disassembler {
         labels: &HashMap<u16, Vec<Label>>,
         origin: u16,
         label_name: Option<String>,
-        comment: String,
+        side_comment: String,
+        line_comment: Option<String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -422,7 +442,8 @@ impl Disassembler {
                 bytes,
                 mnemonic: formatter.byte_directive().to_string(),
                 operand: operands.join(", "),
-                comment,
+                comment: side_comment,
+                line_comment,
                 label: label_name,
                 opcode: None,
                 show_bytes: true,
@@ -441,7 +462,8 @@ impl Disassembler {
         labels: &HashMap<u16, Vec<Label>>,
         origin: u16,
         label_name: Option<String>,
-        comment: String,
+        side_comment: String,
+        line_comment: Option<String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -479,7 +501,8 @@ impl Disassembler {
                     bytes,
                     mnemonic: formatter.word_directive().to_string(),
                     operand: operands.join(", "),
-                    comment,
+                    comment: side_comment,
+                    line_comment,
                     label: label_name,
                     opcode: None,
                     show_bytes: true,
@@ -487,7 +510,16 @@ impl Disassembler {
             )
         } else {
             // Fallback for partial word
-            self.handle_partial_data(pc, data, address, formatter, label_name, comment, "Word")
+            self.handle_partial_data(
+                pc,
+                data,
+                address,
+                formatter,
+                label_name,
+                side_comment,
+                line_comment,
+                "Word",
+            )
         }
     }
 
@@ -502,9 +534,10 @@ impl Disassembler {
         labels: &HashMap<u16, Vec<Label>>,
         origin: u16,
         label_name: Option<String>,
-        mut comment: String,
+        mut side_comment: String,
+        line_comment: Option<String>,
         system_comments: &HashMap<u16, String>,
-        user_comments: &HashMap<u16, String>,
+        user_side_comments: &HashMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -529,17 +562,17 @@ impl Disassembler {
             let val = (high as u16) << 8 | (low as u16);
 
             // START: Append comment for the address value
-            let target_comment = if let Some(c) = user_comments.get(&val) {
+            let target_comment = if let Some(c) = user_side_comments.get(&val) {
                 Some(c)
             } else {
                 system_comments.get(&val)
             };
 
             if let Some(target_comment) = target_comment {
-                if !comment.is_empty() {
-                    comment.push_str("; ");
+                if !side_comment.is_empty() {
+                    side_comment.push_str("; ");
                 }
-                comment.push_str(target_comment);
+                side_comment.push_str(target_comment);
             }
             // END: Append comment
 
@@ -567,14 +600,24 @@ impl Disassembler {
                     bytes,
                     mnemonic: formatter.word_directive().to_string(),
                     operand: operands.join(", "),
-                    comment,
+                    comment: side_comment,
+                    line_comment,
                     label: label_name,
                     opcode: None,
                     show_bytes: true,
                 }],
             )
         } else {
-            self.handle_partial_data(pc, data, address, formatter, label_name, comment, "Address")
+            self.handle_partial_data(
+                pc,
+                data,
+                address,
+                formatter,
+                label_name,
+                side_comment,
+                line_comment,
+                "Address",
+            )
         }
     }
 
@@ -589,7 +632,8 @@ impl Disassembler {
         labels: &HashMap<u16, Vec<Label>>,
         origin: u16,
         label_name: Option<String>,
-        comment: String,
+        side_comment: String,
+        line_comment: Option<String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         use crate::disassembler::formatter::TextFragment;
 
@@ -656,10 +700,10 @@ impl Disassembler {
                     Vec::new()
                 };
                 let line_label = if i == 0 { label_name.clone() } else { None };
-                let line_comment = if i == 0 {
-                    comment.clone()
+                let (line_side_comment, line_line_comment) = if i == 0 {
+                    (side_comment.clone(), line_comment.clone())
                 } else {
-                    String::new()
+                    (String::new(), None)
                 };
 
                 disassembly_lines.push(DisassemblyLine {
@@ -667,7 +711,8 @@ impl Disassembler {
                     bytes: line_bytes,
                     mnemonic: mnemonic.clone(),
                     operand: operand.clone(),
-                    comment: line_comment,
+                    comment: line_side_comment,
+                    line_comment: line_line_comment,
                     label: line_label,
                     opcode: None,
                     show_bytes: false, // Text lines should not show bytes
@@ -677,7 +722,16 @@ impl Disassembler {
             (count, disassembly_lines)
         } else {
             // Fallback to byte if no valid chunk (should not happen if block_type is text and len > 0)
-            self.handle_partial_data(pc, data, address, formatter, label_name, comment, "Text")
+            self.handle_partial_data(
+                pc,
+                data,
+                address,
+                formatter,
+                label_name,
+                side_comment,
+                line_comment,
+                "Text",
+            )
         }
     }
 
@@ -692,7 +746,8 @@ impl Disassembler {
         labels: &HashMap<u16, Vec<Label>>,
         origin: u16,
         label_name: Option<String>,
-        comment: String,
+        side_comment: String,
+        line_comment: Option<String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         use crate::disassembler::formatter::TextFragment;
 
@@ -799,10 +854,10 @@ impl Disassembler {
                     Vec::new()
                 };
                 let line_label = if i == 0 { label_name.clone() } else { None };
-                let line_comment = if i == 0 {
-                    comment.clone()
+                let (line_side_comment, line_line_comment) = if i == 0 {
+                    (side_comment.clone(), line_comment.clone())
                 } else {
-                    String::new()
+                    (String::new(), None)
                 };
 
                 disassembly_lines.push(DisassemblyLine {
@@ -810,7 +865,8 @@ impl Disassembler {
                     bytes: line_bytes,
                     mnemonic: mnemonic.clone(),
                     operand: operand.clone(),
-                    comment: line_comment,
+                    comment: line_side_comment,
+                    line_comment: line_line_comment,
                     label: line_label,
                     opcode: None,
                     show_bytes: false, // Hide bytes for screencode blocks logic
@@ -825,7 +881,8 @@ impl Disassembler {
                 address,
                 formatter,
                 label_name,
-                comment,
+                side_comment,
+                line_comment,
                 "Screencode",
             )
         }
@@ -838,14 +895,15 @@ impl Disassembler {
         address: u16,
         formatter: &dyn Formatter,
         label_name: Option<String>,
-        comment: String,
+        side_comment: String,
+        line_comment: Option<String>,
         type_name: &str,
     ) -> (usize, Vec<DisassemblyLine>) {
         if pc < data.len() {
             let b = data[pc];
-            let mut line_comment = format!("Partial {}", type_name);
-            if !comment.is_empty() {
-                line_comment = format!("{}; {}", comment, line_comment);
+            let mut side_comment_final = format!("Partial {}", type_name);
+            if !side_comment.is_empty() {
+                side_comment_final = format!("{}; {}", side_comment, side_comment_final);
             }
             (
                 1,
@@ -854,7 +912,8 @@ impl Disassembler {
                     bytes: vec![b],
                     mnemonic: formatter.byte_directive().to_string(),
                     operand: format!("${:02X}", b),
-                    comment: line_comment,
+                    comment: side_comment_final,
+                    line_comment,
                     label: label_name,
                     opcode: None,
                     show_bytes: true,
@@ -870,6 +929,7 @@ impl Disassembler {
                     mnemonic: "???".to_string(),
                     operand: "".to_string(),
                     comment: "Error: Out of bounds".to_string(),
+                    line_comment: None,
                     label: None,
                     opcode: None,
                     show_bytes: true,

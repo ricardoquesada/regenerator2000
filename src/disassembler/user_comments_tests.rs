@@ -28,6 +28,7 @@ fn test_user_comments_override_system_comments() {
         &settings,
         &system_comments,
         &user_comments,
+        &HashMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -60,6 +61,7 @@ fn test_user_comments_fallthrough() {
         &settings,
         &system_comments,
         &user_comments,
+        &HashMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -94,6 +96,7 @@ fn test_user_comments_referenced_address() {
         &settings,
         &system_comments,
         &user_comments,
+        &HashMap::new(),
     );
 
     assert_eq!(lines.len(), 1);

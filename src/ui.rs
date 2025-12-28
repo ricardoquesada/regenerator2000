@@ -793,6 +793,15 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 String::new()
             };
 
+            let mut item_lines = Vec::new();
+
+            if let Some(line_comment) = &line.line_comment {
+                item_lines.push(Line::from(vec![Span::styled(
+                    format!("      ; {}", line_comment),
+                    Style::default().fg(Color::LightCyan),
+                )]));
+            }
+
             let content = Line::from(vec![
                 Span::styled(
                     format!("{:04X}  ", line.address),
@@ -830,8 +839,9 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                     Style::default().fg(Color::Gray),
                 ),
             ]);
+            item_lines.push(content);
 
-            ListItem::new(content).style(style)
+            ListItem::new(item_lines).style(style)
         })
         .collect();
 

@@ -190,8 +190,10 @@ pub struct ProjectState {
     pub blocks: Vec<Block>,
     #[serde(default)]
     pub labels: HashMap<u16, Vec<Label>>,
+    #[serde(default, alias = "user_comments")]
+    pub user_side_comments: HashMap<u16, String>,
     #[serde(default)]
-    pub user_comments: HashMap<u16, String>,
+    pub user_line_comments: HashMap<u16, String>,
     #[serde(default)]
     pub settings: DocumentSettings,
     #[serde(default)]
@@ -212,7 +214,8 @@ pub struct AppState {
     pub labels: HashMap<u16, Vec<Label>>,
     pub settings: DocumentSettings,
     pub system_comments: HashMap<u16, String>,
-    pub user_comments: HashMap<u16, String>,
+    pub user_side_comments: HashMap<u16, String>,
+    pub user_line_comments: HashMap<u16, String>,
 
     pub undo_stack: crate::commands::UndoStack,
 }
@@ -231,7 +234,8 @@ impl AppState {
             labels: HashMap::new(),
             settings: DocumentSettings::default(),
             system_comments: HashMap::new(),
-            user_comments: HashMap::new(),
+            user_side_comments: HashMap::new(),
+            user_line_comments: HashMap::new(),
             undo_stack: crate::commands::UndoStack::new(),
         }
     }
@@ -264,7 +268,8 @@ impl AppState {
         self.project_path = None; // clear project path
         self.labels.clear(); // clear existing labels
         self.settings = DocumentSettings::default(); // reset settings
-        self.user_comments.clear();
+        self.user_side_comments.clear();
+        self.user_line_comments.clear();
 
         if let Some(ext) = self
             .file_path
@@ -309,7 +314,8 @@ impl AppState {
         // Expand address types
         self.block_types = expand_blocks(&project.blocks, self.raw_data.len());
         self.labels = project.labels;
-        self.user_comments = project.user_comments;
+        self.user_side_comments = project.user_side_comments;
+        self.user_line_comments = project.user_line_comments;
         self.settings = project.settings;
 
         self.load_system_assets();
@@ -344,7 +350,8 @@ impl AppState {
                     })
                     .filter(|(_, v)| !v.is_empty())
                     .collect(),
-                user_comments: self.user_comments.clone(),
+                user_side_comments: self.user_side_comments.clone(),
+                user_line_comments: self.user_line_comments.clone(),
                 settings: self.settings,
                 cursor_address,
             };
@@ -546,6 +553,7 @@ impl AppState {
                     mnemonic: format!("; {}", title),
                     operand: String::new(),
                     comment: String::new(),
+                    line_comment: None,
                     label: None,
                     opcode: None,
                     show_bytes: true,
@@ -558,6 +566,7 @@ impl AppState {
                         mnemonic: formatter.format_definition(name, addr, is_zp),
                         operand: String::new(),
                         comment: String::new(),
+                        line_comment: None,
                         label: None,
                         opcode: None,
                         show_bytes: true,
@@ -570,6 +579,7 @@ impl AppState {
                     mnemonic: String::new(),
                     operand: String::new(),
                     comment: String::new(),
+                    line_comment: None,
                     label: None,
                     opcode: None,
                     show_bytes: true,
@@ -597,7 +607,8 @@ impl AppState {
             self.origin,
             &self.settings,
             &self.system_comments,
-            &self.user_comments,
+            &self.user_side_comments,
+            &self.user_line_comments,
         );
 
         // Add external label definitions at the top
@@ -926,6 +937,7 @@ mod cursor_tests {
             mnemonic: "; EXTERNAL".to_string(),
             operand: "".to_string(),
             comment: "".to_string(),
+            line_comment: None,
             label: None,
             opcode: None,
             show_bytes: true,
@@ -938,6 +950,7 @@ mod cursor_tests {
             mnemonic: "NOP".to_string(),
             operand: "".to_string(),
             comment: "".to_string(),
+            line_comment: None,
             label: None,
             opcode: None,
             show_bytes: true,
@@ -957,6 +970,7 @@ mod cursor_tests {
             mnemonic: "ExtLabel".to_string(),
             operand: "".to_string(),
             comment: "".to_string(),
+            line_comment: None,
             label: None,
             opcode: None,
             show_bytes: true,
@@ -969,6 +983,7 @@ mod cursor_tests {
             mnemonic: "NOP".to_string(),
             operand: "".to_string(),
             comment: "".to_string(),
+            line_comment: None,
             label: None,
             opcode: None,
             show_bytes: true,

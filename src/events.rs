@@ -248,12 +248,25 @@ pub fn run_app<B: Backend>(
                                 Some(new_comment)
                             };
 
-                            let old_comment = app_state.user_comments.get(&address).cloned();
-
-                            let command = crate::commands::Command::SetUserComment {
-                                address,
-                                new_comment: new_comment_opt,
-                                old_comment,
+                            let command = match ui_state.comment_dialog.comment_type {
+                                crate::ui_state::CommentType::Side => {
+                                    let old_comment =
+                                        app_state.user_side_comments.get(&address).cloned();
+                                    crate::commands::Command::SetUserSideComment {
+                                        address,
+                                        new_comment: new_comment_opt,
+                                        old_comment,
+                                    }
+                                }
+                                crate::ui_state::CommentType::Line => {
+                                    let old_comment =
+                                        app_state.user_line_comments.get(&address).cloned();
+                                    crate::commands::Command::SetUserLineComment {
+                                        address,
+                                        new_comment: new_comment_opt,
+                                        old_comment,
+                                    }
+                                }
                             };
 
                             command.apply(&mut app_state);
@@ -743,7 +756,16 @@ pub fn run_app<B: Backend>(
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
-                                crate::ui_state::MenuAction::Comment,
+                                crate::ui_state::MenuAction::SideComment,
+                            )
+                        }
+                    }
+                    KeyCode::Char(':') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::LineComment,
                             )
                         }
                     }
@@ -1180,12 +1202,30 @@ fn handle_menu_action(
             ui_state.petscii_mode = crate::ui_state::PetsciiMode::Shifted;
             ui_state.set_status_message("PETSCII Mode: Shifted");
         }
-        MenuAction::Comment => {
+        MenuAction::SideComment => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                 let address = line.address;
-                let current_comment = app_state.user_comments.get(&address).map(|s| s.as_str());
-                ui_state.comment_dialog.open(current_comment);
-                ui_state.set_status_message(format!("Edit Comment at ${:04X}", address));
+                let current_comment = app_state
+                    .user_side_comments
+                    .get(&address)
+                    .map(|s| s.as_str());
+                ui_state
+                    .comment_dialog
+                    .open(current_comment, crate::ui_state::CommentType::Side);
+                ui_state.set_status_message(format!("Edit Side Comment at ${:04X}", address));
+            }
+        }
+        MenuAction::LineComment => {
+            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                let address = line.address;
+                let current_comment = app_state
+                    .user_line_comments
+                    .get(&address)
+                    .map(|s| s.as_str());
+                ui_state
+                    .comment_dialog
+                    .open(current_comment, crate::ui_state::CommentType::Line);
+                ui_state.set_status_message(format!("Edit Line Comment at ${:04X}", address));
             }
         }
     }

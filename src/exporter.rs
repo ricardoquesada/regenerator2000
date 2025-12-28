@@ -40,6 +40,10 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         // Only for instructions/data that have bytes.
         // If we have a multi-byte instruction/data, we check if any byte inside has a label.
         // We start from 1 because 0 is the address itself (handled above as label line).
+        if let Some(comment) = &line.line_comment {
+            output.push_str(&format!("; {}\n", comment));
+        }
+
         if line.bytes.len() > 1 {
             for i in 1..line.bytes.len() {
                 let mid_addr = line.address.wrapping_add(i as u16);
@@ -108,6 +112,7 @@ mod tests {
             operand: "#$00".to_string(),
             bytes: vec![0xA9, 0x00],
             comment: String::new(),
+            line_comment: None,
             label: None,
             opcode: None,
             show_bytes: true,
@@ -119,6 +124,7 @@ mod tests {
             operand: "$D020".to_string(),
             bytes: vec![0x8D, 0x20, 0xD0],
             comment: String::new(),
+            line_comment: None,
             label: None,
             opcode: None,
             show_bytes: true,
@@ -130,6 +136,7 @@ mod tests {
             operand: "".to_string(),
             bytes: vec![0x60],
             comment: String::new(),
+            line_comment: None,
             label: None,
             opcode: None,
             show_bytes: true,
@@ -234,6 +241,7 @@ mod tests {
             operand: "$1234".to_string(),
             bytes: vec![0x8D, 0x34, 0x12],
             comment: String::new(),
+            line_comment: None,
             label: Some("aC000".to_string()),
             opcode: None,
             show_bytes: true,
@@ -247,6 +255,7 @@ mod tests {
             operand: "aC001".to_string(),
             bytes: vec![0xAD, 0x01, 0xC0],
             comment: String::new(),
+            line_comment: None,
             label: None,
             opcode: None,
             show_bytes: true,
@@ -310,6 +319,7 @@ mod tests {
             operand: "".to_string(),
             bytes: vec![0xEA],
             comment: "x-ref: $2000, $3000".to_string(),
+            line_comment: None,
             label: Some("MyLabel".to_string()),
             opcode: None,
             show_bytes: true,
@@ -384,6 +394,7 @@ mod tests {
             operand: "".to_string(),
             bytes: vec![0xEA],
             comment: String::new(),
+            line_comment: None,
             label: None,
             opcode: None,
             show_bytes: true,
@@ -648,6 +659,7 @@ mod tests {
             operand: "".to_string(),
             bytes: vec![0xEA],
             comment: String::new(),
+            line_comment: None,
             label: Some("eUser".to_string()),
             opcode: None,
             show_bytes: true,
@@ -709,6 +721,7 @@ mod tests {
             operand: "@w $0012".to_string(),
             bytes: vec![0xAD, 0x12, 0x00],
             comment: String::new(),
+            line_comment: None,
             label: None,
             opcode: Some(Opcode::new(
                 "LDA",
@@ -729,6 +742,7 @@ mod tests {
             operand: "@w $0012,X".to_string(),
             bytes: vec![0xBD, 0x12, 0x00],
             comment: String::new(),
+            line_comment: None,
             label: None,
             opcode: Some(Opcode::new(
                 "LDA",
@@ -765,5 +779,54 @@ mod tests {
         );
 
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_export_line_comments() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        state.settings.assembler = crate::state::Assembler::Tass64;
+
+        state.disassembly.push(DisassemblyLine {
+            address: 0x1000,
+            mnemonic: "LDA".to_string(),
+            operand: "#$00".to_string(),
+            bytes: vec![0xA9, 0x00],
+            comment: String::new(),
+            line_comment: Some("Function Start".to_string()),
+            label: Some("MyLabel".to_string()),
+            opcode: None,
+            show_bytes: true,
+        });
+
+        let file_name = "test_export_line_comments.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        // Expected usage:
+        // ; Function Start
+        // MyLabel:                LDA #$00
+        assert!(content.contains("; Function Start"));
+
+        // Check ordering: Comment needs to be before Label
+        // Find index of comment
+        let comment_idx = content.find("; Function Start").unwrap();
+        let label_idx = content.find("MyLabel:").unwrap();
+
+        assert!(
+            comment_idx < label_idx,
+            "Line comment should appear before label"
+        );
+
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
     }
 }

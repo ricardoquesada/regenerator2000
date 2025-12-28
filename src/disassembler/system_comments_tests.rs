@@ -29,6 +29,7 @@ fn test_system_comments_logic() {
         &settings,
         &system_comments,
         &HashMap::new(),
+        &HashMap::new(),
     );
 
     assert_eq!(lines.len(), 1);

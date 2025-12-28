@@ -38,7 +38,8 @@ pub enum MenuAction {
     JumpToOperand,
     SetPetsciiUnshifted,
     SetPetsciiShifted,
-    Comment,
+    SideComment,
+    LineComment,
     About,
 }
 
@@ -197,9 +198,16 @@ impl LabelDialogState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CommentType {
+    Side,
+    Line,
+}
+
 pub struct CommentDialogState {
     pub active: bool,
     pub input: String,
+    pub comment_type: CommentType,
 }
 
 impl CommentDialogState {
@@ -207,12 +215,14 @@ impl CommentDialogState {
         Self {
             active: false,
             input: String::new(),
+            comment_type: CommentType::Side,
         }
     }
 
-    pub fn open(&mut self, current_comment: Option<&str>) {
+    pub fn open(&mut self, current_comment: Option<&str>, comment_type: CommentType) {
         self.active = true;
         self.input = current_comment.unwrap_or("").to_string();
+        self.comment_type = comment_type;
     }
 
     pub fn close(&mut self) {
@@ -325,7 +335,12 @@ impl MenuState {
                         MenuItem::new("Text", Some("T"), Some(MenuAction::Text)),
                         MenuItem::new("Screencode", Some("S"), Some(MenuAction::Screencode)),
                         MenuItem::separator(),
-                        MenuItem::new("Comment", Some(";"), Some(MenuAction::Comment)),
+                        MenuItem::new("Side Comment", Some(";"), Some(MenuAction::SideComment)),
+                        MenuItem::new(
+                            "Line Comment",
+                            Some("Shift+;"),
+                            Some(MenuAction::LineComment),
+                        ),
                         MenuItem::separator(),
                         MenuItem::new("Analyze", None, Some(MenuAction::Analyze)),
                         MenuItem::separator(),
