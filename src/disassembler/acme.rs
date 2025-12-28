@@ -151,14 +151,6 @@ impl Formatter for AcmeFormatter {
         name.to_string()
     }
 
-    fn format_byte(&self, byte: u8) -> String {
-        format!("${:02x}", byte)
-    }
-
-    fn format_word(&self, word: u16) -> String {
-        format!("${:04x}", word)
-    }
-
     fn format_text(
         &self,
         fragments: &[super::formatter::TextFragment],
@@ -259,7 +251,7 @@ impl Formatter for AcmeFormatter {
         labels: &HashMap<u16, Vec<Label>>,
         settings: &crate::state::DocumentSettings,
     ) -> (String, String) {
-        let mnemonic = self.format_mnemonic(&opcode.mnemonic);
+        let mnemonic = self.format_mnemonic(opcode.mnemonic);
         let operand =
             self.format_operand(opcode, operands, address, target_context, labels, settings);
 

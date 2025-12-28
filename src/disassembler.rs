@@ -51,6 +51,7 @@ impl Disassembler {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn disassemble(
         &self,
         data: &[u8],
@@ -888,6 +889,7 @@ impl Disassembler {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn handle_partial_data(
         &self,
         pc: usize,

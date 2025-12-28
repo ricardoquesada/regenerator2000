@@ -169,14 +169,6 @@ impl Formatter for TassFormatter {
         name.to_string()
     }
 
-    fn format_byte(&self, byte: u8) -> String {
-        format!("${:02X}", byte)
-    }
-
-    fn format_word(&self, word: u16) -> String {
-        format!("${:04X}", word)
-    }
-
     fn format_text(
         &self,
         fragments: &[super::formatter::TextFragment],

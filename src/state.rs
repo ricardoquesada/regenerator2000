@@ -3,21 +3,16 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Platform {
     Commodore128,
     Commodore1541,
+    #[default]
     Commodore64,
     CommodorePET20,
     CommodorePET40,
     CommodorePlus4,
     CommodoreVIC20,
-}
-
-impl Default for Platform {
-    fn default() -> Self {
-        Platform::Commodore64
-    }
 }
 
 impl std::fmt::Display for Platform {
@@ -48,16 +43,11 @@ impl Platform {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum Assembler {
+    #[default]
     Tass64,
     Acme,
-}
-
-impl Default for Assembler {
-    fn default() -> Self {
-        Assembler::Tass64
-    }
 }
 
 impl std::fmt::Display for Assembler {
@@ -379,7 +369,7 @@ impl AppState {
         // Analyzer SHOULD preserve user labels.
 
         let command = crate::commands::Command::SetLabels {
-            labels: labels, // SetLabels now expects HashMap<u16, Vec<Label>>
+            labels, // SetLabels now expects HashMap<u16, Vec<Label>>
             old_labels: old_labels_map,
         };
         command.apply(self);

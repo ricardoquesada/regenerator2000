@@ -1,6 +1,7 @@
 use crate::state::{AppState, BlockType};
 
 #[derive(Debug, Clone)]
+#[allow(clippy::enum_variant_names)]
 pub enum Command {
     SetBlockType {
         range: std::ops::Range<usize>,

@@ -23,8 +23,6 @@ pub trait Formatter {
     fn format_mnemonic(&self, mnemonic: &str) -> String;
     fn format_label(&self, name: &str) -> String;
 
-    fn format_byte(&self, byte: u8) -> String;
-    fn format_word(&self, word: u16) -> String;
     fn format_text(
         &self,
         fragments: &[TextFragment],
@@ -47,7 +45,7 @@ pub trait Formatter {
         settings: &crate::state::DocumentSettings,
     ) -> (String, String) {
         (
-            self.format_mnemonic(&opcode.mnemonic),
+            self.format_mnemonic(opcode.mnemonic),
             self.format_operand(opcode, operands, address, target_context, labels, settings),
         )
     }

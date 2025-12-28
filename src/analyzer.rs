@@ -4,14 +4,15 @@ use std::collections::HashMap;
 
 use crate::state::LabelType;
 
+type UsageData = (HashMap<LabelType, usize>, Vec<u16>, LabelType);
+
 pub fn analyze(state: &AppState) -> HashMap<u16, Vec<crate::state::Label>> {
     // We want to track ALL usages, illegal or not, and then pick the best ones.
     // Map: Address -> Set of used LabelTypes
     // We also need ref counts.
-    // Map: Address -> (HashMap<LabelType, usize>, Vec<u16>, LabelType)
+    // Map: Address -> UsageData
     // storing (counts, refs, first_seen_type)
-    let mut usage_map: HashMap<u16, (HashMap<LabelType, usize>, Vec<u16>, LabelType)> =
-        HashMap::new();
+    let mut usage_map: HashMap<u16, UsageData> = HashMap::new();
     let mut pc = 0;
     let data_len = state.raw_data.len();
     let origin = state.origin;
@@ -229,7 +230,7 @@ fn analyze_instruction(
     opcode: &Opcode,
     operands: &[u8],
     address: u16,
-    usage_map: &mut HashMap<u16, (HashMap<LabelType, usize>, Vec<u16>, LabelType)>,
+    usage_map: &mut HashMap<u16, UsageData>,
 ) {
     match opcode.mode {
         AddressingMode::Implied | AddressingMode::Accumulator | AddressingMode::Immediate => {}
@@ -304,12 +305,7 @@ fn analyze_instruction(
     }
 }
 
-fn update_usage(
-    map: &mut HashMap<u16, (HashMap<LabelType, usize>, Vec<u16>, LabelType)>,
-    addr: u16,
-    priority: LabelType,
-    from_addr: u16,
-) {
+fn update_usage(map: &mut HashMap<u16, UsageData>, addr: u16, priority: LabelType, from_addr: u16) {
     map.entry(addr)
         .and_modify(|(types, refs, _)| {
             *types.entry(priority).or_insert(0) += 1;
@@ -318,8 +314,7 @@ fn update_usage(
         .or_insert_with(|| {
             let mut types = HashMap::new();
             types.insert(priority, 1);
-            let mut refs = Vec::new();
-            refs.push(from_addr);
+            let refs = vec![from_addr];
             (types, refs, priority)
         });
 }

@@ -54,12 +54,10 @@ pub fn run_app<B: Backend>(
                                             "Jumped to ${:04X}",
                                             target_addr
                                         ));
-                                    } else {
-                                        if !app_state.disassembly.is_empty() {
-                                            ui_state.navigation_history.push(ui_state.cursor_index);
-                                            ui_state.cursor_index = app_state.disassembly.len() - 1;
-                                            ui_state.set_status_message("Jumped to end");
-                                        }
+                                    } else if !app_state.disassembly.is_empty() {
+                                        ui_state.navigation_history.push(ui_state.cursor_index);
+                                        ui_state.cursor_index = app_state.disassembly.len() - 1;
+                                        ui_state.set_status_message("Jumped to end");
                                     }
                                 }
                                 ActivePane::Hex => {
@@ -538,10 +536,8 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     KeyCode::Char(c) => {
-                        if ui_state.settings_dialog.is_editing_xref_count {
-                            if c.is_ascii_digit() {
-                                ui_state.settings_dialog.xref_count_input.push(c);
-                            }
+                        if ui_state.settings_dialog.is_editing_xref_count && c.is_ascii_digit() {
+                            ui_state.settings_dialog.xref_count_input.push(c);
                         }
                     }
                     _ => {}
@@ -642,8 +638,7 @@ pub fn run_app<B: Backend>(
                             }
                             ActivePane::Hex => {
                                 let bytes_per_row = 16;
-                                let total_rows =
-                                    (app_state.raw_data.len() + bytes_per_row - 1) / bytes_per_row;
+                                let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
                                 ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
                                     .min(total_rows.saturating_sub(1));
                             }
@@ -815,8 +810,7 @@ pub fn run_app<B: Backend>(
                         }
                         ActivePane::Hex => {
                             let bytes_per_row = 16;
-                            let total_rows =
-                                (app_state.raw_data.len() + bytes_per_row - 1) / bytes_per_row;
+                            let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
                             if ui_state.hex_cursor_index < total_rows.saturating_sub(1) {
                                 ui_state.hex_cursor_index += 1;
                             }
@@ -861,8 +855,7 @@ pub fn run_app<B: Backend>(
                         }
                         ActivePane::Hex => {
                             let bytes_per_row = 16;
-                            let total_rows =
-                                (app_state.raw_data.len() + bytes_per_row - 1) / bytes_per_row;
+                            let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
                             ui_state.hex_cursor_index =
                                 (ui_state.hex_cursor_index + 10).min(total_rows.saturating_sub(1));
                         }
@@ -886,8 +879,7 @@ pub fn run_app<B: Backend>(
                         }
                         ActivePane::Hex => {
                             let bytes_per_row = 16;
-                            let total_rows =
-                                (app_state.raw_data.len() + bytes_per_row - 1) / bytes_per_row;
+                            let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
                             ui_state.hex_cursor_index = total_rows.saturating_sub(1);
                         }
                     },
@@ -942,7 +934,7 @@ fn handle_menu_action(
         }
         MenuAction::ExportProject => {
             if let Some(path) = &app_state.export_path {
-                if let Err(e) = crate::exporter::export_asm(&app_state, &path) {
+                if let Err(e) = crate::exporter::export_asm(app_state, path) {
                     ui_state.set_status_message(format!("Error exporting: {}", e));
                 } else {
                     ui_state.set_status_message("Project Exported");

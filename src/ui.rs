@@ -658,7 +658,7 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
     let visible_height = inner_area.height as usize;
     // Each row is 16 bytes
     let bytes_per_row = 16;
-    let total_rows = (app_state.raw_data.len() + bytes_per_row - 1) / bytes_per_row;
+    let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
 
     let context_lines = visible_height / 2;
     let offset = ui_state.hex_cursor_index.saturating_sub(context_lines);
@@ -764,6 +764,16 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
     let context_lines = visible_height / 2;
     let offset = ui_state.cursor_index.saturating_sub(context_lines);
 
+    let mut current_line_num: usize = 1;
+    for i in 0..offset {
+        if let Some(line) = app_state.disassembly.get(i) {
+            if line.line_comment.is_some() {
+                current_line_num += 1;
+            }
+            current_line_num += 1;
+        }
+    }
+
     let items: Vec<ListItem> = app_state
         .disassembly
         .iter()
@@ -800,13 +810,24 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             let mut item_lines = Vec::new();
 
             if let Some(line_comment) = &line.line_comment {
-                item_lines.push(Line::from(vec![Span::styled(
-                    format!("      ; {}", line_comment),
-                    Style::default().fg(Color::LightCyan),
-                )]));
+                item_lines.push(Line::from(vec![
+                    Span::styled(
+                        format!("{:5} ", current_line_num),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::styled(
+                        format!("      ; {}", line_comment),
+                        Style::default().fg(Color::LightCyan),
+                    ),
+                ]));
+                current_line_num += 1;
             }
 
             let content = Line::from(vec![
+                Span::styled(
+                    format!("{:5} ", current_line_num),
+                    Style::default().fg(Color::DarkGray),
+                ),
                 Span::styled(
                     format!("{:04X}  ", line.address),
                     Style::default().fg(Color::Yellow),
@@ -844,6 +865,7 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 ),
             ]);
             item_lines.push(content);
+            current_line_num += 1;
 
             ListItem::new(item_lines).style(style)
         })
