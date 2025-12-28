@@ -663,6 +663,13 @@ pub fn run_app<B: Backend>(
                             crate::ui_state::MenuAction::Redo,
                         );
                     }
+                    KeyCode::Char('2') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::ToggleHexView,
+                        );
+                    }
 
                     KeyCode::Char('g') => {
                         handle_menu_action(
@@ -695,7 +702,6 @@ pub fn run_app<B: Backend>(
                         }
                     }
 
-                    // Data Conversion Shortcuts
                     // Data Conversion Shortcuts
                     KeyCode::Char('c') => {
                         if ui_state.active_pane == ActivePane::Disassembly {
@@ -1226,6 +1232,18 @@ fn handle_menu_action(
                     .comment_dialog
                     .open(current_comment, crate::ui_state::CommentType::Line);
                 ui_state.set_status_message(format!("Edit Line Comment at ${:04X}", address));
+            }
+        }
+        MenuAction::ToggleHexView => {
+            ui_state.show_hex_view = !ui_state.show_hex_view;
+            if ui_state.show_hex_view {
+                ui_state.set_status_message("Hex View Shown");
+            } else {
+                ui_state.set_status_message("Hex View Hidden");
+                // If we were in Hex view, switch to Disassembly
+                if ui_state.active_pane == ActivePane::Hex {
+                    ui_state.active_pane = ActivePane::Disassembly;
+                }
             }
         }
     }

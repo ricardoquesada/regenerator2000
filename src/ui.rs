@@ -622,19 +622,23 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::ui_state
 }
 
 fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
-    // Calculate required width for Hex View
-    // Address (4) + Space (2) + Hex (49) + Separator (2) + ASCII (16) + Borders (2) = 75
-    let hex_view_width = 75;
-    let max_width = area.width / 2;
-    let actual_width = std::cmp::min(hex_view_width, max_width);
+    if ui_state.show_hex_view {
+        // Calculate required width for Hex View
+        // Address (4) + Space (2) + Hex (49) + Separator (2) + ASCII (16) + Borders (2) = 75
+        let hex_view_width = 75;
+        let max_width = area.width / 2;
+        let actual_width = std::cmp::min(hex_view_width, max_width);
 
-    let chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Min(0), Constraint::Length(actual_width)])
-        .split(area);
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Min(0), Constraint::Length(actual_width)])
+            .split(area);
 
-    render_disassembly(f, chunks[0], app_state, ui_state);
-    render_hex_view(f, chunks[1], app_state, ui_state);
+        render_disassembly(f, chunks[0], app_state, ui_state);
+        render_hex_view(f, chunks[1], app_state, ui_state);
+    } else {
+        render_disassembly(f, area, app_state, ui_state);
+    }
 }
 
 fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {

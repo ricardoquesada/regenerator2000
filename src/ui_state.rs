@@ -40,6 +40,7 @@ pub enum MenuAction {
     SetPetsciiShifted,
     SideComment,
     LineComment,
+    ToggleHexView,
     About,
 }
 
@@ -364,6 +365,12 @@ impl MenuState {
                             Some("Ctrl+L"),
                             Some(MenuAction::SetPetsciiShifted),
                         ),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Toggle Hex View",
+                            Some("Ctrl+2"),
+                            Some(MenuAction::ToggleHexView),
+                        ),
                     ],
                 },
                 MenuCategory {
@@ -501,6 +508,7 @@ pub struct UIState {
     pub hex_cursor_index: usize,
     #[allow(dead_code)]
     pub hex_scroll_index: usize,
+    pub show_hex_view: bool,
     pub petscii_mode: PetsciiMode,
 
     pub active_pane: ActivePane,
@@ -530,6 +538,7 @@ impl UIState {
             scroll_index: 0,
             hex_cursor_index: 0,
             hex_scroll_index: 0,
+            show_hex_view: true,
             petscii_mode: PetsciiMode::Unshifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,
