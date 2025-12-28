@@ -11,6 +11,8 @@ use formatter::Formatter;
 use tass::TassFormatter;
 
 #[cfg(test)]
+mod system_comments_tests;
+#[cfg(test)]
 mod tests;
 
 #[derive(Debug, Clone)]
@@ -77,6 +79,7 @@ impl Disassembler {
                     settings,
                     label_name,
                     comment,
+                    system_comments,
                 ),
                 BlockType::DataByte => self.handle_data_byte(
                     pc,
@@ -110,6 +113,7 @@ impl Disassembler {
                     origin,
                     label_name,
                     comment,
+                    system_comments,
                 ),
                 BlockType::Text => self.handle_text(
                     pc,
@@ -140,6 +144,43 @@ impl Disassembler {
         }
 
         lines
+    }
+
+    fn get_target_address(&self, opcode: &Opcode, bytes: &[u8], address: u16) -> Option<u16> {
+        use crate::cpu::AddressingMode;
+        // bytes[0] is opcode, bytes[1..] are operands
+        match opcode.mode {
+            AddressingMode::Absolute
+            | AddressingMode::AbsoluteX
+            | AddressingMode::AbsoluteY
+            | AddressingMode::Indirect => {
+                if bytes.len() >= 3 {
+                    Some((bytes[2] as u16) << 8 | (bytes[1] as u16))
+                } else {
+                    None
+                }
+            }
+            AddressingMode::ZeroPage
+            | AddressingMode::ZeroPageX
+            | AddressingMode::ZeroPageY
+            | AddressingMode::IndirectX
+            | AddressingMode::IndirectY => {
+                if bytes.len() >= 2 {
+                    Some(bytes[1] as u16)
+                } else {
+                    None
+                }
+            }
+            AddressingMode::Relative => {
+                if bytes.len() >= 2 {
+                    let offset = bytes[1] as i8;
+                    Some(address.wrapping_add(2).wrapping_add(offset as u16))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     }
 
     fn get_label_name(
@@ -200,7 +241,8 @@ impl Disassembler {
         labels: &HashMap<u16, Vec<Label>>,
         settings: &DocumentSettings,
         label_name: Option<String>,
-        comment: String,
+        mut comment: String,
+        system_comments: &HashMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let opcode_byte = data[pc];
         let opcode_opt = &self.opcodes[opcode_byte as usize];
@@ -223,6 +265,16 @@ impl Disassembler {
                 if !collision {
                     for i in 1..opcode.size {
                         bytes.push(data[pc + i as usize]);
+                    }
+
+                    // Append referenced address comment if any
+                    if let Some(target_addr) = self.get_target_address(opcode, &bytes, address) {
+                        if let Some(target_comment) = system_comments.get(&target_addr) {
+                            if !comment.is_empty() {
+                                comment.push_str("; ");
+                            }
+                            comment.push_str(target_comment);
+                        }
                     }
 
                     let target_context = match opcode.mode {
@@ -435,7 +487,8 @@ impl Disassembler {
         labels: &HashMap<u16, Vec<Label>>,
         origin: u16,
         label_name: Option<String>,
-        comment: String,
+        mut comment: String,
+        system_comments: &HashMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -458,6 +511,15 @@ impl Disassembler {
             let low = data[current_pc_start];
             let high = data[current_pc_start + 1];
             let val = (high as u16) << 8 | (low as u16);
+
+            // START: Append comment for the address value
+            if let Some(target_comment) = system_comments.get(&val) {
+                if !comment.is_empty() {
+                    comment.push_str("; ");
+                }
+                comment.push_str(target_comment);
+            }
+            // END: Append comment
 
             bytes.push(low);
             bytes.push(high);
