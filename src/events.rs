@@ -837,10 +837,28 @@ pub fn run_app<B: Backend>(
                         }
                     }
 
+                    // Visual Mode Toggle
+                    KeyCode::Char('V') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            ui_state.is_visual_mode = !ui_state.is_visual_mode;
+                            if ui_state.is_visual_mode {
+                                if ui_state.selection_start.is_none() {
+                                    ui_state.selection_start = Some(ui_state.cursor_index);
+                                }
+                                ui_state.set_status_message("Visual Mode");
+                            } else {
+                                ui_state.selection_start = None;
+                                ui_state.set_status_message("Visual Mode Exited");
+                            }
+                        }
+                    }
+
                     // Normal Navigation
                     KeyCode::Down | KeyCode::Char('j') => match ui_state.active_pane {
                         ActivePane::Disassembly => {
-                            if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            if key.modifiers.contains(KeyModifiers::SHIFT)
+                                || ui_state.is_visual_mode
+                            {
                                 if ui_state.selection_start.is_none() {
                                     ui_state.selection_start = Some(ui_state.cursor_index);
                                 }
@@ -863,7 +881,9 @@ pub fn run_app<B: Backend>(
                     },
                     KeyCode::Up | KeyCode::Char('k') => match ui_state.active_pane {
                         ActivePane::Disassembly => {
-                            if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            if key.modifiers.contains(KeyModifiers::SHIFT)
+                                || ui_state.is_visual_mode
+                            {
                                 if ui_state.selection_start.is_none() {
                                     ui_state.selection_start = Some(ui_state.cursor_index);
                                 }
@@ -888,7 +908,11 @@ pub fn run_app<B: Backend>(
                         };
                     }
                     KeyCode::Esc => {
-                        if ui_state.selection_start.is_some() {
+                        if ui_state.is_visual_mode {
+                            ui_state.is_visual_mode = false;
+                            ui_state.selection_start = None;
+                            ui_state.set_status_message("Visual Mode Exited");
+                        } else if ui_state.selection_start.is_some() {
                             ui_state.selection_start = None;
                             ui_state.set_status_message("Selection cleared");
                         }

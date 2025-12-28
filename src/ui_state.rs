@@ -533,6 +533,7 @@ pub struct UIState {
     pub logo: Option<DynamicImage>,
     pub picker: Option<Picker>,
     pub dismiss_logo: bool,
+    pub is_visual_mode: bool,
 }
 
 impl UIState {
@@ -561,6 +562,7 @@ impl UIState {
             logo: crate::utils::load_logo(),
             picker: crate::utils::create_picker(),
             dismiss_logo: false,
+            is_visual_mode: false,
         }
     }
 
