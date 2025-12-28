@@ -191,6 +191,8 @@ pub struct ProjectState {
     #[serde(default)]
     pub labels: HashMap<u16, Vec<Label>>,
     #[serde(default)]
+    pub user_comments: HashMap<u16, String>,
+    #[serde(default)]
     pub settings: DocumentSettings,
     #[serde(default)]
     pub cursor_address: Option<u16>,
@@ -210,6 +212,7 @@ pub struct AppState {
     pub labels: HashMap<u16, Vec<Label>>,
     pub settings: DocumentSettings,
     pub system_comments: HashMap<u16, String>,
+    pub user_comments: HashMap<u16, String>,
 
     pub undo_stack: crate::commands::UndoStack,
 }
@@ -228,6 +231,7 @@ impl AppState {
             labels: HashMap::new(),
             settings: DocumentSettings::default(),
             system_comments: HashMap::new(),
+            user_comments: HashMap::new(),
             undo_stack: crate::commands::UndoStack::new(),
         }
     }
@@ -260,6 +264,7 @@ impl AppState {
         self.project_path = None; // clear project path
         self.labels.clear(); // clear existing labels
         self.settings = DocumentSettings::default(); // reset settings
+        self.user_comments.clear();
 
         if let Some(ext) = self
             .file_path
@@ -304,6 +309,7 @@ impl AppState {
         // Expand address types
         self.block_types = expand_blocks(&project.blocks, self.raw_data.len());
         self.labels = project.labels;
+        self.user_comments = project.user_comments;
         self.settings = project.settings;
 
         self.load_system_assets();
@@ -338,6 +344,7 @@ impl AppState {
                     })
                     .filter(|(_, v)| !v.is_empty())
                     .collect(),
+                user_comments: self.user_comments.clone(),
                 settings: self.settings,
                 cursor_address,
             };
@@ -590,6 +597,7 @@ impl AppState {
             self.origin,
             &self.settings,
             &self.system_comments,
+            &self.user_comments,
         );
 
         // Add external label definitions at the top

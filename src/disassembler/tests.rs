@@ -23,6 +23,7 @@ fn test_tass_formatting_force_w() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -51,6 +52,7 @@ fn test_tass_formatting_no_force_if_disabled() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -75,6 +77,7 @@ fn test_acme_formatting_basic() {
         &labels,
         origin,
         &settings,
+        &HashMap::new(),
         &HashMap::new(),
     );
 
@@ -102,6 +105,7 @@ fn test_acme_directives() {
         &labels,
         origin,
         &settings,
+        &HashMap::new(),
         &HashMap::new(),
     );
 
@@ -182,6 +186,7 @@ fn test_contextual_label_formatting() {
         &labels,
         origin,
         &settings,
+        &HashMap::new(),
         &HashMap::new(),
     );
 
@@ -273,6 +278,7 @@ fn test_acme_lowercase_output() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
 
     assert_eq!(lines.len(), 2);
@@ -306,6 +312,7 @@ fn test_acme_plus2_formatting() {
         &labels,
         origin,
         &settings,
+        &HashMap::new(),
         &HashMap::new(),
     );
 
@@ -347,6 +354,7 @@ fn test_xref_formatting_with_dollar() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -387,6 +395,7 @@ fn test_xref_count_configurable() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
     assert_eq!(lines.len(), 1);
     // Should show 5 items
@@ -403,6 +412,7 @@ fn test_xref_count_configurable() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
     let comment = &lines[0].comment;
     assert!(comment.contains("$2000, $2001"));
@@ -416,6 +426,7 @@ fn test_xref_count_configurable() {
         &labels,
         origin,
         &settings,
+        &HashMap::new(),
         &HashMap::new(),
     );
     assert!(lines[0].comment.is_empty());
@@ -441,6 +452,7 @@ fn test_text_and_screencode_disassembly() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
 
     // Tass formatting produces 4 lines: .ENCODE, .ENC "ASCII", .TEXT "ABC", .ENDENCODE
@@ -457,6 +469,7 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
+        &HashMap::new(),
         &HashMap::new(),
     );
     assert_eq!(lines.len(), 1);
@@ -480,6 +493,7 @@ fn test_text_and_screencode_disassembly() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!scr");
@@ -495,6 +509,7 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
+        &HashMap::new(),
         &HashMap::new(),
     );
     // For Tass, this will produce 4 lines: ENCODE, ENC, BYTE, ENDENCODE
@@ -537,6 +552,7 @@ fn test_text_mixed_content() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
 
     // Filter relevant lines (Tass wraps in ENCODE)
@@ -574,6 +590,7 @@ fn test_text_escaping() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
     assert_eq!(lines_acme.len(), 1);
     assert_eq!(lines_acme[0].operand, "\"Quote \\\" Backslash \\\\\"");
@@ -586,6 +603,7 @@ fn test_text_escaping() {
         &labels,
         origin,
         &settings,
+        &HashMap::new(),
         &HashMap::new(),
     );
 
@@ -638,6 +656,7 @@ fn test_screencode_mixed() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
     assert_eq!(lines_acme.len(), 1);
     // !scr "\"" (escaped quote), $ff, "\""
@@ -652,6 +671,7 @@ fn test_screencode_mixed() {
         &labels,
         origin,
         &settings,
+        &HashMap::new(),
         &HashMap::new(),
     );
     // .TEXT """""", $FF, """"""
@@ -694,6 +714,7 @@ fn test_tass_screencode_enc_wrapping() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
 
     assert_eq!(lines.len(), 4);
@@ -731,6 +752,7 @@ fn test_tass_screencode_multiline_wrapping() {
         &labels,
         origin,
         &settings,
+        &HashMap::new(),
         &HashMap::new(),
     );
 
@@ -784,6 +806,7 @@ fn test_tass_block_separation() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
 
     // Block 1 (SC) -> 4 lines (Start, Enc, Text, End)
@@ -835,6 +858,7 @@ fn test_tass_label_interruption() {
         &labels,
         origin,
         &settings,
+        &HashMap::new(),
         &HashMap::new(),
     );
 
@@ -890,6 +914,7 @@ fn test_tass_screencode_single_byte_special() {
         origin,
         &settings,
         &HashMap::new(),
+        &HashMap::new(),
     );
 
     // Expected:
@@ -934,6 +959,7 @@ mod tests {
             origin,
             &settings,
             &HashMap::new(),
+            &HashMap::new(),
         );
 
         assert_eq!(lines_a.len(), 4);
@@ -955,6 +981,7 @@ mod tests {
             &labels,
             origin,
             &settings,
+            &HashMap::new(),
             &HashMap::new(),
         );
 
@@ -984,6 +1011,7 @@ mod tests {
             &labels,
             origin,
             &settings,
+            &HashMap::new(),
             &HashMap::new(),
         );
 
@@ -1025,6 +1053,7 @@ mod tests {
             &labels,
             origin,
             &settings,
+            &HashMap::new(),
             &HashMap::new(),
         );
 

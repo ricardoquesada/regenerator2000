@@ -16,6 +16,11 @@ pub enum Command {
         labels: std::collections::HashMap<u16, Vec<crate::state::Label>>,
         old_labels: std::collections::HashMap<u16, Vec<crate::state::Label>>,
     },
+    SetUserComment {
+        address: u16,
+        new_comment: Option<String>,
+        old_comment: Option<String>,
+    },
 }
 
 impl Command {
@@ -57,6 +62,17 @@ impl Command {
                 // Complete replacement of the map
                 state.labels = labels.clone();
             }
+            Command::SetUserComment {
+                address,
+                new_comment,
+                old_comment: _,
+            } => {
+                if let Some(comment) = new_comment {
+                    state.user_comments.insert(*address, comment.clone());
+                } else {
+                    state.user_comments.remove(address);
+                }
+            }
         }
     }
 
@@ -96,6 +112,17 @@ impl Command {
                 old_labels,
             } => {
                 state.labels = old_labels.clone();
+            }
+            Command::SetUserComment {
+                address,
+                new_comment: _,
+                old_comment,
+            } => {
+                if let Some(comment) = old_comment {
+                    state.user_comments.insert(*address, comment.clone());
+                } else {
+                    state.user_comments.remove(address);
+                }
             }
         }
     }

@@ -38,6 +38,7 @@ pub enum MenuAction {
     JumpToOperand,
     SetPetsciiUnshifted,
     SetPetsciiShifted,
+    Comment,
     About,
 }
 
@@ -196,6 +197,30 @@ impl LabelDialogState {
     }
 }
 
+pub struct CommentDialogState {
+    pub active: bool,
+    pub input: String,
+}
+
+impl CommentDialogState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            input: String::new(),
+        }
+    }
+
+    pub fn open(&mut self, current_comment: Option<&str>) {
+        self.active = true;
+        self.input = current_comment.unwrap_or("").to_string();
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+        self.input.clear();
+    }
+}
+
 pub struct SettingsDialogState {
     pub active: bool,
     pub selected_index: usize,
@@ -299,6 +324,8 @@ impl MenuState {
                         MenuItem::new("Address", Some("A"), Some(MenuAction::Address)),
                         MenuItem::new("Text", Some("T"), Some(MenuAction::Text)),
                         MenuItem::new("Screencode", Some("S"), Some(MenuAction::Screencode)),
+                        MenuItem::separator(),
+                        MenuItem::new("Comment", Some(";"), Some(MenuAction::Comment)),
                         MenuItem::separator(),
                         MenuItem::new("Analyze", None, Some(MenuAction::Analyze)),
                         MenuItem::separator(),
@@ -440,6 +467,7 @@ pub struct UIState {
     pub jump_dialog: JumpDialogState,
     pub save_dialog: SaveDialogState,
     pub label_dialog: LabelDialogState,
+    pub comment_dialog: CommentDialogState,
     pub settings_dialog: SettingsDialogState,
     pub about_dialog: AboutDialogState,
     pub menu: MenuState,
@@ -476,6 +504,7 @@ impl UIState {
             jump_dialog: JumpDialogState::new(),
             save_dialog: SaveDialogState::new(),
             label_dialog: LabelDialogState::new(),
+            comment_dialog: CommentDialogState::new(),
             settings_dialog: SettingsDialogState::new(),
             about_dialog: AboutDialogState::new(),
             menu: MenuState::new(),

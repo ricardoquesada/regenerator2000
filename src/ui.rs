@@ -44,6 +44,10 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         render_label_dialog(f, f.area(), &ui_state.label_dialog);
     }
 
+    if ui_state.comment_dialog.active {
+        render_comment_dialog(f, f.area(), &ui_state.comment_dialog);
+    }
+
     if ui_state.settings_dialog.active {
         render_settings_dialog(f, f.area(), app_state, &ui_state.settings_dialog);
     }
@@ -398,6 +402,23 @@ fn render_label_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::Labe
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Enter Label Name ")
+        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+
+    let area = centered_rect(50, 20, area);
+    f.render_widget(ratatui::widgets::Clear, area);
+
+    let input = Paragraph::new(dialog.input.clone()).block(block).style(
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    );
+    f.render_widget(input, area);
+}
+
+fn render_comment_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::CommentDialogState) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Enter Comment ")
         .style(Style::default().bg(Color::DarkGray).fg(Color::White));
 
     let area = centered_rect(50, 20, area);

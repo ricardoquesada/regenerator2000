@@ -232,6 +232,46 @@ pub fn run_app<B: Backend>(
                     }
                     _ => {}
                 }
+            } else if ui_state.comment_dialog.active {
+                match key.code {
+                    KeyCode::Esc => {
+                        ui_state.comment_dialog.close();
+                        ui_state.set_status_message("Ready");
+                    }
+                    KeyCode::Enter => {
+                        if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                            let address = line.address;
+                            let new_comment = ui_state.comment_dialog.input.trim().to_string();
+                            let new_comment_opt = if new_comment.is_empty() {
+                                None
+                            } else {
+                                Some(new_comment)
+                            };
+
+                            let old_comment = app_state.user_comments.get(&address).cloned();
+
+                            let command = crate::commands::Command::SetUserComment {
+                                address,
+                                new_comment: new_comment_opt,
+                                old_comment,
+                            };
+
+                            command.apply(&mut app_state);
+                            app_state.undo_stack.push(command);
+
+                            ui_state.set_status_message("Comment set");
+                            app_state.disassemble();
+                            ui_state.comment_dialog.close();
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        ui_state.comment_dialog.input.pop();
+                    }
+                    KeyCode::Char(c) => {
+                        ui_state.comment_dialog.input.push(c);
+                    }
+                    _ => {}
+                }
             } else if ui_state.file_picker.active {
                 match key.code {
                     KeyCode::Esc => {
@@ -698,6 +738,15 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
+                    KeyCode::Char(';') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::Comment,
+                            )
+                        }
+                    }
 
                     // Label
                     KeyCode::Char('l') => {
@@ -1130,6 +1179,14 @@ fn handle_menu_action(
         MenuAction::SetPetsciiShifted => {
             ui_state.petscii_mode = crate::ui_state::PetsciiMode::Shifted;
             ui_state.set_status_message("PETSCII Mode: Shifted");
+        }
+        MenuAction::Comment => {
+            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                let address = line.address;
+                let current_comment = app_state.user_comments.get(&address).map(|s| s.as_str());
+                ui_state.comment_dialog.open(current_comment);
+                ui_state.set_status_message(format!("Edit Comment at ${:04X}", address));
+            }
         }
     }
 }

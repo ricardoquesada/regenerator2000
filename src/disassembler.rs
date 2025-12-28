@@ -14,6 +14,8 @@ use tass::TassFormatter;
 mod system_comments_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod user_comments_tests;
 
 #[derive(Debug, Clone)]
 pub struct DisassemblyLine {
@@ -54,6 +56,7 @@ impl Disassembler {
         origin: u16,
         settings: &DocumentSettings,
         system_comments: &HashMap<u16, String>,
+        user_comments: &HashMap<u16, String>,
     ) -> Vec<DisassemblyLine> {
         let formatter = Self::create_formatter(settings.assembler);
 
@@ -64,7 +67,8 @@ impl Disassembler {
             let address = origin.wrapping_add(pc as u16);
 
             let label_name = self.get_label_name(address, labels, formatter.as_ref());
-            let comment = self.get_comment(address, labels, settings, system_comments);
+            let comment =
+                self.get_comment(address, labels, settings, system_comments, user_comments);
 
             let current_type = block_types.get(pc).copied().unwrap_or(BlockType::Code);
 
@@ -80,6 +84,7 @@ impl Disassembler {
                     label_name,
                     comment,
                     system_comments,
+                    user_comments,
                 ),
                 BlockType::DataByte => self.handle_data_byte(
                     pc,
@@ -114,6 +119,7 @@ impl Disassembler {
                     label_name,
                     comment,
                     system_comments,
+                    user_comments,
                 ),
                 BlockType::Text => self.handle_text(
                     pc,
@@ -201,11 +207,13 @@ impl Disassembler {
         labels: &HashMap<u16, Vec<Label>>,
         settings: &DocumentSettings,
         system_comments: &HashMap<u16, String>,
+        user_comments: &HashMap<u16, String>,
     ) -> String {
         let mut comment_parts = Vec::new();
 
-        // System comment
-        if let Some(sys_comment) = system_comments.get(&address) {
+        if let Some(user_comment) = user_comments.get(&address) {
+            comment_parts.push(user_comment.clone());
+        } else if let Some(sys_comment) = system_comments.get(&address) {
             comment_parts.push(sys_comment.clone());
         }
 
@@ -243,6 +251,7 @@ impl Disassembler {
         label_name: Option<String>,
         mut comment: String,
         system_comments: &HashMap<u16, String>,
+        user_comments: &HashMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let opcode_byte = data[pc];
         let opcode_opt = &self.opcodes[opcode_byte as usize];
@@ -269,7 +278,13 @@ impl Disassembler {
 
                     // Append referenced address comment if any
                     if let Some(target_addr) = self.get_target_address(opcode, &bytes, address) {
-                        if let Some(target_comment) = system_comments.get(&target_addr) {
+                        let target_comment = if let Some(c) = user_comments.get(&target_addr) {
+                            Some(c)
+                        } else {
+                            system_comments.get(&target_addr)
+                        };
+
+                        if let Some(target_comment) = target_comment {
                             if !comment.is_empty() {
                                 comment.push_str("; ");
                             }
@@ -489,6 +504,7 @@ impl Disassembler {
         label_name: Option<String>,
         mut comment: String,
         system_comments: &HashMap<u16, String>,
+        user_comments: &HashMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -513,7 +529,13 @@ impl Disassembler {
             let val = (high as u16) << 8 | (low as u16);
 
             // START: Append comment for the address value
-            if let Some(target_comment) = system_comments.get(&val) {
+            let target_comment = if let Some(c) = user_comments.get(&val) {
+                Some(c)
+            } else {
+                system_comments.get(&val)
+            };
+
+            if let Some(target_comment) = target_comment {
                 if !comment.is_empty() {
                     comment.push_str("; ");
                 }

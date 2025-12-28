@@ -28,6 +28,7 @@ fn test_system_comments_logic() {
         origin,
         &settings,
         &system_comments,
+        &HashMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
