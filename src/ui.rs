@@ -404,7 +404,24 @@ fn render_label_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::Labe
         .title(" Enter Label Name ")
         .style(Style::default().bg(Color::DarkGray).fg(Color::White));
 
-    let area = centered_rect(50, 20, area);
+    // Fixed height of 3 (Border + Input + Border)
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Fill(1),
+            Constraint::Length(3),
+            Constraint::Fill(1),
+        ])
+        .split(area);
+
+    let area = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(25),
+            Constraint::Percentage(50),
+            Constraint::Percentage(25),
+        ])
+        .split(layout[1])[1];
     f.render_widget(ratatui::widgets::Clear, area);
 
     let input = Paragraph::new(dialog.input.clone()).block(block).style(
@@ -416,12 +433,34 @@ fn render_label_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::Labe
 }
 
 fn render_comment_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::CommentDialogState) {
+    let title = match dialog.comment_type {
+        crate::ui_state::CommentType::Line => " Enter Line Comment ",
+        crate::ui_state::CommentType::Side => " Enter Side Comment ",
+    };
+
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(" Enter Comment ")
+        .title(title)
         .style(Style::default().bg(Color::DarkGray).fg(Color::White));
 
-    let area = centered_rect(50, 20, area);
+    // Fixed height of 3 (Border + Input + Border)
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Fill(1),
+            Constraint::Length(3),
+            Constraint::Fill(1),
+        ])
+        .split(area);
+
+    let area = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(25),
+            Constraint::Percentage(50),
+            Constraint::Percentage(25),
+        ])
+        .split(layout[1])[1];
     f.render_widget(ratatui::widgets::Clear, area);
 
     let input = Paragraph::new(dialog.input.clone()).block(block).style(
@@ -444,7 +483,24 @@ fn render_save_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::SaveD
         .title(title)
         .style(Style::default().bg(Color::DarkGray).fg(Color::White));
 
-    let area = centered_rect(50, 20, area);
+    // Fixed height of 3 (Border + Input + Border)
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Fill(1),
+            Constraint::Length(3),
+            Constraint::Fill(1),
+        ])
+        .split(area);
+
+    let area = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(25),
+            Constraint::Percentage(50),
+            Constraint::Percentage(25),
+        ])
+        .split(layout[1])[1];
     f.render_widget(ratatui::widgets::Clear, area);
 
     let input = Paragraph::new(dialog.input.clone()).block(block).style(
@@ -456,12 +512,34 @@ fn render_save_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::SaveD
 }
 
 fn render_jump_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::JumpDialogState) {
+    let title = match dialog.mode {
+        crate::ui_state::JumpDialogMode::Address => " Jump to Address (Hex) ",
+        crate::ui_state::JumpDialogMode::Line => " Jump to Line (Dec) ",
+    };
+
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(" Jump to Address (Hex) ")
+        .title(title)
         .style(Style::default().bg(Color::DarkGray).fg(Color::White));
 
-    let area = centered_rect(40, 20, area);
+    // Fixed height of 3 (Border + Input + Border)
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Fill(1),
+            Constraint::Length(3),
+            Constraint::Fill(1),
+        ])
+        .split(area);
+
+    let area = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(30),
+            Constraint::Percentage(40),
+            Constraint::Percentage(30),
+        ])
+        .split(layout[1])[1];
     f.render_widget(ratatui::widgets::Clear, area);
 
     let input = Paragraph::new(dialog.input.clone()).block(block).style(

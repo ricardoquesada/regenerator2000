@@ -26,73 +26,108 @@ pub fn run_app<B: Backend>(
                     }
                     KeyCode::Enter => {
                         let input = &ui_state.jump_dialog.input;
-                        if let Ok(addr) = u16::from_str_radix(input, 16) {
-                            let target_addr = addr;
+                        match ui_state.jump_dialog.mode {
+                            crate::ui_state::JumpDialogMode::Address => {
+                                if let Ok(addr) = u16::from_str_radix(input, 16) {
+                                    let target_addr = addr;
 
-                            match ui_state.active_pane {
-                                ActivePane::Disassembly => {
-                                    // Find closest address in disassembly
-                                    let mut found_idx = None;
-                                    for (i, line) in app_state.disassembly.iter().enumerate() {
-                                        if line.address == target_addr {
-                                            found_idx = Some(i);
-                                            break;
-                                        } else if line.address > target_addr {
-                                            if i > 0 {
-                                                found_idx = Some(i - 1);
-                                            } else {
-                                                found_idx = Some(0);
+                                    match ui_state.active_pane {
+                                        ActivePane::Disassembly => {
+                                            // Find closest address in disassembly
+                                            let mut found_idx = None;
+                                            for (i, line) in
+                                                app_state.disassembly.iter().enumerate()
+                                            {
+                                                if line.address == target_addr {
+                                                    found_idx = Some(i);
+                                                    break;
+                                                } else if line.address > target_addr {
+                                                    if i > 0 {
+                                                        found_idx = Some(i - 1);
+                                                    } else {
+                                                        found_idx = Some(0);
+                                                    }
+                                                    break;
+                                                }
                                             }
-                                            break;
+
+                                            if let Some(idx) = found_idx {
+                                                ui_state
+                                                    .navigation_history
+                                                    .push(ui_state.cursor_index);
+                                                ui_state.cursor_index = idx;
+                                                ui_state.set_status_message(format!(
+                                                    "Jumped to ${:04X}",
+                                                    target_addr
+                                                ));
+                                            } else if !app_state.disassembly.is_empty() {
+                                                ui_state
+                                                    .navigation_history
+                                                    .push(ui_state.cursor_index);
+                                                ui_state.cursor_index =
+                                                    app_state.disassembly.len() - 1;
+                                                ui_state.set_status_message("Jumped to end");
+                                            }
+                                        }
+                                        ActivePane::Hex => {
+                                            let origin = app_state.origin as usize;
+                                            let target = target_addr as usize;
+                                            let data_len = app_state.raw_data.len();
+                                            let end_addr = origin + data_len;
+
+                                            if target >= origin && target < end_addr {
+                                                let offset = target - origin;
+                                                let row = offset / 16;
+                                                ui_state.hex_cursor_index = row;
+                                                ui_state.set_status_message(format!(
+                                                    "Jumped to ${:04X}",
+                                                    target_addr
+                                                ));
+                                            } else {
+                                                ui_state.set_status_message("Address out of range");
+                                            }
                                         }
                                     }
 
-                                    if let Some(idx) = found_idx {
-                                        ui_state.navigation_history.push(ui_state.cursor_index);
-                                        ui_state.cursor_index = idx;
-                                        ui_state.set_status_message(format!(
-                                            "Jumped to ${:04X}",
-                                            target_addr
-                                        ));
-                                    } else if !app_state.disassembly.is_empty() {
-                                        ui_state.navigation_history.push(ui_state.cursor_index);
-                                        ui_state.cursor_index = app_state.disassembly.len() - 1;
-                                        ui_state.set_status_message("Jumped to end");
-                                    }
-                                }
-                                ActivePane::Hex => {
-                                    let origin = app_state.origin as usize;
-                                    let target = target_addr as usize;
-                                    let data_len = app_state.raw_data.len();
-                                    let end_addr = origin + data_len;
-
-                                    if target >= origin && target < end_addr {
-                                        let offset = target - origin;
-                                        let row = offset / 16;
-                                        ui_state.hex_cursor_index = row;
-                                        ui_state.set_status_message(format!(
-                                            "Jumped to ${:04X}",
-                                            target_addr
-                                        ));
-                                    } else {
-                                        ui_state.set_status_message("Address out of range");
-                                    }
+                                    ui_state.jump_dialog.close();
+                                } else {
+                                    ui_state.set_status_message("Invalid Hex Address");
                                 }
                             }
-
-                            ui_state.jump_dialog.close();
-                        } else {
-                            ui_state.set_status_message("Invalid Hex Address");
+                            crate::ui_state::JumpDialogMode::Line => {
+                                if let Ok(line_num) = input.parse::<usize>() {
+                                    if line_num > 0 && line_num <= app_state.disassembly.len() {
+                                        ui_state.navigation_history.push(ui_state.cursor_index);
+                                        ui_state.cursor_index = line_num - 1;
+                                        ui_state.set_status_message(format!(
+                                            "Jumped to line {}",
+                                            line_num
+                                        ));
+                                        ui_state.jump_dialog.close();
+                                    } else {
+                                        ui_state.set_status_message("Line number out of range");
+                                    }
+                                } else {
+                                    ui_state.set_status_message("Invalid Line Number");
+                                }
+                            }
                         }
                     }
                     KeyCode::Backspace => {
                         ui_state.jump_dialog.input.pop();
                     }
-                    KeyCode::Char(c) => {
-                        if c.is_ascii_hexdigit() && ui_state.jump_dialog.input.len() < 4 {
-                            ui_state.jump_dialog.input.push(c.to_ascii_uppercase());
+                    KeyCode::Char(c) => match ui_state.jump_dialog.mode {
+                        crate::ui_state::JumpDialogMode::Address => {
+                            if c.is_ascii_hexdigit() && ui_state.jump_dialog.input.len() < 4 {
+                                ui_state.jump_dialog.input.push(c.to_ascii_uppercase());
+                            }
                         }
-                    }
+                        crate::ui_state::JumpDialogMode::Line => {
+                            if c.is_ascii_digit() && ui_state.jump_dialog.input.len() < 10 {
+                                ui_state.jump_dialog.input.push(c);
+                            }
+                        }
+                    },
                     _ => {}
                 }
             } else if ui_state.save_dialog.active {
@@ -667,11 +702,21 @@ pub fn run_app<B: Backend>(
                     }
 
                     KeyCode::Char('g') => {
-                        handle_menu_action(
-                            &mut app_state,
-                            &mut ui_state,
-                            crate::ui_state::MenuAction::JumpToAddress,
-                        );
+                        if key.modifiers.contains(KeyModifiers::CONTROL) {
+                            if key.modifiers.contains(KeyModifiers::SHIFT) {
+                                handle_menu_action(
+                                    &mut app_state,
+                                    &mut ui_state,
+                                    crate::ui_state::MenuAction::JumpToLine,
+                                );
+                            }
+                        } else {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::JumpToAddress,
+                            );
+                        }
                     }
 
                     // Only handle Enter for Jump to Operand if NO modifiers (to avoid conflict)
@@ -1093,8 +1138,16 @@ fn handle_menu_action(
             }
         }
         MenuAction::JumpToAddress => {
-            ui_state.jump_dialog.open();
+            ui_state
+                .jump_dialog
+                .open(crate::ui_state::JumpDialogMode::Address);
             ui_state.status_message = "Enter address (Hex)".to_string();
+        }
+        MenuAction::JumpToLine => {
+            ui_state
+                .jump_dialog
+                .open(crate::ui_state::JumpDialogMode::Line);
+            ui_state.status_message = "Enter Line Number (Dec)".to_string();
         }
         MenuAction::JumpToOperand => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {

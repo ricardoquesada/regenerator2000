@@ -35,6 +35,7 @@ pub enum MenuAction {
     Analyze,
     DocumentSettings,
     JumpToAddress,
+    JumpToLine,
     JumpToOperand,
     SetPetsciiUnshifted,
     SetPetsciiShifted,
@@ -118,9 +119,16 @@ impl FilePickerState {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum JumpDialogMode {
+    Address,
+    Line,
+}
+
 pub struct JumpDialogState {
     pub active: bool,
     pub input: String,
+    pub mode: JumpDialogMode,
 }
 
 impl JumpDialogState {
@@ -128,11 +136,13 @@ impl JumpDialogState {
         Self {
             active: false,
             input: String::new(),
+            mode: JumpDialogMode::Address,
         }
     }
 
-    pub fn open(&mut self) {
+    pub fn open(&mut self, mode: JumpDialogMode) {
         self.active = true;
+        self.mode = mode;
         self.input.clear();
     }
 
@@ -380,6 +390,11 @@ impl MenuState {
                             "Jump to address",
                             Some("G"),
                             Some(MenuAction::JumpToAddress),
+                        ),
+                        MenuItem::new(
+                            "Jump to line",
+                            Some("Ctrl+Shift+G"),
+                            Some(MenuAction::JumpToLine),
                         ),
                         MenuItem::new(
                             "Jump to operand",
