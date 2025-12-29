@@ -1154,23 +1154,27 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
     for (src, dst) in sorted_arrows {
         let (low, high) = if src < dst { (src, dst) } else { (dst, src) };
 
-        let mut col = 0;
-        loop {
+        // Try to assign the rightmost column (closest to address)
+        let mut col = (max_allowed_cols as isize) - 1;
+        let mut best_col = None;
+
+        while col >= 0 {
             let has_conflict = active_arrows
                 .iter()
-                .any(|a| a.col == col && !(a.end < low || a.start > high));
+                .any(|a| a.col == col as usize && !(a.end < low || a.start > high));
 
             if !has_conflict {
+                best_col = Some(col as usize);
                 break;
             }
-            col += 1;
+            col -= 1;
         }
 
-        if col < max_allowed_cols {
+        if let Some(c) = best_col {
             active_arrows.push(ArrowInfo {
                 start: src,
                 end: dst,
-                col,
+                col: c,
             });
         }
     }
