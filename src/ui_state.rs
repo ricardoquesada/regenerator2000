@@ -18,7 +18,6 @@ pub enum PetsciiMode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuAction {
     Exit,
-    New,
     Open,
     Save,
     SaveAs,
@@ -348,7 +347,6 @@ impl MenuState {
                 MenuCategory {
                     name: "File".to_string(),
                     items: vec![
-                        MenuItem::new("New", Some("Ctrl+N"), Some(MenuAction::New)),
                         MenuItem::new("Open", Some("Ctrl+O"), Some(MenuAction::Open)),
                         MenuItem::new("Save", Some("Ctrl+S"), Some(MenuAction::Save)),
                         MenuItem::new("Save As...", Some("Ctrl+Shift+S"), Some(MenuAction::SaveAs)),

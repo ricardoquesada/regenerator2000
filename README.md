@@ -45,9 +45,8 @@ Regenerator2000 brings modern conveniences to 6502 disassembly:
 ## Keyboard Shortcuts
 
 | Context        | Action                       | Shortcut                          |
-|:---------------|:-----------------------------|:----------------------------------|
+| :------------- | :--------------------------- | :-------------------------------- |
 | **Global**     | **Exit**                     | `Ctrl + Q`                        |
-|                | **New Project**              | `Ctrl + N`                        |
 |                | **Open File**                | `Ctrl + O`                        |
 |                | **Save Project**             | `Ctrl + S`                        |
 |                | **Save Project As**          | `Ctrl + Shift + S`                |

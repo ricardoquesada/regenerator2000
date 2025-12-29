@@ -598,13 +598,6 @@ pub fn run_app<B: Backend>(
                         ui_state.set_status_message("Menu Active");
                     }
                     // Global Shortcuts
-                    KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        handle_menu_action(
-                            &mut app_state,
-                            &mut ui_state,
-                            crate::ui_state::MenuAction::New,
-                        )
-                    }
                     KeyCode::Char('o') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         handle_menu_action(
                             &mut app_state,
@@ -984,9 +977,7 @@ fn handle_menu_action(
 
     match action {
         MenuAction::Exit => ui_state.should_quit = true,
-        MenuAction::New => {
-            // Placeholder
-        }
+
         MenuAction::Open => {
             ui_state.file_picker.open();
             ui_state.set_status_message("Select a file to open");
