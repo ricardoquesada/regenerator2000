@@ -1019,3 +1019,79 @@ mod cursor_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod analysis_tests {
+    use super::*;
+
+    #[test]
+    fn test_perform_analysis_preserves_user_labels() {
+        let mut app_state = AppState::new();
+        app_state.origin = 0x1000;
+        // JMP $1005 (4C 05 10)
+        app_state.raw_data = vec![0x4C, 0x05, 0x10, 0xEA, 0xEA, 0xEA];
+        app_state.block_types = vec![BlockType::Code; 6];
+
+        // 1. Manually add a User Label
+        let user_label = Label {
+            name: "MyCustomLabel".to_string(),
+            kind: LabelKind::User,
+            label_type: LabelType::UserDefined,
+            refs: Vec::new(),
+        };
+        app_state.labels.insert(0x1005, vec![user_label]);
+
+        // 2. Perform Analysis
+        app_state.perform_analysis();
+
+        // 3. Verify User Label is PRESERVED
+        let labels = app_state.labels.get(&0x1005).expect("Should have labels");
+        assert_eq!(labels.len(), 1);
+        assert_eq!(labels[0].kind, LabelKind::User);
+        assert_eq!(labels[0].name, "MyCustomLabel");
+    }
+
+    #[test]
+    fn test_perform_analysis_preserves_system_labels() {
+        let mut app_state = AppState::new();
+        app_state.origin = 0x1000;
+        // LDA
+        app_state.raw_data = vec![0xAD, 0x20, 0xD0];
+        app_state.block_types = vec![BlockType::Code; 3];
+
+        // 1. Manually add a System Label (simulating system assets)
+        let sys_label = Label {
+            name: "VIC_BORDER_COLOR".to_string(),
+            kind: LabelKind::System,
+            label_type: LabelType::AbsoluteAddress,
+            refs: Vec::new(),
+        };
+        app_state.labels.insert(0xD020, vec![sys_label]);
+
+        // 2. Perform Analysis
+        app_state.perform_analysis();
+
+        // 3. Verify System Label is PRESERVED (if used)
+        let labels = app_state.labels.get(&0xD020).expect("Should have labels");
+        assert_eq!(labels[0].name, "VIC_BORDER_COLOR");
+        assert_eq!(labels[0].kind, LabelKind::System);
+    }
+
+    #[test]
+    fn test_perform_analysis_regenerates_arrows() {
+        let mut app_state = AppState::new();
+        app_state.origin = 0x1000;
+        // JMP  (4C 05 10)
+        app_state.raw_data = vec![0x4C, 0x05, 0x10, 0xEA, 0xEA, 0xEA];
+        app_state.block_types = vec![BlockType::Code; 6];
+
+        // Initially disassembly is empty or not matching.
+        // We call perform_analysis which should disassemble and set arrows.
+        app_state.perform_analysis();
+
+        // The first line should be the JMP instruction with target_address 1005
+        let line = &app_state.disassembly[0];
+        assert_eq!(line.mnemonic, "JMP");
+        assert_eq!(line.target_address, Some(0x1005));
+    }
+}

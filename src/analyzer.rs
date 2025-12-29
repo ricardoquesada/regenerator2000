@@ -85,9 +85,10 @@ pub fn analyze(state: &AppState) -> HashMap<u16, Vec<crate::state::Label>> {
         // Check for existing User or System labels (preserve them if used)
         if let Some(existing_vec) = state.labels.get(&addr) {
             for existing in existing_vec {
-                if existing.kind == crate::state::LabelKind::User
-                    || existing.kind == crate::state::LabelKind::System
-                {
+                let should_preserve = existing.kind == crate::state::LabelKind::User
+                    || existing.kind == crate::state::LabelKind::System;
+
+                if should_preserve {
                     addr_labels.push(crate::state::Label {
                         name: existing.name.clone(),
                         label_type: existing.label_type,
@@ -467,6 +468,7 @@ mod tests {
             BlockType::Address,
         ];
 
+        // Re-analyze reference counts and labels
         let labels = analyze(&state);
 
         // DataWord at $1000 should NOT generate label for ITSELF ($1000)
