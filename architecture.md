@@ -8,7 +8,7 @@ Regenerator2000 is an interactive disassembler for the Commodore 64, written in 
       +------------+
       | User Input |
       +-----+------+
-            | Keys/Mouse
+            | Keys
             v
       +-----+------+
       | Event Loop |
