@@ -31,6 +31,7 @@ pub struct DisassemblyLine {
     pub label: Option<String>,
     pub opcode: Option<Opcode>,
     pub show_bytes: bool,
+    pub target_address: Option<u16>,
 }
 
 pub struct Disassembler {
@@ -171,38 +172,42 @@ impl Disassembler {
 
     fn get_target_address(&self, opcode: &Opcode, bytes: &[u8], address: u16) -> Option<u16> {
         use crate::cpu::AddressingMode;
-        // bytes[0] is opcode, bytes[1..] are operands
-        match opcode.mode {
-            AddressingMode::Absolute
-            | AddressingMode::AbsoluteX
-            | AddressingMode::AbsoluteY
-            | AddressingMode::Indirect => {
-                if bytes.len() >= 3 {
-                    Some((bytes[2] as u16) << 8 | (bytes[1] as u16))
-                } else {
-                    None
+
+        // User request:
+        // - JSR and JMP (absolute) SHOULD generate arrows
+        // - Branches SHOULD generate arrows
+        // - JMP Indirect (JMP (addr)) should NOT
+        // - BRK, RTI, RTS should NOT
+
+        if opcode.mnemonic == "JSR" || opcode.mnemonic == "JMP" {
+            match opcode.mode {
+                AddressingMode::Absolute => {
+                    if bytes.len() >= 3 {
+                        Some((bytes[2] as u16) << 8 | (bytes[1] as u16))
+                    } else {
+                        None
+                    }
                 }
+                // JMP Indirect ($6C) uses AddressingMode::Indirect -> Should NOT generate arrow
+                _ => None,
             }
-            AddressingMode::ZeroPage
-            | AddressingMode::ZeroPageX
-            | AddressingMode::ZeroPageY
-            | AddressingMode::IndirectX
-            | AddressingMode::IndirectY => {
-                if bytes.len() >= 2 {
-                    Some(bytes[1] as u16)
-                } else {
-                    None
+        } else if opcode.mnemonic == "BRK" || opcode.mnemonic == "RTI" || opcode.mnemonic == "RTS" {
+            None
+        } else {
+            // Check for branches (Relative mode)
+            match opcode.mode {
+                AddressingMode::Relative => {
+                    if bytes.len() >= 2 {
+                        let offset = bytes[1] as i8;
+                        Some(address.wrapping_add(2).wrapping_add(offset as u16))
+                    } else {
+                        None
+                    }
                 }
+                // Other instructions (like data ops) generally don't have control flow "arrows" pointing to memory ops
+                // Unless we wanted arrows for generic memory access, but request specifically mentioned flow control.
+                _ => None,
             }
-            AddressingMode::Relative => {
-                if bytes.len() >= 2 {
-                    let offset = bytes[1] as i8;
-                    Some(address.wrapping_add(2).wrapping_add(offset as u16))
-                } else {
-                    None
-                }
-            }
-            _ => None,
         }
     }
 
@@ -359,6 +364,8 @@ impl Disassembler {
                         settings,
                     );
 
+                    let target_address = self.get_target_address(opcode, &bytes, address);
+
                     return (
                         opcode.size as usize,
                         vec![DisassemblyLine {
@@ -371,6 +378,7 @@ impl Disassembler {
                             label: label_name,
                             opcode: Some(opcode.clone()),
                             show_bytes: true,
+                            target_address,
                         }],
                     );
                 }
@@ -394,6 +402,7 @@ impl Disassembler {
                 label: label_name,
                 opcode: None,
                 show_bytes: true,
+                target_address: None,
             }],
         )
     }
@@ -448,6 +457,7 @@ impl Disassembler {
                 label: label_name,
                 opcode: None,
                 show_bytes: true,
+                target_address: None,
             }],
         )
     }
@@ -507,6 +517,7 @@ impl Disassembler {
                     label: label_name,
                     opcode: None,
                     show_bytes: true,
+                    target_address: None,
                 }],
             )
         } else {
@@ -606,6 +617,7 @@ impl Disassembler {
                     label: label_name,
                     opcode: None,
                     show_bytes: true,
+                    target_address: None,
                 }],
             )
         } else {
@@ -717,6 +729,7 @@ impl Disassembler {
                     label: line_label,
                     opcode: None,
                     show_bytes: false, // Text lines should not show bytes
+                    target_address: None,
                 });
             }
 
@@ -871,6 +884,7 @@ impl Disassembler {
                     label: line_label,
                     opcode: None,
                     show_bytes: false, // Hide bytes for screencode blocks logic
+                    target_address: None,
                 });
             }
 
@@ -919,6 +933,7 @@ impl Disassembler {
                     label: label_name,
                     opcode: None,
                     show_bytes: true,
+                    target_address: None,
                 }],
             )
         } else {
@@ -935,6 +950,7 @@ impl Disassembler {
                     label: None,
                     opcode: None,
                     show_bytes: true,
+                    target_address: None,
                 }],
             )
         }

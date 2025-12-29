@@ -81,6 +81,8 @@ pub struct DocumentSettings {
     pub assembler: Assembler, // default Tass64
     #[serde(default = "default_max_xref")]
     pub max_xref_count: usize, // default 5
+    #[serde(default = "default_max_arrow_columns")]
+    pub max_arrow_columns: usize, // default 8
 }
 
 fn default_true() -> bool {
@@ -89,6 +91,10 @@ fn default_true() -> bool {
 
 fn default_max_xref() -> usize {
     5
+}
+
+fn default_max_arrow_columns() -> usize {
+    8
 }
 
 impl Default for DocumentSettings {
@@ -101,6 +107,7 @@ impl Default for DocumentSettings {
             platform: Platform::default(),
             assembler: Assembler::default(),
             max_xref_count: 5,
+            max_arrow_columns: 8,
         }
     }
 }
@@ -553,6 +560,7 @@ impl AppState {
                     label: None,
                     opcode: None,
                     show_bytes: true,
+                    target_address: None,
                 });
 
                 for (addr, name) in group {
@@ -566,6 +574,7 @@ impl AppState {
                         label: None,
                         opcode: None,
                         show_bytes: true,
+                        target_address: None,
                     });
                 }
 
@@ -579,6 +588,7 @@ impl AppState {
                     label: None,
                     opcode: None,
                     show_bytes: true,
+                    target_address: None,
                 });
             }
         };
@@ -949,6 +959,7 @@ mod cursor_tests {
             label: None,
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
 
         // Simulate code at origin
@@ -962,6 +973,7 @@ mod cursor_tests {
             label: None,
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
 
         // Should return index 1 (the code), not index 0 (the header)
@@ -982,6 +994,7 @@ mod cursor_tests {
             label: None,
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
 
         // Actual code at $0000
@@ -995,6 +1008,7 @@ mod cursor_tests {
             label: None,
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
 
         let idx = app_state_zero.get_line_index_for_address(0);

@@ -1091,3 +1091,118 @@ mod tests {
         assert_eq!(lines[0].operand, "\"aA[^\", $5b, $5e");
     }
 }
+
+#[test]
+fn test_target_address_population() {
+    let settings = DocumentSettings::default();
+    let disassembler = Disassembler::new();
+    let labels = HashMap::new();
+    let origin = 0x1000;
+
+    // 1. JMP $1234 (4C 34 12)
+    // 2. BNE +4 (D0 04) -> 1003 + 2 + 4 = 1009
+    // 3. NOP (EA)
+    
+    let code = vec![
+        0x4C, 0x34, 0x12, // JMP $1234
+        0xD0, 0x04,       // BNE +4 (to 1003 + 2 + 04 = 1009)
+        0xEA,             // NOP
+    ];
+    let block_types = vec![
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+    ];
+
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+        &HashMap::new(),
+        &HashMap::new(),
+    );
+
+    assert_eq!(lines.len(), 3);
+
+    // JMP $1234
+    assert_eq!(lines[0].target_address, Some(0x1234));
+
+    // BNE +4
+    // Address of BNE is 1003. Length 2. Next PC = 1005. Offset +4. Target = 1009.
+    assert_eq!(lines[1].target_address, Some(0x1009));
+
+    // NOP
+    assert_eq!(lines[2].target_address, None);
+}
+
+#[test]
+fn test_target_address_specific_instructions() {
+    let settings = DocumentSettings::default();
+    let disassembler = Disassembler::new();
+    let labels = HashMap::new();
+    let origin = 0x1000;
+
+    // 1. JSR $2000 (20 00 20) -> Should have target
+    // 2. JMP (Indirect) (6C 34 12) -> Should NOT have target
+    // 3. RTS (60) -> Should NOT have target
+    // 4. BRK (00) -> Should NOT have target
+    // 5. RTI (40) -> Should NOT have target
+    
+    let code = vec![
+        0x20, 0x00, 0x20, // JSR $2000
+        0x6C, 0x34, 0x12, // JMP ($1234)
+        0x60,             // RTS
+        0x00,             // BRK
+        0x40,             // RTI
+    ];
+    let block_types = vec![
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+    ];
+
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &HashMap::new(),
+        &HashMap::new(),
+        &HashMap::new(),
+    );
+
+    assert_eq!(lines.len(), 5);
+
+    // JSR $2000
+    assert_eq!(lines[0].mnemonic, "JSR");
+    assert_eq!(lines[0].target_address, Some(0x2000));
+
+    // JMP ($1234)
+    assert_eq!(lines[1].mnemonic, "JMP");
+    assert_eq!(lines[1].target_address, None);
+
+    // RTS
+    assert_eq!(lines[2].mnemonic, "RTS");
+    assert_eq!(lines[2].target_address, None);
+
+    // BRK
+    assert_eq!(lines[3].mnemonic, "BRK");
+    assert_eq!(lines[3].target_address, None);
+    
+    // RTI
+    assert_eq!(lines[4].mnemonic, "RTI");
+    assert_eq!(lines[4].target_address, None);
+}

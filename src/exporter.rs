@@ -122,6 +122,7 @@ mod tests {
             label: None,
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
         // STA $D020
         state.disassembly.push(DisassemblyLine {
@@ -134,6 +135,7 @@ mod tests {
             label: None,
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
         // RTS
         state.disassembly.push(DisassemblyLine {
@@ -146,6 +148,7 @@ mod tests {
             label: None,
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
 
         // 2. Export to a temp file
@@ -251,6 +254,7 @@ mod tests {
             label: Some("aC000".to_string()),
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
 
         // Next instruction using those labels
@@ -265,6 +269,7 @@ mod tests {
             label: None,
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
 
         let file_name = "test_mid_labels.asm";
@@ -329,6 +334,7 @@ mod tests {
             label: Some("MyLabel".to_string()),
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
 
         let file_name = "test_xref_export.asm";
@@ -404,6 +410,7 @@ mod tests {
             label: None,
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
 
         let file_name = "test_external_fields.asm";
@@ -669,6 +676,7 @@ mod tests {
             label: Some("eUser".to_string()),
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
 
         let file_name = "test_external_name_check.asm";
@@ -737,6 +745,7 @@ mod tests {
                 "Load Accumulator",
             )),
             show_bytes: true,
+            target_address: None,
         });
 
         // Line 2: LDA $0012,X (Absolute X)
@@ -758,6 +767,7 @@ mod tests {
                 "Load Accumulator",
             )),
             show_bytes: true,
+            target_address: None,
         });
 
         let file_name = "test_export_force_zp.asm";
@@ -803,6 +813,7 @@ mod tests {
             label: Some("MyLabel".to_string()),
             opcode: None,
             show_bytes: true,
+            target_address: None,
         });
 
         let file_name = "test_export_line_comments.asm";

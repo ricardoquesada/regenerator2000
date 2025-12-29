@@ -1030,6 +1030,230 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
     let context_lines = visible_height / 2;
     let offset = ui_state.cursor_index.saturating_sub(context_lines);
 
+    // --- Arrow Calculation Start ---
+    // We want to find all arrows that overlap with the visible range: [offset, offset + visible_height]
+    struct ArrowInfo {
+        start: usize,
+        end: usize,
+        col: usize,
+    }
+
+    let end_view = offset + visible_height;
+
+    // Optimization: Pre-calculate map for address -> index for relevant targets
+    // Instead of full map, we just iterate.
+    // Iterating all lines is fast enough for retro code sizes (< 1ms for 64KB).
+    // But we can optimize to only checking lines that HAVE target_address.
+    // We need to know src and dst index.
+
+    // Step 1: Find all potential arrows (jumps)
+    // We just iterate all disassembly lines.
+    // For each jump, we see if it intersects our view.
+
+    let mut relevant_arrows: Vec<(usize, usize)> = Vec::new(); // (low, high) index
+
+    for (src_idx, line) in app_state.disassembly.iter().enumerate() {
+        if let Some(target_addr) = line.target_address {
+            // Find dst_idx
+            // Since disassembly can be large, linear scan for dst_idx for EVERY jump is O(Jumps * Lines).
+            // Can we do better?
+            // Use binary search if possible? app_state.disassembly is usually sorted by address.
+            if let Ok(dst_idx) = app_state
+                .disassembly
+                .binary_search_by_key(&target_addr, |l| l.address)
+            {
+                // binary_search finds *one* match. We want the code line ideally, or label line, but visually correct.
+                // Let's refine dst_idx to find the first line with that address (if multiple, e.g. label + byte).
+                let mut refined_dst = dst_idx;
+                while refined_dst > 0
+                    && app_state.disassembly[refined_dst - 1].address == target_addr
+                {
+                    refined_dst -= 1;
+                }
+                // Now refined_dst is the first line with that address.
+                // Wait, usually the label comes first.
+                // 1000: Label
+                // 1000: Code
+                // Arrow pointing to 1000 should point to Label line (index refined_dst).
+
+                let (low, high) = if src_idx < refined_dst {
+                    (src_idx, refined_dst)
+                } else {
+                    (refined_dst, src_idx)
+                };
+
+                // Check intersection with view
+                // Interval [low, high] overlaps [offset, end_view] if low <= end_view && high >= offset
+                if low <= end_view && high >= offset {
+                    relevant_arrows.push((src_idx, refined_dst));
+                }
+            }
+        }
+    }
+
+    // Step 1.5: Filter pass-through arrows and limit columns
+    let mut filtered_arrows = Vec::new();
+    let mut pass_through_arrow: Option<(usize, usize)> = None;
+
+    let view_start = offset;
+    let view_end = offset + visible_height;
+
+    for (src, dst) in relevant_arrows {
+        let (low, high) = if src < dst { (src, dst) } else { (dst, src) };
+        if low < view_start && high >= view_end {
+            if pass_through_arrow.is_none() {
+                pass_through_arrow = Some((src, dst));
+            }
+        } else {
+            filtered_arrows.push((src, dst));
+        }
+    }
+
+    if let Some(pt) = pass_through_arrow {
+        filtered_arrows.push(pt);
+    }
+
+    let relevant_arrows = filtered_arrows;
+
+    // Step 2: Assign columns to arrows
+    let mut active_arrows: Vec<ArrowInfo> = Vec::new();
+
+    let mut sorted_arrows = relevant_arrows;
+    sorted_arrows.sort_by_key(|(src, dst)| (*src as isize - *dst as isize).abs());
+
+    let max_allowed_cols = app_state.settings.max_arrow_columns;
+
+    for (src, dst) in sorted_arrows {
+        let (low, high) = if src < dst { (src, dst) } else { (dst, src) };
+
+        let mut col = 0;
+        loop {
+            let has_conflict = active_arrows
+                .iter()
+                .any(|a| a.col == col && !(a.end < low || a.start > high));
+
+            if !has_conflict {
+                break;
+            }
+            col += 1;
+        }
+
+        if col < max_allowed_cols {
+            active_arrows.push(ArrowInfo {
+                start: src,
+                end: dst,
+                col,
+            });
+        }
+    }
+
+    // Step 3: Compute max columns to determine width
+    let max_col = active_arrows.iter().map(|a| a.col).max().unwrap_or(0);
+    let arrow_width = if active_arrows.is_empty() {
+        0
+    } else {
+        (max_col + 1) * 2 + 1
+    };
+    // 2 chars per column + padding?
+
+    // Helper to render arrow string for line 'i'
+    let get_arrow_str = |current_line: usize| -> String {
+        if active_arrows.is_empty() {
+            return String::new();
+        }
+
+        let cols = max_col + 1;
+        let mut chars = vec![' '; cols * 2 + 1];
+
+        for arrow in &active_arrows {
+            let (low, high) = if arrow.start < arrow.end {
+                (arrow.start, arrow.end)
+            } else {
+                (arrow.end, arrow.start)
+            };
+
+            if current_line >= low && current_line <= high {
+                let c_idx = arrow.col * 2;
+
+                // Vertical line
+                if current_line > low && current_line < high {
+                    if chars[c_idx] == ' ' {
+                        chars[c_idx] = '│';
+                    }
+                }
+
+                // Endpoints
+                if current_line == arrow.start {
+                    // This is the Jump Source
+                    // ┌─> or └─> depending on direction?
+                    // No, Jump Source is just start of line.
+                    // If jumping DOWN: ┌──
+                    // If jumping UP:   └──
+                    if arrow.start < arrow.end {
+                        chars[c_idx] = '┌';
+                        chars[c_idx + 1] = '─';
+                    } else {
+                        chars[c_idx] = '└';
+                        chars[c_idx + 1] = '─';
+                    }
+                } else if current_line == arrow.end {
+                    // This is Jump Target
+                    // If target is BELOW source (Jump DOWN): └──>
+                    // If target is ABOVE source (Jump UP):   ┌──>
+                    if arrow.start < arrow.end {
+                        // Jump Down
+                        chars[c_idx] = '└';
+                        chars[c_idx + 1] = '─';
+                        // Arrow head?
+                        if arrow.col == 0 {
+                            chars[c_idx + 1] = '►'; // Just pointing right
+                        } else {
+                            // We need to cross other columns?
+                            // Let's just use > at the end of the line
+                        }
+                    } else {
+                        // Jump Up
+                        chars[c_idx] = '┌';
+                        chars[c_idx + 1] = '─';
+                    }
+                }
+
+                // Horizontal connectors
+                if current_line == arrow.start || current_line == arrow.end {
+                    // Fill from col to right with ─
+                    // But strictly speaking we only draw for OUR column.
+                    // The Right Arrow Head '>' should be at the very right edge of the arrow gutter.
+                    // We handle that by post-processing or checking strict equality.
+                }
+            }
+        }
+
+        // Post-process for horizontal lines and crossings
+        for arrow in &active_arrows {
+            if current_line == arrow.start || current_line == arrow.end {
+                let c_idx = arrow.col * 2;
+                // Draw horizontal line to the right
+                for k in (c_idx + 1)..chars.len() {
+                    if chars[k] == ' ' {
+                        chars[k] = '─';
+                    } else if chars[k] == '│' {
+                        // Crossing
+                        chars[k] = '┼'; // Or similar
+                    }
+                }
+                // Put arrow head at the end if it's the target line
+                if current_line == arrow.end {
+                    let last = chars.len() - 1;
+                    chars[last] = '►';
+                }
+            }
+        }
+
+        chars.iter().collect()
+    };
+
+    // --- Arrow Calculation End ---
+
     let mut current_line_num: usize = 1;
     for i in 0..offset {
         if let Some(line) = app_state.disassembly.get(i) {
@@ -1075,6 +1299,15 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
 
             let mut item_lines = Vec::new();
 
+            // Generate arrow string
+            let arrow_str = get_arrow_str(i);
+            // Default arrow width if empty
+            let arrow_padding = if arrow_str.is_empty() && !active_arrows.is_empty() {
+                " ".repeat((max_col + 1) * 2 + 1)
+            } else {
+                arrow_str
+            };
+
             if let Some(line_comment) = &line.line_comment {
                 item_lines.push(Line::from(vec![
                     Span::styled(
@@ -1082,7 +1315,11 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                         Style::default().fg(Color::DarkGray),
                     ),
                     Span::styled(
-                        format!("      ; {}", line_comment),
+                        format!("{:width$} ", arrow_padding, width = arrow_width),
+                        Style::default().fg(Color::LightBlue),
+                    ),
+                    Span::styled(
+                        format!("; {}", line_comment),
                         Style::default().fg(Color::LightCyan),
                     ),
                 ]));
@@ -1093,6 +1330,10 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 Span::styled(
                     format!("{:5} ", current_line_num),
                     Style::default().fg(Color::DarkGray),
+                ),
+                Span::styled(
+                    format!("{:<width$} ", arrow_padding, width = arrow_width),
+                    Style::default().fg(Color::LightBlue),
                 ),
                 Span::styled(
                     format!("{:04X}  ", line.address),
