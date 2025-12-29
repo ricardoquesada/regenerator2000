@@ -63,6 +63,10 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     if ui_state.confirmation_dialog.active {
         render_confirmation_dialog(f, f.area(), &ui_state.confirmation_dialog);
     }
+
+    if ui_state.origin_dialog.active {
+        render_origin_dialog(f, f.area(), &ui_state.origin_dialog);
+    }
 }
 
 fn render_confirmation_dialog(
@@ -809,11 +813,22 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::ui_state
                 return ListItem::new(separator).style(Style::default().fg(Color::White));
             }
 
-            let style = if Some(i) == menu_state.selected_item {
+            let mut style = if Some(i) == menu_state.selected_item {
                 Style::default().bg(Color::Cyan).fg(Color::Black)
             } else {
                 Style::default()
             };
+
+            if item.disabled {
+                style = style.fg(Color::Gray).add_modifier(Modifier::DIM);
+                // If disabled but selected, maybe keep cyan bg but dim text?
+                if Some(i) == menu_state.selected_item {
+                    style = Style::default()
+                        .bg(Color::Cyan)
+                        .fg(Color::Gray)
+                        .add_modifier(Modifier::DIM);
+                }
+            }
 
             let shortcut = item.shortcut.clone().unwrap_or_default();
             let name = &item.name;
@@ -836,6 +851,40 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::ui_state
     );
 
     f.render_widget(list, area);
+}
+
+fn render_origin_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::OriginDialogState) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Change Origin (Hex) ")
+        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+
+    // Fixed height of 3 (Border + Input + Border)
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Fill(1),
+            Constraint::Length(3),
+            Constraint::Fill(1),
+        ])
+        .split(area);
+
+    let area = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(30),
+            Constraint::Percentage(40),
+            Constraint::Percentage(30),
+        ])
+        .split(layout[1])[1];
+    f.render_widget(ratatui::widgets::Clear, area);
+
+    let input = Paragraph::new(dialog.input.clone()).block(block).style(
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    );
+    f.render_widget(input, area);
 }
 
 fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {

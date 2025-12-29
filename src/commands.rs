@@ -27,6 +27,10 @@ pub enum Command {
         new_comment: Option<String>,
         old_comment: Option<String>,
     },
+    ChangeOrigin {
+        new_origin: u16,
+        old_origin: u16,
+    },
 }
 
 impl Command {
@@ -90,6 +94,12 @@ impl Command {
                     state.user_line_comments.remove(address);
                 }
             }
+            Command::ChangeOrigin {
+                new_origin,
+                old_origin: _,
+            } => {
+                state.origin = *new_origin;
+            }
         }
     }
 
@@ -151,6 +161,12 @@ impl Command {
                 } else {
                     state.user_line_comments.remove(address);
                 }
+            }
+            Command::ChangeOrigin {
+                new_origin: _,
+                old_origin,
+            } => {
+                state.origin = *old_origin;
             }
         }
     }

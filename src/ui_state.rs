@@ -42,7 +42,17 @@ pub enum MenuAction {
     LineComment,
     ToggleHexView,
     About,
+    ChangeOrigin,
     KeyboardShortcuts,
+}
+
+impl MenuAction {
+    pub fn requires_document(&self) -> bool {
+        !matches!(
+            self,
+            MenuAction::Exit | MenuAction::Open | MenuAction::About | MenuAction::KeyboardShortcuts
+        )
+    }
 }
 
 pub struct ConfirmationDialogState {
@@ -310,6 +320,30 @@ impl CommentDialogState {
     }
 }
 
+pub struct OriginDialogState {
+    pub active: bool,
+    pub input: String,
+}
+
+impl OriginDialogState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            input: String::new(),
+        }
+    }
+
+    pub fn open(&mut self, current_origin: u16) {
+        self.active = true;
+        self.input = format!("{:04X}", current_origin);
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+        self.input.clear();
+    }
+}
+
 pub struct SettingsDialogState {
     pub active: bool,
     pub selected_index: usize,
@@ -420,6 +454,8 @@ impl MenuState {
                             Some(MenuAction::LineComment),
                         ),
                         MenuItem::separator(),
+                        MenuItem::new("Change Origin", None, Some(MenuAction::ChangeOrigin)),
+                        MenuItem::separator(),
                         MenuItem::new("Analyze", None, Some(MenuAction::Analyze)),
                         MenuItem::separator(),
                         MenuItem::new(
@@ -492,7 +528,7 @@ impl MenuState {
         self.selected_category = (self.selected_category + 1) % self.categories.len();
         // If we are active, select the first non-separator item
         if self.active {
-            self.selected_item = Some(0);
+            self.select_first_enabled_item();
         }
     }
 
@@ -503,41 +539,71 @@ impl MenuState {
             self.selected_category -= 1;
         }
         if self.active {
-            self.selected_item = Some(0);
+            self.select_first_enabled_item();
         }
     }
 
     pub fn next_item(&mut self) {
         let count = self.categories[self.selected_category].items.len();
+        if count == 0 {
+            return;
+        }
         let current = self.selected_item.unwrap_or(0);
         let mut next = (current + 1) % count;
 
-        // Skip separators
-        while self.categories[self.selected_category].items[next].is_separator {
+        // Skip separators and disabled items
+        // We iterate at most `count` times to avoid infinite loop
+        for _ in 0..count {
+            let item = &self.categories[self.selected_category].items[next];
+            if !item.is_separator && !item.disabled {
+                self.selected_item = Some(next);
+                return;
+            }
             next = (next + 1) % count;
-            if next == current {
-                break;
-            } // Avoid infinite loop if all separators (unlikely)
         }
-
-        self.selected_item = Some(next);
+        // If nothing found (all disabled/separators), keep as is or set to None?
+        // Let's keep as is if we can't find anything better, or maybe current is valid?
+        // If current is invalid (e.g. became disabled), we might want to change it.
     }
 
     pub fn previous_item(&mut self) {
         let count = self.categories[self.selected_category].items.len();
+        if count == 0 {
+            return;
+        }
         let current = self.selected_item.unwrap_or(0);
 
         let mut prev = if current == 0 { count - 1 } else { current - 1 };
 
-        // Skip separators
-        while self.categories[self.selected_category].items[prev].is_separator {
+        // Skip separators and disabled items
+        for _ in 0..count {
+            let item = &self.categories[self.selected_category].items[prev];
+            if !item.is_separator && !item.disabled {
+                self.selected_item = Some(prev);
+                return;
+            }
             prev = if prev == 0 { count - 1 } else { prev - 1 };
-            if prev == current {
-                break;
+        }
+    }
+
+    pub fn select_first_enabled_item(&mut self) {
+        let items = &self.categories[self.selected_category].items;
+        for (i, item) in items.iter().enumerate() {
+            if !item.is_separator && !item.disabled {
+                self.selected_item = Some(i);
+                return;
             }
         }
-
-        self.selected_item = Some(prev);
+        self.selected_item = None;
+    }
+    pub fn update_availability(&mut self, has_document: bool) {
+        for category in &mut self.categories {
+            for item in &mut category.items {
+                if let Some(action) = &item.action {
+                    item.disabled = action.requires_document() && !has_document;
+                }
+            }
+        }
     }
 }
 
@@ -552,6 +618,7 @@ pub struct MenuItem {
     pub shortcut: Option<String>,
     pub is_separator: bool,
     pub action: Option<MenuAction>,
+    pub disabled: bool,
 }
 
 impl MenuItem {
@@ -561,6 +628,7 @@ impl MenuItem {
             shortcut: shortcut.map(|s| s.to_string()),
             is_separator: false,
             action,
+            disabled: false,
         }
     }
 
@@ -570,6 +638,7 @@ impl MenuItem {
             shortcut: None,
             is_separator: true,
             action: None,
+            disabled: false,
         }
     }
 }
@@ -583,6 +652,7 @@ pub struct UIState {
     pub settings_dialog: SettingsDialogState,
     pub about_dialog: AboutDialogState,
     pub shortcuts_dialog: ShortcutsDialogState,
+    pub origin_dialog: OriginDialogState,
     pub confirmation_dialog: ConfirmationDialogState,
     pub menu: MenuState,
 
@@ -624,6 +694,7 @@ impl UIState {
             settings_dialog: SettingsDialogState::new(),
             about_dialog: AboutDialogState::new(),
             shortcuts_dialog: ShortcutsDialogState::new(),
+            origin_dialog: OriginDialogState::new(),
             confirmation_dialog: ConfirmationDialogState::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),

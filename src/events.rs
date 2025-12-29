@@ -11,6 +11,11 @@ pub fn run_app<B: Backend>(
     mut ui_state: UIState,
 ) -> io::Result<()> {
     loop {
+        // Update menu availability based on current state
+        ui_state
+            .menu
+            .update_availability(!app_state.raw_data.is_empty());
+
         terminal.draw(|f| ui(f, &app_state, &mut ui_state))?;
 
         if let Event::Key(key) = event::read()? {
@@ -419,18 +424,24 @@ pub fn run_app<B: Backend>(
                     KeyCode::Enter => {
                         if let Some(item_idx) = ui_state.menu.selected_item {
                             let category_idx = ui_state.menu.selected_category;
-                            let action = ui_state.menu.categories[category_idx].items[item_idx]
-                                .action
-                                .clone();
-                            if let Some(action) = action {
-                                handle_menu_action(&mut app_state, &mut ui_state, action);
-                                // Close menu after valid action
-                                ui_state.menu.active = false;
-                                ui_state.menu.selected_item = None;
+                            let item = &ui_state.menu.categories[category_idx].items[item_idx];
+
+                            if !item.disabled {
+                                let action = item.action.clone();
+                                if let Some(action) = action {
+                                    handle_menu_action(&mut app_state, &mut ui_state, action);
+                                    // Close menu after valid action
+                                    ui_state.menu.active = false;
+                                    ui_state.menu.selected_item = None;
+                                }
+                            } else {
+                                // Optional: Feedback that it's disabled
+                                ui_state.set_status_message("Item is disabled");
                             }
                         } else {
                             // Enter on category -> open first item?
-                            ui_state.menu.selected_item = Some(0);
+                            // ui_state.menu.selected_item = Some(0);
+                            ui_state.menu.select_first_enabled_item();
                         }
                     }
                     _ => {}
@@ -606,6 +617,50 @@ pub fn run_app<B: Backend>(
                     }
                     _ => {}
                 }
+            } else if ui_state.origin_dialog.active {
+                match key.code {
+                    KeyCode::Esc => {
+                        ui_state.origin_dialog.close();
+                        ui_state.set_status_message("Ready");
+                    }
+                    KeyCode::Enter => {
+                        if let Ok(new_origin) =
+                            u16::from_str_radix(&ui_state.origin_dialog.input, 16)
+                        {
+                            let size = app_state.raw_data.len();
+                            // Check for overflow
+                            if (new_origin as usize) + size <= 0x10000 {
+                                let old_origin = app_state.origin;
+                                let command = crate::commands::Command::ChangeOrigin {
+                                    new_origin,
+                                    old_origin,
+                                };
+                                command.apply(&mut app_state);
+                                app_state.push_command(command);
+
+                                app_state.disassemble();
+                                ui_state.set_status_message(format!(
+                                    "Origin changed to ${:04X}",
+                                    new_origin
+                                ));
+                                ui_state.origin_dialog.close();
+                            } else {
+                                ui_state.set_status_message("Error: Origin + Size exceeds $FFFF");
+                            }
+                        } else {
+                            ui_state.set_status_message("Invalid Hex Address");
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        ui_state.origin_dialog.input.pop();
+                    }
+                    KeyCode::Char(c) => {
+                        if c.is_ascii_hexdigit() && ui_state.origin_dialog.input.len() < 4 {
+                            ui_state.origin_dialog.input.push(c.to_ascii_uppercase());
+                        }
+                    }
+                    _ => {}
+                }
             } else {
                 match key.code {
                     KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -617,7 +672,7 @@ pub fn run_app<B: Backend>(
                     }
                     KeyCode::F(10) => {
                         ui_state.menu.active = true;
-                        ui_state.menu.selected_item = Some(0);
+                        ui_state.menu.select_first_enabled_item();
                         ui_state.set_status_message("Menu Active");
                     }
                     // Global Shortcuts
@@ -844,38 +899,47 @@ pub fn run_app<B: Backend>(
 
                     // Label
                     KeyCode::Char('l') => {
-                        if !ui_state.menu.active
-                            && !ui_state.jump_dialog.active
-                            && !ui_state.save_dialog.active
-                            && !ui_state.file_picker.active
-                            && ui_state.active_pane == ActivePane::Disassembly
-                        {
-                            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                                let addr = line.address;
-                                let text = app_state
-                                    .labels
-                                    .get(&addr)
-                                    .and_then(|v| v.first())
-                                    .map(|l| l.name.as_str());
-                                ui_state.label_dialog.open(text);
-                                ui_state.set_status_message("Enter Label");
+                        if !app_state.raw_data.is_empty() {
+                            if !ui_state.menu.active
+                                && !ui_state.jump_dialog.active
+                                && !ui_state.save_dialog.active
+                                && !ui_state.file_picker.active
+                                && ui_state.active_pane == ActivePane::Disassembly
+                            {
+                                if let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+                                {
+                                    let addr = line.address;
+                                    let text = app_state
+                                        .labels
+                                        .get(&addr)
+                                        .and_then(|v| v.first())
+                                        .map(|l| l.name.as_str());
+                                    ui_state.label_dialog.open(text);
+                                    ui_state.set_status_message("Enter Label");
+                                }
                             }
+                        } else if ui_state.active_pane == ActivePane::Disassembly {
+                            ui_state.set_status_message("No open document");
                         }
                     }
 
                     // Visual Mode Toggle
                     KeyCode::Char('V') => {
-                        if ui_state.active_pane == ActivePane::Disassembly {
-                            ui_state.is_visual_mode = !ui_state.is_visual_mode;
-                            if ui_state.is_visual_mode {
-                                if ui_state.selection_start.is_none() {
-                                    ui_state.selection_start = Some(ui_state.cursor_index);
+                        if !app_state.raw_data.is_empty() {
+                            if ui_state.active_pane == ActivePane::Disassembly {
+                                ui_state.is_visual_mode = !ui_state.is_visual_mode;
+                                if ui_state.is_visual_mode {
+                                    if ui_state.selection_start.is_none() {
+                                        ui_state.selection_start = Some(ui_state.cursor_index);
+                                    }
+                                    ui_state.set_status_message("Visual Mode");
+                                } else {
+                                    ui_state.selection_start = None;
+                                    ui_state.set_status_message("Visual Mode Exited");
                                 }
-                                ui_state.set_status_message("Visual Mode");
-                            } else {
-                                ui_state.selection_start = None;
-                                ui_state.set_status_message("Visual Mode Exited");
                             }
+                        } else if ui_state.active_pane == ActivePane::Disassembly {
+                            ui_state.set_status_message("No open document");
                         }
                     }
 
@@ -994,6 +1058,11 @@ fn handle_menu_action(
     ui_state: &mut UIState,
     action: crate::ui_state::MenuAction,
 ) {
+    if action.requires_document() && app_state.raw_data.is_empty() {
+        ui_state.set_status_message("No open document");
+        return;
+    }
+
     // Check for changes on destructive actions
     let is_destructive = matches!(
         action,
@@ -1365,6 +1434,10 @@ fn execute_menu_action(
         MenuAction::KeyboardShortcuts => {
             ui_state.shortcuts_dialog.open();
             ui_state.set_status_message("Keyboard Shortcuts");
+        }
+        MenuAction::ChangeOrigin => {
+            ui_state.origin_dialog.open(app_state.origin);
+            ui_state.set_status_message("Enter new origin (Hex)");
         }
     }
 }
