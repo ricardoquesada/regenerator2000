@@ -491,6 +491,9 @@ pub fn run_app<B: Backend>(
                             ui_state.settings_dialog.is_editing_xref_count = false;
                             // Reset input to current value
                             ui_state.settings_dialog.xref_count_input.clear();
+                        } else if ui_state.settings_dialog.is_editing_arrow_columns {
+                            ui_state.settings_dialog.is_editing_arrow_columns = false;
+                            ui_state.settings_dialog.arrow_columns_input.clear();
                         } else {
                             ui_state.settings_dialog.close();
                             ui_state.set_status_message("Ready");
@@ -526,8 +529,44 @@ pub fn run_app<B: Backend>(
                                 current_idx - 1
                             };
                             app_state.settings.assembler = assemblers[new_idx];
-                        } else if !ui_state.settings_dialog.is_editing_xref_count {
+                        } else if !ui_state.settings_dialog.is_editing_xref_count
+                            && !ui_state.settings_dialog.is_editing_arrow_columns
+                        {
                             ui_state.settings_dialog.previous();
+                        }
+                    }
+                    KeyCode::Left => {
+                        if !ui_state.settings_dialog.is_editing_xref_count
+                            && !ui_state.settings_dialog.is_editing_arrow_columns
+                        {
+                            match ui_state.settings_dialog.selected_index {
+                                6 => {
+                                    app_state.settings.max_xref_count =
+                                        app_state.settings.max_xref_count.saturating_sub(1);
+                                }
+                                7 => {
+                                    app_state.settings.max_arrow_columns =
+                                        app_state.settings.max_arrow_columns.saturating_sub(1);
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    KeyCode::Right => {
+                        if !ui_state.settings_dialog.is_editing_xref_count
+                            && !ui_state.settings_dialog.is_editing_arrow_columns
+                        {
+                            match ui_state.settings_dialog.selected_index {
+                                6 => {
+                                    app_state.settings.max_xref_count =
+                                        app_state.settings.max_xref_count.saturating_add(1);
+                                }
+                                7 => {
+                                    app_state.settings.max_arrow_columns =
+                                        app_state.settings.max_arrow_columns.saturating_add(1);
+                                }
+                                _ => {}
+                            }
                         }
                     }
                     KeyCode::Down => {
@@ -549,7 +588,9 @@ pub fn run_app<B: Backend>(
                                 .unwrap_or(0);
                             let new_idx = (current_idx + 1) % assemblers.len();
                             app_state.settings.assembler = assemblers[new_idx];
-                        } else if !ui_state.settings_dialog.is_editing_xref_count {
+                        } else if !ui_state.settings_dialog.is_editing_xref_count
+                            && !ui_state.settings_dialog.is_editing_arrow_columns
+                        {
                             ui_state.settings_dialog.next();
                         }
                     }
@@ -565,9 +606,16 @@ pub fn run_app<B: Backend>(
                             {
                                 app_state.settings.max_xref_count = val;
                                 ui_state.settings_dialog.is_editing_xref_count = false;
-                            } else {
-                                // Invalid input, maybe keep editing or reset?
-                                // For now, keep editing.
+                            }
+                        } else if ui_state.settings_dialog.is_editing_arrow_columns {
+                            // Commit value
+                            if let Ok(val) = ui_state
+                                .settings_dialog
+                                .arrow_columns_input
+                                .parse::<usize>()
+                            {
+                                app_state.settings.max_arrow_columns = val;
+                                ui_state.settings_dialog.is_editing_arrow_columns = false;
                             }
                         } else {
                             // Toggle checkbox or enter mode
@@ -601,6 +649,11 @@ pub fn run_app<B: Backend>(
                                     ui_state.settings_dialog.xref_count_input =
                                         app_state.settings.max_xref_count.to_string();
                                 }
+                                7 => {
+                                    ui_state.settings_dialog.is_editing_arrow_columns = true;
+                                    ui_state.settings_dialog.arrow_columns_input =
+                                        app_state.settings.max_arrow_columns.to_string();
+                                }
                                 _ => {}
                             }
                         }
@@ -608,11 +661,17 @@ pub fn run_app<B: Backend>(
                     KeyCode::Backspace => {
                         if ui_state.settings_dialog.is_editing_xref_count {
                             ui_state.settings_dialog.xref_count_input.pop();
+                        } else if ui_state.settings_dialog.is_editing_arrow_columns {
+                            ui_state.settings_dialog.arrow_columns_input.pop();
                         }
                     }
                     KeyCode::Char(c) => {
                         if ui_state.settings_dialog.is_editing_xref_count && c.is_ascii_digit() {
                             ui_state.settings_dialog.xref_count_input.push(c);
+                        } else if ui_state.settings_dialog.is_editing_arrow_columns
+                            && c.is_ascii_digit()
+                        {
+                            ui_state.settings_dialog.arrow_columns_input.push(c);
                         }
                     }
                     _ => {}

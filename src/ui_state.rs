@@ -351,6 +351,8 @@ pub struct SettingsDialogState {
     pub is_selecting_assembler: bool,
     pub is_editing_xref_count: bool,
     pub xref_count_input: String,
+    pub is_editing_arrow_columns: bool,
+    pub arrow_columns_input: String,
 }
 
 impl SettingsDialogState {
@@ -362,6 +364,8 @@ impl SettingsDialogState {
             is_selecting_assembler: false,
             is_editing_xref_count: false,
             xref_count_input: String::new(),
+            is_editing_arrow_columns: false,
+            arrow_columns_input: String::new(),
         }
     }
 
@@ -372,6 +376,8 @@ impl SettingsDialogState {
         self.is_selecting_assembler = false;
         self.is_editing_xref_count = false;
         self.xref_count_input.clear();
+        self.is_editing_arrow_columns = false;
+        self.arrow_columns_input.clear();
     }
 
     pub fn close(&mut self) {
@@ -387,12 +393,13 @@ impl SettingsDialogState {
         // 4: Platform
         // 5: Assembler
         // 6: Max X-Refs
-        let max_items = 7;
+        // 7: Arrow Columns
+        let max_items = 8;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 7;
+        let max_items = 8;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {

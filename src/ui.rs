@@ -357,6 +357,7 @@ fn render_settings_dialog(
             Constraint::Length(2),                      // Platform
             Constraint::Length(2), // Assembler (increased to 2 to match platform spacing style/consistency if needed, or keeping previous logic) -- Previous was Min(1). Let's stick to consistent spacing.
             Constraint::Length(2), // Max X-Refs
+            Constraint::Length(2), // Arrow Columns
         ])
         .split(inner);
 
@@ -448,8 +449,16 @@ fn render_settings_dialog(
     } else {
         settings.max_xref_count.to_string()
     };
-
     let xref_text = format!("Max X-Refs: < {} >", xref_value_str);
+
+    // Arrow Columns
+    let arrow_selected = dialog.selected_index == 7;
+    let arrow_value_str = if dialog.is_editing_arrow_columns {
+        dialog.arrow_columns_input.clone()
+    } else {
+        settings.max_arrow_columns.to_string()
+    };
+    let arrow_text = format!("Arrow Columns: < {} >", arrow_value_str);
     let xref_widget = Paragraph::new(xref_text).style(if xref_selected {
         if dialog.is_editing_xref_count {
             Style::default()
@@ -467,6 +476,25 @@ fn render_settings_dialog(
     f.render_widget(
         xref_widget,
         Rect::new(layout[3].x + 2, layout[3].y, layout[3].width - 4, 1),
+    );
+
+    let arrow_widget = Paragraph::new(arrow_text).style(if arrow_selected {
+        if dialog.is_editing_arrow_columns {
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        }
+    } else {
+        Style::default().fg(Color::White)
+    });
+
+    f.render_widget(
+        arrow_widget,
+        Rect::new(layout[4].x + 2, layout[4].y, layout[4].width - 4, 1),
     );
 
     // Platform Popup
@@ -1148,22 +1176,17 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
     }
 
     // Step 3: Compute max columns to determine width
-    let max_col = active_arrows.iter().map(|a| a.col).max().unwrap_or(0);
-    let arrow_width = if active_arrows.is_empty() {
-        0
-    } else {
-        (max_col + 1) * 2 + 1
-    };
+    let arrow_width = (app_state.settings.max_arrow_columns * 2) + 1;
     // 2 chars per column + padding?
 
     // Helper to render arrow string for line 'i'
     let get_arrow_str = |current_line: usize| -> String {
-        if active_arrows.is_empty() {
-            return String::new();
-        }
-
-        let cols = max_col + 1;
+        let cols = app_state.settings.max_arrow_columns;
         let mut chars = vec![' '; cols * 2 + 1];
+
+        if active_arrows.is_empty() {
+            return chars.iter().collect();
+        }
 
         for arrow in &active_arrows {
             let (low, high) = if arrow.start < arrow.end {
@@ -1300,13 +1323,7 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             let mut item_lines = Vec::new();
 
             // Generate arrow string
-            let arrow_str = get_arrow_str(i);
-            // Default arrow width if empty
-            let arrow_padding = if arrow_str.is_empty() && !active_arrows.is_empty() {
-                " ".repeat((max_col + 1) * 2 + 1)
-            } else {
-                arrow_str
-            };
+            let arrow_padding = get_arrow_str(i);
 
             if let Some(line_comment) = &line.line_comment {
                 item_lines.push(Line::from(vec![

@@ -82,7 +82,7 @@ pub struct DocumentSettings {
     #[serde(default = "default_max_xref")]
     pub max_xref_count: usize, // default 5
     #[serde(default = "default_max_arrow_columns")]
-    pub max_arrow_columns: usize, // default 8
+    pub max_arrow_columns: usize, // default 6
 }
 
 fn default_true() -> bool {
@@ -94,7 +94,7 @@ fn default_max_xref() -> usize {
 }
 
 fn default_max_arrow_columns() -> usize {
-    8
+    6
 }
 
 impl Default for DocumentSettings {
@@ -107,7 +107,7 @@ impl Default for DocumentSettings {
             platform: Platform::default(),
             assembler: Assembler::default(),
             max_xref_count: 5,
-            max_arrow_columns: 8,
+            max_arrow_columns: 6,
         }
     }
 }
@@ -1093,5 +1093,14 @@ mod analysis_tests {
         let line = &app_state.disassembly[0];
         assert_eq!(line.mnemonic, "JMP");
         assert_eq!(line.target_address, Some(0x1005));
+    }
+
+    #[test]
+    fn test_default_settings() {
+        let settings = DocumentSettings::default();
+        assert_eq!(settings.max_arrow_columns, 6);
+
+        let app_state = AppState::new();
+        assert_eq!(app_state.settings.max_arrow_columns, 6);
     }
 }
