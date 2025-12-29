@@ -1,4 +1,4 @@
-# Regenerator2000
+# Regenerator 2000
 
 ![logo](docs/regenerator2000_logo.png)
 
@@ -8,7 +8,7 @@ A 6502 disassembler with a TUI. A modern take on [Regenerator][regenerator].
 
 ## Features
 
-Regenerator2000 brings modern conveniences to 6502 disassembly:
+Regenerator 2000 brings modern conveniences to 6502 disassembly:
 
 - **Disassembly**: Full 6502 support including undocumented opcodes.
 - **Hex View**:

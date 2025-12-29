@@ -263,7 +263,7 @@ fn render_about_dialog(f: &mut Frame, ui_state: &UIState, area: Rect) {
 
             // 2. Render Text
             let text_area = chunks[1];
-            let text = "Regenerator2000\n(c) Ricardo Quesada 2026\nriq / L.I.A\nInspired by Regenerator, by Tom-Cat / Nostalgia";
+            let text = "Regenerator 2000\n(c) Ricardo Quesada 2026\nriq / L.I.A\nInspired by Regenerator, by Tom-Cat / Nostalgia";
             let paragraph = Paragraph::new(text)
                 .alignment(ratatui::layout::Alignment::Center)
                 .block(Block::default());

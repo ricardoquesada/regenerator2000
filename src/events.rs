@@ -1383,7 +1383,7 @@ fn execute_menu_action(
         }
         MenuAction::About => {
             ui_state.about_dialog.open();
-            ui_state.status_message = "About Regenerator2000".to_string();
+            ui_state.status_message = "About Regenerator 2000".to_string();
         }
         MenuAction::SetPetsciiUnshifted => {
             ui_state.petscii_mode = crate::ui_state::PetsciiMode::Unshifted;
