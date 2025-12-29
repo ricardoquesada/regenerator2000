@@ -211,6 +211,9 @@ impl UndoStack {
     pub fn can_redo(&self) -> bool {
         self.pointer < self.commands.len()
     }
+    pub fn get_pointer(&self) -> usize {
+        self.pointer
+    }
 }
 
 #[cfg(test)]

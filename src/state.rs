@@ -208,6 +208,7 @@ pub struct AppState {
     pub user_line_comments: HashMap<u16, String>,
 
     pub undo_stack: crate::commands::UndoStack,
+    pub last_saved_pointer: usize,
 }
 
 impl AppState {
@@ -227,6 +228,7 @@ impl AppState {
             user_side_comments: HashMap::new(),
             user_line_comments: HashMap::new(),
             undo_stack: crate::commands::UndoStack::new(),
+            last_saved_pointer: 0,
         }
     }
 
@@ -284,7 +286,9 @@ impl AppState {
         }
 
         self.block_types = vec![BlockType::Code; self.raw_data.len()];
+        self.block_types = vec![BlockType::Code; self.raw_data.len()];
         self.undo_stack = crate::commands::UndoStack::new();
+        self.last_saved_pointer = 0;
 
         self.load_system_assets();
         self.disassemble();
@@ -315,6 +319,7 @@ impl AppState {
         self.labels = analyzed_labels;
 
         self.undo_stack = crate::commands::UndoStack::new();
+        self.last_saved_pointer = 0;
 
         self.disassemble();
         Ok(project.cursor_address)
@@ -347,6 +352,7 @@ impl AppState {
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;
+            self.last_saved_pointer = self.undo_stack.get_pointer();
             Ok(())
         } else {
             Err(anyhow::anyhow!("No project path set"))
@@ -373,7 +379,7 @@ impl AppState {
             old_labels: old_labels_map,
         };
         command.apply(self);
-        self.undo_stack.push(command);
+        self.push_command(command);
         self.disassemble();
         "Analysis Complete".to_string()
     }
@@ -435,7 +441,7 @@ impl AppState {
                 };
 
                 command.apply(self);
-                self.undo_stack.push(command);
+                self.push_command(command);
 
                 self.disassemble();
             }
@@ -632,11 +638,21 @@ impl AppState {
         {
             return Some(idx);
         }
-
         // Third pass: find first address >= target
         self.disassembly
             .iter()
             .position(|line| line.address >= address)
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.undo_stack.get_pointer() != self.last_saved_pointer
+    }
+
+    pub fn push_command(&mut self, command: crate::commands::Command) {
+        if self.undo_stack.get_pointer() < self.last_saved_pointer {
+            self.last_saved_pointer = usize::MAX;
+        }
+        self.undo_stack.push(command);
     }
 }
 

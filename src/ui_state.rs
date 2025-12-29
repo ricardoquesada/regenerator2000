@@ -45,6 +45,41 @@ pub enum MenuAction {
     KeyboardShortcuts,
 }
 
+pub struct ConfirmationDialogState {
+    pub active: bool,
+    pub title: String,
+    pub message: String,
+    pub action_on_confirm: Option<MenuAction>,
+}
+
+impl ConfirmationDialogState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            title: String::new(),
+            message: String::new(),
+            action_on_confirm: None,
+        }
+    }
+
+    pub fn open(
+        &mut self,
+        title: impl Into<String>,
+        message: impl Into<String>,
+        action: MenuAction,
+    ) {
+        self.active = true;
+        self.title = title.into();
+        self.message = message.into();
+        self.action_on_confirm = Some(action);
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+        self.action_on_confirm = None;
+    }
+}
+
 pub struct AboutDialogState {
     pub active: bool,
 }
@@ -548,6 +583,7 @@ pub struct UIState {
     pub settings_dialog: SettingsDialogState,
     pub about_dialog: AboutDialogState,
     pub shortcuts_dialog: ShortcutsDialogState,
+    pub confirmation_dialog: ConfirmationDialogState,
     pub menu: MenuState,
 
     pub navigation_history: Vec<usize>,
@@ -588,6 +624,7 @@ impl UIState {
             settings_dialog: SettingsDialogState::new(),
             about_dialog: AboutDialogState::new(),
             shortcuts_dialog: ShortcutsDialogState::new(),
+            confirmation_dialog: ConfirmationDialogState::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),
             disassembly_state: ListState::default(),

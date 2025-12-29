@@ -201,7 +201,7 @@ pub fn run_app<B: Backend>(
                                 };
 
                                 command.apply(&mut app_state);
-                                app_state.undo_stack.push(command);
+                                app_state.push_command(command);
 
                                 ui_state.set_status_message("Label removed");
                                 app_state.disassemble();
@@ -248,7 +248,7 @@ pub fn run_app<B: Backend>(
                                     };
 
                                     command.apply(&mut app_state);
-                                    app_state.undo_stack.push(command);
+                                    app_state.push_command(command);
 
                                     ui_state.set_status_message("Label set");
                                     app_state.disassemble();
@@ -303,7 +303,7 @@ pub fn run_app<B: Backend>(
                             };
 
                             command.apply(&mut app_state);
-                            app_state.undo_stack.push(command);
+                            app_state.push_command(command);
 
                             ui_state.set_status_message("Comment set");
                             app_state.disassemble();
@@ -450,6 +450,25 @@ pub fn run_app<B: Backend>(
                     KeyCode::Up => ui_state.shortcuts_dialog.scroll_up(),
                     _ => {}
                 }
+            } else if ui_state.confirmation_dialog.active {
+                match key.code {
+                    KeyCode::Esc => {
+                        ui_state.confirmation_dialog.close();
+                        ui_state.set_status_message("Action cancelled");
+                    }
+                    KeyCode::Enter | KeyCode::Char('y') => {
+                        if let Some(action) = ui_state.confirmation_dialog.action_on_confirm.take()
+                        {
+                            ui_state.confirmation_dialog.close();
+                            execute_menu_action(&mut app_state, &mut ui_state, action);
+                        }
+                    }
+                    KeyCode::Char('n') => {
+                        ui_state.confirmation_dialog.close();
+                        ui_state.set_status_message("Action cancelled");
+                    }
+                    _ => {}
+                }
             } else if ui_state.settings_dialog.active {
                 match key.code {
                     KeyCode::Esc => {
@@ -590,7 +609,11 @@ pub fn run_app<B: Backend>(
             } else {
                 match key.code {
                     KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        ui_state.should_quit = true;
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::Exit,
+                        );
                     }
                     KeyCode::F(10) => {
                         ui_state.menu.active = true;
@@ -967,6 +990,29 @@ pub fn run_app<B: Backend>(
 }
 
 fn handle_menu_action(
+    app_state: &mut AppState,
+    ui_state: &mut UIState,
+    action: crate::ui_state::MenuAction,
+) {
+    // Check for changes on destructive actions
+    let is_destructive = matches!(
+        action,
+        crate::ui_state::MenuAction::Exit | crate::ui_state::MenuAction::Open
+    );
+
+    if is_destructive && app_state.is_dirty() {
+        ui_state.confirmation_dialog.open(
+            "Unsaved Changes",
+            "You have unsaved changes. Proceed?",
+            action,
+        );
+        return;
+    }
+
+    execute_menu_action(app_state, ui_state, action);
+}
+
+fn execute_menu_action(
     app_state: &mut AppState,
     ui_state: &mut UIState,
     action: crate::ui_state::MenuAction,

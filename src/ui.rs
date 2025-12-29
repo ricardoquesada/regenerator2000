@@ -59,6 +59,52 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     if ui_state.shortcuts_dialog.active {
         render_shortcuts_dialog(f, f.area(), &ui_state.shortcuts_dialog);
     }
+
+    if ui_state.confirmation_dialog.active {
+        render_confirmation_dialog(f, f.area(), &ui_state.confirmation_dialog);
+    }
+}
+
+fn render_confirmation_dialog(
+    f: &mut Frame,
+    area: Rect,
+    dialog: &crate::ui_state::ConfirmationDialogState,
+) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(format!(" {} ", dialog.title))
+        .style(Style::default().bg(Color::Red).fg(Color::White));
+
+    let area = centered_rect(50, 7, area);
+    f.render_widget(ratatui::widgets::Clear, area);
+    f.render_widget(block.clone(), area);
+
+    let inner = block.inner(area);
+
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1), // Message
+            Constraint::Length(1), // Gap
+            Constraint::Length(1), // Instructions
+        ])
+        .split(inner);
+
+    let message = Paragraph::new(dialog.message.clone())
+        .alignment(ratatui::layout::Alignment::Center)
+        .style(
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        );
+
+    f.render_widget(message, layout[0]);
+
+    let instructions = Paragraph::new("Enter: Proceed  |  Esc: Cancel")
+        .alignment(ratatui::layout::Alignment::Center)
+        .style(Style::default().fg(Color::Yellow));
+
+    f.render_widget(instructions, layout[2]);
 }
 
 fn render_shortcuts_dialog(
