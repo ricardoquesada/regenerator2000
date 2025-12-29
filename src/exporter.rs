@@ -7,7 +7,13 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let mut origin_printed = false;
     let formatter = state.get_formatter();
 
-    for line in &state.disassembly {
+    let external_lines = if !state.settings.all_labels {
+        state.get_external_label_definitions()
+    } else {
+        Vec::new()
+    };
+
+    for line in external_lines.iter().chain(state.disassembly.iter()) {
         // Special case: Header (starts with ;)
         if line.mnemonic.starts_with(';') {
             output.push_str(&format!("{}\n", line.mnemonic));
@@ -824,6 +830,58 @@ mod tests {
             comment_idx < label_idx,
             "Line comment should appear before label"
         );
+
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+    #[test]
+    fn test_export_all_labels_disabled() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        state.raw_data = vec![0xEA];
+
+        // Define an external label
+        state.labels.insert(
+            0x0010,
+            vec![crate::state::Label {
+                name: "f10".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                label_type: crate::state::LabelType::ZeroPageField,
+                refs: vec![],
+            }],
+        );
+
+        // Disable "All Labels"
+        state.settings.all_labels = false;
+
+        // Run disassembly
+        state.disassemble();
+
+        // precise verification: disassembly should NOT verify external label definition
+        for line in &state.disassembly {
+            if line.mnemonic.contains("ZP FIELDS") || line.mnemonic.contains("f10 =") {
+                panic!(
+                    "Disassembly contained external label definition but 'all_labels' is false!"
+                );
+            }
+        }
+
+        // Now Export
+        let file_name = "test_export_all_labels_false.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        // Must contain the label definition
+        assert!(content.contains("f10 = $10"));
+        assert!(content.contains("; ZP FIELDS"));
 
         if path.exists() {
             let _ = std::fs::remove_file(&path);

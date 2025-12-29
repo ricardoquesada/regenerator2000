@@ -601,12 +601,14 @@ impl AppState {
             &self.user_line_comments,
         );
 
-        // Add external label definitions at the top
-        let external_lines = self.get_external_label_definitions();
-        if !external_lines.is_empty() {
-            let mut all_lines = external_lines;
-            all_lines.extend(lines);
-            lines = all_lines;
+        // Add external label definitions at the top if enabled
+        if self.settings.all_labels {
+            let external_lines = self.get_external_label_definitions();
+            if !external_lines.is_empty() {
+                let mut all_lines = external_lines;
+                all_lines.extend(lines);
+                lines = all_lines;
+            }
         }
 
         self.disassembly = lines;
