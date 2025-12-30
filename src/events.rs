@@ -278,7 +278,7 @@ pub fn run_app<B: Backend>(
                     }
                     KeyCode::Enter => {
                         if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                            let address = line.address;
+                            let address = line.comment_address.unwrap_or(line.address);
                             let new_comment = ui_state.comment_dialog.input.trim().to_string();
                             let new_comment_opt = if new_comment.is_empty() {
                                 None

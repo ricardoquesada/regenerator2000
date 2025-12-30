@@ -32,6 +32,7 @@ pub struct DisassemblyLine {
     pub opcode: Option<Opcode>,
     pub show_bytes: bool,
     pub target_address: Option<u16>,
+    pub comment_address: Option<u16>,
 }
 
 pub struct Disassembler {
@@ -361,9 +362,34 @@ impl Disassembler {
                     // Use get_referenced_address for comments, NOT get_arrow_target_address
                     if let Some(target_addr) = self.get_referenced_address(opcode, &bytes, address)
                     {
-                        let target_comment = if let Some(c) = user_side_comments.get(&target_addr) {
-                            Some(c)
+                        // Calculate origin to check if target is within our data block
+                        let origin = address.wrapping_sub(pc as u16);
+                        let target_idx = target_addr.wrapping_sub(origin) as usize;
+
+                        // Check if target is known code
+                        let mut is_code_target = false;
+                        if target_idx < data.len() {
+                            if let Some(bt) = block_types.get(target_idx) {
+                                if *bt == BlockType::Code {
+                                    is_code_target = true;
+                                }
+                            }
+                        }
+
+                        // Should we show the user comment?
+                        // If it's code, NO (avoids propagation in loops).
+                        // If it's data/unknown, YES.
+                        let target_comment = if !is_code_target {
+                            if let Some(c) = user_side_comments.get(&target_addr) {
+                                Some(c)
+                            } else {
+                                system_comments.get(&target_addr)
+                            }
                         } else {
+                            // Even if we suppress user comments for code, we might want system comments (e.g. KERNAL)
+                            // But usually KERNAL/System targets won't be in our 'data' block types loop unless we disassembled the whole memory.
+                            // If they are outside (target_idx >= len), is_code_target is false, so we show them (correct for external system calls).
+                            // If they are INSIDE and marked as Code, we suppress user comments (to fix the bug).
                             system_comments.get(&target_addr)
                         };
 
@@ -439,6 +465,7 @@ impl Disassembler {
                             opcode: Some(opcode.clone()),
                             show_bytes: true,
                             target_address,
+                            comment_address: None,
                         }],
                     );
                 }
@@ -463,6 +490,7 @@ impl Disassembler {
                 opcode: None,
                 show_bytes: true,
                 target_address: None,
+                comment_address: None,
             }],
         )
     }
@@ -518,6 +546,7 @@ impl Disassembler {
                 opcode: None,
                 show_bytes: false,
                 target_address: None,
+                comment_address: None,
             }],
         )
     }
@@ -578,6 +607,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: false,
                     target_address: None,
+                    comment_address: None,
                 }],
             )
         } else {
@@ -678,6 +708,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: false,
                     target_address: None,
+                    comment_address: None,
                 }],
             )
         } else {
@@ -790,6 +821,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: false,
                     target_address: None,
+                    comment_address: None,
                 });
             }
 
@@ -945,6 +977,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: false,
                     target_address: None,
+                    comment_address: None,
                 });
             }
 
@@ -994,6 +1027,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: true,
                     target_address: None,
+                    comment_address: None,
                 }],
             )
         } else {
@@ -1011,6 +1045,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: true,
                     target_address: None,
+                    comment_address: None,
                 }],
             )
         }
@@ -1041,6 +1076,7 @@ impl Disassembler {
                 opcode: None,
                 show_bytes: true,
                 target_address: None,
+                comment_address: None,
             }],
         )
     }

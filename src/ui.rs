@@ -1249,18 +1249,12 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 let c_idx = arrow.col * 2;
 
                 // Vertical line
-                // Vertical line
                 if current_line > low && current_line < high && chars[c_idx] == ' ' {
                     chars[c_idx] = '│';
                 }
 
                 // Endpoints
                 if current_line == arrow.start {
-                    // This is the Jump Source
-                    // ┌─> or └─> depending on direction?
-                    // No, Jump Source is just start of line.
-                    // If jumping DOWN: ┌──
-                    // If jumping UP:   └──
                     if arrow.start < arrow.end {
                         chars[c_idx] = '┌';
                         chars[c_idx + 1] = '─';
@@ -1269,33 +1263,19 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                         chars[c_idx + 1] = '─';
                     }
                 } else if current_line == arrow.end {
-                    // This is Jump Target
-                    // If target is BELOW source (Jump DOWN): └──>
-                    // If target is ABOVE source (Jump UP):   ┌──>
                     if arrow.start < arrow.end {
                         // Jump Down
                         chars[c_idx] = '└';
                         chars[c_idx + 1] = '─';
-                        // Arrow head?
+                        // Arrow head
                         if arrow.col == 0 {
                             chars[c_idx + 1] = '►'; // Just pointing right
-                        } else {
-                            // We need to cross other columns?
-                            // Let's just use > at the end of the line
                         }
                     } else {
                         // Jump Up
                         chars[c_idx] = '┌';
                         chars[c_idx + 1] = '─';
                     }
-                }
-
-                // Horizontal connectors
-                if current_line == arrow.start || current_line == arrow.end {
-                    // Fill from col to right with ─
-                    // But strictly speaking we only draw for OUR column.
-                    // The Right Arrow Head '>' should be at the very right edge of the arrow gutter.
-                    // We handle that by post-processing or checking strict equality.
                 }
             }
         }
@@ -1304,17 +1284,13 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
         for arrow in &active_arrows {
             if current_line == arrow.start || current_line == arrow.end {
                 let c_idx = arrow.col * 2;
-                // Draw horizontal line to the right
-                // Draw horizontal line to the right
                 for c in chars.iter_mut().skip(c_idx + 1) {
                     if *c == ' ' {
                         *c = '─';
                     } else if *c == '│' {
-                        // Crossing
-                        *c = '┼'; // Or similar
+                        *c = '┼';
                     }
                 }
-                // Put arrow head at the end if it's the target line
                 if current_line == arrow.end {
                     let last = chars.len() - 1;
                     chars[last] = '►';
@@ -1322,6 +1298,40 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             }
         }
 
+        chars.iter().collect()
+    };
+
+    // Helper to render arrow string for the line comment associated with line 'i'
+    // This represents the space "just above" line 'i'.
+    let get_comment_arrow_str = |current_line: usize| -> String {
+        let cols = app_state.settings.max_arrow_columns;
+        let mut chars = vec![' '; cols * 2 + 1];
+
+        if active_arrows.is_empty() {
+            return chars.iter().collect();
+        }
+
+        for arrow in &active_arrows {
+            let c_idx = arrow.col * 2;
+            let (low, high) = if arrow.start < arrow.end {
+                (arrow.start, arrow.end)
+            } else {
+                (arrow.end, arrow.start)
+            };
+
+            // Logic: Draw vertical line if arrow passes through the space above current_line
+            // 1. Pass through: low < current_line < high
+            // 2. Jump Up Start: start == current_line (goes UP from here, so passes through above)
+            // 3. Jump Down End: end == current_line (comes DOWN to here, so passes through above)
+
+            let passes_through = (current_line > low && current_line < high)
+                || (current_line == arrow.start && arrow.end < arrow.start)
+                || (current_line == arrow.end && arrow.start < arrow.end);
+
+            if passes_through {
+                chars[c_idx] = '│';
+            }
+        }
         chars.iter().collect()
     };
 
@@ -1376,13 +1386,14 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             let arrow_padding = get_arrow_str(i);
 
             if let Some(line_comment) = &line.line_comment {
+                let comment_arrow_padding = get_comment_arrow_str(i);
                 item_lines.push(Line::from(vec![
                     Span::styled(
                         format!("{:5} ", current_line_num),
                         Style::default().fg(Color::DarkGray),
                     ),
                     Span::styled(
-                        format!("{:width$} ", arrow_padding, width = arrow_width),
+                        format!("{:width$} ", comment_arrow_padding, width = arrow_width),
                         Style::default().fg(Color::LightBlue),
                     ),
                     Span::styled(

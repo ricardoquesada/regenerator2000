@@ -1362,3 +1362,111 @@ fn test_target_address_specific_instructions() {
     assert_eq!(lines[4].mnemonic, "RTI");
     assert_eq!(lines[4].target_address, None);
 }
+
+#[test]
+fn test_side_comment_propagation_suppressed_for_code() {
+    let labels = BTreeMap::new();
+    let mut user_side_comments = BTreeMap::new();
+    user_side_comments.insert(0x1000, "Loop Start".to_string());
+
+    // $1000: BNE $1000 -> D0 FE
+    let data = vec![0xD0, 0xFE];
+    let block_types = vec![BlockType::Code; 2];
+    let address = 0x1000;
+
+    let disassembler = Disassembler::new();
+    let formatter = AcmeFormatter;
+    let settings = DocumentSettings::default();
+    let system_comments = BTreeMap::new();
+
+    // mimic disassemble loop: get comment for current address
+    let side_comment = user_side_comments
+        .get(&address)
+        .cloned()
+        .unwrap_or_default();
+
+    let (_, lines) = disassembler.handle_code(
+        0, // pc relative to data start
+        &data,
+        &block_types,
+        address,
+        &formatter,
+        &labels,
+        &settings,
+        None,
+        side_comment,
+        None,
+        &system_comments,
+        &user_side_comments,
+    );
+
+    assert_eq!(lines.len(), 1);
+    let line = &lines[0];
+    // It SHOULD have the comment "Loop Start" once.
+    assert_eq!(line.comment, "Loop Start");
+    // It should NOT be "Loop Start; Loop Start"
+
+    // Now test another instruction jumping to it
+    // $1002: JMP $1000 -> 4C 00 10
+    // We need combined data so target is found as Code
+    // $1000: BNE $1000 (D0 FE)
+    // $1002: JMP $1000 (4C 00 10)
+    let full_data = vec![0xD0, 0xFE, 0x4C, 0x00, 0x10];
+    let full_block_types = vec![BlockType::Code; 5];
+
+    // Handle JMP at offset 2 ($1002)
+    let (_, lines2) = disassembler.handle_code(
+        2,
+        &full_data,
+        &full_block_types,
+        0x1002, // address
+        &formatter,
+        &labels,
+        &settings,
+        None,
+        String::new(), // No comment on the JMP itself
+        None,
+        &system_comments,
+        &user_side_comments,
+    );
+
+    assert_eq!(lines2.len(), 1);
+    // Should NOT have propagated comment from $1000 because target ($1000) is Code.
+    assert_eq!(lines2[0].comment, "");
+}
+
+#[test]
+fn test_side_comment_propagation_allowed_for_data() {
+    let labels = BTreeMap::new();
+    let mut user_side_comments = BTreeMap::new();
+    user_side_comments.insert(0x2000, "My Data".to_string());
+
+    let data = vec![0xAD, 0x00, 0x20]; // LDA $2000
+                                       // Target $2000 is out of bounds of this data block, so is_code_target should be false.
+
+    let block_types = vec![BlockType::Code; 3];
+    let address = 0x1000;
+
+    let disassembler = Disassembler::new();
+    let formatter = AcmeFormatter;
+    let settings = DocumentSettings::default();
+    let system_comments = BTreeMap::new();
+
+    let (_, lines) = disassembler.handle_code(
+        0,
+        &data,
+        &block_types,
+        address,
+        &formatter,
+        &labels,
+        &settings,
+        None,
+        String::new(),
+        None,
+        &system_comments,
+        &user_side_comments,
+    );
+
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].comment, "My Data");
+}

@@ -123,6 +123,7 @@ mod tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
         // STA $D020
         state.disassembly.push(DisassemblyLine {
@@ -136,6 +137,7 @@ mod tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
         // RTS
         state.disassembly.push(DisassemblyLine {
@@ -149,6 +151,7 @@ mod tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         // 2. Export to a temp file
@@ -255,6 +258,7 @@ mod tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         // Next instruction using those labels
@@ -270,6 +274,7 @@ mod tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         let file_name = "test_mid_labels.asm";
@@ -335,6 +340,7 @@ mod tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         let file_name = "test_xref_export.asm";
@@ -411,6 +417,7 @@ mod tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         let file_name = "test_external_fields.asm";
@@ -677,6 +684,7 @@ mod tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         let file_name = "test_external_name_check.asm";
@@ -746,6 +754,7 @@ mod tests {
             )),
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         // Line 2: LDA $0012,X (Absolute X)
@@ -768,6 +777,7 @@ mod tests {
             )),
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         let file_name = "test_export_force_zp.asm";
@@ -814,6 +824,7 @@ mod tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         let file_name = "test_export_line_comments.asm";

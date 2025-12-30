@@ -586,20 +586,30 @@ impl AppState {
                     opcode: None,
                     show_bytes: true,
                     target_address: None,
+                    comment_address: None,
                 });
 
                 for (addr, name) in group {
+                    // Logic for side comment
+                    let mut comment = String::new();
+                    if let Some(user_comment) = self.user_side_comments.get(&addr) {
+                        comment = user_comment.clone();
+                    } else if let Some(sys_comment) = self.system_comments.get(&addr) {
+                        comment = sys_comment.clone();
+                    }
+
                     lines.push(DisassemblyLine {
                         address: 0,
                         bytes: vec![],
                         mnemonic: formatter.format_definition(name, addr, is_zp),
                         operand: String::new(),
-                        comment: String::new(),
+                        comment,
                         line_comment: None,
                         label: None,
                         opcode: None,
                         show_bytes: true,
                         target_address: None,
+                        comment_address: Some(addr),
                     });
                 }
 
@@ -614,6 +624,7 @@ impl AppState {
                     opcode: None,
                     show_bytes: true,
                     target_address: None,
+                    comment_address: None,
                 });
             }
         };
@@ -985,6 +996,7 @@ mod cursor_tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         // Simulate code at origin
@@ -999,6 +1011,7 @@ mod cursor_tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         // Should return index 1 (the code), not index 0 (the header)
@@ -1020,6 +1033,7 @@ mod cursor_tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         // Actual code at $0000
@@ -1034,6 +1048,7 @@ mod cursor_tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
+            comment_address: None,
         });
 
         let idx = app_state_zero.get_line_index_for_address(0);
