@@ -1247,6 +1247,7 @@ fn execute_menu_action(
             if let Some(idx) = new_cursor {
                 ui_state.cursor_index = idx;
             }
+            ui_state.is_visual_mode = false;
             ui_state.selection_start = None;
 
             // Clamp cursor
@@ -1268,6 +1269,7 @@ fn execute_menu_action(
             if let Some(idx) = new_cursor {
                 ui_state.cursor_index = idx;
             }
+            ui_state.is_visual_mode = false;
             ui_state.selection_start = None;
 
             // Clamp cursor
@@ -1289,6 +1291,7 @@ fn execute_menu_action(
             if let Some(idx) = new_cursor {
                 ui_state.cursor_index = idx;
             }
+            ui_state.is_visual_mode = false;
             ui_state.selection_start = None;
 
             // Clamp cursor
@@ -1310,6 +1313,7 @@ fn execute_menu_action(
             if let Some(idx) = new_cursor {
                 ui_state.cursor_index = idx;
             }
+            ui_state.is_visual_mode = false;
             ui_state.selection_start = None;
 
             // Clamp cursor
@@ -1331,6 +1335,7 @@ fn execute_menu_action(
             if let Some(idx) = new_cursor {
                 ui_state.cursor_index = idx;
             }
+            ui_state.is_visual_mode = false;
             ui_state.selection_start = None;
 
             // Clamp cursor
@@ -1352,6 +1357,7 @@ fn execute_menu_action(
             if let Some(idx) = new_cursor {
                 ui_state.cursor_index = idx;
             }
+            ui_state.is_visual_mode = false;
             ui_state.selection_start = None;
 
             // Clamp cursor
@@ -1373,6 +1379,7 @@ fn execute_menu_action(
             if let Some(idx) = new_cursor {
                 ui_state.cursor_index = idx;
             }
+            ui_state.is_visual_mode = false;
             ui_state.selection_start = None;
 
             // Clamp cursor
