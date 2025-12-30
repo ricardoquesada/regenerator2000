@@ -179,7 +179,7 @@ impl Disassembler {
         lines
     }
 
-    fn get_target_address(&self, opcode: &Opcode, bytes: &[u8], address: u16) -> Option<u16> {
+    fn get_arrow_target_address(&self, opcode: &Opcode, bytes: &[u8], address: u16) -> Option<u16> {
         use crate::cpu::AddressingMode;
 
         // User request:
@@ -217,6 +217,55 @@ impl Disassembler {
                 // Unless we wanted arrows for generic memory access, but request specifically mentioned flow control.
                 _ => None,
             }
+        }
+    }
+
+    /// Returns the address referenced by the instruction, if any.
+    /// This is used for looking up comments and X-Refs.
+    /// Unlike get_flow_target_address, this returns a value for memory access instructions like STA, LDA, etc.
+    fn get_referenced_address(&self, opcode: &Opcode, bytes: &[u8], address: u16) -> Option<u16> {
+        use crate::cpu::AddressingMode;
+
+        match opcode.mode {
+            AddressingMode::Absolute | AddressingMode::AbsoluteX | AddressingMode::AbsoluteY => {
+                if bytes.len() >= 3 {
+                    Some((bytes[2] as u16) << 8 | (bytes[1] as u16))
+                } else {
+                    None
+                }
+            }
+            AddressingMode::ZeroPage | AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
+                if bytes.len() >= 2 {
+                    Some(bytes[1] as u16)
+                } else {
+                    None
+                }
+            }
+            AddressingMode::Relative => {
+                if bytes.len() >= 2 {
+                    let offset = bytes[1] as i8;
+                    // Branch target
+                    Some(address.wrapping_add(2).wrapping_add(offset as u16))
+                } else {
+                    None
+                }
+            }
+            AddressingMode::Indirect => {
+                if bytes.len() >= 3 {
+                    Some((bytes[2] as u16) << 8 | (bytes[1] as u16))
+                } else {
+                    None
+                }
+            }
+            // For IndirectX/Y, we could argue it references the Zero Page address given.
+            AddressingMode::IndirectX | AddressingMode::IndirectY => {
+                if bytes.len() >= 2 {
+                    Some(bytes[1] as u16)
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 
@@ -309,7 +358,9 @@ impl Disassembler {
                     }
 
                     // Append referenced address comment if any
-                    if let Some(target_addr) = self.get_target_address(opcode, &bytes, address) {
+                    // Use get_referenced_address for comments, NOT get_arrow_target_address
+                    if let Some(target_addr) = self.get_referenced_address(opcode, &bytes, address)
+                    {
                         let target_comment = if let Some(c) = user_side_comments.get(&target_addr) {
                             Some(c)
                         } else {
@@ -373,7 +424,7 @@ impl Disassembler {
                         settings,
                     );
 
-                    let target_address = self.get_target_address(opcode, &bytes, address);
+                    let target_address = self.get_arrow_target_address(opcode, &bytes, address);
 
                     return (
                         opcode.size as usize,

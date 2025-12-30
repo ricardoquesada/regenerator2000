@@ -34,7 +34,9 @@
         "name": "start",
         "label_type": "UserDefined",
         "kind": "User",
-        "refs": []
+        "refs": [
+          32790
+        ]
       }
     ],
     "32777": [
@@ -42,7 +44,10 @@
         "name": "cartrige_boot",
         "label_type": "UserDefined",
         "kind": "User",
-        "refs": []
+        "refs": [
+          32768,
+          32770
+        ]
       }
     ]
   },

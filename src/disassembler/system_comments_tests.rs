@@ -49,3 +49,41 @@ fn test_system_comments_logic() {
     // then append referenced -> "Start Routine; init VIC"
     assert_eq!(line.comment, "Start Routine; init VIC");
 }
+
+#[test]
+fn test_system_comment_on_sta() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x2000;
+
+    let mut system_comments = BTreeMap::new();
+    // D020: Border Color
+    system_comments.insert(0xD020, "Border Color".to_string());
+
+    // 2000: STA $D020 (8D 20 D0)
+    let code = vec![0x8D, 0x20, 0xD0];
+    let block_types = vec![BlockType::Code, BlockType::Code, BlockType::Code];
+
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &system_comments,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    assert_eq!(lines.len(), 1);
+    let line = &lines[0];
+
+    assert_eq!(line.mnemonic, "STA");
+    assert_eq!(line.operand, "$D020");
+    // This assertion fails currently because handling of STA doesn't look up target address for comments
+    // because get_target_address returns None for STA.
+    assert_eq!(line.comment, "Border Color");
+}
