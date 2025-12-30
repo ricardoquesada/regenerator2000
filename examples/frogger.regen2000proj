@@ -52,7 +52,7 @@
     ]
   },
   "user_side_comments": {
-    "32768": "start address",
+    "32768": "cartridge vectors",
     "32770": "NMI vector",
     "32772": "CMB80"
   },
