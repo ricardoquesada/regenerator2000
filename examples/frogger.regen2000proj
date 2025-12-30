@@ -54,7 +54,7 @@
   "user_side_comments": {
     "32768": "cartridge vectors",
     "32770": "NMI vector",
-    "32772": "CMB80"
+    "32772": "\"CBM80\""
   },
   "user_line_comments": {
     "24068": "start",
@@ -70,5 +70,5 @@
     "max_xref_count": 5,
     "max_arrow_columns": 6
   },
-  "cursor_address": 32777
+  "cursor_address": 32780
 }
