@@ -454,6 +454,7 @@ impl MenuState {
                         MenuItem::new("Address", Some("A"), Some(MenuAction::Address)),
                         MenuItem::new("Text", Some("T"), Some(MenuAction::Text)),
                         MenuItem::new("Screencode", Some("S"), Some(MenuAction::Screencode)),
+                        MenuItem::new("Undefined", Some("Shift+U"), Some(MenuAction::Undefined)),
                         MenuItem::separator(),
                         MenuItem::new("Side Comment", Some(";"), Some(MenuAction::SideComment)),
                         MenuItem::new(
@@ -471,8 +472,6 @@ impl MenuState {
                             Some("Ctrl+P"),
                             Some(MenuAction::DocumentSettings),
                         ),
-                        MenuItem::separator(),
-                        MenuItem::new("Undefined", Some("Shift+U"), Some(MenuAction::Undefined)),
                     ],
                 },
                 MenuCategory {
