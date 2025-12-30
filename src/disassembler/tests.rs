@@ -1102,11 +1102,11 @@ fn test_target_address_population() {
     // 1. JMP $1234 (4C 34 12)
     // 2. BNE +4 (D0 04) -> 1003 + 2 + 4 = 1009
     // 3. NOP (EA)
-    
+
     let code = vec![
         0x4C, 0x34, 0x12, // JMP $1234
-        0xD0, 0x04,       // BNE +4 (to 1003 + 2 + 04 = 1009)
-        0xEA,             // NOP
+        0xD0, 0x04, // BNE +4 (to 1003 + 2 + 04 = 1009)
+        0xEA, // NOP
     ];
     let block_types = vec![
         BlockType::Code,
@@ -1153,13 +1153,13 @@ fn test_target_address_specific_instructions() {
     // 3. RTS (60) -> Should NOT have target
     // 4. BRK (00) -> Should NOT have target
     // 5. RTI (40) -> Should NOT have target
-    
+
     let code = vec![
         0x20, 0x00, 0x20, // JSR $2000
         0x6C, 0x34, 0x12, // JMP ($1234)
-        0x60,             // RTS
-        0x00,             // BRK
-        0x40,             // RTI
+        0x60, // RTS
+        0x00, // BRK
+        0x40, // RTI
     ];
     let block_types = vec![
         BlockType::Code,
@@ -1201,7 +1201,7 @@ fn test_target_address_specific_instructions() {
     // BRK
     assert_eq!(lines[3].mnemonic, "BRK");
     assert_eq!(lines[3].target_address, None);
-    
+
     // RTI
     assert_eq!(lines[4].mnemonic, "RTI");
     assert_eq!(lines[4].target_address, None);

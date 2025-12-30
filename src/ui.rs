@@ -1203,10 +1203,9 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 let c_idx = arrow.col * 2;
 
                 // Vertical line
-                if current_line > low && current_line < high {
-                    if chars[c_idx] == ' ' {
-                        chars[c_idx] = '│';
-                    }
+                // Vertical line
+                if current_line > low && current_line < high && chars[c_idx] == ' ' {
+                    chars[c_idx] = '│';
                 }
 
                 // Endpoints
@@ -1260,12 +1259,13 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             if current_line == arrow.start || current_line == arrow.end {
                 let c_idx = arrow.col * 2;
                 // Draw horizontal line to the right
-                for k in (c_idx + 1)..chars.len() {
-                    if chars[k] == ' ' {
-                        chars[k] = '─';
-                    } else if chars[k] == '│' {
+                // Draw horizontal line to the right
+                for c in chars.iter_mut().skip(c_idx + 1) {
+                    if *c == ' ' {
+                        *c = '─';
+                    } else if *c == '│' {
                         // Crossing
-                        chars[k] = '┼'; // Or similar
+                        *c = '┼'; // Or similar
                     }
                 }
                 // Put arrow head at the end if it's the target line

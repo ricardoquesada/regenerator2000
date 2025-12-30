@@ -14,6 +14,10 @@ impl Formatter for AcmeFormatter {
         "!word"
     }
 
+    fn format_byte(&self, byte: u8) -> String {
+        format!("${:02x}", byte)
+    }
+
     fn format_operand(
         &self,
         opcode: &Opcode,

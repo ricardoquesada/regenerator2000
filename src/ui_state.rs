@@ -44,6 +44,7 @@ pub enum MenuAction {
     About,
     ChangeOrigin,
     KeyboardShortcuts,
+    Undefined,
 }
 
 impl MenuAction {
@@ -470,6 +471,8 @@ impl MenuState {
                             Some("Ctrl+P"),
                             Some(MenuAction::DocumentSettings),
                         ),
+                        MenuItem::separator(),
+                        MenuItem::new("Undefined", Some("Shift+U"), Some(MenuAction::Undefined)),
                     ],
                 },
                 MenuCategory {

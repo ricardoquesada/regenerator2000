@@ -120,6 +120,7 @@ pub enum BlockType {
     Address, // Reference to an address
     Text,
     Screencode,
+    Undefined,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

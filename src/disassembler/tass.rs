@@ -14,6 +14,10 @@ impl Formatter for TassFormatter {
         ".WORD"
     }
 
+    fn format_byte(&self, byte: u8) -> String {
+        format!("${:02X}", byte)
+    }
+
     fn format_operand(
         &self,
         opcode: &Opcode,

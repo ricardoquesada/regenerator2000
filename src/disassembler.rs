@@ -161,6 +161,15 @@ impl Disassembler {
                     side_comment,
                     line_comment,
                 ),
+                BlockType::Undefined => self.handle_undefined_byte(
+                    pc,
+                    data,
+                    address,
+                    formatter.as_ref(),
+                    label_name,
+                    side_comment,
+                    line_comment,
+                ),
             };
 
             lines.extend(new_lines);
@@ -954,5 +963,34 @@ impl Disassembler {
                 }],
             )
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn handle_undefined_byte(
+        &self,
+        pc: usize,
+        data: &[u8],
+        address: u16,
+        formatter: &dyn Formatter,
+        label_name: Option<String>,
+        side_comment: String,
+        line_comment: Option<String>,
+    ) -> (usize, Vec<DisassemblyLine>) {
+        let b = data[pc];
+        (
+            1,
+            vec![DisassemblyLine {
+                address,
+                bytes: vec![b],
+                mnemonic: formatter.byte_directive().to_string(),
+                operand: formatter.format_byte(b),
+                comment: side_comment,
+                line_comment,
+                label: label_name,
+                opcode: None,
+                show_bytes: true,
+                target_address: None,
+            }],
+        )
     }
 }

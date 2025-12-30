@@ -937,6 +937,15 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
+                    KeyCode::Char('U') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::Undefined,
+                            )
+                        }
+                    }
                     KeyCode::Char(';') => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
@@ -1322,6 +1331,27 @@ fn execute_menu_action(
 
             app_state.set_block_type_region(
                 crate::state::BlockType::Screencode,
+                ui_state.selection_start,
+                ui_state.cursor_index,
+            );
+            if let Some(idx) = new_cursor {
+                ui_state.cursor_index = idx;
+            }
+            ui_state.selection_start = None;
+
+            // Clamp cursor
+            let max_idx = app_state.disassembly.len().saturating_sub(1);
+            if ui_state.cursor_index > max_idx {
+                ui_state.cursor_index = max_idx;
+            }
+        }
+        MenuAction::Undefined => {
+            let new_cursor = ui_state
+                .selection_start
+                .map(|start| start.min(ui_state.cursor_index));
+
+            app_state.set_block_type_region(
+                crate::state::BlockType::Undefined,
                 ui_state.selection_start,
                 ui_state.cursor_index,
             );
