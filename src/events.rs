@@ -676,6 +676,21 @@ pub fn run_app<B: Backend>(
                     }
                     _ => {}
                 }
+            } else if ui_state.system_settings_dialog.active {
+                match key.code {
+                    KeyCode::Esc => {
+                        ui_state.system_settings_dialog.close();
+                        ui_state.set_status_message("Ready");
+                    }
+                    KeyCode::Enter | KeyCode::Char(' ') => {
+                        if ui_state.system_settings_dialog.selected_index == 0 {
+                            app_state.system_config.open_last_project =
+                                !app_state.system_config.open_last_project;
+                            let _ = app_state.system_config.save();
+                        }
+                    }
+                    _ => {}
+                }
             } else if ui_state.origin_dialog.active {
                 match key.code {
                     KeyCode::Esc => {
@@ -1527,6 +1542,10 @@ fn execute_menu_action(
         MenuAction::ChangeOrigin => {
             ui_state.origin_dialog.open(app_state.origin);
             ui_state.set_status_message("Enter new origin (Hex)");
+        }
+        MenuAction::SystemSettings => {
+            ui_state.system_settings_dialog.open();
+            ui_state.set_status_message("System Settings");
         }
     }
 }

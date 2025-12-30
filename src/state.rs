@@ -1,3 +1,4 @@
+use crate::config::SystemConfig;
 use crate::disassembler::{Disassembler, DisassemblyLine};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -213,7 +214,10 @@ pub struct AppState {
     pub settings: DocumentSettings,
     pub system_comments: HashMap<u16, String>,
     pub user_side_comments: HashMap<u16, String>,
+
     pub user_line_comments: HashMap<u16, String>,
+
+    pub system_config: SystemConfig,
 
     pub undo_stack: crate::commands::UndoStack,
     pub last_saved_pointer: usize,
@@ -235,6 +239,7 @@ impl AppState {
             system_comments: HashMap::new(),
             user_side_comments: HashMap::new(),
             user_line_comments: HashMap::new(),
+            system_config: SystemConfig::load(),
             undo_stack: crate::commands::UndoStack::new(),
             last_saved_pointer: 0,
         }
@@ -278,8 +283,20 @@ impl AppState {
             .and_then(|e| e.to_str())
         {
             if ext.eq_ignore_ascii_case("regen2000proj") {
-                return self.load_project(path);
+                // If we loaded a project successfully, update system config
+                let res = self.load_project(path.clone());
+                if res.is_ok() {
+                    self.system_config.last_project_path = Some(path);
+                    let _ = self.system_config.save();
+                }
+                return res;
             }
+
+            // ... existing code ...
+
+            // This is a file, not a project, so maybe we don't save it as last_project?
+            // User request says "try to load the latest regen2000 project that was used".
+            // So I only track projects.
 
             if ext.eq_ignore_ascii_case("prg") && data.len() >= 2 {
                 self.origin = (data[1] as u16) << 8 | (data[0] as u16);
@@ -360,7 +377,13 @@ impl AppState {
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;
+            let data = serde_json::to_string_pretty(&project)?;
+            std::fs::write(path, data)?;
             self.last_saved_pointer = self.undo_stack.get_pointer();
+
+            self.system_config.last_project_path = Some(path.clone());
+            let _ = self.system_config.save();
+
             Ok(())
         } else {
             Err(anyhow::anyhow!("No project path set"))

@@ -52,6 +52,10 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         render_settings_dialog(f, f.area(), app_state, &ui_state.settings_dialog);
     }
 
+    if ui_state.system_settings_dialog.active {
+        render_system_settings_dialog(f, f.area(), app_state, &ui_state.system_settings_dialog);
+    }
+
     if ui_state.about_dialog.active {
         render_about_dialog(f, ui_state, f.area());
     }
@@ -798,6 +802,48 @@ fn render_menu(f: &mut Frame, area: Rect, menu_state: &crate::ui_state::MenuStat
     let menu_bar =
         Paragraph::new(Line::from(spans)).style(Style::default().bg(Color::Blue).fg(Color::White));
     f.render_widget(menu_bar, area);
+}
+
+fn render_system_settings_dialog(
+    f: &mut Frame,
+    area: Rect,
+    app_state: &AppState,
+    dialog: &crate::ui_state::SystemSettingsDialogState,
+) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Settings ")
+        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+
+    let area = centered_rect(50, 20, area); // Smaller height
+    f.render_widget(ratatui::widgets::Clear, area);
+    f.render_widget(block.clone(), area);
+
+    let inner = block.inner(area);
+
+    let items = vec![format!(
+        "{} Open the latest file on startup",
+        if app_state.system_config.open_last_project {
+            "[X]"
+        } else {
+            "[ ]"
+        }
+    )];
+
+    for (i, item) in items.into_iter().enumerate() {
+        let style = if dialog.selected_index == i {
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::White)
+        };
+
+        f.render_widget(
+            Paragraph::new(item).style(style),
+            Rect::new(inner.x + 2, inner.y + 1 + i as u16, inner.width - 4, 1),
+        );
+    }
 }
 
 fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::ui_state::MenuState) {

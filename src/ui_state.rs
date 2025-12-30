@@ -45,13 +45,18 @@ pub enum MenuAction {
     ChangeOrigin,
     KeyboardShortcuts,
     Undefined,
+    SystemSettings,
 }
 
 impl MenuAction {
     pub fn requires_document(&self) -> bool {
         !matches!(
             self,
-            MenuAction::Exit | MenuAction::Open | MenuAction::About | MenuAction::KeyboardShortcuts
+            MenuAction::Exit
+                | MenuAction::Open
+                | MenuAction::About
+                | MenuAction::KeyboardShortcuts
+                | MenuAction::SystemSettings
         )
     }
 }
@@ -409,6 +414,29 @@ impl SettingsDialogState {
     }
 }
 
+pub struct SystemSettingsDialogState {
+    pub active: bool,
+    pub selected_index: usize,
+}
+
+impl SystemSettingsDialogState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            selected_index: 0,
+        }
+    }
+
+    pub fn open(&mut self) {
+        self.active = true;
+        self.selected_index = 0;
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+    }
+}
+
 pub struct MenuState {
     pub active: bool,
     pub categories: Vec<MenuCategory>,
@@ -438,6 +466,8 @@ impl MenuState {
                             Some("Ctrl+Shift+E"),
                             Some(MenuAction::ExportProjectAs),
                         ),
+                        MenuItem::separator(),
+                        MenuItem::new("Settings", None, Some(MenuAction::SystemSettings)),
                         MenuItem::separator(),
                         MenuItem::new("Exit", Some("Ctrl+Q"), Some(MenuAction::Exit)),
                     ],
@@ -663,6 +693,7 @@ pub struct UIState {
     pub shortcuts_dialog: ShortcutsDialogState,
     pub origin_dialog: OriginDialogState,
     pub confirmation_dialog: ConfirmationDialogState,
+    pub system_settings_dialog: SystemSettingsDialogState,
     pub menu: MenuState,
 
     pub navigation_history: Vec<usize>,
@@ -705,6 +736,7 @@ impl UIState {
             shortcuts_dialog: ShortcutsDialogState::new(),
             origin_dialog: OriginDialogState::new(),
             confirmation_dialog: ConfirmationDialogState::new(),
+            system_settings_dialog: SystemSettingsDialogState::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),
             disassembly_state: ListState::default(),

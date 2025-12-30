@@ -10,6 +10,7 @@ mod state;
 mod ui;
 mod ui_state;
 
+mod config;
 mod utils;
 
 #[cfg(test)]
@@ -60,6 +61,23 @@ fn main() -> Result<()> {
                 let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
                 if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
                     ui_state.cursor_index = idx;
+                }
+            }
+        }
+    } else if app_state.system_config.open_last_project {
+        if let Some(last_path) = app_state.system_config.last_project_path.clone() {
+            if last_path.exists() {
+                match app_state.load_file(last_path.clone()) {
+                    Ok(loaded_cursor) => {
+                        let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
+                        if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
+                            ui_state.cursor_index = idx;
+                        }
+                        ui_state.status_message = format!("Loaded recent project: {:?}", last_path);
+                    }
+                    Err(e) => {
+                        ui_state.status_message = format!("Failed to load recent: {}", e);
+                    }
                 }
             }
         }
