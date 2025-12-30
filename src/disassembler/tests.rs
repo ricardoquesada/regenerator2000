@@ -806,6 +806,72 @@ fn test_tass_screencode_multiline_wrapping() {
 }
 
 #[test]
+fn test_text_show_bytes_is_false() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    let code = vec![0x41, 0x42, 0x43]; // "ABC"
+    let block_types = vec![BlockType::Text, BlockType::Text, BlockType::Text];
+
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    // Filter for the .TEXT line
+    let text_line = lines.iter().find(|l| l.mnemonic == ".TEXT").unwrap();
+    assert_eq!(
+        text_line.show_bytes, false,
+        "Text blocks should not show bytes"
+    );
+}
+
+#[test]
+fn test_screencode_show_bytes_is_false() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    let code = vec![0x01, 0x02, 0x03]; // "ABC" in screencode
+    let block_types = vec![
+        BlockType::Screencode,
+        BlockType::Screencode,
+        BlockType::Screencode,
+    ];
+
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    // Filter for the .TEXT line (inside .ENCODE block)
+    let text_line = lines.iter().find(|l| l.mnemonic == ".TEXT").unwrap();
+    assert_eq!(
+        text_line.show_bytes, false,
+        "Screencode blocks should not show bytes"
+    );
+}
+
+#[test]
 fn test_tass_block_separation() {
     let mut settings = DocumentSettings::default();
     settings.assembler = Assembler::Tass64;

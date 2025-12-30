@@ -788,7 +788,7 @@ impl Disassembler {
                     line_comment: line_line_comment,
                     label: line_label,
                     opcode: None,
-                    show_bytes: false, // Text lines should not show bytes
+                    show_bytes: false,
                     target_address: None,
                 });
             }
@@ -943,7 +943,7 @@ impl Disassembler {
                     line_comment: line_line_comment,
                     label: line_label,
                     opcode: None,
-                    show_bytes: false, // Hide bytes for screencode blocks logic
+                    show_bytes: false,
                     target_address: None,
                 });
             }
