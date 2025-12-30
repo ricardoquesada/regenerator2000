@@ -516,7 +516,7 @@ impl Disassembler {
                 line_comment,
                 label: label_name,
                 opcode: None,
-                show_bytes: true,
+                show_bytes: false,
                 target_address: None,
             }],
         )
@@ -576,7 +576,7 @@ impl Disassembler {
                     line_comment,
                     label: label_name,
                     opcode: None,
-                    show_bytes: true,
+                    show_bytes: false,
                     target_address: None,
                 }],
             )
@@ -676,7 +676,7 @@ impl Disassembler {
                     line_comment,
                     label: label_name,
                     opcode: None,
-                    show_bytes: true,
+                    show_bytes: false,
                     target_address: None,
                 }],
             )

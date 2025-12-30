@@ -872,6 +872,96 @@ fn test_screencode_show_bytes_is_false() {
 }
 
 #[test]
+fn test_databyte_show_bytes_is_false() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    let code = vec![0x10, 0x20];
+    let block_types = vec![BlockType::DataByte, BlockType::DataByte];
+
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    assert_eq!(lines.len(), 1);
+    assert_eq!(
+        lines[0].show_bytes, false,
+        "DataByte blocks should not show bytes"
+    );
+}
+
+#[test]
+fn test_dataword_show_bytes_is_false() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    let code = vec![0x10, 0x20]; // $2010
+    let block_types = vec![BlockType::DataWord, BlockType::DataWord];
+
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    assert_eq!(lines.len(), 1);
+    assert_eq!(
+        lines[0].show_bytes, false,
+        "DataWord blocks should not show bytes"
+    );
+}
+
+#[test]
+fn test_address_show_bytes_is_false() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    let code = vec![0x10, 0x20]; // $2010
+    let block_types = vec![BlockType::Address, BlockType::Address];
+
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    assert_eq!(lines.len(), 1);
+    assert_eq!(
+        lines[0].show_bytes, false,
+        "Address blocks should not show bytes"
+    );
+}
+
+#[test]
 fn test_tass_block_separation() {
     let mut settings = DocumentSettings::default();
     settings.assembler = Assembler::Tass64;
