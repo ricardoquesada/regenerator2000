@@ -30,9 +30,9 @@
   ],
   "labels": {},
   "user_side_comments": {
-    "32772": "CMB80",
     "32770": "NMI vector",
-    "32768": "start address"
+    "32768": "start address",
+    "32772": "CMB80"
   },
   "user_line_comments": {
     "24068": "start"
