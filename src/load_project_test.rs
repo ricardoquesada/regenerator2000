@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::state::{AppState, Block, BlockType, DocumentSettings, LabelKind, ProjectState};
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     #[test]
     fn test_load_project_regenerates_auto_labels() {
@@ -24,7 +24,9 @@ mod tests {
                 end: 5,
                 type_: BlockType::Code,
             }],
-            labels: HashMap::new(), // EMPTY! No saved labels.
+            labels: BTreeMap::new(), // EMPTY! No saved labels.
+            user_side_comments: BTreeMap::new(),
+            user_line_comments: BTreeMap::new(),
             settings: DocumentSettings::default(),
             cursor_address: None,
         };

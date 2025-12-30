@@ -1,6 +1,6 @@
 use crate::cpu::{get_opcodes, Opcode};
 use crate::state::{Assembler, BlockType, DocumentSettings, Label};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 mod acme;
 pub mod formatter;
@@ -57,12 +57,12 @@ impl Disassembler {
         &self,
         data: &[u8],
         block_types: &[BlockType],
-        labels: &HashMap<u16, Vec<Label>>,
+        labels: &BTreeMap<u16, Vec<Label>>,
         origin: u16,
         settings: &DocumentSettings,
-        system_comments: &HashMap<u16, String>,
-        user_side_comments: &HashMap<u16, String>,
-        user_line_comments: &HashMap<u16, String>,
+        system_comments: &BTreeMap<u16, String>,
+        user_side_comments: &BTreeMap<u16, String>,
+        user_line_comments: &BTreeMap<u16, String>,
     ) -> Vec<DisassemblyLine> {
         let formatter = Self::create_formatter(settings.assembler);
 
@@ -223,7 +223,7 @@ impl Disassembler {
     fn get_label_name(
         &self,
         address: u16,
-        labels: &HashMap<u16, Vec<Label>>,
+        labels: &BTreeMap<u16, Vec<Label>>,
         formatter: &dyn Formatter,
     ) -> Option<String> {
         labels
@@ -235,10 +235,10 @@ impl Disassembler {
     fn get_side_comment(
         &self,
         address: u16,
-        labels: &HashMap<u16, Vec<Label>>,
+        labels: &BTreeMap<u16, Vec<Label>>,
         settings: &DocumentSettings,
-        system_comments: &HashMap<u16, String>,
-        user_side_comments: &HashMap<u16, String>,
+        system_comments: &BTreeMap<u16, String>,
+        user_side_comments: &BTreeMap<u16, String>,
     ) -> String {
         let mut comment_parts = Vec::new();
 
@@ -277,13 +277,13 @@ impl Disassembler {
         block_types: &[BlockType],
         address: u16,
         formatter: &dyn Formatter,
-        labels: &HashMap<u16, Vec<Label>>,
+        labels: &BTreeMap<u16, Vec<Label>>,
         settings: &DocumentSettings,
         label_name: Option<String>,
         mut side_comment: String,
         line_comment: Option<String>,
-        system_comments: &HashMap<u16, String>,
-        user_side_comments: &HashMap<u16, String>,
+        system_comments: &BTreeMap<u16, String>,
+        user_side_comments: &BTreeMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let opcode_byte = data[pc];
         let opcode_opt = &self.opcodes[opcode_byte as usize];
@@ -424,7 +424,7 @@ impl Disassembler {
         block_types: &[BlockType],
         address: u16,
         formatter: &dyn Formatter,
-        labels: &HashMap<u16, Vec<Label>>,
+        labels: &BTreeMap<u16, Vec<Label>>,
         origin: u16,
         label_name: Option<String>,
         side_comment: String,
@@ -479,7 +479,7 @@ impl Disassembler {
         block_types: &[BlockType],
         address: u16,
         formatter: &dyn Formatter,
-        labels: &HashMap<u16, Vec<Label>>,
+        labels: &BTreeMap<u16, Vec<Label>>,
         origin: u16,
         label_name: Option<String>,
         side_comment: String,
@@ -552,13 +552,13 @@ impl Disassembler {
         block_types: &[BlockType],
         address: u16,
         formatter: &dyn Formatter,
-        labels: &HashMap<u16, Vec<Label>>,
+        labels: &BTreeMap<u16, Vec<Label>>,
         origin: u16,
         label_name: Option<String>,
         mut side_comment: String,
         line_comment: Option<String>,
-        system_comments: &HashMap<u16, String>,
-        user_side_comments: &HashMap<u16, String>,
+        system_comments: &BTreeMap<u16, String>,
+        user_side_comments: &BTreeMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -651,7 +651,7 @@ impl Disassembler {
         block_types: &[BlockType],
         address: u16,
         formatter: &dyn Formatter,
-        labels: &HashMap<u16, Vec<Label>>,
+        labels: &BTreeMap<u16, Vec<Label>>,
         origin: u16,
         label_name: Option<String>,
         side_comment: String,
@@ -766,7 +766,7 @@ impl Disassembler {
         block_types: &[BlockType],
         address: u16,
         formatter: &dyn Formatter,
-        labels: &HashMap<u16, Vec<Label>>,
+        labels: &BTreeMap<u16, Vec<Label>>,
         origin: u16,
         label_name: Option<String>,
         side_comment: String,

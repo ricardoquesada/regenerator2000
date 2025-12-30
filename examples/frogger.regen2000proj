@@ -31,8 +31,8 @@
   "labels": {},
   "user_side_comments": {
     "32768": "start address",
-    "32772": "CMB80",
-    "32770": "NMI vector"
+    "32770": "NMI vector",
+    "32772": "CMB80"
   },
   "user_line_comments": {
     "24068": "start"
@@ -47,5 +47,5 @@
     "max_xref_count": 5,
     "max_arrow_columns": 6
   },
-  "cursor_address": 32768
+  "cursor_address": 32777
 }

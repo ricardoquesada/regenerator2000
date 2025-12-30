@@ -1,5 +1,5 @@
 use crate::state::{Label, LabelKind, LabelType, Platform};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 pub fn get_assets_path(platform: Platform) -> PathBuf {
@@ -10,8 +10,8 @@ pub fn get_assets_path(platform: Platform) -> PathBuf {
     path
 }
 
-pub fn load_comments(platform: Platform) -> HashMap<u16, String> {
-    let mut comments = HashMap::new();
+pub fn load_comments(platform: Platform) -> BTreeMap<u16, String> {
+    let mut comments = BTreeMap::new();
 
     macro_rules! bundled_comments {
         ($($variant:ident => $path:expr),* $(,)?) => {

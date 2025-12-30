@@ -1,6 +1,6 @@
 use crate::cpu::Opcode;
 use crate::state::Label;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 pub enum TextFragment {
     Text(String),
@@ -17,7 +17,7 @@ pub trait Formatter {
         operands: &[u8],
         address: u16,
         target_context: Option<crate::state::LabelType>,
-        labels: &HashMap<u16, Vec<Label>>,
+        labels: &BTreeMap<u16, Vec<Label>>,
         settings: &crate::state::DocumentSettings,
     ) -> String;
 
@@ -42,7 +42,7 @@ pub trait Formatter {
         operands: &[u8],
         address: u16,
         target_context: Option<crate::state::LabelType>,
-        labels: &HashMap<u16, Vec<Label>>,
+        labels: &BTreeMap<u16, Vec<Label>>,
         settings: &crate::state::DocumentSettings,
     ) -> (String, String) {
         (

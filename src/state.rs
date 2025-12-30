@@ -1,7 +1,7 @@
 use crate::config::SystemConfig;
 use crate::disassembler::{Disassembler, DisassemblyLine};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -181,6 +181,9 @@ pub struct Block {
     pub type_: BlockType,
 }
 
+// Note: We use BTreeMap instead of HashMap for all address-keyed collections
+// to ensure deterministic serialization order. This guarantees that the
+// project file content remains stable across save/load cycles.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectState {
     pub origin: u16,
@@ -188,11 +191,11 @@ pub struct ProjectState {
     pub raw_data: String,
     pub blocks: Vec<Block>,
     #[serde(default)]
-    pub labels: HashMap<u16, Vec<Label>>,
+    pub labels: BTreeMap<u16, Vec<Label>>,
     #[serde(default, alias = "user_comments")]
-    pub user_side_comments: HashMap<u16, String>,
+    pub user_side_comments: BTreeMap<u16, String>,
     #[serde(default)]
-    pub user_line_comments: HashMap<u16, String>,
+    pub user_line_comments: BTreeMap<u16, String>,
     #[serde(default)]
     pub settings: DocumentSettings,
     #[serde(default)]
@@ -210,12 +213,12 @@ pub struct AppState {
 
     // Data Conversion State
     pub block_types: Vec<BlockType>,
-    pub labels: HashMap<u16, Vec<Label>>,
+    pub labels: BTreeMap<u16, Vec<Label>>,
     pub settings: DocumentSettings,
-    pub system_comments: HashMap<u16, String>,
-    pub user_side_comments: HashMap<u16, String>,
+    pub system_comments: BTreeMap<u16, String>,
+    pub user_side_comments: BTreeMap<u16, String>,
 
-    pub user_line_comments: HashMap<u16, String>,
+    pub user_line_comments: BTreeMap<u16, String>,
 
     pub system_config: SystemConfig,
 
@@ -234,11 +237,11 @@ impl AppState {
             disassembler: Disassembler::new(),
             origin: 0,
             block_types: Vec::new(),
-            labels: HashMap::new(),
+            labels: BTreeMap::new(),
             settings: DocumentSettings::default(),
-            system_comments: HashMap::new(),
-            user_side_comments: HashMap::new(),
-            user_line_comments: HashMap::new(),
+            system_comments: BTreeMap::new(),
+            user_side_comments: BTreeMap::new(),
+            user_line_comments: BTreeMap::new(),
             system_config: SystemConfig::load(),
             undo_stack: crate::commands::UndoStack::new(),
             last_saved_pointer: 0,
@@ -361,12 +364,12 @@ impl AppState {
                     .clone()
                     .into_iter()
                     .map(|(k, v)| {
-                        (
-                            k,
-                            v.into_iter()
-                                .filter(|label| label.kind == LabelKind::User)
-                                .collect::<Vec<_>>(),
-                        )
+                        let mut user_labels: Vec<_> = v
+                            .into_iter()
+                            .filter(|label| label.kind == LabelKind::User)
+                            .collect();
+                        user_labels.sort_by(|a, b| a.name.cmp(&b.name));
+                        (k, user_labels)
                     })
                     .filter(|(_, v)| !v.is_empty())
                     .collect(),
@@ -375,8 +378,6 @@ impl AppState {
                 settings: self.settings,
                 cursor_address,
             };
-            let data = serde_json::to_string_pretty(&project)?;
-            std::fs::write(path, data)?;
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;
             self.last_saved_pointer = self.undo_stack.get_pointer();
@@ -394,7 +395,7 @@ impl AppState {
         let labels = crate::analyzer::analyze(self);
 
         // Capture old labels
-        let mut old_labels_map = std::collections::HashMap::new();
+        let mut old_labels_map = std::collections::BTreeMap::new();
         for k in labels.keys() {
             old_labels_map.insert(*k, self.labels.get(k).cloned().unwrap_or_default());
         }

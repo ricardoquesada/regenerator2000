@@ -1,6 +1,6 @@
 use crate::disassembler::{BlockType, Disassembler};
 use crate::state::{Assembler, DocumentSettings};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[test]
 fn test_system_comments_logic() {
@@ -8,10 +8,10 @@ fn test_system_comments_logic() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
-    let mut system_comments = HashMap::new();
+    let mut system_comments = BTreeMap::new();
     // Comment for target address
     system_comments.insert(0xFF81, "init VIC".to_string());
     // Comment for current address
@@ -28,8 +28,8 @@ fn test_system_comments_logic() {
         origin,
         &settings,
         &system_comments,
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);

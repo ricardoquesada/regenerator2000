@@ -1,6 +1,6 @@
 use crate::disassembler::{BlockType, Disassembler};
 use crate::state::{Assembler, DocumentSettings};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[test]
 fn test_user_comments_override_system_comments() {
@@ -8,13 +8,13 @@ fn test_user_comments_override_system_comments() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
-    let mut system_comments = HashMap::new();
+    let mut system_comments = BTreeMap::new();
     system_comments.insert(0x1000, "System Comment".to_string());
 
-    let mut user_comments = HashMap::new();
+    let mut user_comments = BTreeMap::new();
     user_comments.insert(0x1000, "User Comment".to_string());
 
     let code = vec![0xEA]; // NOP
@@ -28,7 +28,7 @@ fn test_user_comments_override_system_comments() {
         &settings,
         &system_comments,
         &user_comments,
-        &HashMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -41,13 +41,13 @@ fn test_user_comments_fallthrough() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
-    let mut system_comments = HashMap::new();
+    let mut system_comments = BTreeMap::new();
     system_comments.insert(0x1000, "System Comment".to_string());
 
-    let user_comments = HashMap::new();
+    let user_comments = BTreeMap::new();
     // No user comment for 0x1000
 
     let code = vec![0xEA]; // NOP
@@ -61,7 +61,7 @@ fn test_user_comments_fallthrough() {
         &settings,
         &system_comments,
         &user_comments,
-        &HashMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -74,14 +74,14 @@ fn test_user_comments_referenced_address() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // 0x2000 is referenced
-    let mut system_comments = HashMap::new();
+    let mut system_comments = BTreeMap::new();
     system_comments.insert(0x2000, "System Ref Comment".to_string());
 
-    let mut user_comments = HashMap::new();
+    let mut user_comments = BTreeMap::new();
     user_comments.insert(0x2000, "User Ref Comment".to_string());
 
     // JMP $2000
@@ -96,7 +96,7 @@ fn test_user_comments_referenced_address() {
         &settings,
         &system_comments,
         &user_comments,
-        &HashMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);

@@ -1,6 +1,6 @@
 use crate::disassembler::{BlockType, Disassembler};
 use crate::state::{Assembler, DocumentSettings};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[test]
 fn test_user_line_comments_basic() {
@@ -8,11 +8,11 @@ fn test_user_line_comments_basic() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // Map for line comments
-    let mut user_line_comments = HashMap::new();
+    let mut user_line_comments = BTreeMap::new();
     user_line_comments.insert(0x1000, "Start of routine".to_string());
 
     let code = vec![0xEA]; // NOP
@@ -24,8 +24,8 @@ fn test_user_line_comments_basic() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(), // system side comments
-        &HashMap::new(), // user side comments
+        &BTreeMap::new(), // system side comments
+        &BTreeMap::new(), // user side comments
         &user_line_comments,
     );
 
@@ -40,13 +40,13 @@ fn test_user_line_and_side_comments_coexist() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
-    let mut user_line_comments = HashMap::new();
+    let mut user_line_comments = BTreeMap::new();
     user_line_comments.insert(0x1000, "Header".to_string());
 
-    let mut user_side_comments = HashMap::new();
+    let mut user_side_comments = BTreeMap::new();
     user_side_comments.insert(0x1000, "Inline note".to_string());
 
     let code = vec![0xEA];
@@ -58,7 +58,7 @@ fn test_user_line_and_side_comments_coexist() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
+        &BTreeMap::new(),
         &user_side_comments,
         &user_line_comments,
     );

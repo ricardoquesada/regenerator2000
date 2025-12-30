@@ -1,7 +1,7 @@
 use super::formatter::Formatter;
 use crate::cpu::{AddressingMode, Opcode};
 use crate::state::{Label, LabelType};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 pub struct TassFormatter;
 
@@ -24,7 +24,7 @@ impl Formatter for TassFormatter {
         operands: &[u8],
         address: u16,
         target_context: Option<LabelType>,
-        labels: &HashMap<u16, Vec<Label>>,
+        labels: &BTreeMap<u16, Vec<Label>>,
         settings: &crate::state::DocumentSettings,
     ) -> String {
         let get_label = |addr: u16, l_type: LabelType| -> Option<String> {

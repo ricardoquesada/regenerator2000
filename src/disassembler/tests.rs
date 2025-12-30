@@ -1,6 +1,6 @@
 use super::*;
 use crate::state::{Assembler, DocumentSettings};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[test]
 fn test_tass_formatting_force_w() {
@@ -9,7 +9,7 @@ fn test_tass_formatting_force_w() {
     settings.preserve_long_bytes = true;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // LDA $0012 (Absolute) -> should be LDA @w $0012
@@ -22,9 +22,9 @@ fn test_tass_formatting_force_w() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -40,7 +40,7 @@ fn test_tass_formatting_no_force_if_disabled() {
     settings.preserve_long_bytes = false;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     let code = vec![0xAD, 0x12, 0x00];
@@ -52,9 +52,9 @@ fn test_tass_formatting_no_force_if_disabled() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -67,7 +67,7 @@ fn test_acme_formatting_basic() {
     settings.assembler = Assembler::Acme;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     let code = vec![0xAD, 0x12, 0x34]; // LDA $3412
@@ -79,9 +79,9 @@ fn test_acme_formatting_basic() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -95,7 +95,7 @@ fn test_acme_directives() {
     settings.assembler = Assembler::Acme;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // .BYTE equivalent
@@ -108,9 +108,9 @@ fn test_acme_directives() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -126,7 +126,7 @@ fn test_contextual_label_formatting() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let mut labels = HashMap::new();
+    let mut labels = BTreeMap::new();
     let origin = 0x2000;
 
     // Define multiple labels at $00A0 with specific types to simulate context
@@ -190,9 +190,9 @@ fn test_contextual_label_formatting() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 3);
@@ -247,7 +247,7 @@ fn test_acme_lowercase_output() {
     settings.assembler = Assembler::Acme;
 
     let disassembler = Disassembler::new();
-    let mut labels = HashMap::new();
+    let mut labels = BTreeMap::new();
     let origin = 0x1000;
 
     // Add a label with MixedCase name
@@ -282,9 +282,9 @@ fn test_acme_lowercase_output() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 2);
@@ -305,7 +305,7 @@ fn test_acme_plus2_formatting() {
     settings.preserve_long_bytes = true;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // LDA $0012 (Absolute) -> should be lda+2 $0012
@@ -318,9 +318,9 @@ fn test_acme_plus2_formatting() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -336,7 +336,7 @@ fn test_xref_formatting_with_dollar() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let mut labels = HashMap::new();
+    let mut labels = BTreeMap::new();
     let origin = 0x1000;
 
     // Create a label with references
@@ -360,9 +360,9 @@ fn test_xref_formatting_with_dollar() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -377,7 +377,7 @@ fn test_xref_count_configurable() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let mut labels = HashMap::new();
+    let mut labels = BTreeMap::new();
     let origin = 0x1000;
 
     // Create a label with many references
@@ -402,9 +402,9 @@ fn test_xref_count_configurable() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines.len(), 1);
     // Should show 5 items
@@ -420,9 +420,9 @@ fn test_xref_count_configurable() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     let comment = &lines[0].comment;
     assert!(comment.contains("$2000, $2001"));
@@ -436,9 +436,9 @@ fn test_xref_count_configurable() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert!(lines[0].comment.is_empty());
 }
@@ -450,7 +450,7 @@ fn test_text_and_screencode_disassembly() {
     // 1. Test Tass Text
     settings.assembler = Assembler::Tass64;
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // "ABC"
@@ -462,9 +462,9 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Tass formatting produces 4 lines: .ENCODE, .ENC "ASCII", .TEXT "ABC", .ENDENCODE
@@ -481,9 +481,9 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!text");
@@ -505,9 +505,9 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!scr");
@@ -523,9 +523,9 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     // For Tass, this will produce 4 lines: ENCODE, ENC, BYTE, ENDENCODE
     // But we need to use Acme setting from previous step?
@@ -547,7 +547,7 @@ fn test_text_mixed_content() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // $00, $01, "A", "B", $00
@@ -566,9 +566,9 @@ fn test_text_mixed_content() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Filter relevant lines (Tass wraps in ENCODE)
@@ -586,7 +586,7 @@ fn test_text_mixed_content() {
 fn test_text_escaping() {
     let mut settings = DocumentSettings::default();
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // String: Quote " Backslash \
@@ -605,9 +605,9 @@ fn test_text_escaping() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines_acme.len(), 1);
     assert_eq!(lines_acme[0].operand, "\"Quote \\\" Backslash \\\\\"");
@@ -620,9 +620,9 @@ fn test_text_escaping() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Tass output structure: .ENCODE, .ENC, .TEXT ..., .ENDENCODE
@@ -641,7 +641,7 @@ fn test_text_escaping() {
 fn test_screencode_mixed() {
     let mut settings = DocumentSettings::default();
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // Screencodes:
@@ -673,9 +673,9 @@ fn test_screencode_mixed() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines_acme.len(), 1);
     // !scr "\"" (escaped quote), $ff, "\""
@@ -690,9 +690,9 @@ fn test_screencode_mixed() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     // .TEXT """""", $FF, """"""
     let text_lines: Vec<&DisassemblyLine> = lines_tass
@@ -716,7 +716,7 @@ fn test_tass_screencode_enc_wrapping() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // "ABC" in screencode (0x01, 0x02, 0x03)
@@ -733,9 +733,9 @@ fn test_tass_screencode_enc_wrapping() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 4);
@@ -759,7 +759,7 @@ fn test_tass_screencode_multiline_wrapping() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // 40 bytes of screencode (exceeds 32 byte limit per line)
@@ -773,9 +773,9 @@ fn test_tass_screencode_multiline_wrapping() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Expected:
@@ -810,7 +810,7 @@ fn test_tass_block_separation() {
     let mut settings = DocumentSettings::default();
     settings.assembler = Assembler::Tass64;
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // SC (1 byte), Code (1 byte), SC (1 byte)
@@ -827,9 +827,9 @@ fn test_tass_block_separation() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Block 1 (SC) -> 4 lines (Start, Enc, Text, End)
@@ -856,7 +856,7 @@ fn test_tass_label_interruption() {
     let mut settings = DocumentSettings::default();
     settings.assembler = Assembler::Tass64;
     let disassembler = Disassembler::new();
-    let mut labels = HashMap::new();
+    let mut labels = BTreeMap::new();
 
     // Label at index 1 (0x1001)
     labels.insert(
@@ -881,9 +881,9 @@ fn test_tass_label_interruption() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Expectation:
@@ -924,7 +924,7 @@ fn test_tass_screencode_single_byte_special() {
     settings.assembler = Assembler::Tass64;
 
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // Single byte $4F
@@ -937,9 +937,9 @@ fn test_tass_screencode_single_byte_special() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Expected:
@@ -960,7 +960,7 @@ fn test_tass_screencode_single_byte_special() {
 mod tests {
     use crate::disassembler::Disassembler;
     use crate::state::{Assembler, BlockType, DocumentSettings};
-    use std::collections::HashMap;
+    use std::collections::BTreeMap;
 
     #[test]
     fn test_tass_screencode_case_mapping() {
@@ -968,7 +968,7 @@ mod tests {
         settings.assembler = Assembler::Tass64;
 
         let disassembler = Disassembler::new();
-        let labels = HashMap::new();
+        let labels = BTreeMap::new();
         let origin = 0x1000;
 
         // Case A: 30 2d 39 2c 20 08 0f 0c 01 20 03 0f 0d 0f (0-9, HOLA COMO)
@@ -983,9 +983,9 @@ mod tests {
             &labels,
             origin,
             &settings,
-            &HashMap::new(),
-            &HashMap::new(),
-            &HashMap::new(),
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            &BTreeMap::new(),
         );
 
         assert_eq!(lines_a.len(), 4);
@@ -1007,9 +1007,9 @@ mod tests {
             &labels,
             origin,
             &settings,
-            &HashMap::new(),
-            &HashMap::new(),
-            &HashMap::new(),
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            &BTreeMap::new(),
         );
 
         assert_eq!(lines_b.len(), 4);
@@ -1023,7 +1023,7 @@ mod tests {
         settings.assembler = Assembler::Tass64;
 
         let disassembler = Disassembler::new();
-        let labels = HashMap::new();
+        let labels = BTreeMap::new();
         let origin = 0x1000;
 
         // 0x5E (94) -> < 0x5f. Maps to '~' (126). Text.
@@ -1038,9 +1038,9 @@ mod tests {
             &labels,
             origin,
             &settings,
-            &HashMap::new(),
-            &HashMap::new(),
-            &HashMap::new(),
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            &BTreeMap::new(),
         );
 
         // Expected: .TEXT "~", $5F, $60
@@ -1057,7 +1057,7 @@ mod tests {
         let mut settings = DocumentSettings::default();
         settings.assembler = Assembler::Acme;
         let disassembler = Disassembler::new();
-        let labels = HashMap::new();
+        let labels = BTreeMap::new();
         let origin = 0x1000;
 
         // Screencodes:
@@ -1081,9 +1081,9 @@ mod tests {
             &labels,
             origin,
             &settings,
-            &HashMap::new(),
-            &HashMap::new(),
-            &HashMap::new(),
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+            &BTreeMap::new(),
         );
 
         assert_eq!(lines.len(), 1);
@@ -1096,7 +1096,7 @@ mod tests {
 fn test_target_address_population() {
     let settings = DocumentSettings::default();
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // 1. JMP $1234 (4C 34 12)
@@ -1123,9 +1123,9 @@ fn test_target_address_population() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 3);
@@ -1145,7 +1145,7 @@ fn test_target_address_population() {
 fn test_target_address_specific_instructions() {
     let settings = DocumentSettings::default();
     let disassembler = Disassembler::new();
-    let labels = HashMap::new();
+    let labels = BTreeMap::new();
     let origin = 0x1000;
 
     // 1. JSR $2000 (20 00 20) -> Should have target
@@ -1179,9 +1179,9 @@ fn test_target_address_specific_instructions() {
         &labels,
         origin,
         &settings,
-        &HashMap::new(),
-        &HashMap::new(),
-        &HashMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 5);

@@ -1,4 +1,5 @@
-use crate::state::{AppState, BlockType};
+use crate::state::{AppState, BlockType, Label};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
 #[allow(clippy::enum_variant_names)]
@@ -14,8 +15,8 @@ pub enum Command {
         old_label: Option<Vec<crate::state::Label>>,
     },
     SetLabels {
-        labels: std::collections::HashMap<u16, Vec<crate::state::Label>>,
-        old_labels: std::collections::HashMap<u16, Vec<crate::state::Label>>,
+        labels: BTreeMap<u16, Vec<Label>>,
+        old_labels: BTreeMap<u16, Vec<Label>>,
     },
     SetUserSideComment {
         address: u16,

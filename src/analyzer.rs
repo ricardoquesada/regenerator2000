@@ -1,18 +1,18 @@
 use crate::cpu::{AddressingMode, Opcode};
 use crate::state::{AppState, BlockType};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use crate::state::LabelType;
 
-type UsageData = (HashMap<LabelType, usize>, Vec<u16>, LabelType);
+type UsageData = (BTreeMap<LabelType, usize>, Vec<u16>, LabelType);
 
-pub fn analyze(state: &AppState) -> HashMap<u16, Vec<crate::state::Label>> {
+pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
     // We want to track ALL usages, illegal or not, and then pick the best ones.
     // Map: Address -> Set of used LabelTypes
     // We also need ref counts.
     // Map: Address -> UsageData
     // storing (counts, refs, first_seen_type)
-    let mut usage_map: HashMap<u16, UsageData> = HashMap::new();
+    let mut usage_map: BTreeMap<u16, UsageData> = BTreeMap::new();
     let mut pc = 0;
     let data_len = state.raw_data.len();
     let origin = state.origin;
@@ -76,7 +76,7 @@ pub fn analyze(state: &AppState) -> HashMap<u16, Vec<crate::state::Label>> {
     }
 
     // Generate labels
-    let mut labels: HashMap<u16, Vec<crate::state::Label>> = HashMap::new();
+    let mut labels: BTreeMap<u16, Vec<crate::state::Label>> = BTreeMap::new();
 
     // 1. Process all used addresses
     for (addr, (types_map, refs, first_type)) in usage_map {
@@ -231,7 +231,7 @@ fn analyze_instruction(
     opcode: &Opcode,
     operands: &[u8],
     address: u16,
-    usage_map: &mut HashMap<u16, UsageData>,
+    usage_map: &mut BTreeMap<u16, UsageData>,
 ) {
     match opcode.mode {
         AddressingMode::Implied | AddressingMode::Accumulator | AddressingMode::Immediate => {}
@@ -306,14 +306,19 @@ fn analyze_instruction(
     }
 }
 
-fn update_usage(map: &mut HashMap<u16, UsageData>, addr: u16, priority: LabelType, from_addr: u16) {
+fn update_usage(
+    map: &mut BTreeMap<u16, UsageData>,
+    addr: u16,
+    priority: LabelType,
+    from_addr: u16,
+) {
     map.entry(addr)
         .and_modify(|(types, refs, _)| {
             *types.entry(priority).or_insert(0) += 1;
             refs.push(from_addr);
         })
         .or_insert_with(|| {
-            let mut types = HashMap::new();
+            let mut types = BTreeMap::new();
             types.insert(priority, 1);
             let refs = vec![from_addr];
             (types, refs, priority)
