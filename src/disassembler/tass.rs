@@ -173,6 +173,10 @@ impl Formatter for TassFormatter {
         name.to_string()
     }
 
+    fn format_label_definition(&self, name: &str) -> String {
+        name.to_string()
+    }
+
     fn format_text(
         &self,
         fragments: &[super::formatter::TextFragment],

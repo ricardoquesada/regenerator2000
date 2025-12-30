@@ -1099,6 +1099,8 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
         .title(" Disassembly ");
     let inner_area = block.inner(area);
 
+    let formatter = app_state.get_formatter();
+
     let visible_height = inner_area.height as usize;
     let total_items = app_state.disassembly.len();
     let context_lines = visible_height / 2;
@@ -1375,7 +1377,7 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             };
 
             let label_text = if let Some(label) = &line.label {
-                format!("{}:", label)
+                formatter.format_label_definition(label)
             } else {
                 String::new()
             };

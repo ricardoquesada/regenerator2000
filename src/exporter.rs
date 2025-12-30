@@ -63,7 +63,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         }
 
         let label_part = if let Some(label) = &line.label {
-            format!("{}:", label)
+            formatter.format_label_definition(label)
         } else {
             String::new()
         };
@@ -355,19 +355,20 @@ mod tests {
         let content = std::fs::read_to_string(&path).unwrap();
         println!("Content:\n{}", content);
 
-        // Check for padding. MyLabel: is 8 chars.
-        // Format is {:-40} ; {comment}
-        // "MyLabel:                                 ; x-ref: $2000, $3000"
-        // Just checking it contains the aligned semi-colon and content is safer than exact spacing if we calculate wrong.
+        // Check for padding. MyLabel is 7 chars (MyLabel).
+        // Format is {:-24} {Instruction}
+        // "MyLabel                 NOP                     ; x-ref: $2000, $3000"
+
         // Check that label, instruction and comment are on the same line
-        assert!(content.contains("MyLabel:"));
+        assert!(content.contains("MyLabel"));
+        assert!(!content.contains("MyLabel:"));
         assert!(content.contains("NOP"));
         assert!(content.contains("; x-ref: $2000, $3000"));
 
         // Ensure they appear in correct order on the line?
         // Since we read whole file, finding them separately is enough for basic correctness.
         // But let's check one line content.
-        let line = content.lines().find(|l| l.contains("MyLabel:")).unwrap();
+        let line = content.lines().find(|l| l.contains("MyLabel")).unwrap();
         assert!(line.contains("NOP"));
         assert!(line.contains("; x-ref"));
 
@@ -699,7 +700,8 @@ mod tests {
         let content = std::fs::read_to_string(&path).unwrap();
 
         // Should be defined as label
-        assert!(content.contains("eUser:"));
+        assert!(content.contains("eUser"));
+        assert!(!content.contains("eUser:"));
         // Should NOT be in external list
         assert!(!content.contains("eUser = $1000"));
 
@@ -840,13 +842,13 @@ mod tests {
 
         // Expected usage:
         // ; Function Start
-        // MyLabel:                LDA #$00
+        // MyLabel                LDA #$00
         assert!(content.contains("; Function Start"));
 
         // Check ordering: Comment needs to be before Label
         // Find index of comment
         let comment_idx = content.find("; Function Start").unwrap();
-        let label_idx = content.find("MyLabel:").unwrap();
+        let label_idx = content.find("MyLabel").unwrap();
 
         assert!(
             comment_idx < label_idx,

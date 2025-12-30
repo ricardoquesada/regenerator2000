@@ -23,6 +23,7 @@ pub trait Formatter {
 
     fn format_mnemonic(&self, mnemonic: &str) -> String;
     fn format_label(&self, name: &str) -> String;
+    fn format_label_definition(&self, name: &str) -> String;
 
     fn format_text(
         &self,
