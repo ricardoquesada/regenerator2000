@@ -16,7 +16,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
     - Synchronized or independent navigation.
     - **PETSCII** support (Unshifted and Shifted modes).
 - **Platforms**: Supports Commodore 8-bit machines like C64, C128, Plus/4, etc.
-- **Import**: Load `.prg`, `.bin`, `.raw`, and `.regen2000proj` files.
+- **Import**: Load `.prg`, `.crt`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.regen2000proj` files.
 - **Export**: Generate compatible assembly source code for:
     - **64tass**
     - **ACME**
