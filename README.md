@@ -1,4 +1,4 @@
-# Regenerator 2000
+# Regenerator 2000 ![Rust](https://github.com/ricardoquesada/regenerator2000/actions/workflows/rust.yml/badge.svg)
 
 ![logo](docs/regenerator2000_logo.png)
 
