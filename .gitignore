@@ -2,6 +2,6 @@
 **/*.rs.bk
 Cargo.lock
 
-tests/*.prg
+tests/test*.prg
 tmp/
 a.out
