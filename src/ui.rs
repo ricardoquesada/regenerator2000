@@ -19,41 +19,53 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         ])
         .split(f.area());
 
-    render_menu(f, chunks[0], &ui_state.menu);
+    render_menu(f, chunks[0], &ui_state.menu, &ui_state.theme);
     render_main_view(f, chunks[1], app_state, ui_state);
     render_status_bar(f, chunks[2], app_state, ui_state);
 
     // Render Popup if needed
     if ui_state.menu.active && ui_state.menu.selected_item.is_some() {
-        render_menu_popup(f, chunks[0], &ui_state.menu);
+        render_menu_popup(f, chunks[0], &ui_state.menu, &ui_state.theme);
     }
 
     if ui_state.file_picker.active {
-        render_file_picker(f, f.area(), &ui_state.file_picker);
+        render_file_picker(f, f.area(), &ui_state.file_picker, &ui_state.theme);
     }
 
     if ui_state.jump_dialog.active {
-        render_jump_dialog(f, f.area(), &ui_state.jump_dialog);
+        render_jump_dialog(f, f.area(), &ui_state.jump_dialog, &ui_state.theme);
     }
 
     if ui_state.save_dialog.active {
-        render_save_dialog(f, f.area(), &ui_state.save_dialog);
+        render_save_dialog(f, f.area(), &ui_state.save_dialog, &ui_state.theme);
     }
 
     if ui_state.label_dialog.active {
-        render_label_dialog(f, f.area(), &ui_state.label_dialog);
+        render_label_dialog(f, f.area(), &ui_state.label_dialog, &ui_state.theme);
     }
 
     if ui_state.comment_dialog.active {
-        render_comment_dialog(f, f.area(), &ui_state.comment_dialog);
+        render_comment_dialog(f, f.area(), &ui_state.comment_dialog, &ui_state.theme);
     }
 
     if ui_state.settings_dialog.active {
-        render_settings_dialog(f, f.area(), app_state, &ui_state.settings_dialog);
+        render_settings_dialog(
+            f,
+            f.area(),
+            app_state,
+            &ui_state.settings_dialog,
+            &ui_state.theme,
+        );
     }
 
     if ui_state.system_settings_dialog.active {
-        render_system_settings_dialog(f, f.area(), app_state, &ui_state.system_settings_dialog);
+        render_system_settings_dialog(
+            f,
+            f.area(),
+            app_state,
+            &ui_state.system_settings_dialog,
+            &ui_state.theme,
+        );
     }
 
     if ui_state.about_dialog.active {
@@ -61,15 +73,15 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     }
 
     if ui_state.shortcuts_dialog.active {
-        render_shortcuts_dialog(f, f.area(), &ui_state.shortcuts_dialog);
+        render_shortcuts_dialog(f, f.area(), &ui_state.shortcuts_dialog, &ui_state.theme);
     }
 
     if ui_state.confirmation_dialog.active {
-        render_confirmation_dialog(f, f.area(), &ui_state.confirmation_dialog);
+        render_confirmation_dialog(f, f.area(), &ui_state.confirmation_dialog, &ui_state.theme);
     }
 
     if ui_state.origin_dialog.active {
-        render_origin_dialog(f, f.area(), &ui_state.origin_dialog);
+        render_origin_dialog(f, f.area(), &ui_state.origin_dialog, &ui_state.theme);
     }
 }
 
@@ -77,11 +89,17 @@ fn render_confirmation_dialog(
     f: &mut Frame,
     area: Rect,
     dialog: &crate::ui_state::ConfirmationDialogState,
+    theme: &crate::theme::Theme,
 ) {
+    if !dialog.active {
+        return;
+    }
+
     let block = Block::default()
         .borders(Borders::ALL)
         .title(format!(" {} ", dialog.title))
-        .style(Style::default().bg(Color::Red).fg(Color::White));
+        .border_style(Style::default().fg(theme.dialog_border))
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
     let area = centered_rect(50, 7, area);
     f.render_widget(ratatui::widgets::Clear, area);
@@ -102,7 +120,7 @@ fn render_confirmation_dialog(
         .alignment(ratatui::layout::Alignment::Center)
         .style(
             Style::default()
-                .fg(Color::White)
+                .fg(theme.dialog_fg)
                 .add_modifier(Modifier::BOLD),
         );
 
@@ -110,7 +128,7 @@ fn render_confirmation_dialog(
 
     let instructions = Paragraph::new("Enter: Proceed  |  Esc: Cancel")
         .alignment(ratatui::layout::Alignment::Center)
-        .style(Style::default().fg(Color::Yellow));
+        .style(Style::default().fg(theme.highlight_fg));
 
     f.render_widget(instructions, layout[2]);
 }
@@ -119,14 +137,21 @@ fn render_shortcuts_dialog(
     f: &mut Frame,
     area: Rect,
     dialog: &crate::ui_state::ShortcutsDialogState,
+    theme: &crate::theme::Theme,
 ) {
+    if !dialog.active {
+        return;
+    }
+
+    let area = centered_rect(60, 60, area);
+    f.render_widget(ratatui::widgets::Clear, area); // Clear background
+
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Keyboard Shortcuts ")
-        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+        .border_style(Style::default().fg(theme.dialog_border))
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
-    let area = centered_rect(60, 80, area);
-    f.render_widget(ratatui::widgets::Clear, area);
     f.render_widget(block.clone(), area);
 
     let inner = block.inner(area);
@@ -189,17 +214,22 @@ fn render_shortcuts_dialog(
                 ListItem::new(Span::styled(
                     key,
                     Style::default()
-                        .fg(Color::Cyan)
+                        .fg(theme.highlight_fg)
                         .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
                 ))
             } else {
                 let content = format!("{:<25} {}", key, desc);
-                ListItem::new(content).style(Style::default().fg(Color::White))
+                ListItem::new(content).style(Style::default().fg(theme.dialog_fg))
             }
         })
         .collect();
 
-    let list = List::new(items);
+    let list = List::new(items).block(Block::default()).highlight_style(
+        Style::default()
+            .bg(theme.highlight_bg)
+            .fg(theme.highlight_fg)
+            .add_modifier(Modifier::BOLD),
+    );
 
     let mut state = ListState::default();
     state.select(Some(dialog.scroll_offset));
@@ -291,11 +321,17 @@ fn render_settings_dialog(
     area: Rect,
     app_state: &AppState,
     dialog: &crate::ui_state::SettingsDialogState,
+    theme: &crate::theme::Theme,
 ) {
+    if !dialog.active {
+        return;
+    }
+
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Document Settings ")
-        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+        .border_style(Style::default().fg(theme.dialog_border))
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
     let area = centered_rect(60, 60, area);
     f.render_widget(ratatui::widgets::Clear, area);
@@ -311,19 +347,19 @@ fn render_settings_dialog(
         let style = if disabled {
             if selected {
                 Style::default()
-                    .fg(Color::Gray)
+                    .fg(theme.menu_disabled_fg)
                     .add_modifier(Modifier::BOLD | Modifier::ITALIC) // Selected but disabled
             } else {
                 Style::default()
-                    .fg(Color::Gray)
+                    .fg(theme.menu_disabled_fg)
                     .add_modifier(Modifier::ITALIC) // Disabled and Italic
             }
         } else if selected {
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(theme.dialog_fg)
         };
         Span::styled(format!("{} {}", check_char, label), style)
     };
@@ -399,15 +435,15 @@ fn render_settings_dialog(
     let platform_widget = Paragraph::new(platform_text).style(if platform_selected {
         if dialog.is_selecting_platform {
             Style::default()
-                .fg(Color::Green)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD) // Active
         } else {
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD)
         }
     } else {
-        Style::default().fg(Color::White)
+        Style::default().fg(theme.dialog_fg)
     });
 
     f.render_widget(
@@ -418,7 +454,7 @@ fn render_settings_dialog(
     // Assembler Section
     // Use layout[2] for assembler
     // We can render label if we want, or just the selection line like Platform does (Platform: < C64 >)
-    // The code above renders "Platform: < ... >" OVER the "Platform:" label?
+    // The code above renders "Platform: < C64 >" OVER the "Platform:" label?
     // Wait, the previous code rendered valid label at layout[1].y
     // And THEN rendered platform_text at layout[1].y
     // So it overwrites it?
@@ -432,15 +468,15 @@ fn render_settings_dialog(
     let assembler_widget = Paragraph::new(assembler_text).style(if assembler_selected {
         if dialog.is_selecting_assembler {
             Style::default()
-                .fg(Color::Green)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD)
         }
     } else {
-        Style::default().fg(Color::White)
+        Style::default().fg(theme.dialog_fg)
     });
 
     // Assembler uses layout[2]
@@ -469,15 +505,15 @@ fn render_settings_dialog(
     let xref_widget = Paragraph::new(xref_text).style(if xref_selected {
         if dialog.is_editing_xref_count {
             Style::default()
-                .fg(Color::Green)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD)
         }
     } else {
-        Style::default().fg(Color::White)
+        Style::default().fg(theme.dialog_fg)
     });
 
     f.render_widget(
@@ -488,15 +524,15 @@ fn render_settings_dialog(
     let arrow_widget = Paragraph::new(arrow_text).style(if arrow_selected {
         if dialog.is_editing_arrow_columns {
             Style::default()
-                .fg(Color::Green)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD)
         } else {
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD)
         }
     } else {
-        Style::default().fg(Color::White)
+        Style::default().fg(theme.dialog_fg)
     });
 
     f.render_widget(
@@ -517,9 +553,11 @@ fn render_settings_dialog(
             .map(|p| {
                 let is_selected = *p == settings.platform;
                 let style = if is_selected {
-                    Style::default().bg(Color::Blue).fg(Color::White)
-                } else {
                     Style::default()
+                        .bg(theme.menu_selected_bg)
+                        .fg(theme.menu_selected_fg)
+                } else {
+                    Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
                 };
                 ListItem::new(p.to_string()).style(style)
             })
@@ -553,9 +591,11 @@ fn render_settings_dialog(
             .map(|a| {
                 let is_selected = *a == settings.assembler;
                 let style = if is_selected {
-                    Style::default().bg(Color::Blue).fg(Color::White)
-                } else {
                     Style::default()
+                        .bg(theme.menu_selected_bg)
+                        .fg(theme.menu_selected_fg)
+                } else {
+                    Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
                 };
                 ListItem::new(a.to_string()).style(style)
             })
@@ -576,11 +616,17 @@ fn render_settings_dialog(
     }
 }
 
-fn render_label_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::LabelDialogState) {
+fn render_label_dialog(
+    f: &mut Frame,
+    area: Rect,
+    dialog: &crate::ui_state::LabelDialogState,
+    theme: &crate::theme::Theme,
+) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Enter Label Name ")
-        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+        .border_style(Style::default().fg(theme.dialog_border))
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
     // Fixed height of 3 (Border + Input + Border)
     let layout = Layout::default()
@@ -610,7 +656,12 @@ fn render_label_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::Labe
     f.render_widget(input, area);
 }
 
-fn render_comment_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::CommentDialogState) {
+fn render_comment_dialog(
+    f: &mut Frame,
+    area: Rect,
+    dialog: &crate::ui_state::CommentDialogState,
+    theme: &crate::theme::Theme,
+) {
     let title = match dialog.comment_type {
         crate::ui_state::CommentType::Line => " Enter Line Comment ",
         crate::ui_state::CommentType::Side => " Enter Side Comment ",
@@ -619,7 +670,8 @@ fn render_comment_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::Co
     let block = Block::default()
         .borders(Borders::ALL)
         .title(title)
-        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+        .border_style(Style::default().fg(theme.dialog_border))
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
     // Fixed height of 3 (Border + Input + Border)
     let layout = Layout::default()
@@ -643,13 +695,18 @@ fn render_comment_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::Co
 
     let input = Paragraph::new(dialog.input.clone()).block(block).style(
         Style::default()
-            .fg(Color::Yellow)
+            .fg(theme.highlight_fg)
             .add_modifier(Modifier::BOLD),
     );
     f.render_widget(input, area);
 }
 
-fn render_save_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::SaveDialogState) {
+fn render_save_dialog(
+    f: &mut Frame,
+    area: Rect,
+    dialog: &crate::ui_state::SaveDialogState,
+    theme: &crate::theme::Theme,
+) {
     let title = if dialog.mode == crate::ui_state::SaveDialogMode::ExportProject {
         " Export Project As... "
     } else {
@@ -659,7 +716,8 @@ fn render_save_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::SaveD
     let block = Block::default()
         .borders(Borders::ALL)
         .title(title)
-        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+        .border_style(Style::default().fg(theme.dialog_border))
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
     // Fixed height of 3 (Border + Input + Border)
     let layout = Layout::default()
@@ -689,7 +747,12 @@ fn render_save_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::SaveD
     f.render_widget(input, area);
 }
 
-fn render_jump_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::JumpDialogState) {
+fn render_jump_dialog(
+    f: &mut Frame,
+    area: Rect,
+    dialog: &crate::ui_state::JumpDialogState,
+    theme: &crate::theme::Theme,
+) {
     let title = match dialog.mode {
         crate::ui_state::JumpDialogMode::Address => " Jump to Address (Hex) ",
         crate::ui_state::JumpDialogMode::Line => " Jump to Line (Dec) ",
@@ -698,7 +761,8 @@ fn render_jump_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::JumpD
     let block = Block::default()
         .borders(Borders::ALL)
         .title(title)
-        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+        .border_style(Style::default().fg(theme.dialog_border))
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
     // Fixed height of 3 (Border + Input + Border)
     let layout = Layout::default()
@@ -728,11 +792,17 @@ fn render_jump_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::JumpD
     f.render_widget(input, area);
 }
 
-fn render_file_picker(f: &mut Frame, area: Rect, picker: &crate::ui_state::FilePickerState) {
+fn render_file_picker(
+    f: &mut Frame,
+    area: Rect,
+    picker: &crate::ui_state::FilePickerState,
+    theme: &crate::theme::Theme,
+) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Open File (Space to Open, Backspace to Go Back, Esc to Cancel) ")
-        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+        .border_style(Style::default().fg(theme.dialog_border))
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
     let area = centered_rect(60, 50, area);
     f.render_widget(ratatui::widgets::Clear, area); // Clear background
@@ -756,8 +826,8 @@ fn render_file_picker(f: &mut Frame, area: Rect, picker: &crate::ui_state::FileP
         .block(block)
         .highlight_style(
             Style::default()
-                .bg(Color::Cyan)
-                .fg(Color::Black)
+                .bg(theme.menu_selected_bg)
+                .fg(theme.menu_selected_fg)
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol(">> ");
@@ -788,22 +858,30 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
-fn render_menu(f: &mut Frame, area: Rect, menu_state: &crate::ui_state::MenuState) {
+fn render_menu(
+    f: &mut Frame,
+    area: Rect,
+    menu_state: &crate::ui_state::MenuState,
+    theme: &crate::theme::Theme,
+) {
     let mut spans = Vec::new();
 
     for (i, category) in menu_state.categories.iter().enumerate() {
         let style = if menu_state.active && i == menu_state.selected_category {
-            Style::default().bg(Color::White).fg(Color::Black)
+            Style::default()
+                .bg(theme.menu_selected_bg)
+                .fg(theme.menu_selected_fg)
         } else {
-            Style::default().bg(Color::Blue).fg(Color::White)
+            Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
         };
 
         spans.push(Span::styled(format!(" {} ", category.name), style));
     }
 
     // Fill the rest of the line
-    let menu_bar =
-        Paragraph::new(Line::from(spans)).style(Style::default().bg(Color::Blue).fg(Color::White));
+    // Fill the rest of the line
+    let menu_bar = Paragraph::new(Line::from(spans))
+        .style(Style::default().bg(theme.menu_bg).fg(theme.menu_fg));
     f.render_widget(menu_bar, area);
 }
 
@@ -812,34 +890,45 @@ fn render_system_settings_dialog(
     area: Rect,
     app_state: &AppState,
     dialog: &crate::ui_state::SystemSettingsDialogState,
+    theme: &crate::theme::Theme,
 ) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Settings ")
-        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+        .border_style(Style::default().fg(theme.dialog_border))
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
-    let area = centered_rect(50, 20, area); // Smaller height
+    let area = centered_rect(50, 40, area); // Increased height for popup space
     f.render_widget(ratatui::widgets::Clear, area);
     f.render_widget(block.clone(), area);
 
     let inner = block.inner(area);
 
-    let items = vec![format!(
-        "{} Open the latest file on startup",
-        if app_state.system_config.open_last_project {
-            "[X]"
-        } else {
-            "[ ]"
-        }
-    )];
+    let items = vec![
+        format!(
+            "{} Open the latest file on startup",
+            if app_state.system_config.open_last_project {
+                "[X]"
+            } else {
+                "[ ]"
+            }
+        ),
+        format!("Theme: < {} >", app_state.system_config.theme),
+    ];
 
     for (i, item) in items.into_iter().enumerate() {
         let style = if dialog.selected_index == i {
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD)
+            if i == 1 && dialog.is_selecting_theme {
+                Style::default()
+                    .fg(theme.highlight_fg)
+                    .add_modifier(Modifier::BOLD) // Active selection
+            } else {
+                Style::default()
+                    .fg(theme.highlight_fg)
+                    .add_modifier(Modifier::BOLD)
+            }
         } else {
-            Style::default().fg(Color::White)
+            Style::default().fg(theme.dialog_fg)
         };
 
         f.render_widget(
@@ -847,9 +936,54 @@ fn render_system_settings_dialog(
             Rect::new(inner.x + 2, inner.y + 1 + i as u16, inner.width - 4, 1),
         );
     }
+
+    // Theme Selection Popup
+    if dialog.is_selecting_theme {
+        let popup_area = centered_rect(40, 30, area);
+        f.render_widget(ratatui::widgets::Clear, popup_area);
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(" Select Theme ")
+            .border_style(Style::default().fg(theme.dialog_border))
+            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+
+        let themes = crate::theme::Theme::all_names();
+        let list_items: Vec<ListItem> = themes
+            .iter()
+            .map(|t| {
+                let is_selected = *t == app_state.system_config.theme;
+                let style = if is_selected {
+                    Style::default()
+                        .bg(theme.menu_selected_bg)
+                        .fg(theme.menu_selected_fg)
+                } else {
+                    Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
+                };
+                ListItem::new(t.to_string()).style(style)
+            })
+            .collect();
+
+        let selected_idx = themes
+            .iter()
+            .position(|t| *t == app_state.system_config.theme)
+            .unwrap_or(0);
+
+        let mut list_state = ListState::default();
+        list_state.select(Some(selected_idx));
+
+        let list = List::new(list_items)
+            .block(block)
+            .highlight_style(Style::default().add_modifier(Modifier::BOLD));
+        f.render_stateful_widget(list, popup_area, &mut list_state);
+    }
 }
 
-fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::ui_state::MenuState) {
+fn render_menu_popup(
+    f: &mut Frame,
+    top_area: Rect,
+    menu_state: &crate::ui_state::MenuState,
+    theme: &crate::theme::Theme,
+) {
     // Calculate position based on selected category
     // This is a bit hacky without exact text width calculation, but we can estimate.
     let mut x_offset = 0;
@@ -887,22 +1021,24 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::ui_state
             if item.is_separator {
                 let separator_len = (width as usize).saturating_sub(2);
                 let separator = "─".repeat(separator_len);
-                return ListItem::new(separator).style(Style::default().fg(Color::White));
+                return ListItem::new(separator).style(Style::default().fg(theme.menu_fg));
             }
 
             let mut style = if Some(i) == menu_state.selected_item {
-                Style::default().bg(Color::Cyan).fg(Color::Black)
-            } else {
                 Style::default()
+                    .bg(theme.menu_selected_bg)
+                    .fg(theme.menu_selected_fg)
+            } else {
+                Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
             };
 
             if item.disabled {
-                style = style.fg(Color::Gray).add_modifier(Modifier::DIM);
+                style = style.fg(theme.menu_disabled_fg).add_modifier(Modifier::DIM);
                 // If disabled but selected, maybe keep cyan bg but dim text?
                 if Some(i) == menu_state.selected_item {
                     style = Style::default()
-                        .bg(Color::Cyan)
-                        .fg(Color::Gray)
+                        .bg(theme.menu_selected_bg)
+                        .fg(theme.menu_disabled_fg)
                         .add_modifier(Modifier::DIM);
                 }
             }
@@ -924,17 +1060,24 @@ fn render_menu_popup(f: &mut Frame, top_area: Rect, menu_state: &crate::ui_state
     let list = List::new(items).block(
         Block::default()
             .borders(Borders::ALL)
-            .style(Style::default().bg(Color::DarkGray)),
+            .border_style(Style::default().fg(theme.dialog_border))
+            .style(Style::default().bg(theme.menu_bg).fg(theme.menu_fg)),
     );
 
     f.render_widget(list, area);
 }
 
-fn render_origin_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::OriginDialogState) {
+fn render_origin_dialog(
+    f: &mut Frame,
+    area: Rect,
+    dialog: &crate::ui_state::OriginDialogState,
+    theme: &crate::theme::Theme,
+) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title(" Change Origin (Hex) ")
-        .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+        .border_style(Style::default().fg(theme.dialog_border))
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
     // Fixed height of 3 (Border + Input + Border)
     let layout = Layout::default()
@@ -958,7 +1101,7 @@ fn render_origin_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::Ori
 
     let input = Paragraph::new(dialog.input.clone()).block(block).style(
         Style::default()
-            .fg(Color::Yellow)
+            .fg(theme.highlight_fg)
             .add_modifier(Modifier::BOLD),
     );
     f.render_widget(input, area);
@@ -988,15 +1131,20 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
 fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
     let is_active = ui_state.active_pane == ActivePane::HexDump;
     let border_style = if is_active {
-        Style::default().fg(Color::Green)
+        Style::default().fg(ui_state.theme.border_active)
     } else {
-        Style::default()
+        Style::default().fg(ui_state.theme.border_inactive)
     };
 
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(border_style)
-        .title(" Hex Dump ");
+        .title(" Hex Dump ")
+        .style(
+            Style::default()
+                .bg(ui_state.theme.background)
+                .fg(ui_state.theme.foreground),
+        );
     let inner_area = block.inner(area);
 
     let visible_height = inner_area.height as usize;
@@ -1054,9 +1202,11 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
             };
 
             let style = if row_index == ui_state.hex_cursor_index {
-                Style::default().bg(Color::DarkGray)
+                Style::default().bg(ui_state.theme.selection_bg)
             } else if is_selected {
-                Style::default().bg(Color::DarkGray).fg(Color::White)
+                Style::default()
+                    .bg(ui_state.theme.selection_bg)
+                    .fg(ui_state.theme.selection_fg)
             } else {
                 Style::default()
             };
@@ -1064,15 +1214,15 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
             let line = Line::from(vec![
                 Span::styled(
                     format!("{:04X}  ", address),
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(ui_state.theme.address),
                 ),
                 Span::styled(
                     format!("{:<49}", hex_part),
-                    Style::default().fg(Color::White),
+                    Style::default().fg(ui_state.theme.hex_bytes),
                 ), // 49 = 16*3 + 1 extra space
                 Span::styled(
                     format!("| {}", ascii_part),
-                    Style::default().fg(Color::Green),
+                    Style::default().fg(ui_state.theme.hex_ascii),
                 ),
             ]);
 
@@ -1092,15 +1242,20 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
 fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
     let is_active = ui_state.active_pane == ActivePane::Disassembly;
     let border_style = if is_active {
-        Style::default().fg(Color::Green)
+        Style::default().fg(ui_state.theme.border_active)
     } else {
-        Style::default()
+        Style::default().fg(ui_state.theme.border_inactive)
     };
 
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(border_style)
-        .title(" Disassembly ");
+        .title(" Disassembly ")
+        .style(
+            Style::default()
+                .bg(ui_state.theme.background)
+                .fg(ui_state.theme.foreground),
+        );
     let inner_area = block.inner(area);
 
     let formatter = app_state.get_formatter();
@@ -1373,9 +1528,11 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             };
 
             let style = if i == ui_state.cursor_index {
-                Style::default().bg(Color::DarkGray)
+                Style::default().bg(ui_state.theme.selection_bg)
             } else if is_selected {
-                Style::default().bg(Color::DarkGray).fg(Color::White)
+                Style::default()
+                    .bg(ui_state.theme.selection_bg)
+                    .fg(ui_state.theme.selection_fg)
             } else {
                 Style::default()
             };
@@ -1396,15 +1553,15 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 item_lines.push(Line::from(vec![
                     Span::styled(
                         format!("{:5} ", current_line_num),
-                        Style::default().fg(Color::DarkGray),
+                        Style::default().fg(ui_state.theme.bytes),
                     ),
                     Span::styled(
                         format!("{:width$} ", comment_arrow_padding, width = arrow_width),
-                        Style::default().fg(Color::LightBlue),
+                        Style::default().fg(ui_state.theme.arrow),
                     ),
                     Span::styled(
                         format!("; {}", line_comment),
-                        Style::default().fg(Color::LightCyan),
+                        Style::default().fg(ui_state.theme.comment),
                     ),
                 ]));
                 current_line_num += 1;
@@ -1413,15 +1570,15 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             let content = Line::from(vec![
                 Span::styled(
                     format!("{:5} ", current_line_num),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(ui_state.theme.bytes),
                 ),
                 Span::styled(
                     format!("{:<width$} ", arrow_padding, width = arrow_width),
-                    Style::default().fg(Color::LightBlue),
+                    Style::default().fg(ui_state.theme.arrow),
                 ),
                 Span::styled(
                     format!("{:04X}  ", line.address),
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(ui_state.theme.address),
                 ),
                 Span::styled(
                     format!(
@@ -1432,27 +1589,27 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                             String::new()
                         }
                     ),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(ui_state.theme.bytes),
                 ),
                 Span::styled(
                     format!("{: <16}", label_text),
                     Style::default()
-                        .fg(Color::Magenta)
+                        .fg(ui_state.theme.label_def)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     format!("{: <4} ", line.mnemonic),
                     Style::default()
-                        .fg(Color::Green)
+                        .fg(ui_state.theme.mnemonic)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     format!("{: <15}", line.operand),
-                    Style::default().fg(Color::White),
+                    Style::default().fg(ui_state.theme.operand),
                 ),
                 Span::styled(
                     format!("; {}", line.comment),
-                    Style::default().fg(Color::Gray),
+                    Style::default().fg(ui_state.theme.comment),
                 ),
             ]);
             item_lines.push(content);
@@ -1498,7 +1655,11 @@ fn render_status_bar(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: 
         format!(" {}", ui_state.status_message),
         Style::default().add_modifier(Modifier::BOLD),
     ))
-    .style(Style::default().bg(Color::Blue).fg(Color::White));
+    .style(
+        Style::default()
+            .bg(ui_state.theme.status_bar_bg)
+            .fg(ui_state.theme.status_bar_fg),
+    );
     f.render_widget(status_msg, chunks[0]);
 
     // Right: Info
@@ -1527,7 +1688,11 @@ fn render_status_bar(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: 
 
     let info_widget = Paragraph::new(info)
         .alignment(ratatui::layout::Alignment::Right)
-        .style(Style::default().bg(Color::Blue).fg(Color::White));
+        .style(
+            Style::default()
+                .bg(ui_state.theme.status_bar_bg)
+                .fg(ui_state.theme.status_bar_fg),
+        );
     f.render_widget(info_widget, chunks[1]);
 }
 

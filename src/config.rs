@@ -6,6 +6,12 @@ use std::path::PathBuf;
 pub struct SystemConfig {
     pub open_last_project: bool,
     pub last_project_path: Option<PathBuf>,
+    #[serde(default = "default_theme")]
+    pub theme: String,
+}
+
+fn default_theme() -> String {
+    "Dark".to_string()
 }
 
 impl Default for SystemConfig {
@@ -13,6 +19,7 @@ impl Default for SystemConfig {
         Self {
             open_last_project: true,
             last_project_path: None,
+            theme: "Dark".to_string(),
         }
     }
 }

@@ -1,3 +1,4 @@
+use crate::theme::Theme;
 use image::DynamicImage;
 use ratatui::widgets::ListState;
 use ratatui_image::picker::Picker;
@@ -422,19 +423,28 @@ impl SettingsDialogState {
 pub struct SystemSettingsDialogState {
     pub active: bool,
     pub selected_index: usize,
+    pub is_selecting_theme: bool,
+}
+
+impl Default for SystemSettingsDialogState {
+    fn default() -> Self {
+        Self {
+            active: false,
+            selected_index: 0,
+            is_selecting_theme: false,
+        }
+    }
 }
 
 impl SystemSettingsDialogState {
     pub fn new() -> Self {
-        Self {
-            active: false,
-            selected_index: 0,
-        }
+        Self::default()
     }
 
     pub fn open(&mut self) {
         self.active = true;
         self.selected_index = 0;
+        self.is_selecting_theme = false; // Reset on open
     }
 
     pub fn close(&mut self) {
@@ -729,10 +739,12 @@ pub struct UIState {
     pub dismiss_logo: bool,
     pub is_visual_mode: bool,
     pub input_buffer: String,
+
+    pub theme: Theme,
 }
 
 impl UIState {
-    pub fn new() -> Self {
+    pub fn new(theme: Theme) -> Self {
         Self {
             file_picker: FilePickerState::new(),
             jump_dialog: JumpDialogState::new(),
@@ -763,6 +775,7 @@ impl UIState {
             dismiss_logo: false,
             is_visual_mode: false,
             input_buffer: String::new(),
+            theme,
         }
     }
 

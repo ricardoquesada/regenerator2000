@@ -13,6 +13,7 @@ mod ui_state;
 
 mod config;
 mod t64;
+mod theme;
 mod utils;
 mod vsf;
 
@@ -53,7 +54,8 @@ fn main() -> Result<()> {
 
     // Create States
     let mut app_state = AppState::new();
-    let mut ui_state = UIState::new();
+    let theme = crate::theme::Theme::from_name(&app_state.system_config.theme);
+    let mut ui_state = UIState::new(theme);
 
     // Check args
     let args: Vec<String> = std::env::args().collect();
