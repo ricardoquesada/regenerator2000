@@ -49,6 +49,8 @@ pub enum MenuAction {
     KeyboardShortcuts,
     Undefined,
     SystemSettings,
+    NextImmediateFormat,
+    PreviousImmediateFormat,
 }
 
 impl MenuAction {
@@ -503,6 +505,17 @@ impl MenuState {
                         MenuItem::separator(),
                         MenuItem::new("Change Origin", None, Some(MenuAction::ChangeOrigin)),
                         MenuItem::separator(),
+                        MenuItem::new(
+                            "Next Imm. Mode Format",
+                            Some("d"),
+                            Some(MenuAction::NextImmediateFormat),
+                        ),
+                        MenuItem::new(
+                            "Prev Imm. Mode Format",
+                            Some("Shift+D"),
+                            Some(MenuAction::PreviousImmediateFormat),
+                        ),
+                        MenuItem::separator(),
                         MenuItem::new("Analyze", None, Some(MenuAction::Analyze)),
                         MenuItem::separator(),
                         MenuItem::new(
@@ -643,11 +656,34 @@ impl MenuState {
         }
         self.selected_item = None;
     }
-    pub fn update_availability(&mut self, has_document: bool) {
+    pub fn update_availability(&mut self, app_state: &crate::state::AppState, cursor_index: usize) {
+        let has_document = !app_state.raw_data.is_empty();
         for category in &mut self.categories {
             for item in &mut category.items {
                 if let Some(action) = &item.action {
-                    item.disabled = action.requires_document() && !has_document;
+                    if action.requires_document() && !has_document {
+                        item.disabled = true;
+                    } else {
+                        // Context-specific checks
+                        match action {
+                            MenuAction::NextImmediateFormat
+                            | MenuAction::PreviousImmediateFormat => {
+                                let mut is_immediate = false;
+                                if has_document {
+                                    if let Some(line) = app_state.disassembly.get(cursor_index) {
+                                        if let Some(opcode) = &line.opcode {
+                                            if opcode.mode == crate::cpu::AddressingMode::Immediate
+                                            {
+                                                is_immediate = true;
+                                            }
+                                        }
+                                    }
+                                }
+                                item.disabled = !is_immediate;
+                            }
+                            _ => item.disabled = false,
+                        }
+                    }
                 }
             }
         }

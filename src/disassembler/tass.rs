@@ -26,6 +26,7 @@ impl Formatter for TassFormatter {
         target_context: Option<LabelType>,
         labels: &BTreeMap<u16, Vec<Label>>,
         settings: &crate::state::DocumentSettings,
+        immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
     ) -> String {
         let get_label = |addr: u16, l_type: LabelType| -> Option<String> {
             if let Some(label_vec) = labels.get(&addr) {
@@ -51,7 +52,23 @@ impl Formatter for TassFormatter {
         match opcode.mode {
             AddressingMode::Implied => String::new(),
             AddressingMode::Accumulator => "a".to_string(),
-            AddressingMode::Immediate => format!("#${:02x}", operands[0]),
+            AddressingMode::Immediate => {
+                let val = operands[0];
+                match immediate_value_formats.get(&address) {
+                    Some(crate::state::ImmediateFormat::InvertedHex) => {
+                        format!("#~${:02x}", !val)
+                    }
+                    Some(crate::state::ImmediateFormat::Decimal) => format!("#{}", val),
+                    Some(crate::state::ImmediateFormat::NegativeDecimal) => {
+                        format!("#{}", val as i8)
+                    }
+                    Some(crate::state::ImmediateFormat::Binary) => format!("#%{:08b}", val),
+                    Some(crate::state::ImmediateFormat::InvertedBinary) => {
+                        format!("#~%{:08b}", !val)
+                    }
+                    _ => format!("#${:02x}", val),
+                }
+            }
             AddressingMode::ZeroPage => {
                 let addr = operands[0] as u16; // Zero page address
                 if let Some(name) = get_label(addr, LabelType::ZeroPageAbsoluteAddress) {

@@ -14,7 +14,7 @@ pub fn run_app<B: Backend>(
         // Update menu availability based on current state
         ui_state
             .menu
-            .update_availability(!app_state.raw_data.is_empty());
+            .update_availability(&app_state, ui_state.cursor_index);
 
         terminal.draw(|f| ui(f, &app_state, &mut ui_state))?;
 
@@ -1106,6 +1106,22 @@ pub fn run_app<B: Backend>(
                         }
                     }
 
+                    KeyCode::Char('d') => {
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::NextImmediateFormat,
+                        );
+                    }
+
+                    KeyCode::Char('D') => {
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::PreviousImmediateFormat,
+                        );
+                    }
+
                     // Vim-like G command
                     KeyCode::Char('G') => {
                         let entered_number = ui_state.input_buffer.parse::<usize>().unwrap_or(0);
@@ -1867,6 +1883,100 @@ fn execute_menu_action(
         MenuAction::SystemSettings => {
             ui_state.system_settings_dialog.open();
             ui_state.set_status_message("System Settings");
+        }
+        MenuAction::NextImmediateFormat => {
+            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                let has_immediate = if let Some(opcode) = &line.opcode {
+                    opcode.mode == crate::cpu::AddressingMode::Immediate
+                } else {
+                    false
+                };
+
+                if has_immediate {
+                    let current_fmt = app_state
+                        .immediate_value_formats
+                        .get(&line.address)
+                        .copied()
+                        .unwrap_or(crate::state::ImmediateFormat::Hex);
+
+                    let next_fmt = match current_fmt {
+                        crate::state::ImmediateFormat::Hex => {
+                            crate::state::ImmediateFormat::InvertedHex
+                        }
+                        crate::state::ImmediateFormat::InvertedHex => {
+                            crate::state::ImmediateFormat::Decimal
+                        }
+                        crate::state::ImmediateFormat::Decimal => {
+                            crate::state::ImmediateFormat::NegativeDecimal
+                        }
+                        crate::state::ImmediateFormat::NegativeDecimal => {
+                            crate::state::ImmediateFormat::Binary
+                        }
+                        crate::state::ImmediateFormat::Binary => {
+                            crate::state::ImmediateFormat::InvertedBinary
+                        }
+                        crate::state::ImmediateFormat::InvertedBinary => {
+                            crate::state::ImmediateFormat::Hex
+                        }
+                    };
+
+                    let command = crate::commands::Command::SetImmediateFormat {
+                        address: line.address,
+                        new_format: Some(next_fmt),
+                        old_format: Some(current_fmt),
+                    };
+                    command.apply(app_state);
+                    app_state.undo_stack.push(command);
+                    app_state.disassemble();
+                }
+            }
+        }
+        MenuAction::PreviousImmediateFormat => {
+            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                let has_immediate = if let Some(opcode) = &line.opcode {
+                    opcode.mode == crate::cpu::AddressingMode::Immediate
+                } else {
+                    false
+                };
+
+                if has_immediate {
+                    let current_fmt = app_state
+                        .immediate_value_formats
+                        .get(&line.address)
+                        .copied()
+                        .unwrap_or(crate::state::ImmediateFormat::Hex);
+
+                    let next_fmt = match current_fmt {
+                        crate::state::ImmediateFormat::Hex => {
+                            crate::state::ImmediateFormat::InvertedBinary
+                        }
+                        crate::state::ImmediateFormat::InvertedBinary => {
+                            crate::state::ImmediateFormat::Binary
+                        }
+                        crate::state::ImmediateFormat::Binary => {
+                            crate::state::ImmediateFormat::NegativeDecimal
+                        }
+                        crate::state::ImmediateFormat::NegativeDecimal => {
+                            crate::state::ImmediateFormat::Decimal
+                        }
+                        crate::state::ImmediateFormat::Decimal => {
+                            crate::state::ImmediateFormat::InvertedHex
+                        }
+                        crate::state::ImmediateFormat::InvertedHex => {
+                            crate::state::ImmediateFormat::Hex
+                        }
+                    };
+
+                    let command = crate::commands::Command::SetImmediateFormat {
+                        address: line.address,
+                        new_format: Some(next_fmt),
+                        old_format: Some(current_fmt),
+                    };
+                    command.apply(app_state);
+                    app_state.undo_stack.push(command);
+                    app_state.disassemble();
+                }
+            }
         }
     }
 }

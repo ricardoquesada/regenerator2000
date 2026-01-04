@@ -19,6 +19,7 @@ pub trait Formatter {
         target_context: Option<crate::state::LabelType>,
         labels: &BTreeMap<u16, Vec<Label>>,
         settings: &crate::state::DocumentSettings,
+        immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
     ) -> String;
 
     fn format_mnemonic(&self, mnemonic: &str) -> String;
@@ -45,10 +46,19 @@ pub trait Formatter {
         target_context: Option<crate::state::LabelType>,
         labels: &BTreeMap<u16, Vec<Label>>,
         settings: &crate::state::DocumentSettings,
+        immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
     ) -> (String, String) {
         (
             self.format_mnemonic(opcode.mnemonic),
-            self.format_operand(opcode, operands, address, target_context, labels, settings),
+            self.format_operand(
+                opcode,
+                operands,
+                address,
+                target_context,
+                labels,
+                settings,
+                immediate_value_formats,
+            ),
         )
     }
 }

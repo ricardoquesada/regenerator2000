@@ -1,4 +1,4 @@
-use crate::state::{AppState, BlockType, Label};
+use crate::state::{AppState, BlockType, ImmediateFormat, Label};
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
@@ -31,6 +31,11 @@ pub enum Command {
     ChangeOrigin {
         new_origin: u16,
         old_origin: u16,
+    },
+    SetImmediateFormat {
+        address: u16,
+        new_format: Option<ImmediateFormat>,
+        old_format: Option<ImmediateFormat>,
     },
 }
 
@@ -101,6 +106,17 @@ impl Command {
             } => {
                 state.origin = *new_origin;
             }
+            Command::SetImmediateFormat {
+                address,
+                new_format,
+                old_format: _,
+            } => {
+                if let Some(format) = new_format {
+                    state.immediate_value_formats.insert(*address, *format);
+                } else {
+                    state.immediate_value_formats.remove(address);
+                }
+            }
         }
     }
 
@@ -168,6 +184,17 @@ impl Command {
                 old_origin,
             } => {
                 state.origin = *old_origin;
+            }
+            Command::SetImmediateFormat {
+                address,
+                new_format: _,
+                old_format,
+            } => {
+                if let Some(format) = old_format {
+                    state.immediate_value_formats.insert(*address, *format);
+                } else {
+                    state.immediate_value_formats.remove(address);
+                }
             }
         }
     }

@@ -27,6 +27,7 @@ mod tests {
             labels: BTreeMap::new(), // EMPTY! No saved labels.
             user_side_comments: BTreeMap::new(),
             user_line_comments: BTreeMap::new(),
+            immediate_value_formats: BTreeMap::new(),
             settings: DocumentSettings::default(),
             cursor_address: None,
         };

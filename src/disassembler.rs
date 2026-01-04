@@ -66,6 +66,7 @@ impl Disassembler {
         system_comments: &BTreeMap<u16, String>,
         user_side_comments: &BTreeMap<u16, String>,
         user_line_comments: &BTreeMap<u16, String>,
+        immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
     ) -> Vec<DisassemblyLine> {
         let formatter = Self::create_formatter(settings.assembler);
 
@@ -101,6 +102,7 @@ impl Disassembler {
                     line_comment,
                     system_comments,
                     user_side_comments,
+                    immediate_value_formats,
                 ),
                 BlockType::DataByte => self.handle_data_byte(
                     pc,
@@ -644,6 +646,7 @@ impl Disassembler {
         line_comment: Option<String>,
         system_comments: &BTreeMap<u16, String>,
         user_side_comments: &BTreeMap<u16, String>,
+        immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let opcode_byte = data[pc];
         let opcode_opt = &self.opcodes[opcode_byte as usize];
@@ -758,6 +761,7 @@ impl Disassembler {
                         target_context,
                         labels,
                         settings,
+                        immediate_value_formats,
                     );
 
                     let target_address = self.get_arrow_target_address(opcode, &bytes, address);

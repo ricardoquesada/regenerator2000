@@ -201,7 +201,19 @@ pub struct ProjectState {
     #[serde(default)]
     pub settings: DocumentSettings,
     #[serde(default)]
+    pub immediate_value_formats: BTreeMap<u16, ImmediateFormat>,
+    #[serde(default)]
     pub cursor_address: Option<u16>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ImmediateFormat {
+    Hex,
+    InvertedHex,
+    Decimal,
+    NegativeDecimal,
+    Binary,
+    InvertedBinary,
 }
 
 pub struct AppState {
@@ -219,8 +231,8 @@ pub struct AppState {
     pub settings: DocumentSettings,
     pub system_comments: BTreeMap<u16, String>,
     pub user_side_comments: BTreeMap<u16, String>,
-
     pub user_line_comments: BTreeMap<u16, String>,
+    pub immediate_value_formats: BTreeMap<u16, ImmediateFormat>,
 
     pub system_config: SystemConfig,
 
@@ -244,6 +256,7 @@ impl AppState {
             system_comments: BTreeMap::new(),
             user_side_comments: BTreeMap::new(),
             user_line_comments: BTreeMap::new(),
+            immediate_value_formats: BTreeMap::new(),
             system_config: SystemConfig::load(),
             undo_stack: crate::commands::UndoStack::new(),
             last_saved_pointer: 0,
@@ -280,6 +293,7 @@ impl AppState {
         self.settings = DocumentSettings::default(); // reset settings
         self.user_side_comments.clear();
         self.user_line_comments.clear();
+        self.immediate_value_formats.clear();
 
         let mut cursor_start = None;
 
@@ -357,6 +371,7 @@ impl AppState {
         self.labels = project.labels;
         self.user_side_comments = project.user_side_comments;
         self.user_line_comments = project.user_line_comments;
+        self.immediate_value_formats = project.immediate_value_formats;
         self.settings = project.settings;
 
         self.load_system_assets();
@@ -394,6 +409,7 @@ impl AppState {
                     .collect(),
                 user_side_comments: self.user_side_comments.clone(),
                 user_line_comments: self.user_line_comments.clone(),
+                immediate_value_formats: self.immediate_value_formats.clone(),
                 settings: self.settings,
                 cursor_address,
             };
@@ -670,6 +686,7 @@ impl AppState {
             &self.system_comments,
             &self.user_side_comments,
             &self.user_line_comments,
+            &self.immediate_value_formats,
         );
 
         // Add external label definitions at the top if enabled

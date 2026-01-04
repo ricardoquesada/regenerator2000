@@ -27,6 +27,7 @@ fn test_user_line_comments_basic() {
         &BTreeMap::new(), // system side comments
         &BTreeMap::new(), // user side comments
         &user_line_comments,
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -61,6 +62,7 @@ fn test_user_line_and_side_comments_coexist() {
         &BTreeMap::new(),
         &user_side_comments,
         &user_line_comments,
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);

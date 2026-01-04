@@ -26,5 +26,9 @@
     "max_xref_count": 5,
     "max_arrow_columns": 6
   },
-  "cursor_address": 2087
+  "immediate_value_formats": {
+    "2091": "Hex",
+    "2111": "Hex"
+  },
+  "cursor_address": 2111
 }

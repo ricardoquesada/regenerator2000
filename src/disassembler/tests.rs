@@ -25,6 +25,7 @@ fn test_tass_formatting_force_w() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -55,6 +56,7 @@ fn test_tass_formatting_no_force_if_disabled() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -79,6 +81,7 @@ fn test_acme_formatting_basic() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -108,6 +111,7 @@ fn test_acme_directives() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -190,6 +194,7 @@ fn test_contextual_label_formatting() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -285,6 +290,7 @@ fn test_acme_lowercase_output() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 2);
@@ -318,6 +324,7 @@ fn test_acme_plus2_formatting() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -363,6 +370,7 @@ fn test_xref_formatting_with_dollar() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -405,6 +413,7 @@ fn test_xref_count_configurable() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines.len(), 1);
     // Should show 5 items
@@ -423,6 +432,7 @@ fn test_xref_count_configurable() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     let comment = &lines[0].comment;
     assert!(comment.contains("$2000, $2001"));
@@ -436,6 +446,7 @@ fn test_xref_count_configurable() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -465,6 +476,7 @@ fn test_text_and_screencode_disassembly() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Tass formatting produces 4 lines: .encode, .enc "ascii", .text "ABC", .endencode
@@ -481,6 +493,7 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -508,6 +521,7 @@ fn test_text_and_screencode_disassembly() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!scr");
@@ -523,6 +537,7 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -569,6 +584,7 @@ fn test_text_mixed_content() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Filter relevant lines (Tass wraps in ENCODE)
@@ -608,6 +624,7 @@ fn test_text_escaping() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines_acme.len(), 1);
     assert_eq!(lines_acme[0].operand, "\"Quote \\\" Backslash \\\\\"");
@@ -620,6 +637,7 @@ fn test_text_escaping() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -676,6 +694,7 @@ fn test_screencode_mixed() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines_acme.len(), 1);
     // !scr "\"" (escaped quote), $ff, "\""
@@ -690,6 +709,7 @@ fn test_screencode_mixed() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -736,6 +756,7 @@ fn test_tass_screencode_enc_wrapping() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 4);
@@ -773,6 +794,7 @@ fn test_tass_screencode_multiline_wrapping() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -826,6 +848,7 @@ fn test_text_show_bytes_is_false() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Filter for the .text line
@@ -861,6 +884,7 @@ fn test_screencode_show_bytes_is_false() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Filter for the .text line (inside .encode block)
@@ -889,6 +913,7 @@ fn test_databyte_show_bytes_is_false() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -922,6 +947,7 @@ fn test_dataword_show_bytes_is_false() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -949,6 +975,7 @@ fn test_address_show_bytes_is_false() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -983,6 +1010,7 @@ fn test_tass_block_separation() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1037,6 +1065,7 @@ fn test_tass_label_interruption() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1096,6 +1125,7 @@ fn test_tass_screencode_single_byte_special() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Expected:
@@ -1142,6 +1172,7 @@ mod tests {
             &BTreeMap::new(),
             &BTreeMap::new(),
             &BTreeMap::new(),
+            &BTreeMap::new(),
         );
 
         assert_eq!(lines_a.len(), 4);
@@ -1163,6 +1194,7 @@ mod tests {
             &labels,
             origin,
             &settings,
+            &BTreeMap::new(),
             &BTreeMap::new(),
             &BTreeMap::new(),
             &BTreeMap::new(),
@@ -1194,6 +1226,7 @@ mod tests {
             &labels,
             origin,
             &settings,
+            &BTreeMap::new(),
             &BTreeMap::new(),
             &BTreeMap::new(),
             &BTreeMap::new(),
@@ -1240,6 +1273,7 @@ mod tests {
             &BTreeMap::new(),
             &BTreeMap::new(),
             &BTreeMap::new(),
+            &BTreeMap::new(),
         );
 
         assert_eq!(lines.len(), 1);
@@ -1279,6 +1313,7 @@ fn test_target_address_population() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1335,6 +1370,7 @@ fn test_target_address_specific_instructions() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1398,6 +1434,7 @@ fn test_side_comment_propagation_suppressed_for_code() {
         None,
         &system_comments,
         &user_side_comments,
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -1428,6 +1465,7 @@ fn test_side_comment_propagation_suppressed_for_code() {
         None,
         &system_comments,
         &user_side_comments,
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines2.len(), 1);
@@ -1465,6 +1503,7 @@ fn test_side_comment_propagation_allowed_for_data() {
         None,
         &system_comments,
         &user_side_comments,
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -1493,6 +1532,7 @@ fn test_lohi_block() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1528,6 +1568,7 @@ fn test_lohi_block() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1575,6 +1616,7 @@ fn test_lohi_internal_label_regression() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Should produce 2 lines (Lo and Hi), not broken parts.
@@ -1615,6 +1657,7 @@ fn test_hilo_block() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Should produce 2 lines:
@@ -1649,9 +1692,48 @@ fn test_hilo_block() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines_labelled.len(), 2);
     assert_eq!(lines_labelled[0].operand, ">MyLabel, >$D001");
     assert_eq!(lines_labelled[1].operand, "<MyLabel, <$D001");
+}
+
+#[test]
+fn test_inverted_binary_format() {
+    // LDA #$00 -> should be #~%11111111 if InvertedBinary
+    // $00 in binary is 00000000. Inverted is 11111111.
+
+    // LDA #$FF -> should be #~%00000000
+    // $FF is 11111111. Inverted is 00000000.
+
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Tass64;
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    let code = vec![0xA9, 0x00, 0xA9, 0xFF]; // LDA #$00, LDA #$FF
+    let block_types = vec![BlockType::Code; 4];
+
+    let mut immediate_value_formats = BTreeMap::new();
+    immediate_value_formats.insert(0x1000, crate::state::ImmediateFormat::InvertedBinary);
+    immediate_value_formats.insert(0x1002, crate::state::ImmediateFormat::InvertedBinary);
+
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &immediate_value_formats,
+    );
+
+    assert_eq!(lines[0].operand, "#~%11111111");
+    assert_eq!(lines[1].operand, "#~%00000000");
 }
