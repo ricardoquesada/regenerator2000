@@ -701,7 +701,7 @@ pub struct UIState {
     pub system_settings_dialog: SystemSettingsDialogState,
     pub menu: MenuState,
 
-    pub navigation_history: Vec<usize>,
+    pub navigation_history: Vec<(ActivePane, usize)>,
     #[allow(dead_code)]
     pub disassembly_state: ListState,
 

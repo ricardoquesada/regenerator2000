@@ -57,18 +57,20 @@ pub fn run_app<B: Backend>(
                                             }
 
                                             if let Some(idx) = found_idx {
-                                                ui_state
-                                                    .navigation_history
-                                                    .push(ui_state.cursor_index);
+                                                ui_state.navigation_history.push((
+                                                    crate::ui_state::ActivePane::Disassembly,
+                                                    ui_state.cursor_index,
+                                                ));
                                                 ui_state.cursor_index = idx;
                                                 ui_state.set_status_message(format!(
                                                     "Jumped to ${:04X}",
                                                     target_addr
                                                 ));
                                             } else if !app_state.disassembly.is_empty() {
-                                                ui_state
-                                                    .navigation_history
-                                                    .push(ui_state.cursor_index);
+                                                ui_state.navigation_history.push((
+                                                    crate::ui_state::ActivePane::Disassembly,
+                                                    ui_state.cursor_index,
+                                                ));
                                                 ui_state.cursor_index =
                                                     app_state.disassembly.len() - 1;
                                                 ui_state.set_status_message("Jumped to end");
@@ -81,6 +83,10 @@ pub fn run_app<B: Backend>(
                                             let end_addr = origin + data_len;
 
                                             if target >= origin && target < end_addr {
+                                                ui_state.navigation_history.push((
+                                                    crate::ui_state::ActivePane::Hex,
+                                                    ui_state.hex_cursor_index,
+                                                ));
                                                 let offset = target - origin;
                                                 let row = offset / 16;
                                                 ui_state.hex_cursor_index = row;
@@ -102,7 +108,10 @@ pub fn run_app<B: Backend>(
                             crate::ui_state::JumpDialogMode::Line => {
                                 if let Ok(line_num) = input.parse::<usize>() {
                                     if line_num > 0 && line_num <= app_state.disassembly.len() {
-                                        ui_state.navigation_history.push(ui_state.cursor_index);
+                                        ui_state.navigation_history.push((
+                                            crate::ui_state::ActivePane::Disassembly,
+                                            ui_state.cursor_index,
+                                        ));
                                         ui_state.cursor_index = line_num - 1;
                                         ui_state.set_status_message(format!(
                                             "Jumped to line {}",
@@ -884,13 +893,23 @@ pub fn run_app<B: Backend>(
                     }
 
                     KeyCode::Backspace => {
-                        if let Some(prev_idx) = ui_state.navigation_history.pop() {
-                            // Verify index is still valid
-                            if prev_idx < app_state.disassembly.len() {
-                                ui_state.cursor_index = prev_idx;
-                                ui_state.set_status_message("Navigated back");
-                            } else {
-                                ui_state.set_status_message("History invalid");
+                        if let Some((pane, idx)) = ui_state.navigation_history.pop() {
+                            ui_state.active_pane = pane;
+                            match pane {
+                                ActivePane::Disassembly => {
+                                    if idx < app_state.disassembly.len() {
+                                        ui_state.cursor_index = idx;
+                                        ui_state.set_status_message("Navigated back");
+                                    } else {
+                                        ui_state.set_status_message("History invalid");
+                                    }
+                                }
+                                ActivePane::Hex => {
+                                    // Basic bounds check might be hard here without recalculating rows
+                                    // For now assume it's valid if it was pushed
+                                    ui_state.hex_cursor_index = idx;
+                                    ui_state.set_status_message("Navigated back");
+                                }
                             }
                         } else {
                             ui_state.set_status_message("No history");
@@ -1046,41 +1065,69 @@ pub fn run_app<B: Backend>(
 
                     // Vim-like G command
                     KeyCode::Char('G') => {
-                        if ui_state.active_pane == ActivePane::Disassembly {
-                            let target_line = if ui_state.input_buffer.is_empty() {
-                                // Default to last line (G) or 0G logic if 0 handled below
-                                app_state.disassembly.len()
-                            } else {
-                                ui_state.input_buffer.parse::<usize>().unwrap_or(0)
-                            };
+                        let entered_number = ui_state.input_buffer.parse::<usize>().unwrap_or(0);
+                        let is_buffer_empty = ui_state.input_buffer.is_empty();
+                        ui_state.input_buffer.clear();
 
-                            // Clear buffer immediately
-                            ui_state.input_buffer.clear();
+                        match ui_state.active_pane {
+                            ActivePane::Disassembly => {
+                                let target_line = if is_buffer_empty {
+                                    app_state.disassembly.len()
+                                } else {
+                                    entered_number
+                                };
 
-                            let new_cursor = if target_line == 0 {
-                                // 0G -> Last line
-                                app_state.disassembly.len().saturating_sub(1)
-                            } else {
-                                // nG -> Line n (1-based)
-                                target_line
-                                    .saturating_sub(1)
-                                    .min(app_state.disassembly.len().saturating_sub(1))
-                            };
+                                let new_cursor = if target_line == 0 {
+                                    app_state.disassembly.len().saturating_sub(1)
+                                } else {
+                                    target_line
+                                        .saturating_sub(1)
+                                        .min(app_state.disassembly.len().saturating_sub(1))
+                                };
 
-                            // Handle Visual Mode
-                            if ui_state.is_visual_mode && ui_state.selection_start.is_none() {
-                                ui_state.selection_start = Some(ui_state.cursor_index);
+                                // Handle Visual Mode
+                                if ui_state.is_visual_mode && ui_state.selection_start.is_none() {
+                                    ui_state.selection_start = Some(ui_state.cursor_index);
+                                }
+
+                                ui_state
+                                    .navigation_history
+                                    .push((ui_state.active_pane, ui_state.cursor_index));
+                                ui_state.cursor_index = new_cursor;
+                                ui_state
+                                    .set_status_message(format!("Jumped to line {}", target_line));
                             }
+                            ActivePane::Hex => {
+                                let total_rows = app_state.raw_data.len().div_ceil(16);
+                                let target_row = if is_buffer_empty {
+                                    total_rows
+                                } else {
+                                    entered_number
+                                };
 
-                            ui_state.navigation_history.push(ui_state.cursor_index);
-                            ui_state.cursor_index = new_cursor;
-                            ui_state.set_status_message(format!("Jumped to line {}", target_line));
+                                let new_cursor = if target_row == 0 {
+                                    total_rows.saturating_sub(1)
+                                } else {
+                                    target_row
+                                        .saturating_sub(1)
+                                        .min(total_rows.saturating_sub(1))
+                                };
+
+                                ui_state
+                                    .navigation_history
+                                    .push((ui_state.active_pane, ui_state.hex_cursor_index));
+                                ui_state.hex_cursor_index = new_cursor;
+                                ui_state
+                                    .set_status_message(format!("Jumped to row {}", target_row));
+                            }
                         }
                     }
 
                     // Input Buffer for Numbers
                     KeyCode::Char(c) if c.is_ascii_digit() => {
-                        if ui_state.active_pane == ActivePane::Disassembly {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Hex
+                        {
                             // Only append if it's a valid number sequence (avoid overflow though usize is large)
                             if ui_state.input_buffer.len() < 10 {
                                 ui_state.input_buffer.push(c);
@@ -1608,7 +1655,10 @@ fn execute_menu_action(
                         }
 
                         if let Some(idx) = found_idx {
-                            ui_state.navigation_history.push(ui_state.cursor_index);
+                            ui_state.navigation_history.push((
+                                crate::ui_state::ActivePane::Disassembly,
+                                ui_state.cursor_index,
+                            ));
                             ui_state.cursor_index = idx;
                             ui_state.status_message = format!("Jumped to ${:04X}", addr);
                         } else {
@@ -1616,7 +1666,10 @@ fn execute_menu_action(
                             // Or at end
                             if !app_state.disassembly.is_empty() {
                                 if addr >= app_state.disassembly.last().unwrap().address {
-                                    ui_state.navigation_history.push(ui_state.cursor_index);
+                                    ui_state.navigation_history.push((
+                                        crate::ui_state::ActivePane::Disassembly,
+                                        ui_state.cursor_index,
+                                    ));
                                     ui_state.cursor_index = app_state.disassembly.len() - 1;
                                     ui_state.status_message = "Jumped to end".to_string();
                                 } else {
