@@ -1470,3 +1470,122 @@ fn test_side_comment_propagation_allowed_for_data() {
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].comment, "My Data");
 }
+
+#[test]
+fn test_lohi_block() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Acme;
+
+    let disassembler = Disassembler::new();
+    let mut labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    // Data: 00 01 (Lo part), C0 D0 (Hi part)
+    // Addr 0: 00 paired with C0 -> $C000
+    // Addr 1: 01 paired with D0 -> $D001
+    let code = vec![0x00, 0x01, 0xC0, 0xD0];
+    let block_types = vec![BlockType::LoHi; 4];
+
+    // Case 1: No labels
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    // Should produce 2 lines:
+    // 1. !byte <$C000, <$D001
+    // 2. !byte >$C000, >$D001
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0].mnemonic, "!byte");
+    assert_eq!(lines[0].operand, "<$C000, <$D001");
+    // LoHi logic sets `show_bytes` to false to avoid clutter?
+    // Let's check implementation. Yes `show_bytes: false`.
+    assert!(!lines[0].show_bytes);
+
+    assert_eq!(lines[1].mnemonic, "!byte");
+    assert_eq!(lines[1].operand, ">$C000, >$D001");
+
+    // Case 2: With Label at $C000
+    labels.insert(
+        0xC000,
+        vec![crate::state::Label {
+            name: "MyLabel".to_string(),
+            kind: crate::state::LabelKind::User,
+            label_type: crate::state::LabelType::AbsoluteAddress,
+            refs: vec![],
+        }],
+    );
+
+    let lines_labelled = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    assert_eq!(lines_labelled.len(), 2);
+    assert_eq!(lines_labelled[0].operand, "<MyLabel, <$D001");
+    assert_eq!(lines_labelled[1].operand, ">MyLabel, >$D001");
+}
+
+#[test]
+fn test_lohi_internal_label_regression() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Acme;
+
+    let disassembler = Disassembler::new();
+    let mut labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    // 4 bytes total: 00 01 (Lo), C0 D0 (Hi)
+    // Addr: 1000, 1001, 1002, 1003.
+    // Label at 1002 (Start of Hi part).
+    // The previous bug caused the loop to break at 1002, processing only 00 01 (pair count 1).
+    // The correct behavior is to ignore the label and process all 4 bytes (pair count 2).
+
+    let code = vec![0x00, 0x01, 0xC0, 0xD0];
+    let block_types = vec![BlockType::LoHi; 4];
+
+    labels.insert(
+        0x1002, // Midpoint
+        vec![crate::state::Label {
+            name: "HiPart".to_string(),
+            kind: crate::state::LabelKind::User,
+            label_type: crate::state::LabelType::AbsoluteAddress,
+            refs: vec![],
+        }],
+    );
+
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    // Should produce 2 lines (Lo and Hi), not broken parts.
+    assert_eq!(lines.len(), 2);
+    // Line 1: Lo part (00 01)
+    assert_eq!(lines[0].operand, "<$C000, <$D001");
+
+    // Line 2: Hi part (C0 D0)
+    // The label "HiPart" is at 1002.
+    // The disassembly line for Hi part starts at 1002.
+    // So line[1] should have label "HiPart".
+    assert_eq!(lines[1].label, Some("HiPart".to_string()));
+    assert_eq!(lines[1].operand, ">$C000, >$D001");
+}

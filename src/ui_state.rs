@@ -38,6 +38,7 @@ pub enum MenuAction {
     JumpToOperand,
     SetPetsciiUnshifted,
     SetPetsciiShifted,
+    SetLoHi,
     SideComment,
     LineComment,
     ToggleHexView,
@@ -485,6 +486,7 @@ impl MenuState {
                         MenuItem::new("Text", Some("T"), Some(MenuAction::Text)),
                         MenuItem::new("Screencode", Some("S"), Some(MenuAction::Screencode)),
                         MenuItem::new("Undefined", Some("Shift+U"), Some(MenuAction::Undefined)),
+                        MenuItem::new("Lo/Hi Address", Some("Shift+H"), Some(MenuAction::SetLoHi)),
                         MenuItem::separator(),
                         MenuItem::new("Side Comment", Some(";"), Some(MenuAction::SideComment)),
                         MenuItem::new(

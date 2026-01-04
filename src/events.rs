@@ -961,6 +961,15 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
+                    KeyCode::Char('H') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::SetLoHi,
+                            )
+                        }
+                    }
                     KeyCode::Char(';') => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
@@ -1503,6 +1512,29 @@ fn execute_menu_action(
         MenuAction::SetPetsciiShifted => {
             ui_state.petscii_mode = crate::ui_state::PetsciiMode::Shifted;
             ui_state.set_status_message("PETSCII Mode: Shifted");
+        }
+        MenuAction::SetLoHi => {
+            if let Some(start_index) = ui_state.selection_start {
+                let start = start_index.min(ui_state.cursor_index);
+                let end = start_index.max(ui_state.cursor_index);
+                let len = end - start + 1;
+
+                if len % 2 != 0 {
+                    ui_state.set_status_message("Error: LoHi requires even number of bytes");
+                } else {
+                    app_state.set_block_type_region(
+                        crate::state::BlockType::LoHi,
+                        Some(start),
+                        end,
+                    );
+                    ui_state.selection_start = None;
+                    ui_state.is_visual_mode = false;
+                    ui_state.set_status_message("Set block type to Lo/Hi Address");
+                }
+            } else {
+                // Single byte is NOT allowed for LoHi as it's odd (length 1)
+                ui_state.set_status_message("Error: LoHi requires even number of bytes");
+            }
         }
         MenuAction::SideComment => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {

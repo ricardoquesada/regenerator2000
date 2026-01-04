@@ -4,6 +4,7 @@ all:
 	64tass -o test_petscii.prg test_petscii.asm
 	64tass -o test_labels.prg test_labels.asm
 	64tass -o test_arrows.prg test_arrows.asm
+	64tass -o test_lohi_hilow.prg test_lohi_hilo.asm
 
 clean:
-	rm -f test_text.prg test_pointer.prg test_petscii.prg test_labels.prg test_arrows.prg
+	rm -f test_text.prg test_pointer.prg test_petscii.prg test_labels.prg test_arrows.prg test_lohi_hilo.prg

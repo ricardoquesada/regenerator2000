@@ -69,6 +69,33 @@ pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
                 }
             } else if current_type == BlockType::DataWord {
                 pc += 2;
+            } else if current_type == BlockType::LoHi {
+                // Determine the full length of this LoHi block
+                let mut count = 0;
+                while pc + count < data_len
+                    && state.block_types.get(pc + count) == Some(&BlockType::LoHi)
+                {
+                    count += 1;
+                }
+
+                let pair_count = count / 2;
+                if pair_count > 0 {
+                    let split_offset = pair_count;
+                    for i in 0..pair_count {
+                        if pc + i < data_len && pc + split_offset + i < data_len {
+                            let lo = state.raw_data[pc + i];
+                            let hi = state.raw_data[pc + split_offset + i];
+                            let val = (hi as u16) << 8 | (lo as u16);
+                            update_usage(
+                                &mut usage_map,
+                                val,
+                                LabelType::AbsoluteAddress, // Or External? Analyzer figures out external vs internal later in loop.
+                                origin.wrapping_add((pc + i) as u16),
+                            );
+                        }
+                    }
+                }
+                pc += count;
             } else {
                 pc += 1;
             }

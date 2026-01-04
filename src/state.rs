@@ -121,6 +121,7 @@ pub enum BlockType {
     Address, // Reference to an address
     Text,
     Screencode,
+    LoHi,
     Undefined,
 }
 
@@ -1142,5 +1143,35 @@ mod analysis_tests {
 
         let app_state = AppState::new();
         assert_eq!(app_state.settings.max_arrow_columns, 6);
+    }
+    #[test]
+    fn test_set_block_type_lohi_creates_labels() {
+        let mut app_state = AppState::new();
+        app_state.origin = 0x1000;
+        // 4 bytes: 00 01 (Lo), 00 20 (Hi).
+        // Pair 1: Lo=00, Hi=00 -> $0000 (Internal/ZP)
+        // Pair 2: Lo=01, Hi=20 -> $2001 (External, assuming len=4)
+        app_state.raw_data = vec![0x00, 0x01, 0x00, 0x20];
+
+        // Initialize as DataByte so we have 1-to-1 mapping in disassembly lines
+        app_state.block_types = vec![BlockType::DataByte; 4];
+        app_state.disassemble();
+
+        // Apply LoHi
+        // Selection is indices of DISASSEMBLY LINES.
+        // DataByte grouping put all 4 bytes on ONE line (line 0).
+        // So we select line 0 to 0.
+        app_state.set_block_type_region(BlockType::LoHi, Some(0), 0);
+
+        // Verify Label $0000 (Internal)
+        let l1 = app_state.labels.get(&0x0000);
+        assert!(l1.is_some(), "Should generate label for internal address");
+        assert_eq!(l1.unwrap()[0].name, "a0000"); // Analyzer generates 'a' for AbsoluteAddress usage
+
+        // Verify Label $2001 (External)
+        // Analyzer generates 'a' for AbsoluteAddress usage even if external, unless it's a Jump.
+        let l2 = app_state.labels.get(&0x2001);
+        assert!(l2.is_some(), "Should generate label for external address");
+        assert_eq!(l2.unwrap()[0].name, "a2001");
     }
 }
