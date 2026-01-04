@@ -168,6 +168,7 @@ impl FilePickerState {
             filter_extensions: vec![
                 "bin".to_string(),
                 "prg".to_string(),
+                "crt".to_string(),
                 "raw".to_string(),
                 "regen2000proj".to_string(),
             ],

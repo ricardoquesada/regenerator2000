@@ -306,6 +306,11 @@ impl AppState {
             if ext.eq_ignore_ascii_case("prg") && data.len() >= 2 {
                 self.origin = (data[1] as u16) << 8 | (data[0] as u16);
                 self.raw_data = data[2..].to_vec();
+            } else if ext.eq_ignore_ascii_case("crt") {
+                let (origin, raw_data) = crate::crt::parse_crt(&data)
+                    .map_err(|e| anyhow::anyhow!("Failed to parse CRT: {}", e))?;
+                self.origin = origin;
+                self.raw_data = raw_data;
             } else {
                 self.origin = 0; // Default for .bin, or user can change later
                 self.raw_data = data;

@@ -1,5 +1,6 @@
 mod analyzer;
 pub mod assets;
+mod crt;
 
 mod commands;
 mod cpu;
