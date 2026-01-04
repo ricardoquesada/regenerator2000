@@ -12,6 +12,7 @@ mod ui;
 mod ui_state;
 
 mod config;
+mod t64;
 mod utils;
 mod vsf;
 

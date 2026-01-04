@@ -319,6 +319,11 @@ impl AppState {
                 self.origin = 0;
                 self.raw_data = vsf_data.memory;
                 cursor_start = vsf_data.start_address;
+            } else if ext.eq_ignore_ascii_case("t64") {
+                let (load_address, raw_data) = crate::t64::parse_t64(&data)
+                    .map_err(|e| anyhow::anyhow!("Failed to parse T64: {}", e))?;
+                self.origin = load_address;
+                self.raw_data = raw_data;
             } else {
                 self.origin = 0; // Default for .bin, or user can change later
                 self.raw_data = data;

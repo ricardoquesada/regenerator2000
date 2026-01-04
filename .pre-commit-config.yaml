@@ -3,9 +3,9 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        exclude: '.*\.(vsf|crt|bin|raw|prg|regen2000proj)$'
+        exclude: '.*\.(t64|vsf|crt|bin|raw|prg|regen2000proj)$'
       - id: end-of-file-fixer
-        exclude: '.*\.(vsf|crt|bin|raw|prg|regen2000proj)$'
+        exclude: '.*\.(t64|vsf|crt|bin|raw|prg|regen2000proj)$'
       - id: check-yaml
       - id: check-added-large-files
 

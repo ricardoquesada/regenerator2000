@@ -170,6 +170,7 @@ impl FilePickerState {
                 "prg".to_string(),
                 "crt".to_string(),
                 "vsf".to_string(),
+                "t64".to_string(),
                 "raw".to_string(),
                 "regen2000proj".to_string(),
             ],
