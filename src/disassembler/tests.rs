@@ -1589,3 +1589,69 @@ fn test_lohi_internal_label_regression() {
     assert_eq!(lines[1].label, Some("HiPart".to_string()));
     assert_eq!(lines[1].operand, ">$C000, >$D001");
 }
+
+#[test]
+fn test_hilo_block() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Acme;
+
+    let disassembler = Disassembler::new();
+    let mut labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    // Data: C0 D0 (Hi part), 00 01 (Lo part)
+    // Addr 0: C0 paired with 00 -> $C000
+    // Addr 1: D0 paired with 01 -> $D001
+    let code = vec![0xC0, 0xD0, 0x00, 0x01];
+    let block_types = vec![BlockType::HiLo; 4];
+
+    // Case 1: No labels
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    // Should produce 2 lines:
+    // 1. !byte >$C000, >$D001  (Hi bytes C0, D0)
+    // 2. !byte <$C000, <$D001  (Lo bytes 00, 01)
+    assert_eq!(lines.len(), 2);
+    assert_eq!(lines[0].mnemonic, "!byte");
+    assert_eq!(lines[0].operand, ">$C000, >$D001");
+    // LoHi and HiLo logic sets `show_bytes` to false to avoid clutter
+    assert!(!lines[0].show_bytes);
+
+    assert_eq!(lines[1].mnemonic, "!byte");
+    assert_eq!(lines[1].operand, "<$C000, <$D001");
+
+    // Case 2: With Label at $C000
+    labels.insert(
+        0xC000,
+        vec![crate::state::Label {
+            name: "MyLabel".to_string(),
+            kind: crate::state::LabelKind::User,
+            label_type: crate::state::LabelType::AbsoluteAddress,
+            refs: vec![],
+        }],
+    );
+
+    let lines_labelled = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    assert_eq!(lines_labelled.len(), 2);
+    assert_eq!(lines_labelled[0].operand, ">MyLabel, >$D001");
+    assert_eq!(lines_labelled[1].operand, "<MyLabel, <$D001");
+}

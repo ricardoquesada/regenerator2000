@@ -79,6 +79,9 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 |                | **Convert to Address**       | `a`                                     |
 |                | **Convert to Text**          | `t`                                     |
 |                | **Convert to Screencode**    | `s`                                     |
+|                | **Convert to Undefined**     | `Shift + U`                             |
+|                | **Set Lo/Hi Address**        | `<` (Shift + ,)                         |
+|                | **Set Hi/Lo Address**        | `>` (Shift + .)                         |
 | **View**       | **PETSCII Unshifted**        | `Ctrl + Shift + L`                      |
 |                | **PETSCII Shifted**          | `Ctrl + L`                              |
 |                | **Toggle Hex View**          | `Ctrl + 2`                              |

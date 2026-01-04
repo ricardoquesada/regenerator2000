@@ -96,6 +96,33 @@ pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
                     }
                 }
                 pc += count;
+            } else if current_type == BlockType::HiLo {
+                // Determine the full length of this HiLo block
+                let mut count = 0;
+                while pc + count < data_len
+                    && state.block_types.get(pc + count) == Some(&BlockType::HiLo)
+                {
+                    count += 1;
+                }
+
+                let pair_count = count / 2;
+                if pair_count > 0 {
+                    let split_offset = pair_count;
+                    for i in 0..pair_count {
+                        if pc + i < data_len && pc + split_offset + i < data_len {
+                            let hi = state.raw_data[pc + i];
+                            let lo = state.raw_data[pc + split_offset + i];
+                            let val = (hi as u16) << 8 | (lo as u16);
+                            update_usage(
+                                &mut usage_map,
+                                val,
+                                LabelType::AbsoluteAddress,
+                                origin.wrapping_add((pc + i) as u16),
+                            );
+                        }
+                    }
+                }
+                pc += count;
             } else {
                 pc += 1;
             }
@@ -904,5 +931,37 @@ mod tests {
 
         assert!(has_p00fb, "Should have p00FB label for JMP ($00FB)");
         assert!(has_pfb, "Should have pFB label for LDA ($FB),Y");
+    }
+    #[test]
+    fn test_hilo_analysis() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        // HiLo Block: 4 bytes
+        // Hi: $C0, $D0
+        // Lo: $00, $01
+        // Addresses: $C000, $D001 (External)
+        let data = vec![0xC0, 0xD0, 0x00, 0x01];
+        state.raw_data = data;
+        state.block_types = vec![BlockType::HiLo; 4];
+
+        let labels = analyze(&state);
+
+        // Check $C000 -> aC000 (AbsoluteAddress usage from HiLo)
+        assert_eq!(
+            labels
+                .get(&0xC000)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("aC000")
+        );
+
+        // Check $D001 -> aD001
+        assert_eq!(
+            labels
+                .get(&0xD001)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("aD001")
+        );
     }
 }

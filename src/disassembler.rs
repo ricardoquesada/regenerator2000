@@ -176,6 +176,18 @@ impl Disassembler {
                     side_comment,
                     line_comment,
                 ),
+                BlockType::HiLo => self.handle_hilo(
+                    pc,
+                    data,
+                    block_types,
+                    address,
+                    formatter.as_ref(),
+                    labels,
+                    origin,
+                    label_name,
+                    side_comment,
+                    line_comment,
+                ),
                 BlockType::Undefined => self.handle_undefined_byte(
                     pc,
                     data,
@@ -331,6 +343,141 @@ impl Disassembler {
                 comment: String::new(),
                 line_comment: None,
                 label: hi_label,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                comment_address: None,
+            });
+
+            i += chunk_size;
+        }
+
+        (total_bytes, lines)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn handle_hilo(
+        &self,
+        pc: usize,
+        data: &[u8],
+        block_types: &[BlockType],
+        address: u16,
+        formatter: &dyn Formatter,
+        labels: &BTreeMap<u16, Vec<Label>>,
+        origin: u16,
+        label_name: Option<String>,
+        side_comment: String,
+        line_comment: Option<String>,
+    ) -> (usize, Vec<DisassemblyLine>) {
+        let mut count = 0;
+        // Find extent of HiLo block, stopping at end of contiguous HiLo blocks
+        while pc + count < data.len() {
+            let current_pc = pc + count;
+
+            if block_types.get(current_pc) != Some(&BlockType::HiLo) {
+                break;
+            }
+            count += 1;
+        }
+
+        // Enforce even count for valid HiLo pairing
+        let pair_count = count / 2;
+        if pair_count == 0 {
+            return self.handle_undefined_byte(
+                pc,
+                data,
+                address,
+                formatter,
+                label_name,
+                side_comment,
+                line_comment,
+            );
+        }
+
+        let total_bytes = pair_count * 2;
+        let split_offset = pair_count; // Start of Lo bytes relative to pc
+
+        let mut lines = Vec::new();
+
+        // Helper to generate operand string
+        let get_operand = |idx: usize, is_lo: bool| -> String {
+            let hi = data[pc + idx];
+            let lo = data[pc + split_offset + idx];
+            let val = (hi as u16) << 8 | (lo as u16);
+
+            // Try to resolve label.
+            let label_part = if let Some(label_vec) = labels.get(&val) {
+                formatter.format_label(&label_vec[0].name)
+            } else {
+                format!("${:04X}", val)
+            };
+
+            if is_lo {
+                format!("<{}", label_part)
+            } else {
+                format!(">{}", label_part)
+            }
+        };
+
+        // Output Hi Lines (First half of data)
+        let mut i = 0;
+        while i < pair_count {
+            let chunk_size = (pair_count - i).min(ADDRESSES_PER_LINE);
+            let mut bytes = Vec::new();
+            let mut operands = Vec::new();
+
+            for k in 0..chunk_size {
+                bytes.push(data[pc + i + k]);
+                operands.push(get_operand(i + k, false));
+            }
+
+            lines.push(DisassemblyLine {
+                address: origin.wrapping_add((pc + i) as u16),
+                bytes,
+                mnemonic: formatter.byte_directive().to_string(),
+                operand: operands.join(", "),
+                comment: if i == 0 {
+                    side_comment.clone()
+                } else {
+                    String::new()
+                },
+                line_comment: if i == 0 { line_comment.clone() } else { None },
+                label: if i == 0 { label_name.clone() } else { None },
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                comment_address: None,
+            });
+
+            i += chunk_size;
+        }
+
+        // Output Lo Lines (Second half of data)
+        let mut i = 0;
+        while i < pair_count {
+            let chunk_size = (pair_count - i).min(ADDRESSES_PER_LINE);
+            let mut bytes = Vec::new();
+            let mut operands = Vec::new();
+
+            for k in 0..chunk_size {
+                bytes.push(data[pc + split_offset + i + k]);
+                operands.push(get_operand(i + k, true));
+            }
+
+            let current_lo_addr = origin.wrapping_add((pc + split_offset + i) as u16);
+            let lo_label = labels
+                .get(&current_lo_addr)
+                .and_then(|v| v.first())
+                .map(|l| l.name.clone());
+
+            lines.push(DisassemblyLine {
+                address: current_lo_addr,
+                bytes,
+                mnemonic: formatter.byte_directive().to_string(),
+                operand: operands.join(", "),
+                comment: String::new(),
+                line_comment: None,
+                label: lo_label,
                 opcode: None,
                 show_bytes: false,
                 target_address: None,

@@ -122,6 +122,7 @@ pub enum BlockType {
     Text,
     Screencode,
     LoHi,
+    HiLo,
     Undefined,
 }
 
