@@ -1044,54 +1044,106 @@ pub fn run_app<B: Backend>(
                         }
                     }
 
+                    // Vim-like G command
+                    KeyCode::Char('G') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            let target_line = if ui_state.input_buffer.is_empty() {
+                                // Default to last line (G) or 0G logic if 0 handled below
+                                app_state.disassembly.len()
+                            } else {
+                                ui_state.input_buffer.parse::<usize>().unwrap_or(0)
+                            };
+
+                            // Clear buffer immediately
+                            ui_state.input_buffer.clear();
+
+                            let new_cursor = if target_line == 0 {
+                                // 0G -> Last line
+                                app_state.disassembly.len().saturating_sub(1)
+                            } else {
+                                // nG -> Line n (1-based)
+                                target_line
+                                    .saturating_sub(1)
+                                    .min(app_state.disassembly.len().saturating_sub(1))
+                            };
+
+                            // Handle Visual Mode
+                            if ui_state.is_visual_mode && ui_state.selection_start.is_none() {
+                                ui_state.selection_start = Some(ui_state.cursor_index);
+                            }
+
+                            ui_state.navigation_history.push(ui_state.cursor_index);
+                            ui_state.cursor_index = new_cursor;
+                            ui_state.set_status_message(format!("Jumped to line {}", target_line));
+                        }
+                    }
+
+                    // Input Buffer for Numbers
+                    KeyCode::Char(c) if c.is_ascii_digit() => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            // Only append if it's a valid number sequence (avoid overflow though usize is large)
+                            if ui_state.input_buffer.len() < 10 {
+                                ui_state.input_buffer.push(c);
+                                ui_state.set_status_message(format!(":{}", ui_state.input_buffer));
+                            }
+                        }
+                    }
+
                     // Normal Navigation
-                    KeyCode::Down | KeyCode::Char('j') => match ui_state.active_pane {
-                        ActivePane::Disassembly => {
-                            if key.modifiers.contains(KeyModifiers::SHIFT)
-                                || ui_state.is_visual_mode
-                            {
-                                if ui_state.selection_start.is_none() {
-                                    ui_state.selection_start = Some(ui_state.cursor_index);
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        ui_state.input_buffer.clear();
+                        match ui_state.active_pane {
+                            ActivePane::Disassembly => {
+                                if key.modifiers.contains(KeyModifiers::SHIFT)
+                                    || ui_state.is_visual_mode
+                                {
+                                    if ui_state.selection_start.is_none() {
+                                        ui_state.selection_start = Some(ui_state.cursor_index);
+                                    }
+                                } else {
+                                    ui_state.selection_start = None;
                                 }
-                            } else {
-                                ui_state.selection_start = None;
-                            }
 
-                            if ui_state.cursor_index < app_state.disassembly.len().saturating_sub(1)
-                            {
-                                ui_state.cursor_index += 1;
-                            }
-                        }
-                        ActivePane::Hex => {
-                            let bytes_per_row = 16;
-                            let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
-                            if ui_state.hex_cursor_index < total_rows.saturating_sub(1) {
-                                ui_state.hex_cursor_index += 1;
-                            }
-                        }
-                    },
-                    KeyCode::Up | KeyCode::Char('k') => match ui_state.active_pane {
-                        ActivePane::Disassembly => {
-                            if key.modifiers.contains(KeyModifiers::SHIFT)
-                                || ui_state.is_visual_mode
-                            {
-                                if ui_state.selection_start.is_none() {
-                                    ui_state.selection_start = Some(ui_state.cursor_index);
+                                if ui_state.cursor_index
+                                    < app_state.disassembly.len().saturating_sub(1)
+                                {
+                                    ui_state.cursor_index += 1;
                                 }
-                            } else {
-                                ui_state.selection_start = None;
                             }
+                            ActivePane::Hex => {
+                                let bytes_per_row = 16;
+                                let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
+                                if ui_state.hex_cursor_index < total_rows.saturating_sub(1) {
+                                    ui_state.hex_cursor_index += 1;
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        ui_state.input_buffer.clear();
+                        match ui_state.active_pane {
+                            ActivePane::Disassembly => {
+                                if key.modifiers.contains(KeyModifiers::SHIFT)
+                                    || ui_state.is_visual_mode
+                                {
+                                    if ui_state.selection_start.is_none() {
+                                        ui_state.selection_start = Some(ui_state.cursor_index);
+                                    }
+                                } else {
+                                    ui_state.selection_start = None;
+                                }
 
-                            if ui_state.cursor_index > 0 {
-                                ui_state.cursor_index -= 1;
+                                if ui_state.cursor_index > 0 {
+                                    ui_state.cursor_index -= 1;
+                                }
+                            }
+                            ActivePane::Hex => {
+                                if ui_state.hex_cursor_index > 0 {
+                                    ui_state.hex_cursor_index -= 1;
+                                }
                             }
                         }
-                        ActivePane::Hex => {
-                            if ui_state.hex_cursor_index > 0 {
-                                ui_state.hex_cursor_index -= 1;
-                            }
-                        }
-                    },
+                    }
                     KeyCode::Tab => {
                         ui_state.active_pane = match ui_state.active_pane {
                             ActivePane::Disassembly => ActivePane::Hex,
@@ -1099,6 +1151,7 @@ pub fn run_app<B: Backend>(
                         };
                     }
                     KeyCode::Esc => {
+                        ui_state.input_buffer.clear();
                         if ui_state.is_visual_mode {
                             ui_state.is_visual_mode = false;
                             ui_state.selection_start = None;
@@ -1108,41 +1161,54 @@ pub fn run_app<B: Backend>(
                             ui_state.set_status_message("Selection cleared");
                         }
                     }
-                    KeyCode::PageDown => match ui_state.active_pane {
-                        ActivePane::Disassembly => {
-                            ui_state.cursor_index = (ui_state.cursor_index + 10)
-                                .min(app_state.disassembly.len().saturating_sub(1));
+                    KeyCode::PageDown => {
+                        ui_state.input_buffer.clear();
+                        match ui_state.active_pane {
+                            ActivePane::Disassembly => {
+                                ui_state.cursor_index = (ui_state.cursor_index + 10)
+                                    .min(app_state.disassembly.len().saturating_sub(1));
+                            }
+                            ActivePane::Hex => {
+                                let bytes_per_row = 16;
+                                let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
+                                ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
+                                    .min(total_rows.saturating_sub(1));
+                            }
                         }
-                        ActivePane::Hex => {
-                            let bytes_per_row = 16;
-                            let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
-                            ui_state.hex_cursor_index =
-                                (ui_state.hex_cursor_index + 10).min(total_rows.saturating_sub(1));
+                    }
+                    KeyCode::PageUp => {
+                        ui_state.input_buffer.clear();
+                        match ui_state.active_pane {
+                            ActivePane::Disassembly => {
+                                ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
+                            }
+                            ActivePane::Hex => {
+                                ui_state.hex_cursor_index =
+                                    ui_state.hex_cursor_index.saturating_sub(10);
+                            }
                         }
-                    },
-                    KeyCode::PageUp => match ui_state.active_pane {
-                        ActivePane::Disassembly => {
-                            ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
+                    }
+                    KeyCode::Home => {
+                        ui_state.input_buffer.clear();
+                        match ui_state.active_pane {
+                            ActivePane::Disassembly => ui_state.cursor_index = 0,
+                            ActivePane::Hex => ui_state.hex_cursor_index = 0,
                         }
-                        ActivePane::Hex => {
-                            ui_state.hex_cursor_index =
-                                ui_state.hex_cursor_index.saturating_sub(10);
+                    }
+                    KeyCode::End => {
+                        ui_state.input_buffer.clear();
+                        match ui_state.active_pane {
+                            ActivePane::Disassembly => {
+                                ui_state.cursor_index =
+                                    app_state.disassembly.len().saturating_sub(1)
+                            }
+                            ActivePane::Hex => {
+                                let bytes_per_row = 16;
+                                let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
+                                ui_state.hex_cursor_index = total_rows.saturating_sub(1);
+                            }
                         }
-                    },
-                    KeyCode::Home => match ui_state.active_pane {
-                        ActivePane::Disassembly => ui_state.cursor_index = 0,
-                        ActivePane::Hex => ui_state.hex_cursor_index = 0,
-                    },
-                    KeyCode::End => match ui_state.active_pane {
-                        ActivePane::Disassembly => {
-                            ui_state.cursor_index = app_state.disassembly.len().saturating_sub(1)
-                        }
-                        ActivePane::Hex => {
-                            let bytes_per_row = 16;
-                            let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
-                            ui_state.hex_cursor_index = total_rows.saturating_sub(1);
-                        }
-                    },
+                    }
                     _ => {}
                 }
             }

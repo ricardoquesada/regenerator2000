@@ -725,6 +725,7 @@ pub struct UIState {
     pub picker: Option<Picker>,
     pub dismiss_logo: bool,
     pub is_visual_mode: bool,
+    pub input_buffer: String,
 }
 
 impl UIState {
@@ -758,6 +759,7 @@ impl UIState {
             picker: crate::utils::create_picker(),
             dismiss_logo: false,
             is_visual_mode: false,
+            input_buffer: String::new(),
         }
     }
 
