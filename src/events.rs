@@ -1893,6 +1893,7 @@ fn execute_menu_action(
                 };
 
                 if has_immediate {
+                    let val = line.bytes.get(1).copied().unwrap_or(0);
                     let current_fmt = app_state
                         .immediate_value_formats
                         .get(&line.address)
@@ -1907,7 +1908,11 @@ fn execute_menu_action(
                             crate::state::ImmediateFormat::Decimal
                         }
                         crate::state::ImmediateFormat::Decimal => {
-                            crate::state::ImmediateFormat::NegativeDecimal
+                            if val <= 128 {
+                                crate::state::ImmediateFormat::Binary
+                            } else {
+                                crate::state::ImmediateFormat::NegativeDecimal
+                            }
                         }
                         crate::state::ImmediateFormat::NegativeDecimal => {
                             crate::state::ImmediateFormat::Binary
@@ -1940,6 +1945,7 @@ fn execute_menu_action(
                 };
 
                 if has_immediate {
+                    let val = line.bytes.get(1).copied().unwrap_or(0);
                     let current_fmt = app_state
                         .immediate_value_formats
                         .get(&line.address)
@@ -1954,7 +1960,11 @@ fn execute_menu_action(
                             crate::state::ImmediateFormat::Binary
                         }
                         crate::state::ImmediateFormat::Binary => {
-                            crate::state::ImmediateFormat::NegativeDecimal
+                            if val <= 128 {
+                                crate::state::ImmediateFormat::Decimal
+                            } else {
+                                crate::state::ImmediateFormat::NegativeDecimal
+                            }
                         }
                         crate::state::ImmediateFormat::NegativeDecimal => {
                             crate::state::ImmediateFormat::Decimal

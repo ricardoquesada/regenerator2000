@@ -27,8 +27,10 @@
     "max_arrow_columns": 6
   },
   "immediate_value_formats": {
+    "2085": "Hex",
     "2091": "Hex",
-    "2111": "Hex"
+    "2111": "Hex",
+    "2115": "Hex"
   },
-  "cursor_address": 2111
+  "cursor_address": 2117
 }
