@@ -433,15 +433,9 @@ fn render_settings_dialog(
 
     let platform_text = format!("Platform: < {} >", settings.platform);
     let platform_widget = Paragraph::new(platform_text).style(if platform_selected {
-        if dialog.is_selecting_platform {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD) // Active
-        } else {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        }
+        Style::default()
+            .fg(theme.highlight_fg)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(theme.dialog_fg)
     });
@@ -466,15 +460,9 @@ fn render_settings_dialog(
     let assembler_text = format!("Assembler: < {} >", settings.assembler);
 
     let assembler_widget = Paragraph::new(assembler_text).style(if assembler_selected {
-        if dialog.is_selecting_assembler {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        }
+        Style::default()
+            .fg(theme.highlight_fg)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(theme.dialog_fg)
     });
@@ -503,15 +491,9 @@ fn render_settings_dialog(
     };
     let arrow_text = format!("Arrow Columns: < {} >", arrow_value_str);
     let xref_widget = Paragraph::new(xref_text).style(if xref_selected {
-        if dialog.is_editing_xref_count {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        }
+        Style::default()
+            .fg(theme.highlight_fg)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(theme.dialog_fg)
     });
@@ -522,15 +504,9 @@ fn render_settings_dialog(
     );
 
     let arrow_widget = Paragraph::new(arrow_text).style(if arrow_selected {
-        if dialog.is_editing_arrow_columns {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        }
+        Style::default()
+            .fg(theme.highlight_fg)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default().fg(theme.dialog_fg)
     });
@@ -918,15 +894,9 @@ fn render_system_settings_dialog(
 
     for (i, item) in items.into_iter().enumerate() {
         let style = if dialog.selected_index == i {
-            if i == 1 && dialog.is_selecting_theme {
-                Style::default()
-                    .fg(theme.highlight_fg)
-                    .add_modifier(Modifier::BOLD) // Active selection
-            } else {
-                Style::default()
-                    .fg(theme.highlight_fg)
-                    .add_modifier(Modifier::BOLD)
-            }
+            Style::default()
+                .fg(theme.highlight_fg)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(theme.dialog_fg)
         };

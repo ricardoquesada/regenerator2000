@@ -420,20 +420,11 @@ impl SettingsDialogState {
     }
 }
 
+#[derive(Default)]
 pub struct SystemSettingsDialogState {
     pub active: bool,
     pub selected_index: usize,
     pub is_selecting_theme: bool,
-}
-
-impl Default for SystemSettingsDialogState {
-    fn default() -> Self {
-        Self {
-            active: false,
-            selected_index: 0,
-            is_selecting_theme: false,
-        }
-    }
 }
 
 impl SystemSettingsDialogState {
