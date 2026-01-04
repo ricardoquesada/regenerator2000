@@ -13,6 +13,7 @@ mod ui_state;
 
 mod config;
 mod utils;
+mod vsf;
 
 #[cfg(test)]
 mod cursor_persistence_test;

@@ -281,6 +281,8 @@ impl AppState {
         self.user_side_comments.clear();
         self.user_line_comments.clear();
 
+        let mut cursor_start = None;
+
         if let Some(ext) = self
             .file_path
             .as_ref()
@@ -311,6 +313,12 @@ impl AppState {
                     .map_err(|e| anyhow::anyhow!("Failed to parse CRT: {}", e))?;
                 self.origin = origin;
                 self.raw_data = raw_data;
+            } else if ext.eq_ignore_ascii_case("vsf") {
+                let vsf_data = crate::vsf::parse_vsf(&data)
+                    .map_err(|e| anyhow::anyhow!("Failed to parse VSF: {}", e))?;
+                self.origin = 0;
+                self.raw_data = vsf_data.memory;
+                cursor_start = vsf_data.start_address;
             } else {
                 self.origin = 0; // Default for .bin, or user can change later
                 self.raw_data = data;
@@ -321,13 +329,12 @@ impl AppState {
         }
 
         self.block_types = vec![BlockType::Code; self.raw_data.len()];
-        self.block_types = vec![BlockType::Code; self.raw_data.len()];
         self.undo_stack = crate::commands::UndoStack::new();
         self.last_saved_pointer = 0;
 
         self.load_system_assets();
         self.disassemble();
-        Ok(None)
+        Ok(cursor_start)
     }
 
     pub fn load_project(&mut self, path: PathBuf) -> anyhow::Result<Option<u16>> {
