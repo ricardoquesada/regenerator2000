@@ -1168,7 +1168,7 @@ mod analysis_tests {
 
         // The first line should be the JMP instruction with target_address 1005
         let line = &app_state.disassembly[0];
-        assert_eq!(line.mnemonic, "JMP");
+        assert_eq!(line.mnemonic, "jmp");
         assert_eq!(line.target_address, Some(0x1005));
     }
 

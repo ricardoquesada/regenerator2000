@@ -7,15 +7,15 @@ pub struct TassFormatter;
 
 impl Formatter for TassFormatter {
     fn byte_directive(&self) -> &'static str {
-        ".BYTE"
+        ".byte"
     }
 
     fn word_directive(&self) -> &'static str {
-        ".WORD"
+        ".word"
     }
 
     fn format_byte(&self, byte: u8) -> String {
-        format!("${:02X}", byte)
+        format!("${:02x}", byte)
     }
 
     fn format_operand(
@@ -50,30 +50,30 @@ impl Formatter for TassFormatter {
 
         match opcode.mode {
             AddressingMode::Implied => String::new(),
-            AddressingMode::Accumulator => "A".to_string(),
-            AddressingMode::Immediate => format!("#${:02X}", operands[0]),
+            AddressingMode::Accumulator => "a".to_string(),
+            AddressingMode::Immediate => format!("#${:02x}", operands[0]),
             AddressingMode::ZeroPage => {
                 let addr = operands[0] as u16; // Zero page address
                 if let Some(name) = get_label(addr, LabelType::ZeroPageAbsoluteAddress) {
                     name
                 } else {
-                    format!("${:02X}", addr)
+                    format!("${:02x}", addr)
                 }
             }
             AddressingMode::ZeroPageX => {
                 let addr = operands[0] as u16;
                 if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{},X", name)
+                    format!("{},x", name)
                 } else {
-                    format!("${:02X},X", addr)
+                    format!("${:02x},x", addr)
                 }
             }
             AddressingMode::ZeroPageY => {
                 let addr = operands[0] as u16;
                 if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{},Y", name)
+                    format!("{},y", name)
                 } else {
-                    format!("${:02X},Y", addr)
+                    format!("${:02x},y", addr)
                 }
             }
             AddressingMode::Relative => {
@@ -82,7 +82,7 @@ impl Formatter for TassFormatter {
                 if let Some(name) = get_label(target, LabelType::Branch) {
                     name
                 } else {
-                    format!("${:04X}", target)
+                    format!("${:04x}", target)
                 }
             }
             AddressingMode::Absolute => {
@@ -98,7 +98,7 @@ impl Formatter for TassFormatter {
                 let base = if let Some(name) = get_label(addr, l_type) {
                     name
                 } else {
-                    format!("${:04X}", addr)
+                    format!("${:04x}", addr)
                 };
 
                 if settings.preserve_long_bytes && addr <= 0xFF {
@@ -110,9 +110,9 @@ impl Formatter for TassFormatter {
             AddressingMode::AbsoluteX => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
                 let base = if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{},X", name)
+                    format!("{},x", name)
                 } else {
-                    format!("${:04X},X", addr)
+                    format!("${:04x},x", addr)
                 };
 
                 if settings.preserve_long_bytes && addr <= 0xFF {
@@ -124,9 +124,9 @@ impl Formatter for TassFormatter {
             AddressingMode::AbsoluteY => {
                 let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
                 let base = if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{},Y", name)
+                    format!("{},y", name)
                 } else {
-                    format!("${:04X},Y", addr)
+                    format!("${:04x},y", addr)
                 };
 
                 if settings.preserve_long_bytes && addr <= 0xFF {
@@ -141,23 +141,23 @@ impl Formatter for TassFormatter {
                 if let Some(name) = get_label(addr, LabelType::Pointer) {
                     format!("({})", name)
                 } else {
-                    format!("(${:04X})", addr)
+                    format!("(${:04x})", addr)
                 }
             }
             AddressingMode::IndirectX => {
                 let addr = operands[0] as u16;
                 if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({},X)", name)
+                    format!("({},x)", name)
                 } else {
-                    format!("(${:02X},X)", addr)
+                    format!("(${:02x},x)", addr)
                 }
             }
             AddressingMode::IndirectY => {
                 let addr = operands[0] as u16;
                 if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({}),Y", name)
+                    format!("({}),y", name)
                 } else {
-                    format!("(${:02X}),Y", addr)
+                    format!("(${:02x}),y", addr)
                 }
             }
 
@@ -166,7 +166,7 @@ impl Formatter for TassFormatter {
     }
 
     fn format_mnemonic(&self, mnemonic: &str) -> String {
-        mnemonic.to_string()
+        mnemonic.to_lowercase()
     }
 
     fn format_label(&self, name: &str) -> String {
@@ -187,8 +187,8 @@ impl Formatter for TassFormatter {
         let mut lines = Vec::new();
 
         if is_start {
-            lines.push((".ENCODE".to_string(), String::new(), false));
-            lines.push((".ENC".to_string(), "\"NONE\"".to_string(), false));
+            lines.push((".encode".to_string(), String::new(), false));
+            lines.push((".enc".to_string(), "\"none\"".to_string(), false));
         }
 
         let mut parts = Vec::new();
@@ -198,13 +198,13 @@ impl Formatter for TassFormatter {
                     let escaped = s.replace('"', "\"\"");
                     parts.push(format!("\"{}\"", escaped))
                 }
-                TextFragment::Byte(b) => parts.push(format!("${:02X}", b)),
+                TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
             }
         }
-        lines.push((".TEXT".to_string(), parts.join(", "), true));
+        lines.push((".text".to_string(), parts.join(", "), true));
 
         if is_end {
-            lines.push((".ENDENCODE".to_string(), String::new(), false));
+            lines.push((".endencode".to_string(), String::new(), false));
         }
 
         lines
@@ -212,8 +212,8 @@ impl Formatter for TassFormatter {
 
     fn format_screencode_pre(&self) -> Vec<(String, String)> {
         vec![
-            (".ENCODE".to_string(), String::new()),
-            (".ENC".to_string(), "\"SCREEN\"".to_string()),
+            (".encode".to_string(), String::new()),
+            (".enc".to_string(), "\"screen\"".to_string()),
         ]
     }
 
@@ -230,26 +230,26 @@ impl Formatter for TassFormatter {
                     let escaped = s.replace('"', "\"\"");
                     parts.push(format!("\"{}\"", escaped))
                 }
-                TextFragment::Byte(b) => parts.push(format!("${:02X}", b)),
+                TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
             }
         }
-        lines.push((".TEXT".to_string(), parts.join(", "), true));
+        lines.push((".text".to_string(), parts.join(", "), true));
         lines
     }
 
     fn format_screencode_post(&self) -> Vec<(String, String)> {
-        vec![(".ENDENCODE".to_string(), String::new())]
+        vec![(".endencode".to_string(), String::new())]
     }
 
     fn format_header_origin(&self, origin: u16) -> String {
-        format!("* = ${:04X}", origin)
+        format!("* = ${:04x}", origin)
     }
 
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String {
         let operand = if is_zp && value <= 0xFF {
-            format!("${:02X}", value)
+            format!("${:02x}", value)
         } else {
-            format!("${:04X}", value)
+            format!("${:04x}", value)
         };
         format!("{} = {}", name, operand)
     }

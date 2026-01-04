@@ -29,7 +29,7 @@ fn test_tass_formatting_force_w() {
 
     assert_eq!(lines.len(), 1);
     let line = &lines[0];
-    assert_eq!(line.mnemonic, "LDA");
+    assert_eq!(line.mnemonic, "lda");
     assert_eq!(line.operand, "@w $0012");
 }
 
@@ -197,16 +197,16 @@ fn test_contextual_label_formatting() {
 
     assert_eq!(lines.len(), 3);
 
-    // 1. LDA $A0, X -> fA0,X
+    // 1. LDA $A0, X -> fA0,x
     // B5 is ZeroPageX. We return Some(LabelType::ZeroPageField) as target_context.
-    // TASS formatter: should verify ZeroPageField is in map -> "fA0" -> "fA0,X"
-    // (Note: TASS formatter output for ZP,X is `{},X` based on TassFormatter impl)
-    assert_eq!(lines[0].mnemonic, "LDA");
-    assert_eq!(lines[0].operand, "fA0,X");
+    // TASS formatter: should verify ZeroPageField is in map -> "fA0" -> "fA0,x"
+    // (Note: TASS formatter output for ZP,X is `{},x` based on TassFormatter impl)
+    assert_eq!(lines[0].mnemonic, "lda");
+    assert_eq!(lines[0].operand, "fA0,x");
 
-    // 2. STA ($A0), Y -> (pA0),Y
-    assert_eq!(lines[1].mnemonic, "STA");
-    assert_eq!(lines[1].operand, "(pA0),Y");
+    // 2. STA ($A0), Y -> (pA0),y
+    assert_eq!(lines[1].mnemonic, "sta");
+    assert_eq!(lines[1].operand, "(pA0),y");
     // 91 is IndirectY. target_context = Some(LabelType::ZeroPagePointer) -- WAIT.
     // In `disassembler.rs`:
     // `crate::cpu::AddressingMode::IndirectY => Some(crate::state::LabelType::ZeroPagePointer),`
@@ -225,7 +225,7 @@ fn test_contextual_label_formatting() {
     // 3. STA $00A0 -> a00A0
     // 8D is Absolute. target_context = Some(LabelType::AbsoluteAddress).
     // Should match "a00A0".
-    assert_eq!(lines[2].mnemonic, "STA");
+    assert_eq!(lines[2].mnemonic, "sta");
     // Depending on settings, Tass might output @w or just the label.
     // If it's a label, Tass typically just prints the name.
     // The formatter logic:
@@ -467,10 +467,10 @@ fn test_text_and_screencode_disassembly() {
         &BTreeMap::new(),
     );
 
-    // Tass formatting produces 4 lines: .ENCODE, .ENC "ASCII", .TEXT "ABC", .ENDENCODE
+    // Tass formatting produces 4 lines: .encode, .enc "ascii", .text "ABC", .endencode
     assert_eq!(lines.len(), 4);
-    assert_eq!(lines[0].mnemonic, ".ENCODE");
-    assert_eq!(lines[2].mnemonic, ".TEXT");
+    assert_eq!(lines[0].mnemonic, ".encode");
+    assert_eq!(lines[2].mnemonic, ".text");
     assert_eq!(lines[2].operand, "\"ABC\"");
 
     // 2. Test Acme Text
@@ -572,11 +572,11 @@ fn test_text_mixed_content() {
     );
 
     // Filter relevant lines (Tass wraps in ENCODE)
-    // We expect .ENCODE, .ENC, .TEXT ..., .ENDENCODE
-    // The .TEXT line should be merged: .TEXT $00, $01, "AB", $00
+    // We expect .encode, .enc, .text ..., .endencode
+    // The .text line should be merged: .text $00, $01, "AB", $00
 
     let text_lines: Vec<&DisassemblyLine> =
-        lines.iter().filter(|l| l.mnemonic == ".TEXT").collect();
+        lines.iter().filter(|l| l.mnemonic == ".text").collect();
 
     assert_eq!(text_lines.len(), 1);
     assert_eq!(text_lines[0].operand, "$00, $01, \"AB\", $00");
@@ -625,11 +625,11 @@ fn test_text_escaping() {
         &BTreeMap::new(),
     );
 
-    // Tass output structure: .ENCODE, .ENC, .TEXT ..., .ENDENCODE
-    // Filter for .TEXT
+    // Tass output structure: .encode, .enc, .text ..., .endencode
+    // Filter for .text
     let text_lines: Vec<&DisassemblyLine> = lines_tass
         .iter()
-        .filter(|l| l.mnemonic == ".TEXT")
+        .filter(|l| l.mnemonic == ".text")
         .collect();
 
     assert_eq!(text_lines.len(), 1);
@@ -694,20 +694,20 @@ fn test_screencode_mixed() {
         &BTreeMap::new(),
         &BTreeMap::new(),
     );
-    // .TEXT """""", $FF, """"""
+    // .text """""", $ff, """"""
     let text_lines: Vec<&DisassemblyLine> = lines_tass
         .iter()
-        .filter(|l| l.mnemonic == ".TEXT")
+        .filter(|l| l.mnemonic == ".text")
         .collect();
 
     assert_eq!(text_lines.len(), 1);
     // Tass escapes " as ""
-    // "" (escaped quote), $FF, ""
-    // Expected string in operand: """" (quote), $FF, """" (quote)
+    // "" (escaped quote), $ff, ""
+    // Expected string in operand: """" (quote), $ff, """" (quote)
     // Wait. " -> ""
     // So one quote is "".
     // Quoted string: """"""
-    assert_eq!(text_lines[0].operand, "\"\"\"\", $FF, \"\"\"\"");
+    assert_eq!(text_lines[0].operand, "\"\"\"\", $ff, \"\"\"\"");
 }
 
 #[test]
@@ -741,16 +741,16 @@ fn test_tass_screencode_enc_wrapping() {
     assert_eq!(lines.len(), 4);
 
     // 1. Start Block
-    assert_eq!(lines[0].mnemonic, ".ENCODE");
-    assert_eq!(lines[1].mnemonic, ".ENC");
-    assert_eq!(lines[1].operand, "\"SCREEN\"");
+    assert_eq!(lines[0].mnemonic, ".encode");
+    assert_eq!(lines[1].mnemonic, ".enc");
+    assert_eq!(lines[1].operand, "\"screen\"");
 
     // 2. Content
-    assert_eq!(lines[2].mnemonic, ".TEXT");
+    assert_eq!(lines[2].mnemonic, ".text");
     assert!(lines[2].operand.contains("\"ABC\""));
 
     // 3. End Block
-    assert_eq!(lines[3].mnemonic, ".ENDENCODE");
+    assert_eq!(lines[3].mnemonic, ".endencode");
 }
 
 #[test]
@@ -788,21 +788,21 @@ fn test_tass_screencode_multiline_wrapping() {
     assert_eq!(lines.len(), 5);
 
     // Line 1-2: Header
-    assert_eq!(lines[0].mnemonic, ".ENCODE");
-    assert_eq!(lines[1].mnemonic, ".ENC");
-    assert_eq!(lines[1].operand, "\"SCREEN\"");
+    assert_eq!(lines[0].mnemonic, ".encode");
+    assert_eq!(lines[1].mnemonic, ".enc");
+    assert_eq!(lines[1].operand, "\"screen\"");
 
     // Line 3: First chunk
-    assert_eq!(lines[2].mnemonic, ".TEXT");
+    assert_eq!(lines[2].mnemonic, ".text");
     // Verify bytes presence?
     assert_eq!(lines[2].bytes.len(), 32);
 
     // Line 4: Second chunk
-    assert_eq!(lines[3].mnemonic, ".TEXT");
+    assert_eq!(lines[3].mnemonic, ".text");
     assert_eq!(lines[3].bytes.len(), 8);
 
     // Line 5: Footer
-    assert_eq!(lines[4].mnemonic, ".ENDENCODE");
+    assert_eq!(lines[4].mnemonic, ".endencode");
 }
 
 #[test]
@@ -828,8 +828,8 @@ fn test_text_show_bytes_is_false() {
         &BTreeMap::new(),
     );
 
-    // Filter for the .TEXT line
-    let text_line = lines.iter().find(|l| l.mnemonic == ".TEXT").unwrap();
+    // Filter for the .text line
+    let text_line = lines.iter().find(|l| l.mnemonic == ".text").unwrap();
     assert_eq!(
         text_line.show_bytes, false,
         "Text blocks should not show bytes"
@@ -863,8 +863,8 @@ fn test_screencode_show_bytes_is_false() {
         &BTreeMap::new(),
     );
 
-    // Filter for the .TEXT line (inside .ENCODE block)
-    let text_line = lines.iter().find(|l| l.mnemonic == ".TEXT").unwrap();
+    // Filter for the .text line (inside .encode block)
+    let text_line = lines.iter().find(|l| l.mnemonic == ".text").unwrap();
     assert_eq!(
         text_line.show_bytes, false,
         "Screencode blocks should not show bytes"
@@ -994,15 +994,15 @@ fn test_tass_block_separation() {
     // Total 9 lines
     assert_eq!(lines.len(), 9);
 
-    assert_eq!(lines[0].mnemonic, ".ENCODE");
-    assert_eq!(lines[3].mnemonic, ".ENDENCODE");
+    assert_eq!(lines[0].mnemonic, ".encode");
+    assert_eq!(lines[3].mnemonic, ".endencode");
 
     // Code
-    assert_eq!(lines[4].mnemonic, "NOP");
+    assert_eq!(lines[4].mnemonic, "nop");
 
     // Block 2
-    assert_eq!(lines[5].mnemonic, ".ENCODE");
-    assert_eq!(lines[8].mnemonic, ".ENDENCODE");
+    assert_eq!(lines[5].mnemonic, ".encode");
+    assert_eq!(lines[8].mnemonic, ".endencode");
 }
 
 #[test]
@@ -1062,16 +1062,16 @@ fn test_tass_label_interruption() {
 
     assert_eq!(lines.len(), 5);
 
-    assert_eq!(lines[0].mnemonic, ".ENCODE");
-    assert_eq!(lines[2].mnemonic, ".TEXT");
+    assert_eq!(lines[0].mnemonic, ".encode");
+    assert_eq!(lines[2].mnemonic, ".text");
     assert_eq!(lines[2].operand, "\"A\"");
 
     // Label should be on the first line of the second chunk
     assert_eq!(lines[3].label, Some("MID".to_string()));
-    assert_eq!(lines[3].mnemonic, ".TEXT");
+    assert_eq!(lines[3].mnemonic, ".text");
     assert_eq!(lines[3].operand, "\"B\"");
 
-    assert_eq!(lines[4].mnemonic, ".ENDENCODE");
+    assert_eq!(lines[4].mnemonic, ".endencode");
 }
 
 #[test]
@@ -1105,12 +1105,12 @@ fn test_tass_screencode_single_byte_special() {
     // .ENDENCODE
 
     assert_eq!(lines.len(), 4);
-    assert_eq!(lines[0].mnemonic, ".ENCODE");
-    assert_eq!(lines[1].mnemonic, ".ENC");
-    assert_eq!(lines[1].operand, "\"SCREEN\"");
-    assert_eq!(lines[2].mnemonic, ".TEXT");
+    assert_eq!(lines[0].mnemonic, ".encode");
+    assert_eq!(lines[1].mnemonic, ".enc");
+    assert_eq!(lines[1].operand, "\"screen\"");
+    assert_eq!(lines[2].mnemonic, ".text");
     assert_eq!(lines[2].operand, "\"o\"");
-    assert_eq!(lines[3].mnemonic, ".ENDENCODE");
+    assert_eq!(lines[3].mnemonic, ".endencode");
 }
 #[cfg(test)]
 mod tests {
@@ -1145,11 +1145,11 @@ mod tests {
         );
 
         assert_eq!(lines_a.len(), 4);
-        assert_eq!(lines_a[0].mnemonic, ".ENCODE");
-        assert_eq!(lines_a[1].operand, "\"SCREEN\"");
-        assert_eq!(lines_a[2].mnemonic, ".TEXT");
+        assert_eq!(lines_a[0].mnemonic, ".encode");
+        assert_eq!(lines_a[1].operand, "\"screen\"");
+        assert_eq!(lines_a[2].mnemonic, ".text");
         assert_eq!(lines_a[2].operand, "\"0-9, HOLA COMO\"");
-        assert_eq!(lines_a[3].mnemonic, ".ENDENCODE");
+        assert_eq!(lines_a[3].mnemonic, ".endencode");
 
         // Case B: 30 2d 39 2c 20 48 4f 4c 41 20 43 4f 4d 4f (0-9, hola como)
         let bytes_b = vec![
@@ -1169,8 +1169,8 @@ mod tests {
         );
 
         assert_eq!(lines_b.len(), 4);
-        assert_eq!(lines_b[1].operand, "\"SCREEN\"");
-        assert_eq!(lines_b[2].mnemonic, ".TEXT");
+        assert_eq!(lines_b[1].operand, "\"screen\"");
+        assert_eq!(lines_b[2].mnemonic, ".text");
         assert_eq!(lines_b[2].operand, "\"0-9, hola como\"");
     }
     #[test]
@@ -1199,13 +1199,13 @@ mod tests {
             &BTreeMap::new(),
         );
 
-        // Expected: .TEXT "~", $5F, $60
-        // Tass wraps in .ENCODE ... .ENDENCODE
+        // Expected: .text "~", $5f, $60
+        // Tass wraps in .encode ... .endencode
         let text_lines: Vec<&crate::disassembler::DisassemblyLine> =
-            lines.iter().filter(|l| l.mnemonic == ".TEXT").collect();
+            lines.iter().filter(|l| l.mnemonic == ".text").collect();
 
         assert_eq!(text_lines.len(), 1);
-        assert_eq!(text_lines[0].operand, "\"~\", $5F, $60");
+        assert_eq!(text_lines[0].operand, "\"~\", $5f, $60");
     }
 
     #[test]
@@ -1343,23 +1343,23 @@ fn test_target_address_specific_instructions() {
     assert_eq!(lines.len(), 5);
 
     // JSR $2000
-    assert_eq!(lines[0].mnemonic, "JSR");
+    assert_eq!(lines[0].mnemonic, "jsr");
     assert_eq!(lines[0].target_address, Some(0x2000));
 
     // JMP ($1234)
-    assert_eq!(lines[1].mnemonic, "JMP");
+    assert_eq!(lines[1].mnemonic, "jmp");
     assert_eq!(lines[1].target_address, None);
 
     // RTS
-    assert_eq!(lines[2].mnemonic, "RTS");
+    assert_eq!(lines[2].mnemonic, "rts");
     assert_eq!(lines[2].target_address, None);
 
     // BRK
-    assert_eq!(lines[3].mnemonic, "BRK");
+    assert_eq!(lines[3].mnemonic, "brk");
     assert_eq!(lines[3].target_address, None);
 
     // RTI
-    assert_eq!(lines[4].mnemonic, "RTI");
+    assert_eq!(lines[4].mnemonic, "rti");
     assert_eq!(lines[4].target_address, None);
 }
 

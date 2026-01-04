@@ -441,7 +441,7 @@ mod tests {
 
         // These assertions should currently FAIL because they don't start with 'e'
         assert!(content.contains("f0002 = $02")); // Now it should be $02 for ZP
-        assert!(content.contains("sFFD2 = $FFD2"));
+        assert!(content.contains("sFFD2 = $ffd2"));
 
         let _ = std::fs::remove_file(&path);
     }

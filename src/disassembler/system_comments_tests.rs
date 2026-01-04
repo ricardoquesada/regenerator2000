@@ -36,9 +36,9 @@ fn test_system_comments_logic() {
     let line = &lines[0];
 
     // Mnemonic: JSR
-    assert_eq!(line.mnemonic, "JSR");
+    assert_eq!(line.mnemonic, "jsr");
     // Operand: $FF81
-    assert_eq!(line.operand, "$FF81");
+    assert_eq!(line.operand, "$ff81");
     // Comment should combine:
     // 1. System comment for current address (0x1000) -> "Start Routine"
     // 2. Referenced address (0xFF81) -> "init VIC"
@@ -81,8 +81,8 @@ fn test_system_comment_on_sta() {
     assert_eq!(lines.len(), 1);
     let line = &lines[0];
 
-    assert_eq!(line.mnemonic, "STA");
-    assert_eq!(line.operand, "$D020");
+    assert_eq!(line.mnemonic, "sta");
+    assert_eq!(line.operand, "$d020");
     // This assertion fails currently because handling of STA doesn't look up target address for comments
     // because get_target_address returns None for STA.
     assert_eq!(line.comment, "Border Color");
