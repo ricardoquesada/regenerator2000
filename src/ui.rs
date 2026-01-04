@@ -1054,7 +1054,7 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
             };
 
             let style = if row_index == ui_state.hex_cursor_index {
-                Style::default().bg(Color::Cyan).fg(Color::Black)
+                Style::default().bg(Color::DarkGray)
             } else if is_selected {
                 Style::default().bg(Color::DarkGray).fg(Color::White)
             } else {
@@ -1373,7 +1373,7 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             };
 
             let style = if i == ui_state.cursor_index {
-                Style::default().bg(Color::Cyan).fg(Color::Black)
+                Style::default().bg(Color::DarkGray)
             } else if is_selected {
                 Style::default().bg(Color::DarkGray).fg(Color::White)
             } else {
