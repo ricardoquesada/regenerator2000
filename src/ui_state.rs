@@ -6,7 +6,7 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActivePane {
     Disassembly,
-    Hex,
+    HexDump,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -42,7 +42,7 @@ pub enum MenuAction {
     SetHiLo,
     SideComment,
     LineComment,
-    ToggleHexView,
+    ToggleHexDump,
     About,
     ChangeOrigin,
     KeyboardShortcuts,
@@ -546,9 +546,9 @@ impl MenuState {
                         ),
                         MenuItem::separator(),
                         MenuItem::new(
-                            "Toggle Hex View",
+                            "Toggle Hex Dump",
                             Some("Ctrl+2"),
-                            Some(MenuAction::ToggleHexView),
+                            Some(MenuAction::ToggleHexDump),
                         ),
                     ],
                 },
@@ -717,7 +717,7 @@ pub struct UIState {
     pub hex_cursor_index: usize,
     #[allow(dead_code)]
     pub hex_scroll_index: usize,
-    pub show_hex_view: bool,
+    pub show_hex_dump: bool,
     pub petscii_mode: PetsciiMode,
 
     pub active_pane: ActivePane,
@@ -753,7 +753,7 @@ impl UIState {
             scroll_index: 0,
             hex_cursor_index: 0,
             hex_scroll_index: 0,
-            show_hex_view: true,
+            show_hex_dump: true,
             petscii_mode: PetsciiMode::Unshifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,

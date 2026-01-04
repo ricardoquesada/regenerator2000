@@ -151,7 +151,7 @@ fn render_shortcuts_dialog(
         ("Ctrl+Shift+G", "Jump to Line"),
         ("Enter", "Jump to Operand (if valid)"),
         ("Backspace", "Navigate Back"),
-        ("Tab", "Switch Pane (Disasm/Hex)"),
+        ("Tab", "Switch Pane (Disasm/Hex Dump)"),
         ("", ""),
         ("Editing", ""),
         ("IsVisualMode (Shift+V)", "Toggle Visual Selection Mode"),
@@ -170,7 +170,7 @@ fn render_shortcuts_dialog(
         ("L", "Label"),
         ("", ""),
         ("View", ""),
-        ("Ctrl+2", "Toggle Hex View"),
+        ("Ctrl+2", "Toggle Hex Dump"),
         ("Ctrl+L", "Shifted PETSCII"),
         ("Ctrl+Shift+L", "Unshifted PETSCII"),
         ("", ""),
@@ -965,27 +965,28 @@ fn render_origin_dialog(f: &mut Frame, area: Rect, dialog: &crate::ui_state::Ori
 }
 
 fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
-    if ui_state.show_hex_view {
-        // Calculate required width for Hex View
-        // Address (4) + Space (2) + Hex (49) + Separator (2) + ASCII (16) + Borders (2) = 75
-        let hex_view_width = 75;
-        let max_width = area.width / 2;
-        let actual_width = std::cmp::min(hex_view_width, max_width);
+    // Calculate required width for Hex Dump
+    // Address (4) + Space (2) + Hex (49) + Separator (2) + ASCII (16) + Borders (2) = 75
+    let hex_dump_width = if ui_state.show_hex_dump { 75 } else { 0 };
+    let disasm_view_width = area.width.saturating_sub(hex_dump_width);
 
-        let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Min(0), Constraint::Length(actual_width)])
-            .split(area);
+    let layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Length(disasm_view_width),
+            Constraint::Length(hex_dump_width),
+        ])
+        .split(area);
 
-        render_disassembly(f, chunks[0], app_state, ui_state);
-        render_hex_view(f, chunks[1], app_state, ui_state);
-    } else {
-        render_disassembly(f, area, app_state, ui_state);
+    render_disassembly(f, layout[0], app_state, ui_state);
+
+    if ui_state.show_hex_dump {
+        render_hex_view(f, layout[1], app_state, ui_state);
     }
 }
 
 fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
-    let is_active = ui_state.active_pane == ActivePane::Hex;
+    let is_active = ui_state.active_pane == ActivePane::HexDump;
     let border_style = if is_active {
         Style::default().fg(Color::Green)
     } else {
@@ -995,7 +996,7 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(border_style)
-        .title(" Hex View ");
+        .title(" Hex Dump ");
     let inner_area = block.inner(area);
 
     let visible_height = inner_area.height as usize;

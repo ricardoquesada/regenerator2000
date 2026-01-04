@@ -11,7 +11,7 @@ A 6502 disassembler with a TUI. A modern take on [Regenerator][regenerator].
 Regenerator 2000 brings modern conveniences to 6502 disassembly:
 
 - **Disassembly**: Full 6502 support including undocumented opcodes.
-- **Hex View**:
+- **Hex Dump**:
     - Side-by-side view with disassembly.
     - Synchronized or independent navigation.
     - **PETSCII** support (Unshifted and Shifted modes).
@@ -47,48 +47,48 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 
 ## Keyboard Shortcuts
 
-| Context        | Action                       | Shortcut                                |
-|:---------------|:-----------------------------|:----------------------------------------|
-| **Global**     | **Activate Menu**            | `F10`                                   |
-|                | **Exit**                     | `Ctrl + Q`                              |
-|                | **Open File**                | `Ctrl + O`                              |
-|                | **Save Project**             | `Ctrl + S`                              |
-|                | **Save Project As**          | `Ctrl + Shift + S`                      |
-|                | **Export Project (ASM)**     | `Ctrl + E`                              |
-|                | **Export Project As (ASM)**  | `Ctrl + Shift + E`                      |
-|                | **Document Settings**        | `Ctrl + P`                              |
-|                | **Undo**                     | `U`                                     |
-|                | **Redo**                     | `Ctrl + R`                              |
-|                | **Switch Pane (Hex/Disasm)** | `Tab`                                   |
-| **Navigation** | **Move Cursor**              | `Up` / `Down` / `j` / `k`               |
-|                | **Page Up/Down**             | `PageUp` / `PageDown`                   |
-|                | **Home/End**                 | `Home` / `End`                          |
-|                | **Jump to Address**          | `g`                                     |
-|                | **Jump to Line**             | `Ctrl + Shift + G`                      |
-|                | **Jump to Operand**          | `Enter`                                 |
-|                | **Jump Back (History)**      | `Backspace`                             |
-|                | **Previous/Next 10 Lines**   | `Ctrl + u` / `Ctrl + d`                 |
-| **Selection**  | **Toggle Visual Mode**       | `Shift + V`                             |
-|                | **Select Text**              | `Shift + Up/Down` / Visual Mode + `j/k` |
-|                | **Clear Selection**          | `Esc`                                   |
-| **Editing**    | **Set Label**                | `l`                                     |
-|                | **Add Side Comment**         | `;`                                     |
-|                | **Add Line Comment**         | `:` / `Shift + ;`                       |
-|                | **Convert to Code**          | `c`                                     |
-|                | **Convert to Byte**          | `b`                                     |
-|                | **Convert to Word**          | `w`                                     |
-|                | **Convert to Address**       | `a`                                     |
-|                | **Convert to Text**          | `t`                                     |
-|                | **Convert to Screencode**    | `s`                                     |
-|                | **Convert to Undefined**     | `Shift + U`                             |
-|                | **Set Lo/Hi Address**        | `<` (Shift + ,)                         |
-|                | **Set Hi/Lo Address**        | `>` (Shift + .)                         |
-| **View**       | **PETSCII Unshifted**        | `Ctrl + Shift + L`                      |
-|                | **PETSCII Shifted**          | `Ctrl + L`                              |
-|                | **Toggle Hex View**          | `Ctrl + 2`                              |
-| **Menus**      | **Navigate Menu**            | Arrows                                  |
-|                | **Select Item**              | `Enter`                                 |
-|                | **Close Menu**               | `Esc`                                   |
+| Context        | Action                            | Shortcut                                |
+|:---------------|:----------------------------------|:----------------------------------------|
+| **Global**     | **Activate Menu**                 | `F10`                                   |
+|                | **Exit**                          | `Ctrl + Q`                              |
+|                | **Open File**                     | `Ctrl + O`                              |
+|                | **Save Project**                  | `Ctrl + S`                              |
+|                | **Save Project As**               | `Ctrl + Shift + S`                      |
+|                | **Export Project (ASM)**          | `Ctrl + E`                              |
+|                | **Export Project As (ASM)**       | `Ctrl + Shift + E`                      |
+|                | **Document Settings**             | `Ctrl + P`                              |
+|                | **Undo**                          | `U`                                     |
+|                | **Redo**                          | `Ctrl + R`                              |
+|                | **Switch Pane (Hex Dump/Disasm)** | `Tab`                                   |
+| **Navigation** | **Move Cursor**                   | `Up` / `Down` / `j` / `k`               |
+|                | **Page Up/Down**                  | `PageUp` / `PageDown`                   |
+|                | **Home/End**                      | `Home` / `End`                          |
+|                | **Jump to Address**               | `g`                                     |
+|                | **Jump to Line**                  | `Ctrl + Shift + G`                      |
+|                | **Jump to Operand**               | `Enter`                                 |
+|                | **Jump Back (History)**           | `Backspace`                             |
+|                | **Previous/Next 10 Lines**        | `Ctrl + u` / `Ctrl + d`                 |
+| **Selection**  | **Toggle Visual Mode**            | `Shift + V`                             |
+|                | **Select Text**                   | `Shift + Up/Down` / Visual Mode + `j/k` |
+|                | **Clear Selection**               | `Esc`                                   |
+| **Editing**    | **Set Label**                     | `l`                                     |
+|                | **Add Side Comment**              | `;`                                     |
+|                | **Add Line Comment**              | `:` / `Shift + ;`                       |
+|                | **Convert to Code**               | `c`                                     |
+|                | **Convert to Byte**               | `b`                                     |
+|                | **Convert to Word**               | `w`                                     |
+|                | **Convert to Address**            | `a`                                     |
+|                | **Convert to Text**               | `t`                                     |
+|                | **Convert to Screencode**         | `s`                                     |
+|                | **Convert to Undefined**          | `Shift + U`                             |
+|                | **Set Lo/Hi Address**             | `<` (Shift + ,)                         |
+|                | **Set Hi/Lo Address**             | `>` (Shift + .)                         |
+| **View**       | **PETSCII Unshifted**             | `Ctrl + Shift + L`                      |
+|                | **PETSCII Shifted**               | `Ctrl + L`                              |
+|                | **Toggle Hex Dump**               | `Ctrl + 2`                              |
+| **Menus**      | **Navigate Menu**                 | Arrows                                  |
+|                | **Select Item**                   | `Enter`                                 |
+|                | **Close Menu**                    | `Esc`                                   |
 
 ## Build and Run
 

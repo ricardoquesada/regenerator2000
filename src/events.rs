@@ -76,7 +76,7 @@ pub fn run_app<B: Backend>(
                                                 ui_state.set_status_message("Jumped to end");
                                             }
                                         }
-                                        ActivePane::Hex => {
+                                        ActivePane::HexDump => {
                                             let origin = app_state.origin as usize;
                                             let target = target_addr as usize;
                                             let data_len = app_state.raw_data.len();
@@ -84,7 +84,7 @@ pub fn run_app<B: Backend>(
 
                                             if target >= origin && target < end_addr {
                                                 ui_state.navigation_history.push((
-                                                    crate::ui_state::ActivePane::Hex,
+                                                    crate::ui_state::ActivePane::HexDump,
                                                     ui_state.hex_cursor_index,
                                                 ));
                                                 let offset = target - origin;
@@ -808,7 +808,7 @@ pub fn run_app<B: Backend>(
                             ActivePane::Disassembly => {
                                 ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
                             }
-                            ActivePane::Hex => {
+                            ActivePane::HexDump => {
                                 ui_state.hex_cursor_index =
                                     ui_state.hex_cursor_index.saturating_sub(10);
                             }
@@ -835,7 +835,7 @@ pub fn run_app<B: Backend>(
                                 ui_state.cursor_index = (ui_state.cursor_index + 10)
                                     .min(app_state.disassembly.len().saturating_sub(1));
                             }
-                            ActivePane::Hex => {
+                            ActivePane::HexDump => {
                                 let bytes_per_row = 16;
                                 let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
                                 ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
@@ -861,7 +861,7 @@ pub fn run_app<B: Backend>(
                         handle_menu_action(
                             &mut app_state,
                             &mut ui_state,
-                            crate::ui_state::MenuAction::ToggleHexView,
+                            crate::ui_state::MenuAction::ToggleHexDump,
                         );
                     }
 
@@ -904,7 +904,7 @@ pub fn run_app<B: Backend>(
                                         ui_state.set_status_message("History invalid");
                                     }
                                 }
-                                ActivePane::Hex => {
+                                ActivePane::HexDump => {
                                     // Basic bounds check might be hard here without recalculating rows
                                     // For now assume it's valid if it was pushed
                                     ui_state.hex_cursor_index = idx;
@@ -1097,7 +1097,7 @@ pub fn run_app<B: Backend>(
                                 ui_state
                                     .set_status_message(format!("Jumped to line {}", target_line));
                             }
-                            ActivePane::Hex => {
+                            ActivePane::HexDump => {
                                 let total_rows = app_state.raw_data.len().div_ceil(16);
                                 let target_row = if is_buffer_empty {
                                     total_rows
@@ -1126,7 +1126,7 @@ pub fn run_app<B: Backend>(
                     // Input Buffer for Numbers
                     KeyCode::Char(c) if c.is_ascii_digit() => {
                         if ui_state.active_pane == ActivePane::Disassembly
-                            || ui_state.active_pane == ActivePane::Hex
+                            || ui_state.active_pane == ActivePane::HexDump
                         {
                             // Only append if it's a valid number sequence (avoid overflow though usize is large)
                             if ui_state.input_buffer.len() < 10 {
@@ -1157,7 +1157,7 @@ pub fn run_app<B: Backend>(
                                     ui_state.cursor_index += 1;
                                 }
                             }
-                            ActivePane::Hex => {
+                            ActivePane::HexDump => {
                                 let bytes_per_row = 16;
                                 let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
                                 if ui_state.hex_cursor_index < total_rows.saturating_sub(1) {
@@ -1184,7 +1184,7 @@ pub fn run_app<B: Backend>(
                                     ui_state.cursor_index -= 1;
                                 }
                             }
-                            ActivePane::Hex => {
+                            ActivePane::HexDump => {
                                 if ui_state.hex_cursor_index > 0 {
                                     ui_state.hex_cursor_index -= 1;
                                 }
@@ -1193,8 +1193,8 @@ pub fn run_app<B: Backend>(
                     }
                     KeyCode::Tab => {
                         ui_state.active_pane = match ui_state.active_pane {
-                            ActivePane::Disassembly => ActivePane::Hex,
-                            ActivePane::Hex => ActivePane::Disassembly,
+                            ActivePane::Disassembly => ActivePane::HexDump,
+                            ActivePane::HexDump => ActivePane::Disassembly,
                         };
                     }
                     KeyCode::Esc => {
@@ -1215,7 +1215,7 @@ pub fn run_app<B: Backend>(
                                 ui_state.cursor_index = (ui_state.cursor_index + 10)
                                     .min(app_state.disassembly.len().saturating_sub(1));
                             }
-                            ActivePane::Hex => {
+                            ActivePane::HexDump => {
                                 let bytes_per_row = 16;
                                 let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
                                 ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
@@ -1229,7 +1229,7 @@ pub fn run_app<B: Backend>(
                             ActivePane::Disassembly => {
                                 ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
                             }
-                            ActivePane::Hex => {
+                            ActivePane::HexDump => {
                                 ui_state.hex_cursor_index =
                                     ui_state.hex_cursor_index.saturating_sub(10);
                             }
@@ -1239,7 +1239,7 @@ pub fn run_app<B: Backend>(
                         ui_state.input_buffer.clear();
                         match ui_state.active_pane {
                             ActivePane::Disassembly => ui_state.cursor_index = 0,
-                            ActivePane::Hex => ui_state.hex_cursor_index = 0,
+                            ActivePane::HexDump => ui_state.hex_cursor_index = 0,
                         }
                     }
                     KeyCode::End => {
@@ -1249,7 +1249,7 @@ pub fn run_app<B: Backend>(
                                 ui_state.cursor_index =
                                     app_state.disassembly.len().saturating_sub(1)
                             }
-                            ActivePane::Hex => {
+                            ActivePane::HexDump => {
                                 let bytes_per_row = 16;
                                 let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
                                 ui_state.hex_cursor_index = total_rows.saturating_sub(1);
@@ -1801,14 +1801,14 @@ fn execute_menu_action(
                 ui_state.set_status_message(format!("Edit Line Comment at ${:04X}", address));
             }
         }
-        MenuAction::ToggleHexView => {
-            ui_state.show_hex_view = !ui_state.show_hex_view;
-            if ui_state.show_hex_view {
-                ui_state.set_status_message("Hex View Shown");
+        MenuAction::ToggleHexDump => {
+            ui_state.show_hex_dump = !ui_state.show_hex_dump;
+            if ui_state.show_hex_dump {
+                ui_state.set_status_message("Hex Dump View Shown");
             } else {
-                ui_state.set_status_message("Hex View Hidden");
+                ui_state.set_status_message("Hex Dump View Hidden");
                 // If we were in Hex view, switch to Disassembly
-                if ui_state.active_pane == ActivePane::Hex {
+                if ui_state.active_pane == ActivePane::HexDump {
                     ui_state.active_pane = ActivePane::Disassembly;
                 }
             }
