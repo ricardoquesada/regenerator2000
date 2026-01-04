@@ -27,6 +27,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
     - **Comments**: Add side comments (`;`) and line comments (`:`).
     - **Origin**: Change the load address/origin of the binary.
     - **Data Types**: Convert regions to Code, Byte, Word, Address, Text, or Screencode.
+        - _Note_: Changing a block type automatically moves the cursor to the **end** of the new block.
     - **Undo/Redo**: Full history support for all actions.
 - **Navigation**:
     - **Jump**: Go to specific addresses, specific line numbers, or follow operands.

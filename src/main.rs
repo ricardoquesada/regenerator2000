@@ -15,6 +15,7 @@ mod utils;
 
 #[cfg(test)]
 mod cursor_persistence_test;
+
 #[cfg(test)]
 mod load_project_test;
 #[cfg(test)]

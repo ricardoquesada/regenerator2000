@@ -1319,157 +1319,215 @@ fn execute_menu_action(
         }
 
         MenuAction::Code => {
-            let new_cursor = ui_state
-                .selection_start
-                .map(|start| start.min(ui_state.cursor_index));
+            if let Some(start_index) = ui_state.selection_start {
+                let start = start_index.min(ui_state.cursor_index);
+                let end = start_index.max(ui_state.cursor_index);
 
-            app_state.set_block_type_region(
-                crate::state::BlockType::Code,
-                ui_state.selection_start,
-                ui_state.cursor_index,
-            );
-            if let Some(idx) = new_cursor {
-                ui_state.cursor_index = idx;
-            }
-            ui_state.is_visual_mode = false;
-            ui_state.selection_start = None;
+                let target_address = if let Some(line) = app_state.disassembly.get(end) {
+                    line.address
+                        .wrapping_add(line.bytes.len() as u16)
+                        .wrapping_sub(1)
+                } else {
+                    0
+                };
 
-            // Clamp cursor
-            let max_idx = app_state.disassembly.len().saturating_sub(1);
-            if ui_state.cursor_index > max_idx {
-                ui_state.cursor_index = max_idx;
+                app_state.set_block_type_region(crate::state::BlockType::Code, Some(start), end);
+                ui_state.selection_start = None;
+                ui_state.is_visual_mode = false;
+
+                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
+                    ui_state.cursor_index = idx;
+                }
+            } else {
+                app_state.set_block_type_region(
+                    crate::state::BlockType::Code,
+                    ui_state.selection_start,
+                    ui_state.cursor_index,
+                );
             }
         }
         MenuAction::Byte => {
-            let new_cursor = ui_state
-                .selection_start
-                .map(|start| start.min(ui_state.cursor_index));
+            if let Some(start_index) = ui_state.selection_start {
+                let start = start_index.min(ui_state.cursor_index);
+                let end = start_index.max(ui_state.cursor_index);
 
-            app_state.set_block_type_region(
-                crate::state::BlockType::DataByte,
-                ui_state.selection_start,
-                ui_state.cursor_index,
-            );
-            if let Some(idx) = new_cursor {
-                ui_state.cursor_index = idx;
-            }
-            ui_state.is_visual_mode = false;
-            ui_state.selection_start = None;
+                let target_address = if let Some(line) = app_state.disassembly.get(end) {
+                    line.address
+                        .wrapping_add(line.bytes.len() as u16)
+                        .wrapping_sub(1)
+                } else {
+                    0
+                };
 
-            // Clamp cursor
-            let max_idx = app_state.disassembly.len().saturating_sub(1);
-            if ui_state.cursor_index > max_idx {
-                ui_state.cursor_index = max_idx;
+                app_state.set_block_type_region(
+                    crate::state::BlockType::DataByte,
+                    Some(start),
+                    end,
+                );
+                ui_state.selection_start = None;
+                ui_state.is_visual_mode = false;
+
+                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
+                    ui_state.cursor_index = idx;
+                }
+            } else {
+                app_state.set_block_type_region(
+                    crate::state::BlockType::DataByte,
+                    ui_state.selection_start,
+                    ui_state.cursor_index,
+                );
             }
         }
         MenuAction::Word => {
-            let new_cursor = ui_state
-                .selection_start
-                .map(|start| start.min(ui_state.cursor_index));
+            if let Some(start_index) = ui_state.selection_start {
+                let start = start_index.min(ui_state.cursor_index);
+                let end = start_index.max(ui_state.cursor_index);
 
-            app_state.set_block_type_region(
-                crate::state::BlockType::DataWord,
-                ui_state.selection_start,
-                ui_state.cursor_index,
-            );
-            if let Some(idx) = new_cursor {
-                ui_state.cursor_index = idx;
-            }
-            ui_state.is_visual_mode = false;
-            ui_state.selection_start = None;
+                let target_address = if let Some(line) = app_state.disassembly.get(end) {
+                    line.address
+                        .wrapping_add(line.bytes.len() as u16)
+                        .wrapping_sub(1)
+                } else {
+                    0
+                };
 
-            // Clamp cursor
-            let max_idx = app_state.disassembly.len().saturating_sub(1);
-            if ui_state.cursor_index > max_idx {
-                ui_state.cursor_index = max_idx;
+                app_state.set_block_type_region(
+                    crate::state::BlockType::DataWord,
+                    Some(start),
+                    end,
+                );
+                ui_state.selection_start = None;
+                ui_state.is_visual_mode = false;
+
+                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
+                    ui_state.cursor_index = idx;
+                }
+            } else {
+                app_state.set_block_type_region(
+                    crate::state::BlockType::DataWord,
+                    ui_state.selection_start,
+                    ui_state.cursor_index,
+                );
             }
         }
         MenuAction::Address => {
-            let new_cursor = ui_state
-                .selection_start
-                .map(|start| start.min(ui_state.cursor_index));
+            if let Some(start_index) = ui_state.selection_start {
+                let start = start_index.min(ui_state.cursor_index);
+                let end = start_index.max(ui_state.cursor_index);
 
-            app_state.set_block_type_region(
-                crate::state::BlockType::Address,
-                ui_state.selection_start,
-                ui_state.cursor_index,
-            );
-            if let Some(idx) = new_cursor {
-                ui_state.cursor_index = idx;
-            }
-            ui_state.is_visual_mode = false;
-            ui_state.selection_start = None;
+                let target_address = if let Some(line) = app_state.disassembly.get(end) {
+                    line.address
+                        .wrapping_add(line.bytes.len() as u16)
+                        .wrapping_sub(1)
+                } else {
+                    0
+                };
 
-            // Clamp cursor
-            let max_idx = app_state.disassembly.len().saturating_sub(1);
-            if ui_state.cursor_index > max_idx {
-                ui_state.cursor_index = max_idx;
+                app_state.set_block_type_region(crate::state::BlockType::Address, Some(start), end);
+                ui_state.selection_start = None;
+                ui_state.is_visual_mode = false;
+
+                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
+                    ui_state.cursor_index = idx;
+                }
+            } else {
+                app_state.set_block_type_region(
+                    crate::state::BlockType::Address,
+                    ui_state.selection_start,
+                    ui_state.cursor_index,
+                );
             }
         }
         MenuAction::Text => {
-            let new_cursor = ui_state
-                .selection_start
-                .map(|start| start.min(ui_state.cursor_index));
+            if let Some(start_index) = ui_state.selection_start {
+                let start = start_index.min(ui_state.cursor_index);
+                let end = start_index.max(ui_state.cursor_index);
 
-            app_state.set_block_type_region(
-                crate::state::BlockType::Text,
-                ui_state.selection_start,
-                ui_state.cursor_index,
-            );
-            if let Some(idx) = new_cursor {
-                ui_state.cursor_index = idx;
-            }
-            ui_state.is_visual_mode = false;
-            ui_state.selection_start = None;
+                let target_address = if let Some(line) = app_state.disassembly.get(end) {
+                    line.address
+                        .wrapping_add(line.bytes.len() as u16)
+                        .wrapping_sub(1)
+                } else {
+                    0
+                };
 
-            // Clamp cursor
-            let max_idx = app_state.disassembly.len().saturating_sub(1);
-            if ui_state.cursor_index > max_idx {
-                ui_state.cursor_index = max_idx;
+                app_state.set_block_type_region(crate::state::BlockType::Text, Some(start), end);
+                ui_state.selection_start = None;
+                ui_state.is_visual_mode = false;
+
+                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
+                    ui_state.cursor_index = idx;
+                }
+            } else {
+                app_state.set_block_type_region(
+                    crate::state::BlockType::Text,
+                    ui_state.selection_start,
+                    ui_state.cursor_index,
+                );
             }
         }
         MenuAction::Screencode => {
-            let new_cursor = ui_state
-                .selection_start
-                .map(|start| start.min(ui_state.cursor_index));
+            if let Some(start_index) = ui_state.selection_start {
+                let start = start_index.min(ui_state.cursor_index);
+                let end = start_index.max(ui_state.cursor_index);
 
-            app_state.set_block_type_region(
-                crate::state::BlockType::Screencode,
-                ui_state.selection_start,
-                ui_state.cursor_index,
-            );
-            if let Some(idx) = new_cursor {
-                ui_state.cursor_index = idx;
-            }
-            ui_state.is_visual_mode = false;
-            ui_state.selection_start = None;
+                let target_address = if let Some(line) = app_state.disassembly.get(end) {
+                    line.address
+                        .wrapping_add(line.bytes.len() as u16)
+                        .wrapping_sub(1)
+                } else {
+                    0
+                };
 
-            // Clamp cursor
-            let max_idx = app_state.disassembly.len().saturating_sub(1);
-            if ui_state.cursor_index > max_idx {
-                ui_state.cursor_index = max_idx;
+                app_state.set_block_type_region(
+                    crate::state::BlockType::Screencode,
+                    Some(start),
+                    end,
+                );
+                ui_state.selection_start = None;
+                ui_state.is_visual_mode = false;
+
+                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
+                    ui_state.cursor_index = idx;
+                }
+            } else {
+                app_state.set_block_type_region(
+                    crate::state::BlockType::Screencode,
+                    ui_state.selection_start,
+                    ui_state.cursor_index,
+                );
             }
         }
         MenuAction::Undefined => {
-            let new_cursor = ui_state
-                .selection_start
-                .map(|start| start.min(ui_state.cursor_index));
+            if let Some(start_index) = ui_state.selection_start {
+                let start = start_index.min(ui_state.cursor_index);
+                let end = start_index.max(ui_state.cursor_index);
 
-            app_state.set_block_type_region(
-                crate::state::BlockType::Undefined,
-                ui_state.selection_start,
-                ui_state.cursor_index,
-            );
-            if let Some(idx) = new_cursor {
-                ui_state.cursor_index = idx;
-            }
-            ui_state.is_visual_mode = false;
-            ui_state.selection_start = None;
+                let target_address = if let Some(line) = app_state.disassembly.get(end) {
+                    line.address
+                        .wrapping_add(line.bytes.len() as u16)
+                        .wrapping_sub(1)
+                } else {
+                    0
+                };
 
-            // Clamp cursor
-            let max_idx = app_state.disassembly.len().saturating_sub(1);
-            if ui_state.cursor_index > max_idx {
-                ui_state.cursor_index = max_idx;
+                app_state.set_block_type_region(
+                    crate::state::BlockType::Undefined,
+                    Some(start),
+                    end,
+                );
+                ui_state.selection_start = None;
+                ui_state.is_visual_mode = false;
+
+                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
+                    ui_state.cursor_index = idx;
+                }
+            } else {
+                app_state.set_block_type_region(
+                    crate::state::BlockType::Undefined,
+                    ui_state.selection_start,
+                    ui_state.cursor_index,
+                );
             }
         }
         MenuAction::JumpToAddress => {
@@ -1597,6 +1655,15 @@ fn execute_menu_action(
                 if len % 2 != 0 {
                     ui_state.set_status_message("Error: LoHi requires even number of bytes");
                 } else {
+                    // Calculate target address (last byte of the selection)
+                    let target_address = if let Some(line) = app_state.disassembly.get(end) {
+                        line.address
+                            .wrapping_add(line.bytes.len() as u16)
+                            .wrapping_sub(1)
+                    } else {
+                        0
+                    };
+
                     app_state.set_block_type_region(
                         crate::state::BlockType::LoHi,
                         Some(start),
@@ -1604,6 +1671,12 @@ fn execute_menu_action(
                     );
                     ui_state.selection_start = None;
                     ui_state.is_visual_mode = false;
+
+                    // Move cursor to the line containing target_address
+                    if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
+                        ui_state.cursor_index = idx;
+                    }
+
                     ui_state.set_status_message("Set block type to Lo/Hi Address");
                 }
             } else {
@@ -1620,6 +1693,15 @@ fn execute_menu_action(
                 if len % 2 != 0 {
                     ui_state.set_status_message("Error: HiLo requires even number of bytes");
                 } else {
+                    // Calculate target address (last byte of the selection)
+                    let target_address = if let Some(line) = app_state.disassembly.get(end) {
+                        line.address
+                            .wrapping_add(line.bytes.len() as u16)
+                            .wrapping_sub(1)
+                    } else {
+                        0
+                    };
+
                     app_state.set_block_type_region(
                         crate::state::BlockType::HiLo,
                         Some(start),
@@ -1627,6 +1709,12 @@ fn execute_menu_action(
                     );
                     ui_state.selection_start = None;
                     ui_state.is_visual_mode = false;
+
+                    // Move cursor to the line containing target_address
+                    if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
+                        ui_state.cursor_index = idx;
+                    }
+
                     ui_state.set_status_message("Set block type to Hi/Lo Address");
                 }
             } else {

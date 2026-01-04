@@ -692,6 +692,24 @@ impl AppState {
             .position(|line| line.address >= address)
     }
 
+    pub fn get_line_index_containing_address(&self, address: u16) -> Option<usize> {
+        self.disassembly.iter().position(|line| {
+            let start = line.address;
+            let len = line.bytes.len() as u16;
+            if len == 0 {
+                return false;
+            }
+            let end = start.wrapping_add(len);
+
+            if start < end {
+                address >= start && address < end
+            } else {
+                // Wrap around case
+                address >= start || address < end
+            }
+        })
+    }
+
     pub fn is_dirty(&self) -> bool {
         self.undo_stack.get_pointer() != self.last_saved_pointer
     }
