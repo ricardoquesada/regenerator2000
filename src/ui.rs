@@ -83,6 +83,10 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     if ui_state.origin_dialog.active {
         render_origin_dialog(f, f.area(), &ui_state.origin_dialog, &ui_state.theme);
     }
+
+    if ui_state.search_dialog.active {
+        render_search_dialog(f, f.area(), &ui_state.search_dialog, &ui_state.theme);
+    }
 }
 
 fn render_confirmation_dialog(
@@ -763,6 +767,46 @@ fn render_jump_dialog(
     let input = Paragraph::new(dialog.input.clone()).block(block).style(
         Style::default()
             .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD),
+    );
+    f.render_widget(input, area);
+}
+
+fn render_search_dialog(
+    f: &mut Frame,
+    area: Rect,
+    dialog: &crate::ui_state::SearchDialogState,
+    theme: &crate::theme::Theme,
+) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Search ")
+        .border_style(Style::default().fg(theme.dialog_border))
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+
+    // Fixed height of 3 (Border + Input + Border)
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Fill(1),
+            Constraint::Length(3),
+            Constraint::Fill(1),
+        ])
+        .split(area);
+
+    let area = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage(25),
+            Constraint::Percentage(50),
+            Constraint::Percentage(25),
+        ])
+        .split(layout[1])[1];
+    f.render_widget(ratatui::widgets::Clear, area);
+
+    let input = Paragraph::new(dialog.input.clone()).block(block).style(
+        Style::default()
+            .fg(theme.highlight_fg)
             .add_modifier(Modifier::BOLD),
     );
     f.render_widget(input, area);

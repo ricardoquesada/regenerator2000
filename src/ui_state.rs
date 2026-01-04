@@ -51,6 +51,9 @@ pub enum MenuAction {
     SystemSettings,
     NextImmediateFormat,
     PreviousImmediateFormat,
+    Search,
+    FindNext,
+    FindPrevious,
 }
 
 impl MenuAction {
@@ -62,7 +65,35 @@ impl MenuAction {
                 | MenuAction::About
                 | MenuAction::KeyboardShortcuts
                 | MenuAction::SystemSettings
+                | MenuAction::Search
         )
+    }
+}
+
+pub struct SearchDialogState {
+    pub active: bool,
+    pub input: String,
+    pub last_search: String,
+}
+
+impl SearchDialogState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            input: String::new(),
+            last_search: String::new(),
+        }
+    }
+
+    pub fn open(&mut self) {
+        self.active = true;
+        // Pre-fill with last search is a nice touch, but optional.
+        self.input = self.last_search.clone();
+    }
+
+    pub fn close(&mut self) {
+        self.active = false;
+        // Keep input for next time or save to last_search when executing
     }
 }
 
@@ -546,6 +577,18 @@ impl MenuState {
                     ],
                 },
                 MenuCategory {
+                    name: "Search".to_string(),
+                    items: vec![
+                        MenuItem::new("Search...", Some("Ctrl+F"), Some(MenuAction::Search)),
+                        MenuItem::new("Find Next", Some("F3"), Some(MenuAction::FindNext)),
+                        MenuItem::new(
+                            "Find Previous",
+                            Some("Shift+F3"),
+                            Some(MenuAction::FindPrevious),
+                        ),
+                    ],
+                },
+                MenuCategory {
                     name: "View".to_string(),
                     items: vec![
                         MenuItem::new(
@@ -656,7 +699,12 @@ impl MenuState {
         }
         self.selected_item = None;
     }
-    pub fn update_availability(&mut self, app_state: &crate::state::AppState, cursor_index: usize) {
+    pub fn update_availability(
+        &mut self,
+        app_state: &crate::state::AppState,
+        cursor_index: usize,
+        last_search_empty: bool,
+    ) {
         let has_document = !app_state.raw_data.is_empty();
         for category in &mut self.categories {
             for item in &mut category.items {
@@ -666,6 +714,9 @@ impl MenuState {
                     } else {
                         // Context-specific checks
                         match action {
+                            MenuAction::FindNext | MenuAction::FindPrevious => {
+                                item.disabled = last_search_empty;
+                            }
                             MenuAction::NextImmediateFormat
                             | MenuAction::PreviousImmediateFormat => {
                                 let mut is_immediate = false;
@@ -738,6 +789,7 @@ pub struct UIState {
     pub origin_dialog: OriginDialogState,
     pub confirmation_dialog: ConfirmationDialogState,
     pub system_settings_dialog: SystemSettingsDialogState,
+    pub search_dialog: SearchDialogState,
     pub menu: MenuState,
 
     pub navigation_history: Vec<(ActivePane, usize)>,
@@ -784,6 +836,7 @@ impl UIState {
             origin_dialog: OriginDialogState::new(),
             confirmation_dialog: ConfirmationDialogState::new(),
             system_settings_dialog: SystemSettingsDialogState::new(),
+            search_dialog: SearchDialogState::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),
             disassembly_state: ListState::default(),

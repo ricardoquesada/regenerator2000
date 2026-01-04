@@ -12,9 +12,11 @@ pub fn run_app<B: Backend>(
 ) -> io::Result<()> {
     loop {
         // Update menu availability based on current state
-        ui_state
-            .menu
-            .update_availability(&app_state, ui_state.cursor_index);
+        ui_state.menu.update_availability(
+            &app_state,
+            ui_state.cursor_index,
+            ui_state.search_dialog.last_search.is_empty(),
+        );
 
         terminal.draw(|f| ui(f, &app_state, &mut ui_state))?;
 
@@ -408,6 +410,25 @@ pub fn run_app<B: Backend>(
                                 }
                             }
                         }
+                    }
+                    _ => {}
+                }
+            } else if ui_state.search_dialog.active {
+                match key.code {
+                    KeyCode::Esc => {
+                        ui_state.search_dialog.close();
+                        ui_state.set_status_message("Ready");
+                    }
+                    KeyCode::Enter => {
+                        ui_state.search_dialog.last_search = ui_state.search_dialog.input.clone();
+                        ui_state.search_dialog.close();
+                        perform_search(&mut app_state, &mut ui_state, true);
+                    }
+                    KeyCode::Backspace => {
+                        ui_state.search_dialog.input.pop();
+                    }
+                    KeyCode::Char(c) => {
+                        ui_state.search_dialog.input.push(c);
                     }
                     _ => {}
                 }
@@ -808,6 +829,28 @@ pub fn run_app<B: Backend>(
                             &mut ui_state,
                             crate::ui_state::MenuAction::Open,
                         )
+                    }
+                    KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::Search,
+                        );
+                    }
+                    KeyCode::F(3) => {
+                        if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::FindPrevious,
+                            );
+                        } else {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::FindNext,
+                            );
+                        }
                     }
                     KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         if key.modifiers.contains(KeyModifiers::SHIFT) {
@@ -1648,6 +1691,16 @@ fn execute_menu_action(
                 .open(crate::ui_state::JumpDialogMode::Line);
             ui_state.status_message = "Enter Line Number (Dec)".to_string();
         }
+        MenuAction::Search => {
+            ui_state.search_dialog.open();
+            ui_state.set_status_message("Search...");
+        }
+        MenuAction::FindNext => {
+            perform_search(app_state, ui_state, true);
+        }
+        MenuAction::FindPrevious => {
+            perform_search(app_state, ui_state, false);
+        }
         MenuAction::JumpToOperand => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                 // Try to extract address from operand.
@@ -1989,4 +2042,127 @@ fn execute_menu_action(
             }
         }
     }
+}
+
+fn perform_search(app_state: &mut crate::state::AppState, ui_state: &mut UIState, forward: bool) {
+    let query = &ui_state.search_dialog.last_search;
+    if query.is_empty() {
+        ui_state.set_status_message("No search query");
+        return;
+    }
+
+    let query_lower = query.to_lowercase();
+    let disassembly_len = app_state.disassembly.len();
+    if disassembly_len == 0 {
+        return;
+    }
+
+    let start_idx = if forward {
+        // Start from next line
+        if ui_state.cursor_index + 1 < disassembly_len {
+            ui_state.cursor_index + 1
+        } else {
+            0 // Wrap
+        }
+    } else {
+        if ui_state.cursor_index > 0 {
+            ui_state.cursor_index - 1
+        } else {
+            disassembly_len.saturating_sub(1)
+        }
+    };
+
+    let mut found_idx = None;
+
+    // Iterate len times to cover the whole buffer if we wrap.
+    // We implement a simple linear search from start_idx.
+
+    for i in 0..disassembly_len {
+        let idx = if forward {
+            (start_idx + i) % disassembly_len
+        } else {
+            // backward wrap
+            if i <= start_idx {
+                start_idx - i
+            } else {
+                disassembly_len - (i - start_idx)
+            }
+        };
+
+        if let Some(line) = app_state.disassembly.get(idx) {
+            if match_search(line, &query_lower) {
+                found_idx = Some(idx);
+                break;
+            }
+        }
+    }
+
+    if let Some(idx) = found_idx {
+        ui_state
+            .navigation_history
+            .push((ui_state.active_pane, ui_state.cursor_index));
+        ui_state.cursor_index = idx;
+        ui_state.set_status_message(format!("Found '{}'", query));
+    } else {
+        ui_state.set_status_message(format!("'{}' not found", query));
+    }
+}
+
+fn match_search(line: &crate::disassembler::DisassemblyLine, query_lower: &str) -> bool {
+    // Free search: address, bytes, mnemonic, operand, comments, labels
+
+    // Address
+    if format!("{:04x}", line.address).contains(query_lower) {
+        return true;
+    }
+
+    // Bytes (hex string)
+    // We can format bytes as hex string and check.
+    // e.g. "A9 00" -> "a900" or "a9 00"
+    // Let's check hex string without spaces for robust matching of byte sequences
+    let bytes_hex = line
+        .bytes
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>();
+    if bytes_hex.contains(query_lower) {
+        return true;
+    }
+
+    // Also with spaces?
+    let bytes_hex_spaces = line
+        .bytes
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<Vec<_>>()
+        .join(" ");
+    if bytes_hex_spaces.contains(query_lower) {
+        return true;
+    }
+
+    if line.mnemonic.to_lowercase().contains(query_lower) {
+        return true;
+    }
+
+    if line.operand.to_lowercase().contains(query_lower) {
+        return true;
+    }
+
+    if line.comment.to_lowercase().contains(query_lower) {
+        return true;
+    }
+
+    if let Some(lc) = &line.line_comment {
+        if lc.to_lowercase().contains(query_lower) {
+            return true;
+        }
+    }
+
+    if let Some(lbl) = &line.label {
+        if lbl.to_lowercase().contains(query_lower) {
+            return true;
+        }
+    }
+
+    false
 }
