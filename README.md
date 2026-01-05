@@ -1,4 +1,4 @@
-# Regenerator 2000 ![Rust](https://github.com/ricardoquesada/regenerator2000/actions/workflows/rust.yml/badge.svg)
+# Regenerator 2000 ![Rust](https://github.com/ricardoquesada/regenerator2000/actions/workflows/rust.yml/badge.svg) [![Crates.io Version](https://img.shields.io/crates/v/regenerator2000)](https://crates.io/crates/regenerator2000)
 
 ![logo](docs/regenerator2000_logo.png)
 
