@@ -15,6 +15,8 @@ mod brk_tests;
 #[cfg(test)]
 mod illegal_opcodes_tests;
 #[cfg(test)]
+mod label_placement_tests;
+#[cfg(test)]
 mod line_comment_tests;
 #[cfg(test)]
 mod system_comments_tests;
@@ -157,6 +159,7 @@ impl Disassembler {
                     formatter.as_ref(),
                     labels,
                     origin,
+                    settings,
                     label_name,
                     side_comment,
                     line_comment,
@@ -169,6 +172,7 @@ impl Disassembler {
                     formatter.as_ref(),
                     labels,
                     origin,
+                    settings,
                     label_name,
                     side_comment,
                     line_comment,
@@ -1127,6 +1131,7 @@ impl Disassembler {
         formatter: &dyn Formatter,
         labels: &BTreeMap<u16, Vec<Label>>,
         origin: u16,
+        settings: &DocumentSettings,
         label_name: Option<String>,
         side_comment: String,
         line_comment: Option<String>,
@@ -1137,7 +1142,7 @@ impl Disassembler {
         let mut current_literal = String::new();
         let mut count = 0;
 
-        while pc + count < data.len() && count < 32 {
+        while pc + count < data.len() && count < settings.text_char_limit {
             let current_pc = pc + count;
             let current_address = origin.wrapping_add(current_pc as u16);
 
@@ -1178,6 +1183,13 @@ impl Disassembler {
             let formatted_lines = formatter.format_text(&fragments, is_start, is_end);
             let mut disassembly_lines = Vec::new();
 
+            // Find the first line that emits bytes to attach the label to.
+            // For 64tass, this avoids attaching labels to .encode directives where they are not allowed.
+            let first_byte_line_index = formatted_lines
+                .iter()
+                .position(|(_, _, has_bytes)| *has_bytes)
+                .unwrap_or(0);
+
             // We need to attach bytes to lines.
             // Since we merged everything into one line (usually), we attach ALL bytes to that line ?
             // Or if format_text returning multiple lines (header/footer), we attach to the main one.
@@ -1195,8 +1207,12 @@ impl Disassembler {
                 } else {
                     Vec::new()
                 };
-                let line_label = if i == 0 { label_name.clone() } else { None };
-                let (line_side_comment, line_line_comment) = if i == 0 {
+                let line_label = if i == first_byte_line_index {
+                    label_name.clone()
+                } else {
+                    None
+                };
+                let (line_side_comment, line_line_comment) = if i == first_byte_line_index {
                     (side_comment.clone(), line_comment.clone())
                 } else {
                     (String::new(), None)
@@ -1243,6 +1259,7 @@ impl Disassembler {
         formatter: &dyn Formatter,
         labels: &BTreeMap<u16, Vec<Label>>,
         origin: u16,
+        settings: &DocumentSettings,
         label_name: Option<String>,
         side_comment: String,
         line_comment: Option<String>,
@@ -1253,7 +1270,7 @@ impl Disassembler {
         let mut current_literal = String::new();
         let mut count = 0;
 
-        while pc + count < data.len() && count < 32 {
+        while pc + count < data.len() && count < settings.text_char_limit {
             let current_pc = pc + count;
             let current_address = origin.wrapping_add(current_pc as u16);
 
@@ -1337,6 +1354,12 @@ impl Disassembler {
 
             let mut disassembly_lines = Vec::new();
 
+            // Find the first line that emits bytes to attach the label to (e.g. the body .text line).
+            let first_byte_line_index = all_formatted_parts
+                .iter()
+                .position(|(_, _, has_bytes)| *has_bytes)
+                .unwrap_or(0);
+
             // Collect all consumed bytes for line association
             let mut all_bytes = Vec::new();
             for i in 0..count {
@@ -1351,8 +1374,12 @@ impl Disassembler {
                 } else {
                     Vec::new()
                 };
-                let line_label = if i == 0 { label_name.clone() } else { None };
-                let (line_side_comment, line_line_comment) = if i == 0 {
+                let line_label = if i == first_byte_line_index {
+                    label_name.clone()
+                } else {
+                    None
+                };
+                let (line_side_comment, line_line_comment) = if i == first_byte_line_index {
                     (side_comment.clone(), line_comment.clone())
                 } else {
                     (String::new(), None)

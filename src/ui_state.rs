@@ -398,6 +398,8 @@ pub struct SettingsDialogState {
     pub xref_count_input: String,
     pub is_editing_arrow_columns: bool,
     pub arrow_columns_input: String,
+    pub is_editing_text_char_limit: bool,
+    pub text_char_limit_input: String,
 }
 
 impl SettingsDialogState {
@@ -411,6 +413,8 @@ impl SettingsDialogState {
             xref_count_input: String::new(),
             is_editing_arrow_columns: false,
             arrow_columns_input: String::new(),
+            is_editing_text_char_limit: false,
+            text_char_limit_input: String::new(),
         }
     }
 
@@ -423,6 +427,8 @@ impl SettingsDialogState {
         self.xref_count_input.clear();
         self.is_editing_arrow_columns = false;
         self.arrow_columns_input.clear();
+        self.is_editing_text_char_limit = false;
+        self.text_char_limit_input.clear();
     }
 
     pub fn close(&mut self) {
@@ -440,12 +446,13 @@ impl SettingsDialogState {
         // 6: Max X-Refs
         // 7: Arrow Columns
         // 8: Use Illegal Opcodes
-        let max_items = 9;
+        // 9: Text Line Limit
+        let max_items = 10;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 9;
+        let max_items = 10;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {

@@ -568,6 +568,9 @@ pub fn run_app<B: Backend>(
                         } else if ui_state.settings_dialog.is_editing_arrow_columns {
                             ui_state.settings_dialog.is_editing_arrow_columns = false;
                             ui_state.settings_dialog.arrow_columns_input.clear();
+                        } else if ui_state.settings_dialog.is_editing_text_char_limit {
+                            ui_state.settings_dialog.is_editing_text_char_limit = false;
+                            ui_state.settings_dialog.text_char_limit_input.clear();
                         } else {
                             ui_state.settings_dialog.close();
                             ui_state.set_status_message("Ready");
@@ -605,6 +608,7 @@ pub fn run_app<B: Backend>(
                             app_state.settings.assembler = assemblers[new_idx];
                         } else if !ui_state.settings_dialog.is_editing_xref_count
                             && !ui_state.settings_dialog.is_editing_arrow_columns
+                            && !ui_state.settings_dialog.is_editing_text_char_limit
                         {
                             ui_state.settings_dialog.previous();
                         }
@@ -612,6 +616,7 @@ pub fn run_app<B: Backend>(
                     KeyCode::Left => {
                         if !ui_state.settings_dialog.is_editing_xref_count
                             && !ui_state.settings_dialog.is_editing_arrow_columns
+                            && !ui_state.settings_dialog.is_editing_text_char_limit
                         {
                             match ui_state.settings_dialog.selected_index {
                                 7 => {
@@ -622,6 +627,10 @@ pub fn run_app<B: Backend>(
                                     app_state.settings.max_arrow_columns =
                                         app_state.settings.max_arrow_columns.saturating_sub(1);
                                 }
+                                9 => {
+                                    app_state.settings.text_char_limit =
+                                        app_state.settings.text_char_limit.saturating_sub(1);
+                                }
                                 _ => {}
                             }
                         }
@@ -629,6 +638,7 @@ pub fn run_app<B: Backend>(
                     KeyCode::Right => {
                         if !ui_state.settings_dialog.is_editing_xref_count
                             && !ui_state.settings_dialog.is_editing_arrow_columns
+                            && !ui_state.settings_dialog.is_editing_text_char_limit
                         {
                             match ui_state.settings_dialog.selected_index {
                                 7 => {
@@ -638,6 +648,10 @@ pub fn run_app<B: Backend>(
                                 8 => {
                                     app_state.settings.max_arrow_columns =
                                         app_state.settings.max_arrow_columns.saturating_add(1);
+                                }
+                                9 => {
+                                    app_state.settings.text_char_limit =
+                                        app_state.settings.text_char_limit.saturating_add(1);
                                 }
                                 _ => {}
                             }
@@ -664,6 +678,7 @@ pub fn run_app<B: Backend>(
                             app_state.settings.assembler = assemblers[new_idx];
                         } else if !ui_state.settings_dialog.is_editing_xref_count
                             && !ui_state.settings_dialog.is_editing_arrow_columns
+                            && !ui_state.settings_dialog.is_editing_text_char_limit
                         {
                             ui_state.settings_dialog.next();
                         }
@@ -690,6 +705,16 @@ pub fn run_app<B: Backend>(
                             {
                                 app_state.settings.max_arrow_columns = val;
                                 ui_state.settings_dialog.is_editing_arrow_columns = false;
+                            }
+                        } else if ui_state.settings_dialog.is_editing_text_char_limit {
+                            // Commit value
+                            if let Ok(val) = ui_state
+                                .settings_dialog
+                                .text_char_limit_input
+                                .parse::<usize>()
+                            {
+                                app_state.settings.text_char_limit = val;
+                                ui_state.settings_dialog.is_editing_text_char_limit = false;
                             }
                         } else {
                             // Toggle checkbox or enter mode
@@ -732,6 +757,11 @@ pub fn run_app<B: Backend>(
                                     ui_state.settings_dialog.arrow_columns_input =
                                         app_state.settings.max_arrow_columns.to_string();
                                 }
+                                9 => {
+                                    ui_state.settings_dialog.is_editing_text_char_limit = true;
+                                    ui_state.settings_dialog.text_char_limit_input =
+                                        app_state.settings.text_char_limit.to_string();
+                                }
                                 _ => {}
                             }
                         }
@@ -741,6 +771,8 @@ pub fn run_app<B: Backend>(
                             ui_state.settings_dialog.xref_count_input.pop();
                         } else if ui_state.settings_dialog.is_editing_arrow_columns {
                             ui_state.settings_dialog.arrow_columns_input.pop();
+                        } else if ui_state.settings_dialog.is_editing_text_char_limit {
+                            ui_state.settings_dialog.text_char_limit_input.pop();
                         }
                     }
                     KeyCode::Char(c) => {
@@ -750,6 +782,10 @@ pub fn run_app<B: Backend>(
                             && c.is_ascii_digit()
                         {
                             ui_state.settings_dialog.arrow_columns_input.push(c);
+                        } else if ui_state.settings_dialog.is_editing_text_char_limit
+                            && c.is_ascii_digit()
+                        {
+                            ui_state.settings_dialog.text_char_limit_input.push(c);
                         }
                     }
                     _ => {}

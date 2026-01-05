@@ -416,6 +416,7 @@ fn render_settings_dialog(
             Constraint::Length(2), // Assembler (increased to 2 to match platform spacing style/consistency if needed, or keeping previous logic) -- Previous was Min(1). Let's stick to consistent spacing.
             Constraint::Length(2), // Max X-Refs
             Constraint::Length(2), // Arrow Columns
+            Constraint::Length(2), // Text Line Limit
         ])
         .split(inner);
 
@@ -529,6 +530,28 @@ fn render_settings_dialog(
     f.render_widget(
         arrow_widget,
         Rect::new(layout[4].x + 2, layout[4].y, layout[4].width - 4, 1),
+    );
+
+    // Text Line Limit
+    let text_limit_selected = dialog.selected_index == 9;
+    let text_limit_value_str = if dialog.is_editing_text_char_limit {
+        dialog.text_char_limit_input.clone()
+    } else {
+        settings.text_char_limit.to_string()
+    };
+    let text_limit_text = format!("Text Line Limit: < {} >", text_limit_value_str);
+
+    let text_limit_widget = Paragraph::new(text_limit_text).style(if text_limit_selected {
+        Style::default()
+            .fg(theme.highlight_fg)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(theme.dialog_fg)
+    });
+
+    f.render_widget(
+        text_limit_widget,
+        Rect::new(layout[5].x + 2, layout[5].y, layout[5].width - 4, 1),
     );
 
     // Platform Popup

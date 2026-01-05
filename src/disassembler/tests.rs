@@ -102,6 +102,93 @@ fn test_acme_formatting_basic() {
 }
 
 #[test]
+fn test_text_char_limit_configurable() {
+    let mut settings = DocumentSettings::default();
+    settings.text_char_limit = 10;
+    settings.assembler = Assembler::Acme; // Use Acme for simpler output (!text)
+
+    // "Hello World This Is Long" is 24 chars
+    let data = b"Hello World This Is Long".to_vec();
+    let block_types = vec![BlockType::Text; data.len()];
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    let lines = disassembler.disassemble(
+        &data,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    // With limit 10, it should split:
+    // "Hello Worl" (10 chars)
+    // "d This Is " (10 chars)
+    // "Long" (4 chars)
+
+    assert_eq!(lines.len(), 3);
+    assert_eq!(lines[0].operand, "\"Hello Worl\"");
+    assert_eq!(lines[1].operand, "\"d This Is \"");
+    assert_eq!(lines[2].operand, "\"Long\"");
+}
+
+#[test]
+fn test_screencode_limit_configurable() {
+    let mut settings = DocumentSettings::default();
+    settings.text_char_limit = 10;
+    settings.assembler = Assembler::Tass64;
+
+    // "ABC...J" (10 chars) + "KLM...T" (10 chars)
+    // 0x01..0x14 (A..T)
+    let mut data = Vec::new();
+    for i in 1..=20 {
+        data.push(i as u8);
+    }
+    let block_types = vec![BlockType::Screencode; data.len()];
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    let lines = disassembler.disassemble(
+        &data,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    // Tass wrapping: .encode, .enc "...", .text (10), .text (10), .endencode
+    // Lines:
+    // 0: .encode
+    // 1: .enc "screen"
+    // 2: .text "ABCDEFGHIJ"
+    // 3: .text "KLMNOPQRST"
+    // 4: .endencode
+
+    // Filter for .text lines
+    let text_lines: Vec<&DisassemblyLine> =
+        lines.iter().filter(|l| l.mnemonic == ".text").collect();
+
+    assert_eq!(text_lines.len(), 2);
+    // Tass formatter typically outputs quoted strings
+    assert_eq!(text_lines[0].operand, "\"ABCDEFGHIJ\"");
+    assert_eq!(text_lines[1].operand, "\"KLMNOPQRST\"");
+}
+
+#[test]
 fn test_acme_directives() {
     let settings = DocumentSettings {
         assembler: Assembler::Acme,
@@ -818,6 +905,7 @@ fn test_tass_screencode_enc_wrapping() {
 fn test_tass_screencode_multiline_wrapping() {
     let settings = DocumentSettings {
         assembler: Assembler::Tass64,
+        text_char_limit: 32,
         ..Default::default()
     };
 

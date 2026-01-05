@@ -86,6 +86,12 @@ pub struct DocumentSettings {
     pub max_arrow_columns: usize, // default 6
     #[serde(default)]
     pub use_illegal_opcodes: bool, // default false
+    #[serde(default = "default_text_char_limit")]
+    pub text_char_limit: usize, // default 40
+}
+
+fn default_text_char_limit() -> usize {
+    40
 }
 
 fn default_true() -> bool {
@@ -112,6 +118,7 @@ impl Default for DocumentSettings {
             max_xref_count: 5,
             max_arrow_columns: 6,
             use_illegal_opcodes: false,
+            text_char_limit: 40,
         }
     }
 }
