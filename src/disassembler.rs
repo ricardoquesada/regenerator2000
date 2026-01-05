@@ -11,6 +11,8 @@ use formatter::Formatter;
 use tass::TassFormatter;
 
 #[cfg(test)]
+mod illegal_opcodes_tests;
+#[cfg(test)]
 mod line_comment_tests;
 #[cfg(test)]
 mod system_comments_tests;
@@ -653,7 +655,9 @@ impl Disassembler {
         let opcode_byte = data[pc];
         let opcode_opt = &self.opcodes[opcode_byte as usize];
 
-        if let Some(opcode) = opcode_opt {
+        if let Some(opcode) = opcode_opt
+            && (!opcode.illegal || settings.use_illegal_opcodes)
+        {
             let mut bytes = vec![opcode_byte];
 
             // Check if we have enough bytes

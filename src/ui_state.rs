@@ -439,12 +439,13 @@ impl SettingsDialogState {
         // 5: Assembler
         // 6: Max X-Refs
         // 7: Arrow Columns
-        let max_items = 8;
+        // 8: Use Illegal Opcodes
+        let max_items = 9;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 8;
+        let max_items = 9;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {

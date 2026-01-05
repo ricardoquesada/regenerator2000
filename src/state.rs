@@ -84,6 +84,8 @@ pub struct DocumentSettings {
     pub max_xref_count: usize, // default 5
     #[serde(default = "default_max_arrow_columns")]
     pub max_arrow_columns: usize, // default 6
+    #[serde(default)]
+    pub use_illegal_opcodes: bool, // default false
 }
 
 fn default_true() -> bool {
@@ -109,6 +111,7 @@ impl Default for DocumentSettings {
             assembler: Assembler::default(),
             max_xref_count: 5,
             max_arrow_columns: 6,
+            use_illegal_opcodes: false,
         }
     }
 }

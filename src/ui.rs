@@ -400,6 +400,12 @@ fn render_settings_dialog(
             dialog.selected_index == 3,
             patch_brk_disabled,
         ),
+        checkbox(
+            "Use Illegal Opcodes",
+            settings.use_illegal_opcodes,
+            dialog.selected_index == 4,
+            false,
+        ),
     ];
 
     let layout = Layout::default()
@@ -438,7 +444,7 @@ fn render_settings_dialog(
     let platforms = crate::state::Platform::all();
 
     // Check if platform is selected
-    let platform_selected = dialog.selected_index == 4;
+    let platform_selected = dialog.selected_index == 5;
 
     let platform_text = format!("Platform: < {} >", settings.platform);
     let platform_widget = Paragraph::new(platform_text).style(if platform_selected {
@@ -465,7 +471,7 @@ fn render_settings_dialog(
     // Yes, it seems redundant or intentional. "Platform: < C64 >" contains the label text too.
     // I'll stick to the "Platform: < ... >" format for Assembler too.
 
-    let assembler_selected = dialog.selected_index == 5;
+    let assembler_selected = dialog.selected_index == 6;
     let assembler_text = format!("Assembler: < {} >", settings.assembler);
 
     let assembler_widget = Paragraph::new(assembler_text).style(if assembler_selected {
@@ -483,7 +489,7 @@ fn render_settings_dialog(
     );
 
     // X-Refs uses layout[3]
-    let xref_selected = dialog.selected_index == 6;
+    let xref_selected = dialog.selected_index == 7;
     let xref_value_str = if dialog.is_editing_xref_count {
         dialog.xref_count_input.clone()
     } else {
@@ -492,7 +498,7 @@ fn render_settings_dialog(
     let xref_text = format!("Max X-Refs: < {} >", xref_value_str);
 
     // Arrow Columns
-    let arrow_selected = dialog.selected_index == 7;
+    let arrow_selected = dialog.selected_index == 8;
     let arrow_value_str = if dialog.is_editing_arrow_columns {
         dialog.arrow_columns_input.clone()
     } else {

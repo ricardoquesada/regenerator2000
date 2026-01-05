@@ -614,11 +614,11 @@ pub fn run_app<B: Backend>(
                             && !ui_state.settings_dialog.is_editing_arrow_columns
                         {
                             match ui_state.settings_dialog.selected_index {
-                                6 => {
+                                7 => {
                                     app_state.settings.max_xref_count =
                                         app_state.settings.max_xref_count.saturating_sub(1);
                                 }
-                                7 => {
+                                8 => {
                                     app_state.settings.max_arrow_columns =
                                         app_state.settings.max_arrow_columns.saturating_sub(1);
                                 }
@@ -631,11 +631,11 @@ pub fn run_app<B: Backend>(
                             && !ui_state.settings_dialog.is_editing_arrow_columns
                         {
                             match ui_state.settings_dialog.selected_index {
-                                6 => {
+                                7 => {
                                     app_state.settings.max_xref_count =
                                         app_state.settings.max_xref_count.saturating_add(1);
                                 }
-                                7 => {
+                                8 => {
                                     app_state.settings.max_arrow_columns =
                                         app_state.settings.max_arrow_columns.saturating_add(1);
                                 }
@@ -713,17 +713,21 @@ pub fn run_app<B: Backend>(
                                     }
                                 }
                                 4 => {
-                                    ui_state.settings_dialog.is_selecting_platform = true;
+                                    app_state.settings.use_illegal_opcodes =
+                                        !app_state.settings.use_illegal_opcodes;
                                 }
                                 5 => {
-                                    ui_state.settings_dialog.is_selecting_assembler = true;
+                                    ui_state.settings_dialog.is_selecting_platform = true;
                                 }
                                 6 => {
+                                    ui_state.settings_dialog.is_selecting_assembler = true;
+                                }
+                                7 => {
                                     ui_state.settings_dialog.is_editing_xref_count = true;
                                     ui_state.settings_dialog.xref_count_input =
                                         app_state.settings.max_xref_count.to_string();
                                 }
-                                7 => {
+                                8 => {
                                     ui_state.settings_dialog.is_editing_arrow_columns = true;
                                     ui_state.settings_dialog.arrow_columns_input =
                                         app_state.settings.max_arrow_columns.to_string();

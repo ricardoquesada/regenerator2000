@@ -861,6 +861,7 @@ mod tests {
             size: 3,
             cycles: 4,
             description: "Store Accumulator",
+            illegal: false,
         });
 
         let (labels_map, _) = analyze(&app_state);
@@ -889,6 +890,7 @@ mod tests {
             size: 3,
             cycles: 5,
             description: "Store Accumulator",
+            illegal: false,
         });
 
         let (labels_map, _) = analyze(&app_state);
@@ -936,6 +938,7 @@ mod tests {
             size: 3,
             cycles: 5,
             description: "Jump Indirect",
+            illegal: false,
         });
         // LDA IndirectY
         app_state.disassembler.opcodes[0xB1] = Some(crate::cpu::Opcode {
@@ -944,6 +947,7 @@ mod tests {
             size: 2,
             cycles: 5,
             description: "Load Accumulator Indirect Y",
+            illegal: false,
         });
 
         let (labels_map, _) = analyze(&app_state);
