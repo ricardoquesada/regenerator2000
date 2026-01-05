@@ -1622,7 +1622,11 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                     Style::default().fg(ui_state.theme.operand),
                 ),
                 Span::styled(
-                    format!("; {}", line.comment),
+                    if line.comment.is_empty() {
+                        String::new()
+                    } else {
+                        format!("; {}", line.comment)
+                    },
                     Style::default().fg(ui_state.theme.comment),
                 ),
             ]);
