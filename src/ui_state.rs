@@ -547,7 +547,7 @@ impl MenuState {
                         MenuItem::separator(),
                         MenuItem::new("Change Origin", None, Some(MenuAction::ChangeOrigin)),
                         MenuItem::separator(),
-                        MenuItem::new("Analyze", None, Some(MenuAction::Analyze)),
+                        MenuItem::new("Analyze", Some("Ctrl+A"), Some(MenuAction::Analyze)),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Document Settings",

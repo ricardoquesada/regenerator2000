@@ -2,7 +2,7 @@ use crate::state::AppState;
 use crate::ui::ui;
 use crate::ui_state::{ActivePane, SaveDialogMode, UIState};
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
-use ratatui::{backend::Backend, Terminal};
+use ratatui::{Terminal, backend::Backend};
 use std::io;
 
 pub fn run_app<B: Backend>(
@@ -868,6 +868,13 @@ pub fn run_app<B: Backend>(
                             crate::ui_state::MenuAction::Search,
                         );
                     }
+                    KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::Analyze,
+                        );
+                    }
                     KeyCode::F(3) => {
                         if key.modifiers.contains(KeyModifiers::SHIFT) {
                             handle_menu_action(
@@ -1485,10 +1492,32 @@ fn execute_menu_action(
             ui_state.set_status_message("Document Settings");
         }
         MenuAction::Analyze => {
+            // Capture current address
+            let current_addr = app_state
+                .disassembly
+                .get(ui_state.cursor_index)
+                .map(|l| l.address);
+
             ui_state.set_status_message(app_state.perform_analysis());
-            // Move cursor to origin
-            if let Some(idx) = app_state.get_line_index_for_address(app_state.origin) {
-                ui_state.cursor_index = idx;
+
+            // Restore cursor
+            if let Some(addr) = current_addr {
+                if let Some(idx) = app_state.get_line_index_containing_address(addr) {
+                    ui_state.cursor_index = idx;
+                } else if let Some(idx) = app_state.get_line_index_for_address(addr) {
+                    // Fallback
+                    ui_state.cursor_index = idx;
+                } else {
+                    // Fallback to origin if address lost
+                    if let Some(idx) = app_state.get_line_index_for_address(app_state.origin) {
+                        ui_state.cursor_index = idx;
+                    }
+                }
+            } else {
+                // If we didn't have a valid cursor (empty?), go to origin
+                if let Some(idx) = app_state.get_line_index_for_address(app_state.origin) {
+                    ui_state.cursor_index = idx;
+                }
             }
         }
         MenuAction::Undo => {

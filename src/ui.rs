@@ -1,11 +1,11 @@
 use crate::state::AppState;
 use crate::ui_state::{ActivePane, UIState};
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
-    Frame,
 };
 use ratatui_image::StatefulImage;
 
@@ -207,6 +207,7 @@ fn render_shortcuts_dialog(
         (";", "Side Comment"),
         (":", "Line Comment"),
         ("l", "Label"),
+        ("Ctrl+A", "Analyze"),
     ];
 
     let items: Vec<ListItem> = shortcuts

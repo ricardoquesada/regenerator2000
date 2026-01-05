@@ -51,54 +51,55 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 
 ## Keyboard Shortcuts
 
-| Context        | Action                            | Shortcut                                |
-|:---------------|:----------------------------------|:----------------------------------------|
-| **Global**     | **Activate Menu**                 | `F10`                                   |
-|                | **Exit**                          | `Ctrl + Q`                              |
-|                | **Open File**                     | `Ctrl + O`                              |
-|                | **Save Project**                  | `Ctrl + S`                              |
-|                | **Save Project As**               | `Ctrl + Shift + S`                      |
-|                | **Export Project (ASM)**          | `Ctrl + E`                              |
-|                | **Export Project As (ASM)**       | `Ctrl + Shift + E`                      |
-|                | **Document Settings**             | `Ctrl + P`                              |
-|                | **Undo**                          | `u`                                     |
-|                | **Redo**                          | `Ctrl + R`                              |
-|                | **Switch Pane (Hex Dump/Disasm)** | `Tab`                                   |
-| **Navigation** | **Move Cursor**                   | `Up` / `Down` / `j` / `k`               |
-|                | **Page Up/Down**                  | `PageUp` / `PageDown`                   |
-|                | **Home/End**                      | `Home` / `End`                          |
-|                | **Jump to Address (Dialog)**      | `g`                                     |
-|                | **Jump to Line (Dialog)**         | `Ctrl + Shift + G`                      |
-|                | **Jump to Line / End of File**    | `[Number] G`                            |
-|                | **Jump to Operand**               | `Enter`                                 |
-|                | **Jump Back (History)**           | `Backspace`                             |
-|                | **Previous/Next 10 Lines**        | `Ctrl + u` / `Ctrl + d`                 |
-| **Search**     | **Vim Search**                    | `/`                                     |
-|                | **Next / Previous Match**         | `n` / `Shift + N`                       |
-|                | **Search Dialog**                 | `Ctrl + F`                              |
-|                | **Find Next / Previous**          | `F3` / `Shift + F3`                     |
-| **Selection**  | **Toggle Visual Mode**            | `V`                                     |
-|                | **Select Text**                   | `Shift + Up/Down` / Visual Mode + `j/k` |
-|                | **Clear Selection**               | `Esc`                                   |
-| **Editing**    | **Set Label**                     | `l`                                     |
-|                | **Add Side Comment**              | `;`                                     |
-|                | **Add Line Comment**              | `:`                                     |
-|                | **Convert to Code**               | `c`                                     |
-|                | **Convert to Byte**               | `b`                                     |
-|                | **Convert to Word**               | `w`                                     |
-|                | **Convert to Address**            | `a`                                     |
-|                | **Convert to Text**               | `t`                                     |
-|                | **Convert to Screencode**         | `s`                                     |
-|                | **Convert to Undefined**          | `U`                                     |
-|                | **Next/Prev Imm. Mode Format**    | `d` / `D`                               |
-|                | **Set Lo/Hi Address**             | `<`                                     |
-|                | **Set Hi/Lo Address**             | `>`                                     |
-| **View**       | **PETSCII Unshifted**             | `Ctrl + Shift + L`                      |
-|                | **PETSCII Shifted**               | `Ctrl + L`                              |
-|                | **Toggle Hex Dump**               | `Ctrl + 2`                              |
-| **Menus**      | **Navigate Menu**                 | Arrows                                  |
-|                | **Select Item**                   | `Enter`                                 |
-|                | **Close Menu**                    | `Esc`                                   |
+| Context        | Action                              | Shortcut                                |
+|:---------------|:------------------------------------|:----------------------------------------|
+| **Global**     | **Activate Menu**                   | `F10`                                   |
+|                | **Exit**                            | `Ctrl + Q`                              |
+|                | **Open File**                       | `Ctrl + O`                              |
+|                | **Save Project**                    | `Ctrl + S`                              |
+|                | **Save Project As**                 | `Ctrl + Shift + S`                      |
+|                | **Export Project (ASM)**            | `Ctrl + E`                              |
+|                | **Export Project As (ASM)**         | `Ctrl + Shift + E`                      |
+|                | **Document Settings**               | `Ctrl + P`                              |
+|                | **Undo**                            | `u`                                     |
+|                | **Redo**                            | `Ctrl + R`                              |
+|                | **Switch Pane (Hex Dump/Disasm)**   | `Tab`                                   |
+| **Navigation** | **Move Cursor**                     | `Up` / `Down` / `j` / `k`               |
+|                | **Page Up/Down**                    | `PageUp` / `PageDown`                   |
+|                | **Home/End**                        | `Home` / `End`                          |
+|                | **Jump to Address (Dialog)**        | `g`                                     |
+|                | **Jump to Line (Dialog)**           | `Ctrl + Shift + G`                      |
+|                | **Jump to Line / End of File**      | `[Number] G`                            |
+|                | **Jump to Operand**                 | `Enter`                                 |
+|                | **Jump Back (History)**             | `Backspace`                             |
+|                | **Previous/Next 10 Lines**          | `Ctrl + u` / `Ctrl + d`                 |
+| **Search**     | **Vim Search**                      | `/`                                     |
+|                | **Next / Previous Match**           | `n` / `Shift + N`                       |
+|                | **Search Dialog**                   | `Ctrl + F`                              |
+|                | **Find Next / Previous**            | `F3` / `Shift + F3`                     |
+| **Selection**  | **Toggle Visual Mode**              | `V`                                     |
+|                | **Select Text**                     | `Shift + Up/Down` / Visual Mode + `j/k` |
+|                | **Clear Selection**                 | `Esc`                                   |
+| **Editing**    | **Set Label**                       | `l`                                     |
+|                | **Add Side Comment**                | `;`                                     |
+|                | **Add Line Comment**                | `:`                                     |
+|                | **Convert to Code**                 | `c`                                     |
+|                | **Convert to Byte**                 | `b`                                     |
+|                | **Convert to Word**                 | `w`                                     |
+|                | **Convert to Address**              | `a`                                     |
+|                | **Convert to Text**                 | `t`                                     |
+|                | **Convert to Screencode**           | `s`                                     |
+|                | **Convert to Undefined**            | `U`                                     |
+|                | **Next/Prev Immediate Mode Format** | `d` / `D`                               |
+|                | **Set Lo/Hi Address**               | `<`                                     |
+|                | **Set Hi/Lo Address**               | `>`                                     |
+|                | **Analyze**                         | `Ctrl + A`                              |
+| **View**       | **PETSCII Unshifted**               | `Ctrl + Shift + L`                      |
+|                | **PETSCII Shifted**                 | `Ctrl + L`                              |
+|                | **Toggle Hex Dump**                 | `Ctrl + 2`                              |
+| **Menus**      | **Navigate Menu**                   | Arrows                                  |
+|                | **Select Item**                     | `Enter`                                 |
+|                | **Close Menu**                      | `Esc`                                   |
 
 ## Build and Run
 

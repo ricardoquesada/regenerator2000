@@ -19,6 +19,26 @@
     },
     {
       "start": 2047,
+      "end": 6142,
+      "type_": "Code"
+    },
+    {
+      "start": 6143,
+      "end": 7166,
+      "type_": "DataByte"
+    },
+    {
+      "start": 7167,
+      "end": 10222,
+      "type_": "Screencode"
+    },
+    {
+      "start": 10223,
+      "end": 10239,
+      "type_": "Text"
+    },
+    {
+      "start": 10240,
       "end": 16602,
       "type_": "Code"
     },
@@ -33,7 +53,38 @@
       "type_": "Code"
     }
   ],
-  "labels": {},
+  "labels": {
+    "4096": [
+      {
+        "name": "setup_vic",
+        "label_type": "UserDefined",
+        "kind": "User",
+        "refs": [
+          6147
+        ]
+      }
+    ],
+    "4178": [
+      {
+        "name": "paint_screen",
+        "label_type": "UserDefined",
+        "kind": "User",
+        "refs": [
+          6150
+        ]
+      }
+    ],
+    "4209": [
+      {
+        "name": "paint_color",
+        "label_type": "UserDefined",
+        "kind": "User",
+        "refs": [
+          4255
+        ]
+      }
+    ]
+  },
   "user_side_comments": {},
   "user_line_comments": {
     "2083": "Boot strap"
@@ -52,7 +103,8 @@
     "2085": "Hex",
     "2091": "Hex",
     "2111": "Hex",
-    "2115": "Hex"
+    "2115": "Hex",
+    "4116": "Binary"
   },
-  "cursor_address": 2097
+  "cursor_address": 2083
 }
