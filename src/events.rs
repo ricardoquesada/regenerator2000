@@ -2154,7 +2154,10 @@ fn match_search(line: &crate::disassembler::DisassemblyLine, query_lower: &str) 
         .iter()
         .map(|b| format!("{:02x}", b))
         .collect::<String>();
-    if bytes_hex.contains(query_lower) {
+    if bytes_hex
+        .match_indices(query_lower)
+        .any(|(idx, _)| idx % 2 == 0)
+    {
         return true;
     }
 
@@ -2194,4 +2197,42 @@ fn match_search(line: &crate::disassembler::DisassemblyLine, query_lower: &str) 
     }
 
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::disassembler::DisassemblyLine;
+
+    #[test]
+    fn test_match_search_bytes_alignment() {
+        let line = DisassemblyLine {
+            address: 0x1000,
+            bytes: vec![0x8D, 0x02, 0x08], // 8d0208
+            mnemonic: "STA".to_string(),
+            operand: "$0802".to_string(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            comment_address: None,
+        };
+
+        // "d020" is in "8d0208" starting at index 1 -> Should FAIL
+        assert!(!match_search(&line, "d020"));
+
+        // "8d02" is in "8d0208" starting at index 0 -> Should PASS
+        assert!(match_search(&line, "8d02"));
+
+        // "0208" is in "8d0208" starting at index 2 -> Should PASS
+        assert!(match_search(&line, "0208"));
+
+        // "d0" is in "8d0208" starting at index 1 -> Should FAIL
+        assert!(!match_search(&line, "d0"));
+
+        // "02" is in "8d0208" starting at index 2 -> Should PASS
+        assert!(match_search(&line, "02"));
+    }
 }
