@@ -14,14 +14,6 @@ const OFFSET_ENTRY_NAME: usize = 16;
 const FILE_TYPE_NORMAL: u8 = 1;
 const SIGNATURE_PREFIX: &str = "C64";
 
-#[derive(Debug)]
-pub struct T64Entry {
-    pub file_type: u8,
-    pub start_address: u16,
-    pub end_address: u16,
-    pub offset: u32,
-    pub filename: String,
-}
 
 pub fn parse_t64(data: &[u8]) -> Result<(u16, Vec<u8>)> {
     if data.len() < HEADER_SIZE {
@@ -39,55 +31,32 @@ pub fn parse_t64(data: &[u8]) -> Result<(u16, Vec<u8>)> {
         return Err(anyhow!("T64 file contains no entries"));
     }
 
-    let mut best_entry: Option<T64Entry> = None;
+    let entry_slice = (0..used_entries)
+        .map(|i| HEADER_SIZE + (i as usize * ENTRY_SIZE))
+        .take_while(|&base| base + ENTRY_SIZE <= data.len())
+        .map(|base| &data[base..base + ENTRY_SIZE])
+        .find(|slice| slice[OFFSET_ENTRY_TYPE] == FILE_TYPE_NORMAL)
+        .ok_or_else(|| anyhow!("No valid program files found in T64 container"))?;
 
-    for i in 0..used_entries {
-        let base = HEADER_SIZE + (i as usize * ENTRY_SIZE);
-        if base + ENTRY_SIZE > data.len() {
-            break;
-        }
+    let start_address = u16::from_le_bytes(entry_slice[OFFSET_ENTRY_START..OFFSET_ENTRY_START + 2].try_into()?);
+    let end_address = u16::from_le_bytes(entry_slice[OFFSET_ENTRY_END..OFFSET_ENTRY_END + 2].try_into()?);
+    let offset = u32::from_le_bytes(entry_slice[OFFSET_ENTRY_OFFSET..OFFSET_ENTRY_OFFSET + 4].try_into()?);
 
-        let entry_slice = &data[base..base + ENTRY_SIZE];
-        let file_type = entry_slice[OFFSET_ENTRY_TYPE];
+    let offset_usize = offset as usize;
+    let length = end_address
+        .wrapping_sub(start_address)
+        .saturating_add(1) as usize;
 
-        if file_type != FILE_TYPE_NORMAL {
-            continue;
-        }
-
-        let start_address = u16::from_le_bytes(entry_slice[OFFSET_ENTRY_START..OFFSET_ENTRY_START + 2].try_into()?);
-        let end_address = u16::from_le_bytes(entry_slice[OFFSET_ENTRY_END..OFFSET_ENTRY_END + 2].try_into()?);
-        let offset = u32::from_le_bytes(entry_slice[OFFSET_ENTRY_OFFSET..OFFSET_ENTRY_OFFSET + 4].try_into()?);
-
+    if offset_usize + length > data.len() {
         let name_bytes = &entry_slice[OFFSET_ENTRY_NAME..OFFSET_ENTRY_NAME + FILENAME_SIZE];
         let filename = String::from_utf8_lossy(name_bytes).trim().to_string();
-
-        best_entry = Some(T64Entry {
-            file_type,
-            start_address,
-            end_address,
-            offset,
-            filename,
-        });
-        break;
+        return Err(anyhow!(
+            "Truncated T64 file data for entry: {}",
+            filename
+        ));
     }
 
-    if let Some(entry) = best_entry {
-        let offset = entry.offset as usize;
-        let length = (entry.end_address)
-            .wrapping_sub(entry.start_address)
-            .saturating_add(1) as usize;
-
-        if offset + length > data.len() {
-            return Err(anyhow!(
-                "Truncated T64 file data for entry: {}",
-                entry.filename
-            ));
-        }
-
-        Ok((entry.start_address, data[offset..offset + length].to_vec()))
-    } else {
-        Err(anyhow!("No valid program files found in T64 container"))
-    }
+    Ok((start_address, data[offset_usize..offset_usize + length].to_vec()))
 }
 
 #[cfg(test)]
