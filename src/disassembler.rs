@@ -1,4 +1,4 @@
-use crate::cpu::{get_opcodes, Opcode};
+use crate::cpu::{Opcode, get_opcodes};
 use crate::state::{Assembler, BlockType, DocumentSettings, Label};
 use std::collections::BTreeMap;
 
@@ -658,11 +658,11 @@ impl Disassembler {
             if pc + opcode.size as usize <= data.len() {
                 let mut collision = false;
                 for i in 1..opcode.size {
-                    if let Some(t) = block_types.get(pc + i as usize) {
-                        if *t != BlockType::Code {
-                            collision = true;
-                            break;
-                        }
+                    if let Some(t) = block_types.get(pc + i as usize)
+                        && *t != BlockType::Code
+                    {
+                        collision = true;
+                        break;
                     }
                 }
 
@@ -681,12 +681,11 @@ impl Disassembler {
 
                         // Check if target is known code
                         let mut is_code_target = false;
-                        if target_idx < data.len() {
-                            if let Some(bt) = block_types.get(target_idx) {
-                                if *bt == BlockType::Code {
-                                    is_code_target = true;
-                                }
-                            }
+                        if target_idx < data.len()
+                            && let Some(bt) = block_types.get(target_idx)
+                            && *bt == BlockType::Code
+                        {
+                            is_code_target = true;
                         }
 
                         // Should we show the user comment?

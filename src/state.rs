@@ -304,7 +304,7 @@ impl AppState {
         self.immediate_value_formats.clear();
 
         let mut cursor_start = None;
-        let mut hex_cursor_start = None;
+        let hex_cursor_start = None;
 
         if let Some(ext) = self
             .file_path

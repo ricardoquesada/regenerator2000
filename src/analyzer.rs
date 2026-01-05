@@ -774,7 +774,7 @@ mod tests {
         // BUT for external, we want "best wins" (ExternalJump > Absolute).
         // So we expect eE000.
 
-        let data = vec![
+        let data = [
             0xAD, 0x00, 0xE0, // 1000: LDA $E000
             0x4C, 0x00, 0xE0, // 1003: JMP $E000
         ];

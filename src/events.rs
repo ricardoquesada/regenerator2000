@@ -429,25 +429,25 @@ pub fn run_app<B: Backend>(
                                         }
 
                                         // Restore Hex Cursor
-                                        if let Some(hex_addr) = loaded_hex_cursor {
-                                            if !app_state.raw_data.is_empty() {
-                                                let origin = app_state.origin as usize;
-                                                let alignment_padding = origin % 16;
-                                                let aligned_origin = origin - alignment_padding;
-                                                let target = hex_addr as usize;
+                                        if let Some(hex_addr) = loaded_hex_cursor
+                                            && !app_state.raw_data.is_empty()
+                                        {
+                                            let origin = app_state.origin as usize;
+                                            let alignment_padding = origin % 16;
+                                            let aligned_origin = origin - alignment_padding;
+                                            let target = hex_addr as usize;
 
-                                                if target >= aligned_origin {
-                                                    let offset = target - aligned_origin;
-                                                    let row = offset / 16;
-                                                    // Ensure row is within bounds
-                                                    // Max rows calculation:
-                                                    let total_len = app_state.raw_data.len()
-                                                        + alignment_padding;
-                                                    let max_rows = (total_len + 15) / 16;
+                                            if target >= aligned_origin {
+                                                let offset = target - aligned_origin;
+                                                let row = offset / 16;
+                                                // Ensure row is within bounds
+                                                // Max rows calculation:
+                                                let total_len =
+                                                    app_state.raw_data.len() + alignment_padding;
+                                                let max_rows = total_len.div_ceil(16);
 
-                                                    if row < max_rows {
-                                                        ui_state.hex_cursor_index = row;
-                                                    }
+                                                if row < max_rows {
+                                                    ui_state.hex_cursor_index = row;
                                                 }
                                             }
                                         }
@@ -1194,18 +1194,16 @@ pub fn run_app<B: Backend>(
                                 && !ui_state.save_dialog.active
                                 && !ui_state.file_picker.active
                                 && ui_state.active_pane == ActivePane::Disassembly
+                                && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
                             {
-                                if let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
-                                {
-                                    let addr = line.address;
-                                    let text = app_state
-                                        .labels
-                                        .get(&addr)
-                                        .and_then(|v| v.first())
-                                        .map(|l| l.name.as_str());
-                                    ui_state.label_dialog.open(text);
-                                    ui_state.set_status_message("Enter Label");
-                                }
+                                let addr = line.address;
+                                let text = app_state
+                                    .labels
+                                    .get(&addr)
+                                    .and_then(|v| v.first())
+                                    .map(|l| l.name.as_str());
+                                ui_state.label_dialog.open(text);
+                                ui_state.set_status_message("Enter Label");
                             }
                         } else if ui_state.active_pane == ActivePane::Disassembly {
                             ui_state.set_status_message("No open document");
@@ -2212,11 +2210,11 @@ fn perform_search(app_state: &mut crate::state::AppState, ui_state: &mut UIState
             }
         };
 
-        if let Some(line) = app_state.disassembly.get(idx) {
-            if match_search(line, &query_lower) {
-                found_idx = Some(idx);
-                break;
-            }
+        if let Some(line) = app_state.disassembly.get(idx)
+            && match_search(line, &query_lower)
+        {
+            found_idx = Some(idx);
+            break;
         }
     }
 
@@ -2278,16 +2276,16 @@ fn match_search(line: &crate::disassembler::DisassemblyLine, query_lower: &str) 
         return true;
     }
 
-    if let Some(lc) = &line.line_comment {
-        if lc.to_lowercase().contains(query_lower) {
-            return true;
-        }
+    if let Some(lc) = &line.line_comment
+        && lc.to_lowercase().contains(query_lower)
+    {
+        return true;
     }
 
-    if let Some(lbl) = &line.label {
-        if lbl.to_lowercase().contains(query_lower) {
-            return true;
-        }
+    if let Some(lbl) = &line.label
+        && lbl.to_lowercase().contains(query_lower)
+    {
+        return true;
     }
 
     false

@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 pub struct VsfData {
     pub memory: Vec<u8>,
@@ -106,10 +106,10 @@ pub fn parse_vsf(data: &[u8]) -> Result<VsfData> {
                 } else {
                     // If we already have memory (e.g. allocated earlier?), unlikely for C64MEM.
                     // But if we did, we'd copy into it.
-                    if let Some(mem) = &mut memory {
-                        if mem.len() >= 65536 {
-                            mem[0..65536].copy_from_slice(&module_data[4..4 + 65536]);
-                        }
+                    if let Some(mem) = &mut memory
+                        && mem.len() >= 65536
+                    {
+                        mem[0..65536].copy_from_slice(&module_data[4..4 + 65536]);
                     }
                 }
             }
@@ -143,11 +143,11 @@ pub fn parse_vsf(data: &[u8]) -> Result<VsfData> {
                     memory = Some(vec![0u8; 65536]);
                 }
 
-                if let Some(mem) = &mut memory {
-                    if mem.len() >= 0x8000 + cart_len {
-                        mem[0x8000..0x8000 + cart_len].copy_from_slice(&module_data[0..cart_len]);
-                        // Note: If 16KB, it fills $8000-$BFFF.
-                    }
+                if let Some(mem) = &mut memory
+                    && mem.len() >= 0x8000 + cart_len
+                {
+                    mem[0x8000..0x8000 + cart_len].copy_from_slice(&module_data[0..cart_len]);
+                    // Note: If 16KB, it fills $8000-$BFFF.
                 }
             }
         }

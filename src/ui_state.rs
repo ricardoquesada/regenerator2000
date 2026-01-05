@@ -721,15 +721,12 @@ impl MenuState {
                             MenuAction::NextImmediateFormat
                             | MenuAction::PreviousImmediateFormat => {
                                 let mut is_immediate = false;
-                                if has_document {
-                                    if let Some(line) = app_state.disassembly.get(cursor_index) {
-                                        if let Some(opcode) = &line.opcode {
-                                            if opcode.mode == crate::cpu::AddressingMode::Immediate
-                                            {
-                                                is_immediate = true;
-                                            }
-                                        }
-                                    }
+                                if has_document
+                                    && let Some(line) = app_state.disassembly.get(cursor_index)
+                                    && let Some(opcode) = &line.opcode
+                                    && opcode.mode == crate::cpu::AddressingMode::Immediate
+                                {
+                                    is_immediate = true;
                                 }
                                 item.disabled = !is_immediate;
                             }

@@ -74,63 +74,64 @@ fn main() -> Result<()> {
                 }
 
                 // Also restore hex cursor if present
-                if let Some(hex_addr) = loaded_hex_cursor {
-                    if !app_state.raw_data.is_empty() {
-                        let origin = app_state.origin as usize;
-                        let alignment_padding = origin % 16;
-                        let aligned_origin = origin - alignment_padding;
-                        let target = hex_addr as usize;
+                // Also restore hex cursor if present
+                if let Some(hex_addr) = loaded_hex_cursor
+                    && !app_state.raw_data.is_empty()
+                {
+                    let origin = app_state.origin as usize;
+                    let alignment_padding = origin % 16;
+                    let aligned_origin = origin - alignment_padding;
+                    let target = hex_addr as usize;
 
-                        if target >= aligned_origin {
-                            let offset = target - aligned_origin;
-                            let row = offset / 16;
-                            // Ensure row is within bounds
-                            let total_len = app_state.raw_data.len() + alignment_padding;
-                            let max_rows = (total_len + 15) / 16;
-                            if row < max_rows {
-                                ui_state.hex_cursor_index = row;
-                            }
+                    if target >= aligned_origin {
+                        let offset = target - aligned_origin;
+                        let row = offset / 16;
+                        // Ensure row is within bounds
+                        let total_len = app_state.raw_data.len() + alignment_padding;
+                        let max_rows = total_len.div_ceil(16);
+                        if row < max_rows {
+                            ui_state.hex_cursor_index = row;
                         }
                     }
                 }
             }
         }
-    } else if app_state.system_config.open_last_project {
-        if let Some(last_path) = app_state.system_config.last_project_path.clone() {
-            if last_path.exists() {
-                match app_state.load_file(last_path.clone()) {
-                    Ok((loaded_cursor, loaded_hex_cursor)) => {
-                        let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
-                        if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
-                            ui_state.cursor_index = idx;
+    } else if app_state.system_config.open_last_project
+        && let Some(last_path) = app_state.system_config.last_project_path.clone()
+        && last_path.exists()
+    {
+        match app_state.load_file(last_path.clone()) {
+            Ok((loaded_cursor, loaded_hex_cursor)) => {
+                let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
+                if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
+                    ui_state.cursor_index = idx;
+                }
+
+                // Also restore hex cursor if present
+                // Also restore hex cursor if present
+                if let Some(hex_addr) = loaded_hex_cursor
+                    && !app_state.raw_data.is_empty()
+                {
+                    let origin = app_state.origin as usize;
+                    let alignment_padding = origin % 16;
+                    let aligned_origin = origin - alignment_padding;
+                    let target = hex_addr as usize;
+
+                    if target >= aligned_origin {
+                        let offset = target - aligned_origin;
+                        let row = offset / 16;
+                        let total_len = app_state.raw_data.len() + alignment_padding;
+                        let max_rows = total_len.div_ceil(16);
+                        if row < max_rows {
+                            ui_state.hex_cursor_index = row;
                         }
-
-                        // Also restore hex cursor if present
-                        if let Some(hex_addr) = loaded_hex_cursor {
-                            if !app_state.raw_data.is_empty() {
-                                let origin = app_state.origin as usize;
-                                let alignment_padding = origin % 16;
-                                let aligned_origin = origin - alignment_padding;
-                                let target = hex_addr as usize;
-
-                                if target >= aligned_origin {
-                                    let offset = target - aligned_origin;
-                                    let row = offset / 16;
-                                    let total_len = app_state.raw_data.len() + alignment_padding;
-                                    let max_rows = (total_len + 15) / 16;
-                                    if row < max_rows {
-                                        ui_state.hex_cursor_index = row;
-                                    }
-                                }
-                            }
-                        }
-
-                        ui_state.status_message = format!("Loaded recent project: {:?}", last_path);
-                    }
-                    Err(e) => {
-                        ui_state.status_message = format!("Failed to load recent: {}", e);
                     }
                 }
+
+                ui_state.status_message = format!("Loaded recent project: {:?}", last_path);
+            }
+            Err(e) => {
+                ui_state.status_message = format!("Failed to load recent: {}", e);
             }
         }
     }

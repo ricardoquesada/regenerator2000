@@ -98,19 +98,19 @@ pub fn load_labels(platform: Platform) -> Vec<(u16, Label)> {
             // FF81 ROM_CINT
 
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 2 {
-                if let Ok(addr) = u16::from_str_radix(parts[0], 16) {
-                    let name = parts[1].to_string();
-                    labels.push((
-                        addr,
-                        Label {
-                            name,
-                            label_type: LabelType::Predefined,
-                            kind: LabelKind::System,
-                            refs: Vec::new(),
-                        },
-                    ));
-                }
+            if parts.len() >= 2
+                && let Ok(addr) = u16::from_str_radix(parts[0], 16)
+            {
+                let name = parts[1].to_string();
+                labels.push((
+                    addr,
+                    Label {
+                        name,
+                        label_type: LabelType::Predefined,
+                        kind: LabelKind::System,
+                        refs: Vec::new(),
+                    },
+                ));
             }
         }
     }
