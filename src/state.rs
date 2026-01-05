@@ -238,6 +238,7 @@ pub struct AppState {
 
     pub undo_stack: crate::commands::UndoStack,
     pub last_saved_pointer: usize,
+    pub excluded_addresses: std::collections::HashSet<u16>,
 }
 
 impl AppState {
@@ -260,6 +261,7 @@ impl AppState {
             system_config: SystemConfig::load(),
             undo_stack: crate::commands::UndoStack::new(),
             last_saved_pointer: 0,
+            excluded_addresses: std::collections::HashSet::new(),
         }
     }
 
@@ -279,6 +281,10 @@ impl AppState {
         for (addr, label) in system_labels {
             self.labels.entry(addr).or_default().push(label);
         }
+
+        // Load excludes
+        let excludes = crate::assets::load_excludes(self.settings.platform);
+        self.excluded_addresses = excludes.into_iter().collect();
     }
 
     pub fn get_formatter(&self) -> Box<dyn crate::disassembler::formatter::Formatter> {

@@ -217,12 +217,14 @@ pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
                 };
 
                 // Add Auto Label
-                addr_labels.push(crate::state::Label {
-                    name,
-                    label_type: l_type,
-                    kind: crate::state::LabelKind::Auto,
-                    refs: refs.clone(),
-                });
+                if !state.excluded_addresses.contains(&addr) {
+                    addr_labels.push(crate::state::Label {
+                        name,
+                        label_type: l_type,
+                        kind: crate::state::LabelKind::Auto,
+                        refs: refs.clone(),
+                    });
+                }
             }
         } else {
             // Internal: Single canonical label (first_type or best?)
@@ -254,7 +256,9 @@ pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
             }
         }
 
-        labels.insert(addr, addr_labels);
+        if !addr_labels.is_empty() {
+            labels.insert(addr, addr_labels);
+        }
     }
 
     // 2. Preserve strictly unused User labels
@@ -788,6 +792,35 @@ mod tests {
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
             Some("eE000")
+        );
+    }
+
+    #[test]
+    fn test_excluded_addresses() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        // JMP $E500 (4C 00 E5) -> normally eE500
+        // But we exclude E500.
+        let data = vec![0x4C, 0x00, 0xE5];
+        state.raw_data = data;
+        state.block_types = vec![BlockType::Code; 3];
+
+        state.excluded_addresses.insert(0xE500);
+
+        let labels = analyze(&state);
+
+        // Should be None
+        assert_eq!(labels.get(&0xE500), None);
+
+        // Verification: if we remove it from excludes, it should appear
+        state.excluded_addresses.remove(&0xE500);
+        let labels = analyze(&state);
+        assert_eq!(
+            labels
+                .get(&0xE500)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("eE500")
         );
     }
 

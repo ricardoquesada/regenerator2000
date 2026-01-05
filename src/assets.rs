@@ -117,6 +117,59 @@ pub fn load_labels(platform: Platform) -> Vec<(u16, Label)> {
     labels
 }
 
+pub fn load_excludes(platform: Platform) -> Vec<u16> {
+    let mut excludes = Vec::new();
+
+    macro_rules! bundled_excludes {
+        ($($variant:ident => $path:expr),* $(,)?) => {
+            match platform {
+                $(Platform::$variant => Some(include_str!(concat!("../assets/systems/", $path, "/excludes.txt")).to_string()),)*
+                _ => {
+                    let mut path = get_assets_path(platform);
+                    path.push("excludes.txt");
+                    std::fs::read_to_string(path).ok()
+                }
+            }
+        };
+    }
+
+    let content = bundled_excludes!(
+        Commodore64 => "Commodore 64",
+        Commodore128 => "Commodore 128",
+        CommodorePlus4 => "Commodore Plus4",
+        CommodoreVIC20 => "Commodore VIC-20",
+        CommodorePET20 => "Commodore PET 2.0",
+        CommodorePET40 => "Commodore PET 4.0",
+        // Commodore1541 has no excludes.txt yet
+    );
+
+    if let Some(content_str) = content {
+        for line in content_str.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with(';') {
+                continue;
+            }
+
+            // Check for range: "031a-032d"
+            if let Some((start_str, end_str)) = line.split_once('-') {
+                let start_res = u16::from_str_radix(start_str.trim(), 16);
+                let end_res = u16::from_str_radix(end_str.trim(), 16);
+                if let (Ok(start), Ok(end)) = (start_res, end_res) {
+                    for addr in start..=end {
+                        excludes.push(addr);
+                    }
+                }
+            } else {
+                // Single address
+                if let Ok(addr) = u16::from_str_radix(line, 16) {
+                    excludes.push(addr);
+                }
+            }
+        }
+    }
+    excludes
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
