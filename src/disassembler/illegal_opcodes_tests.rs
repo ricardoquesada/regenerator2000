@@ -28,10 +28,14 @@ fn test_illegal_opcodes_disabled_by_default() {
     );
 
     // Should NOT disassemble as SLO, but as Invalid/Byte
-    // With current logic, invalid bytes are output as .byte 0F, then next byte
-    assert_eq!(lines.len(), 3);
+    // With current logic, invalid bytes are output as .byte 0F
+    // Then next 2 bytes are BRK #$10 (default behavior)
+    assert_eq!(lines.len(), 2);
     assert_eq!(lines[0].mnemonic, ".byte");
     assert_eq!(lines[0].operand, "$0f"); // lowercase hex
+
+    assert_eq!(lines[1].mnemonic, "brk");
+    assert_eq!(lines[1].operand, "#$10");
 }
 
 #[test]
@@ -77,7 +81,7 @@ fn test_new_illegal_opcodes() {
     let data_anc = vec![0x0B, 0x10];
     let lines = disassembler.disassemble(
         &data_anc,
-        &vec![BlockType::Code; 2],
+        &[BlockType::Code; 2],
         &BTreeMap::new(),
         0x1000,
         &settings,
@@ -94,7 +98,7 @@ fn test_new_illegal_opcodes() {
     let data_asr = vec![0x4B, 0x20];
     let lines = disassembler.disassemble(
         &data_asr,
-        &vec![BlockType::Code; 2],
+        &[BlockType::Code; 2],
         &BTreeMap::new(),
         0x1000,
         &settings,
@@ -111,7 +115,7 @@ fn test_new_illegal_opcodes() {
     let data_arr = vec![0x6B, 0x30];
     let lines = disassembler.disassemble(
         &data_arr,
-        &vec![BlockType::Code; 2],
+        &[BlockType::Code; 2],
         &BTreeMap::new(),
         0x1000,
         &settings,
@@ -128,7 +132,7 @@ fn test_new_illegal_opcodes() {
     let data_sbx = vec![0xCB, 0x40];
     let lines = disassembler.disassemble(
         &data_sbx,
-        &vec![BlockType::Code; 2],
+        &[BlockType::Code; 2],
         &BTreeMap::new(),
         0x1000,
         &settings,
@@ -145,7 +149,7 @@ fn test_new_illegal_opcodes() {
     let data_lax = vec![0xAB, 0x00];
     let lines = disassembler.disassemble(
         &data_lax,
-        &vec![BlockType::Code; 2],
+        &[BlockType::Code; 2],
         &BTreeMap::new(),
         0x1000,
         &settings,

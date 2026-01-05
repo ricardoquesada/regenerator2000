@@ -1414,7 +1414,7 @@ fn test_target_address_specific_instructions() {
         0x20, 0x00, 0x20, // JSR $2000
         0x6C, 0x34, 0x12, // JMP ($1234)
         0x60, // RTS
-        0x00, // BRK
+        0x00, 0x00, // BRK #$00
         0x40, // RTI
     ];
     let block_types = vec![
@@ -1427,6 +1427,7 @@ fn test_target_address_specific_instructions() {
         BlockType::Code,
         BlockType::Code,
         BlockType::Code,
+        BlockType::Code, // Added one
     ];
 
     let lines = disassembler.disassemble(

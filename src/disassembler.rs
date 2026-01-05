@@ -11,6 +11,8 @@ use formatter::Formatter;
 use tass::TassFormatter;
 
 #[cfg(test)]
+mod brk_tests;
+#[cfg(test)]
 mod illegal_opcodes_tests;
 #[cfg(test)]
 mod line_comment_tests;
@@ -659,6 +661,76 @@ impl Disassembler {
             && (!opcode.illegal || settings.use_illegal_opcodes)
         {
             let mut bytes = vec![opcode_byte];
+
+            // Special handling for BRK
+            // BRK ($00) normally takes 1 byte, but consumes 2 (signature byte).
+            if opcode.mnemonic == "BRK" && !settings.brk_single_byte && pc + 1 < data.len() {
+                let mut collision = false;
+                if let Some(t) = block_types.get(pc + 1)
+                    && *t != BlockType::Code
+                {
+                    collision = true;
+                }
+
+                if !collision {
+                    if settings.patch_brk {
+                        // "Patch BRK": BRK (1 byte) then .byte (1 byte)
+                        let byte_val = data[pc + 1];
+                        return (
+                            2,
+                            vec![
+                                DisassemblyLine {
+                                    address,
+                                    bytes: vec![opcode_byte],
+                                    mnemonic: formatter.format_mnemonic(opcode.mnemonic),
+                                    operand: String::new(),
+                                    comment: side_comment,
+                                    line_comment,
+                                    label: label_name,
+                                    opcode: Some(opcode.clone()),
+                                    show_bytes: true,
+                                    target_address: None,
+                                    comment_address: None,
+                                },
+                                DisassemblyLine {
+                                    address: address.wrapping_add(1),
+                                    bytes: vec![byte_val],
+                                    mnemonic: formatter.byte_directive().to_string(),
+                                    operand: formatter.format_byte(byte_val),
+                                    comment: String::new(),
+                                    line_comment: None,
+                                    label: None,
+                                    opcode: None,
+                                    show_bytes: true,
+                                    target_address: None,
+                                    comment_address: None,
+                                },
+                            ],
+                        );
+                    } else {
+                        // Default: BRK #$ signature
+                        let byte_val = data[pc + 1];
+                        let operand_str = format!("#{}", formatter.format_byte(byte_val));
+
+                        return (
+                            2,
+                            vec![DisassemblyLine {
+                                address,
+                                bytes: vec![opcode_byte, byte_val],
+                                mnemonic: formatter.format_mnemonic(opcode.mnemonic),
+                                operand: operand_str,
+                                comment: side_comment,
+                                line_comment,
+                                label: label_name,
+                                opcode: Some(opcode.clone()),
+                                show_bytes: true,
+                                target_address: None,
+                                comment_address: None,
+                            }],
+                        );
+                    }
+                }
+            }
 
             // Check if we have enough bytes
             if pc + opcode.size as usize <= data.len() {
