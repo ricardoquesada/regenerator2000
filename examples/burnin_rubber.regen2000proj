@@ -58,53 +58,35 @@
       {
         "name": "setup_vic",
         "label_type": "UserDefined",
-        "kind": "User",
-        "refs": [
-          6147
-        ]
+        "kind": "User"
       }
     ],
     "4178": [
       {
         "name": "paint_screen",
         "label_type": "UserDefined",
-        "kind": "User",
-        "refs": [
-          6150
-        ]
+        "kind": "User"
       }
     ],
     "4209": [
       {
         "name": "paint_color",
         "label_type": "UserDefined",
-        "kind": "User",
-        "refs": [
-          4255
-        ]
+        "kind": "User"
       }
     ],
     "4501": [
       {
         "name": "setup_sid",
         "label_type": "UserDefined",
-        "kind": "User",
-        "refs": [
-          6144
-        ]
+        "kind": "User"
       }
     ],
     "6656": [
       {
         "name": "wait_for_space",
         "label_type": "UserDefined",
-        "kind": "User",
-        "refs": [
-          6177,
-          15063,
-          15091,
-          18271
-        ]
+        "kind": "User"
       }
     ]
   },

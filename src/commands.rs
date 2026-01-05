@@ -14,9 +14,11 @@ pub enum Command {
         new_label: Option<Vec<crate::state::Label>>,
         old_label: Option<Vec<crate::state::Label>>,
     },
-    SetLabels {
+    SetAnalysisData {
         labels: BTreeMap<u16, Vec<Label>>,
+        cross_refs: BTreeMap<u16, Vec<u16>>,
         old_labels: BTreeMap<u16, Vec<Label>>,
+        old_cross_refs: BTreeMap<u16, Vec<u16>>,
     },
     SetUserSideComment {
         address: u16,
@@ -57,7 +59,10 @@ impl Command {
                     }
 
                     // Re-analyze reference counts and labels
-                    state.labels = crate::analyzer::analyze(state);
+                    // Re-analyze reference counts and labels
+                    let (new_labels, new_cross_refs) = crate::analyzer::analyze(state);
+                    state.labels = new_labels;
+                    state.cross_refs = new_cross_refs;
                 }
             }
             Command::SetLabel {
@@ -71,12 +76,15 @@ impl Command {
                     state.labels.remove(address);
                 }
             }
-            Command::SetLabels {
+            Command::SetAnalysisData {
                 labels,
+                cross_refs,
                 old_labels: _,
+                old_cross_refs: _,
             } => {
                 // Complete replacement of the map
                 state.labels = labels.clone();
+                state.cross_refs = cross_refs.clone();
             }
             Command::SetUserSideComment {
                 address,
@@ -137,7 +145,10 @@ impl Command {
                     }
 
                     // Re-analyze reference counts and labels
-                    state.labels = crate::analyzer::analyze(state);
+                    // Re-analyze reference counts and labels
+                    let (new_labels, new_cross_refs) = crate::analyzer::analyze(state);
+                    state.labels = new_labels;
+                    state.cross_refs = new_cross_refs;
                 }
             }
             Command::SetLabel {
@@ -151,11 +162,14 @@ impl Command {
                     state.labels.remove(address);
                 }
             }
-            Command::SetLabels {
+            Command::SetAnalysisData {
                 labels: _,
+                cross_refs: _,
                 old_labels,
+                old_cross_refs,
             } => {
                 state.labels = old_labels.clone();
+                state.cross_refs = old_cross_refs.clone();
             }
             Command::SetUserSideComment {
                 address,
@@ -324,7 +338,6 @@ mod tests {
             name: "Start".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::UserDefined,
-            refs: Vec::new(),
         };
         let command = Command::SetLabel {
             address,
@@ -371,21 +384,13 @@ mod tests {
         app_state.block_types = vec![BlockType::Code; 6];
 
         // Initial Analysis
-        app_state.labels = crate::analyzer::analyze(&app_state);
+        let (labels, cross_refs) = crate::analyzer::analyze(&app_state);
+        app_state.labels = labels;
+        app_state.cross_refs = cross_refs;
 
         // Assert label exists
         assert!(app_state.labels.get(&0x1005).is_some());
-        assert_eq!(
-            app_state
-                .labels
-                .get(&0x1005)
-                .unwrap()
-                .first()
-                .unwrap()
-                .refs
-                .len(),
-            1
-        );
+        assert_eq!(app_state.cross_refs.get(&0x1005).unwrap().len(), 1);
         assert_eq!(
             app_state.labels.get(&0x1005).unwrap().first().unwrap().kind,
             crate::state::LabelKind::Auto
@@ -426,17 +431,7 @@ mod tests {
 
         // Verify label is BACK
         assert!(app_state.labels.get(&0x1005).is_some());
-        assert_eq!(
-            app_state
-                .labels
-                .get(&0x1005)
-                .unwrap()
-                .first()
-                .unwrap()
-                .refs
-                .len(),
-            1
-        );
+        assert_eq!(app_state.cross_refs.get(&0x1005).unwrap().len(), 1);
     }
     #[test]
     fn test_user_line_comment_undo_redo() {

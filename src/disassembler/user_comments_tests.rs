@@ -30,6 +30,7 @@ fn test_user_comments_override_system_comments() {
         &user_comments,
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -62,6 +63,7 @@ fn test_user_comments_fallthrough() {
         &settings,
         &system_comments,
         &user_comments,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
     );
@@ -98,6 +100,7 @@ fn test_user_comments_referenced_address() {
         &settings,
         &system_comments,
         &user_comments,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
     );

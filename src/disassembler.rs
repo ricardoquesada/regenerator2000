@@ -66,7 +66,9 @@ impl Disassembler {
         system_comments: &BTreeMap<u16, String>,
         user_side_comments: &BTreeMap<u16, String>,
         user_line_comments: &BTreeMap<u16, String>,
+
         immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
+        cross_refs: &BTreeMap<u16, Vec<u16>>,
     ) -> Vec<DisassemblyLine> {
         let formatter = Self::create_formatter(settings.assembler);
 
@@ -83,6 +85,7 @@ impl Disassembler {
                 settings,
                 system_comments,
                 user_side_comments,
+                cross_refs,
             );
             let line_comment = user_line_comments.get(&address).cloned();
 
@@ -600,7 +603,9 @@ impl Disassembler {
         labels: &BTreeMap<u16, Vec<Label>>,
         settings: &DocumentSettings,
         system_comments: &BTreeMap<u16, String>,
+
         user_side_comments: &BTreeMap<u16, String>,
+        cross_refs: &BTreeMap<u16, Vec<u16>>,
     ) -> String {
         let mut comment_parts = Vec::new();
 
@@ -610,11 +615,8 @@ impl Disassembler {
             comment_parts.push(sys_comment.clone());
         }
 
-        if let Some(label_vec) = labels.get(&address) {
-            let mut all_refs: Vec<u16> = Vec::new();
-            for l in label_vec {
-                all_refs.extend(l.refs.iter().cloned());
-            }
+        if let Some(refs) = cross_refs.get(&address) {
+            let mut all_refs = refs.clone();
             if !all_refs.is_empty() && settings.max_xref_count > 0 {
                 all_refs.sort_unstable();
                 all_refs.dedup();

@@ -24,13 +24,11 @@ mod tests {
                     name: "Z_Label".to_string(),
                     label_type: LabelType::UserDefined,
                     kind: LabelKind::User,
-                    refs: vec![],
                 },
                 Label {
                     name: "A_Label".to_string(),
                     label_type: LabelType::UserDefined,
                     kind: LabelKind::User,
-                    refs: vec![],
                 },
             ],
         );
@@ -40,7 +38,6 @@ mod tests {
                 name: "M_Label".to_string(),
                 label_type: LabelType::UserDefined,
                 kind: LabelKind::User,
-                refs: vec![],
             }],
         );
         app_state.labels = labels;

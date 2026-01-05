@@ -108,7 +108,6 @@ pub fn load_labels(platform: Platform) -> Vec<(u16, Label)> {
                         name,
                         label_type: LabelType::Predefined,
                         kind: LabelKind::System,
-                        refs: Vec::new(),
                     },
                 ));
             }

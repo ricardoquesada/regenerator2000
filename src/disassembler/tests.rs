@@ -26,6 +26,7 @@ fn test_tass_formatting_force_w() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -57,6 +58,7 @@ fn test_tass_formatting_no_force_if_disabled() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -81,6 +83,7 @@ fn test_acme_formatting_basic() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -115,6 +118,7 @@ fn test_acme_directives() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -142,7 +146,6 @@ fn test_contextual_label_formatting() {
         name: "fA0".to_string(),
         label_type: LabelType::ZeroPageField,
         kind: LabelKind::Auto,
-        refs: vec![],
     });
 
     // 2. ZeroPagePointer -> pA0
@@ -150,7 +153,6 @@ fn test_contextual_label_formatting() {
         name: "pA0".to_string(),
         label_type: LabelType::ZeroPagePointer,
         kind: LabelKind::Auto,
-        refs: vec![],
     });
 
     // 3. AbsoluteAddress -> a00A0
@@ -158,7 +160,6 @@ fn test_contextual_label_formatting() {
         name: "a00A0".to_string(),
         label_type: LabelType::AbsoluteAddress,
         kind: LabelKind::Auto,
-        refs: vec![],
     });
 
     labels.insert(addr, label_vec);
@@ -194,6 +195,7 @@ fn test_contextual_label_formatting() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -262,7 +264,6 @@ fn test_acme_lowercase_output() {
             name: "MixedCaseLabel".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::AbsoluteAddress,
-            refs: vec![],
         }],
     );
 
@@ -287,6 +288,7 @@ fn test_acme_lowercase_output() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -328,6 +330,7 @@ fn test_acme_plus2_formatting() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -353,13 +356,15 @@ fn test_xref_formatting_with_dollar() {
             name: "TestLabel".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::AbsoluteAddress,
-            refs: vec![0x2000, 0x3000],
         }],
     );
 
     // Code: NOP
     let code = vec![0xEA];
     let block_types = vec![BlockType::Code];
+
+    let mut cross_refs = BTreeMap::new();
+    cross_refs.insert(0x1000, vec![0x2000, 0x3000]);
 
     let lines = disassembler.disassemble(
         &code,
@@ -371,6 +376,7 @@ fn test_xref_formatting_with_dollar() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &cross_refs,
     );
 
     assert_eq!(lines.len(), 1);
@@ -395,12 +401,14 @@ fn test_xref_count_configurable() {
             name: "ManyRefs".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::AbsoluteAddress,
-            refs: vec![0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005], // 6 Refs
         }],
     );
 
     let code = vec![0xEA];
     let block_types = vec![BlockType::Code];
+
+    let mut cross_refs = BTreeMap::new();
+    cross_refs.insert(0x1000, vec![0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005]);
 
     // Case 1: Default (5)
     settings.max_xref_count = 5;
@@ -414,6 +422,7 @@ fn test_xref_count_configurable() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &cross_refs,
     );
     assert_eq!(lines.len(), 1);
     // Should show 5 items
@@ -433,6 +442,7 @@ fn test_xref_count_configurable() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &cross_refs,
     );
     let comment = &lines[0].comment;
     assert!(comment.contains("$2000, $2001"));
@@ -450,6 +460,7 @@ fn test_xref_count_configurable() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &cross_refs,
     );
     assert!(lines[0].comment.is_empty());
 }
@@ -477,6 +488,7 @@ fn test_text_and_screencode_disassembly() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Tass formatting produces 4 lines: .encode, .enc "ascii", .text "ABC", .endencode
@@ -493,6 +505,7 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -522,6 +535,7 @@ fn test_text_and_screencode_disassembly() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!scr");
@@ -537,6 +551,7 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -585,6 +600,7 @@ fn test_text_mixed_content() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Filter relevant lines (Tass wraps in ENCODE)
@@ -625,6 +641,7 @@ fn test_text_escaping() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines_acme.len(), 1);
     assert_eq!(lines_acme[0].operand, "\"Quote \\\" Backslash \\\\\"");
@@ -637,6 +654,7 @@ fn test_text_escaping() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -695,6 +713,7 @@ fn test_screencode_mixed() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines_acme.len(), 1);
     // !scr "\"" (escaped quote), $ff, "\""
@@ -709,6 +728,7 @@ fn test_screencode_mixed() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -757,6 +777,7 @@ fn test_tass_screencode_enc_wrapping() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 4);
@@ -794,6 +815,7 @@ fn test_tass_screencode_multiline_wrapping() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -849,6 +871,7 @@ fn test_text_show_bytes_is_false() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Filter for the .text line
@@ -885,6 +908,7 @@ fn test_screencode_show_bytes_is_false() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Filter for the .text line (inside .encode block)
@@ -913,6 +937,7 @@ fn test_databyte_show_bytes_is_false() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -948,6 +973,7 @@ fn test_dataword_show_bytes_is_false() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -975,6 +1001,7 @@ fn test_address_show_bytes_is_false() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1014,6 +1041,7 @@ fn test_tass_block_separation() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Block 1 (SC) -> 4 lines (Start, Enc, Text, End)
@@ -1049,7 +1077,6 @@ fn test_tass_label_interruption() {
             name: "MID".to_string(),
             kind: LabelKind::Auto,
             label_type: LabelType::Field,
-            refs: vec![],
         }],
     );
 
@@ -1065,6 +1092,7 @@ fn test_tass_label_interruption() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1126,6 +1154,7 @@ fn test_tass_screencode_single_byte_special() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Expected:
@@ -1173,6 +1202,7 @@ mod tests {
             &BTreeMap::new(),
             &BTreeMap::new(),
             &BTreeMap::new(),
+            &BTreeMap::new(),
         );
 
         assert_eq!(lines_a.len(), 4);
@@ -1194,6 +1224,7 @@ mod tests {
             &labels,
             origin,
             &settings,
+            &BTreeMap::new(),
             &BTreeMap::new(),
             &BTreeMap::new(),
             &BTreeMap::new(),
@@ -1226,6 +1257,7 @@ mod tests {
             &labels,
             origin,
             &settings,
+            &BTreeMap::new(),
             &BTreeMap::new(),
             &BTreeMap::new(),
             &BTreeMap::new(),
@@ -1274,6 +1306,7 @@ mod tests {
             &BTreeMap::new(),
             &BTreeMap::new(),
             &BTreeMap::new(),
+            &BTreeMap::new(),
         );
 
         assert_eq!(lines.len(), 1);
@@ -1313,6 +1346,7 @@ fn test_target_address_population() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1370,6 +1404,7 @@ fn test_target_address_specific_instructions() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1480,7 +1515,7 @@ fn test_side_comment_propagation_allowed_for_data() {
     user_side_comments.insert(0x2000, "My Data".to_string());
 
     let data = vec![0xAD, 0x00, 0x20]; // LDA $2000
-                                       // Target $2000 is out of bounds of this data block, so is_code_target should be false.
+    // Target $2000 is out of bounds of this data block, so is_code_target should be false.
 
     let block_types = vec![BlockType::Code; 3];
     let address = 0x1000;
@@ -1536,6 +1571,7 @@ fn test_lohi_block() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Should produce 2 lines:
@@ -1558,7 +1594,6 @@ fn test_lohi_block() {
             name: "MyLabel".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::AbsoluteAddress,
-            refs: vec![],
         }],
     );
 
@@ -1568,6 +1603,7 @@ fn test_lohi_block() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1603,7 +1639,6 @@ fn test_lohi_internal_label_regression() {
             name: "HiPart".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::AbsoluteAddress,
-            refs: vec![],
         }],
     );
 
@@ -1613,6 +1648,7 @@ fn test_lohi_internal_label_regression() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1658,6 +1694,7 @@ fn test_hilo_block() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Should produce 2 lines:
@@ -1679,7 +1716,6 @@ fn test_hilo_block() {
             name: "MyLabel".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::AbsoluteAddress,
-            refs: vec![],
         }],
     );
 
@@ -1689,6 +1725,7 @@ fn test_hilo_block() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1732,6 +1769,7 @@ fn test_inverted_binary_format() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &immediate_value_formats,
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines[0].operand, "#~%11111111");

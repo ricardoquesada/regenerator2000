@@ -266,7 +266,6 @@ pub fn run_app<B: Backend>(
                                         name: label_name,
                                         kind: crate::state::LabelKind::User,
                                         label_type: crate::state::LabelType::UserDefined,
-                                        refs: Vec::new(),
                                     };
 
                                     // If vector has items, we assume we are editing the first one (as that's what we showed).
