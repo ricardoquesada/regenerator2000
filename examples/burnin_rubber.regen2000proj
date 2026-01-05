@@ -99,6 +99,11 @@
     },
     {
       "start": 3583,
+      "end": 3743,
+      "type_": "Screencode"
+    },
+    {
+      "start": 3744,
       "end": 3754,
       "type_": "Code"
     },
@@ -174,6 +179,16 @@
     },
     {
       "start": 10225,
+      "end": 10237,
+      "type_": "DataByte"
+    },
+    {
+      "start": 10238,
+      "end": 10238,
+      "type_": "Undefined"
+    },
+    {
+      "start": 10239,
       "end": 12669,
       "type_": "DataByte"
     },
@@ -427,7 +442,8 @@
   },
   "user_side_comments": {},
   "user_line_comments": {
-    "2083": "Boot strap"
+    "2083": "Boot strap",
+    "12288": "sprites"
   },
   "settings": {
     "all_labels": false,
@@ -449,6 +465,6 @@
     "4116": "Binary",
     "6155": "Binary"
   },
-  "cursor_address": 2584,
-  "hex_dump_cursor_address": 21568
+  "cursor_address": 12352,
+  "hex_dump_cursor_address": 12288
 }
