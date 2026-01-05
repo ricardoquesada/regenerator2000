@@ -4,8 +4,10 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_user_line_comments_basic() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -38,8 +40,10 @@ fn test_user_line_comments_basic() {
 
 #[test]
 fn test_user_line_and_side_comments_coexist() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();

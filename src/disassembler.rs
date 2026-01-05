@@ -600,7 +600,7 @@ impl Disassembler {
     fn get_side_comment(
         &self,
         address: u16,
-        labels: &BTreeMap<u16, Vec<Label>>,
+        _labels: &BTreeMap<u16, Vec<Label>>,
         settings: &DocumentSettings,
         system_comments: &BTreeMap<u16, String>,
 

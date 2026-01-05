@@ -358,7 +358,7 @@ mod tests {
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
-        assert!(app_state.labels.get(&address).is_none());
+        assert!(!app_state.labels.contains_key(&address));
 
         // Redo
         let mut stack = std::mem::replace(&mut app_state.undo_stack, UndoStack::new());
@@ -389,7 +389,7 @@ mod tests {
         app_state.cross_refs = cross_refs;
 
         // Assert label exists
-        assert!(app_state.labels.get(&0x1005).is_some());
+        assert!(app_state.labels.contains_key(&0x1005));
         assert_eq!(app_state.cross_refs.get(&0x1005).unwrap().len(), 1);
         assert_eq!(
             app_state.labels.get(&0x1005).unwrap().first().unwrap().kind,
@@ -409,7 +409,7 @@ mod tests {
         app_state.undo_stack.push(command);
 
         // Verify label is GONE because reference count dropped to 0
-        assert!(app_state.labels.get(&0x1005).is_none());
+        assert!(!app_state.labels.contains_key(&0x1005));
 
         // Undo
         let mut stack = std::mem::replace(&mut app_state.undo_stack, AppState::new().undo_stack);
@@ -430,7 +430,7 @@ mod tests {
         app_state.undo_stack = stack;
 
         // Verify label is BACK
-        assert!(app_state.labels.get(&0x1005).is_some());
+        assert!(app_state.labels.contains_key(&0x1005));
         assert_eq!(app_state.cross_refs.get(&0x1005).unwrap().len(), 1);
     }
     #[test]
@@ -456,7 +456,7 @@ mod tests {
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
-        assert!(app_state.user_line_comments.get(&address).is_none());
+        assert!(!app_state.user_line_comments.contains_key(&address));
 
         // Redo
         let mut stack = std::mem::replace(&mut app_state.undo_stack, UndoStack::new());

@@ -4,8 +4,10 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_user_comments_override_system_comments() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -39,8 +41,10 @@ fn test_user_comments_override_system_comments() {
 
 #[test]
 fn test_user_comments_fallthrough() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -74,8 +78,10 @@ fn test_user_comments_fallthrough() {
 
 #[test]
 fn test_user_comments_referenced_address() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
