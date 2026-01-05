@@ -9,6 +9,16 @@
     },
     {
       "start": 34,
+      "end": 82,
+      "type_": "Code"
+    },
+    {
+      "start": 83,
+      "end": 2046,
+      "type_": "DataByte"
+    },
+    {
+      "start": 2047,
       "end": 16602,
       "type_": "Code"
     },
@@ -44,5 +54,5 @@
     "2111": "Hex",
     "2115": "Hex"
   },
-  "cursor_address": 2085
+  "cursor_address": 2097
 }
