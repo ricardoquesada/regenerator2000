@@ -404,7 +404,7 @@ impl AppState {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
                 origin: self.origin,
-                raw_data: encode_raw_data_to_base64(&self.raw_data),
+                raw_data: encode_raw_data_to_base64(&self.raw_data)?,
                 blocks: compress_block_types(&self.block_types),
                 labels: self
                     .labels
@@ -821,11 +821,11 @@ use flate2::write::GzEncoder;
 use std::io::Read;
 use std::io::Write;
 
-pub(crate) fn encode_raw_data_to_base64(data: &[u8]) -> String {
+pub(crate) fn encode_raw_data_to_base64(data: &[u8]) -> anyhow::Result<String> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(data).unwrap();
-    let compressed_data = encoder.finish().unwrap();
-    general_purpose::STANDARD.encode(compressed_data)
+    encoder.write_all(data)?;
+    let compressed_data = encoder.finish()?;
+    Ok(general_purpose::STANDARD.encode(compressed_data))
 }
 
 pub(crate) fn decode_raw_data_from_base64(data: &str) -> anyhow::Result<Vec<u8>> {
@@ -895,11 +895,11 @@ mod serialization_tests {
     #[test]
     fn test_encode_decode_raw_data() {
         let data: Vec<u8> = (0..100).collect();
-        let encoded = encode_raw_data_to_base64(&data);
+        let encoded = encode_raw_data_to_base64(&data).expect("Encoding failed");
         // Base64 string should not contain spaces
         assert!(!encoded.contains(' '));
 
-        let decoded = decode_raw_data_from_base64(&encoded).unwrap();
+        let decoded = decode_raw_data_from_base64(&encoded).expect("Decoding failed");
         assert_eq!(data, decoded);
     }
 }
@@ -927,11 +927,11 @@ mod load_file_tests {
         // 2. Create a dummy binary file
         let mut path = std::env::temp_dir();
         path.push("dummy_test.bin");
-        let mut file = std::fs::File::create(&path).unwrap();
-        file.write_all(&[0xEA, 0xEA, 0xEA]).unwrap();
+        let mut file = std::fs::File::create(&path).expect("Failed to create temp file");
+        file.write_all(&[0xEA, 0xEA, 0xEA]).expect("Failed to write temp file");
 
         // 3. Load the new file
-        app_state.load_file(path.clone()).unwrap();
+        app_state.load_file(path.clone()).expect("Failed to load file");
 
         // 4. Verify state is cleared
         // This is expected to FAIL before the fix
@@ -1019,8 +1019,8 @@ mod save_project_tests {
             .labels
             .get(&0x1000)
             .expect("User label should be saved");
-        assert_eq!(user_label.first().unwrap().name, "UserLabel");
-        assert_eq!(user_label.first().unwrap().kind, LabelKind::User);
+        assert_eq!(user_label.first().expect("Label vec empty").name, "UserLabel");
+        assert_eq!(user_label.first().expect("Label vec empty").kind, LabelKind::User);
 
         // 7. Verify `names` map is EMPTY (skipped)
         // When deserialized, because it was skipped, it should get the default value (empty Map)
@@ -1034,7 +1034,7 @@ mod save_project_tests {
         // So `user_label.names` should be empty.
 
         assert_eq!(
-            user_label.first().unwrap().label_type,
+            user_label.first().expect("Label vec empty").label_type,
             LabelType::AbsoluteAddress,
             "Label type should be preserved"
         );
@@ -1233,12 +1233,12 @@ mod analysis_tests {
         // Verify Label $0000 (Internal)
         let l1 = app_state.labels.get(&0x0000);
         assert!(l1.is_some(), "Should generate label for internal address");
-        assert_eq!(l1.unwrap()[0].name, "a0000"); // Analyzer generates 'a' for AbsoluteAddress usage
+        assert_eq!(l1.expect("l1 is None")[0].name, "a0000"); // Analyzer generates 'a' for AbsoluteAddress usage
 
         // Verify Label $2001 (External)
         // Analyzer generates 'a' for AbsoluteAddress usage even if external, unless it's a Jump.
         let l2 = app_state.labels.get(&0x2001);
         assert!(l2.is_some(), "Should generate label for external address");
-        assert_eq!(l2.unwrap()[0].name, "a2001");
+        assert_eq!(l2.expect("l2 is None")[0].name, "a2001");
     }
 }

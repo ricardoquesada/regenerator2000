@@ -1900,16 +1900,18 @@ fn execute_menu_action(
                             // Maybe valid address but not in loaded range?
                             // Or at end
                             if !app_state.disassembly.is_empty() {
-                                if addr >= app_state.disassembly.last().unwrap().address {
-                                    ui_state.navigation_history.push((
-                                        crate::ui_state::ActivePane::Disassembly,
-                                        ui_state.cursor_index,
-                                    ));
-                                    ui_state.cursor_index = app_state.disassembly.len() - 1;
-                                    ui_state.status_message = "Jumped to end".to_string();
-                                } else {
-                                    ui_state.status_message =
-                                        format!("Address ${:04X} not found", addr);
+                                if let Some(last_line) = app_state.disassembly.last() {
+                                    if addr >= last_line.address {
+                                        ui_state.navigation_history.push((
+                                            crate::ui_state::ActivePane::Disassembly,
+                                            ui_state.cursor_index,
+                                        ));
+                                        ui_state.cursor_index = app_state.disassembly.len() - 1;
+                                        ui_state.status_message = "Jumped to end".to_string();
+                                    } else {
+                                        ui_state.status_message =
+                                            format!("Address ${:04X} not found", addr);
+                                    }
                                 }
                             }
                         }

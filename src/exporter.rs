@@ -288,7 +288,7 @@ mod tests {
         let res = export_asm(&state, &path);
         assert!(res.is_ok());
 
-        let content = std::fs::read_to_string(&path).unwrap();
+        let content = std::fs::read_to_string(&path).expect("Failed to read output file");
         println!("Content:\n{}", content);
 
         // Verify output contains the mid-instruction labels
@@ -352,7 +352,7 @@ mod tests {
         let res = export_asm(&state, &path);
         assert!(res.is_ok());
 
-        let content = std::fs::read_to_string(&path).unwrap();
+        let content = std::fs::read_to_string(&path).expect("Failed to read output file");
         println!("Content:\n{}", content);
 
         // Check for padding. MyLabel is 7 chars (MyLabel).
@@ -368,7 +368,7 @@ mod tests {
         // Ensure they appear in correct order on the line?
         // Since we read whole file, finding them separately is enough for basic correctness.
         // But let's check one line content.
-        let line = content.lines().find(|l| l.contains("MyLabel")).unwrap();
+        let line = content.lines().find(|l| l.contains("MyLabel")).expect("Line with MyLabel not found");
         assert!(line.contains("NOP"));
         assert!(line.contains("; x-ref"));
 
@@ -436,7 +436,7 @@ mod tests {
         let res = export_asm(&state, &path);
         assert!(res.is_ok());
 
-        let content = std::fs::read_to_string(&path).unwrap();
+        let content = std::fs::read_to_string(&path).expect("Failed to read output file");
         println!("Content:\n{}", content);
 
         // These assertions should currently FAIL because they don't start with 'e'
@@ -576,7 +576,7 @@ mod tests {
         let res = export_asm(&state, &path);
         assert!(res.is_ok());
 
-        let content = std::fs::read_to_string(&path).unwrap();
+        let content = std::fs::read_to_string(&path).expect("Failed to read output file");
         println!("Content:\n{}", content);
 
         let lines: Vec<&str> = content.lines().collect();
@@ -697,7 +697,7 @@ mod tests {
         let res = export_asm(&state, &path);
         assert!(res.is_ok());
 
-        let content = std::fs::read_to_string(&path).unwrap();
+        let content = std::fs::read_to_string(&path).expect("Failed to read output file");
 
         // Should be defined as label
         assert!(content.contains("eUser"));
@@ -791,7 +791,7 @@ mod tests {
         let res = export_asm(&state, &path);
         assert!(res.is_ok());
 
-        let content = std::fs::read_to_string(&path).unwrap();
+        let content = std::fs::read_to_string(&path).expect("Failed to read output file");
         println!("Content:\n{}", content);
 
         // Verify Exporter preserves the @w prefix
@@ -838,7 +838,7 @@ mod tests {
         let res = export_asm(&state, &path);
         assert!(res.is_ok());
 
-        let content = std::fs::read_to_string(&path).unwrap();
+        let content = std::fs::read_to_string(&path).expect("Failed to read output file");
 
         // Expected usage:
         // ; Function Start
@@ -847,8 +847,8 @@ mod tests {
 
         // Check ordering: Comment needs to be before Label
         // Find index of comment
-        let comment_idx = content.find("; Function Start").unwrap();
-        let label_idx = content.find("MyLabel").unwrap();
+        let comment_idx = content.find("; Function Start").expect("Comment not found");
+        let label_idx = content.find("MyLabel").expect("Label not found");
 
         assert!(
             comment_idx < label_idx,
@@ -901,7 +901,7 @@ mod tests {
         let res = export_asm(&state, &path);
         assert!(res.is_ok());
 
-        let content = std::fs::read_to_string(&path).unwrap();
+        let content = std::fs::read_to_string(&path).expect("Failed to read output file");
 
         // Must contain the label definition
         assert!(content.contains("f10 = $10"));

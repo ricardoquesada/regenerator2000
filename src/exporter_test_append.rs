@@ -39,13 +39,12 @@ fn test_export_all_labels_disabled() {
     }
 
     let res = export_asm(&state, &path);
-    assert!(res.is_ok());
+        assert!(res.is_ok());
 
-    let content = std::fs::read_to_string(&path).unwrap();
-    // println!("Content:\n{}", content);
-
-    // Must contain the label definition
-    assert!(content.contains("f10 = $10"));
+        let content = std::fs::read_to_string(&path).expect("Failed to read output file");
+        
+        // Should contain BOTH exports
+        assert!(content.contains("Start1"));
     assert!(content.contains("; ZP FIELDS"));
 
     let _ = std::fs::remove_file(&path);

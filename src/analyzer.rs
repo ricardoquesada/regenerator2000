@@ -868,7 +868,7 @@ mod tests {
         let labels_map = analyze(&app_state);
         let labels = labels_map.get(&0x00A0);
         assert!(labels.is_some(), "Should have a label at $00A0");
-        let label = labels.unwrap().first().unwrap();
+        let label = labels.expect("Labels missing").first().expect("Label vector empty");
 
         // User wants "a00A0" because it was forced absolute / accessed absolutely.
         // Current bug: "aA0"
@@ -896,7 +896,7 @@ mod tests {
         let labels_map = analyze(&app_state);
         let labels = labels_map.get(&0x00A0);
         assert!(labels.is_some(), "Should have a label at $00A0");
-        let label = labels.unwrap().first().unwrap();
+        let label = labels.expect("Labels missing").first().expect("Label vector empty");
 
         assert_eq!(
             label.label_type,
@@ -952,7 +952,7 @@ mod tests {
         let labels = labels_map.get(&0x00FB);
         assert!(labels.is_some(), "Should have labels at $00FB");
 
-        let label_vec = labels.unwrap();
+        let label_vec = labels.expect("Labels missing");
         // We expect TWO labels now: "p00FB" (Pointer) and "pFB" (ZeroPagePointer).
 
         let has_p00fb = label_vec

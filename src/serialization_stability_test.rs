@@ -88,13 +88,11 @@ mod tests {
 
         // 6. Verify label order specifically in the string if needed,
         // but assert_eq already covers it.
-        // Let's check that A_Label comes before Z_Label in the JSON string.
-        let a_pos = first_save_content.find("A_Label").unwrap();
-        let z_pos = first_save_content.find("Z_Label").unwrap();
-        assert!(
-            a_pos < z_pos,
-            "Labels were not sorted alphabetically in the project file!"
-        );
+        // Check if "A_Label" comes before "Z_Label" in the string output
+        let a_pos = first_save_content.find("A_Label").expect("A_Label missing");
+        let z_pos = first_save_content.find("Z_Label").expect("Z_Label missing");
+        
+        assert!(a_pos < z_pos, "Labels should be sorted alphabetically in JSON");
 
         // Cleanup
         let _ = std::fs::remove_file(temp_path);

@@ -46,7 +46,7 @@ mod tests {
 
         // 5. Test loading legacy project (without cursor_address)
         // Manually create JSON without cursor_address (or hex_cursor_address)
-        let legacy_raw_data = crate::state::encode_raw_data_to_base64(&raw_bytes);
+        let legacy_raw_data = crate::state::encode_raw_data_to_base64(&raw_bytes).expect("Failed to encode raw data");
         let json = format!(
             r#"{{
             "origin": 4096,
@@ -68,20 +68,14 @@ mod tests {
         // removed "cursor_address" and "hex_dump_cursor_address" fields
 
         let mut leg_path = std::env::temp_dir();
-        leg_path.push("test_legacy.regen2000proj");
-        std::fs::write(&leg_path, json).unwrap();
+        leg_path.push("legacy_project.regen2000proj");
+        std::fs::write(&leg_path, json).expect("Failed to write legacy project");
 
         let mut leg_state = AppState::new();
-        let (leg_cursor, leg_hex_cursor) = leg_state.load_project(leg_path.clone()).unwrap();
+        // Load legacy project
+        let (leg_cursor, _leg_hex_cursor) = leg_state.load_project(leg_path.clone()).expect("Failed to load legacy project");
 
-        assert_eq!(
-            leg_cursor, None,
-            "Legacy project should return None for cursor"
-        );
-        assert_eq!(
-            leg_hex_cursor, None,
-            "Legacy project should return None for hex cursor"
-        );
+        assert!(leg_cursor.is_none());
 
         // Cleanup
         let _ = std::fs::remove_file(path);

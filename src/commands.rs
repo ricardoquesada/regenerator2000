@@ -379,15 +379,15 @@ mod tests {
             app_state
                 .labels
                 .get(&0x1005)
-                .unwrap()
+                .expect("Label should exist")
                 .first()
-                .unwrap()
+                .expect("Label vector empty")
                 .refs
                 .len(),
             1
         );
         assert_eq!(
-            app_state.labels.get(&0x1005).unwrap().first().unwrap().kind,
+            app_state.labels.get(&0x1005).expect("Label should exist").first().expect("Label vector empty").kind,
             crate::state::LabelKind::Auto
         );
 
@@ -430,9 +430,9 @@ mod tests {
             app_state
                 .labels
                 .get(&0x1005)
-                .unwrap()
+                .expect("Label should exist")
                 .first()
-                .unwrap()
+                .expect("Label vector empty")
                 .refs
                 .len(),
             1
