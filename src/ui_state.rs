@@ -590,6 +590,7 @@ impl MenuState {
                 },
                 MenuCategory {
                     name: "View".to_string(),
+
                     items: vec![
                         MenuItem::new(
                             "Unshifted PETSCII",
@@ -820,6 +821,10 @@ pub struct UIState {
     pub input_buffer: String,
 
     pub theme: Theme,
+
+    // Vim-like search
+    pub vim_search_active: bool,
+    pub vim_search_input: String,
 }
 
 impl UIState {
@@ -855,6 +860,8 @@ impl UIState {
             dismiss_logo: false,
             is_visual_mode: false,
             input_buffer: String::new(),
+            vim_search_active: false,
+            vim_search_input: String::new(),
             theme,
         }
     }

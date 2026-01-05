@@ -8,6 +8,8 @@
 	sta $d020
 	sta $d021
 
+	stx $1000
+	sty $1001
 	
 	; C128 related
 	jsr $FF8D

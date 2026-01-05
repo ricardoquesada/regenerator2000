@@ -808,6 +808,25 @@ pub fn run_app<B: Backend>(
                     }
                     _ => {}
                 }
+            } else if ui_state.vim_search_active {
+                match key.code {
+                    KeyCode::Esc => {
+                        ui_state.vim_search_active = false;
+                        ui_state.set_status_message("Ready");
+                    }
+                    KeyCode::Enter => {
+                        ui_state.search_dialog.last_search = ui_state.vim_search_input.clone();
+                        ui_state.vim_search_active = false;
+                        perform_search(&mut app_state, &mut ui_state, true);
+                    }
+                    KeyCode::Backspace => {
+                        ui_state.vim_search_input.pop();
+                    }
+                    KeyCode::Char(c) => {
+                        ui_state.vim_search_input.push(c);
+                    }
+                    _ => {}
+                }
             } else {
                 match key.code {
                     KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -816,6 +835,16 @@ pub fn run_app<B: Backend>(
                             &mut ui_state,
                             crate::ui_state::MenuAction::Exit,
                         );
+                    }
+                    KeyCode::Char('/') => {
+                        ui_state.vim_search_active = true;
+                        ui_state.vim_search_input.clear();
+                    }
+                    KeyCode::Char('n') => {
+                        perform_search(&mut app_state, &mut ui_state, true);
+                    }
+                    KeyCode::Char('N') => {
+                        perform_search(&mut app_state, &mut ui_state, false);
                     }
                     KeyCode::F(10) => {
                         ui_state.menu.active = true;

@@ -1665,14 +1665,26 @@ fn render_status_bar(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: 
         .split(area);
 
     // Left: Status Message
+    let (status_text, status_fg) = if ui_state.vim_search_active {
+        (
+            format!("/{}", ui_state.vim_search_input),
+            ui_state.theme.highlight_fg,
+        )
+    } else {
+        (
+            format!(" {}", ui_state.status_message),
+            ui_state.theme.status_bar_fg,
+        )
+    };
+
     let status_msg = Paragraph::new(Span::styled(
-        format!(" {}", ui_state.status_message),
+        status_text,
         Style::default().add_modifier(Modifier::BOLD),
     ))
     .style(
         Style::default()
             .bg(ui_state.theme.status_bar_bg)
-            .fg(ui_state.theme.status_bar_fg),
+            .fg(status_fg),
     );
     f.render_widget(status_msg, chunks[0]);
 
