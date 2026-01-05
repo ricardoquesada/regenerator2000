@@ -45,6 +45,7 @@ pub fn load_logo() -> Option<DynamicImage> {
 }
 pub fn create_picker() -> Option<Picker> {
     let font_size = (8, 16);
+    #[allow(deprecated)]
     Some(Picker::from_fontsize(font_size))
 }
 

@@ -1,7 +1,6 @@
 use super::formatter::Formatter;
-use crate::cpu::{AddressingMode, Opcode};
-use crate::state::{Label, LabelType};
-use std::collections::BTreeMap;
+use crate::cpu::AddressingMode;
+use crate::state::LabelType;
 
 pub struct TassFormatter;
 
@@ -18,16 +17,14 @@ impl Formatter for TassFormatter {
         format!("${:02x}", byte)
     }
 
-    fn format_operand(
-        &self,
-        opcode: &Opcode,
-        operands: &[u8],
-        address: u16,
-        target_context: Option<LabelType>,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        settings: &crate::state::DocumentSettings,
-        immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
-    ) -> String {
+    fn format_operand(&self, ctx: &super::formatter::FormatContext) -> String {
+        let opcode = ctx.opcode;
+        let operands = ctx.operands;
+        let address = ctx.address;
+        let target_context = ctx.target_context;
+        let labels = ctx.labels;
+        let settings = ctx.settings;
+        let immediate_value_formats = ctx.immediate_value_formats;
         let get_label = |addr: u16, l_type: LabelType| -> Option<String> {
             if let Some(label_vec) = labels.get(&addr) {
                 // 1. Try to match target_context if provided

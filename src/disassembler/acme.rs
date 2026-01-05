@@ -1,7 +1,6 @@
 use super::formatter::Formatter;
-use crate::cpu::{AddressingMode, Opcode};
-use crate::state::{Label, LabelType};
-use std::collections::BTreeMap;
+use crate::cpu::AddressingMode;
+use crate::state::LabelType;
 
 pub struct AcmeFormatter;
 
@@ -18,16 +17,15 @@ impl Formatter for AcmeFormatter {
         format!("${:02x}", byte)
     }
 
-    fn format_operand(
-        &self,
-        opcode: &Opcode,
-        operands: &[u8],
-        address: u16,
-        target_context: Option<LabelType>,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        _settings: &crate::state::DocumentSettings,
-        immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
-    ) -> String {
+    fn format_operand(&self, ctx: &super::formatter::FormatContext) -> String {
+        let opcode = ctx.opcode;
+        let operands = ctx.operands;
+        let address = ctx.address;
+        let target_context = ctx.target_context;
+        let labels = ctx.labels;
+        let _settings = ctx.settings;
+        let immediate_value_formats = ctx.immediate_value_formats;
+
         let get_label = |addr: u16, l_type: LabelType| -> Option<String> {
             if let Some(label_vec) = labels.get(&addr) {
                 // 1. Try to match target_context if provided
@@ -267,26 +265,14 @@ impl Formatter for AcmeFormatter {
         format!("{} = {}", name, operand)
     }
 
-    fn format_instruction(
-        &self,
-        opcode: &Opcode,
-        operands: &[u8],
-        address: u16,
-        target_context: Option<LabelType>,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        settings: &crate::state::DocumentSettings,
-        immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
-    ) -> (String, String) {
+    fn format_instruction(&self, ctx: &super::formatter::FormatContext) -> (String, String) {
+        let opcode = ctx.opcode;
+        let operands = ctx.operands;
+        let _address = ctx.address;
+        let settings = ctx.settings;
+
         let mnemonic = self.format_mnemonic(opcode.mnemonic);
-        let operand = self.format_operand(
-            opcode,
-            operands,
-            address,
-            target_context,
-            labels,
-            settings,
-            immediate_value_formats,
-        );
+        let operand = self.format_operand(ctx);
 
         // Check if we need to force 16-bit addressing with +2
         // Only if settings.use_w_prefix is true AND address fits in ZP (<= 0xFF)

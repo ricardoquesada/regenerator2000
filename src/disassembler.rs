@@ -754,15 +754,16 @@ impl Disassembler {
                         _ => None,
                     };
 
-                    let (mnemonic, operand_str) = formatter.format_instruction(
+                    let ctx = crate::disassembler::formatter::FormatContext {
                         opcode,
-                        &bytes[1..],
+                        operands: &bytes[1..],
                         address,
                         target_context,
                         labels,
                         settings,
                         immediate_value_formats,
-                    );
+                    };
+                    let (mnemonic, operand_str) = formatter.format_instruction(&ctx);
 
                     let target_address = self.get_arrow_target_address(opcode, &bytes, address);
 

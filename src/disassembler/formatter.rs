@@ -7,20 +7,21 @@ pub enum TextFragment {
     Byte(u8),
 }
 
+pub struct FormatContext<'a> {
+    pub opcode: &'a Opcode,
+    pub operands: &'a [u8],
+    pub address: u16,
+    pub target_context: Option<crate::state::LabelType>,
+    pub labels: &'a BTreeMap<u16, Vec<Label>>,
+    pub settings: &'a crate::state::DocumentSettings,
+    pub immediate_value_formats: &'a BTreeMap<u16, crate::state::ImmediateFormat>,
+}
+
 pub trait Formatter {
     fn byte_directive(&self) -> &'static str;
     fn word_directive(&self) -> &'static str;
     fn format_byte(&self, byte: u8) -> String;
-    fn format_operand(
-        &self,
-        opcode: &Opcode,
-        operands: &[u8],
-        address: u16,
-        target_context: Option<crate::state::LabelType>,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        settings: &crate::state::DocumentSettings,
-        immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
-    ) -> String;
+    fn format_operand(&self, ctx: &FormatContext) -> String;
 
     fn format_mnemonic(&self, mnemonic: &str) -> String;
     fn format_label(&self, name: &str) -> String;
@@ -38,27 +39,10 @@ pub trait Formatter {
     fn format_header_origin(&self, origin: u16) -> String;
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String;
 
-    fn format_instruction(
-        &self,
-        opcode: &Opcode,
-        operands: &[u8],
-        address: u16,
-        target_context: Option<crate::state::LabelType>,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        settings: &crate::state::DocumentSettings,
-        immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
-    ) -> (String, String) {
+    fn format_instruction(&self, ctx: &FormatContext) -> (String, String) {
         (
-            self.format_mnemonic(opcode.mnemonic),
-            self.format_operand(
-                opcode,
-                operands,
-                address,
-                target_context,
-                labels,
-                settings,
-                immediate_value_formats,
-            ),
+            self.format_mnemonic(ctx.opcode.mnemonic),
+            self.format_operand(ctx),
         )
     }
 }

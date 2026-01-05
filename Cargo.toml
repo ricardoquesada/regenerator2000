@@ -4,13 +4,12 @@ version = "0.1.1"
 edition = "2021"
 
 [dependencies]
-ratatui = "0.29.0"
-crossterm = "0.28.1"
+ratatui = "0.30.0"
+crossterm = "0.29.0"
 anyhow = "1.0"
-clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-ratatui-image = "8.1.1"
+ratatui-image = "10.0.2"
 image = "0.25.9"
 base64 = "0.22.1"
 flate2 = "1.1.5"

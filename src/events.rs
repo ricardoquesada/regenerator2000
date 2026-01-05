@@ -18,7 +18,9 @@ pub fn run_app<B: Backend>(
             ui_state.search_dialog.last_search.is_empty(),
         );
 
-        terminal.draw(|f| ui(f, &app_state, &mut ui_state))?;
+        terminal
+            .draw(|f| ui(f, &app_state, &mut ui_state))
+            .map_err(|e| io::Error::other(e.to_string()))?;
 
         if let Event::Key(key) = event::read()? {
             if key.kind != event::KeyEventKind::Press {
@@ -2093,12 +2095,10 @@ fn perform_search(app_state: &mut crate::state::AppState, ui_state: &mut UIState
         } else {
             0 // Wrap
         }
+    } else if ui_state.cursor_index > 0 {
+        ui_state.cursor_index - 1
     } else {
-        if ui_state.cursor_index > 0 {
-            ui_state.cursor_index - 1
-        } else {
-            disassembly_len.saturating_sub(1)
-        }
+        disassembly_len.saturating_sub(1)
     };
 
     let mut found_idx = None;
