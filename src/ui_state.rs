@@ -311,6 +311,7 @@ impl SaveDialogState {
 pub struct LabelDialogState {
     pub active: bool,
     pub input: String,
+    pub address: Option<u16>,
 }
 
 impl LabelDialogState {
@@ -318,12 +319,14 @@ impl LabelDialogState {
         Self {
             active: false,
             input: String::new(),
+            address: None,
         }
     }
 
-    pub fn open(&mut self, current_label: Option<&str>) {
+    pub fn open(&mut self, current_label: Option<&str>, address: u16) {
         self.active = true;
         self.input = current_label.unwrap_or("").to_string();
+        self.address = Some(address);
     }
 
     pub fn close(&mut self) {

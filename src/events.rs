@@ -222,9 +222,8 @@ pub fn run_app<B: Backend>(
                         ui_state.set_status_message("Ready");
                     }
                     KeyCode::Enter => {
-                        // Get current address
-                        if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                            let address = line.address;
+                        // Get address from dialog state
+                        if let Some(address) = ui_state.label_dialog.address {
                             let label_name = ui_state.label_dialog.input.trim().to_string();
 
                             if label_name.is_empty() {
@@ -1235,13 +1234,46 @@ pub fn run_app<B: Backend>(
                                 && ui_state.active_pane == ActivePane::Disassembly
                                 && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
                             {
-                                let addr = line.address;
+                                let mut target_addr = line.address;
+                                let mut current_sub_index = 0;
+                                let mut found = false;
+
+                                // Check relative labels (to match UI rendering)
+                                if line.bytes.len() > 1 {
+                                    for offset in 1..line.bytes.len() {
+                                        let mid_addr = line.address.wrapping_add(offset as u16);
+                                        if let Some(labels) = app_state.labels.get(&mid_addr) {
+                                            for _label in labels {
+                                                if current_sub_index == ui_state.sub_cursor_index {
+                                                    target_addr = mid_addr;
+                                                    found = true;
+                                                    break;
+                                                }
+                                                current_sub_index += 1;
+                                            }
+                                        }
+                                        if found {
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                // Check line comment if not found
+                                if !found && line.line_comment.is_some() {
+                                    // Line comments are associated with the main address line visually,
+                                    // but occupy a sub-index.
+                                    // current_sub_index += 1; // Unused
+                                }
+
+                                // If we haven't found a relative label match, target_addr remains line.address,
+                                // which is correct for both the Line Comment and the Main Line.
+
                                 let text = app_state
                                     .labels
-                                    .get(&addr)
+                                    .get(&target_addr)
                                     .and_then(|v| v.first())
                                     .map(|l| l.name.as_str());
-                                ui_state.label_dialog.open(text);
+                                ui_state.label_dialog.open(text, target_addr);
                                 ui_state.set_status_message("Enter Label");
                             }
                         } else if ui_state.active_pane == ActivePane::Disassembly {
