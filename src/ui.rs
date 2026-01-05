@@ -1578,9 +1578,8 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 false
             };
 
-            let style = if i == ui_state.cursor_index {
-                Style::default().bg(ui_state.theme.selection_bg)
-            } else if is_selected {
+            let is_cursor_row = i == ui_state.cursor_index;
+            let item_base_style = if is_selected {
                 Style::default()
                     .bg(ui_state.theme.selection_bg)
                     .fg(ui_state.theme.selection_fg)
@@ -1595,41 +1594,104 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             };
 
             let mut item_lines = Vec::new();
+            let mut current_sub_index = 0;
 
+            // Inject relative labels (e.g. "Label =*+$01")
+            if line.bytes.len() > 1 {
+                for offset in 1..line.bytes.len() {
+                    let mid_addr = line.address.wrapping_add(offset as u16);
+                    if let Some(labels) = app_state.labels.get(&mid_addr) {
+                        for label in labels {
+                            let is_highlighted = !is_selected
+                                && is_cursor_row
+                                && ui_state.sub_cursor_index == current_sub_index;
+                            let line_style = if is_highlighted {
+                                Style::default().bg(ui_state.theme.selection_bg)
+                            } else {
+                                item_base_style
+                            };
+
+                            let arrow_padding_for_rel = get_comment_arrow_str(i);
+                            let relative_line = Line::from(vec![
+                                Span::styled(
+                                    format!("{:5} ", current_line_num),
+                                    line_style.fg(ui_state.theme.bytes),
+                                ),
+                                Span::styled(
+                                    format!(
+                                        "{:<width$} ",
+                                        arrow_padding_for_rel,
+                                        width = arrow_width
+                                    ),
+                                    line_style.fg(ui_state.theme.arrow),
+                                ),
+                                // Padding to align with Label column
+                                Span::styled("                  ".to_string(), line_style),
+                                Span::styled(
+                                    format!("{} =*+${:02x}", label.name, offset),
+                                    line_style.fg(ui_state.theme.label_def),
+                                ),
+                            ]);
+                            item_lines.push(relative_line);
+                            current_line_num += 1;
+                            current_sub_index += 1;
+                        }
+                    }
+                }
+            }
+
+            // Generate arrow string
             // Generate arrow string
             let arrow_padding = get_arrow_str(i);
 
             if let Some(line_comment) = &line.line_comment {
+                let is_highlighted =
+                    !is_selected && is_cursor_row && ui_state.sub_cursor_index == current_sub_index;
+                let line_style = if is_highlighted {
+                    Style::default().bg(ui_state.theme.selection_bg)
+                } else {
+                    Style::default()
+                };
+
                 let comment_arrow_padding = get_comment_arrow_str(i);
                 item_lines.push(Line::from(vec![
                     Span::styled(
                         format!("{:5} ", current_line_num),
-                        Style::default().fg(ui_state.theme.bytes),
+                        line_style.fg(ui_state.theme.bytes),
                     ),
                     Span::styled(
                         format!("{:width$} ", comment_arrow_padding, width = arrow_width),
-                        Style::default().fg(ui_state.theme.arrow),
+                        line_style.fg(ui_state.theme.arrow),
                     ),
                     Span::styled(
                         format!("; {}", line_comment),
-                        Style::default().fg(ui_state.theme.comment),
+                        line_style.fg(ui_state.theme.comment),
                     ),
                 ]));
                 current_line_num += 1;
+                current_sub_index += 1;
             }
+
+            let is_highlighted =
+                !is_selected && is_cursor_row && ui_state.sub_cursor_index == current_sub_index;
+            let line_style = if is_highlighted {
+                Style::default().bg(ui_state.theme.selection_bg)
+            } else {
+                Style::default()
+            };
 
             let content = Line::from(vec![
                 Span::styled(
                     format!("{:5} ", current_line_num),
-                    Style::default().fg(ui_state.theme.bytes),
+                    line_style.fg(ui_state.theme.bytes),
                 ),
                 Span::styled(
                     format!("{:<width$} ", arrow_padding, width = arrow_width),
-                    Style::default().fg(ui_state.theme.arrow),
+                    line_style.fg(ui_state.theme.arrow),
                 ),
                 Span::styled(
                     format!("{:04X}  ", line.address),
-                    Style::default().fg(ui_state.theme.address),
+                    line_style.fg(ui_state.theme.address),
                 ),
                 Span::styled(
                     format!(
@@ -1640,23 +1702,23 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                             String::new()
                         }
                     ),
-                    Style::default().fg(ui_state.theme.bytes),
+                    line_style.fg(ui_state.theme.bytes),
                 ),
                 Span::styled(
                     format!("{: <16}", label_text),
-                    Style::default()
+                    line_style
                         .fg(ui_state.theme.label_def)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     format!("{: <4} ", line.mnemonic),
-                    Style::default()
+                    line_style
                         .fg(ui_state.theme.mnemonic)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
                     format!("{: <15}", line.operand),
-                    Style::default().fg(ui_state.theme.operand),
+                    line_style.fg(ui_state.theme.operand),
                 ),
                 Span::styled(
                     if line.comment.is_empty() {
@@ -1664,13 +1726,13 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                     } else {
                         format!("; {}", line.comment)
                     },
-                    Style::default().fg(ui_state.theme.comment),
+                    line_style.fg(ui_state.theme.comment),
                 ),
             ]);
             item_lines.push(content);
             current_line_num += 1;
 
-            ListItem::new(item_lines).style(style)
+            ListItem::new(item_lines).style(item_base_style)
         })
         .collect();
 

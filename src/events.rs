@@ -1374,10 +1374,31 @@ pub fn run_app<B: Backend>(
                                     ui_state.selection_start = None;
                                 }
 
-                                if ui_state.cursor_index
+                                let line = &app_state.disassembly[ui_state.cursor_index];
+                                let mut sub_count = 1; // Main line
+
+                                // Add line comment if it exists (rendered above)
+                                if app_state.user_line_comments.contains_key(&line.address) {
+                                    sub_count += 1;
+                                }
+
+                                // Add relative labels (rendered above instruction)
+                                if line.bytes.len() > 1 {
+                                    for offset in 1..line.bytes.len() {
+                                        let mid_addr = line.address.wrapping_add(offset as u16);
+                                        if let Some(labels) = app_state.labels.get(&mid_addr) {
+                                            sub_count += labels.len();
+                                        }
+                                    }
+                                }
+
+                                if ui_state.sub_cursor_index < sub_count - 1 {
+                                    ui_state.sub_cursor_index += 1;
+                                } else if ui_state.cursor_index
                                     < app_state.disassembly.len().saturating_sub(1)
                                 {
                                     ui_state.cursor_index += 1;
+                                    ui_state.sub_cursor_index = 0;
                                 }
                             }
                             ActivePane::HexDump => {
@@ -1405,8 +1426,29 @@ pub fn run_app<B: Backend>(
                                     ui_state.selection_start = None;
                                 }
 
-                                if ui_state.cursor_index > 0 {
+                                if ui_state.sub_cursor_index > 0 {
+                                    ui_state.sub_cursor_index -= 1;
+                                } else if ui_state.cursor_index > 0 {
                                     ui_state.cursor_index -= 1;
+                                    // Calculate max sub_index for the new line
+                                    let line = &app_state.disassembly[ui_state.cursor_index];
+                                    let mut sub_count = 1; // Main line
+
+                                    // Add line comment if it exists (rendered above)
+                                    if app_state.user_line_comments.contains_key(&line.address) {
+                                        sub_count += 1;
+                                    }
+
+                                    // Add relative labels (rendered above instruction)
+                                    if line.bytes.len() > 1 {
+                                        for offset in 1..line.bytes.len() {
+                                            let mid_addr = line.address.wrapping_add(offset as u16);
+                                            if let Some(labels) = app_state.labels.get(&mid_addr) {
+                                                sub_count += labels.len();
+                                            }
+                                        }
+                                    }
+                                    ui_state.sub_cursor_index = sub_count - 1;
                                 }
                             }
                             ActivePane::HexDump => {

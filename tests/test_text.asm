@@ -16,3 +16,7 @@
 	.TEXT  "0-9, hola como te va", 0
 	.ENDENCODE
 
+	lda $800
+	lda $801
+	lda $810
+	lda $81f

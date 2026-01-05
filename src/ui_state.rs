@@ -805,6 +805,7 @@ pub struct UIState {
     // UI Selection/Cursor
     pub selection_start: Option<usize>,
     pub cursor_index: usize,
+    pub sub_cursor_index: usize,
     #[allow(dead_code)]
     pub scroll_index: usize,
 
@@ -852,6 +853,7 @@ impl UIState {
             disassembly_state: ListState::default(),
             selection_start: None,
             cursor_index: 0,
+            sub_cursor_index: 0,
             scroll_index: 0,
             hex_cursor_index: 0,
             hex_scroll_index: 0,

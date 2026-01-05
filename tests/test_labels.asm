@@ -45,3 +45,15 @@
 	sta $fa
 	lda #$d0
 	sta $fb
+
+
+*=$1200
+	lda #00
+loop:
+lo_addr = * + 1
+hi_addr = * + 2
+	sta $0400
+	inc lo_addr
+	inc hi_addr
+	jmp loop
+
