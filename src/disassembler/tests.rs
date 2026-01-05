@@ -131,7 +131,7 @@ fn test_acme_directives() {
 
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!byte");
-    assert_eq!(lines[0].operand, "$FF");
+    assert_eq!(lines[0].operand, "$ff");
 }
 
 #[test]
@@ -1612,13 +1612,13 @@ fn test_lohi_block() {
     // 2. !byte >$C000, >$D001
     assert_eq!(lines.len(), 2);
     assert_eq!(lines[0].mnemonic, "!byte");
-    assert_eq!(lines[0].operand, "<$C000, <$D001");
+    assert_eq!(lines[0].operand, "<$c000, <$d001");
     // LoHi logic sets `show_bytes` to false to avoid clutter?
     // Let's check implementation. Yes `show_bytes: false`.
     assert!(!lines[0].show_bytes);
 
     assert_eq!(lines[1].mnemonic, "!byte");
-    assert_eq!(lines[1].operand, ">$C000, >$D001");
+    assert_eq!(lines[1].operand, ">$c000, >$d001");
 
     // Case 2: With Label at $C000
     labels.insert(
@@ -1644,8 +1644,8 @@ fn test_lohi_block() {
     );
 
     assert_eq!(lines_labelled.len(), 2);
-    assert_eq!(lines_labelled[0].operand, "<MyLabel, <$D001");
-    assert_eq!(lines_labelled[1].operand, ">MyLabel, >$D001");
+    assert_eq!(lines_labelled[0].operand, "<MyLabel, <$d001");
+    assert_eq!(lines_labelled[1].operand, ">MyLabel, >$d001");
 }
 
 #[test]
@@ -1693,14 +1693,14 @@ fn test_lohi_internal_label_regression() {
     // Should produce 2 lines (Lo and Hi), not broken parts.
     assert_eq!(lines.len(), 2);
     // Line 1: Lo part (00 01)
-    assert_eq!(lines[0].operand, "<$C000, <$D001");
+    assert_eq!(lines[0].operand, "<$c000, <$d001");
 
     // Line 2: Hi part (C0 D0)
     // The label "HiPart" is at 1002.
     // The disassembly line for Hi part starts at 1002.
     // So line[1] should have label "HiPart".
     assert_eq!(lines[1].label, Some("HiPart".to_string()));
-    assert_eq!(lines[1].operand, ">$C000, >$D001");
+    assert_eq!(lines[1].operand, ">$c000, >$d001");
 }
 
 #[test]
@@ -1739,12 +1739,12 @@ fn test_hilo_block() {
     // 2. !byte <$C000, <$D001  (Lo bytes 00, 01)
     assert_eq!(lines.len(), 2);
     assert_eq!(lines[0].mnemonic, "!byte");
-    assert_eq!(lines[0].operand, ">$C000, >$D001");
+    assert_eq!(lines[0].operand, ">$c000, >$d001");
     // LoHi and HiLo logic sets `show_bytes` to false to avoid clutter
     assert!(!lines[0].show_bytes);
 
     assert_eq!(lines[1].mnemonic, "!byte");
-    assert_eq!(lines[1].operand, "<$C000, <$D001");
+    assert_eq!(lines[1].operand, "<$c000, <$d001");
 
     // Case 2: With Label at $C000
     labels.insert(
@@ -1770,8 +1770,8 @@ fn test_hilo_block() {
     );
 
     assert_eq!(lines_labelled.len(), 2);
-    assert_eq!(lines_labelled[0].operand, ">MyLabel, >$D001");
-    assert_eq!(lines_labelled[1].operand, "<MyLabel, <$D001");
+    assert_eq!(lines_labelled[0].operand, ">MyLabel, >$d001");
+    assert_eq!(lines_labelled[1].operand, "<MyLabel, <$d001");
 }
 
 #[test]

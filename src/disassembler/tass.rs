@@ -17,6 +17,10 @@ impl Formatter for TassFormatter {
         format!("${:02x}", byte)
     }
 
+    fn format_address(&self, address: u16) -> String {
+        format!("${:04x}", address)
+    }
+
     fn format_operand(&self, ctx: &super::formatter::FormatContext) -> String {
         let opcode = ctx.opcode;
         let operands = ctx.operands;

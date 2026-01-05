@@ -278,7 +278,7 @@ impl Disassembler {
                 // If it's missing, it means analysis didn't find it.
                 // We can't conjure it safely without checking collision.
                 // However, we can use the hex address which corresponds to what "aXXXX" usually means.
-                format!("${:04X}", val)
+                formatter.format_address(val)
             };
 
             if is_lo {
@@ -414,7 +414,7 @@ impl Disassembler {
             let label_part = if let Some(label_vec) = labels.get(&val) {
                 formatter.format_label(&label_vec[0].name)
             } else {
-                format!("${:04X}", val)
+                formatter.format_address(val)
             };
 
             if is_lo {
@@ -624,7 +624,7 @@ impl Disassembler {
                 let refs_str: Vec<String> = all_refs
                     .iter()
                     .take(settings.max_xref_count)
-                    .map(|r| format!("${:04X}", r))
+                    .map(|r| format!("${:04x}", r)) // Use lowercase hex for refs in comments too
                     .collect();
                 comment_parts.push(format!("x-ref: {}", refs_str.join(", ")));
             }
@@ -799,7 +799,7 @@ impl Disassembler {
                 address,
                 bytes: vec![opcode_byte],
                 mnemonic: formatter.byte_directive().to_string(),
-                operand: format!("${:02X}", opcode_byte),
+                operand: formatter.format_byte(opcode_byte),
                 comment: side_comment_final,
                 line_comment,
                 label: label_name,
@@ -845,7 +845,7 @@ impl Disassembler {
 
             let b = data[current_pc];
             bytes.push(b);
-            operands.push(format!("${:02X}", b));
+            operands.push(formatter.format_byte(b));
             count += 1;
         }
 
@@ -905,7 +905,7 @@ impl Disassembler {
 
             bytes.push(low);
             bytes.push(high);
-            operands.push(format!("${:04X}", val));
+            operands.push(formatter.format_address(val));
             count += 1;
         }
 
@@ -1001,9 +1001,9 @@ impl Disassembler {
                 label_vec
                     .first()
                     .map(|l| l.name.clone())
-                    .unwrap_or(format!("${:04X}", val))
+                    .unwrap_or(formatter.format_address(val))
             } else {
-                format!("${:04X}", val)
+                formatter.format_address(val)
             };
             operands.push(operand);
 
@@ -1336,7 +1336,7 @@ impl Disassembler {
                     address,
                     bytes: vec![b],
                     mnemonic: formatter.byte_directive().to_string(),
-                    operand: format!("${:02X}", b),
+                    operand: formatter.format_byte(b),
                     comment: side_comment_final,
                     line_comment,
                     label: label_name,
