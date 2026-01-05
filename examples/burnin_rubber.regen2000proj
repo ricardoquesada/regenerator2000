@@ -319,8 +319,73 @@
     },
     {
       "start": 17407,
-      "end": 36873,
+      "end": 18362,
       "type_": "Code"
+    },
+    {
+      "start": 18363,
+      "end": 18430,
+      "type_": "DataByte"
+    },
+    {
+      "start": 18431,
+      "end": 19061,
+      "type_": "Code"
+    },
+    {
+      "start": 19062,
+      "end": 19198,
+      "type_": "DataByte"
+    },
+    {
+      "start": 19199,
+      "end": 19350,
+      "type_": "Code"
+    },
+    {
+      "start": 19351,
+      "end": 19454,
+      "type_": "DataByte"
+    },
+    {
+      "start": 19455,
+      "end": 19650,
+      "type_": "Code"
+    },
+    {
+      "start": 19651,
+      "end": 20158,
+      "type_": "DataByte"
+    },
+    {
+      "start": 20159,
+      "end": 20185,
+      "type_": "Code"
+    },
+    {
+      "start": 20186,
+      "end": 20222,
+      "type_": "DataByte"
+    },
+    {
+      "start": 20223,
+      "end": 20320,
+      "type_": "Code"
+    },
+    {
+      "start": 20321,
+      "end": 20334,
+      "type_": "DataByte"
+    },
+    {
+      "start": 20335,
+      "end": 20388,
+      "type_": "Screencode"
+    },
+    {
+      "start": 20389,
+      "end": 36873,
+      "type_": "DataByte"
     }
   ],
   "labels": {
@@ -384,6 +449,6 @@
     "4116": "Binary",
     "6155": "Binary"
   },
-  "cursor_address": 2083,
-  "hex_dump_cursor_address": 13872
+  "cursor_address": 2584,
+  "hex_dump_cursor_address": 21568
 }
