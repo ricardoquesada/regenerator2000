@@ -70,13 +70,13 @@ impl Theme {
             status_bar_fg: Color::Rgb(220, 220, 220),
 
             address: Color::Yellow,
-            bytes: Color::DarkGray,
+            bytes: Color::Gray,
             mnemonic: Color::Cyan, // Or a lighter blue
             operand: Color::White,
             label: Color::Magenta,
             label_def: Color::Magenta,
             comment: Color::Gray, // Or DarkGray
-            arrow: Color::DarkGray,
+            arrow: Color::Gray,
 
             hex_bytes: Color::White,
             hex_ascii: Color::Green,
