@@ -1,8 +1,15 @@
 [package]
+authors = ["Ricardo Quesada <ricardoquesada@gmail.com>"]
+description = "An interactive disassembler for the CPU 6502, focused mostly on Commodore 8-bit computers."
 name = "regenerator2000"
 version = "0.1.1"
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
+homepage = "https://github.com/ricardoquesada/regenerator2000"
+repository = "https://github.com/ricardoquesada/regenerator2000"
+keywords = ["disassembler", "mos6502", "c64", "tui", "commodore"]
+categories = ["development-tools::debugging"]
+readme = "README.md"
 
 [dependencies]
 ratatui = "0.30.0"
