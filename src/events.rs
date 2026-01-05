@@ -169,7 +169,24 @@ pub fn run_app<B: Backend>(
                                     .disassembly
                                     .get(ui_state.cursor_index)
                                     .map(|l| l.address);
-                                if let Err(e) = app_state.save_project(cursor_addr) {
+
+                                // Calculate hex cursor address
+                                let hex_addr = if !app_state.raw_data.is_empty() {
+                                    let origin = app_state.origin as usize;
+                                    let alignment_padding = origin % 16;
+                                    let aligned_origin = origin - alignment_padding;
+                                    let row_start_offset = ui_state.hex_cursor_index * 16;
+                                    // Make sure it's within valid range
+                                    // The cursor is at the start of the row
+                                    let addr = aligned_origin + row_start_offset;
+                                    // Check if this address is somewhat valid (it might be padding)
+                                    // But we just want to restore the row, so saving the row start address is fine.
+                                    Some(addr as u16)
+                                } else {
+                                    None
+                                };
+
+                                if let Err(e) = app_state.save_project(cursor_addr, hex_addr) {
                                     ui_state.set_status_message(format!("Error saving: {}", e));
                                 } else {
                                     ui_state.set_status_message("Project saved");
@@ -377,7 +394,7 @@ pub fn run_app<B: Backend>(
                                             e
                                         ));
                                     }
-                                    Ok(loaded_cursor) => {
+                                    Ok((loaded_cursor, loaded_hex_cursor)) => {
                                         ui_state.set_status_message(format!(
                                             "Loaded: {:?}",
                                             selected_path
@@ -408,6 +425,30 @@ pub fn run_app<B: Backend>(
                                                 .get_line_index_for_address(app_state.origin)
                                             {
                                                 ui_state.cursor_index = idx;
+                                            }
+                                        }
+
+                                        // Restore Hex Cursor
+                                        if let Some(hex_addr) = loaded_hex_cursor {
+                                            if !app_state.raw_data.is_empty() {
+                                                let origin = app_state.origin as usize;
+                                                let alignment_padding = origin % 16;
+                                                let aligned_origin = origin - alignment_padding;
+                                                let target = hex_addr as usize;
+
+                                                if target >= aligned_origin {
+                                                    let offset = target - aligned_origin;
+                                                    let row = offset / 16;
+                                                    // Ensure row is within bounds
+                                                    // Max rows calculation:
+                                                    let total_len = app_state.raw_data.len()
+                                                        + alignment_padding;
+                                                    let max_rows = (total_len + 15) / 16;
+
+                                                    if row < max_rows {
+                                                        ui_state.hex_cursor_index = row;
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -1468,7 +1509,20 @@ fn execute_menu_action(
                     .disassembly
                     .get(ui_state.cursor_index)
                     .map(|l| l.address);
-                if let Err(e) = app_state.save_project(cursor_addr) {
+
+                // Calculate hex cursor address
+                let hex_addr = if !app_state.raw_data.is_empty() {
+                    let origin = app_state.origin as usize;
+                    let alignment_padding = origin % 16;
+                    let aligned_origin = origin - alignment_padding;
+                    let row_start_offset = ui_state.hex_cursor_index * 16;
+                    let addr = aligned_origin + row_start_offset;
+                    Some(addr as u16)
+                } else {
+                    None
+                };
+
+                if let Err(e) = app_state.save_project(cursor_addr, hex_addr) {
                     ui_state.set_status_message(format!("Error saving: {}", e));
                 } else {
                     ui_state.set_status_message("Project saved");

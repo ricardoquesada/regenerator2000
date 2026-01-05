@@ -204,6 +204,8 @@ pub struct ProjectState {
     pub immediate_value_formats: BTreeMap<u16, ImmediateFormat>,
     #[serde(default)]
     pub cursor_address: Option<u16>,
+    #[serde(default)]
+    pub hex_dump_cursor_address: Option<u16>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -291,7 +293,7 @@ impl AppState {
         Disassembler::create_formatter(self.settings.assembler)
     }
 
-    pub fn load_file(&mut self, path: PathBuf) -> anyhow::Result<Option<u16>> {
+    pub fn load_file(&mut self, path: PathBuf) -> anyhow::Result<(Option<u16>, Option<u16>)> {
         let data = std::fs::read(&path)?;
         self.file_path = Some(path.clone());
         self.project_path = None; // clear project path
@@ -302,6 +304,7 @@ impl AppState {
         self.immediate_value_formats.clear();
 
         let mut cursor_start = None;
+        let mut hex_cursor_start = None;
 
         if let Some(ext) = self
             .file_path
@@ -359,10 +362,10 @@ impl AppState {
 
         self.load_system_assets();
         self.disassemble();
-        Ok(cursor_start)
+        Ok((cursor_start, hex_cursor_start))
     }
 
-    pub fn load_project(&mut self, path: PathBuf) -> anyhow::Result<Option<u16>> {
+    pub fn load_project(&mut self, path: PathBuf) -> anyhow::Result<(Option<u16>, Option<u16>)> {
         let data = std::fs::read_to_string(&path)?;
         let project: ProjectState = serde_json::from_str(&data)?;
 
@@ -390,10 +393,14 @@ impl AppState {
         self.last_saved_pointer = 0;
 
         self.disassemble();
-        Ok(project.cursor_address)
+        Ok((project.cursor_address, project.hex_dump_cursor_address))
     }
 
-    pub fn save_project(&mut self, cursor_address: Option<u16>) -> anyhow::Result<()> {
+    pub fn save_project(
+        &mut self,
+        cursor_address: Option<u16>,
+        hex_dump_cursor_address: Option<u16>,
+    ) -> anyhow::Result<()> {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
                 origin: self.origin,
@@ -418,6 +425,7 @@ impl AppState {
                 immediate_value_formats: self.immediate_value_formats.clone(),
                 settings: self.settings,
                 cursor_address,
+                hex_dump_cursor_address,
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;
@@ -806,10 +814,10 @@ fn expand_blocks(ranges: &[Block], len: usize) -> Vec<BlockType> {
     types
 }
 
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
+use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
-use flate2::Compression;
 use std::io::Read;
 use std::io::Write;
 
@@ -942,8 +950,8 @@ mod load_file_tests {
         }
 
         assert!(
-             !app_state.labels.contains_key(&0x1234),
-             "Specific user label address should not exist (assuming it doesn't collide with system)"
+            !app_state.labels.contains_key(&0x1234),
+            "Specific user label address should not exist (assuming it doesn't collide with system)"
         );
         assert!(
             app_state.project_path.is_none(),
@@ -994,7 +1002,7 @@ mod save_project_tests {
         path.push("test_project_serialization.json");
         app_state.project_path = Some(path.clone());
 
-        app_state.save_project(None).expect("Save failed");
+        app_state.save_project(None, None).expect("Save failed");
 
         // 4. Read back JSON manually to inspect
         let data = std::fs::read_to_string(&path).expect("Read failed");

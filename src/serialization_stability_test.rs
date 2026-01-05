@@ -61,7 +61,9 @@ mod tests {
             .insert(0x1000, "Line 1".to_string());
 
         // 2. Save for the first time
-        app_state.save_project(None).expect("First save failed");
+        app_state
+            .save_project(None, None)
+            .expect("First save failed");
         let first_save_content =
             std::fs::read_to_string(&temp_path).expect("Read first save failed");
 
@@ -72,7 +74,9 @@ mod tests {
             .expect("Load failed");
 
         // 4. Save again
-        app_state_2.save_project(None).expect("Second save failed");
+        app_state_2
+            .save_project(None, None)
+            .expect("Second save failed");
         let second_save_content =
             std::fs::read_to_string(&temp_path).expect("Read second save failed");
 

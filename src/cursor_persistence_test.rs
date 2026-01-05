@@ -8,11 +8,12 @@ mod tests {
         let mut app_state = AppState::new();
         app_state.origin = 0x1000;
         let start_cursor_addr = 0x1005;
+        let start_hex_cursor_addr = 0x1010;
 
         // Dummy raw data
-        let raw_bytes: Vec<u8> = vec![0xEA; 10];
+        let raw_bytes: Vec<u8> = vec![0xEA; 32]; // Enough bytes for a few rows
         app_state.raw_data = raw_bytes.clone();
-        app_state.block_types = vec![BlockType::Code; 10];
+        app_state.block_types = vec![BlockType::Code; 32];
         app_state.disassemble(); // Must disassemble to populate disassembly for save
 
         // 2. Save project with specific cursor
@@ -21,12 +22,12 @@ mod tests {
         app_state.project_path = Some(path.clone());
 
         app_state
-            .save_project(Some(start_cursor_addr))
+            .save_project(Some(start_cursor_addr), Some(start_hex_cursor_addr))
             .expect("Failed to save project");
 
         // 3. Create fresh app state and load
         let mut loaded_state = AppState::new();
-        let loaded_cursor = loaded_state
+        let (loaded_cursor, loaded_hex_cursor) = loaded_state
             .load_project(path.clone())
             .expect("Failed to load project");
 
@@ -37,8 +38,14 @@ mod tests {
             "Cursor address should be restored"
         );
 
+        assert_eq!(
+            loaded_hex_cursor,
+            Some(start_hex_cursor_addr),
+            "Hex cursor address should be restored"
+        );
+
         // 5. Test loading legacy project (without cursor_address)
-        // Manually create JSON without cursor_address
+        // Manually create JSON without cursor_address (or hex_cursor_address)
         let legacy_raw_data = crate::state::encode_raw_data_to_base64(&raw_bytes);
         let json = format!(
             r#"{{
@@ -58,18 +65,22 @@ mod tests {
         }}"#,
             legacy_raw_data
         );
-        // removed "cursor_address" field
+        // removed "cursor_address" and "hex_dump_cursor_address" fields
 
         let mut leg_path = std::env::temp_dir();
         leg_path.push("test_legacy.regen2000proj");
         std::fs::write(&leg_path, json).unwrap();
 
         let mut leg_state = AppState::new();
-        let leg_cursor = leg_state.load_project(leg_path.clone()).unwrap();
+        let (leg_cursor, leg_hex_cursor) = leg_state.load_project(leg_path.clone()).unwrap();
 
         assert_eq!(
             leg_cursor, None,
             "Legacy project should return None for cursor"
+        );
+        assert_eq!(
+            leg_hex_cursor, None,
+            "Legacy project should return None for hex cursor"
         );
 
         // Cleanup

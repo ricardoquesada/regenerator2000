@@ -30,6 +30,7 @@ mod tests {
             immediate_value_formats: BTreeMap::new(),
             settings: DocumentSettings::default(),
             cursor_address: None,
+            hex_dump_cursor_address: None,
         };
 
         let json = serde_json::to_string(&project).unwrap();

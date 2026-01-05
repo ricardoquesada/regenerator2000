@@ -32,9 +32,9 @@ use crossterm::{
         PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
     },
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{Terminal, backend::CrosstermBackend};
 use state::AppState;
 use std::io;
 use ui_state::UIState;
@@ -67,10 +67,31 @@ fn main() -> Result<()> {
                 // In a real app we might want to show this in the UI
                 ui_state.status_message = format!("Error loading file: {}", e);
             }
-            Ok(loaded_cursor) => {
+            Ok((loaded_cursor, loaded_hex_cursor)) => {
                 let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
                 if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
                     ui_state.cursor_index = idx;
+                }
+
+                // Also restore hex cursor if present
+                if let Some(hex_addr) = loaded_hex_cursor {
+                    if !app_state.raw_data.is_empty() {
+                        let origin = app_state.origin as usize;
+                        let alignment_padding = origin % 16;
+                        let aligned_origin = origin - alignment_padding;
+                        let target = hex_addr as usize;
+
+                        if target >= aligned_origin {
+                            let offset = target - aligned_origin;
+                            let row = offset / 16;
+                            // Ensure row is within bounds
+                            let total_len = app_state.raw_data.len() + alignment_padding;
+                            let max_rows = (total_len + 15) / 16;
+                            if row < max_rows {
+                                ui_state.hex_cursor_index = row;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -78,11 +99,32 @@ fn main() -> Result<()> {
         if let Some(last_path) = app_state.system_config.last_project_path.clone() {
             if last_path.exists() {
                 match app_state.load_file(last_path.clone()) {
-                    Ok(loaded_cursor) => {
+                    Ok((loaded_cursor, loaded_hex_cursor)) => {
                         let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
                         if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
                             ui_state.cursor_index = idx;
                         }
+
+                        // Also restore hex cursor if present
+                        if let Some(hex_addr) = loaded_hex_cursor {
+                            if !app_state.raw_data.is_empty() {
+                                let origin = app_state.origin as usize;
+                                let alignment_padding = origin % 16;
+                                let aligned_origin = origin - alignment_padding;
+                                let target = hex_addr as usize;
+
+                                if target >= aligned_origin {
+                                    let offset = target - aligned_origin;
+                                    let row = offset / 16;
+                                    let total_len = app_state.raw_data.len() + alignment_padding;
+                                    let max_rows = (total_len + 15) / 16;
+                                    if row < max_rows {
+                                        ui_state.hex_cursor_index = row;
+                                    }
+                                }
+                            }
+                        }
+
                         ui_state.status_message = format!("Loaded recent project: {:?}", last_path);
                     }
                     Err(e) => {
