@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: regenerator2000
+            asset_name: regenerator2000-linux-amd64
+          - os: windows-latest
+            artifact_name: regenerator2000.exe
+            asset_name: regenerator2000-windows-amd64
+          - os: macos-latest
+            artifact_name: regenerator2000
+            asset_name: regenerator2000-macos-universal
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 1. Install Rust (Standard for Linux/Windows)
+      - name: Install Rust (Linux/Windows)
+        if: matrix.os != 'macos-latest'
+        uses: dtolnay/rust-toolchain@stable
+
+      # 2. Install Rust (Special for macOS: Install BOTH targets)
+      - name: Install Rust (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin, aarch64-apple-darwin
+
+      # 3. Build (Linux/Windows)
+      - name: Build (Linux/Windows)
+        if: matrix.os != 'macos-latest'
+        run: cargo build --release
+
+      # 4. Build Universal Binary (macOS)
+      - name: Build (macOS Universal)
+        if: matrix.os == 'macos-latest'
+        run: |
+          # Build for Intel
+          cargo build --release --target x86_64-apple-darwin
+          # Build for Apple Silicon
+          cargo build --release --target aarch64-apple-darwin
+
+          # Combine them using lipo
+          lipo -create -output ${{ matrix.artifact_name }} \
+            target/x86_64-apple-darwin/release/${{ matrix.artifact_name }} \
+            target/aarch64-apple-darwin/release/${{ matrix.artifact_name }}
+
+      # 5. Package (Linux)
+      - name: Package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          tar -czf ${{ matrix.asset_name }}.tar.gz target/release/${{ matrix.artifact_name }}
+
+      # 6. Package (Windows)
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          7z a ${{ matrix.asset_name }}.zip target/release/${{ matrix.artifact_name }}
+
+      # 7. Package (macOS)
+      - name: Package (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          # We simply compress the universal binary we created in step 4
+          tar -czf ${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ${{ matrix.asset_name }}.tar.gz
+            ${{ matrix.asset_name }}.zip
