@@ -40,3 +40,8 @@
 	ldy #$c0
 	stx $fc
 	sty $fd
+
+	lda #$00
+	sta $fa
+	lda #$d0
+	sta $fb
