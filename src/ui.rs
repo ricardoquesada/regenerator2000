@@ -1169,7 +1169,12 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
     let visible_height = inner_area.height as usize;
     // Each row is 16 bytes
     let bytes_per_row = 16;
-    let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
+    let origin = app_state.origin as usize;
+    let alignment_padding = origin % bytes_per_row;
+    let aligned_origin = origin - alignment_padding;
+
+    let total_len = app_state.raw_data.len() + alignment_padding;
+    let total_rows = total_len.div_ceil(bytes_per_row);
 
     let context_lines = visible_height / 2;
     let offset = ui_state.hex_cursor_index.saturating_sub(context_lines);
@@ -1181,31 +1186,29 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
                 return ListItem::new("");
             }
 
-            let address = app_state.origin as usize + (row_index * bytes_per_row);
-            let start_offset = row_index * bytes_per_row;
-            let end_offset = (start_offset + bytes_per_row).min(app_state.raw_data.len());
-            let row_data = &app_state.raw_data[start_offset..end_offset];
+            let row_start_addr = aligned_origin + (row_index * bytes_per_row);
 
             let mut hex_part = String::with_capacity(3 * 16);
             let mut ascii_part = String::with_capacity(16);
 
-            for (j, &b) in row_data.iter().enumerate() {
-                hex_part.push_str(&format!("{:02X} ", b));
+            for j in 0..bytes_per_row {
+                let current_addr = row_start_addr + j;
+
+                if current_addr >= origin && current_addr < origin + app_state.raw_data.len() {
+                    let data_idx = current_addr - origin;
+                    let b = app_state.raw_data[data_idx];
+
+                    hex_part.push_str(&format!("{:02X} ", b));
+                    let is_shifted = ui_state.petscii_mode == crate::ui_state::PetsciiMode::Shifted;
+                    ascii_part.push(crate::utils::petscii_to_unicode(b, is_shifted));
+                } else {
+                    // Padding
+                    hex_part.push_str("   ");
+                    ascii_part.push(' ');
+                }
+
                 if j == 7 {
                     hex_part.push(' '); // Extra space after 8 bytes
-                }
-                let is_shifted = ui_state.petscii_mode == crate::ui_state::PetsciiMode::Shifted;
-                ascii_part.push(crate::utils::petscii_to_unicode(b, is_shifted));
-            }
-
-            // Padding if row is incomplete
-            if row_data.len() < bytes_per_row {
-                let missing = bytes_per_row - row_data.len();
-                for j in 0..missing {
-                    hex_part.push_str("   ");
-                    if (row_data.len() + j) == 7 {
-                        hex_part.push(' ');
-                    }
                 }
             }
 
@@ -1232,7 +1235,7 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
 
             let line = Line::from(vec![
                 Span::styled(
-                    format!("{:04X}  ", address),
+                    format!("{:04X}  ", row_start_addr),
                     Style::default().fg(ui_state.theme.address),
                 ),
                 Span::styled(

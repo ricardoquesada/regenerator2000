@@ -91,7 +91,9 @@ pub fn run_app<B: Backend>(
                                                     crate::ui_state::ActivePane::HexDump,
                                                     ui_state.hex_cursor_index,
                                                 ));
-                                                let offset = target - origin;
+                                                let alignment_padding = origin % 16;
+                                                let aligned_origin = origin - alignment_padding;
+                                                let offset = target - aligned_origin;
                                                 let row = offset / 16;
                                                 ui_state.hex_cursor_index = row;
                                                 ui_state.set_status_message(format!(
@@ -961,7 +963,9 @@ pub fn run_app<B: Backend>(
                             }
                             ActivePane::HexDump => {
                                 let bytes_per_row = 16;
-                                let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
+                                let padding = (app_state.origin as usize) % bytes_per_row;
+                                let total_rows =
+                                    (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
                                 ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
                                     .min(total_rows.saturating_sub(1));
                             }
@@ -1238,7 +1242,8 @@ pub fn run_app<B: Backend>(
                                     .set_status_message(format!("Jumped to line {}", target_line));
                             }
                             ActivePane::HexDump => {
-                                let total_rows = app_state.raw_data.len().div_ceil(16);
+                                let padding = (app_state.origin as usize) % 16;
+                                let total_rows = (app_state.raw_data.len() + padding).div_ceil(16);
                                 let target_row = if is_buffer_empty {
                                     total_rows
                                 } else {
@@ -1299,7 +1304,9 @@ pub fn run_app<B: Backend>(
                             }
                             ActivePane::HexDump => {
                                 let bytes_per_row = 16;
-                                let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
+                                let padding = (app_state.origin as usize) % bytes_per_row;
+                                let total_rows =
+                                    (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
                                 if ui_state.hex_cursor_index < total_rows.saturating_sub(1) {
                                     ui_state.hex_cursor_index += 1;
                                 }
@@ -1357,7 +1364,9 @@ pub fn run_app<B: Backend>(
                             }
                             ActivePane::HexDump => {
                                 let bytes_per_row = 16;
-                                let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
+                                let padding = (app_state.origin as usize) % bytes_per_row;
+                                let total_rows =
+                                    (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
                                 ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
                                     .min(total_rows.saturating_sub(1));
                             }
@@ -1391,7 +1400,9 @@ pub fn run_app<B: Backend>(
                             }
                             ActivePane::HexDump => {
                                 let bytes_per_row = 16;
-                                let total_rows = app_state.raw_data.len().div_ceil(bytes_per_row);
+                                let padding = (app_state.origin as usize) % bytes_per_row;
+                                let total_rows =
+                                    (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
                                 ui_state.hex_cursor_index = total_rows.saturating_sub(1);
                             }
                         }

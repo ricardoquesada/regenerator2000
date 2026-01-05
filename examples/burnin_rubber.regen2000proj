@@ -83,6 +83,29 @@
           4255
         ]
       }
+    ],
+    "4501": [
+      {
+        "name": "setup_sid",
+        "label_type": "UserDefined",
+        "kind": "User",
+        "refs": [
+          6144
+        ]
+      }
+    ],
+    "6656": [
+      {
+        "name": "wait_for_space",
+        "label_type": "UserDefined",
+        "kind": "User",
+        "refs": [
+          6177,
+          15063,
+          15091,
+          18271
+        ]
+      }
     ]
   },
   "user_side_comments": {},
@@ -104,7 +127,8 @@
     "2091": "Hex",
     "2111": "Hex",
     "2115": "Hex",
-    "4116": "Binary"
+    "4116": "Binary",
+    "6155": "Binary"
   },
-  "cursor_address": 2083
+  "cursor_address": 17429
 }
