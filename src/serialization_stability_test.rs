@@ -24,13 +24,11 @@ mod tests {
                     name: "Z_Label".to_string(),
                     label_type: LabelType::UserDefined,
                     kind: LabelKind::User,
-                    refs: vec![],
                 },
                 Label {
                     name: "A_Label".to_string(),
                     label_type: LabelType::UserDefined,
                     kind: LabelKind::User,
-                    refs: vec![],
                 },
             ],
         );
@@ -40,7 +38,6 @@ mod tests {
                 name: "M_Label".to_string(),
                 label_type: LabelType::UserDefined,
                 kind: LabelKind::User,
-                refs: vec![],
             }],
         );
         app_state.labels = labels;
@@ -62,7 +59,7 @@ mod tests {
 
         // 2. Save for the first time
         app_state
-            .save_project(None, None)
+            .save_project(None, None, None, None, None)
             .expect("First save failed");
         let first_save_content =
             std::fs::read_to_string(&temp_path).expect("Read first save failed");
@@ -75,7 +72,7 @@ mod tests {
 
         // 4. Save again
         app_state_2
-            .save_project(None, None)
+            .save_project(None, None, None, None, None)
             .expect("Second save failed");
         let second_save_content =
             std::fs::read_to_string(&temp_path).expect("Read second save failed");

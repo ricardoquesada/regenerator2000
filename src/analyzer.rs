@@ -6,7 +6,12 @@ use crate::state::LabelType;
 
 type UsageData = (BTreeMap<LabelType, usize>, Vec<u16>, LabelType);
 
-pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
+pub fn analyze(
+    state: &AppState,
+) -> (
+    BTreeMap<u16, Vec<crate::state::Label>>,
+    BTreeMap<u16, Vec<u16>>,
+) {
     // We want to track ALL usages, illegal or not, and then pick the best ones.
     // Map: Address -> Set of used LabelTypes
     // We also need ref counts.
@@ -27,6 +32,10 @@ pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
         if current_type == BlockType::Code {
             let opcode_byte = state.raw_data[pc];
             if let Some(opcode) = &state.disassembler.opcodes[opcode_byte as usize] {
+                if opcode.illegal && !state.settings.use_illegal_opcodes {
+                    pc += 1;
+                    continue;
+                }
                 // Check if we have enough bytes
                 if pc + opcode.size as usize <= data_len {
                     // Extract operands
@@ -131,12 +140,16 @@ pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
 
     // Generate labels
     let mut labels: BTreeMap<u16, Vec<crate::state::Label>> = BTreeMap::new();
+    let mut cross_refs: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
 
     // 1. Process all used addresses
     for (addr, (types_map, refs, first_type)) in usage_map {
         let mut addr_labels = Vec::new();
 
-        // Check for existing User or System labels (preserve them if used)
+        // Populate cross_refs
+        if !refs.is_empty() {
+            cross_refs.insert(addr, refs);
+        }
         if let Some(existing_vec) = state.labels.get(&addr) {
             for existing in existing_vec {
                 let should_preserve = existing.kind == crate::state::LabelKind::User
@@ -147,12 +160,7 @@ pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
                         name: existing.name.clone(),
                         label_type: existing.label_type,
                         kind: existing.kind.clone(), // User or System
-                        refs: existing.refs.clone(), // Use manual refs or existing ones
                     });
-                    // Assign refs to the last pushed label
-                    if let Some(l) = addr_labels.last_mut() {
-                        l.refs = refs.clone();
-                    }
                 }
             }
         }
@@ -222,7 +230,6 @@ pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
                         name,
                         label_type: l_type,
                         kind: crate::state::LabelKind::Auto,
-                        refs: refs.clone(),
                     });
                 }
             }
@@ -246,13 +253,9 @@ pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
                     name,
                     label_type: final_type,
                     kind: crate::state::LabelKind::Auto,
-                    refs: refs.clone(),
                 });
             } else {
-                // User label exists. Update its refs?
-                for l in addr_labels.iter_mut() {
-                    l.refs = refs.clone();
-                }
+                // User label exists, nothing to do on labels.
             }
         }
 
@@ -271,7 +274,6 @@ pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
                         name: label.name.clone(),
                         label_type: label.label_type,
                         kind: crate::state::LabelKind::User,
-                        refs: Vec::new(), // No refs found in analysis
                     });
                 }
             }
@@ -281,7 +283,7 @@ pub fn analyze(state: &AppState) -> BTreeMap<u16, Vec<crate::state::Label>> {
         }
     }
 
-    labels
+    (labels, cross_refs)
 }
 
 fn analyze_instruction(
@@ -400,7 +402,7 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
 
         // $1005 is JMP target -> j1005
         assert_eq!(
@@ -439,7 +441,7 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
         // Changed expectations: explicit ExternalJump type logic
         assert_eq!(
             labels
@@ -459,7 +461,7 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; 2];
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
         // ZP access -> ZeroPage Priority -> a10
         assert_eq!(
             labels
@@ -479,7 +481,7 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; 2];
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
         // Field usage in ZP -> f50
         assert_eq!(
             labels
@@ -499,7 +501,7 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; 3];
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
         // External Jump -> e0010
         // (Note: Jumps use 4 digits usually, unless we want e10?
         // User said "Only for external jumps... not for data".
@@ -532,7 +534,7 @@ mod tests {
         ];
 
         // Re-analyze reference counts and labels
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
 
         // DataWord at $1000 should NOT generate label for ITSELF ($1000)
         // BUT $1002 IS Reference to $1000. So $1000 SHOULD have a label now.
@@ -558,7 +560,7 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
 
         // Case 1: $1000 -> jump to $1002. Usage: b1002 (Internal)
         assert_eq!(
@@ -628,7 +630,7 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
 
         // Indirect JMP -> p1000
         assert_eq!(
@@ -711,7 +713,7 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
 
         // Check 1005
         // Expect 'b' because it was referenced by Branch FIRST.
@@ -744,7 +746,7 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
 
         // Expectation: b1005 (Branch) because it was first.
         // (Before fix, this would likely be j1005 because Jump > Branch in priority)
@@ -783,7 +785,7 @@ mod tests {
             state.raw_data[i] = *b;
         }
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
 
         // Result should be eE000
         assert_eq!(
@@ -807,14 +809,14 @@ mod tests {
 
         state.excluded_addresses.insert(0xE500);
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
 
         // Should be None
         assert_eq!(labels.get(&0xE500), None);
 
         // Verification: if we remove it from excludes, it should appear
         state.excluded_addresses.remove(&0xE500);
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
         assert_eq!(
             labels
                 .get(&0xE500)
@@ -837,7 +839,7 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; 2];
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
         // Should be e1081 (ExternalJump type), NOT b1081 (Branch type).
         assert_eq!(
             labels
@@ -863,9 +865,10 @@ mod tests {
             size: 3,
             cycles: 4,
             description: "Store Accumulator",
+            illegal: false,
         });
 
-        let labels_map = analyze(&app_state);
+        let (labels_map, _) = analyze(&app_state);
         let labels = labels_map.get(&0x00A0);
         assert!(labels.is_some(), "Should have a label at $00A0");
         let label = labels.expect("Labels missing").first().expect("Label vector empty");
@@ -891,9 +894,10 @@ mod tests {
             size: 3,
             cycles: 5,
             description: "Store Accumulator",
+            illegal: false,
         });
 
-        let labels_map = analyze(&app_state);
+        let (labels_map, _) = analyze(&app_state);
         let labels = labels_map.get(&0x00A0);
         assert!(labels.is_some(), "Should have a label at $00A0");
         let label = labels.expect("Labels missing").first().expect("Label vector empty");
@@ -938,6 +942,7 @@ mod tests {
             size: 3,
             cycles: 5,
             description: "Jump Indirect",
+            illegal: false,
         });
         // LDA IndirectY
         app_state.disassembler.opcodes[0xB1] = Some(crate::cpu::Opcode {
@@ -946,9 +951,10 @@ mod tests {
             size: 2,
             cycles: 5,
             description: "Load Accumulator Indirect Y",
+            illegal: false,
         });
 
-        let labels_map = analyze(&app_state);
+        let (labels_map, _) = analyze(&app_state);
         let labels = labels_map.get(&0x00FB);
         assert!(labels.is_some(), "Should have labels at $00FB");
 
@@ -977,7 +983,7 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::HiLo; 4];
 
-        let labels = analyze(&state);
+        let (labels, _) = analyze(&state);
 
         // Check $C000 -> aC000 (AbsoluteAddress usage from HiLo)
         assert_eq!(

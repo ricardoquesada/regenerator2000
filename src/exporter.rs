@@ -56,7 +56,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 if let Some(label_vec) = state.labels.get(&mid_addr) {
                     for label in label_vec {
                         let formatted_name = formatter.format_label(&label.name);
-                        output.push_str(&format!("{} = * + {}\n", formatted_name, i));
+                        output.push_str(&format!("{} =*+${:02x}\n", formatted_name, i));
                     }
                 }
             }
@@ -212,7 +212,6 @@ mod tests {
                 name: "aC000".to_string(),
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::UserDefined,
-                refs: Vec::new(),
             }],
         );
         state.labels.insert(
@@ -221,7 +220,6 @@ mod tests {
                 name: "aC001".to_string(),
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::UserDefined,
-                refs: Vec::new(),
             }],
         );
         state.labels.insert(
@@ -230,7 +228,6 @@ mod tests {
                 name: "aC002".to_string(),
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::UserDefined,
-                refs: Vec::new(),
             }],
         );
 
@@ -280,13 +277,13 @@ mod tests {
         println!("Content:\n{}", content);
 
         // Verify output contains the mid-instruction labels
-        assert!(content.contains("aC001 = * + 1"));
-        assert!(content.contains("aC002 = * + 2"));
+        assert!(content.contains("aC001 =*+$01"));
+        assert!(content.contains("aC002 =*+$02"));
 
         // It should look like:
         // aC000:
-        // aC001 = * + 1
-        // aC002 = * + 2
+        // aC001 =*+$01
+        // aC002 =*+$02
         //     STA $1234
 
         // Cleanup
@@ -305,7 +302,6 @@ mod tests {
                 name: "MyLabel".to_string(),
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::UserDefined,
-                refs: vec![0x2000, 0x3000], // Two refs
             }],
         );
 
@@ -381,7 +377,6 @@ mod tests {
                 name: "f0002".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageField,
-                refs: vec![],
             }],
         );
         state.labels.insert(
@@ -390,7 +385,6 @@ mod tests {
                 name: "sFFD2".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::Subroutine,
-                refs: vec![],
             }],
         );
 
@@ -448,7 +442,6 @@ mod tests {
                 name: "f10".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageField,
-                refs: vec![],
             }],
         );
         state.labels.insert(
@@ -457,7 +450,6 @@ mod tests {
                 name: "f05".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageField,
-                refs: vec![],
             }],
         );
 
@@ -468,7 +460,6 @@ mod tests {
                 name: "a20".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageAbsoluteAddress,
-                refs: vec![],
             }],
         );
 
@@ -479,7 +470,6 @@ mod tests {
                 name: "p30".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPagePointer,
-                refs: vec![],
             }],
         );
 
@@ -490,7 +480,6 @@ mod tests {
                 name: "f1000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::Field,
-                refs: vec![],
             }],
         );
 
@@ -501,7 +490,6 @@ mod tests {
                 name: "a2000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::AbsoluteAddress,
-                refs: vec![],
             }],
         );
 
@@ -512,7 +500,6 @@ mod tests {
                 name: "p3000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::Pointer,
-                refs: vec![],
             }],
         );
 
@@ -523,7 +510,6 @@ mod tests {
                 name: "e4000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ExternalJump,
-                refs: vec![],
             }],
         );
 
@@ -534,7 +520,6 @@ mod tests {
                 name: "b5000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::Branch,
-                refs: vec![],
             }],
         );
 
@@ -545,7 +530,6 @@ mod tests {
                 name: "a0011".to_string(), // Manually named absolute
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::AbsoluteAddress,
-                refs: vec![],
             }],
         );
 
@@ -657,7 +641,6 @@ mod tests {
                 name: "eUser".to_string(),
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::UserDefined,
-                refs: vec![],
             }],
         );
 
@@ -860,7 +843,6 @@ mod tests {
                 name: "f10".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageField,
-                refs: vec![],
             }],
         );
 

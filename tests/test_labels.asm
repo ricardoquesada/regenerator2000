@@ -40,3 +40,28 @@
 	ldy #$c0
 	stx $fc
 	sty $fd
+
+	lda #$00
+	sta $fa
+	lda #$d0
+	sta $fb
+
+
+*=$1200
+	lda #00
+loop:
+lo_addr = * + 1
+hi_addr = * + 2
+	sta $0400
+	inc lo_addr
+	inc hi_addr
+	jmp loop
+
+
+
+lo1 = *+$01
+lo2 = *+$02
+	lda $4c00
+	sta $d000
+	bne lo1
+	beq lo2

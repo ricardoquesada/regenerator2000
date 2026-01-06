@@ -37,6 +37,11 @@ pub struct Theme {
     pub menu_selected_fg: Color,
     pub menu_disabled_fg: Color,
 
+    pub sprite_multicolor_1: Color,
+    pub sprite_multicolor_2: Color,
+    pub charset_multicolor_1: Color,
+    pub charset_multicolor_2: Color,
+
     // Highlights
     pub highlight_fg: Color, // e.g. bold yellow/green text
     pub highlight_bg: Color,
@@ -90,6 +95,11 @@ impl Theme {
             menu_selected_fg: Color::White,
             menu_disabled_fg: Color::Gray,
 
+            sprite_multicolor_1: Color::Red,
+            sprite_multicolor_2: Color::LightBlue,
+            charset_multicolor_1: Color::Rgb(200, 100, 100), // Distinct from sprite
+            charset_multicolor_2: Color::Rgb(100, 200, 100),
+
             highlight_fg: Color::Yellow,
             highlight_bg: Color::DarkGray,
             error_fg: Color::Red,
@@ -129,6 +139,11 @@ impl Theme {
             menu_selected_bg: Color::Rgb(0, 122, 204),
             menu_selected_fg: Color::White,
             menu_disabled_fg: Color::Gray,
+
+            sprite_multicolor_1: Color::Red,
+            sprite_multicolor_2: Color::Blue,
+            charset_multicolor_1: Color::Red,
+            charset_multicolor_2: Color::Blue,
 
             highlight_fg: Color::Rgb(255, 140, 0), // Dark Orange
             highlight_bg: Color::Rgb(240, 240, 240),

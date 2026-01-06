@@ -1,4 +1,4 @@
-# Regenerator2000 requirements
+# Regenerator 2000 requirements
 
 Have 6502 disassembler with a Turbo Assembler / Turbo Debugger (from Borland in 80's and 90s) look and feel, but with
 modern features from IDA Pro 5.0.

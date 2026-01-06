@@ -11,6 +11,12 @@ use formatter::Formatter;
 use tass::TassFormatter;
 
 #[cfg(test)]
+mod brk_tests;
+#[cfg(test)]
+mod illegal_opcodes_tests;
+#[cfg(test)]
+mod label_placement_tests;
+#[cfg(test)]
 mod line_comment_tests;
 #[cfg(test)]
 mod system_comments_tests;
@@ -66,7 +72,9 @@ impl Disassembler {
         system_comments: &BTreeMap<u16, String>,
         user_side_comments: &BTreeMap<u16, String>,
         user_line_comments: &BTreeMap<u16, String>,
+
         immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
+        cross_refs: &BTreeMap<u16, Vec<u16>>,
     ) -> Vec<DisassemblyLine> {
         let formatter = Self::create_formatter(settings.assembler);
 
@@ -83,6 +91,7 @@ impl Disassembler {
                 settings,
                 system_comments,
                 user_side_comments,
+                cross_refs,
             );
             let line_comment = user_line_comments.get(&address).cloned();
 
@@ -150,6 +159,7 @@ impl Disassembler {
                     formatter.as_ref(),
                     labels,
                     origin,
+                    settings,
                     label_name,
                     side_comment,
                     line_comment,
@@ -162,6 +172,7 @@ impl Disassembler {
                     formatter.as_ref(),
                     labels,
                     origin,
+                    settings,
                     label_name,
                     side_comment,
                     line_comment,
@@ -275,7 +286,7 @@ impl Disassembler {
                 // If it's missing, it means analysis didn't find it.
                 // We can't conjure it safely without checking collision.
                 // However, we can use the hex address which corresponds to what "aXXXX" usually means.
-                format!("${:04X}", val)
+                formatter.format_address(val)
             };
 
             if is_lo {
@@ -411,7 +422,7 @@ impl Disassembler {
             let label_part = if let Some(label_vec) = labels.get(&val) {
                 formatter.format_label(&label_vec[0].name)
             } else {
-                format!("${:04X}", val)
+                formatter.format_address(val)
             };
 
             if is_lo {
@@ -597,10 +608,12 @@ impl Disassembler {
     fn get_side_comment(
         &self,
         address: u16,
-        labels: &BTreeMap<u16, Vec<Label>>,
+        _labels: &BTreeMap<u16, Vec<Label>>,
         settings: &DocumentSettings,
         system_comments: &BTreeMap<u16, String>,
+
         user_side_comments: &BTreeMap<u16, String>,
+        cross_refs: &BTreeMap<u16, Vec<u16>>,
     ) -> String {
         let mut comment_parts = Vec::new();
 
@@ -610,11 +623,8 @@ impl Disassembler {
             comment_parts.push(sys_comment.clone());
         }
 
-        if let Some(label_vec) = labels.get(&address) {
-            let mut all_refs: Vec<u16> = Vec::new();
-            for l in label_vec {
-                all_refs.extend(l.refs.iter().cloned());
-            }
+        if let Some(refs) = cross_refs.get(&address) {
+            let mut all_refs = refs.clone();
             if !all_refs.is_empty() && settings.max_xref_count > 0 {
                 all_refs.sort_unstable();
                 all_refs.dedup();
@@ -622,7 +632,7 @@ impl Disassembler {
                 let refs_str: Vec<String> = all_refs
                     .iter()
                     .take(settings.max_xref_count)
-                    .map(|r| format!("${:04X}", r))
+                    .map(|r| format!("${:04x}", r)) // Use lowercase hex for refs in comments too
                     .collect();
                 comment_parts.push(format!("x-ref: {}", refs_str.join(", ")));
             }
@@ -651,8 +661,80 @@ impl Disassembler {
         let opcode_byte = data[pc];
         let opcode_opt = &self.opcodes[opcode_byte as usize];
 
-        if let Some(opcode) = opcode_opt {
+        if let Some(opcode) = opcode_opt
+            && (!opcode.illegal || settings.use_illegal_opcodes)
+        {
             let mut bytes = vec![opcode_byte];
+
+            // Special handling for BRK
+            // BRK ($00) normally takes 1 byte, but consumes 2 (signature byte).
+            if opcode.mnemonic == "BRK" && !settings.brk_single_byte && pc + 1 < data.len() {
+                let mut collision = false;
+                if let Some(t) = block_types.get(pc + 1)
+                    && *t != BlockType::Code
+                {
+                    collision = true;
+                }
+
+                if !collision {
+                    if settings.patch_brk {
+                        // "Patch BRK": BRK (1 byte) then .byte (1 byte)
+                        let byte_val = data[pc + 1];
+                        return (
+                            2,
+                            vec![
+                                DisassemblyLine {
+                                    address,
+                                    bytes: vec![opcode_byte],
+                                    mnemonic: formatter.format_mnemonic(opcode.mnemonic),
+                                    operand: String::new(),
+                                    comment: side_comment,
+                                    line_comment,
+                                    label: label_name,
+                                    opcode: Some(opcode.clone()),
+                                    show_bytes: true,
+                                    target_address: None,
+                                    comment_address: None,
+                                },
+                                DisassemblyLine {
+                                    address: address.wrapping_add(1),
+                                    bytes: vec![byte_val],
+                                    mnemonic: formatter.byte_directive().to_string(),
+                                    operand: formatter.format_byte(byte_val),
+                                    comment: String::new(),
+                                    line_comment: None,
+                                    label: None,
+                                    opcode: None,
+                                    show_bytes: true,
+                                    target_address: None,
+                                    comment_address: None,
+                                },
+                            ],
+                        );
+                    } else {
+                        // Default: BRK #$ signature
+                        let byte_val = data[pc + 1];
+                        let operand_str = format!("#{}", formatter.format_byte(byte_val));
+
+                        return (
+                            2,
+                            vec![DisassemblyLine {
+                                address,
+                                bytes: vec![opcode_byte, byte_val],
+                                mnemonic: formatter.format_mnemonic(opcode.mnemonic),
+                                operand: operand_str,
+                                comment: side_comment,
+                                line_comment,
+                                label: label_name,
+                                opcode: Some(opcode.clone()),
+                                show_bytes: true,
+                                target_address: None,
+                                comment_address: None,
+                            }],
+                        );
+                    }
+                }
+            }
 
             // Check if we have enough bytes
             if pc + opcode.size as usize <= data.len() {
@@ -797,7 +879,7 @@ impl Disassembler {
                 address,
                 bytes: vec![opcode_byte],
                 mnemonic: formatter.byte_directive().to_string(),
-                operand: format!("${:02X}", opcode_byte),
+                operand: formatter.format_byte(opcode_byte),
                 comment: side_comment_final,
                 line_comment,
                 label: label_name,
@@ -843,7 +925,7 @@ impl Disassembler {
 
             let b = data[current_pc];
             bytes.push(b);
-            operands.push(format!("${:02X}", b));
+            operands.push(formatter.format_byte(b));
             count += 1;
         }
 
@@ -903,7 +985,7 @@ impl Disassembler {
 
             bytes.push(low);
             bytes.push(high);
-            operands.push(format!("${:04X}", val));
+            operands.push(formatter.format_address(val));
             count += 1;
         }
 
@@ -999,9 +1081,9 @@ impl Disassembler {
                 label_vec
                     .first()
                     .map(|l| l.name.clone())
-                    .unwrap_or(format!("${:04X}", val))
+                    .unwrap_or(formatter.format_address(val))
             } else {
-                format!("${:04X}", val)
+                formatter.format_address(val)
             };
             operands.push(operand);
 
@@ -1049,6 +1131,7 @@ impl Disassembler {
         formatter: &dyn Formatter,
         labels: &BTreeMap<u16, Vec<Label>>,
         origin: u16,
+        settings: &DocumentSettings,
         label_name: Option<String>,
         side_comment: String,
         line_comment: Option<String>,
@@ -1059,7 +1142,7 @@ impl Disassembler {
         let mut current_literal = String::new();
         let mut count = 0;
 
-        while pc + count < data.len() && count < 32 {
+        while pc + count < data.len() && count < settings.text_char_limit {
             let current_pc = pc + count;
             let current_address = origin.wrapping_add(current_pc as u16);
 
@@ -1100,6 +1183,13 @@ impl Disassembler {
             let formatted_lines = formatter.format_text(&fragments, is_start, is_end);
             let mut disassembly_lines = Vec::new();
 
+            // Find the first line that emits bytes to attach the label to.
+            // For 64tass, this avoids attaching labels to .encode directives where they are not allowed.
+            let first_byte_line_index = formatted_lines
+                .iter()
+                .position(|(_, _, has_bytes)| *has_bytes)
+                .unwrap_or(0);
+
             // We need to attach bytes to lines.
             // Since we merged everything into one line (usually), we attach ALL bytes to that line ?
             // Or if format_text returning multiple lines (header/footer), we attach to the main one.
@@ -1117,8 +1207,12 @@ impl Disassembler {
                 } else {
                     Vec::new()
                 };
-                let line_label = if i == 0 { label_name.clone() } else { None };
-                let (line_side_comment, line_line_comment) = if i == 0 {
+                let line_label = if i == first_byte_line_index {
+                    label_name.clone()
+                } else {
+                    None
+                };
+                let (line_side_comment, line_line_comment) = if i == first_byte_line_index {
                     (side_comment.clone(), line_comment.clone())
                 } else {
                     (String::new(), None)
@@ -1165,6 +1259,7 @@ impl Disassembler {
         formatter: &dyn Formatter,
         labels: &BTreeMap<u16, Vec<Label>>,
         origin: u16,
+        settings: &DocumentSettings,
         label_name: Option<String>,
         side_comment: String,
         line_comment: Option<String>,
@@ -1175,7 +1270,7 @@ impl Disassembler {
         let mut current_literal = String::new();
         let mut count = 0;
 
-        while pc + count < data.len() && count < 32 {
+        while pc + count < data.len() && count < settings.text_char_limit {
             let current_pc = pc + count;
             let current_address = origin.wrapping_add(current_pc as u16);
 
@@ -1259,6 +1354,12 @@ impl Disassembler {
 
             let mut disassembly_lines = Vec::new();
 
+            // Find the first line that emits bytes to attach the label to (e.g. the body .text line).
+            let first_byte_line_index = all_formatted_parts
+                .iter()
+                .position(|(_, _, has_bytes)| *has_bytes)
+                .unwrap_or(0);
+
             // Collect all consumed bytes for line association
             let mut all_bytes = Vec::new();
             for i in 0..count {
@@ -1273,8 +1374,12 @@ impl Disassembler {
                 } else {
                     Vec::new()
                 };
-                let line_label = if i == 0 { label_name.clone() } else { None };
-                let (line_side_comment, line_line_comment) = if i == 0 {
+                let line_label = if i == first_byte_line_index {
+                    label_name.clone()
+                } else {
+                    None
+                };
+                let (line_side_comment, line_line_comment) = if i == first_byte_line_index {
                     (side_comment.clone(), line_comment.clone())
                 } else {
                     (String::new(), None)
@@ -1334,7 +1439,7 @@ impl Disassembler {
                     address,
                     bytes: vec![b],
                     mnemonic: formatter.byte_directive().to_string(),
-                    operand: format!("${:02X}", b),
+                    operand: formatter.format_byte(b),
                     comment: side_comment_final,
                     line_comment,
                     label: label_name,

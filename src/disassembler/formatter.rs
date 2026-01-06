@@ -21,6 +21,7 @@ pub trait Formatter {
     fn byte_directive(&self) -> &'static str;
     fn word_directive(&self) -> &'static str;
     fn format_byte(&self, byte: u8) -> String;
+    fn format_address(&self, address: u16) -> String;
     fn format_operand(&self, ctx: &FormatContext) -> String;
 
     fn format_mnemonic(&self, mnemonic: &str) -> String;

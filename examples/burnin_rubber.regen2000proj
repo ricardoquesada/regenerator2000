@@ -19,8 +19,163 @@
     },
     {
       "start": 2047,
-      "end": 6142,
+      "end": 2549,
       "type_": "Code"
+    },
+    {
+      "start": 2550,
+      "end": 2558,
+      "type_": "DataByte"
+    },
+    {
+      "start": 2559,
+      "end": 2689,
+      "type_": "Code"
+    },
+    {
+      "start": 2690,
+      "end": 2750,
+      "type_": "DataByte"
+    },
+    {
+      "start": 2751,
+      "end": 2766,
+      "type_": "Code"
+    },
+    {
+      "start": 2767,
+      "end": 2798,
+      "type_": "DataByte"
+    },
+    {
+      "start": 2799,
+      "end": 2805,
+      "type_": "Code"
+    },
+    {
+      "start": 2806,
+      "end": 2814,
+      "type_": "DataByte"
+    },
+    {
+      "start": 2815,
+      "end": 3283,
+      "type_": "Code"
+    },
+    {
+      "start": 3284,
+      "end": 3294,
+      "type_": "DataByte"
+    },
+    {
+      "start": 3295,
+      "end": 3305,
+      "type_": "Code"
+    },
+    {
+      "start": 3306,
+      "end": 3310,
+      "type_": "DataByte"
+    },
+    {
+      "start": 3311,
+      "end": 3321,
+      "type_": "Code"
+    },
+    {
+      "start": 3322,
+      "end": 3326,
+      "type_": "DataByte"
+    },
+    {
+      "start": 3327,
+      "end": 3580,
+      "type_": "Code"
+    },
+    {
+      "start": 3581,
+      "end": 3582,
+      "type_": "DataByte"
+    },
+    {
+      "start": 3583,
+      "end": 3743,
+      "type_": "Screencode"
+    },
+    {
+      "start": 3744,
+      "end": 3754,
+      "type_": "Code"
+    },
+    {
+      "start": 3755,
+      "end": 3758,
+      "type_": "DataByte"
+    },
+    {
+      "start": 3759,
+      "end": 3990,
+      "type_": "Code"
+    },
+    {
+      "start": 3991,
+      "end": 3991,
+      "type_": "DataByte"
+    },
+    {
+      "start": 3992,
+      "end": 4053,
+      "type_": "Code"
+    },
+    {
+      "start": 4054,
+      "end": 4059,
+      "type_": "DataByte"
+    },
+    {
+      "start": 4060,
+      "end": 4091,
+      "type_": "Code"
+    },
+    {
+      "start": 4092,
+      "end": 4094,
+      "type_": "DataByte"
+    },
+    {
+      "start": 4095,
+      "end": 4420,
+      "type_": "Code"
+    },
+    {
+      "start": 4421,
+      "end": 4606,
+      "type_": "DataByte"
+    },
+    {
+      "start": 4607,
+      "end": 4861,
+      "type_": "Code"
+    },
+    {
+      "start": 4862,
+      "end": 4862,
+      "type_": "DataByte"
+    },
+    {
+      "start": 4863,
+      "end": 6120,
+      "type_": "Code"
+    },
+    {
+      "start": 6121,
+      "end": 6141,
+      "type_": "DataByte"
+    },
+    {
+      "start": 6142,
+      "end": 6142,
+      "type_": "Undefined"
     },
     {
       "start": 6143,
@@ -29,107 +184,316 @@
     },
     {
       "start": 7167,
-      "end": 10222,
+      "end": 10224,
       "type_": "Screencode"
     },
     {
-      "start": 10223,
-      "end": 10239,
-      "type_": "Text"
+      "start": 10225,
+      "end": 10237,
+      "type_": "DataByte"
     },
     {
-      "start": 10240,
-      "end": 16602,
+      "start": 10238,
+      "end": 10238,
+      "type_": "Undefined"
+    },
+    {
+      "start": 10239,
+      "end": 12670,
+      "type_": "DataByte"
+    },
+    {
+      "start": 12671,
+      "end": 13488,
       "type_": "Code"
     },
     {
-      "start": 16603,
+      "start": 13489,
+      "end": 13502,
+      "type_": "DataByte"
+    },
+    {
+      "start": 13503,
+      "end": 13548,
+      "type_": "Code"
+    },
+    {
+      "start": 13549,
+      "end": 13550,
+      "type_": "DataByte"
+    },
+    {
+      "start": 13551,
+      "end": 13562,
+      "type_": "Code"
+    },
+    {
+      "start": 13563,
+      "end": 13566,
+      "type_": "DataByte"
+    },
+    {
+      "start": 13567,
+      "end": 13732,
+      "type_": "Code"
+    },
+    {
+      "start": 13733,
+      "end": 13742,
+      "type_": "DataByte"
+    },
+    {
+      "start": 13743,
+      "end": 13817,
+      "type_": "Code"
+    },
+    {
+      "start": 13818,
+      "end": 13822,
+      "type_": "DataByte"
+    },
+    {
+      "start": 13823,
+      "end": 13976,
+      "type_": "Code"
+    },
+    {
+      "start": 13977,
+      "end": 13982,
+      "type_": "DataByte"
+    },
+    {
+      "start": 13983,
+      "end": 14078,
+      "type_": "Code"
+    },
+    {
+      "start": 14079,
+      "end": 14207,
+      "type_": "DataByte"
+    },
+    {
+      "start": 14208,
+      "end": 14334,
+      "type_": "Code"
+    },
+    {
+      "start": 14335,
+      "end": 15357,
+      "type_": "DataByte"
+    },
+    {
+      "start": 15358,
+      "end": 15358,
+      "type_": "Undefined"
+    },
+    {
+      "start": 15359,
+      "end": 16254,
+      "type_": "Code"
+    },
+    {
+      "start": 16255,
+      "end": 16286,
+      "type_": "DataByte"
+    },
+    {
+      "start": 16287,
+      "end": 16605,
+      "type_": "Code"
+    },
+    {
+      "start": 16606,
       "end": 16606,
       "type_": "Undefined"
     },
     {
       "start": 16607,
-      "end": 36873,
+      "end": 16633,
       "type_": "Code"
+    },
+    {
+      "start": 16634,
+      "end": 16638,
+      "type_": "DataByte"
+    },
+    {
+      "start": 16639,
+      "end": 16886,
+      "type_": "Code"
+    },
+    {
+      "start": 16887,
+      "end": 16894,
+      "type_": "DataByte"
+    },
+    {
+      "start": 16895,
+      "end": 17184,
+      "type_": "Code"
+    },
+    {
+      "start": 17185,
+      "end": 17406,
+      "type_": "DataByte"
+    },
+    {
+      "start": 17407,
+      "end": 18362,
+      "type_": "Code"
+    },
+    {
+      "start": 18363,
+      "end": 18430,
+      "type_": "DataByte"
+    },
+    {
+      "start": 18431,
+      "end": 19061,
+      "type_": "Code"
+    },
+    {
+      "start": 19062,
+      "end": 19198,
+      "type_": "DataByte"
+    },
+    {
+      "start": 19199,
+      "end": 19350,
+      "type_": "Code"
+    },
+    {
+      "start": 19351,
+      "end": 19454,
+      "type_": "DataByte"
+    },
+    {
+      "start": 19455,
+      "end": 19650,
+      "type_": "Code"
+    },
+    {
+      "start": 19651,
+      "end": 20158,
+      "type_": "DataByte"
+    },
+    {
+      "start": 20159,
+      "end": 20185,
+      "type_": "Code"
+    },
+    {
+      "start": 20186,
+      "end": 20222,
+      "type_": "DataByte"
+    },
+    {
+      "start": 20223,
+      "end": 20320,
+      "type_": "Code"
+    },
+    {
+      "start": 20321,
+      "end": 20334,
+      "type_": "DataByte"
+    },
+    {
+      "start": 20335,
+      "end": 20388,
+      "type_": "Screencode"
+    },
+    {
+      "start": 20389,
+      "end": 36873,
+      "type_": "DataByte"
     }
   ],
   "labels": {
+    "2560": [
+      {
+        "name": "f0A00",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "4096": [
       {
         "name": "setup_vic",
         "label_type": "UserDefined",
-        "kind": "User",
-        "refs": [
-          6147
-        ]
+        "kind": "User"
       }
     ],
     "4178": [
       {
         "name": "paint_screen",
         "label_type": "UserDefined",
-        "kind": "User",
-        "refs": [
-          6150
-        ]
+        "kind": "User"
       }
     ],
     "4209": [
       {
         "name": "paint_color",
         "label_type": "UserDefined",
-        "kind": "User",
-        "refs": [
-          4255
-        ]
+        "kind": "User"
       }
     ],
     "4501": [
       {
         "name": "setup_sid",
         "label_type": "UserDefined",
-        "kind": "User",
-        "refs": [
-          6144
-        ]
+        "kind": "User"
       }
     ],
     "6656": [
       {
-        "name": "wait_for_space",
+        "name": "wait_joy2_fire",
         "label_type": "UserDefined",
-        "kind": "User",
-        "refs": [
-          6177,
-          15063,
-          15091,
-          18271
-        ]
+        "kind": "User"
       }
     ]
   },
-  "user_side_comments": {},
+  "user_side_comments": {
+    "2083": "copy from $5700-$9f77 to $7f00-$bfff",
+    "2115": "disable Commodore-Shift switch",
+    "4157": "Enable text multicolor mode",
+    "4167": "Charset at address $2000",
+    "4172": "Pointed sprite at $3000",
+    "6155": "$A000-$BFFF is RAM. BASIC ROM disabled"
+  },
   "user_line_comments": {
-    "2083": "Boot strap"
+    "2083": "Boot strap",
+    "8192": "Charset",
+    "12288": "sprites",
+    "22272": "IRQ handler"
   },
   "settings": {
     "all_labels": false,
     "preserve_long_bytes": true,
     "brk_single_byte": false,
-    "patch_brk": false,
+    "patch_brk": true,
     "platform": "Commodore64",
     "assembler": "Tass64",
     "max_xref_count": 5,
-    "max_arrow_columns": 6
+    "max_arrow_columns": 6,
+    "use_illegal_opcodes": false,
+    "text_char_limit": 40
   },
   "immediate_value_formats": {
     "2085": "Hex",
     "2091": "Hex",
     "2111": "Hex",
-    "2115": "Hex",
+    "2115": "Binary",
     "4116": "Binary",
-    "6155": "Binary"
+    "4157": "Binary",
+    "4165": "Binary",
+    "4167": "Binary",
+    "4530": "Decimal",
+    "6155": "Binary",
+    "22310": "Hex"
   },
-  "cursor_address": 17429,
-  "hex_dump_cursor_address": 4864
+  "cursor_address": 2095,
+  "hex_dump_cursor_address": 12304,
+  "sprites_cursor_address": 27392,
+  "charset_cursor_address": 22536,
+  "right_pane_visible": "HexDump"
 }

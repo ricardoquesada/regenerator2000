@@ -4,9 +4,11 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_tass_formatting_force_w() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
-    settings.preserve_long_bytes = true;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        preserve_long_bytes: true,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -26,6 +28,7 @@ fn test_tass_formatting_force_w() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -36,9 +39,11 @@ fn test_tass_formatting_force_w() {
 
 #[test]
 fn test_tass_formatting_no_force_if_disabled() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
-    settings.preserve_long_bytes = false;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        preserve_long_bytes: false,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -57,6 +62,7 @@ fn test_tass_formatting_no_force_if_disabled() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -65,8 +71,10 @@ fn test_tass_formatting_no_force_if_disabled() {
 
 #[test]
 fn test_acme_formatting_basic() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Acme;
+    let settings = DocumentSettings {
+        assembler: Assembler::Acme,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -85,6 +93,7 @@ fn test_acme_formatting_basic() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -93,9 +102,102 @@ fn test_acme_formatting_basic() {
 }
 
 #[test]
+fn test_text_char_limit_configurable() {
+    let settings = DocumentSettings {
+        text_char_limit: 10,
+        assembler: Assembler::Acme, // Use Acme for simpler output (!text)
+        ..Default::default()
+    };
+
+    // "Hello World This Is Long" is 24 chars
+    let data = b"Hello World This Is Long".to_vec();
+    let block_types = vec![BlockType::Text; data.len()];
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    let lines = disassembler.disassemble(
+        &data,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    // With limit 10, it should split:
+    // "Hello Worl" (10 chars)
+    // "d This Is " (10 chars)
+    // "Long" (4 chars)
+
+    assert_eq!(lines.len(), 3);
+    assert_eq!(lines[0].operand, "\"Hello Worl\"");
+    assert_eq!(lines[1].operand, "\"d This Is \"");
+    assert_eq!(lines[2].operand, "\"Long\"");
+}
+
+#[test]
+fn test_screencode_limit_configurable() {
+    let settings = DocumentSettings {
+        text_char_limit: 10,
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
+
+    // "ABC...J" (10 chars) + "KLM...T" (10 chars)
+    // 0x01..0x14 (A..T)
+    let mut data = Vec::new();
+    for i in 1..=20 {
+        data.push(i as u8);
+    }
+    let block_types = vec![BlockType::Screencode; data.len()];
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    let lines = disassembler.disassemble(
+        &data,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
+
+    // Tass wrapping: .encode, .enc "...", .text (10), .text (10), .endencode
+    // Lines:
+    // 0: .encode
+    // 1: .enc "screen"
+    // 2: .text "ABCDEFGHIJ"
+    // 3: .text "KLMNOPQRST"
+    // 4: .endencode
+
+    // Filter for .text lines
+    let text_lines: Vec<&DisassemblyLine> =
+        lines.iter().filter(|l| l.mnemonic == ".text").collect();
+
+    assert_eq!(text_lines.len(), 2);
+    // Tass formatter typically outputs quoted strings
+    assert_eq!(text_lines[0].operand, "\"ABCDEFGHIJ\"");
+    assert_eq!(text_lines[1].operand, "\"KLMNOPQRST\"");
+}
+
+#[test]
 fn test_acme_directives() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Acme;
+    let settings = DocumentSettings {
+        assembler: Assembler::Acme,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -115,19 +217,22 @@ fn test_acme_directives() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!byte");
-    assert_eq!(lines[0].operand, "$FF");
+    assert_eq!(lines[0].operand, "$ff");
 }
 
 #[test]
 fn test_contextual_label_formatting() {
     use crate::state::{LabelKind, LabelType};
 
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
@@ -135,31 +240,24 @@ fn test_contextual_label_formatting() {
 
     // Define multiple labels at $00A0 with specific types to simulate context
     let addr = 0x00A0;
-    let mut label_vec = Vec::new();
-
     // 1. ZeroPageField -> fA0
-    label_vec.push(Label {
-        name: "fA0".to_string(),
-        label_type: LabelType::ZeroPageField,
-        kind: LabelKind::Auto,
-        refs: vec![],
-    });
-
-    // 2. ZeroPagePointer -> pA0
-    label_vec.push(Label {
-        name: "pA0".to_string(),
-        label_type: LabelType::ZeroPagePointer,
-        kind: LabelKind::Auto,
-        refs: vec![],
-    });
-
-    // 3. AbsoluteAddress -> a00A0
-    label_vec.push(Label {
-        name: "a00A0".to_string(),
-        label_type: LabelType::AbsoluteAddress,
-        kind: LabelKind::Auto,
-        refs: vec![],
-    });
+    let label_vec = vec![
+        Label {
+            name: "fA0".to_string(),
+            label_type: LabelType::ZeroPageField,
+            kind: LabelKind::Auto,
+        },
+        Label {
+            name: "pA0".to_string(),
+            label_type: LabelType::ZeroPagePointer,
+            kind: LabelKind::Auto,
+        },
+        Label {
+            name: "a00A0".to_string(),
+            label_type: LabelType::AbsoluteAddress,
+            kind: LabelKind::Auto,
+        },
+    ];
 
     labels.insert(addr, label_vec);
 
@@ -194,6 +292,7 @@ fn test_contextual_label_formatting() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -248,8 +347,10 @@ fn test_contextual_label_formatting() {
 
 #[test]
 fn test_acme_lowercase_output() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Acme;
+    let settings = DocumentSettings {
+        assembler: Assembler::Acme,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
@@ -262,7 +363,6 @@ fn test_acme_lowercase_output() {
             name: "MixedCaseLabel".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::AbsoluteAddress,
-            refs: vec![],
         }],
     );
 
@@ -291,6 +391,7 @@ fn test_acme_lowercase_output() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 2);
@@ -306,9 +407,11 @@ fn test_acme_lowercase_output() {
 
 #[test]
 fn test_acme_plus2_formatting() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Acme;
-    settings.preserve_long_bytes = true;
+    let settings = DocumentSettings {
+        assembler: Assembler::Acme,
+        preserve_long_bytes: true,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -328,6 +431,7 @@ fn test_acme_plus2_formatting() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -339,8 +443,10 @@ fn test_acme_plus2_formatting() {
 
 #[test]
 fn test_xref_formatting_with_dollar() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
@@ -353,13 +459,15 @@ fn test_xref_formatting_with_dollar() {
             name: "TestLabel".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::AbsoluteAddress,
-            refs: vec![0x2000, 0x3000],
         }],
     );
 
     // Code: NOP
     let code = vec![0xEA];
     let block_types = vec![BlockType::Code];
+
+    let mut cross_refs = BTreeMap::new();
+    cross_refs.insert(0x1000, vec![0x2000, 0x3000]);
 
     let lines = disassembler.disassemble(
         &code,
@@ -371,6 +479,7 @@ fn test_xref_formatting_with_dollar() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &cross_refs,
     );
 
     assert_eq!(lines.len(), 1);
@@ -381,8 +490,10 @@ fn test_xref_formatting_with_dollar() {
 
 #[test]
 fn test_xref_count_configurable() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let mut settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
@@ -395,12 +506,14 @@ fn test_xref_count_configurable() {
             name: "ManyRefs".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::AbsoluteAddress,
-            refs: vec![0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005], // 6 Refs
         }],
     );
 
     let code = vec![0xEA];
     let block_types = vec![BlockType::Code];
+
+    let mut cross_refs = BTreeMap::new();
+    cross_refs.insert(0x1000, vec![0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005]);
 
     // Case 1: Default (5)
     settings.max_xref_count = 5;
@@ -414,6 +527,7 @@ fn test_xref_count_configurable() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &cross_refs,
     );
     assert_eq!(lines.len(), 1);
     // Should show 5 items
@@ -433,6 +547,7 @@ fn test_xref_count_configurable() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &cross_refs,
     );
     let comment = &lines[0].comment;
     assert!(comment.contains("$2000, $2001"));
@@ -450,16 +565,18 @@ fn test_xref_count_configurable() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &cross_refs,
     );
     assert!(lines[0].comment.is_empty());
 }
 
 #[test]
 fn test_text_and_screencode_disassembly() {
-    let mut settings = DocumentSettings::default();
-
     // 1. Test Tass Text
-    settings.assembler = Assembler::Tass64;
+    let mut settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
     let origin = 0x1000;
@@ -473,6 +590,7 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -493,6 +611,7 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -522,6 +641,7 @@ fn test_text_and_screencode_disassembly() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines.len(), 1);
     assert_eq!(lines[0].mnemonic, "!scr");
@@ -537,6 +657,7 @@ fn test_text_and_screencode_disassembly() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -558,8 +679,10 @@ fn test_text_and_screencode_disassembly() {
 
 #[test]
 fn test_text_mixed_content() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -581,6 +704,7 @@ fn test_text_mixed_content() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -625,6 +749,7 @@ fn test_text_escaping() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines_acme.len(), 1);
     assert_eq!(lines_acme[0].operand, "\"Quote \\\" Backslash \\\\\"");
@@ -637,6 +762,7 @@ fn test_text_escaping() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -695,6 +821,7 @@ fn test_screencode_mixed() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
     assert_eq!(lines_acme.len(), 1);
     // !scr "\"" (escaped quote), $ff, "\""
@@ -709,6 +836,7 @@ fn test_screencode_mixed() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -732,8 +860,10 @@ fn test_screencode_mixed() {
 
 #[test]
 fn test_tass_screencode_enc_wrapping() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -757,6 +887,7 @@ fn test_tass_screencode_enc_wrapping() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 4);
@@ -776,8 +907,11 @@ fn test_tass_screencode_enc_wrapping() {
 
 #[test]
 fn test_tass_screencode_multiline_wrapping() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        text_char_limit: 32,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -794,6 +928,7 @@ fn test_tass_screencode_multiline_wrapping() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -829,8 +964,10 @@ fn test_tass_screencode_multiline_wrapping() {
 
 #[test]
 fn test_text_show_bytes_is_false() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -849,6 +986,7 @@ fn test_text_show_bytes_is_false() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Filter for the .text line
@@ -861,8 +999,10 @@ fn test_text_show_bytes_is_false() {
 
 #[test]
 fn test_screencode_show_bytes_is_false() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -885,6 +1025,7 @@ fn test_screencode_show_bytes_is_false() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Filter for the .text line (inside .encode block)
@@ -897,8 +1038,10 @@ fn test_screencode_show_bytes_is_false() {
 
 #[test]
 fn test_databyte_show_bytes_is_false() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -917,19 +1060,22 @@ fn test_databyte_show_bytes_is_false() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
-    assert_eq!(
-        lines[0].show_bytes, false,
+    assert!(
+        !lines[0].show_bytes,
         "DataByte blocks should not show bytes"
     );
 }
 
 #[test]
 fn test_dataword_show_bytes_is_false() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -948,19 +1094,22 @@ fn test_dataword_show_bytes_is_false() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
-    assert_eq!(
-        lines[0].show_bytes, false,
+    assert!(
+        !lines[0].show_bytes,
         "DataWord blocks should not show bytes"
     );
 }
 
 #[test]
 fn test_address_show_bytes_is_false() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -979,19 +1128,19 @@ fn test_address_show_bytes_is_false() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
-    assert_eq!(
-        lines[0].show_bytes, false,
-        "Address blocks should not show bytes"
-    );
+    assert!(!lines[0].show_bytes, "Address blocks should not show bytes");
 }
 
 #[test]
 fn test_tass_block_separation() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
     let origin = 0x1000;
@@ -1010,6 +1159,7 @@ fn test_tass_block_separation() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1037,8 +1187,10 @@ fn test_tass_block_separation() {
 fn test_tass_label_interruption() {
     use crate::state::{Label, LabelKind, LabelType};
 
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
 
@@ -1049,7 +1201,6 @@ fn test_tass_label_interruption() {
             name: "MID".to_string(),
             kind: LabelKind::Auto,
             label_type: LabelType::Field,
-            refs: vec![],
         }],
     );
 
@@ -1065,6 +1216,7 @@ fn test_tass_label_interruption() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1105,8 +1257,10 @@ fn test_tass_label_interruption() {
 
 #[test]
 fn test_tass_screencode_single_byte_special() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -1122,6 +1276,7 @@ fn test_tass_screencode_single_byte_special() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1142,144 +1297,148 @@ fn test_tass_screencode_single_byte_special() {
     assert_eq!(lines[2].operand, "\"o\"");
     assert_eq!(lines[3].mnemonic, ".endencode");
 }
-#[cfg(test)]
-mod tests {
-    use crate::disassembler::Disassembler;
-    use crate::state::{Assembler, BlockType, DocumentSettings};
-    use std::collections::BTreeMap;
 
-    #[test]
-    fn test_tass_screencode_case_mapping() {
-        let mut settings = DocumentSettings::default();
-        settings.assembler = Assembler::Tass64;
+#[test]
+fn test_tass_screencode_case_mapping() {
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
-        let disassembler = Disassembler::new();
-        let labels = BTreeMap::new();
-        let origin = 0x1000;
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
 
-        // Case A: 30 2d 39 2c 20 08 0f 0c 01 20 03 0f 0d 0f (0-9, HOLA COMO)
-        let bytes_a = vec![
-            0x30, 0x2d, 0x39, 0x2c, 0x20, 0x08, 0x0F, 0x0C, 0x01, 0x20, 0x03, 0x0F, 0x0D, 0x0F,
-        ];
-        let block_types_a = vec![BlockType::Screencode; bytes_a.len()];
+    // Case A: 30 2d 39 2c 20 08 0f 0c 01 20 03 0f 0d 0f (0-9, HOLA COMO)
+    let bytes_a = vec![
+        0x30, 0x2d, 0x39, 0x2c, 0x20, 0x08, 0x0F, 0x0C, 0x01, 0x20, 0x03, 0x0F, 0x0D, 0x0F,
+    ];
+    let block_types_a = vec![BlockType::Screencode; bytes_a.len()];
 
-        let lines_a = disassembler.disassemble(
-            &bytes_a,
-            &block_types_a,
-            &labels,
-            origin,
-            &settings,
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-        );
+    let lines_a = disassembler.disassemble(
+        &bytes_a,
+        &block_types_a,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
 
-        assert_eq!(lines_a.len(), 4);
-        assert_eq!(lines_a[0].mnemonic, ".encode");
-        assert_eq!(lines_a[1].operand, "\"screen\"");
-        assert_eq!(lines_a[2].mnemonic, ".text");
-        assert_eq!(lines_a[2].operand, "\"0-9, HOLA COMO\"");
-        assert_eq!(lines_a[3].mnemonic, ".endencode");
+    assert_eq!(lines_a.len(), 4);
+    assert_eq!(lines_a[0].mnemonic, ".encode");
+    assert_eq!(lines_a[1].operand, "\"screen\"");
+    assert_eq!(lines_a[2].mnemonic, ".text");
+    assert_eq!(lines_a[2].operand, "\"0-9, HOLA COMO\"");
+    assert_eq!(lines_a[3].mnemonic, ".endencode");
 
-        // Case B: 30 2d 39 2c 20 48 4f 4c 41 20 43 4f 4d 4f (0-9, hola como)
-        let bytes_b = vec![
-            0x30, 0x2d, 0x39, 0x2c, 0x20, 0x48, 0x4F, 0x4C, 0x41, 0x20, 0x43, 0x4F, 0x4D, 0x4F,
-        ];
-        let block_types_b = vec![BlockType::Screencode; bytes_b.len()];
+    // Case B: 30 2d 39 2c 20 48 4f 4c 41 20 43 4f 4d 4f (0-9, hola como)
+    let bytes_b = vec![
+        0x30, 0x2d, 0x39, 0x2c, 0x20, 0x48, 0x4F, 0x4C, 0x41, 0x20, 0x43, 0x4F, 0x4D, 0x4F,
+    ];
+    let block_types_b = vec![BlockType::Screencode; bytes_b.len()];
 
-        let lines_b = disassembler.disassemble(
-            &bytes_b,
-            &block_types_b,
-            &labels,
-            origin,
-            &settings,
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-        );
+    let lines_b = disassembler.disassemble(
+        &bytes_b,
+        &block_types_b,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
 
-        assert_eq!(lines_b.len(), 4);
-        assert_eq!(lines_b[1].operand, "\"screen\"");
-        assert_eq!(lines_b[2].mnemonic, ".text");
-        assert_eq!(lines_b[2].operand, "\"0-9, hola como\"");
-    }
-    #[test]
-    fn test_screencode_limit_0x5f() {
-        let mut settings = DocumentSettings::default();
-        settings.assembler = Assembler::Tass64;
+    assert_eq!(lines_b.len(), 4);
+    assert_eq!(lines_b[1].operand, "\"screen\"");
+    assert_eq!(lines_b[2].mnemonic, ".text");
+    assert_eq!(lines_b[2].operand, "\"0-9, hola como\"");
+}
+#[test]
+fn test_screencode_limit_0x5f() {
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
-        let disassembler = Disassembler::new();
-        let labels = BTreeMap::new();
-        let origin = 0x1000;
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
 
-        // 0x5E (94) -> < 0x5f. Maps to '~' (126). Text.
-        // 0x5F (95) -> >= 0x5f. Byte.
-        // 0x60 (96) -> >= 0x5f. Byte.
-        let code = vec![0x5E, 0x5F, 0x60];
-        let block_types = vec![BlockType::Screencode; 3];
+    // 0x5E (94) -> < 0x5f. Maps to '~' (126). Text.
+    // 0x5F (95) -> >= 0x5f. Byte.
+    // 0x60 (96) -> >= 0x5f. Byte.
+    let code = vec![0x5E, 0x5F, 0x60];
+    let block_types = vec![BlockType::Screencode; 3];
 
-        let lines = disassembler.disassemble(
-            &code,
-            &block_types,
-            &labels,
-            origin,
-            &settings,
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-        );
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
 
-        // Expected: .text "~", $5f, $60
-        // Tass wraps in .encode ... .endencode
-        let text_lines: Vec<&crate::disassembler::DisassemblyLine> =
-            lines.iter().filter(|l| l.mnemonic == ".text").collect();
+    // Expected: .text "~", $5f, $60
+    // Tass wraps in .encode ... .endencode
+    let text_lines: Vec<&crate::disassembler::DisassemblyLine> =
+        lines.iter().filter(|l| l.mnemonic == ".text").collect();
 
-        assert_eq!(text_lines.len(), 1);
-        assert_eq!(text_lines[0].operand, "\"~\", $5f, $60");
-    }
+    assert_eq!(text_lines.len(), 1);
+    assert_eq!(text_lines[0].operand, "\"~\", $5f, $60");
+}
 
-    #[test]
-    fn test_acme_screencode_case_inversion() {
-        let mut settings = DocumentSettings::default();
-        settings.assembler = Assembler::Acme;
-        let disassembler = Disassembler::new();
-        let labels = BTreeMap::new();
-        let origin = 0x1000;
+#[test]
+fn test_acme_screencode_case_inversion() {
+    let settings = DocumentSettings {
+        assembler: Assembler::Acme,
+        ..Default::default()
+    };
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
 
-        // Screencodes:
-        // 0x01 -> 'A' (handle_screencode) -> "a" (format_screencode inverted)
-        // 0x41 -> 'a' (handle_screencode) -> "A" (format_screencode inverted)
-        // 0x1B -> '[' (handle_screencode 27+64=91) -> "['" (format_screencode not special)
-        // 0x1E -> '^' (handle_screencode 30+64=94) -> "^" (format_screencode not special)
-        // 0x5B -> '{' (handle_screencode 91+32=123) -> $5b (format_screencode hex)
-        // 0x5E -> '~' (handle_screencode 94+32=126) -> $5e (format_screencode hex)
+    // Screencodes:
+    // 0x01 -> 'A' (handle_screencode) -> "a" (format_screencode inverted)
+    // 0x41 -> 'a' (handle_screencode) -> "A" (format_screencode inverted)
+    // 0x1B -> '[' (handle_screencode 27+64=91) -> "['" (format_screencode not special)
+    // 0x1E -> '^' (handle_screencode 30+64=94) -> "^" (format_screencode not special)
+    // 0x5B -> '{' (handle_screencode 91+32=123) -> $5b (format_screencode hex)
+    // 0x5E -> '~' (handle_screencode 94+32=126) -> $5e (format_screencode hex)
 
-        let code = vec![
-            0x01, 0x41, // aA
-            0x1B, 0x1E, // [^
-            0x5B, 0x5E, // {~ -> $5b $5e
-        ];
-        let block_types = vec![BlockType::Screencode; code.len()];
+    let code = vec![
+        0x01, 0x41, // aA
+        0x1B, 0x1E, // [^
+        0x5B, 0x5E, // {~ -> $5b $5e
+    ];
+    let block_types = vec![BlockType::Screencode; code.len()];
 
-        let lines = disassembler.disassemble(
-            &code,
-            &block_types,
-            &labels,
-            origin,
-            &settings,
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-            &BTreeMap::new(),
-        );
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+    );
 
-        assert_eq!(lines.len(), 1);
-        assert_eq!(lines[0].mnemonic, "!scr");
-        assert_eq!(lines[0].operand, "\"aA[^\", $5b, $5e");
-    }
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].mnemonic, "!scr");
+    assert_eq!(lines[0].operand, "\"aA[^\", $5b, $5e");
 }
 
 #[test]
@@ -1317,6 +1476,7 @@ fn test_target_address_population() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 3);
@@ -1349,7 +1509,7 @@ fn test_target_address_specific_instructions() {
         0x20, 0x00, 0x20, // JSR $2000
         0x6C, 0x34, 0x12, // JMP ($1234)
         0x60, // RTS
-        0x00, // BRK
+        0x00, 0x00, // BRK #$00
         0x40, // RTI
     ];
     let block_types = vec![
@@ -1362,6 +1522,7 @@ fn test_target_address_specific_instructions() {
         BlockType::Code,
         BlockType::Code,
         BlockType::Code,
+        BlockType::Code, // Added one
     ];
 
     let lines = disassembler.disassemble(
@@ -1370,6 +1531,7 @@ fn test_target_address_specific_instructions() {
         &labels,
         origin,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -1480,7 +1642,7 @@ fn test_side_comment_propagation_allowed_for_data() {
     user_side_comments.insert(0x2000, "My Data".to_string());
 
     let data = vec![0xAD, 0x00, 0x20]; // LDA $2000
-                                       // Target $2000 is out of bounds of this data block, so is_code_target should be false.
+    // Target $2000 is out of bounds of this data block, so is_code_target should be false.
 
     let block_types = vec![BlockType::Code; 3];
     let address = 0x1000;
@@ -1512,8 +1674,10 @@ fn test_side_comment_propagation_allowed_for_data() {
 
 #[test]
 fn test_lohi_block() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Acme;
+    let settings = DocumentSettings {
+        assembler: Assembler::Acme,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
@@ -1536,6 +1700,7 @@ fn test_lohi_block() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Should produce 2 lines:
@@ -1543,13 +1708,13 @@ fn test_lohi_block() {
     // 2. !byte >$C000, >$D001
     assert_eq!(lines.len(), 2);
     assert_eq!(lines[0].mnemonic, "!byte");
-    assert_eq!(lines[0].operand, "<$C000, <$D001");
+    assert_eq!(lines[0].operand, "<$c000, <$d001");
     // LoHi logic sets `show_bytes` to false to avoid clutter?
     // Let's check implementation. Yes `show_bytes: false`.
     assert!(!lines[0].show_bytes);
 
     assert_eq!(lines[1].mnemonic, "!byte");
-    assert_eq!(lines[1].operand, ">$C000, >$D001");
+    assert_eq!(lines[1].operand, ">$c000, >$d001");
 
     // Case 2: With Label at $C000
     labels.insert(
@@ -1558,7 +1723,6 @@ fn test_lohi_block() {
             name: "MyLabel".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::AbsoluteAddress,
-            refs: vec![],
         }],
     );
 
@@ -1572,17 +1736,20 @@ fn test_lohi_block() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines_labelled.len(), 2);
-    assert_eq!(lines_labelled[0].operand, "<MyLabel, <$D001");
-    assert_eq!(lines_labelled[1].operand, ">MyLabel, >$D001");
+    assert_eq!(lines_labelled[0].operand, "<MyLabel, <$d001");
+    assert_eq!(lines_labelled[1].operand, ">MyLabel, >$d001");
 }
 
 #[test]
 fn test_lohi_internal_label_regression() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Acme;
+    let settings = DocumentSettings {
+        assembler: Assembler::Acme,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
@@ -1603,7 +1770,6 @@ fn test_lohi_internal_label_regression() {
             name: "HiPart".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::AbsoluteAddress,
-            refs: vec![],
         }],
     );
 
@@ -1617,25 +1783,28 @@ fn test_lohi_internal_label_regression() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Should produce 2 lines (Lo and Hi), not broken parts.
     assert_eq!(lines.len(), 2);
     // Line 1: Lo part (00 01)
-    assert_eq!(lines[0].operand, "<$C000, <$D001");
+    assert_eq!(lines[0].operand, "<$c000, <$d001");
 
     // Line 2: Hi part (C0 D0)
     // The label "HiPart" is at 1002.
     // The disassembly line for Hi part starts at 1002.
     // So line[1] should have label "HiPart".
     assert_eq!(lines[1].label, Some("HiPart".to_string()));
-    assert_eq!(lines[1].operand, ">$C000, >$D001");
+    assert_eq!(lines[1].operand, ">$c000, >$d001");
 }
 
 #[test]
 fn test_hilo_block() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Acme;
+    let settings = DocumentSettings {
+        assembler: Assembler::Acme,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
@@ -1658,6 +1827,7 @@ fn test_hilo_block() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     // Should produce 2 lines:
@@ -1665,12 +1835,12 @@ fn test_hilo_block() {
     // 2. !byte <$C000, <$D001  (Lo bytes 00, 01)
     assert_eq!(lines.len(), 2);
     assert_eq!(lines[0].mnemonic, "!byte");
-    assert_eq!(lines[0].operand, ">$C000, >$D001");
+    assert_eq!(lines[0].operand, ">$c000, >$d001");
     // LoHi and HiLo logic sets `show_bytes` to false to avoid clutter
     assert!(!lines[0].show_bytes);
 
     assert_eq!(lines[1].mnemonic, "!byte");
-    assert_eq!(lines[1].operand, "<$C000, <$D001");
+    assert_eq!(lines[1].operand, "<$c000, <$d001");
 
     // Case 2: With Label at $C000
     labels.insert(
@@ -1679,7 +1849,6 @@ fn test_hilo_block() {
             name: "MyLabel".to_string(),
             kind: crate::state::LabelKind::User,
             label_type: crate::state::LabelType::AbsoluteAddress,
-            refs: vec![],
         }],
     );
 
@@ -1693,11 +1862,12 @@ fn test_hilo_block() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines_labelled.len(), 2);
-    assert_eq!(lines_labelled[0].operand, ">MyLabel, >$D001");
-    assert_eq!(lines_labelled[1].operand, "<MyLabel, <$D001");
+    assert_eq!(lines_labelled[0].operand, ">MyLabel, >$d001");
+    assert_eq!(lines_labelled[1].operand, "<MyLabel, <$d001");
 }
 
 #[test]
@@ -1708,8 +1878,10 @@ fn test_inverted_binary_format() {
     // LDA #$FF -> should be #~%00000000
     // $FF is 11111111. Inverted is 00000000.
 
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -1732,6 +1904,7 @@ fn test_inverted_binary_format() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &immediate_value_formats,
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines[0].operand, "#~%11111111");

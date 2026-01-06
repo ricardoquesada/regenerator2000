@@ -22,12 +22,18 @@ mod tests {
         app_state.project_path = Some(path.clone());
 
         app_state
-            .save_project(Some(start_cursor_addr), Some(start_hex_cursor_addr))
+            .save_project(
+                Some(start_cursor_addr),
+                Some(start_hex_cursor_addr),
+                None,
+                None,
+                None,
+            )
             .expect("Failed to save project");
 
         // 3. Create fresh app state and load
         let mut loaded_state = AppState::new();
-        let (loaded_cursor, loaded_hex_cursor) = loaded_state
+        let (loaded_cursor, loaded_hex_cursor, _, _, _) = loaded_state
             .load_project(path.clone())
             .expect("Failed to load project");
 

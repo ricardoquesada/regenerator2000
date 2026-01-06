@@ -8,6 +8,17 @@ use std::path::PathBuf;
 pub enum ActivePane {
     Disassembly,
     HexDump,
+    Sprites,
+    Charset,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RightPane {
+    None,
+    #[default]
+    HexDump,
+    Sprites,
+    Charset,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,13 +48,13 @@ pub enum MenuAction {
     JumpToAddress,
     JumpToLine,
     JumpToOperand,
-    SetPetsciiUnshifted,
-    SetPetsciiShifted,
+
     SetLoHi,
     SetHiLo,
     SideComment,
     LineComment,
     ToggleHexDump,
+    ToggleSpritesView,
     About,
     ChangeOrigin,
     KeyboardShortcuts,
@@ -54,6 +65,10 @@ pub enum MenuAction {
     Search,
     FindNext,
     FindPrevious,
+    TogglePetsciiMode,
+    ToggleSpriteMulticolor,
+    ToggleCharsetView,
+    ToggleCharsetMulticolor,
 }
 
 impl MenuAction {
@@ -311,6 +326,7 @@ impl SaveDialogState {
 pub struct LabelDialogState {
     pub active: bool,
     pub input: String,
+    pub address: Option<u16>,
 }
 
 impl LabelDialogState {
@@ -318,12 +334,14 @@ impl LabelDialogState {
         Self {
             active: false,
             input: String::new(),
+            address: None,
         }
     }
 
-    pub fn open(&mut self, current_label: Option<&str>) {
+    pub fn open(&mut self, current_label: Option<&str>, address: u16) {
         self.active = true;
         self.input = current_label.unwrap_or("").to_string();
+        self.address = Some(address);
     }
 
     pub fn close(&mut self) {
@@ -368,6 +386,7 @@ impl CommentDialogState {
 pub struct OriginDialogState {
     pub active: bool,
     pub input: String,
+    pub address: u16,
 }
 
 impl OriginDialogState {
@@ -375,12 +394,14 @@ impl OriginDialogState {
         Self {
             active: false,
             input: String::new(),
+            address: 0,
         }
     }
 
     pub fn open(&mut self, current_origin: u16) {
         self.active = true;
         self.input = format!("{:04X}", current_origin);
+        self.address = current_origin;
     }
 
     pub fn close(&mut self) {
@@ -398,6 +419,8 @@ pub struct SettingsDialogState {
     pub xref_count_input: String,
     pub is_editing_arrow_columns: bool,
     pub arrow_columns_input: String,
+    pub is_editing_text_char_limit: bool,
+    pub text_char_limit_input: String,
 }
 
 impl SettingsDialogState {
@@ -411,6 +434,8 @@ impl SettingsDialogState {
             xref_count_input: String::new(),
             is_editing_arrow_columns: false,
             arrow_columns_input: String::new(),
+            is_editing_text_char_limit: false,
+            text_char_limit_input: String::new(),
         }
     }
 
@@ -423,6 +448,8 @@ impl SettingsDialogState {
         self.xref_count_input.clear();
         self.is_editing_arrow_columns = false;
         self.arrow_columns_input.clear();
+        self.is_editing_text_char_limit = false;
+        self.text_char_limit_input.clear();
     }
 
     pub fn close(&mut self) {
@@ -439,12 +466,14 @@ impl SettingsDialogState {
         // 5: Assembler
         // 6: Max X-Refs
         // 7: Arrow Columns
-        let max_items = 8;
+        // 8: Use Illegal Opcodes
+        // 9: Text Line Limit
+        let max_items = 10;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 8;
+        let max_items = 10;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {
@@ -593,20 +622,35 @@ impl MenuState {
 
                     items: vec![
                         MenuItem::new(
-                            "Unshifted PETSCII",
-                            Some("Ctrl+Shift+L"),
-                            Some(MenuAction::SetPetsciiUnshifted),
+                            "Toggle PETSCII Shifted/Unshifted",
+                            Some("p"),
+                            Some(MenuAction::TogglePetsciiMode),
                         ),
                         MenuItem::new(
-                            "Shifted PETSCII",
-                            Some("Ctrl+L"),
-                            Some(MenuAction::SetPetsciiShifted),
+                            "Toggle Multicolor Sprites",
+                            Some("m"),
+                            Some(MenuAction::ToggleSpriteMulticolor),
+                        ),
+                        MenuItem::new(
+                            "Toggle Multicolor Charset",
+                            Some("m"),
+                            Some(MenuAction::ToggleCharsetMulticolor),
                         ),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Toggle Hex Dump",
                             Some("Ctrl+2"),
                             Some(MenuAction::ToggleHexDump),
+                        ),
+                        MenuItem::new(
+                            "Toggle Sprites View",
+                            Some("Ctrl+3"),
+                            Some(MenuAction::ToggleSpritesView),
+                        ),
+                        MenuItem::new(
+                            "Toggle Charset View",
+                            Some("Ctrl+4"),
+                            Some(MenuAction::ToggleCharsetView),
                         ),
                     ],
                 },
@@ -665,9 +709,6 @@ impl MenuState {
             }
             next = (next + 1) % count;
         }
-        // If nothing found (all disabled/separators), keep as is or set to None?
-        // Let's keep as is if we can't find anything better, or maybe current is valid?
-        // If current is invalid (e.g. became disabled), we might want to change it.
     }
 
     pub fn previous_item(&mut self) {
@@ -679,7 +720,7 @@ impl MenuState {
 
         let mut prev = if current == 0 { count - 1 } else { current - 1 };
 
-        // Skip separators and disabled items
+        // We iterate at most `count` times to avoid infinite loop
         for _ in 0..count {
             let item = &self.categories[self.selected_category].items[prev];
             if !item.is_separator && !item.disabled {
@@ -705,6 +746,7 @@ impl MenuState {
         app_state: &crate::state::AppState,
         cursor_index: usize,
         last_search_empty: bool,
+        active_pane: ActivePane,
     ) {
         let has_document = !app_state.raw_data.is_empty();
         for category in &mut self.categories {
@@ -729,6 +771,15 @@ impl MenuState {
                                     is_immediate = true;
                                 }
                                 item.disabled = !is_immediate;
+                            }
+                            MenuAction::TogglePetsciiMode => {
+                                item.disabled = active_pane != ActivePane::HexDump;
+                            }
+                            MenuAction::ToggleSpriteMulticolor => {
+                                item.disabled = active_pane != ActivePane::Sprites;
+                            }
+                            MenuAction::ToggleCharsetMulticolor => {
+                                item.disabled = active_pane != ActivePane::Charset;
                             }
                             _ => item.disabled = false,
                         }
@@ -797,14 +848,19 @@ pub struct UIState {
     // UI Selection/Cursor
     pub selection_start: Option<usize>,
     pub cursor_index: usize,
+    pub sub_cursor_index: usize,
     #[allow(dead_code)]
     pub scroll_index: usize,
 
     // Hex View State
     pub hex_cursor_index: usize,
+    pub sprites_cursor_index: usize,
+    pub charset_cursor_index: usize,
     #[allow(dead_code)]
     pub hex_scroll_index: usize,
-    pub show_hex_dump: bool,
+    pub right_pane: RightPane,
+    pub sprite_multicolor_mode: bool,
+    pub charset_multicolor_mode: bool,
     pub petscii_mode: PetsciiMode,
 
     pub active_pane: ActivePane,
@@ -844,10 +900,15 @@ impl UIState {
             disassembly_state: ListState::default(),
             selection_start: None,
             cursor_index: 0,
+            sub_cursor_index: 0,
             scroll_index: 0,
             hex_cursor_index: 0,
+            sprites_cursor_index: 0,
+            charset_cursor_index: 0,
             hex_scroll_index: 0,
-            show_hex_dump: true,
+            right_pane: RightPane::HexDump,
+            sprite_multicolor_mode: false,
+            charset_multicolor_mode: false,
             petscii_mode: PetsciiMode::Unshifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,

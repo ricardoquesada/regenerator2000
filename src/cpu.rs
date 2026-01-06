@@ -27,6 +27,7 @@ pub struct Opcode {
     pub cycles: u8,
     #[allow(dead_code)]
     pub description: &'static str,
+    pub illegal: bool,
 }
 
 impl Opcode {
@@ -43,6 +44,24 @@ impl Opcode {
             size,
             cycles,
             description,
+            illegal: false,
+        }
+    }
+
+    pub const fn new_illegal(
+        mnemonic: &'static str,
+        mode: AddressingMode,
+        size: u8,
+        cycles: u8,
+        description: &'static str,
+    ) -> Self {
+        Self {
+            mnemonic,
+            mode,
+            size,
+            cycles,
+            description,
+            illegal: true,
         }
     }
 }
@@ -1207,6 +1226,183 @@ pub fn get_opcodes() -> [Option<Opcode>; 256] {
         2,
         "Transfer Y to Accumulator",
     ));
+
+    // ========================================================================
+    // UNDOCUMENTED OPCODES
+    // ========================================================================
+
+    // SLO (Shift Left then OR) -> ASL + ORA
+    let mut add_slo = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal("SLO", mode, size, cycles, "ASL + ORA"));
+    };
+    add_slo(0x07, AddressingMode::ZeroPage, 2, 5);
+    add_slo(0x17, AddressingMode::ZeroPageX, 2, 6);
+    add_slo(0x03, AddressingMode::IndirectX, 2, 8);
+    add_slo(0x13, AddressingMode::IndirectY, 2, 8);
+    add_slo(0x0F, AddressingMode::Absolute, 3, 6);
+    add_slo(0x1F, AddressingMode::AbsoluteX, 3, 7);
+    add_slo(0x1B, AddressingMode::AbsoluteY, 3, 7);
+
+    // RLA (Rotate Left then AND) -> ROL + AND
+    let mut add_rla = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal("RLA", mode, size, cycles, "ROL + AND"));
+    };
+    add_rla(0x27, AddressingMode::ZeroPage, 2, 5);
+    add_rla(0x37, AddressingMode::ZeroPageX, 2, 6);
+    add_rla(0x23, AddressingMode::IndirectX, 2, 8);
+    add_rla(0x33, AddressingMode::IndirectY, 2, 8);
+    add_rla(0x2F, AddressingMode::Absolute, 3, 6);
+    add_rla(0x3F, AddressingMode::AbsoluteX, 3, 7);
+    add_rla(0x3B, AddressingMode::AbsoluteY, 3, 7);
+
+    // SRE (Logical Shift Right then EOR) -> LSR + EOR
+    let mut add_sre = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal("SRE", mode, size, cycles, "LSR + EOR"));
+    };
+    add_sre(0x47, AddressingMode::ZeroPage, 2, 5);
+    add_sre(0x57, AddressingMode::ZeroPageX, 2, 6);
+    add_sre(0x43, AddressingMode::IndirectX, 2, 8);
+    add_sre(0x53, AddressingMode::IndirectY, 2, 8);
+    add_sre(0x4F, AddressingMode::Absolute, 3, 6);
+    add_sre(0x5F, AddressingMode::AbsoluteX, 3, 7);
+    add_sre(0x5B, AddressingMode::AbsoluteY, 3, 7);
+
+    // RRA (Rotate Right then ADC) -> ROR + ADC
+    let mut add_rra = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal("RRA", mode, size, cycles, "ROR + ADC"));
+    };
+    add_rra(0x67, AddressingMode::ZeroPage, 2, 5);
+    add_rra(0x77, AddressingMode::ZeroPageX, 2, 6);
+    add_rra(0x63, AddressingMode::IndirectX, 2, 8);
+    add_rra(0x73, AddressingMode::IndirectY, 2, 8);
+    add_rra(0x6F, AddressingMode::Absolute, 3, 6);
+    add_rra(0x7F, AddressingMode::AbsoluteX, 3, 7);
+    add_rra(0x7B, AddressingMode::AbsoluteY, 3, 7);
+
+    // SAX (Store A AND X) -> A & X -> Mem
+    let mut add_sax = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal(
+            "SAX",
+            mode,
+            size,
+            cycles,
+            "Store A & X",
+        ));
+    };
+    add_sax(0x87, AddressingMode::ZeroPage, 2, 3);
+    add_sax(0x97, AddressingMode::ZeroPageY, 2, 4); // Note: ZeroPageY for SAX
+    add_sax(0x83, AddressingMode::IndirectX, 2, 6);
+    add_sax(0x8F, AddressingMode::Absolute, 3, 4);
+
+    // LAX (Load A AND X) -> Mem -> A, Mem -> X
+    let mut add_lax = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal(
+            "LAX",
+            mode,
+            size,
+            cycles,
+            "Load A and X",
+        ));
+    };
+    add_lax(0xA7, AddressingMode::ZeroPage, 2, 3);
+    add_lax(0xB7, AddressingMode::ZeroPageY, 2, 4); // Note: ZeroPageY
+    add_lax(0xA3, AddressingMode::IndirectX, 2, 6);
+    add_lax(0xB3, AddressingMode::IndirectY, 2, 5);
+    add_lax(0xAF, AddressingMode::Absolute, 3, 4);
+    add_lax(0xBF, AddressingMode::AbsoluteY, 3, 4);
+
+    // DCP (Decrement then Compare) -> DEC + CMP
+    let mut add_dcp = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal("DCP", mode, size, cycles, "DEC + CMP"));
+    };
+    add_dcp(0xC7, AddressingMode::ZeroPage, 2, 5);
+    add_dcp(0xD7, AddressingMode::ZeroPageX, 2, 6);
+    add_dcp(0xC3, AddressingMode::IndirectX, 2, 8);
+    add_dcp(0xD3, AddressingMode::IndirectY, 2, 8);
+    add_dcp(0xCF, AddressingMode::Absolute, 3, 6);
+    add_dcp(0xDF, AddressingMode::AbsoluteX, 3, 7);
+    add_dcp(0xDB, AddressingMode::AbsoluteY, 3, 7);
+
+    // ISC (Increment then Subtract) -> INC + SBC
+    let mut add_isc = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal("ISC", mode, size, cycles, "INC + SBC"));
+    };
+    add_isc(0xE7, AddressingMode::ZeroPage, 2, 5);
+    add_isc(0xF7, AddressingMode::ZeroPageX, 2, 6);
+    add_isc(0xE3, AddressingMode::IndirectX, 2, 8);
+    add_isc(0xF3, AddressingMode::IndirectY, 2, 8);
+    add_isc(0xEF, AddressingMode::Absolute, 3, 6);
+    add_isc(0xFF, AddressingMode::AbsoluteX, 3, 7);
+    add_isc(0xFB, AddressingMode::AbsoluteY, 3, 7);
+
+    // ANC (aka AAC) - AND #imm then update Carry (some sources say it does ASL too implicitly on internal register?)
+    // This opcode is ANC #imm. It performs AND #imm, and updates N and Z.
+    // AND it also moves bit 7 of the result into the Carry flag.
+    let mut add_anc = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal(
+            "ANC",
+            mode,
+            size,
+            cycles,
+            "AND #imm + Carry",
+        ));
+    };
+    add_anc(0x0B, AddressingMode::Immediate, 2, 2);
+    add_anc(0x2B, AddressingMode::Immediate, 2, 2);
+
+    // ASR (aka ALR) - AND #imm then LSR A.
+    let mut add_asr = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal(
+            "ASR",
+            mode,
+            size,
+            cycles,
+            "AND #imm + LSR A",
+        ));
+    };
+    add_asr(0x4B, AddressingMode::Immediate, 2, 2);
+
+    // ARR - AND #imm then ROR A (with some weird C flag behavior involving Decimal mode on real hardware)
+    let mut add_arr = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal(
+            "ARR",
+            mode,
+            size,
+            cycles,
+            "AND #imm + ROR A",
+        ));
+    };
+    add_arr(0x6B, AddressingMode::Immediate, 2, 2);
+
+    // SBX (aka AXS) - (A & X) - #imm -> X
+    // CMP (A&X) #imm ... sets flags. Result stored in X.
+    let mut add_sbx = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal(
+            "SBX",
+            mode,
+            size,
+            cycles,
+            "(A & X) - #imm -> X",
+        ));
+    };
+    add_sbx(0xCB, AddressingMode::Immediate, 2, 2);
+
+    // LAX Immediate - Not usually listed as stable LAX, or sometimes called OAL / ATX / LXA.
+    // However unstable, some docs say $AB is LAX #imm.
+    // "LAX #$00" for $AB $00
+    // It loads A and X with the same immediate value (unstable, depends on line noise/temperature sometimes?
+    // but often simplified as A=X=imm).
+    // User specifically asked for $AB to be LAX (Immediate).
+    let mut add_lax_imm = |opcode, mode, size, cycles| {
+        opcodes[opcode] = Some(Opcode::new_illegal(
+            "LAX",
+            mode,
+            size,
+            cycles,
+            "Load A and X (Immediate)",
+        ));
+    };
+    add_lax_imm(0xAB, AddressingMode::Immediate, 2, 2);
 
     opcodes
 }

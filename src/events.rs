@@ -16,6 +16,7 @@ pub fn run_app<B: Backend>(
             &app_state,
             ui_state.cursor_index,
             ui_state.search_dialog.last_search.is_empty(),
+            ui_state.active_pane,
         );
 
         terminal
@@ -87,10 +88,8 @@ pub fn run_app<B: Backend>(
                                             let end_addr = origin + data_len;
 
                                             if target >= origin && target < end_addr {
-                                                ui_state.navigation_history.push((
-                                                    crate::ui_state::ActivePane::HexDump,
-                                                    ui_state.hex_cursor_index,
-                                                ));
+                                                // Navigation history disabled for HexDump
+
                                                 let alignment_padding = origin % 16;
                                                 let aligned_origin = origin - alignment_padding;
                                                 let offset = target - aligned_origin;
@@ -99,6 +98,60 @@ pub fn run_app<B: Backend>(
                                                 ui_state.set_status_message(format!(
                                                     "Jumped to ${:04X}",
                                                     target_addr
+                                                ));
+                                            } else {
+                                                ui_state.set_status_message("Address out of range");
+                                            }
+                                        }
+                                        ActivePane::Sprites => {
+                                            let origin = app_state.origin as usize;
+                                            let target = target_addr as usize;
+
+                                            // Calculate padding for alignment
+                                            let padding = (64 - (origin % 64)) % 64;
+                                            let aligned_start = origin + padding;
+
+                                            if target >= aligned_start
+                                                && target < origin + app_state.raw_data.len()
+                                            {
+                                                // Navigation history disabled for Sprites
+
+                                                // Calculate sprite index relative to aligned start
+                                                let offset = target - aligned_start;
+                                                let sprite_idx = offset / 64;
+                                                // Sprite number calculation: (target / 64) % 256
+                                                let sprite_num = (target / 64) % 256;
+
+                                                ui_state.sprites_cursor_index = sprite_idx;
+                                                ui_state.set_status_message(format!(
+                                                    "Jumped to sprite {} (${:04X})",
+                                                    sprite_num, target_addr
+                                                ));
+                                            } else {
+                                                ui_state.set_status_message(
+                                                    "Address out of range or unaligned area",
+                                                );
+                                            }
+                                        }
+                                        ActivePane::Charset => {
+                                            let origin = app_state.origin as usize;
+                                            let target = target_addr as usize;
+                                            let base_alignment = 0x400;
+                                            let aligned_start_addr =
+                                                (origin / base_alignment) * base_alignment;
+
+                                            let end_addr = origin + app_state.raw_data.len();
+
+                                            if target >= aligned_start_addr && target < end_addr {
+                                                // Navigation history disabled for Charset
+
+                                                let offset = target - aligned_start_addr;
+                                                let char_idx = offset / 8;
+
+                                                ui_state.charset_cursor_index = char_idx;
+                                                ui_state.set_status_message(format!(
+                                                    "Jumped to char index {} (${:04X})",
+                                                    char_idx, target_addr
                                                 ));
                                             } else {
                                                 ui_state.set_status_message("Address out of range");
@@ -186,7 +239,40 @@ pub fn run_app<B: Backend>(
                                     None
                                 };
 
-                                if let Err(e) = app_state.save_project(cursor_addr, hex_addr) {
+                                // Calculate sprites cursor address
+                                let sprites_addr = if !app_state.raw_data.is_empty() {
+                                    let origin = app_state.origin as usize;
+                                    let padding = (64 - (origin % 64)) % 64;
+                                    let sprite_offset = ui_state.sprites_cursor_index * 64;
+                                    let addr = origin + padding + sprite_offset;
+                                    Some(addr as u16)
+                                } else {
+                                    None
+                                };
+
+                                let charset_addr = if !app_state.raw_data.is_empty() {
+                                    let origin = app_state.origin as usize;
+                                    let base_alignment = 0x400;
+                                    let aligned_start_addr =
+                                        (origin / base_alignment) * base_alignment;
+                                    let char_offset = ui_state.charset_cursor_index * 8;
+                                    let addr = aligned_start_addr + char_offset;
+                                    // Could be before origin if we allowed viewing it, effectively index into virtual space?
+                                    // Just save what we calculated.
+                                    Some(addr as u16)
+                                } else {
+                                    None
+                                };
+
+                                let right_pane_str = format!("{:?}", ui_state.right_pane);
+
+                                if let Err(e) = app_state.save_project(
+                                    cursor_addr,
+                                    hex_addr,
+                                    sprites_addr,
+                                    Some(right_pane_str),
+                                    charset_addr,
+                                ) {
                                     ui_state.set_status_message(format!("Error saving: {}", e));
                                 } else {
                                     ui_state.set_status_message("Project saved");
@@ -222,9 +308,8 @@ pub fn run_app<B: Backend>(
                         ui_state.set_status_message("Ready");
                     }
                     KeyCode::Enter => {
-                        // Get current address
-                        if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                            let address = line.address;
+                        // Get address from dialog state
+                        if let Some(address) = ui_state.label_dialog.address {
                             let label_name = ui_state.label_dialog.input.trim().to_string();
 
                             if label_name.is_empty() {
@@ -266,7 +351,6 @@ pub fn run_app<B: Backend>(
                                         name: label_name,
                                         kind: crate::state::LabelKind::User,
                                         label_type: crate::state::LabelType::UserDefined,
-                                        refs: Vec::new(),
                                     };
 
                                     // If vector has items, we assume we are editing the first one (as that's what we showed).
@@ -394,7 +478,13 @@ pub fn run_app<B: Backend>(
                                             e
                                         ));
                                     }
-                                    Ok((loaded_cursor, loaded_hex_cursor)) => {
+                                    Ok((
+                                        loaded_cursor,
+                                        loaded_hex_cursor,
+                                        loaded_sprites_cursor,
+                                        loaded_right_pane,
+                                        loaded_charset_cursor,
+                                    )) => {
                                         ui_state.set_status_message(format!(
                                             "Loaded: {:?}",
                                             selected_path
@@ -425,6 +515,52 @@ pub fn run_app<B: Backend>(
                                                 .get_line_index_for_address(app_state.origin)
                                             {
                                                 ui_state.cursor_index = idx;
+                                            }
+                                        }
+
+                                        if let Some(sprites_addr) = loaded_sprites_cursor {
+                                            // Calculate index from address
+                                            // Index = (addr - origin - padding) / 64
+                                            let origin = app_state.origin as usize;
+                                            let padding = (64 - (origin % 64)) % 64;
+                                            let addr = sprites_addr as usize;
+                                            if addr >= origin + padding {
+                                                let offset = addr - (origin + padding);
+                                                ui_state.sprites_cursor_index = offset / 64;
+                                            }
+                                        }
+
+                                        if let Some(charset_addr) = loaded_charset_cursor {
+                                            let origin = app_state.origin as usize;
+                                            let base_alignment = 0x400;
+                                            let aligned_start_addr =
+                                                (origin / base_alignment) * base_alignment;
+                                            let addr = charset_addr as usize;
+                                            if addr >= aligned_start_addr {
+                                                let offset = addr - aligned_start_addr;
+                                                ui_state.charset_cursor_index = offset / 8;
+                                            }
+                                        }
+
+                                        if let Some(pane_str) = loaded_right_pane {
+                                            match pane_str.as_str() {
+                                                "HexDump" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::HexDump
+                                                }
+                                                "Sprites" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::Sprites
+                                                }
+                                                "Charset" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::Charset
+                                                }
+                                                "None" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::None
+                                                }
+                                                _ => {}
                                             }
                                         }
 
@@ -569,6 +705,9 @@ pub fn run_app<B: Backend>(
                         } else if ui_state.settings_dialog.is_editing_arrow_columns {
                             ui_state.settings_dialog.is_editing_arrow_columns = false;
                             ui_state.settings_dialog.arrow_columns_input.clear();
+                        } else if ui_state.settings_dialog.is_editing_text_char_limit {
+                            ui_state.settings_dialog.is_editing_text_char_limit = false;
+                            ui_state.settings_dialog.text_char_limit_input.clear();
                         } else {
                             ui_state.settings_dialog.close();
                             ui_state.set_status_message("Ready");
@@ -606,6 +745,7 @@ pub fn run_app<B: Backend>(
                             app_state.settings.assembler = assemblers[new_idx];
                         } else if !ui_state.settings_dialog.is_editing_xref_count
                             && !ui_state.settings_dialog.is_editing_arrow_columns
+                            && !ui_state.settings_dialog.is_editing_text_char_limit
                         {
                             ui_state.settings_dialog.previous();
                         }
@@ -613,15 +753,20 @@ pub fn run_app<B: Backend>(
                     KeyCode::Left => {
                         if !ui_state.settings_dialog.is_editing_xref_count
                             && !ui_state.settings_dialog.is_editing_arrow_columns
+                            && !ui_state.settings_dialog.is_editing_text_char_limit
                         {
                             match ui_state.settings_dialog.selected_index {
-                                6 => {
+                                7 => {
                                     app_state.settings.max_xref_count =
                                         app_state.settings.max_xref_count.saturating_sub(1);
                                 }
-                                7 => {
+                                8 => {
                                     app_state.settings.max_arrow_columns =
                                         app_state.settings.max_arrow_columns.saturating_sub(1);
+                                }
+                                9 => {
+                                    app_state.settings.text_char_limit =
+                                        app_state.settings.text_char_limit.saturating_sub(1);
                                 }
                                 _ => {}
                             }
@@ -630,15 +775,20 @@ pub fn run_app<B: Backend>(
                     KeyCode::Right => {
                         if !ui_state.settings_dialog.is_editing_xref_count
                             && !ui_state.settings_dialog.is_editing_arrow_columns
+                            && !ui_state.settings_dialog.is_editing_text_char_limit
                         {
                             match ui_state.settings_dialog.selected_index {
-                                6 => {
+                                7 => {
                                     app_state.settings.max_xref_count =
                                         app_state.settings.max_xref_count.saturating_add(1);
                                 }
-                                7 => {
+                                8 => {
                                     app_state.settings.max_arrow_columns =
                                         app_state.settings.max_arrow_columns.saturating_add(1);
+                                }
+                                9 => {
+                                    app_state.settings.text_char_limit =
+                                        app_state.settings.text_char_limit.saturating_add(1);
                                 }
                                 _ => {}
                             }
@@ -665,6 +815,7 @@ pub fn run_app<B: Backend>(
                             app_state.settings.assembler = assemblers[new_idx];
                         } else if !ui_state.settings_dialog.is_editing_xref_count
                             && !ui_state.settings_dialog.is_editing_arrow_columns
+                            && !ui_state.settings_dialog.is_editing_text_char_limit
                         {
                             ui_state.settings_dialog.next();
                         }
@@ -692,6 +843,16 @@ pub fn run_app<B: Backend>(
                                 app_state.settings.max_arrow_columns = val;
                                 ui_state.settings_dialog.is_editing_arrow_columns = false;
                             }
+                        } else if ui_state.settings_dialog.is_editing_text_char_limit {
+                            // Commit value
+                            if let Ok(val) = ui_state
+                                .settings_dialog
+                                .text_char_limit_input
+                                .parse::<usize>()
+                            {
+                                app_state.settings.text_char_limit = val;
+                                ui_state.settings_dialog.is_editing_text_char_limit = false;
+                            }
                         } else {
                             // Toggle checkbox or enter mode
                             match ui_state.settings_dialog.selected_index {
@@ -714,20 +875,29 @@ pub fn run_app<B: Backend>(
                                     }
                                 }
                                 4 => {
-                                    ui_state.settings_dialog.is_selecting_platform = true;
+                                    app_state.settings.use_illegal_opcodes =
+                                        !app_state.settings.use_illegal_opcodes;
                                 }
                                 5 => {
-                                    ui_state.settings_dialog.is_selecting_assembler = true;
+                                    ui_state.settings_dialog.is_selecting_platform = true;
                                 }
                                 6 => {
+                                    ui_state.settings_dialog.is_selecting_assembler = true;
+                                }
+                                7 => {
                                     ui_state.settings_dialog.is_editing_xref_count = true;
                                     ui_state.settings_dialog.xref_count_input =
                                         app_state.settings.max_xref_count.to_string();
                                 }
-                                7 => {
+                                8 => {
                                     ui_state.settings_dialog.is_editing_arrow_columns = true;
                                     ui_state.settings_dialog.arrow_columns_input =
                                         app_state.settings.max_arrow_columns.to_string();
+                                }
+                                9 => {
+                                    ui_state.settings_dialog.is_editing_text_char_limit = true;
+                                    ui_state.settings_dialog.text_char_limit_input =
+                                        app_state.settings.text_char_limit.to_string();
                                 }
                                 _ => {}
                             }
@@ -738,6 +908,8 @@ pub fn run_app<B: Backend>(
                             ui_state.settings_dialog.xref_count_input.pop();
                         } else if ui_state.settings_dialog.is_editing_arrow_columns {
                             ui_state.settings_dialog.arrow_columns_input.pop();
+                        } else if ui_state.settings_dialog.is_editing_text_char_limit {
+                            ui_state.settings_dialog.text_char_limit_input.pop();
                         }
                     }
                     KeyCode::Char(c) => {
@@ -747,6 +919,10 @@ pub fn run_app<B: Backend>(
                             && c.is_ascii_digit()
                         {
                             ui_state.settings_dialog.arrow_columns_input.push(c);
+                        } else if ui_state.settings_dialog.is_editing_text_char_limit
+                            && c.is_ascii_digit()
+                        {
+                            ui_state.settings_dialog.text_char_limit_input.push(c);
                         }
                     }
                     _ => {}
@@ -979,23 +1155,17 @@ pub fn run_app<B: Backend>(
                                 ui_state.hex_cursor_index =
                                     ui_state.hex_cursor_index.saturating_sub(10);
                             }
+                            ActivePane::Sprites => {
+                                ui_state.sprites_cursor_index =
+                                    ui_state.sprites_cursor_index.saturating_sub(10);
+                            }
+                            ActivePane::Charset => {
+                                ui_state.charset_cursor_index =
+                                    ui_state.charset_cursor_index.saturating_sub(10);
+                            }
                         }
                     }
-                    KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                crate::ui_state::MenuAction::SetPetsciiShifted,
-                            );
-                        } else {
-                            handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                crate::ui_state::MenuAction::SetPetsciiUnshifted,
-                            );
-                        }
-                    }
+
                     KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         match ui_state.active_pane {
                             ActivePane::Disassembly => {
@@ -1009,6 +1179,26 @@ pub fn run_app<B: Backend>(
                                     (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
                                 ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
                                     .min(total_rows.saturating_sub(1));
+                            }
+                            ActivePane::Sprites => {
+                                let origin = app_state.origin as usize;
+                                let padding = (64 - (origin % 64)) % 64;
+                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                                let total_sprites = usable_len.div_ceil(64);
+                                ui_state.sprites_cursor_index = (ui_state.sprites_cursor_index
+                                    + 10)
+                                    .min(total_sprites.saturating_sub(1));
+                            }
+                            ActivePane::Charset => {
+                                let origin = app_state.origin as usize;
+                                let base_alignment = 0x400;
+                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                                let end_addr = origin + app_state.raw_data.len();
+                                let max_char_index =
+                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+                                ui_state.charset_cursor_index = (ui_state.charset_cursor_index
+                                    + 10)
+                                    .min(max_char_index.saturating_sub(1));
                             }
                         }
                     }
@@ -1031,6 +1221,20 @@ pub fn run_app<B: Backend>(
                             &mut app_state,
                             &mut ui_state,
                             crate::ui_state::MenuAction::ToggleHexDump,
+                        );
+                    }
+                    KeyCode::Char('3') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::ToggleSpritesView,
+                        );
+                    }
+                    KeyCode::Char('4') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::ToggleCharsetView,
                         );
                     }
 
@@ -1062,26 +1266,30 @@ pub fn run_app<B: Backend>(
                     }
 
                     KeyCode::Backspace => {
-                        if let Some((pane, idx)) = ui_state.navigation_history.pop() {
-                            ui_state.active_pane = pane;
-                            match pane {
-                                ActivePane::Disassembly => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            // Pop until we find a Disassembly entry or run out of history
+                            while let Some((pane, _)) = ui_state.navigation_history.last() {
+                                if *pane != ActivePane::Disassembly {
+                                    ui_state.navigation_history.pop();
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            if let Some((pane, idx)) = ui_state.navigation_history.pop() {
+                                // Double check it is Disassembly (should be guaranteed by loop above)
+                                if pane == ActivePane::Disassembly {
                                     if idx < app_state.disassembly.len() {
                                         ui_state.cursor_index = idx;
+                                        ui_state.active_pane = ActivePane::Disassembly; // Ensure focus remains
                                         ui_state.set_status_message("Navigated back");
                                     } else {
                                         ui_state.set_status_message("History invalid");
                                     }
                                 }
-                                ActivePane::HexDump => {
-                                    // Basic bounds check might be hard here without recalculating rows
-                                    // For now assume it's valid if it was pushed
-                                    ui_state.hex_cursor_index = idx;
-                                    ui_state.set_status_message("Navigated back");
-                                }
+                            } else {
+                                ui_state.set_status_message("No history");
                             }
-                        } else {
-                            ui_state.set_status_message("No history");
                         }
                     }
 
@@ -1140,6 +1348,15 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
+                    KeyCode::Char('p') => {
+                        if ui_state.active_pane == ActivePane::HexDump {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::TogglePetsciiMode,
+                            )
+                        }
+                    }
                     KeyCode::Char('U') => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
@@ -1188,7 +1405,18 @@ pub fn run_app<B: Backend>(
 
                     // Label
                     KeyCode::Char('l') => {
-                        if !app_state.raw_data.is_empty() {
+                        if ui_state.active_pane == ActivePane::Charset {
+                            let origin = app_state.origin as usize;
+                            let base_alignment = 0x400;
+                            let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                            let end_addr = origin + app_state.raw_data.len();
+                            let max_char_index =
+                                (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+
+                            if ui_state.charset_cursor_index < max_char_index.saturating_sub(1) {
+                                ui_state.charset_cursor_index += 1;
+                            }
+                        } else if !app_state.raw_data.is_empty() {
                             if !ui_state.menu.active
                                 && !ui_state.jump_dialog.active
                                 && !ui_state.save_dialog.active
@@ -1196,13 +1424,46 @@ pub fn run_app<B: Backend>(
                                 && ui_state.active_pane == ActivePane::Disassembly
                                 && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
                             {
-                                let addr = line.address;
+                                let mut target_addr = line.address;
+                                let mut current_sub_index = 0;
+                                let mut found = false;
+
+                                // Check relative labels (to match UI rendering)
+                                if line.bytes.len() > 1 {
+                                    for offset in 1..line.bytes.len() {
+                                        let mid_addr = line.address.wrapping_add(offset as u16);
+                                        if let Some(labels) = app_state.labels.get(&mid_addr) {
+                                            for _label in labels {
+                                                if current_sub_index == ui_state.sub_cursor_index {
+                                                    target_addr = mid_addr;
+                                                    found = true;
+                                                    break;
+                                                }
+                                                current_sub_index += 1;
+                                            }
+                                        }
+                                        if found {
+                                            break;
+                                        }
+                                    }
+                                }
+
+                                // Check line comment if not found
+                                if !found && line.line_comment.is_some() {
+                                    // Line comments are associated with the main address line visually,
+                                    // but occupy a sub-index.
+                                    // current_sub_index += 1; // Unused
+                                }
+
+                                // If we haven't found a relative label match, target_addr remains line.address,
+                                // which is correct for both the Line Comment and the Main Line.
+
                                 let text = app_state
                                     .labels
-                                    .get(&addr)
+                                    .get(&target_addr)
                                     .and_then(|v| v.first())
                                     .map(|l| l.name.as_str());
-                                ui_state.label_dialog.open(text);
+                                ui_state.label_dialog.open(text, target_addr);
                                 ui_state.set_status_message("Enter Label");
                             }
                         } else if ui_state.active_pane == ActivePane::Disassembly {
@@ -1304,6 +1565,62 @@ pub fn run_app<B: Backend>(
                                 ui_state
                                     .set_status_message(format!("Jumped to row {}", target_row));
                             }
+                            ActivePane::Sprites => {
+                                let origin = app_state.origin as usize;
+                                let padding = (64 - (origin % 64)) % 64;
+                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                                let total_sprites = usable_len.div_ceil(64);
+                                let target_sprite = if is_buffer_empty {
+                                    total_sprites
+                                } else {
+                                    entered_number
+                                };
+
+                                let new_cursor = if target_sprite == 0 {
+                                    total_sprites.saturating_sub(1)
+                                } else {
+                                    target_sprite
+                                        .saturating_sub(1)
+                                        .min(total_sprites.saturating_sub(1))
+                                };
+
+                                ui_state
+                                    .navigation_history
+                                    .push((ui_state.active_pane, ui_state.sprites_cursor_index));
+                                ui_state.sprites_cursor_index = new_cursor;
+                                ui_state.set_status_message(format!(
+                                    "Jumped to sprite {}",
+                                    target_sprite
+                                ));
+                            }
+                            ActivePane::Charset => {
+                                let origin = app_state.origin as usize;
+                                let base_alignment = 0x400;
+                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                                let end_addr = origin + app_state.raw_data.len();
+                                let max_char_index =
+                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+                                let target_char = if is_buffer_empty {
+                                    max_char_index
+                                } else {
+                                    entered_number
+                                };
+
+                                let new_cursor = if target_char == 0 {
+                                    max_char_index.saturating_sub(1)
+                                } else {
+                                    target_char
+                                        .saturating_sub(1)
+                                        .min(max_char_index.saturating_sub(1))
+                                };
+
+                                ui_state
+                                    .navigation_history
+                                    .push((ui_state.active_pane, ui_state.charset_cursor_index));
+                                ui_state.charset_cursor_index = new_cursor;
+                                ui_state
+                                    .set_status_message(format!("Jumped to char {}", target_char));
+                            }
                         }
                     }
 
@@ -1311,6 +1628,8 @@ pub fn run_app<B: Backend>(
                     KeyCode::Char(c) if c.is_ascii_digit() => {
                         if ui_state.active_pane == ActivePane::Disassembly
                             || ui_state.active_pane == ActivePane::HexDump
+                            || ui_state.active_pane == ActivePane::Sprites
+                            || ui_state.active_pane == ActivePane::Charset
                         {
                             // Only append if it's a valid number sequence (avoid overflow though usize is large)
                             if ui_state.input_buffer.len() < 10 {
@@ -1335,10 +1654,31 @@ pub fn run_app<B: Backend>(
                                     ui_state.selection_start = None;
                                 }
 
-                                if ui_state.cursor_index
+                                let line = &app_state.disassembly[ui_state.cursor_index];
+                                let mut sub_count = 1; // Main line
+
+                                // Add line comment if it exists (rendered above)
+                                if app_state.user_line_comments.contains_key(&line.address) {
+                                    sub_count += 1;
+                                }
+
+                                // Add relative labels (rendered above instruction)
+                                if line.bytes.len() > 1 {
+                                    for offset in 1..line.bytes.len() {
+                                        let mid_addr = line.address.wrapping_add(offset as u16);
+                                        if let Some(labels) = app_state.labels.get(&mid_addr) {
+                                            sub_count += labels.len();
+                                        }
+                                    }
+                                }
+
+                                if ui_state.sub_cursor_index < sub_count - 1 {
+                                    ui_state.sub_cursor_index += 1;
+                                } else if ui_state.cursor_index
                                     < app_state.disassembly.len().saturating_sub(1)
                                 {
                                     ui_state.cursor_index += 1;
+                                    ui_state.sub_cursor_index = 0;
                                 }
                             }
                             ActivePane::HexDump => {
@@ -1348,6 +1688,31 @@ pub fn run_app<B: Backend>(
                                     (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
                                 if ui_state.hex_cursor_index < total_rows.saturating_sub(1) {
                                     ui_state.hex_cursor_index += 1;
+                                }
+                            }
+                            ActivePane::Sprites => {
+                                let origin = app_state.origin as usize;
+                                let padding = (64 - (origin % 64)) % 64;
+                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                                let total_sprites = usable_len.div_ceil(64);
+                                if ui_state.sprites_cursor_index < total_sprites.saturating_sub(1) {
+                                    ui_state.sprites_cursor_index += 1;
+                                }
+                            }
+                            ActivePane::Charset => {
+                                let origin = app_state.origin as usize;
+                                let base_alignment = 0x400;
+                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                                let end_addr = origin + app_state.raw_data.len();
+                                let max_char_index =
+                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+
+                                // Move Down by 8 (one row)
+                                if ui_state.charset_cursor_index + 8 < max_char_index {
+                                    ui_state.charset_cursor_index += 8;
+                                } else {
+                                    ui_state.charset_cursor_index =
+                                        max_char_index.saturating_sub(1);
                                 }
                             }
                         }
@@ -1366,8 +1731,29 @@ pub fn run_app<B: Backend>(
                                     ui_state.selection_start = None;
                                 }
 
-                                if ui_state.cursor_index > 0 {
+                                if ui_state.sub_cursor_index > 0 {
+                                    ui_state.sub_cursor_index -= 1;
+                                } else if ui_state.cursor_index > 0 {
                                     ui_state.cursor_index -= 1;
+                                    // Calculate max sub_index for the new line
+                                    let line = &app_state.disassembly[ui_state.cursor_index];
+                                    let mut sub_count = 1; // Main line
+
+                                    // Add line comment if it exists (rendered above)
+                                    if app_state.user_line_comments.contains_key(&line.address) {
+                                        sub_count += 1;
+                                    }
+
+                                    // Add relative labels (rendered above instruction)
+                                    if line.bytes.len() > 1 {
+                                        for offset in 1..line.bytes.len() {
+                                            let mid_addr = line.address.wrapping_add(offset as u16);
+                                            if let Some(labels) = app_state.labels.get(&mid_addr) {
+                                                sub_count += labels.len();
+                                            }
+                                        }
+                                    }
+                                    ui_state.sub_cursor_index = sub_count - 1;
                                 }
                             }
                             ActivePane::HexDump => {
@@ -1375,12 +1761,29 @@ pub fn run_app<B: Backend>(
                                     ui_state.hex_cursor_index -= 1;
                                 }
                             }
+                            ActivePane::Sprites => {
+                                if ui_state.sprites_cursor_index > 0 {
+                                    ui_state.sprites_cursor_index -= 1;
+                                }
+                            }
+                            ActivePane::Charset => {
+                                // Move Up by 8 (one row)
+                                ui_state.charset_cursor_index =
+                                    ui_state.charset_cursor_index.saturating_sub(8);
+                            }
                         }
                     }
                     KeyCode::Tab => {
                         ui_state.active_pane = match ui_state.active_pane {
-                            ActivePane::Disassembly => ActivePane::HexDump,
-                            ActivePane::HexDump => ActivePane::Disassembly,
+                            ActivePane::Disassembly => match ui_state.right_pane {
+                                crate::ui_state::RightPane::None => ActivePane::Disassembly,
+                                crate::ui_state::RightPane::HexDump => ActivePane::HexDump,
+                                crate::ui_state::RightPane::Sprites => ActivePane::Sprites,
+                                crate::ui_state::RightPane::Charset => ActivePane::Charset,
+                            },
+                            ActivePane::HexDump | ActivePane::Sprites | ActivePane::Charset => {
+                                ActivePane::Disassembly
+                            }
                         };
                     }
                     KeyCode::Esc => {
@@ -1409,6 +1812,27 @@ pub fn run_app<B: Backend>(
                                 ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
                                     .min(total_rows.saturating_sub(1));
                             }
+                            ActivePane::Sprites => {
+                                let origin = app_state.origin as usize;
+                                let padding = (64 - (origin % 64)) % 64;
+                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                                let total_sprites = usable_len.div_ceil(64);
+                                ui_state.sprites_cursor_index = (ui_state.sprites_cursor_index
+                                    + 10)
+                                    .min(total_sprites.saturating_sub(1));
+                            }
+                            ActivePane::Charset => {
+                                let origin = app_state.origin as usize;
+                                let base_alignment = 0x400;
+                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                                let end_addr = origin + app_state.raw_data.len();
+                                let max_char_index =
+                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+
+                                ui_state.charset_cursor_index = (ui_state.charset_cursor_index
+                                    + 256)
+                                    .min(max_char_index.saturating_sub(1));
+                            }
                         }
                     }
                     KeyCode::PageUp => {
@@ -1421,6 +1845,14 @@ pub fn run_app<B: Backend>(
                                 ui_state.hex_cursor_index =
                                     ui_state.hex_cursor_index.saturating_sub(10);
                             }
+                            ActivePane::Sprites => {
+                                ui_state.sprites_cursor_index =
+                                    ui_state.sprites_cursor_index.saturating_sub(10);
+                            }
+                            ActivePane::Charset => {
+                                ui_state.charset_cursor_index =
+                                    ui_state.charset_cursor_index.saturating_sub(256);
+                            }
                         }
                     }
                     KeyCode::Home => {
@@ -1428,6 +1860,8 @@ pub fn run_app<B: Backend>(
                         match ui_state.active_pane {
                             ActivePane::Disassembly => ui_state.cursor_index = 0,
                             ActivePane::HexDump => ui_state.hex_cursor_index = 0,
+                            ActivePane::Sprites => ui_state.sprites_cursor_index = 0,
+                            ActivePane::Charset => ui_state.charset_cursor_index = 0,
                         }
                     }
                     KeyCode::End => {
@@ -1443,6 +1877,58 @@ pub fn run_app<B: Backend>(
                                 let total_rows =
                                     (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
                                 ui_state.hex_cursor_index = total_rows.saturating_sub(1);
+                            }
+                            ActivePane::Sprites => {
+                                let origin = app_state.origin as usize;
+                                let padding = (64 - (origin % 64)) % 64;
+                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                                let total_sprites = usable_len.div_ceil(64);
+                                ui_state.sprites_cursor_index = total_sprites.saturating_sub(1);
+                            }
+                            ActivePane::Charset => {
+                                let origin = app_state.origin as usize;
+                                let base_alignment = 0x400;
+                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                                let end_addr = origin + app_state.raw_data.len();
+                                let max_char_index =
+                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+                                ui_state.charset_cursor_index = max_char_index.saturating_sub(1);
+                            }
+                        }
+                    }
+                    KeyCode::Char('m') => {
+                        if ui_state.active_pane == ActivePane::Sprites {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::ToggleSpriteMulticolor,
+                            )
+                        } else if ui_state.active_pane == ActivePane::Charset {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::ToggleCharsetMulticolor,
+                            )
+                        }
+                    }
+                    KeyCode::Left | KeyCode::Char('h') => {
+                        if ui_state.active_pane == ActivePane::Charset
+                            && ui_state.charset_cursor_index > 0
+                        {
+                            ui_state.charset_cursor_index -= 1;
+                        }
+                    }
+                    KeyCode::Right => {
+                        if ui_state.active_pane == ActivePane::Charset {
+                            let origin = app_state.origin as usize;
+                            let base_alignment = 0x400;
+                            let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                            let end_addr = origin + app_state.raw_data.len();
+                            let max_char_index =
+                                (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+
+                            if ui_state.charset_cursor_index < max_char_index.saturating_sub(1) {
+                                ui_state.charset_cursor_index += 1;
                             }
                         }
                     }
@@ -1520,7 +2006,37 @@ fn execute_menu_action(
                     None
                 };
 
-                if let Err(e) = app_state.save_project(cursor_addr, hex_addr) {
+                // Calculate sprites cursor address
+                let sprites_addr = if !app_state.raw_data.is_empty() {
+                    let origin = app_state.origin as usize;
+                    let padding = (64 - (origin % 64)) % 64;
+                    let sprite_offset = ui_state.sprites_cursor_index * 64;
+                    let addr = origin + padding + sprite_offset;
+                    Some(addr as u16)
+                } else {
+                    None
+                };
+
+                let charset_addr = if !app_state.raw_data.is_empty() {
+                    let origin = app_state.origin as usize;
+                    let base_alignment = 0x400;
+                    let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                    let char_offset = ui_state.charset_cursor_index * 8;
+                    let addr = aligned_start_addr + char_offset;
+                    Some(addr as u16)
+                } else {
+                    None
+                };
+
+                let right_pane_str = format!("{:?}", ui_state.right_pane);
+
+                if let Err(e) = app_state.save_project(
+                    cursor_addr,
+                    hex_addr,
+                    sprites_addr,
+                    Some(right_pane_str),
+                    charset_addr,
+                ) {
                     ui_state.set_status_message(format!("Error saving: {}", e));
                 } else {
                     ui_state.set_status_message("Project saved");
@@ -1825,65 +2341,22 @@ fn execute_menu_action(
             perform_search(app_state, ui_state, false);
         }
         MenuAction::JumpToOperand => {
-            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                // Try to extract address from operand.
-                // We utilize the opcode mode if available.
-                if let Some(opcode) = &line.opcode {
-                    use crate::cpu::AddressingMode;
-                    let target = match opcode.mode {
-                        AddressingMode::Absolute
-                        | AddressingMode::AbsoluteX
-                        | AddressingMode::AbsoluteY => {
-                            if line.bytes.len() >= 3 {
-                                Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
-                            } else {
-                                None
-                            }
-                        }
-                        AddressingMode::Indirect => {
-                            // JMP ($1234) -> target is $1234
-                            if line.bytes.len() >= 3 {
-                                Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
-                            } else {
-                                None
-                            }
-                        }
-                        AddressingMode::Relative => {
-                            // Branch
-                            if line.bytes.len() >= 2 {
-                                let offset = line.bytes[1] as i8;
-                                Some(line.address.wrapping_add(2).wrapping_add(offset as u16))
-                            } else {
-                                None
-                            }
-                        }
-                        AddressingMode::ZeroPage
-                        | AddressingMode::ZeroPageX
-                        | AddressingMode::ZeroPageY
-                        | AddressingMode::IndirectX
-                        | AddressingMode::IndirectY => {
-                            if line.bytes.len() >= 2 {
-                                Some(line.bytes[1] as u16)
-                            } else {
-                                None
-                            }
-                        }
-                        _ => None,
-                    };
-
-                    if let Some(addr) = target {
-                        // Perform Jump
-                        let mut found_idx = None;
-                        for (i, l) in app_state.disassembly.iter().enumerate() {
-                            if l.address == addr {
-                                found_idx = Some(i);
-                                break;
-                            } else if l.address > addr {
-                                // Closest before
-                                if i > 0 {
-                                    found_idx = Some(i - 1);
-                                } else {
-                                    found_idx = Some(0);
+            let target_addr = match ui_state.active_pane {
+                ActivePane::Disassembly => {
+                    if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                        // Try to extract address from operand.
+                        // We utilize the opcode mode if available.
+                        if let Some(opcode) = &line.opcode {
+                            use crate::cpu::AddressingMode;
+                            match opcode.mode {
+                                AddressingMode::Absolute
+                                | AddressingMode::AbsoluteX
+                                | AddressingMode::AbsoluteY => {
+                                    if line.bytes.len() >= 3 {
+                                        Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                                    } else {
+                                        None
+                                    }
                                 }
                                 break;
                             }
@@ -1913,28 +2386,105 @@ fn execute_menu_action(
                                             format!("Address ${:04X} not found", addr);
                                     }
                                 }
+                                AddressingMode::Relative => {
+                                    // Branch
+                                    if line.bytes.len() >= 2 {
+                                        let offset = line.bytes[1] as i8;
+                                        Some(
+                                            line.address
+                                                .wrapping_add(2)
+                                                .wrapping_add(offset as u16),
+                                        )
+                                    } else {
+                                        None
+                                    }
+                                }
+                                AddressingMode::ZeroPage
+                                | AddressingMode::ZeroPageX
+                                | AddressingMode::ZeroPageY
+                                | AddressingMode::IndirectX
+                                | AddressingMode::IndirectY => {
+                                    if line.bytes.len() >= 2 {
+                                        Some(line.bytes[1] as u16)
+                                    } else {
+                                        None
+                                    }
+                                }
+                                _ => None,
                             }
+                        } else {
+                            None
                         }
                     } else {
-                        ui_state.status_message = "No target address".to_string();
+                        None
                     }
-                } else {
-                    // Maybe it is a .WORD or .PTR?
-                    // Not specified in requirements, but "Jump to operand" generally implies instruction operands.
                 }
+                ActivePane::HexDump => {
+                    let origin = app_state.origin as usize;
+                    let alignment_padding = origin % 16;
+                    let aligned_origin = origin - alignment_padding;
+                    Some((aligned_origin + ui_state.hex_cursor_index * 16) as u16)
+                }
+                ActivePane::Sprites => {
+                    let origin = app_state.origin as usize;
+                    let padding = (64 - (origin % 64)) % 64;
+                    Some((origin + padding + ui_state.sprites_cursor_index * 64) as u16)
+                }
+                ActivePane::Charset => {
+                    let origin = app_state.origin as usize;
+                    let base_alignment = 0x400;
+                    let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                    Some((aligned_start_addr + ui_state.charset_cursor_index * 8) as u16)
+                }
+            };
+
+            if let Some(addr) = target_addr {
+                // Perform Jump
+                if let Some(idx) = app_state.get_line_index_containing_address(addr) {
+                    ui_state
+                        .navigation_history
+                        .push((ActivePane::Disassembly, ui_state.cursor_index));
+                    ui_state.cursor_index = idx;
+                    ui_state.active_pane = ActivePane::Disassembly;
+                    ui_state.sub_cursor_index = 0; // Reset sub-line selection
+                    ui_state.set_status_message(format!("Jumped to ${:04X}", addr));
+                } else {
+                    ui_state.set_status_message(format!("Address ${:04X} not found", addr));
+                }
+            } else if ui_state.active_pane == ActivePane::Disassembly {
+                ui_state.set_status_message("No target address");
             }
         }
         MenuAction::About => {
             ui_state.about_dialog.open();
             ui_state.status_message = "About Regenerator 2000".to_string();
         }
-        MenuAction::SetPetsciiUnshifted => {
-            ui_state.petscii_mode = crate::ui_state::PetsciiMode::Unshifted;
-            ui_state.set_status_message("PETSCII Mode: Unshifted");
+        MenuAction::TogglePetsciiMode => {
+            ui_state.petscii_mode = match ui_state.petscii_mode {
+                crate::ui_state::PetsciiMode::Unshifted => crate::ui_state::PetsciiMode::Shifted,
+                crate::ui_state::PetsciiMode::Shifted => crate::ui_state::PetsciiMode::Unshifted,
+            };
+            let mode_str = match ui_state.petscii_mode {
+                crate::ui_state::PetsciiMode::Shifted => "Shifted",
+                crate::ui_state::PetsciiMode::Unshifted => "Unshifted",
+            };
+            ui_state.set_status_message(format!("Hex Dump: {} PETSCII", mode_str));
         }
-        MenuAction::SetPetsciiShifted => {
-            ui_state.petscii_mode = crate::ui_state::PetsciiMode::Shifted;
-            ui_state.set_status_message("PETSCII Mode: Shifted");
+        MenuAction::ToggleSpriteMulticolor => {
+            ui_state.sprite_multicolor_mode = !ui_state.sprite_multicolor_mode;
+            if ui_state.sprite_multicolor_mode {
+                ui_state.set_status_message("Sprites: Multicolor Mode ON");
+            } else {
+                ui_state.set_status_message("Sprites: Single Color Mode");
+            }
+        }
+        MenuAction::ToggleCharsetMulticolor => {
+            ui_state.charset_multicolor_mode = !ui_state.charset_multicolor_mode;
+            if ui_state.charset_multicolor_mode {
+                ui_state.set_status_message("Charset: Multicolor Mode ON");
+            } else {
+                ui_state.set_status_message("Charset: Single Color Mode");
+            }
         }
         MenuAction::SetLoHi => {
             if let Some(start_index) = ui_state.selection_start {
@@ -2039,15 +2589,42 @@ fn execute_menu_action(
             }
         }
         MenuAction::ToggleHexDump => {
-            ui_state.show_hex_dump = !ui_state.show_hex_dump;
-            if ui_state.show_hex_dump {
-                ui_state.set_status_message("Hex Dump View Shown");
-            } else {
+            if ui_state.right_pane == crate::ui_state::RightPane::HexDump {
+                ui_state.right_pane = crate::ui_state::RightPane::None;
                 ui_state.set_status_message("Hex Dump View Hidden");
-                // If we were in Hex view, switch to Disassembly
                 if ui_state.active_pane == ActivePane::HexDump {
                     ui_state.active_pane = ActivePane::Disassembly;
                 }
+            } else {
+                ui_state.right_pane = crate::ui_state::RightPane::HexDump;
+                ui_state.active_pane = ActivePane::HexDump;
+                ui_state.set_status_message("Hex Dump View Shown");
+            }
+        }
+        MenuAction::ToggleSpritesView => {
+            if ui_state.right_pane == crate::ui_state::RightPane::Sprites {
+                ui_state.right_pane = crate::ui_state::RightPane::None;
+                ui_state.set_status_message("Sprites View Hidden");
+                if ui_state.active_pane == ActivePane::Sprites {
+                    ui_state.active_pane = ActivePane::Disassembly;
+                }
+            } else {
+                ui_state.right_pane = crate::ui_state::RightPane::Sprites;
+                ui_state.active_pane = ActivePane::Sprites;
+                ui_state.set_status_message("Sprites View Shown");
+            }
+        }
+        MenuAction::ToggleCharsetView => {
+            if ui_state.right_pane == crate::ui_state::RightPane::Charset {
+                ui_state.right_pane = crate::ui_state::RightPane::None;
+                ui_state.set_status_message("Charset View Hidden");
+                if ui_state.active_pane == ActivePane::Charset {
+                    ui_state.active_pane = ActivePane::Disassembly;
+                }
+            } else {
+                ui_state.right_pane = crate::ui_state::RightPane::Charset;
+                ui_state.active_pane = ActivePane::Charset;
+                ui_state.set_status_message("Charset View Shown");
             }
         }
         MenuAction::KeyboardShortcuts => {
@@ -2223,7 +2800,7 @@ fn perform_search(app_state: &mut crate::state::AppState, ui_state: &mut UIState
     if let Some(idx) = found_idx {
         ui_state
             .navigation_history
-            .push((ui_state.active_pane, ui_state.cursor_index));
+            .push((ActivePane::Disassembly, ui_state.cursor_index));
         ui_state.cursor_index = idx;
         ui_state.set_status_message(format!("Found '{}'", query));
     } else {

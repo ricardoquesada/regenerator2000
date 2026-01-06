@@ -4,8 +4,10 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_user_line_comments_basic() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -28,6 +30,7 @@ fn test_user_line_comments_basic() {
         &BTreeMap::new(), // user side comments
         &user_line_comments,
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -37,8 +40,10 @@ fn test_user_line_comments_basic() {
 
 #[test]
 fn test_user_line_and_side_comments_coexist() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -62,6 +67,7 @@ fn test_user_line_and_side_comments_coexist() {
         &BTreeMap::new(),
         &user_side_comments,
         &user_line_comments,
+        &BTreeMap::new(),
         &BTreeMap::new(),
     );
 

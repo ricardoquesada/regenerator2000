@@ -4,8 +4,10 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_system_comments_logic() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -31,6 +33,7 @@ fn test_system_comments_logic() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -53,8 +56,10 @@ fn test_system_comments_logic() {
 
 #[test]
 fn test_system_comment_on_sta() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -75,6 +80,7 @@ fn test_system_comment_on_sta() {
         origin,
         &settings,
         &system_comments,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
