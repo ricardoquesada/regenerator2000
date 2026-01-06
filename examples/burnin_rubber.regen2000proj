@@ -445,11 +445,19 @@
       }
     ]
   },
-  "user_side_comments": {},
+  "user_side_comments": {
+    "2083": "copy from $5700-$9f77 to $7f00-$bfff",
+    "2115": "disable Commodore-Shift switch",
+    "4157": "Enable text multicolor mode",
+    "4167": "Charset at address $2000",
+    "4172": "Pointed sprite at $3000",
+    "6155": "$A000-$BFFF is RAM. BASIC ROM disabled"
+  },
   "user_line_comments": {
     "2083": "Boot strap",
     "8192": "Charset",
-    "12288": "sprites"
+    "12288": "sprites",
+    "22272": "IRQ handler"
   },
   "settings": {
     "all_labels": false,
@@ -467,13 +475,18 @@
     "2085": "Hex",
     "2091": "Hex",
     "2111": "Hex",
-    "2115": "Hex",
+    "2115": "Binary",
     "4116": "Binary",
-    "6155": "Binary"
+    "4157": "Binary",
+    "4165": "Binary",
+    "4167": "Binary",
+    "4530": "Decimal",
+    "6155": "Binary",
+    "22310": "Hex"
   },
-  "cursor_address": 4238,
-  "hex_dump_cursor_address": 12288,
-  "sprites_cursor_address": 13056,
-  "charset_cursor_address": 8512,
-  "right_pane_visible": "Charset"
+  "cursor_address": 5391,
+  "hex_dump_cursor_address": 12304,
+  "sprites_cursor_address": 27392,
+  "charset_cursor_address": 22536,
+  "right_pane_visible": "Sprites"
 }
