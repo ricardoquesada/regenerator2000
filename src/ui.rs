@@ -2097,7 +2097,7 @@ fn render_charset_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state
 
         let charset_address = aligned_start_addr + (row_idx * grid_cols * 8);
         // Header every 2048 bytes (address-aligned)
-        if charset_address % 2048 == 0 {
+        if charset_address.is_multiple_of(2048) {
             // There can only be at most 8 charsets per VIC-II bank (16K per bank)
             let charset_num = charset_address / 2048 % 8;
 

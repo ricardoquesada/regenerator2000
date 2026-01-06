@@ -471,9 +471,9 @@
     "4116": "Binary",
     "6155": "Binary"
   },
-  "cursor_address": 12288,
+  "cursor_address": 4238,
   "hex_dump_cursor_address": 12288,
-  "sprites_cursor_address": 12288,
-  "charset_cursor_address": 12288,
-  "right_pane_visible": "HexDump"
+  "sprites_cursor_address": 13056,
+  "charset_cursor_address": 8512,
+  "right_pane_visible": "Charset"
 }

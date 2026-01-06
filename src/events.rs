@@ -1923,16 +1923,15 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
-                    KeyCode::Left | KeyCode::Char('h') => match ui_state.active_pane {
-                        ActivePane::Charset => {
-                            if ui_state.charset_cursor_index > 0 {
-                                ui_state.charset_cursor_index -= 1;
-                            }
+                    KeyCode::Left | KeyCode::Char('h') => {
+                        if ui_state.active_pane == ActivePane::Charset
+                            && ui_state.charset_cursor_index > 0
+                        {
+                            ui_state.charset_cursor_index -= 1;
                         }
-                        _ => {}
-                    },
-                    KeyCode::Right => match ui_state.active_pane {
-                        ActivePane::Charset => {
+                    }
+                    KeyCode::Right => {
+                        if ui_state.active_pane == ActivePane::Charset {
                             let origin = app_state.origin as usize;
                             let base_alignment = 0x400;
                             let aligned_start_addr = (origin / base_alignment) * base_alignment;
@@ -1944,8 +1943,7 @@ pub fn run_app<B: Backend>(
                                 ui_state.charset_cursor_index += 1;
                             }
                         }
-                        _ => {}
-                    },
+                    }
                     _ => {}
                 }
             }
