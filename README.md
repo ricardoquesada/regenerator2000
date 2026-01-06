@@ -14,7 +14,13 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 - **Hex Dump**:
     - Side-by-side view with disassembly.
     - Synchronized or independent navigation.
-    - **PETSCII** support (Unshifted and Shifted modes).
+    - Unshifted or Shifted PETSCII charset.
+- **Sprites**:
+    - Side-by-side view with disassembly.
+    - Multicolor or Single Color
+- **Charset**:
+    - Side-by-side view with disassembly.
+    - Multicolor or Single Color
 - **Platforms**: Supports Commodore 8-bit machines like C64, C128, Plus/4, etc.
 - **Import**: Load `.prg`, `.crt`, `.t64`, `.vsf`, `.bin`, `.raw`, and
   `.regen2000proj` files.
@@ -29,8 +35,6 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
     - **Origin**: Change the load address/origin of the binary.
     - **Data Types**: Convert regions to Code, Byte, Word, Address, Text, or
       Screencode.
-        - _Note_: Changing a block type automatically moves the cursor to the *
-          *end** of the new block.
     - **Undo/Redo**: Full history support for all actions.
 - **Navigation**:
     - **Jump**: Go to specific addresses, specific line numbers, or follow
@@ -56,28 +60,28 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 | Context        | Action                                                       | Shortcut                                |
 |:---------------|:-------------------------------------------------------------|:----------------------------------------|
 | **Global**     | **Activate Menu**                                            | `F10`                                   |
-|                | **Exit**                                                     | `Ctrl + Q`                              |
-|                | **Open File**                                                | `Ctrl + O`                              |
-|                | **Save Project**                                             | `Ctrl + S`                              |
-|                | **Save Project As**                                          | `Ctrl + Shift + S`                      |
-|                | **Export Project (ASM)**                                     | `Ctrl + E`                              |
-|                | **Export Project As (ASM)**                                  | `Ctrl + Shift + E`                      |
-|                | **Document Settings**                                        | `Ctrl + P`                              |
+|                | **Exit**                                                     | `Ctrl + q`                              |
+|                | **Open File**                                                | `Ctrl + o`                              |
+|                | **Save Project**                                             | `Ctrl + s`                              |
+|                | **Save Project As**                                          | `Ctrl + Shift + s`                      |
+|                | **Export Project (ASM)**                                     | `Ctrl + e`                              |
+|                | **Export Project As (ASM)**                                  | `Ctrl + Shift + e`                      |
+|                | **Document Settings**                                        | `Ctrl + p`                              |
 |                | **Undo**                                                     | `u`                                     |
-|                | **Redo**                                                     | `Ctrl + R`                              |
+|                | **Redo**                                                     | `Ctrl + r`                              |
 |                | **Switch Pane (Hex Dump/Disasm)**                            | `Tab`                                   |
 | **Navigation** | **Move Cursor**                                              | `Up` / `Down` / `j` / `k`               |
 |                | **Page Up/Down**                                             | `PageUp` / `PageDown`                   |
 |                | **Home/End**                                                 | `Home` / `End`                          |
 |                | **Jump to Address (Dialog)**                                 | `g`                                     |
-|                | **Jump to Line (Dialog)**                                    | `Ctrl + Shift + G`                      |
+|                | **Jump to Line (Dialog)**                                    | `Ctrl + Shift + g`                      |
 |                | **Jump to Line / End of File**                               | `[Number] G`                            |
 |                | **Jump to Operand**                                          | `Enter`                                 |
 |                | **Jump Back (History)**                                      | `Backspace`                             |
 |                | **Previous/Next 10 Lines**                                   | `Ctrl + u` / `Ctrl + d`                 |
 | **Search**     | **Vim Search**                                               | `/`                                     |
-|                | **Next / Previous Match**                                    | `n` / `Shift + N`                       |
-|                | **Search Dialog**                                            | `Ctrl + F`                              |
+|                | **Next / Previous Match**                                    | `n` / `Shift + n`                       |
+|                | **Search Dialog**                                            | `Ctrl + f`                              |
 |                | **Find Next / Previous**                                     | `F3` / `Shift + F3`                     |
 | **Selection**  | **Toggle Visual Mode**                                       | `V`                                     |
 |                | **Select Text**                                              | `Shift + Up/Down` / Visual Mode + `j/k` |
@@ -95,7 +99,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 |                | **Next/Prev Immediate Mode Format**                          | `d` / `D`                               |
 |                | **Set Lo/Hi Address**                                        | `<`                                     |
 |                | **Set Hi/Lo Address**                                        | `>`                                     |
-|                | **Analyze**                                                  | `Ctrl + A`                              |
+|                | **Analyze**                                                  | `Ctrl + a`                              |
 | **View**       | **Toggle PETSCII Shifted/Unshifted** (only in Hex Dump View) | `p`                                     |
 |                | **Toggle Multicolor Sprites** (only in Sprites View)         | `m`                                     |
 |                | **Toggle Multicolor Charset** (only in Charset View)         | `m`                                     |
