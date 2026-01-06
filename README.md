@@ -66,7 +66,8 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 |                | **Save Project As**                                          | `Ctrl + Shift + s`                      |
 |                | **Export Project (ASM)**                                     | `Ctrl + e`                              |
 |                | **Export Project As (ASM)**                                  | `Ctrl + Shift + e`                      |
-|                | **Document Settings**                                        | `Ctrl + p`                              |
+|                | **Document Settings**                                        | `Ctrl + Shift + d`                      |
+|                | **Settings**                                                 | `Ctrl + ,`                              |
 |                | **Undo**                                                     | `u`                                     |
 |                | **Redo**                                                     | `Ctrl + r`                              |
 |                | **Switch Pane (Hex Dump/Disasm)**                            | `Tab`                                   |
@@ -95,7 +96,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 |                | **Convert to Address**                                       | `a`                                     |
 |                | **Convert to Text**                                          | `t`                                     |
 |                | **Convert to Screencode**                                    | `s`                                     |
-|                | **Convert to Undefined**                                     | `U`                                     |
+|                | **Convert to Undefined**                                     | `?`                                     |
 |                | **Next/Prev Immediate Mode Format**                          | `d` / `D`                               |
 |                | **Set Lo/Hi Address**                                        | `<`                                     |
 |                | **Set Hi/Lo Address**                                        | `>`                                     |

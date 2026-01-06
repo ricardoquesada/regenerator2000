@@ -1139,13 +1139,15 @@ pub fn run_app<B: Backend>(
                             );
                         }
                     }
-                    KeyCode::Char('p') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+
+                    KeyCode::Char(',') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         handle_menu_action(
                             &mut app_state,
                             &mut ui_state,
-                            crate::ui_state::MenuAction::DocumentSettings,
+                            crate::ui_state::MenuAction::SystemSettings,
                         );
                     }
+
                     KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         match ui_state.active_pane {
                             ActivePane::Disassembly => {
@@ -1167,38 +1169,48 @@ pub fn run_app<B: Backend>(
                     }
 
                     KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        match ui_state.active_pane {
-                            ActivePane::Disassembly => {
-                                ui_state.cursor_index = (ui_state.cursor_index + 10)
-                                    .min(app_state.disassembly.len().saturating_sub(1));
-                            }
-                            ActivePane::HexDump => {
-                                let bytes_per_row = 16;
-                                let padding = (app_state.origin as usize) % bytes_per_row;
-                                let total_rows =
-                                    (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
-                                ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
-                                    .min(total_rows.saturating_sub(1));
-                            }
-                            ActivePane::Sprites => {
-                                let origin = app_state.origin as usize;
-                                let padding = (64 - (origin % 64)) % 64;
-                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
-                                let total_sprites = usable_len.div_ceil(64);
-                                ui_state.sprites_cursor_index = (ui_state.sprites_cursor_index
-                                    + 10)
-                                    .min(total_sprites.saturating_sub(1));
-                            }
-                            ActivePane::Charset => {
-                                let origin = app_state.origin as usize;
-                                let base_alignment = 0x400;
-                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                                let end_addr = origin + app_state.raw_data.len();
-                                let max_char_index =
-                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
-                                ui_state.charset_cursor_index = (ui_state.charset_cursor_index
-                                    + 10)
-                                    .min(max_char_index.saturating_sub(1));
+                        if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::DocumentSettings,
+                            );
+                        } else {
+                            match ui_state.active_pane {
+                                ActivePane::Disassembly => {
+                                    ui_state.cursor_index = (ui_state.cursor_index + 10)
+                                        .min(app_state.disassembly.len().saturating_sub(1));
+                                }
+                                ActivePane::HexDump => {
+                                    let bytes_per_row = 16;
+                                    let padding = (app_state.origin as usize) % bytes_per_row;
+                                    let total_rows = (app_state.raw_data.len() + padding)
+                                        .div_ceil(bytes_per_row);
+                                    ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
+                                        .min(total_rows.saturating_sub(1));
+                                }
+                                ActivePane::Sprites => {
+                                    let origin = app_state.origin as usize;
+                                    let padding = (64 - (origin % 64)) % 64;
+                                    let usable_len =
+                                        app_state.raw_data.len().saturating_sub(padding);
+                                    let total_sprites = usable_len.div_ceil(64);
+                                    ui_state.sprites_cursor_index = (ui_state.sprites_cursor_index
+                                        + 10)
+                                        .min(total_sprites.saturating_sub(1));
+                                }
+                                ActivePane::Charset => {
+                                    let origin = app_state.origin as usize;
+                                    let base_alignment = 0x400;
+                                    let aligned_start_addr =
+                                        (origin / base_alignment) * base_alignment;
+                                    let end_addr = origin + app_state.raw_data.len();
+                                    let max_char_index =
+                                        (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+                                    ui_state.charset_cursor_index = (ui_state.charset_cursor_index
+                                        + 10)
+                                        .min(max_char_index.saturating_sub(1));
+                                }
                             }
                         }
                     }
@@ -1357,7 +1369,7 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
-                    KeyCode::Char('U') => {
+                    KeyCode::Char('?') => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,

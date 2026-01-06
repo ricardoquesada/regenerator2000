@@ -493,7 +493,7 @@
   },
   "cursor_address": 2095,
   "hex_dump_cursor_address": 12304,
-  "sprites_cursor_address": 27392,
+  "sprites_cursor_address": 12416,
   "charset_cursor_address": 22536,
-  "right_pane_visible": "HexDump"
+  "right_pane_visible": "Sprites"
 }
