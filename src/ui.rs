@@ -174,6 +174,9 @@ fn render_shortcuts_dialog(
         ("u", "Undo"),
         ("Ctrl+r", "Redo"),
         ("Tab", "Switch Pane (Disasm/Hex Dump/Sprites/Charset)"),
+        ("Ctrl+2", "Toggle Hex Dump View"),
+        ("Ctrl+3", "Toggle Sprites View"),
+        ("Ctrl+4", "Toggle Charset View"),
         ("", ""),
         ("Navigation", ""),
         ("Up/Down/j/k", "Move Cursor"),
@@ -209,6 +212,8 @@ fn render_shortcuts_dialog(
         (":", "Line Comment"),
         ("l", "Label"),
         ("Ctrl+a", "Analyze"),
+        ("p", "Toggle Petscii Shifted/Unshifted (Hex Dump)"),
+        ("m", "Toggle Multicolor (Sprites/Charset)"),
     ];
 
     let items: Vec<ListItem> = shortcuts
