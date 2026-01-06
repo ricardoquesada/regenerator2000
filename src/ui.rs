@@ -1192,7 +1192,10 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(border_style)
-        .title(" Hex Dump ")
+        .title(match ui_state.petscii_mode {
+            crate::ui_state::PetsciiMode::Shifted => " Hex Dump (Shifted) ",
+            crate::ui_state::PetsciiMode::Unshifted => " Hex Dump (Unshifted) ",
+        })
         .style(
             Style::default()
                 .bg(ui_state.theme.background)

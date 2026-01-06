@@ -16,6 +16,7 @@ pub fn run_app<B: Backend>(
             &app_state,
             ui_state.cursor_index,
             ui_state.search_dialog.last_search.is_empty(),
+            ui_state.active_pane,
         );
 
         terminal
@@ -1109,21 +1110,7 @@ pub fn run_app<B: Backend>(
                             }
                         }
                     }
-                    KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                crate::ui_state::MenuAction::SetPetsciiShifted,
-                            );
-                        } else {
-                            handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                crate::ui_state::MenuAction::SetPetsciiUnshifted,
-                            );
-                        }
-                    }
+
                     KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         match ui_state.active_pane {
                             ActivePane::Disassembly => {
@@ -1285,6 +1272,15 @@ pub fn run_app<B: Backend>(
                                 &mut app_state,
                                 &mut ui_state,
                                 crate::ui_state::MenuAction::Screencode,
+                            )
+                        }
+                    }
+                    KeyCode::Char('p') => {
+                        if ui_state.active_pane == ActivePane::HexDump {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::TogglePetsciiMode,
                             )
                         }
                     }
@@ -1739,12 +1735,11 @@ pub fn run_app<B: Backend>(
                     }
                     KeyCode::Char('m') => {
                         if ui_state.active_pane == ActivePane::Sprites {
-                            ui_state.sprite_multicolor_mode = !ui_state.sprite_multicolor_mode;
-                            if ui_state.sprite_multicolor_mode {
-                                ui_state.set_status_message("Sprites: Multicolor Mode ON");
-                            } else {
-                                ui_state.set_status_message("Sprites: Single Color Mode");
-                            }
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::ToggleSpriteMulticolor,
+                            )
                         }
                     }
                     _ => {}
@@ -2245,13 +2240,24 @@ fn execute_menu_action(
             ui_state.about_dialog.open();
             ui_state.status_message = "About Regenerator 2000".to_string();
         }
-        MenuAction::SetPetsciiUnshifted => {
-            ui_state.petscii_mode = crate::ui_state::PetsciiMode::Unshifted;
-            ui_state.set_status_message("PETSCII Mode: Unshifted");
+        MenuAction::TogglePetsciiMode => {
+            ui_state.petscii_mode = match ui_state.petscii_mode {
+                crate::ui_state::PetsciiMode::Unshifted => crate::ui_state::PetsciiMode::Shifted,
+                crate::ui_state::PetsciiMode::Shifted => crate::ui_state::PetsciiMode::Unshifted,
+            };
+            let mode_str = match ui_state.petscii_mode {
+                crate::ui_state::PetsciiMode::Shifted => "Shifted",
+                crate::ui_state::PetsciiMode::Unshifted => "Unshifted",
+            };
+            ui_state.set_status_message(format!("Hex Dump: {} PETSCII", mode_str));
         }
-        MenuAction::SetPetsciiShifted => {
-            ui_state.petscii_mode = crate::ui_state::PetsciiMode::Shifted;
-            ui_state.set_status_message("PETSCII Mode: Shifted");
+        MenuAction::ToggleSpriteMulticolor => {
+            ui_state.sprite_multicolor_mode = !ui_state.sprite_multicolor_mode;
+            if ui_state.sprite_multicolor_mode {
+                ui_state.set_status_message("Sprites: Multicolor Mode ON");
+            } else {
+                ui_state.set_status_message("Sprites: Single Color Mode");
+            }
         }
         MenuAction::SetLoHi => {
             if let Some(start_index) = ui_state.selection_start {

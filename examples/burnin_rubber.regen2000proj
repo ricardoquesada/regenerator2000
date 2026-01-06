@@ -189,13 +189,8 @@
     },
     {
       "start": 10239,
-      "end": 12669,
-      "type_": "DataByte"
-    },
-    {
-      "start": 12670,
       "end": 12670,
-      "type_": "Undefined"
+      "type_": "DataByte"
     },
     {
       "start": 12671,
@@ -466,7 +461,7 @@
     "6155": "Binary"
   },
   "cursor_address": 14720,
-  "hex_dump_cursor_address": 12288,
+  "hex_dump_cursor_address": 2176,
   "sprites_cursor_address": 14528,
-  "right_pane_visible": "Sprites"
+  "right_pane_visible": "HexDump"
 }

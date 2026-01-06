@@ -46,8 +46,7 @@ pub enum MenuAction {
     JumpToAddress,
     JumpToLine,
     JumpToOperand,
-    SetPetsciiUnshifted,
-    SetPetsciiShifted,
+
     SetLoHi,
     SetHiLo,
     SideComment,
@@ -64,6 +63,8 @@ pub enum MenuAction {
     Search,
     FindNext,
     FindPrevious,
+    TogglePetsciiMode,
+    ToggleSpriteMulticolor,
 }
 
 impl MenuAction {
@@ -381,6 +382,7 @@ impl CommentDialogState {
 pub struct OriginDialogState {
     pub active: bool,
     pub input: String,
+    pub address: u16,
 }
 
 impl OriginDialogState {
@@ -388,12 +390,14 @@ impl OriginDialogState {
         Self {
             active: false,
             input: String::new(),
+            address: 0,
         }
     }
 
     pub fn open(&mut self, current_origin: u16) {
         self.active = true;
         self.input = format!("{:04X}", current_origin);
+        self.address = current_origin;
     }
 
     pub fn close(&mut self) {
@@ -614,14 +618,14 @@ impl MenuState {
 
                     items: vec![
                         MenuItem::new(
-                            "Unshifted PETSCII",
-                            Some("Ctrl+Shift+L"),
-                            Some(MenuAction::SetPetsciiUnshifted),
+                            "Toggle PETSCII Shifted/Unshifted",
+                            Some("p"),
+                            Some(MenuAction::TogglePetsciiMode),
                         ),
                         MenuItem::new(
-                            "Shifted PETSCII",
-                            Some("Ctrl+L"),
-                            Some(MenuAction::SetPetsciiShifted),
+                            "Toggle Multicolor Sprites",
+                            Some("m"),
+                            Some(MenuAction::ToggleSpriteMulticolor),
                         ),
                         MenuItem::separator(),
                         MenuItem::new(
@@ -731,6 +735,7 @@ impl MenuState {
         app_state: &crate::state::AppState,
         cursor_index: usize,
         last_search_empty: bool,
+        active_pane: ActivePane,
     ) {
         let has_document = !app_state.raw_data.is_empty();
         for category in &mut self.categories {
@@ -755,6 +760,12 @@ impl MenuState {
                                     is_immediate = true;
                                 }
                                 item.disabled = !is_immediate;
+                            }
+                            MenuAction::TogglePetsciiMode => {
+                                item.disabled = active_pane != ActivePane::HexDump;
+                            }
+                            MenuAction::ToggleSpriteMulticolor => {
+                                item.disabled = active_pane != ActivePane::Sprites;
                             }
                             _ => item.disabled = false,
                         }
