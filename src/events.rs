@@ -88,10 +88,8 @@ pub fn run_app<B: Backend>(
                                             let end_addr = origin + data_len;
 
                                             if target >= origin && target < end_addr {
-                                                ui_state.navigation_history.push((
-                                                    crate::ui_state::ActivePane::HexDump,
-                                                    ui_state.hex_cursor_index,
-                                                ));
+                                                // Navigation history disabled for HexDump
+
                                                 let alignment_padding = origin % 16;
                                                 let aligned_origin = origin - alignment_padding;
                                                 let offset = target - aligned_origin;
@@ -116,10 +114,7 @@ pub fn run_app<B: Backend>(
                                             if target >= aligned_start
                                                 && target < origin + app_state.raw_data.len()
                                             {
-                                                ui_state.navigation_history.push((
-                                                    crate::ui_state::ActivePane::Sprites,
-                                                    ui_state.sprites_cursor_index,
-                                                ));
+                                                // Navigation history disabled for Sprites
 
                                                 // Calculate sprite index relative to aligned start
                                                 let offset = target - aligned_start;
@@ -148,10 +143,7 @@ pub fn run_app<B: Backend>(
                                             let end_addr = origin + app_state.raw_data.len();
 
                                             if target >= aligned_start_addr && target < end_addr {
-                                                ui_state.navigation_history.push((
-                                                    crate::ui_state::ActivePane::Charset,
-                                                    ui_state.charset_cursor_index,
-                                                ));
+                                                // Navigation history disabled for Charset
 
                                                 let offset = target - aligned_start_addr;
                                                 let char_idx = offset / 8;
@@ -1274,34 +1266,30 @@ pub fn run_app<B: Backend>(
                     }
 
                     KeyCode::Backspace => {
-                        if let Some((pane, idx)) = ui_state.navigation_history.pop() {
-                            ui_state.active_pane = pane;
-                            match pane {
-                                ActivePane::Disassembly => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            // Pop until we find a Disassembly entry or run out of history
+                            while let Some((pane, _)) = ui_state.navigation_history.last() {
+                                if *pane != ActivePane::Disassembly {
+                                    ui_state.navigation_history.pop();
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            if let Some((pane, idx)) = ui_state.navigation_history.pop() {
+                                // Double check it is Disassembly (should be guaranteed by loop above)
+                                if pane == ActivePane::Disassembly {
                                     if idx < app_state.disassembly.len() {
                                         ui_state.cursor_index = idx;
+                                        ui_state.active_pane = ActivePane::Disassembly; // Ensure focus remains
                                         ui_state.set_status_message("Navigated back");
                                     } else {
                                         ui_state.set_status_message("History invalid");
                                     }
                                 }
-                                ActivePane::HexDump => {
-                                    // Basic bounds check might be hard here without recalculating rows
-                                    // For now assume it's valid if it was pushed
-                                    ui_state.hex_cursor_index = idx;
-                                    ui_state.set_status_message("Navigated back");
-                                }
-                                ActivePane::Sprites => {
-                                    ui_state.sprites_cursor_index = idx;
-                                    ui_state.set_status_message("Navigated back");
-                                }
-                                ActivePane::Charset => {
-                                    ui_state.charset_cursor_index = idx;
-                                    ui_state.set_status_message("Navigated back");
-                                }
+                            } else {
+                                ui_state.set_status_message("No history");
                             }
-                        } else {
-                            ui_state.set_status_message("No history");
                         }
                     }
 
@@ -2433,15 +2421,9 @@ fn execute_menu_action(
             if let Some(addr) = target_addr {
                 // Perform Jump
                 if let Some(idx) = app_state.get_line_index_containing_address(addr) {
-                    ui_state.navigation_history.push((
-                        ui_state.active_pane,
-                        match ui_state.active_pane {
-                            ActivePane::Disassembly => ui_state.cursor_index,
-                            ActivePane::HexDump => ui_state.hex_cursor_index,
-                            ActivePane::Sprites => ui_state.sprites_cursor_index,
-                            ActivePane::Charset => ui_state.charset_cursor_index,
-                        },
-                    ));
+                    ui_state
+                        .navigation_history
+                        .push((ActivePane::Disassembly, ui_state.cursor_index));
                     ui_state.cursor_index = idx;
                     ui_state.active_pane = ActivePane::Disassembly;
                     ui_state.sub_cursor_index = 0; // Reset sub-line selection
@@ -2798,7 +2780,7 @@ fn perform_search(app_state: &mut crate::state::AppState, ui_state: &mut UIState
     if let Some(idx) = found_idx {
         ui_state
             .navigation_history
-            .push((ui_state.active_pane, ui_state.cursor_index));
+            .push((ActivePane::Disassembly, ui_state.cursor_index));
         ui_state.cursor_index = idx;
         ui_state.set_status_message(format!("Found '{}'", query));
     } else {
