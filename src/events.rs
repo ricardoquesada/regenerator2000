@@ -219,7 +219,25 @@ pub fn run_app<B: Backend>(
                                     None
                                 };
 
-                                if let Err(e) = app_state.save_project(cursor_addr, hex_addr) {
+                                // Calculate sprites cursor address
+                                let sprites_addr = if !app_state.raw_data.is_empty() {
+                                    let origin = app_state.origin as usize;
+                                    let padding = (64 - (origin % 64)) % 64;
+                                    let sprite_offset = ui_state.sprites_cursor_index * 64;
+                                    let addr = origin + padding + sprite_offset;
+                                    Some(addr as u16)
+                                } else {
+                                    None
+                                };
+
+                                let right_pane_str = format!("{:?}", ui_state.right_pane);
+
+                                if let Err(e) = app_state.save_project(
+                                    cursor_addr,
+                                    hex_addr,
+                                    sprites_addr,
+                                    Some(right_pane_str),
+                                ) {
                                     ui_state.set_status_message(format!("Error saving: {}", e));
                                 } else {
                                     ui_state.set_status_message("Project saved");
@@ -425,7 +443,12 @@ pub fn run_app<B: Backend>(
                                             e
                                         ));
                                     }
-                                    Ok((loaded_cursor, loaded_hex_cursor)) => {
+                                    Ok((
+                                        loaded_cursor,
+                                        loaded_hex_cursor,
+                                        loaded_sprites_cursor,
+                                        loaded_right_pane,
+                                    )) => {
                                         ui_state.set_status_message(format!(
                                             "Loaded: {:?}",
                                             selected_path
@@ -456,6 +479,36 @@ pub fn run_app<B: Backend>(
                                                 .get_line_index_for_address(app_state.origin)
                                             {
                                                 ui_state.cursor_index = idx;
+                                            }
+                                        }
+
+                                        if let Some(sprites_addr) = loaded_sprites_cursor {
+                                            // Calculate index from address
+                                            // Index = (addr - origin - padding) / 64
+                                            let origin = app_state.origin as usize;
+                                            let padding = (64 - (origin % 64)) % 64;
+                                            let addr = sprites_addr as usize;
+                                            if addr >= origin + padding {
+                                                let offset = addr - (origin + padding);
+                                                ui_state.sprites_cursor_index = offset / 64;
+                                            }
+                                        }
+
+                                        if let Some(pane_str) = loaded_right_pane {
+                                            match pane_str.as_str() {
+                                                "HexDump" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::HexDump
+                                                }
+                                                "Sprites" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::Sprites
+                                                }
+                                                "None" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::None
+                                                }
+                                                _ => {}
                                             }
                                         }
 
@@ -1684,6 +1737,16 @@ pub fn run_app<B: Backend>(
                             }
                         }
                     }
+                    KeyCode::Char('m') => {
+                        if ui_state.active_pane == ActivePane::Sprites {
+                            ui_state.sprite_multicolor_mode = !ui_state.sprite_multicolor_mode;
+                            if ui_state.sprite_multicolor_mode {
+                                ui_state.set_status_message("Sprites: Multicolor Mode ON");
+                            } else {
+                                ui_state.set_status_message("Sprites: Single Color Mode");
+                            }
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -1758,7 +1821,25 @@ fn execute_menu_action(
                     None
                 };
 
-                if let Err(e) = app_state.save_project(cursor_addr, hex_addr) {
+                // Calculate sprites cursor address
+                let sprites_addr = if !app_state.raw_data.is_empty() {
+                    let origin = app_state.origin as usize;
+                    let padding = (64 - (origin % 64)) % 64;
+                    let sprite_offset = ui_state.sprites_cursor_index * 64;
+                    let addr = origin + padding + sprite_offset;
+                    Some(addr as u16)
+                } else {
+                    None
+                };
+
+                let right_pane_str = format!("{:?}", ui_state.right_pane);
+
+                if let Err(e) = app_state.save_project(
+                    cursor_addr,
+                    hex_addr,
+                    sprites_addr,
+                    Some(right_pane_str),
+                ) {
                     ui_state.set_status_message(format!("Error saving: {}", e));
                 } else {
                     ui_state.set_status_message("Project saved");

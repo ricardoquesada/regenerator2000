@@ -215,7 +215,13 @@ pub struct ProjectState {
     pub cursor_address: Option<u16>,
     #[serde(default)]
     pub hex_dump_cursor_address: Option<u16>,
+    #[serde(default)]
+    pub sprites_cursor_address: Option<u16>,
+    #[serde(default)]
+    pub right_pane_visible: Option<String>,
 }
+
+pub type LoadedProjectData = (Option<u16>, Option<u16>, Option<u16>, Option<String>);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ImmediateFormat {
@@ -304,7 +310,7 @@ impl AppState {
         Disassembler::create_formatter(self.settings.assembler)
     }
 
-    pub fn load_file(&mut self, path: PathBuf) -> anyhow::Result<(Option<u16>, Option<u16>)> {
+    pub fn load_file(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
         let data = std::fs::read(&path)?;
         self.file_path = Some(path.clone());
         self.project_path = None; // clear project path
@@ -373,10 +379,10 @@ impl AppState {
 
         self.load_system_assets();
         self.disassemble();
-        Ok((cursor_start, hex_cursor_start))
+        Ok((cursor_start, hex_cursor_start, None, None))
     }
 
-    pub fn load_project(&mut self, path: PathBuf) -> anyhow::Result<(Option<u16>, Option<u16>)> {
+    pub fn load_project(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
         let data = std::fs::read_to_string(&path)?;
         let project: ProjectState = serde_json::from_str(&data)?;
 
@@ -405,13 +411,20 @@ impl AppState {
         self.last_saved_pointer = 0;
 
         self.disassemble();
-        Ok((project.cursor_address, project.hex_dump_cursor_address))
+        Ok((
+            project.cursor_address,
+            project.hex_dump_cursor_address,
+            project.sprites_cursor_address,
+            project.right_pane_visible,
+        ))
     }
 
     pub fn save_project(
         &mut self,
         cursor_address: Option<u16>,
         hex_dump_cursor_address: Option<u16>,
+        sprites_cursor_address: Option<u16>,
+        right_pane_visible: Option<String>,
     ) -> anyhow::Result<()> {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
@@ -438,6 +451,8 @@ impl AppState {
                 settings: self.settings,
                 cursor_address,
                 hex_dump_cursor_address,
+                sprites_cursor_address,
+                right_pane_visible,
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;
@@ -1011,7 +1026,9 @@ mod save_project_tests {
         path.push("test_project_serialization.json");
         app_state.project_path = Some(path.clone());
 
-        app_state.save_project(None, None).expect("Save failed");
+        app_state
+            .save_project(None, None, None, None)
+            .expect("Save failed");
 
         // 4. Read back JSON manually to inspect
         let data = std::fs::read_to_string(&path).expect("Read failed");

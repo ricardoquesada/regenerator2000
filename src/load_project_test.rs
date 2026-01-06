@@ -31,6 +31,8 @@ mod tests {
             settings: DocumentSettings::default(),
             cursor_address: None,
             hex_dump_cursor_address: None,
+            sprites_cursor_address: None,
+            right_pane_visible: None,
         };
 
         let json = serde_json::to_string(&project).unwrap();

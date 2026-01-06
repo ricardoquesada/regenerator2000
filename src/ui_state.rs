@@ -833,6 +833,7 @@ pub struct UIState {
     #[allow(dead_code)]
     pub hex_scroll_index: usize,
     pub right_pane: RightPane,
+    pub sprite_multicolor_mode: bool,
     pub petscii_mode: PetsciiMode,
 
     pub active_pane: ActivePane,
@@ -878,6 +879,7 @@ impl UIState {
             sprites_cursor_index: 0,
             hex_scroll_index: 0,
             right_pane: RightPane::HexDump,
+            sprite_multicolor_mode: false,
             petscii_mode: PetsciiMode::Unshifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,

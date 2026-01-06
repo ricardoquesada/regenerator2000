@@ -1846,10 +1846,16 @@ fn render_sprites_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state
         Style::default().fg(ui_state.theme.border_inactive)
     };
 
+    let title = if ui_state.sprite_multicolor_mode {
+        " Sprites (Multicolor) "
+    } else {
+        " Sprites (Single Color) "
+    };
+
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(border_style)
-        .title(" Sprites ")
+        .title(title)
         .style(
             Style::default()
                 .bg(ui_state.theme.background)
@@ -1937,27 +1943,62 @@ fn render_sprites_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state
 
             let row_offset = sprite_offset_in_data + row * 3;
             // 3 bytes per row = 24 bits
-            let mut line_str = String::with_capacity(24);
             if row_offset + 2 < app_state.raw_data.len() {
                 let bytes = &app_state.raw_data[row_offset..row_offset + 3];
-                for b in bytes {
-                    for bit in (0..8).rev() {
-                        if (b >> bit) & 1 == 1 {
-                            line_str.push('█');
-                        } else {
-                            line_str.push('.'); // Use dot for empty to see grid better, or space
+
+                if ui_state.sprite_multicolor_mode {
+                    // Multicolor Mode: 12 pixels per row, 2 bits per pixel
+                    // Pixel width = 2 chars
+                    let mut spans = Vec::with_capacity(12);
+                    for b in bytes {
+                        for pair in (0..4).rev() {
+                            let bits = (b >> (pair * 2)) & 0b11;
+                            let (char_str, fg_color) = match bits {
+                                0b00 => ("..", ui_state.theme.foreground), // Background (transparent-ish)
+                                0b01 => ("██", ui_state.theme.foreground), // Shared color 1 (Foreground/Highlight?) - standard is sprite color
+                                0b10 => ("██", ui_state.theme.sprite_multicolor_1), // MC 1
+                                0b11 => ("██", ui_state.theme.sprite_multicolor_2), // MC 2
+                                _ => unreachable!(),
+                            };
+
+                            // For 00 (background), we might want to be dim or just dots
+                            let style = if bits == 0b00 {
+                                Style::default().fg(Color::DarkGray) // Dim dots
+                            } else {
+                                Style::default().fg(fg_color)
+                            };
+                            spans.push(Span::styled(char_str, style));
                         }
                     }
+                    f.render_widget(
+                        Paragraph::new(Line::from(spans)),
+                        Rect::new(inner_area.x + 2, inner_area.y + y_offset as u16, 24, 1),
+                    );
+                } else {
+                    // Single Color Mode: 24 pixels per row, 1 bit per pixel
+                    let mut line_str = String::with_capacity(24);
+                    for b in bytes {
+                        for bit in (0..8).rev() {
+                            if (b >> bit) & 1 == 1 {
+                                line_str.push('█');
+                            } else {
+                                line_str.push('.'); // Use dot for empty to see grid better, or space
+                            }
+                        }
+                    }
+                    f.render_widget(
+                        Paragraph::new(line_str),
+                        Rect::new(inner_area.x + 2, inner_area.y + y_offset as u16, 24, 1), // Indent
+                    );
                 }
             } else {
                 // Partial padding?
-                line_str.push_str("                        ");
+                f.render_widget(
+                    Paragraph::new("                        "),
+                    Rect::new(inner_area.x + 2, inner_area.y + y_offset as u16, 24, 1),
+                );
             }
 
-            f.render_widget(
-                Paragraph::new(line_str),
-                Rect::new(inner_area.x + 2, inner_area.y + y_offset as u16, 24, 1), // Indent
-            );
             y_offset += 1;
         }
     }

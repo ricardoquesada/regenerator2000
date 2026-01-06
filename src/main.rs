@@ -67,13 +67,12 @@ fn main() -> Result<()> {
                 // In a real app we might want to show this in the UI
                 ui_state.status_message = format!("Error loading file: {}", e);
             }
-            Ok((loaded_cursor, loaded_hex_cursor)) => {
+            Ok((loaded_cursor, loaded_hex_cursor, loaded_sprites_cursor, loaded_right_pane)) => {
                 let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
                 if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
                     ui_state.cursor_index = idx;
                 }
 
-                // Also restore hex cursor if present
                 // Also restore hex cursor if present
                 if let Some(hex_addr) = loaded_hex_cursor
                     && !app_state.raw_data.is_empty()
@@ -94,6 +93,24 @@ fn main() -> Result<()> {
                         }
                     }
                 }
+
+                // Restore Right Pane and Sprites Cursor
+                if let Some(pane_str) = loaded_right_pane {
+                    match pane_str.as_str() {
+                        "HexDump" => ui_state.right_pane = crate::ui_state::RightPane::HexDump,
+                        "Sprites" => ui_state.right_pane = crate::ui_state::RightPane::Sprites,
+                        _ => {}
+                    }
+                }
+                if let Some(sprites_addr) = loaded_sprites_cursor {
+                    let origin = app_state.origin as usize;
+                    let padding = (64 - (origin % 64)) % 64;
+                    let addr = sprites_addr as usize;
+                    if addr >= origin + padding {
+                        let offset = addr - (origin + padding);
+                        ui_state.sprites_cursor_index = offset / 64;
+                    }
+                }
             }
         }
     } else if app_state.system_config.open_last_project
@@ -101,7 +118,7 @@ fn main() -> Result<()> {
         && last_path.exists()
     {
         match app_state.load_file(last_path.clone()) {
-            Ok((loaded_cursor, loaded_hex_cursor)) => {
+            Ok((loaded_cursor, loaded_hex_cursor, loaded_sprites_cursor, loaded_right_pane)) => {
                 let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
                 if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
                     ui_state.cursor_index = idx;
@@ -125,6 +142,24 @@ fn main() -> Result<()> {
                         if row < max_rows {
                             ui_state.hex_cursor_index = row;
                         }
+                    }
+                }
+
+                // Restore Right Pane and Sprites Cursor
+                if let Some(pane_str) = loaded_right_pane {
+                    match pane_str.as_str() {
+                        "HexDump" => ui_state.right_pane = crate::ui_state::RightPane::HexDump,
+                        "Sprites" => ui_state.right_pane = crate::ui_state::RightPane::Sprites,
+                        _ => {}
+                    }
+                }
+                if let Some(sprites_addr) = loaded_sprites_cursor {
+                    let origin = app_state.origin as usize;
+                    let padding = (64 - (origin % 64)) % 64;
+                    let addr = sprites_addr as usize;
+                    if addr >= origin + padding {
+                        let offset = addr - (origin + padding);
+                        ui_state.sprites_cursor_index = offset / 64;
                     }
                 }
 

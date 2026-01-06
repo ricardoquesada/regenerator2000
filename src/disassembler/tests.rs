@@ -103,9 +103,11 @@ fn test_acme_formatting_basic() {
 
 #[test]
 fn test_text_char_limit_configurable() {
-    let mut settings = DocumentSettings::default();
-    settings.text_char_limit = 10;
-    settings.assembler = Assembler::Acme; // Use Acme for simpler output (!text)
+    let settings = DocumentSettings {
+        text_char_limit: 10,
+        assembler: Assembler::Acme, // Use Acme for simpler output (!text)
+        ..Default::default()
+    };
 
     // "Hello World This Is Long" is 24 chars
     let data = b"Hello World This Is Long".to_vec();
@@ -141,9 +143,11 @@ fn test_text_char_limit_configurable() {
 
 #[test]
 fn test_screencode_limit_configurable() {
-    let mut settings = DocumentSettings::default();
-    settings.text_char_limit = 10;
-    settings.assembler = Assembler::Tass64;
+    let settings = DocumentSettings {
+        text_char_limit: 10,
+        assembler: Assembler::Tass64,
+        ..Default::default()
+    };
 
     // "ABC...J" (10 chars) + "KLM...T" (10 chars)
     // 0x01..0x14 (A..T)
