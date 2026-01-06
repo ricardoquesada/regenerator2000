@@ -32,6 +32,10 @@ pub fn analyze(
         if current_type == BlockType::Code {
             let opcode_byte = state.raw_data[pc];
             if let Some(opcode) = &state.disassembler.opcodes[opcode_byte as usize] {
+                if opcode.illegal && !state.settings.use_illegal_opcodes {
+                    pc += 1;
+                    continue;
+                }
                 // Check if we have enough bytes
                 if pc + opcode.size as usize <= data_len {
                     // Extract operands
