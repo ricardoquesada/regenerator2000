@@ -1332,6 +1332,7 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
         start: usize,
         end: usize,
         col: usize,
+        target_addr: Option<u16>,
     }
 
     let end_view = offset + visible_height;
@@ -1346,7 +1347,7 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
     // We just iterate all disassembly lines.
     // For each jump, we see if it intersects our view.
 
-    let mut relevant_arrows: Vec<(usize, usize)> = Vec::new(); // (low, high) index
+    let mut relevant_arrows: Vec<(usize, usize, Option<u16>)> = Vec::new(); // (low, high, relative_target)
 
     for (src_idx, line) in app_state.disassembly.iter().enumerate() {
         if let Some(target_addr) = line.target_address {
@@ -1354,23 +1355,53 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             // Since disassembly can be large, linear scan for dst_idx for EVERY jump is O(Jumps * Lines).
             // Can we do better?
             // Use binary search if possible? app_state.disassembly is usually sorted by address.
-            if let Ok(dst_idx) = app_state
+            let dst_result = app_state
                 .disassembly
-                .binary_search_by_key(&target_addr, |l| l.address)
-            {
-                // binary_search finds *one* match. We want the code line ideally, or label line, but visually correct.
-                // Let's refine dst_idx to find the first line with that address (if multiple, e.g. label + byte).
-                let mut refined_dst = dst_idx;
-                while refined_dst > 0
-                    && app_state.disassembly[refined_dst - 1].address == target_addr
-                {
-                    refined_dst -= 1;
+                .binary_search_by_key(&target_addr, |l| l.address);
+
+            let dst_idx_opt = match dst_result {
+                Ok(idx) => Some(idx),
+                Err(idx) => {
+                    // Check if previous line contains this address (relative/offset address)
+                    if idx > 0 {
+                        let prev_idx = idx - 1;
+                        if let Some(prev_line) = app_state.disassembly.get(prev_idx) {
+                            let len = prev_line.bytes.len() as u16;
+                            // Check if target_addr is within [start, start + len)
+                            // We use wrapping_add to handle potential overflow but usually code is contiguous.
+                            // However, we want strict containment.
+                            if len > 0
+                                && target_addr >= prev_line.address
+                                && target_addr < prev_line.address.wrapping_add(len)
+                            {
+                                Some(prev_idx)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
                 }
-                // Now refined_dst is the first line with that address.
-                // Wait, usually the label comes first.
-                // 1000: Label
-                // 1000: Code
-                // Arrow pointing to 1000 should point to Label line (index refined_dst).
+            };
+
+            if let Some(dst_idx) = dst_idx_opt {
+                // binary_search finds *one* match. We want the code line ideally, or label line, but visually correct.
+                // If we found an exact match (Ok), let's refine to find the first line.
+                // If we found a containing match (Err -> prev_idx), that is unique (assuming no overlap).
+
+                let mut refined_dst = dst_idx;
+                if dst_result.is_ok() {
+                    while refined_dst > 0
+                        && app_state.disassembly[refined_dst - 1].address == target_addr
+                    {
+                        refined_dst -= 1;
+                    }
+                }
+
+                // Now refined_dst is the first line with that address (or the containing line).
 
                 let (low, high) = if src_idx < refined_dst {
                     (src_idx, refined_dst)
@@ -1381,7 +1412,25 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 // Check intersection with view
                 // Interval [low, high] overlaps [offset, end_view] if low <= end_view && high >= offset
                 if low <= end_view && high >= offset {
-                    relevant_arrows.push((src_idx, refined_dst));
+                    // Check if it's a relative/offset target
+                    let relative_target = if dst_idx_opt == Some(refined_dst) {
+                        // Exact match (start of line) -> Not relative unless the line itself is handled?
+                        // Actually, if binary_search was Ok, it matched `line.address`.
+                        // If it was Err, it matched `line.address <= target < end`.
+                        // So if Ok, target is exactly start of line.
+                        // If Err, target might be *+1, *+2 etc.
+                        if dst_result.is_err() {
+                            Some(target_addr)
+                        } else {
+                            None
+                        }
+                    } else {
+                        // Binary search Ok case, but we refined it.
+                        // refined_dst matches target_addr exactly at start.
+                        None
+                    };
+
+                    relevant_arrows.push((src_idx, refined_dst, relative_target));
                 }
             }
         }
@@ -1389,19 +1438,19 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
 
     // Step 1.5: Filter pass-through arrows and limit columns
     let mut filtered_arrows = Vec::new();
-    let mut pass_through_arrow: Option<(usize, usize)> = None;
+    let mut pass_through_arrow: Option<(usize, usize, Option<u16>)> = None;
 
     let view_start = offset;
     let view_end = offset + visible_height;
 
-    for (src, dst) in relevant_arrows {
+    for (src, dst, target_opt) in relevant_arrows {
         let (low, high) = if src < dst { (src, dst) } else { (dst, src) };
         if low < view_start && high >= view_end {
             if pass_through_arrow.is_none() {
-                pass_through_arrow = Some((src, dst));
+                pass_through_arrow = Some((src, dst, target_opt));
             }
         } else {
-            filtered_arrows.push((src, dst));
+            filtered_arrows.push((src, dst, target_opt));
         }
     }
 
@@ -1415,11 +1464,11 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
     let mut active_arrows: Vec<ArrowInfo> = Vec::new();
 
     let mut sorted_arrows = relevant_arrows;
-    sorted_arrows.sort_by_key(|(src, dst)| (*src as isize - *dst as isize).abs());
+    sorted_arrows.sort_by_key(|(src, dst, _)| (*src as isize - *dst as isize).abs());
 
     let max_allowed_cols = app_state.settings.max_arrow_columns;
 
-    for (src, dst) in sorted_arrows {
+    for (src, dst, target_opt) in sorted_arrows {
         let (low, high) = if src < dst { (src, dst) } else { (dst, src) };
 
         // Try to assign the rightmost column (closest to address)
@@ -1443,6 +1492,7 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 start: src,
                 end: dst,
                 col: c,
+                target_addr: target_opt,
             });
         }
     }
@@ -1470,33 +1520,79 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             if current_line >= low && current_line <= high {
                 let c_idx = arrow.col * 2;
 
+                let is_relative_target = arrow.target_addr.is_some() && current_line == arrow.end;
+
+                // If it's a relative target on its main line, we must be careful.
+                // If Jump Down: Arrow stops at relative sub-line (above main line). So do NOT draw anything on main line.
+                // If Jump Up: Arrow comes from below, passes through main line to reach relative sub-line above. Draw Vertical.
+
+                let skip_render = if is_relative_target {
+                    if arrow.start < arrow.end {
+                        // Jump Down: Ends above us.
+                        true
+                    } else {
+                        // Jump Up: Passes through us.
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                if skip_render {
+                    continue;
+                }
+
                 // Vertical line
                 if current_line > low && current_line < high && chars[c_idx] == ' ' {
                     chars[c_idx] = '│';
                 }
 
-                // Endpoints
-                if current_line == arrow.start {
-                    if arrow.start < arrow.end {
-                        chars[c_idx] = '┌';
-                        chars[c_idx + 1] = '─';
-                    } else {
-                        chars[c_idx] = '└';
-                        chars[c_idx + 1] = '─';
+                // For Jump Up relative target, treating main line as "pass through" (vertical)
+                if is_relative_target && arrow.start > arrow.end {
+                    // Jump Up
+                    if chars[c_idx] == ' ' {
+                        chars[c_idx] = '│';
                     }
-                } else if current_line == arrow.end {
-                    if arrow.start < arrow.end {
-                        // Jump Down
-                        chars[c_idx] = '└';
-                        chars[c_idx + 1] = '─';
-                        // Arrow head
-                        if arrow.col == 0 {
-                            chars[c_idx + 1] = '►'; // Just pointing right
+                }
+
+                if !is_relative_target {
+                    // Endpoints (Original Logic)
+                    if current_line == arrow.start {
+                        if arrow.start < arrow.end {
+                            chars[c_idx] = '┌';
+                            chars[c_idx + 1] = '─';
+                        } else {
+                            chars[c_idx] = '└';
+                            chars[c_idx + 1] = '─';
                         }
-                    } else {
-                        // Jump Up
-                        chars[c_idx] = '┌';
-                        chars[c_idx + 1] = '─';
+                    } else if current_line == arrow.end {
+                        if arrow.start < arrow.end {
+                            // Jump Down
+                            chars[c_idx] = '└';
+                            chars[c_idx + 1] = '─';
+                            // Arrow head
+                            if arrow.col == 0 {
+                                chars[c_idx + 1] = '►'; // Just pointing right
+                            }
+                        } else {
+                            // Jump Up
+                            chars[c_idx] = '┌';
+                            chars[c_idx + 1] = '─';
+                        }
+                    }
+                } else {
+                    // It IS a relative target.
+                    // If Jump Down: We skipped render above.
+                    // If Jump Up: We treated as pass through.
+                    // But we still need to handle the START point if current_line == arrow.start
+                    if current_line == arrow.start {
+                        if arrow.start < arrow.end {
+                            chars[c_idx] = '┌';
+                            chars[c_idx + 1] = '─';
+                        } else {
+                            chars[c_idx] = '└';
+                            chars[c_idx + 1] = '─';
+                        }
                     }
                 }
             }
@@ -1504,7 +1600,21 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
 
         // Post-process for horizontal lines and crossings
         for arrow in &active_arrows {
-            if current_line == arrow.start || current_line == arrow.end {
+            // If relative target, arrow.end is NOT the end on the Main Line.
+            // But arrow.start IS on the Main Line.
+            let is_relative_target = arrow.target_addr.is_some();
+            let is_end_line = current_line == arrow.end;
+
+            let draw_crossing = if is_relative_target && is_end_line {
+                // Only if Jump Up (pass through) do we maybe cross?
+                // Actually if Jump Up, we draw vertical.
+                // If Jump Down, we skipped.
+                false
+            } else {
+                current_line == arrow.start || (current_line == arrow.end && !is_relative_target)
+            };
+
+            if draw_crossing {
                 let c_idx = arrow.col * 2;
                 for c in chars.iter_mut().skip(c_idx + 1) {
                     if *c == ' ' {
@@ -1513,7 +1623,7 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                         *c = '┼';
                     }
                 }
-                if current_line == arrow.end {
+                if current_line == arrow.end && !is_relative_target {
                     let last = chars.len() - 1;
                     chars[last] = '►';
                 }
@@ -1525,7 +1635,8 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
 
     // Helper to render arrow string for the line comment associated with line 'i'
     // This represents the space "just above" line 'i'.
-    let get_comment_arrow_str = |current_line: usize| -> String {
+    // sub_addr is None for Line Comments, Some(addr) for Relative Labels.
+    let get_comment_arrow_str = |current_line: usize, sub_addr: Option<u16>| -> String {
         let cols = app_state.settings.max_arrow_columns;
         let mut chars = vec![' '; cols * 2 + 1];
 
@@ -1546,14 +1657,116 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             // 2. Jump Up Start: start == current_line (goes UP from here, so passes through above)
             // 3. Jump Down End: end == current_line (comes DOWN to here, so passes through above)
 
-            let passes_through = (current_line > low && current_line < high)
+            // Refined Logic for Sub-Lines:
+            // "Space above current_line" generally acts as a vertical connector.
+            // But if this sub-line is the TARGET, we stop here (Jump Down) or Start here (Jump Up - ends here).
+
+            let is_target_here = if let Some(addr) = sub_addr
+                && let Some(target) = arrow.target_addr
+            {
+                addr == target
+            } else {
+                false
+            };
+
+            let is_relative_target_elsewhere =
+                arrow.target_addr.is_some() && arrow.end == current_line;
+            // If relative target elsewhere in THIS line block, we need to know if it's above or below us.
+            // Relative labels are sorted by offset (ascending).
+            // *+1, *+2, ...
+            // If we are at *+1, and target is *+2.
+
+            let mut passes_through = (current_line > low && current_line < high)
                 || (current_line == arrow.start && arrow.end < arrow.start)
                 || (current_line == arrow.end && arrow.start < arrow.end);
+
+            if is_relative_target_elsewhere {
+                // We are in the destination line block.
+                if arrow.start < arrow.end {
+                    // Jump Down: Arrow comes from above.
+                    // If is_target_here: Ends here.
+                    // If target is "below" us (mid_addr < target): Passes through.
+                    // If target is "above" us (mid_addr > target): Should not happen if sorted?
+                    // Wait, we process *+1 then *+2.
+                    // If target is *+1: Ends here.
+                    // If target is *+1, and we are at *+2: The arrow stopped at *+1. We see nothing.
+
+                    if let Some(this_addr) = sub_addr
+                        && let Some(target) = arrow.target_addr
+                    {
+                        passes_through = this_addr < target;
+                    } else if sub_addr.is_none() {
+                        // Line Comment. Rendered AFTER proper labels.
+                        // So relative labels are above us.
+                        // If target was relative, it stopped above.
+                        passes_through = false;
+                    }
+                } else {
+                    // Jump Up: Arrow comes from below (Main Line).
+                    // It passes through Main Line (handled in get_arrow_str).
+                    // It reaches up.
+                    // If target is *+2. We represent *+1.
+                    // Arrow passes through *+1 to get to *+2.
+                    // If target is *+1. Arrow ends here.
+                    // If target is *+2. We are at Line Comment (lower than *+2). Passes through.
+
+                    if let Some(this_addr) = sub_addr
+                        && let Some(target) = arrow.target_addr
+                    {
+                        passes_through = this_addr < target;
+                    } else if sub_addr.is_none() {
+                        // Line Comment. Below labels.
+                        // Arrow passes through Line Comment to reach labels above.
+                        passes_through = true;
+                    }
+                }
+            }
 
             if passes_through {
                 chars[c_idx] = '│';
             }
+
+            if is_target_here {
+                // Draw Arrow Head/Corner
+                if arrow.start < arrow.end {
+                    // Jump Down
+                    chars[c_idx] = '└';
+                    chars[c_idx + 1] = '─'; // Extend right
+                } else {
+                    // Jump Up
+                    chars[c_idx] = '┌'; // Actually visual is same?
+                    // No, Jump Up comes from below. It ends here.
+                    // So it looks like ┌─ pointing to text.
+                    chars[c_idx] = '┌';
+                    chars[c_idx + 1] = '─';
+                }
+            }
         }
+
+        // Post-process horizontal lines for sub-lines
+        for arrow in &active_arrows {
+            let is_target_here = if let Some(addr) = sub_addr
+                && let Some(target) = arrow.target_addr
+            {
+                addr == target
+            } else {
+                false
+            };
+
+            if is_target_here {
+                let c_idx = arrow.col * 2;
+                for c in chars.iter_mut().skip(c_idx + 1) {
+                    if *c == ' ' {
+                        *c = '─';
+                    } else if *c == '│' {
+                        *c = '┼';
+                    }
+                }
+                let last = chars.len() - 1;
+                chars[last] = '►';
+            }
+        }
+
         chars.iter().collect()
     };
 
@@ -1611,6 +1824,25 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 for offset in 1..line.bytes.len() {
                     let mid_addr = line.address.wrapping_add(offset as u16);
                     if let Some(labels) = app_state.labels.get(&mid_addr) {
+                        // Prepare X-Ref string for this relative address
+                        let xref_str = if let Some(refs) = app_state.cross_refs.get(&mid_addr) {
+                            let mut all_refs = refs.clone();
+                            if !all_refs.is_empty() && app_state.settings.max_xref_count > 0 {
+                                all_refs.sort_unstable();
+                                all_refs.dedup();
+                                let refs_str_list: Vec<String> = all_refs
+                                    .iter()
+                                    .take(app_state.settings.max_xref_count)
+                                    .map(|r| format!("${:04x}", r))
+                                    .collect();
+                                format!("; x-ref: {}", refs_str_list.join(", "))
+                            } else {
+                                String::new()
+                            }
+                        } else {
+                            String::new()
+                        };
+
                         for label in labels {
                             let is_highlighted = !is_selected
                                 && is_cursor_row
@@ -1621,8 +1853,12 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                                 item_base_style
                             };
 
-                            let arrow_padding_for_rel = get_comment_arrow_str(i);
-                            let relative_line = Line::from(vec![
+                            let arrow_padding_for_rel = get_comment_arrow_str(i, Some(mid_addr));
+
+                            // Combine Label definition and X-Ref
+                            let label_def = format!("{} =*+${:02x}", label.name, offset);
+
+                            let mut spans = vec![
                                 Span::styled(
                                     format!("{:5} ", current_line_num),
                                     line_style.fg(ui_state.theme.bytes),
@@ -1637,11 +1873,17 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                                 ),
                                 // Padding to align with Label column
                                 Span::styled("                  ".to_string(), line_style),
-                                Span::styled(
-                                    format!("{} =*+${:02x}", label.name, offset),
-                                    line_style.fg(ui_state.theme.label_def),
-                                ),
-                            ]);
+                                Span::styled(label_def, line_style.fg(ui_state.theme.label_def)),
+                            ];
+
+                            if !xref_str.is_empty() {
+                                spans.push(Span::styled(
+                                    format!(" {}", xref_str),
+                                    line_style.fg(ui_state.theme.comment),
+                                ));
+                            }
+
+                            let relative_line = Line::from(spans);
                             item_lines.push(relative_line);
                             current_line_num += 1;
                             current_sub_index += 1;
@@ -1663,7 +1905,7 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                     Style::default()
                 };
 
-                let comment_arrow_padding = get_comment_arrow_str(i);
+                let comment_arrow_padding = get_comment_arrow_str(i, None);
                 item_lines.push(Line::from(vec![
                     Span::styled(
                         format!("{:5} ", current_line_num),

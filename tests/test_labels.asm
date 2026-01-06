@@ -57,3 +57,11 @@ hi_addr = * + 2
 	inc hi_addr
 	jmp loop
 
+
+
+lo1 = *+$01
+lo2 = *+$02
+	lda $4c00
+	sta $d000
+	bne lo1
+	beq lo2
