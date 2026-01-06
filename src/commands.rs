@@ -389,10 +389,20 @@ mod tests {
         app_state.cross_refs = cross_refs;
 
         // Assert label exists
-        assert!(app_state.labels.contains_key(&0x1005));
-        assert_eq!(app_state.cross_refs.get(&0x1005).unwrap().len(), 1);
+        assert!(app_state.labels.get(&0x1005).is_some());
         assert_eq!(
-            app_state.labels.get(&0x1005).unwrap().first().unwrap().kind,
+            app_state
+                .labels
+                .get(&0x1005)
+                .expect("Label should exist")
+                .first()
+                .expect("Label vector empty")
+                .refs
+                .len(),
+            1
+        );
+        assert_eq!(
+            app_state.labels.get(&0x1005).expect("Label should exist").first().expect("Label vector empty").kind,
             crate::state::LabelKind::Auto
         );
 
@@ -430,8 +440,18 @@ mod tests {
         app_state.undo_stack = stack;
 
         // Verify label is BACK
-        assert!(app_state.labels.contains_key(&0x1005));
-        assert_eq!(app_state.cross_refs.get(&0x1005).unwrap().len(), 1);
+        assert!(app_state.labels.get(&0x1005).is_some());
+        assert_eq!(
+            app_state
+                .labels
+                .get(&0x1005)
+                .expect("Label should exist")
+                .first()
+                .expect("Label vector empty")
+                .refs
+                .len(),
+            1
+        );
     }
     #[test]
     fn test_user_line_comment_undo_redo() {

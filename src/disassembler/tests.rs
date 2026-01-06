@@ -990,8 +990,11 @@ fn test_text_show_bytes_is_false() {
     );
 
     // Filter for the .text line
-    let text_line = lines.iter().find(|l| l.mnemonic == ".text").unwrap();
-    assert!(!text_line.show_bytes, "Text blocks should not show bytes");
+    let text_line = lines.iter().find(|l| l.mnemonic == ".text").expect(".text directive not found in disassembly");
+    assert_eq!(
+        text_line.show_bytes, false,
+        "Text blocks should not show bytes"
+    );
 }
 
 #[test]
@@ -1026,9 +1029,9 @@ fn test_screencode_show_bytes_is_false() {
     );
 
     // Filter for the .text line (inside .encode block)
-    let text_line = lines.iter().find(|l| l.mnemonic == ".text").unwrap();
-    assert!(
-        !text_line.show_bytes,
+    let text_line = lines.iter().find(|l| l.mnemonic == ".text").expect(".text directive (screencode) not found in disassembly");
+    assert_eq!(
+        text_line.show_bytes, false,
         "Screencode blocks should not show bytes"
     );
 }

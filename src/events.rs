@@ -2370,12 +2370,32 @@ fn execute_menu_action(
                                         None
                                     }
                                 }
-                                AddressingMode::Indirect => {
-                                    // JMP ($1234) -> target is $1234
-                                    if line.bytes.len() >= 3 {
-                                        Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                                break;
+                            }
+                        }
+
+                        if let Some(idx) = found_idx {
+                            ui_state.navigation_history.push((
+                                crate::ui_state::ActivePane::Disassembly,
+                                ui_state.cursor_index,
+                            ));
+                            ui_state.cursor_index = idx;
+                            ui_state.status_message = format!("Jumped to ${:04X}", addr);
+                        } else {
+                            // Maybe valid address but not in loaded range?
+                            // Or at end
+                            if !app_state.disassembly.is_empty() {
+                                if let Some(last_line) = app_state.disassembly.last() {
+                                    if addr >= last_line.address {
+                                        ui_state.navigation_history.push((
+                                            crate::ui_state::ActivePane::Disassembly,
+                                            ui_state.cursor_index,
+                                        ));
+                                        ui_state.cursor_index = app_state.disassembly.len() - 1;
+                                        ui_state.status_message = "Jumped to end".to_string();
                                     } else {
-                                        None
+                                        ui_state.status_message =
+                                            format!("Address ${:04X} not found", addr);
                                     }
                                 }
                                 AddressingMode::Relative => {

@@ -206,7 +206,7 @@ mod tests {
 
         let result = parse_vsf(&data);
         assert!(result.is_ok());
-        let vsf = result.unwrap();
+        let vsf = result.expect("Result failed");
         assert_eq!(vsf.memory.len(), 65536);
         assert_eq!(vsf.memory[0], 0xEA);
         assert_eq!(vsf.memory[65535], 0xEA);
@@ -215,10 +215,10 @@ mod tests {
     fn test_repro_frogger() {
         let path = std::path::Path::new("tests/frogger.vsf");
         if path.exists() {
-            let data = std::fs::read(path).unwrap();
+            let data = std::fs::read(path).expect("Failed to read frogger.vsf");
             let res = parse_vsf(&data);
             assert!(res.is_ok());
-            let vsf = res.unwrap();
+            let vsf = res.expect("Failed to parse frogger.vsf");
 
             // Check potential PC at $8BDC
             let addr = 0x8BDC;
