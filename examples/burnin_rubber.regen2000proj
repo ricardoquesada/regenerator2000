@@ -467,6 +467,6 @@
   },
   "cursor_address": 14720,
   "hex_dump_cursor_address": 12288,
-  "sprites_cursor_address": 14720,
+  "sprites_cursor_address": 14528,
   "right_pane_visible": "Sprites"
 }

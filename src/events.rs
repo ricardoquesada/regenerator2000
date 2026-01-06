@@ -2364,6 +2364,7 @@ fn execute_menu_action(
                 }
             } else {
                 ui_state.right_pane = crate::ui_state::RightPane::HexDump;
+                ui_state.active_pane = ActivePane::HexDump;
                 ui_state.set_status_message("Hex Dump View Shown");
             }
         }
@@ -2376,6 +2377,7 @@ fn execute_menu_action(
                 }
             } else {
                 ui_state.right_pane = crate::ui_state::RightPane::Sprites;
+                ui_state.active_pane = ActivePane::Sprites;
                 ui_state.set_status_message("Sprites View Shown");
             }
         }
