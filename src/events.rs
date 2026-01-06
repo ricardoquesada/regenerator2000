@@ -2355,101 +2355,104 @@ fn execute_menu_action(
             perform_search(app_state, ui_state, false);
         }
         MenuAction::JumpToOperand => {
-            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                // Try to extract address from operand.
-                // We utilize the opcode mode if available.
-                if let Some(opcode) = &line.opcode {
-                    use crate::cpu::AddressingMode;
-                    let target = match opcode.mode {
-                        AddressingMode::Absolute
-                        | AddressingMode::AbsoluteX
-                        | AddressingMode::AbsoluteY => {
-                            if line.bytes.len() >= 3 {
-                                Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
-                            } else {
-                                None
-                            }
-                        }
-                        AddressingMode::Indirect => {
-                            // JMP ($1234) -> target is $1234
-                            if line.bytes.len() >= 3 {
-                                Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
-                            } else {
-                                None
-                            }
-                        }
-                        AddressingMode::Relative => {
-                            // Branch
-                            if line.bytes.len() >= 2 {
-                                let offset = line.bytes[1] as i8;
-                                Some(line.address.wrapping_add(2).wrapping_add(offset as u16))
-                            } else {
-                                None
-                            }
-                        }
-                        AddressingMode::ZeroPage
-                        | AddressingMode::ZeroPageX
-                        | AddressingMode::ZeroPageY
-                        | AddressingMode::IndirectX
-                        | AddressingMode::IndirectY => {
-                            if line.bytes.len() >= 2 {
-                                Some(line.bytes[1] as u16)
-                            } else {
-                                None
-                            }
-                        }
-                        _ => None,
-                    };
-
-                    if let Some(addr) = target {
-                        // Perform Jump
-                        let mut found_idx = None;
-                        for (i, l) in app_state.disassembly.iter().enumerate() {
-                            if l.address == addr {
-                                found_idx = Some(i);
-                                break;
-                            } else if l.address > addr {
-                                // Closest before
-                                if i > 0 {
-                                    found_idx = Some(i - 1);
-                                } else {
-                                    found_idx = Some(0);
+            let target_addr = match ui_state.active_pane {
+                ActivePane::Disassembly => {
+                    if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                        // Try to extract address from operand.
+                        // We utilize the opcode mode if available.
+                        if let Some(opcode) = &line.opcode {
+                            use crate::cpu::AddressingMode;
+                            match opcode.mode {
+                                AddressingMode::Absolute
+                                | AddressingMode::AbsoluteX
+                                | AddressingMode::AbsoluteY => {
+                                    if line.bytes.len() >= 3 {
+                                        Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                                    } else {
+                                        None
+                                    }
                                 }
-                                break;
+                                AddressingMode::Indirect => {
+                                    // JMP ($1234) -> target is $1234
+                                    if line.bytes.len() >= 3 {
+                                        Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                                    } else {
+                                        None
+                                    }
+                                }
+                                AddressingMode::Relative => {
+                                    // Branch
+                                    if line.bytes.len() >= 2 {
+                                        let offset = line.bytes[1] as i8;
+                                        Some(
+                                            line.address
+                                                .wrapping_add(2)
+                                                .wrapping_add(offset as u16),
+                                        )
+                                    } else {
+                                        None
+                                    }
+                                }
+                                AddressingMode::ZeroPage
+                                | AddressingMode::ZeroPageX
+                                | AddressingMode::ZeroPageY
+                                | AddressingMode::IndirectX
+                                | AddressingMode::IndirectY => {
+                                    if line.bytes.len() >= 2 {
+                                        Some(line.bytes[1] as u16)
+                                    } else {
+                                        None
+                                    }
+                                }
+                                _ => None,
                             }
-                        }
-
-                        if let Some(idx) = found_idx {
-                            ui_state.navigation_history.push((
-                                crate::ui_state::ActivePane::Disassembly,
-                                ui_state.cursor_index,
-                            ));
-                            ui_state.cursor_index = idx;
-                            ui_state.status_message = format!("Jumped to ${:04X}", addr);
                         } else {
-                            // Maybe valid address but not in loaded range?
-                            // Or at end
-                            if !app_state.disassembly.is_empty() {
-                                if addr >= app_state.disassembly.last().unwrap().address {
-                                    ui_state.navigation_history.push((
-                                        crate::ui_state::ActivePane::Disassembly,
-                                        ui_state.cursor_index,
-                                    ));
-                                    ui_state.cursor_index = app_state.disassembly.len() - 1;
-                                    ui_state.status_message = "Jumped to end".to_string();
-                                } else {
-                                    ui_state.status_message =
-                                        format!("Address ${:04X} not found", addr);
-                                }
-                            }
+                            None
                         }
                     } else {
-                        ui_state.status_message = "No target address".to_string();
+                        None
                     }
-                } else {
-                    // Maybe it is a .WORD or .PTR?
-                    // Not specified in requirements, but "Jump to operand" generally implies instruction operands.
                 }
+                ActivePane::HexDump => {
+                    let origin = app_state.origin as usize;
+                    let alignment_padding = origin % 16;
+                    let aligned_origin = origin - alignment_padding;
+                    Some((aligned_origin + ui_state.hex_cursor_index * 16) as u16)
+                }
+                ActivePane::Sprites => {
+                    let origin = app_state.origin as usize;
+                    let padding = (64 - (origin % 64)) % 64;
+                    Some((origin + padding + ui_state.sprites_cursor_index * 64) as u16)
+                }
+                ActivePane::Charset => {
+                    let origin = app_state.origin as usize;
+                    let base_alignment = 0x400;
+                    let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                    Some((aligned_start_addr + ui_state.charset_cursor_index * 8) as u16)
+                }
+            };
+
+            if let Some(addr) = target_addr {
+                // Perform Jump
+                if let Some(idx) = app_state.get_line_index_containing_address(addr) {
+                    ui_state.navigation_history.push((
+                        ui_state.active_pane,
+                        match ui_state.active_pane {
+                            ActivePane::Disassembly => ui_state.cursor_index,
+                            ActivePane::HexDump => ui_state.hex_cursor_index,
+                            ActivePane::Sprites => ui_state.sprites_cursor_index,
+                            ActivePane::Charset => ui_state.charset_cursor_index,
+                        },
+                    ));
+                    ui_state.cursor_index = idx;
+                    ui_state.active_pane = ActivePane::Disassembly;
+                    ui_state.sub_cursor_index = 0; // Reset sub-line selection
+                    ui_state.set_status_message(format!("Jumped to ${:04X}", addr));
+                } else {
+                    ui_state.set_status_message(format!("Address ${:04X} not found", addr));
+                }
+            } else if ui_state.active_pane == ActivePane::Disassembly {
+                ui_state.set_status_message("No target address");
             }
         }
         MenuAction::About => {
