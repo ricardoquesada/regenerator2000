@@ -1924,8 +1924,8 @@ fn render_sprites_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state
         if y_offset < visible_rows {
             f.render_widget(
                 Paragraph::new(format!(
-                    "Sprite {:03} (${:04X})",
-                    sprite_num, sprite_address
+                    "Sprite  {:03} / ${:02X} - (${:04X})",
+                    sprite_num, sprite_num, sprite_address
                 ))
                 .style(style),
                 Rect::new(
