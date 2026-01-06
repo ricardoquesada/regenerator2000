@@ -1871,14 +1871,18 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                                     ),
                                     line_style.fg(ui_state.theme.arrow),
                                 ),
-                                // Padding to align with Label column
+                                // Padding to align with Label column (Address 6 + Bytes 12 = 18)
                                 Span::styled("                  ".to_string(), line_style),
-                                Span::styled(label_def, line_style.fg(ui_state.theme.label_def)),
+                                // Label Def acts as Label + Mnemonic + Operand (16 + 5 + 15 = 36)
+                                Span::styled(
+                                    format!("{:<36}", label_def),
+                                    line_style.fg(ui_state.theme.label_def),
+                                ),
                             ];
 
                             if !xref_str.is_empty() {
                                 spans.push(Span::styled(
-                                    format!(" {}", xref_str),
+                                    xref_str.clone(),
                                     line_style.fg(ui_state.theme.comment),
                                 ));
                             }

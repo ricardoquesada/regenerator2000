@@ -409,6 +409,13 @@
     }
   ],
   "labels": {
+    "2560": [
+      {
+        "name": "f0A00",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "4096": [
       {
         "name": "setup_vic",
@@ -462,8 +469,8 @@
   "settings": {
     "all_labels": false,
     "preserve_long_bytes": true,
-    "brk_single_byte": true,
-    "patch_brk": false,
+    "brk_single_byte": false,
+    "patch_brk": true,
     "platform": "Commodore64",
     "assembler": "Tass64",
     "max_xref_count": 5,
@@ -484,9 +491,9 @@
     "6155": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 5812,
+  "cursor_address": 2095,
   "hex_dump_cursor_address": 12304,
   "sprites_cursor_address": 27392,
   "charset_cursor_address": 22536,
-  "right_pane_visible": "Sprites"
+  "right_pane_visible": "HexDump"
 }
