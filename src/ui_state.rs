@@ -8,6 +8,15 @@ use std::path::PathBuf;
 pub enum ActivePane {
     Disassembly,
     HexDump,
+    Sprites,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum RightPane {
+    None,
+    #[default]
+    HexDump,
+    Sprites,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,6 +53,7 @@ pub enum MenuAction {
     SideComment,
     LineComment,
     ToggleHexDump,
+    ToggleSpritesView,
     About,
     ChangeOrigin,
     KeyboardShortcuts,
@@ -619,6 +629,11 @@ impl MenuState {
                             Some("Ctrl+2"),
                             Some(MenuAction::ToggleHexDump),
                         ),
+                        MenuItem::new(
+                            "Toggle Sprites View",
+                            Some("Ctrl+3"),
+                            Some(MenuAction::ToggleSpritesView),
+                        ),
                     ],
                 },
                 MenuCategory {
@@ -814,9 +829,10 @@ pub struct UIState {
 
     // Hex View State
     pub hex_cursor_index: usize,
+    pub sprites_cursor_index: usize,
     #[allow(dead_code)]
     pub hex_scroll_index: usize,
-    pub show_hex_dump: bool,
+    pub right_pane: RightPane,
     pub petscii_mode: PetsciiMode,
 
     pub active_pane: ActivePane,
@@ -859,8 +875,9 @@ impl UIState {
             sub_cursor_index: 0,
             scroll_index: 0,
             hex_cursor_index: 0,
+            sprites_cursor_index: 0,
             hex_scroll_index: 0,
-            show_hex_dump: true,
+            right_pane: RightPane::HexDump,
             petscii_mode: PetsciiMode::Unshifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,

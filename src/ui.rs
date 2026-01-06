@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::ui_state::{ActivePane, UIState};
+use crate::ui_state::{ActivePane, RightPane, UIState};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -1156,23 +1156,28 @@ fn render_origin_dialog(
 }
 
 fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
-    // Calculate required width for Hex Dump
-    // Address (4) + Space (2) + Hex (49) + Separator (2) + ASCII (16) + Borders (2) = 75
-    let hex_dump_width = if ui_state.show_hex_dump { 75 } else { 0 };
-    let disasm_view_width = area.width.saturating_sub(hex_dump_width);
+    // Calculate required width for Right Pane
+    let right_pane_width = match ui_state.right_pane {
+        RightPane::None => 0,
+        RightPane::HexDump => 75,
+        RightPane::Sprites => 36, // 24 chars + border + padding
+    };
+    let disasm_view_width = area.width.saturating_sub(right_pane_width);
 
     let layout = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Length(disasm_view_width),
-            Constraint::Length(hex_dump_width),
+            Constraint::Length(right_pane_width),
         ])
         .split(area);
 
     render_disassembly(f, layout[0], app_state, ui_state);
 
-    if ui_state.show_hex_dump {
-        render_hex_view(f, layout[1], app_state, ui_state);
+    match ui_state.right_pane {
+        RightPane::None => {}
+        RightPane::HexDump => render_hex_view(f, layout[1], app_state, ui_state),
+        RightPane::Sprites => render_sprites_view(f, layout[1], app_state, ui_state),
     }
 }
 
@@ -1831,4 +1836,129 @@ fn hex_bytes(bytes: &[u8]) -> String {
         .map(|b| format!("{:02X}", b))
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn render_sprites_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
+    let is_active = ui_state.active_pane == ActivePane::Sprites;
+    let border_style = if is_active {
+        Style::default().fg(ui_state.theme.border_active)
+    } else {
+        Style::default().fg(ui_state.theme.border_inactive)
+    };
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(border_style)
+        .title(" Sprites ")
+        .style(
+            Style::default()
+                .bg(ui_state.theme.background)
+                .fg(ui_state.theme.foreground),
+        );
+    let inner_area = block.inner(area);
+    f.render_widget(block, area);
+
+    if app_state.raw_data.is_empty() {
+        return;
+    }
+
+    let origin = app_state.origin as usize;
+    let padding = (64 - (origin % 64)) % 64;
+
+    if app_state.raw_data.len() <= padding {
+        return;
+    }
+
+    let usable_len = app_state.raw_data.len() - padding;
+    let total_sprites = usable_len.div_ceil(64);
+
+    let sprite_height = 22; // 21 lines + 1 separator
+    let visible_rows = inner_area.height as usize;
+    let num_sprites_fit = visible_rows.div_ceil(sprite_height); // Approximation
+
+    let start_index = if ui_state.sprites_cursor_index > num_sprites_fit / 2 {
+        ui_state
+            .sprites_cursor_index
+            .saturating_sub(num_sprites_fit / 2)
+    } else {
+        0
+    };
+
+    let end_index = (start_index + num_sprites_fit + 1).min(total_sprites);
+
+    let mut y_offset = 0;
+    for i in start_index..end_index {
+        if y_offset >= visible_rows {
+            break;
+        }
+
+        let sprite_offset_in_data = padding + i * 64;
+        let sprite_address = origin + sprite_offset_in_data;
+
+        if sprite_offset_in_data >= app_state.raw_data.len() {
+            break;
+        }
+
+        // Draw Sprite Header/Index
+        let is_selected = i == ui_state.sprites_cursor_index;
+        let style = if is_selected {
+            Style::default()
+                .fg(ui_state.theme.highlight_fg)
+                .bg(ui_state.theme.highlight_bg)
+        } else {
+            Style::default()
+        };
+
+        // Sprite number calculation: (Address / 64) % 256
+        let sprite_num = (sprite_address / 64) % 256;
+
+        if y_offset < visible_rows {
+            f.render_widget(
+                Paragraph::new(format!(
+                    "Sprite {:03} (${:04X})",
+                    sprite_num, sprite_address
+                ))
+                .style(style),
+                Rect::new(
+                    inner_area.x,
+                    inner_area.y + y_offset as u16,
+                    inner_area.width,
+                    1,
+                ),
+            );
+            y_offset += 1;
+        }
+
+        // Draw Sprite Data (21 lines)
+        for row in 0..21 {
+            if y_offset >= visible_rows {
+                break;
+            }
+
+            let row_offset = sprite_offset_in_data + row * 3;
+            // 3 bytes per row = 24 bits
+            let mut line_str = String::with_capacity(24);
+            if row_offset + 2 < app_state.raw_data.len() {
+                let bytes = &app_state.raw_data[row_offset..row_offset + 3];
+                for b in bytes {
+                    for bit in (0..8).rev() {
+                        if (b >> bit) & 1 == 1 {
+                            line_str.push('█');
+                        } else {
+                            line_str.push('.'); // Use dot for empty to see grid better, or space
+                        }
+                    }
+                }
+            } else {
+                // Partial padding?
+                line_str.push_str("                        ");
+            }
+
+            f.render_widget(
+                Paragraph::new(line_str),
+                Rect::new(inner_area.x + 2, inner_area.y + y_offset as u16, 24, 1), // Indent
+            );
+            y_offset += 1;
+        }
+    }
 }

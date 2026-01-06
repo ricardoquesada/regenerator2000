@@ -104,6 +104,39 @@ pub fn run_app<B: Backend>(
                                                 ui_state.set_status_message("Address out of range");
                                             }
                                         }
+                                        ActivePane::Sprites => {
+                                            let origin = app_state.origin as usize;
+                                            let target = target_addr as usize;
+
+                                            // Calculate padding for alignment
+                                            let padding = (64 - (origin % 64)) % 64;
+                                            let aligned_start = origin + padding;
+
+                                            if target >= aligned_start
+                                                && target < origin + app_state.raw_data.len()
+                                            {
+                                                ui_state.navigation_history.push((
+                                                    crate::ui_state::ActivePane::Sprites,
+                                                    ui_state.sprites_cursor_index,
+                                                ));
+
+                                                // Calculate sprite index relative to aligned start
+                                                let offset = target - aligned_start;
+                                                let sprite_idx = offset / 64;
+                                                // Sprite number calculation: (target / 64) % 256
+                                                let sprite_num = (target / 64) % 256;
+
+                                                ui_state.sprites_cursor_index = sprite_idx;
+                                                ui_state.set_status_message(format!(
+                                                    "Jumped to sprite {} (${:04X})",
+                                                    sprite_num, target_addr
+                                                ));
+                                            } else {
+                                                ui_state.set_status_message(
+                                                    "Address out of range or unaligned area",
+                                                );
+                                            }
+                                        }
                                     }
 
                                     ui_state.jump_dialog.close();
@@ -1017,6 +1050,10 @@ pub fn run_app<B: Backend>(
                                 ui_state.hex_cursor_index =
                                     ui_state.hex_cursor_index.saturating_sub(10);
                             }
+                            ActivePane::Sprites => {
+                                ui_state.sprites_cursor_index =
+                                    ui_state.sprites_cursor_index.saturating_sub(10);
+                            }
                         }
                     }
                     KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -1048,6 +1085,15 @@ pub fn run_app<B: Backend>(
                                 ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
                                     .min(total_rows.saturating_sub(1));
                             }
+                            ActivePane::Sprites => {
+                                let origin = app_state.origin as usize;
+                                let padding = (64 - (origin % 64)) % 64;
+                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                                let total_sprites = usable_len.div_ceil(64);
+                                ui_state.sprites_cursor_index = (ui_state.sprites_cursor_index
+                                    + 10)
+                                    .min(total_sprites.saturating_sub(1));
+                            }
                         }
                     }
                     KeyCode::Char('u') => {
@@ -1069,6 +1115,13 @@ pub fn run_app<B: Backend>(
                             &mut app_state,
                             &mut ui_state,
                             crate::ui_state::MenuAction::ToggleHexDump,
+                        );
+                    }
+                    KeyCode::Char('3') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::ToggleSpritesView,
                         );
                     }
 
@@ -1115,6 +1168,10 @@ pub fn run_app<B: Backend>(
                                     // Basic bounds check might be hard here without recalculating rows
                                     // For now assume it's valid if it was pushed
                                     ui_state.hex_cursor_index = idx;
+                                    ui_state.set_status_message("Navigated back");
+                                }
+                                ActivePane::Sprites => {
+                                    ui_state.sprites_cursor_index = idx;
                                     ui_state.set_status_message("Navigated back");
                                 }
                             }
@@ -1375,6 +1432,34 @@ pub fn run_app<B: Backend>(
                                 ui_state
                                     .set_status_message(format!("Jumped to row {}", target_row));
                             }
+                            ActivePane::Sprites => {
+                                let origin = app_state.origin as usize;
+                                let padding = (64 - (origin % 64)) % 64;
+                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                                let total_sprites = usable_len.div_ceil(64);
+                                let target_sprite = if is_buffer_empty {
+                                    total_sprites
+                                } else {
+                                    entered_number
+                                };
+
+                                let new_cursor = if target_sprite == 0 {
+                                    total_sprites.saturating_sub(1)
+                                } else {
+                                    target_sprite
+                                        .saturating_sub(1)
+                                        .min(total_sprites.saturating_sub(1))
+                                };
+
+                                ui_state
+                                    .navigation_history
+                                    .push((ui_state.active_pane, ui_state.sprites_cursor_index));
+                                ui_state.sprites_cursor_index = new_cursor;
+                                ui_state.set_status_message(format!(
+                                    "Jumped to sprite {}",
+                                    target_sprite
+                                ));
+                            }
                         }
                     }
 
@@ -1382,6 +1467,7 @@ pub fn run_app<B: Backend>(
                     KeyCode::Char(c) if c.is_ascii_digit() => {
                         if ui_state.active_pane == ActivePane::Disassembly
                             || ui_state.active_pane == ActivePane::HexDump
+                            || ui_state.active_pane == ActivePane::Sprites
                         {
                             // Only append if it's a valid number sequence (avoid overflow though usize is large)
                             if ui_state.input_buffer.len() < 10 {
@@ -1442,6 +1528,15 @@ pub fn run_app<B: Backend>(
                                     ui_state.hex_cursor_index += 1;
                                 }
                             }
+                            ActivePane::Sprites => {
+                                let origin = app_state.origin as usize;
+                                let padding = (64 - (origin % 64)) % 64;
+                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                                let total_sprites = usable_len.div_ceil(64);
+                                if ui_state.sprites_cursor_index < total_sprites.saturating_sub(1) {
+                                    ui_state.sprites_cursor_index += 1;
+                                }
+                            }
                         }
                     }
                     KeyCode::Up | KeyCode::Char('k') => {
@@ -1488,12 +1583,21 @@ pub fn run_app<B: Backend>(
                                     ui_state.hex_cursor_index -= 1;
                                 }
                             }
+                            ActivePane::Sprites => {
+                                if ui_state.sprites_cursor_index > 0 {
+                                    ui_state.sprites_cursor_index -= 1;
+                                }
+                            }
                         }
                     }
                     KeyCode::Tab => {
                         ui_state.active_pane = match ui_state.active_pane {
-                            ActivePane::Disassembly => ActivePane::HexDump,
-                            ActivePane::HexDump => ActivePane::Disassembly,
+                            ActivePane::Disassembly => match ui_state.right_pane {
+                                crate::ui_state::RightPane::None => ActivePane::Disassembly,
+                                crate::ui_state::RightPane::HexDump => ActivePane::HexDump,
+                                crate::ui_state::RightPane::Sprites => ActivePane::Sprites,
+                            },
+                            ActivePane::HexDump | ActivePane::Sprites => ActivePane::Disassembly,
                         };
                     }
                     KeyCode::Esc => {
@@ -1522,6 +1626,15 @@ pub fn run_app<B: Backend>(
                                 ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
                                     .min(total_rows.saturating_sub(1));
                             }
+                            ActivePane::Sprites => {
+                                let origin = app_state.origin as usize;
+                                let padding = (64 - (origin % 64)) % 64;
+                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                                let total_sprites = usable_len.div_ceil(64);
+                                ui_state.sprites_cursor_index = (ui_state.sprites_cursor_index
+                                    + 10)
+                                    .min(total_sprites.saturating_sub(1));
+                            }
                         }
                     }
                     KeyCode::PageUp => {
@@ -1534,6 +1647,10 @@ pub fn run_app<B: Backend>(
                                 ui_state.hex_cursor_index =
                                     ui_state.hex_cursor_index.saturating_sub(10);
                             }
+                            ActivePane::Sprites => {
+                                ui_state.sprites_cursor_index =
+                                    ui_state.sprites_cursor_index.saturating_sub(10);
+                            }
                         }
                     }
                     KeyCode::Home => {
@@ -1541,6 +1658,7 @@ pub fn run_app<B: Backend>(
                         match ui_state.active_pane {
                             ActivePane::Disassembly => ui_state.cursor_index = 0,
                             ActivePane::HexDump => ui_state.hex_cursor_index = 0,
+                            ActivePane::Sprites => ui_state.sprites_cursor_index = 0,
                         }
                     }
                     KeyCode::End => {
@@ -1556,6 +1674,13 @@ pub fn run_app<B: Backend>(
                                 let total_rows =
                                     (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
                                 ui_state.hex_cursor_index = total_rows.saturating_sub(1);
+                            }
+                            ActivePane::Sprites => {
+                                let origin = app_state.origin as usize;
+                                let padding = (64 - (origin % 64)) % 64;
+                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                                let total_sprites = usable_len.div_ceil(64);
+                                ui_state.sprites_cursor_index = total_sprites.saturating_sub(1);
                             }
                         }
                     }
@@ -2150,15 +2275,27 @@ fn execute_menu_action(
             }
         }
         MenuAction::ToggleHexDump => {
-            ui_state.show_hex_dump = !ui_state.show_hex_dump;
-            if ui_state.show_hex_dump {
-                ui_state.set_status_message("Hex Dump View Shown");
-            } else {
+            if ui_state.right_pane == crate::ui_state::RightPane::HexDump {
+                ui_state.right_pane = crate::ui_state::RightPane::None;
                 ui_state.set_status_message("Hex Dump View Hidden");
-                // If we were in Hex view, switch to Disassembly
                 if ui_state.active_pane == ActivePane::HexDump {
                     ui_state.active_pane = ActivePane::Disassembly;
                 }
+            } else {
+                ui_state.right_pane = crate::ui_state::RightPane::HexDump;
+                ui_state.set_status_message("Hex Dump View Shown");
+            }
+        }
+        MenuAction::ToggleSpritesView => {
+            if ui_state.right_pane == crate::ui_state::RightPane::Sprites {
+                ui_state.right_pane = crate::ui_state::RightPane::None;
+                ui_state.set_status_message("Sprites View Hidden");
+                if ui_state.active_pane == ActivePane::Sprites {
+                    ui_state.active_pane = ActivePane::Disassembly;
+                }
+            } else {
+                ui_state.right_pane = crate::ui_state::RightPane::Sprites;
+                ui_state.set_status_message("Sprites View Shown");
             }
         }
         MenuAction::KeyboardShortcuts => {
