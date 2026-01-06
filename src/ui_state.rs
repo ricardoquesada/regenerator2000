@@ -9,6 +9,7 @@ pub enum ActivePane {
     Disassembly,
     HexDump,
     Sprites,
+    Charset,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -17,6 +18,7 @@ pub enum RightPane {
     #[default]
     HexDump,
     Sprites,
+    Charset,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,6 +67,8 @@ pub enum MenuAction {
     FindPrevious,
     TogglePetsciiMode,
     ToggleSpriteMulticolor,
+    ToggleCharsetView,
+    ToggleCharsetMulticolor,
 }
 
 impl MenuAction {
@@ -627,6 +631,11 @@ impl MenuState {
                             Some("m"),
                             Some(MenuAction::ToggleSpriteMulticolor),
                         ),
+                        MenuItem::new(
+                            "Toggle Multicolor Charset",
+                            Some("m"),
+                            Some(MenuAction::ToggleCharsetMulticolor),
+                        ),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Toggle Hex Dump",
@@ -637,6 +646,11 @@ impl MenuState {
                             "Toggle Sprites View",
                             Some("Ctrl+3"),
                             Some(MenuAction::ToggleSpritesView),
+                        ),
+                        MenuItem::new(
+                            "Toggle Charset View",
+                            Some("Ctrl+4"),
+                            Some(MenuAction::ToggleCharsetView),
                         ),
                     ],
                 },
@@ -695,9 +709,6 @@ impl MenuState {
             }
             next = (next + 1) % count;
         }
-        // If nothing found (all disabled/separators), keep as is or set to None?
-        // Let's keep as is if we can't find anything better, or maybe current is valid?
-        // If current is invalid (e.g. became disabled), we might want to change it.
     }
 
     pub fn previous_item(&mut self) {
@@ -709,7 +720,7 @@ impl MenuState {
 
         let mut prev = if current == 0 { count - 1 } else { current - 1 };
 
-        // Skip separators and disabled items
+        // We iterate at most `count` times to avoid infinite loop
         for _ in 0..count {
             let item = &self.categories[self.selected_category].items[prev];
             if !item.is_separator && !item.disabled {
@@ -766,6 +777,9 @@ impl MenuState {
                             }
                             MenuAction::ToggleSpriteMulticolor => {
                                 item.disabled = active_pane != ActivePane::Sprites;
+                            }
+                            MenuAction::ToggleCharsetMulticolor => {
+                                item.disabled = active_pane != ActivePane::Charset;
                             }
                             _ => item.disabled = false,
                         }
@@ -841,10 +855,12 @@ pub struct UIState {
     // Hex View State
     pub hex_cursor_index: usize,
     pub sprites_cursor_index: usize,
+    pub charset_cursor_index: usize,
     #[allow(dead_code)]
     pub hex_scroll_index: usize,
     pub right_pane: RightPane,
     pub sprite_multicolor_mode: bool,
+    pub charset_multicolor_mode: bool,
     pub petscii_mode: PetsciiMode,
 
     pub active_pane: ActivePane,
@@ -888,9 +904,11 @@ impl UIState {
             scroll_index: 0,
             hex_cursor_index: 0,
             sprites_cursor_index: 0,
+            charset_cursor_index: 0,
             hex_scroll_index: 0,
             right_pane: RightPane::HexDump,
             sprite_multicolor_mode: false,
+            charset_multicolor_mode: false,
             petscii_mode: PetsciiMode::Unshifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,

@@ -138,6 +138,33 @@ pub fn run_app<B: Backend>(
                                                 );
                                             }
                                         }
+                                        ActivePane::Charset => {
+                                            let origin = app_state.origin as usize;
+                                            let target = target_addr as usize;
+                                            let base_alignment = 0x400;
+                                            let aligned_start_addr =
+                                                (origin / base_alignment) * base_alignment;
+
+                                            let end_addr = origin + app_state.raw_data.len();
+
+                                            if target >= aligned_start_addr && target < end_addr {
+                                                ui_state.navigation_history.push((
+                                                    crate::ui_state::ActivePane::Charset,
+                                                    ui_state.charset_cursor_index,
+                                                ));
+
+                                                let offset = target - aligned_start_addr;
+                                                let char_idx = offset / 8;
+
+                                                ui_state.charset_cursor_index = char_idx;
+                                                ui_state.set_status_message(format!(
+                                                    "Jumped to char index {} (${:04X})",
+                                                    char_idx, target_addr
+                                                ));
+                                            } else {
+                                                ui_state.set_status_message("Address out of range");
+                                            }
+                                        }
                                     }
 
                                     ui_state.jump_dialog.close();
@@ -231,6 +258,20 @@ pub fn run_app<B: Backend>(
                                     None
                                 };
 
+                                let charset_addr = if !app_state.raw_data.is_empty() {
+                                    let origin = app_state.origin as usize;
+                                    let base_alignment = 0x400;
+                                    let aligned_start_addr =
+                                        (origin / base_alignment) * base_alignment;
+                                    let char_offset = ui_state.charset_cursor_index * 8;
+                                    let addr = aligned_start_addr + char_offset;
+                                    // Could be before origin if we allowed viewing it, effectively index into virtual space?
+                                    // Just save what we calculated.
+                                    Some(addr as u16)
+                                } else {
+                                    None
+                                };
+
                                 let right_pane_str = format!("{:?}", ui_state.right_pane);
 
                                 if let Err(e) = app_state.save_project(
@@ -238,6 +279,7 @@ pub fn run_app<B: Backend>(
                                     hex_addr,
                                     sprites_addr,
                                     Some(right_pane_str),
+                                    charset_addr,
                                 ) {
                                     ui_state.set_status_message(format!("Error saving: {}", e));
                                 } else {
@@ -449,6 +491,7 @@ pub fn run_app<B: Backend>(
                                         loaded_hex_cursor,
                                         loaded_sprites_cursor,
                                         loaded_right_pane,
+                                        loaded_charset_cursor,
                                     )) => {
                                         ui_state.set_status_message(format!(
                                             "Loaded: {:?}",
@@ -495,6 +538,18 @@ pub fn run_app<B: Backend>(
                                             }
                                         }
 
+                                        if let Some(charset_addr) = loaded_charset_cursor {
+                                            let origin = app_state.origin as usize;
+                                            let base_alignment = 0x400;
+                                            let aligned_start_addr =
+                                                (origin / base_alignment) * base_alignment;
+                                            let addr = charset_addr as usize;
+                                            if addr >= aligned_start_addr {
+                                                let offset = addr - aligned_start_addr;
+                                                ui_state.charset_cursor_index = offset / 8;
+                                            }
+                                        }
+
                                         if let Some(pane_str) = loaded_right_pane {
                                             match pane_str.as_str() {
                                                 "HexDump" => {
@@ -504,6 +559,10 @@ pub fn run_app<B: Backend>(
                                                 "Sprites" => {
                                                     ui_state.right_pane =
                                                         crate::ui_state::RightPane::Sprites
+                                                }
+                                                "Charset" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::Charset
                                                 }
                                                 "None" => {
                                                     ui_state.right_pane =
@@ -1108,6 +1167,10 @@ pub fn run_app<B: Backend>(
                                 ui_state.sprites_cursor_index =
                                     ui_state.sprites_cursor_index.saturating_sub(10);
                             }
+                            ActivePane::Charset => {
+                                ui_state.charset_cursor_index =
+                                    ui_state.charset_cursor_index.saturating_sub(10);
+                            }
                         }
                     }
 
@@ -1133,6 +1196,17 @@ pub fn run_app<B: Backend>(
                                 ui_state.sprites_cursor_index = (ui_state.sprites_cursor_index
                                     + 10)
                                     .min(total_sprites.saturating_sub(1));
+                            }
+                            ActivePane::Charset => {
+                                let origin = app_state.origin as usize;
+                                let base_alignment = 0x400;
+                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                                let end_addr = origin + app_state.raw_data.len();
+                                let max_char_index =
+                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+                                ui_state.charset_cursor_index = (ui_state.charset_cursor_index
+                                    + 10)
+                                    .min(max_char_index.saturating_sub(1));
                             }
                         }
                     }
@@ -1162,6 +1236,13 @@ pub fn run_app<B: Backend>(
                             &mut app_state,
                             &mut ui_state,
                             crate::ui_state::MenuAction::ToggleSpritesView,
+                        );
+                    }
+                    KeyCode::Char('4') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::ToggleCharsetView,
                         );
                     }
 
@@ -1212,6 +1293,10 @@ pub fn run_app<B: Backend>(
                                 }
                                 ActivePane::Sprites => {
                                     ui_state.sprites_cursor_index = idx;
+                                    ui_state.set_status_message("Navigated back");
+                                }
+                                ActivePane::Charset => {
+                                    ui_state.charset_cursor_index = idx;
                                     ui_state.set_status_message("Navigated back");
                                 }
                             }
@@ -1332,7 +1417,18 @@ pub fn run_app<B: Backend>(
 
                     // Label
                     KeyCode::Char('l') => {
-                        if !app_state.raw_data.is_empty() {
+                        if ui_state.active_pane == ActivePane::Charset {
+                            let origin = app_state.origin as usize;
+                            let base_alignment = 0x400;
+                            let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                            let end_addr = origin + app_state.raw_data.len();
+                            let max_char_index =
+                                (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+
+                            if ui_state.charset_cursor_index < max_char_index.saturating_sub(1) {
+                                ui_state.charset_cursor_index += 1;
+                            }
+                        } else if !app_state.raw_data.is_empty() {
                             if !ui_state.menu.active
                                 && !ui_state.jump_dialog.active
                                 && !ui_state.save_dialog.active
@@ -1509,6 +1605,34 @@ pub fn run_app<B: Backend>(
                                     target_sprite
                                 ));
                             }
+                            ActivePane::Charset => {
+                                let origin = app_state.origin as usize;
+                                let base_alignment = 0x400;
+                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                                let end_addr = origin + app_state.raw_data.len();
+                                let max_char_index =
+                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+                                let target_char = if is_buffer_empty {
+                                    max_char_index
+                                } else {
+                                    entered_number
+                                };
+
+                                let new_cursor = if target_char == 0 {
+                                    max_char_index.saturating_sub(1)
+                                } else {
+                                    target_char
+                                        .saturating_sub(1)
+                                        .min(max_char_index.saturating_sub(1))
+                                };
+
+                                ui_state
+                                    .navigation_history
+                                    .push((ui_state.active_pane, ui_state.charset_cursor_index));
+                                ui_state.charset_cursor_index = new_cursor;
+                                ui_state
+                                    .set_status_message(format!("Jumped to char {}", target_char));
+                            }
                         }
                     }
 
@@ -1517,6 +1641,7 @@ pub fn run_app<B: Backend>(
                         if ui_state.active_pane == ActivePane::Disassembly
                             || ui_state.active_pane == ActivePane::HexDump
                             || ui_state.active_pane == ActivePane::Sprites
+                            || ui_state.active_pane == ActivePane::Charset
                         {
                             // Only append if it's a valid number sequence (avoid overflow though usize is large)
                             if ui_state.input_buffer.len() < 10 {
@@ -1586,6 +1711,22 @@ pub fn run_app<B: Backend>(
                                     ui_state.sprites_cursor_index += 1;
                                 }
                             }
+                            ActivePane::Charset => {
+                                let origin = app_state.origin as usize;
+                                let base_alignment = 0x400;
+                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                                let end_addr = origin + app_state.raw_data.len();
+                                let max_char_index =
+                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+
+                                // Move Down by 8 (one row)
+                                if ui_state.charset_cursor_index + 8 < max_char_index {
+                                    ui_state.charset_cursor_index += 8;
+                                } else {
+                                    ui_state.charset_cursor_index =
+                                        max_char_index.saturating_sub(1);
+                                }
+                            }
                         }
                     }
                     KeyCode::Up | KeyCode::Char('k') => {
@@ -1637,6 +1778,11 @@ pub fn run_app<B: Backend>(
                                     ui_state.sprites_cursor_index -= 1;
                                 }
                             }
+                            ActivePane::Charset => {
+                                // Move Up by 8 (one row)
+                                ui_state.charset_cursor_index =
+                                    ui_state.charset_cursor_index.saturating_sub(8);
+                            }
                         }
                     }
                     KeyCode::Tab => {
@@ -1645,8 +1791,11 @@ pub fn run_app<B: Backend>(
                                 crate::ui_state::RightPane::None => ActivePane::Disassembly,
                                 crate::ui_state::RightPane::HexDump => ActivePane::HexDump,
                                 crate::ui_state::RightPane::Sprites => ActivePane::Sprites,
+                                crate::ui_state::RightPane::Charset => ActivePane::Charset,
                             },
-                            ActivePane::HexDump | ActivePane::Sprites => ActivePane::Disassembly,
+                            ActivePane::HexDump | ActivePane::Sprites | ActivePane::Charset => {
+                                ActivePane::Disassembly
+                            }
                         };
                     }
                     KeyCode::Esc => {
@@ -1684,6 +1833,18 @@ pub fn run_app<B: Backend>(
                                     + 10)
                                     .min(total_sprites.saturating_sub(1));
                             }
+                            ActivePane::Charset => {
+                                let origin = app_state.origin as usize;
+                                let base_alignment = 0x400;
+                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                                let end_addr = origin + app_state.raw_data.len();
+                                let max_char_index =
+                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+
+                                ui_state.charset_cursor_index = (ui_state.charset_cursor_index
+                                    + 256)
+                                    .min(max_char_index.saturating_sub(1));
+                            }
                         }
                     }
                     KeyCode::PageUp => {
@@ -1700,6 +1861,10 @@ pub fn run_app<B: Backend>(
                                 ui_state.sprites_cursor_index =
                                     ui_state.sprites_cursor_index.saturating_sub(10);
                             }
+                            ActivePane::Charset => {
+                                ui_state.charset_cursor_index =
+                                    ui_state.charset_cursor_index.saturating_sub(256);
+                            }
                         }
                     }
                     KeyCode::Home => {
@@ -1708,6 +1873,7 @@ pub fn run_app<B: Backend>(
                             ActivePane::Disassembly => ui_state.cursor_index = 0,
                             ActivePane::HexDump => ui_state.hex_cursor_index = 0,
                             ActivePane::Sprites => ui_state.sprites_cursor_index = 0,
+                            ActivePane::Charset => ui_state.charset_cursor_index = 0,
                         }
                     }
                     KeyCode::End => {
@@ -1731,6 +1897,15 @@ pub fn run_app<B: Backend>(
                                 let total_sprites = usable_len.div_ceil(64);
                                 ui_state.sprites_cursor_index = total_sprites.saturating_sub(1);
                             }
+                            ActivePane::Charset => {
+                                let origin = app_state.origin as usize;
+                                let base_alignment = 0x400;
+                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                                let end_addr = origin + app_state.raw_data.len();
+                                let max_char_index =
+                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+                                ui_state.charset_cursor_index = max_char_index.saturating_sub(1);
+                            }
                         }
                     }
                     KeyCode::Char('m') => {
@@ -1740,8 +1915,37 @@ pub fn run_app<B: Backend>(
                                 &mut ui_state,
                                 crate::ui_state::MenuAction::ToggleSpriteMulticolor,
                             )
+                        } else if ui_state.active_pane == ActivePane::Charset {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::ToggleCharsetMulticolor,
+                            )
                         }
                     }
+                    KeyCode::Left | KeyCode::Char('h') => match ui_state.active_pane {
+                        ActivePane::Charset => {
+                            if ui_state.charset_cursor_index > 0 {
+                                ui_state.charset_cursor_index -= 1;
+                            }
+                        }
+                        _ => {}
+                    },
+                    KeyCode::Right => match ui_state.active_pane {
+                        ActivePane::Charset => {
+                            let origin = app_state.origin as usize;
+                            let base_alignment = 0x400;
+                            let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                            let end_addr = origin + app_state.raw_data.len();
+                            let max_char_index =
+                                (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+
+                            if ui_state.charset_cursor_index < max_char_index.saturating_sub(1) {
+                                ui_state.charset_cursor_index += 1;
+                            }
+                        }
+                        _ => {}
+                    },
                     _ => {}
                 }
             }
@@ -1827,6 +2031,17 @@ fn execute_menu_action(
                     None
                 };
 
+                let charset_addr = if !app_state.raw_data.is_empty() {
+                    let origin = app_state.origin as usize;
+                    let base_alignment = 0x400;
+                    let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                    let char_offset = ui_state.charset_cursor_index * 8;
+                    let addr = aligned_start_addr + char_offset;
+                    Some(addr as u16)
+                } else {
+                    None
+                };
+
                 let right_pane_str = format!("{:?}", ui_state.right_pane);
 
                 if let Err(e) = app_state.save_project(
@@ -1834,6 +2049,7 @@ fn execute_menu_action(
                     hex_addr,
                     sprites_addr,
                     Some(right_pane_str),
+                    charset_addr,
                 ) {
                     ui_state.set_status_message(format!("Error saving: {}", e));
                 } else {
@@ -2259,6 +2475,14 @@ fn execute_menu_action(
                 ui_state.set_status_message("Sprites: Single Color Mode");
             }
         }
+        MenuAction::ToggleCharsetMulticolor => {
+            ui_state.charset_multicolor_mode = !ui_state.charset_multicolor_mode;
+            if ui_state.charset_multicolor_mode {
+                ui_state.set_status_message("Charset: Multicolor Mode ON");
+            } else {
+                ui_state.set_status_message("Charset: Single Color Mode");
+            }
+        }
         MenuAction::SetLoHi => {
             if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
@@ -2385,6 +2609,19 @@ fn execute_menu_action(
                 ui_state.right_pane = crate::ui_state::RightPane::Sprites;
                 ui_state.active_pane = ActivePane::Sprites;
                 ui_state.set_status_message("Sprites View Shown");
+            }
+        }
+        MenuAction::ToggleCharsetView => {
+            if ui_state.right_pane == crate::ui_state::RightPane::Charset {
+                ui_state.right_pane = crate::ui_state::RightPane::None;
+                ui_state.set_status_message("Charset View Hidden");
+                if ui_state.active_pane == ActivePane::Charset {
+                    ui_state.active_pane = ActivePane::Disassembly;
+                }
+            } else {
+                ui_state.right_pane = crate::ui_state::RightPane::Charset;
+                ui_state.active_pane = ActivePane::Charset;
+                ui_state.set_status_message("Charset View Shown");
             }
         }
         MenuAction::KeyboardShortcuts => {

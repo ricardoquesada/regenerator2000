@@ -39,6 +39,8 @@ pub struct Theme {
 
     pub sprite_multicolor_1: Color,
     pub sprite_multicolor_2: Color,
+    pub charset_multicolor_1: Color,
+    pub charset_multicolor_2: Color,
 
     // Highlights
     pub highlight_fg: Color, // e.g. bold yellow/green text
@@ -95,6 +97,8 @@ impl Theme {
 
             sprite_multicolor_1: Color::Red,
             sprite_multicolor_2: Color::LightBlue,
+            charset_multicolor_1: Color::Rgb(200, 100, 100), // Distinct from sprite
+            charset_multicolor_2: Color::Rgb(100, 200, 100),
 
             highlight_fg: Color::Yellow,
             highlight_bg: Color::DarkGray,
@@ -138,6 +142,8 @@ impl Theme {
 
             sprite_multicolor_1: Color::Red,
             sprite_multicolor_2: Color::Blue,
+            charset_multicolor_1: Color::Red,
+            charset_multicolor_2: Color::Blue,
 
             highlight_fg: Color::Rgb(255, 140, 0), // Dark Orange
             highlight_bg: Color::Rgb(240, 240, 240),

@@ -169,6 +169,16 @@
     },
     {
       "start": 6121,
+      "end": 6141,
+      "type_": "DataByte"
+    },
+    {
+      "start": 6142,
+      "end": 6142,
+      "type_": "Undefined"
+    },
+    {
+      "start": 6143,
       "end": 7166,
       "type_": "DataByte"
     },
@@ -438,6 +448,7 @@
   "user_side_comments": {},
   "user_line_comments": {
     "2083": "Boot strap",
+    "8192": "Charset",
     "12288": "sprites"
   },
   "settings": {
@@ -460,8 +471,9 @@
     "4116": "Binary",
     "6155": "Binary"
   },
-  "cursor_address": 18478,
+  "cursor_address": 8192,
   "hex_dump_cursor_address": 2176,
   "sprites_cursor_address": 14208,
-  "right_pane_visible": "Sprites"
+  "charset_cursor_address": 8192,
+  "right_pane_visible": "Charset"
 }

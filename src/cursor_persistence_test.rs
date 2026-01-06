@@ -27,12 +27,13 @@ mod tests {
                 Some(start_hex_cursor_addr),
                 None,
                 None,
+                None,
             )
             .expect("Failed to save project");
 
         // 3. Create fresh app state and load
         let mut loaded_state = AppState::new();
-        let (loaded_cursor, loaded_hex_cursor, _, _) = loaded_state
+        let (loaded_cursor, loaded_hex_cursor, _, _, _) = loaded_state
             .load_project(path.clone())
             .expect("Failed to load project");
 
@@ -77,7 +78,8 @@ mod tests {
         std::fs::write(&leg_path, json).unwrap();
 
         let mut leg_state = AppState::new();
-        let (leg_cursor, leg_hex_cursor, _, _) = leg_state.load_project(leg_path.clone()).unwrap();
+        let (leg_cursor, leg_hex_cursor, _, _, _) =
+            leg_state.load_project(leg_path.clone()).unwrap();
 
         assert_eq!(
             leg_cursor, None,

@@ -32,6 +32,7 @@ mod tests {
             cursor_address: None,
             hex_dump_cursor_address: None,
             sprites_cursor_address: None,
+            charset_cursor_address: None,
             right_pane_visible: None,
         };
 

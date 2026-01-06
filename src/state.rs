@@ -218,10 +218,18 @@ pub struct ProjectState {
     #[serde(default)]
     pub sprites_cursor_address: Option<u16>,
     #[serde(default)]
+    pub charset_cursor_address: Option<u16>,
+    #[serde(default)]
     pub right_pane_visible: Option<String>,
 }
 
-pub type LoadedProjectData = (Option<u16>, Option<u16>, Option<u16>, Option<String>);
+pub type LoadedProjectData = (
+    Option<u16>,
+    Option<u16>,
+    Option<u16>,
+    Option<String>,
+    Option<u16>,
+);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ImmediateFormat {
@@ -379,7 +387,7 @@ impl AppState {
 
         self.load_system_assets();
         self.disassemble();
-        Ok((cursor_start, hex_cursor_start, None, None))
+        Ok((cursor_start, hex_cursor_start, None, None, None))
     }
 
     pub fn load_project(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
@@ -416,6 +424,7 @@ impl AppState {
             project.hex_dump_cursor_address,
             project.sprites_cursor_address,
             project.right_pane_visible,
+            project.charset_cursor_address,
         ))
     }
 
@@ -425,6 +434,7 @@ impl AppState {
         hex_dump_cursor_address: Option<u16>,
         sprites_cursor_address: Option<u16>,
         right_pane_visible: Option<String>,
+        charset_cursor_address: Option<u16>,
     ) -> anyhow::Result<()> {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
@@ -453,6 +463,7 @@ impl AppState {
                 hex_dump_cursor_address,
                 sprites_cursor_address,
                 right_pane_visible,
+                charset_cursor_address,
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;
@@ -1027,7 +1038,7 @@ mod save_project_tests {
         app_state.project_path = Some(path.clone());
 
         app_state
-            .save_project(None, None, None, None)
+            .save_project(None, None, None, None, None)
             .expect("Save failed");
 
         // 4. Read back JSON manually to inspect
