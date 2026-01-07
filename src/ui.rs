@@ -1201,8 +1201,8 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
         .borders(Borders::ALL)
         .border_style(border_style)
         .title(match ui_state.petscii_mode {
-            crate::ui_state::PetsciiMode::Shifted => " Hex Dump (Shifted) ",
-            crate::ui_state::PetsciiMode::Unshifted => " Hex Dump (Unshifted) ",
+            crate::state::PetsciiMode::Shifted => " Hex Dump (Shifted) ",
+            crate::state::PetsciiMode::Unshifted => " Hex Dump (Unshifted) ",
         })
         .style(
             Style::default()
@@ -1244,7 +1244,7 @@ fn render_hex_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &m
                     let b = app_state.raw_data[data_idx];
 
                     hex_part.push_str(&format!("{:02X} ", b));
-                    let is_shifted = ui_state.petscii_mode == crate::ui_state::PetsciiMode::Shifted;
+                    let is_shifted = ui_state.petscii_mode == crate::state::PetsciiMode::Shifted;
                     ascii_part.push(crate::utils::petscii_to_unicode(b, is_shifted));
                 } else {
                     // Padding

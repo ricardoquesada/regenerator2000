@@ -21,11 +21,7 @@ pub enum RightPane {
     Charset,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PetsciiMode {
-    Unshifted,
-    Shifted,
-}
+use crate::state::PetsciiMode;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuAction {

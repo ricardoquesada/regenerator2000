@@ -28,14 +28,19 @@ mod tests {
                 None,
                 None,
                 None,
+                false,
+                false,
+                crate::state::PetsciiMode::default(),
             )
             .expect("Failed to save project");
 
         // 3. Create fresh app state and load
         let mut loaded_state = AppState::new();
-        let (loaded_cursor, loaded_hex_cursor, _, _, _) = loaded_state
+        let loaded_data = loaded_state
             .load_project(path.clone())
             .expect("Failed to load project");
+        let loaded_cursor = loaded_data.cursor_address;
+        let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;
 
         // 4. Verify cursor address is returned
         assert_eq!(
@@ -78,8 +83,9 @@ mod tests {
         std::fs::write(&leg_path, json).unwrap();
 
         let mut leg_state = AppState::new();
-        let (leg_cursor, leg_hex_cursor, _, _, _) =
-            leg_state.load_project(leg_path.clone()).unwrap();
+        let leg_data = leg_state.load_project(leg_path.clone()).unwrap();
+        let leg_cursor = leg_data.cursor_address;
+        let leg_hex_cursor = leg_data.hex_dump_cursor_address;
 
         assert_eq!(
             leg_cursor, None,

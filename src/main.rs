@@ -67,13 +67,16 @@ fn main() -> Result<()> {
                 // In a real app we might want to show this in the UI
                 ui_state.status_message = format!("Error loading file: {}", e);
             }
-            Ok((
-                loaded_cursor,
-                loaded_hex_cursor,
-                loaded_sprites_cursor,
-                loaded_right_pane,
-                loaded_charset_cursor,
-            )) => {
+            Ok(loaded_data) => {
+                let loaded_cursor = loaded_data.cursor_address;
+                let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;
+                let loaded_sprites_cursor = loaded_data.sprites_cursor_address;
+                let loaded_right_pane = loaded_data.right_pane_visible;
+                let loaded_charset_cursor = loaded_data.charset_cursor_address;
+
+                ui_state.sprite_multicolor_mode = loaded_data.sprite_multicolor_mode;
+                ui_state.charset_multicolor_mode = loaded_data.charset_multicolor_mode;
+                ui_state.petscii_mode = loaded_data.petscii_mode;
                 let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
                 if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
                     ui_state.cursor_index = idx;
@@ -135,13 +138,16 @@ fn main() -> Result<()> {
         && last_path.exists()
     {
         match app_state.load_file(last_path.clone()) {
-            Ok((
-                loaded_cursor,
-                loaded_hex_cursor,
-                loaded_sprites_cursor,
-                loaded_right_pane,
-                loaded_charset_cursor,
-            )) => {
+            Ok(loaded_data) => {
+                let loaded_cursor = loaded_data.cursor_address;
+                let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;
+                let loaded_sprites_cursor = loaded_data.sprites_cursor_address;
+                let loaded_right_pane = loaded_data.right_pane_visible;
+                let loaded_charset_cursor = loaded_data.charset_cursor_address;
+
+                ui_state.sprite_multicolor_mode = loaded_data.sprite_multicolor_mode;
+                ui_state.charset_multicolor_mode = loaded_data.charset_multicolor_mode;
+                ui_state.petscii_mode = loaded_data.petscii_mode;
                 let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
                 if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
                     ui_state.cursor_index = idx;

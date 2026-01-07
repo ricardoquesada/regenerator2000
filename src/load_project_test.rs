@@ -34,6 +34,9 @@ mod tests {
             sprites_cursor_address: None,
             charset_cursor_address: None,
             right_pane_visible: None,
+            sprite_multicolor_mode: false,
+            charset_multicolor_mode: false,
+            petscii_mode: crate::state::PetsciiMode::default(),
         };
 
         let json = serde_json::to_string(&project).unwrap();

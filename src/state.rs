@@ -16,6 +16,13 @@ pub enum Platform {
     CommodoreVIC20,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum PetsciiMode {
+    #[default]
+    Unshifted,
+    Shifted,
+}
+
 impl std::fmt::Display for Platform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -221,15 +228,24 @@ pub struct ProjectState {
     pub charset_cursor_address: Option<u16>,
     #[serde(default)]
     pub right_pane_visible: Option<String>,
+    #[serde(default)]
+    pub sprite_multicolor_mode: bool,
+    #[serde(default)]
+    pub charset_multicolor_mode: bool,
+    #[serde(default)]
+    pub petscii_mode: PetsciiMode,
 }
 
-pub type LoadedProjectData = (
-    Option<u16>,
-    Option<u16>,
-    Option<u16>,
-    Option<String>,
-    Option<u16>,
-);
+pub struct LoadedProjectData {
+    pub cursor_address: Option<u16>,
+    pub hex_dump_cursor_address: Option<u16>,
+    pub sprites_cursor_address: Option<u16>,
+    pub right_pane_visible: Option<String>,
+    pub charset_cursor_address: Option<u16>,
+    pub sprite_multicolor_mode: bool,
+    pub charset_multicolor_mode: bool,
+    pub petscii_mode: PetsciiMode,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ImmediateFormat {
@@ -387,7 +403,18 @@ impl AppState {
 
         self.load_system_assets();
         self.disassemble();
-        Ok((cursor_start, hex_cursor_start, None, None, None))
+        self.load_system_assets();
+        self.disassemble();
+        Ok(LoadedProjectData {
+            cursor_address: cursor_start,
+            hex_dump_cursor_address: hex_cursor_start,
+            sprites_cursor_address: None,
+            right_pane_visible: None,
+            charset_cursor_address: None,
+            sprite_multicolor_mode: false,
+            charset_multicolor_mode: false,
+            petscii_mode: PetsciiMode::default(),
+        })
     }
 
     pub fn load_project(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
@@ -419,13 +446,16 @@ impl AppState {
         self.last_saved_pointer = 0;
 
         self.disassemble();
-        Ok((
-            project.cursor_address,
-            project.hex_dump_cursor_address,
-            project.sprites_cursor_address,
-            project.right_pane_visible,
-            project.charset_cursor_address,
-        ))
+        Ok(LoadedProjectData {
+            cursor_address: project.cursor_address,
+            hex_dump_cursor_address: project.hex_dump_cursor_address,
+            sprites_cursor_address: project.sprites_cursor_address,
+            right_pane_visible: project.right_pane_visible,
+            charset_cursor_address: project.charset_cursor_address,
+            sprite_multicolor_mode: project.sprite_multicolor_mode,
+            charset_multicolor_mode: project.charset_multicolor_mode,
+            petscii_mode: project.petscii_mode,
+        })
     }
 
     pub fn save_project(
@@ -435,6 +465,9 @@ impl AppState {
         sprites_cursor_address: Option<u16>,
         right_pane_visible: Option<String>,
         charset_cursor_address: Option<u16>,
+        sprite_multicolor_mode: bool,
+        charset_multicolor_mode: bool,
+        petscii_mode: PetsciiMode,
     ) -> anyhow::Result<()> {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
@@ -464,6 +497,9 @@ impl AppState {
                 sprites_cursor_address,
                 right_pane_visible,
                 charset_cursor_address,
+                sprite_multicolor_mode,
+                charset_multicolor_mode,
+                petscii_mode,
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;
@@ -1038,7 +1074,16 @@ mod save_project_tests {
         app_state.project_path = Some(path.clone());
 
         app_state
-            .save_project(None, None, None, None, None)
+            .save_project(
+                None,
+                None,
+                None,
+                None,
+                None,
+                false,
+                false,
+                PetsciiMode::default(),
+            )
             .expect("Save failed");
 
         // 4. Read back JSON manually to inspect

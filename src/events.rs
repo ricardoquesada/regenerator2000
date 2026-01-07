@@ -272,6 +272,9 @@ pub fn run_app<B: Backend>(
                                     sprites_addr,
                                     Some(right_pane_str),
                                     charset_addr,
+                                    ui_state.sprite_multicolor_mode,
+                                    ui_state.charset_multicolor_mode,
+                                    ui_state.petscii_mode,
                                 ) {
                                     ui_state.set_status_message(format!("Error saving: {}", e));
                                 } else {
@@ -478,18 +481,27 @@ pub fn run_app<B: Backend>(
                                             e
                                         ));
                                     }
-                                    Ok((
-                                        loaded_cursor,
-                                        loaded_hex_cursor,
-                                        loaded_sprites_cursor,
-                                        loaded_right_pane,
-                                        loaded_charset_cursor,
-                                    )) => {
+                                    Ok(loaded_data) => {
                                         ui_state.set_status_message(format!(
                                             "Loaded: {:?}",
                                             selected_path
                                         ));
                                         ui_state.file_picker.close();
+
+                                        let loaded_cursor = loaded_data.cursor_address;
+                                        let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;
+                                        let loaded_sprites_cursor =
+                                            loaded_data.sprites_cursor_address;
+                                        let loaded_right_pane = loaded_data.right_pane_visible;
+                                        let loaded_charset_cursor =
+                                            loaded_data.charset_cursor_address;
+
+                                        // Load new modes
+                                        ui_state.sprite_multicolor_mode =
+                                            loaded_data.sprite_multicolor_mode;
+                                        ui_state.charset_multicolor_mode =
+                                            loaded_data.charset_multicolor_mode;
+                                        ui_state.petscii_mode = loaded_data.petscii_mode;
 
                                         // Auto-analyze if it's a binary file (not json)
                                         let is_project = selected_path
@@ -2048,6 +2060,9 @@ fn execute_menu_action(
                     sprites_addr,
                     Some(right_pane_str),
                     charset_addr,
+                    ui_state.sprite_multicolor_mode,  // Added
+                    ui_state.charset_multicolor_mode, // Added
+                    ui_state.petscii_mode,            // Added
                 ) {
                     ui_state.set_status_message(format!("Error saving: {}", e));
                 } else {
@@ -2452,15 +2467,16 @@ fn execute_menu_action(
             ui_state.status_message = "About Regenerator 2000".to_string();
         }
         MenuAction::TogglePetsciiMode => {
-            ui_state.petscii_mode = match ui_state.petscii_mode {
-                crate::ui_state::PetsciiMode::Unshifted => crate::ui_state::PetsciiMode::Shifted,
-                crate::ui_state::PetsciiMode::Shifted => crate::ui_state::PetsciiMode::Unshifted,
+            let new_mode = match ui_state.petscii_mode {
+                crate::state::PetsciiMode::Unshifted => crate::state::PetsciiMode::Shifted,
+                crate::state::PetsciiMode::Shifted => crate::state::PetsciiMode::Unshifted,
             };
-            let mode_str = match ui_state.petscii_mode {
-                crate::ui_state::PetsciiMode::Shifted => "Shifted",
-                crate::ui_state::PetsciiMode::Unshifted => "Unshifted",
+            ui_state.petscii_mode = new_mode;
+            let status = match new_mode {
+                crate::state::PetsciiMode::Shifted => "Shifted",
+                crate::state::PetsciiMode::Unshifted => "Unshifted",
             };
-            ui_state.set_status_message(format!("Hex Dump: {} PETSCII", mode_str));
+            ui_state.set_status_message(format!("Hex Dump: {} PETSCII", status));
         }
         MenuAction::ToggleSpriteMulticolor => {
             ui_state.sprite_multicolor_mode = !ui_state.sprite_multicolor_mode;
