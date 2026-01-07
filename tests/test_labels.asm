@@ -46,6 +46,49 @@
 	lda #$d0
 	sta $fb
 
+*=$1100
+	; should auto hi/lo
+	lda #$00
+	sta $f0
+	lda #$c0
+	sta $f1
+
+	; should auto hi/lo
+	ldx #$00
+	ldy #$c0
+	stx $c0
+	sty $c1
+
+	; should NOT auto hi/lo
+	ldx #$00
+	ldy #$c0
+	sta $c0
+	sta $c1
+
+	; should NOT auto hi/lo
+	lda #$00
+	sta $f8
+	lda #$c0
+	sta $fa
+
+	; should auto hi/lo
+	lda #$00
+	sta $0314
+	lda #$c0
+	sta $0315
+
+	; should auto hi/lo
+	ldx #$00
+	ldy #$c0
+	stx $fffe
+	sty $ffff
+
+	ldy #$c0
+	ldx #$00
+	sty $fffa
+	stx $fffb
+
+
 
 *=$1200
 	lda #00
