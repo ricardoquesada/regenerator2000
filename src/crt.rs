@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
     if data.len() < 0x40 {

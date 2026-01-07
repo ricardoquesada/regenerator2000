@@ -7,6 +7,7 @@ all:
 	64tass -o test_lohi_hilo.prg test_lohi_hilo.asm
 	64tass -o test_immediate_mode.prg test_immediate_mode.asm
 	64tass -i -o test_illegal_opcodes.prg test_illegal_opcodes.asm
+	64tass -i -o test_brk.prg test_brk.asm
 
 clean:
-	rm -f test_text.prg test_pointer.prg test_petscii.prg test_labels.prg test_arrows.prg test_lohi_hilo.prg test_immediate_mode.prg test_illegal_opcodes.prg
+	rm -f test_text.prg test_pointer.prg test_petscii.prg test_labels.prg test_arrows.prg test_lohi_hilo.prg test_immediate_mode.prg test_illegal_opcodes.prg test_brk.prg

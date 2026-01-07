@@ -703,7 +703,11 @@ impl Disassembler {
                                     operand: formatter.format_byte(byte_val),
                                     comment: String::new(),
                                     line_comment: None,
-                                    label: None,
+                                    label: self.get_label_name(
+                                        address.wrapping_add(1),
+                                        labels,
+                                        formatter,
+                                    ),
                                     opcode: None,
                                     show_bytes: true,
                                     target_address: None,
