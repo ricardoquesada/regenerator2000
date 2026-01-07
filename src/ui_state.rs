@@ -619,7 +619,7 @@ impl MenuState {
                     items: vec![
                         MenuItem::new(
                             "Toggle PETSCII Shifted/Unshifted",
-                            Some("p"),
+                            Some("m"),
                             Some(MenuAction::TogglePetsciiMode),
                         ),
                         MenuItem::new(

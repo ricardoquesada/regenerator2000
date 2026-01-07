@@ -101,7 +101,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 |                | **Set Lo/Hi Address**                                        | `<`                                     |
 |                | **Set Hi/Lo Address**                                        | `>`                                     |
 |                | **Analyze**                                                  | `Ctrl + a`                              |
-| **View**       | **Toggle PETSCII Shifted/Unshifted** (only in Hex Dump View) | `p`                                     |
+| **View**       | **Toggle PETSCII Shifted/Unshifted** (only in Hex Dump View) | `m`                                     |
 |                | **Toggle Multicolor Sprites** (only in Sprites View)         | `m`                                     |
 |                | **Toggle Multicolor Charset** (only in Charset View)         | `m`                                     |
 |                | **Toggle Hex Dump View**                                     | `Ctrl + 2`                              |

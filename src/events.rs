@@ -1372,15 +1372,7 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
-                    KeyCode::Char('p') => {
-                        if ui_state.active_pane == ActivePane::HexDump {
-                            handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                crate::ui_state::MenuAction::TogglePetsciiMode,
-                            )
-                        }
-                    }
+                    // p moved to m
                     KeyCode::Char('?') => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
@@ -1921,7 +1913,13 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     KeyCode::Char('m') => {
-                        if ui_state.active_pane == ActivePane::Sprites {
+                        if ui_state.active_pane == ActivePane::HexDump {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::TogglePetsciiMode,
+                            )
+                        } else if ui_state.active_pane == ActivePane::Sprites {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,

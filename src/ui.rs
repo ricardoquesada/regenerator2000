@@ -212,8 +212,7 @@ fn render_shortcuts_dialog(
         (":", "Line Comment"),
         ("l", "Label"),
         ("Ctrl+a", "Analyze"),
-        ("p", "Toggle Petscii Shifted/Unshifted (Hex Dump)"),
-        ("m", "Toggle Multicolor (Sprites/Charset)"),
+        ("m", "Toggle Petscii (Hex) / Multicolor (Sprites/Charset)"),
     ];
 
     let items: Vec<ListItem> = shortcuts

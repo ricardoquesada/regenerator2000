@@ -495,8 +495,8 @@
   "hex_dump_cursor_address": 12304,
   "sprites_cursor_address": 12416,
   "charset_cursor_address": 22536,
-  "right_pane_visible": "Sprites",
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
-  "charset_multicolor_mode": false,
+  "charset_multicolor_mode": true,
   "petscii_mode": "Unshifted"
 }
