@@ -535,7 +535,7 @@ impl MenuState {
                             Some(MenuAction::ExportProjectAs),
                         ),
                         MenuItem::separator(),
-                        MenuItem::new("Settings", None, Some(MenuAction::SystemSettings)),
+                        MenuItem::new("Settings", Some("Ctrl+,"), Some(MenuAction::SystemSettings)),
                         MenuItem::separator(),
                         MenuItem::new("Exit", Some("Ctrl+Q"), Some(MenuAction::Exit)),
                     ],
@@ -554,7 +554,7 @@ impl MenuState {
                         MenuItem::new("Hi/Lo Address", Some(">"), Some(MenuAction::SetHiLo)),
                         MenuItem::new("Text", Some("T"), Some(MenuAction::Text)),
                         MenuItem::new("Screencode", Some("S"), Some(MenuAction::Screencode)),
-                        MenuItem::new("Undefined", Some("Shift+U"), Some(MenuAction::Undefined)),
+                        MenuItem::new("Undefined", Some("?"), Some(MenuAction::Undefined)),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Next Imm. Mode Format",
@@ -580,7 +580,7 @@ impl MenuState {
                         MenuItem::separator(),
                         MenuItem::new(
                             "Document Settings",
-                            Some("Ctrl+P"),
+                            Some("Ctrl+Shift+D"),
                             Some(MenuAction::DocumentSettings),
                         ),
                     ],
