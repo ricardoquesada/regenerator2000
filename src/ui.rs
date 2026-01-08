@@ -1338,6 +1338,8 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
         end: usize,
         col: usize,
         target_addr: Option<u16>,
+        start_visible: bool,
+        end_visible: bool,
     }
 
     let end_view = offset + visible_height;
@@ -1406,17 +1408,11 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                     }
                 }
 
-                // Now refined_dst is the first line with that address (or the containing line).
+                // New Logic: Check visibility of Start or End.
+                let start_visible = src_idx >= offset && src_idx < end_view;
+                let end_visible = refined_dst >= offset && refined_dst < end_view;
 
-                let (low, high) = if src_idx < refined_dst {
-                    (src_idx, refined_dst)
-                } else {
-                    (refined_dst, src_idx)
-                };
-
-                // Check intersection with view
-                // Interval [low, high] overlaps [offset, end_view] if low <= end_view && high >= offset
-                if low <= end_view && high >= offset {
+                if start_visible || end_visible {
                     // Check if it's a relative/offset target
                     let relative_target = if dst_idx_opt == Some(refined_dst) {
                         // Exact match (start of line) -> Not relative unless the line itself is handled?
@@ -1441,29 +1437,10 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
         }
     }
 
-    // Step 1.5: Filter pass-through arrows and limit columns
-    let mut filtered_arrows = Vec::new();
-    let mut pass_through_arrow: Option<(usize, usize, Option<u16>)> = None;
+    // Step 1.5: No pass-through filter needed as we only collected visible arrows.
+    // Our new collection logic (start_visible || end_visible) AUTOMATICALLY EXCLUDES pass-throughs.
 
-    let view_start = offset;
-    let view_end = offset + visible_height;
-
-    for (src, dst, target_opt) in relevant_arrows {
-        let (low, high) = if src < dst { (src, dst) } else { (dst, src) };
-        if low < view_start && high >= view_end {
-            if pass_through_arrow.is_none() {
-                pass_through_arrow = Some((src, dst, target_opt));
-            }
-        } else {
-            filtered_arrows.push((src, dst, target_opt));
-        }
-    }
-
-    if let Some(pt) = pass_through_arrow {
-        filtered_arrows.push(pt);
-    }
-
-    let relevant_arrows = filtered_arrows;
+    let relevant_arrows = relevant_arrows;
 
     // Step 2: Assign columns to arrows
     let mut active_arrows: Vec<ArrowInfo> = Vec::new();
@@ -1472,18 +1449,54 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
     sorted_arrows.sort_by_key(|(src, dst, _)| (*src as isize - *dst as isize).abs());
 
     let max_allowed_cols = app_state.settings.max_arrow_columns;
+    let view_start = offset;
+    let view_end = offset + visible_height;
 
-    for (src, dst, target_opt) in sorted_arrows {
-        let (low, high) = if src < dst { (src, dst) } else { (dst, src) };
+    // Split into Full and Partial
+    let (full_arrows, partial_arrows): (Vec<_>, Vec<_>) =
+        sorted_arrows.into_iter().partition(|(src, dst, _)| {
+            let start_visible = *src >= view_start && *src < view_end;
+            let end_visible = *dst >= view_start && *dst < view_end;
+            start_visible && end_visible
+        });
 
-        // Try to assign the rightmost column (closest to address)
-        let mut col = (max_allowed_cols as isize) - 1;
+    // 1. Process Full Arrows: Prefer Inner (Rightmost) columns.
+    // Sorted by length ascending, so shortest get preferred columns first.
+    for (src, dst, target_opt) in full_arrows {
+        let (range_low, range_high) = if src < dst { (src, dst) } else { (dst, src) };
+
         let mut best_col = None;
-
+        // Search from Max down to 0 (Inner -> Outer)
+        let mut col = (max_allowed_cols as isize) - 1;
         while col >= 0 {
-            let has_conflict = active_arrows
-                .iter()
-                .any(|a| a.col == col as usize && !(a.end < low || a.start > high));
+            let has_conflict = active_arrows.iter().any(|a| {
+                if a.col != col as usize {
+                    return false;
+                }
+                let (a_low, a_high) = if a.start_visible && a.end_visible {
+                    if a.start < a.end {
+                        (a.start, a.end)
+                    } else {
+                        (a.end, a.start)
+                    }
+                } else if a.start_visible {
+                    if a.start < a.end {
+                        (a.start, a.start + 1)
+                    } else {
+                        (a.start.saturating_sub(1), a.start)
+                    }
+                } else if a.end_visible {
+                    if a.start < a.end {
+                        (a.end.saturating_sub(1), a.end)
+                    } else {
+                        (a.end, a.end + 1)
+                    }
+                } else {
+                    // Should not happen
+                    (0, 0)
+                };
+                !(a_high < range_low || a_low > range_high)
+            });
 
             if !has_conflict {
                 best_col = Some(col as usize);
@@ -1498,6 +1511,79 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 end: dst,
                 col: c,
                 target_addr: target_opt,
+                start_visible: true,
+                end_visible: true,
+            });
+        }
+    }
+
+    // 2. Process Partial Arrows: Prefer Outer (Leftmost) columns.
+    for (src, dst, target_opt) in partial_arrows {
+        let start_visible = src >= view_start && src < view_end;
+        let end_visible = dst >= view_start && dst < view_end;
+
+        let (range_low, range_high) = if start_visible {
+            if src < dst {
+                (src, src + 1)
+            } else {
+                (src.saturating_sub(1), src)
+            }
+        } else if end_visible {
+            if src < dst {
+                (dst.saturating_sub(1), dst)
+            } else {
+                (dst, dst + 1)
+            }
+        } else {
+            continue;
+        };
+
+        let mut best_col = None;
+        // Search from 0 up to Max (Outer -> Inner)
+        for col in 0..max_allowed_cols {
+            let has_conflict = active_arrows.iter().any(|a| {
+                if a.col != col {
+                    return false;
+                }
+                let (a_low, a_high) = if a.start_visible && a.end_visible {
+                    if a.start < a.end {
+                        (a.start, a.end)
+                    } else {
+                        (a.end, a.start)
+                    }
+                } else if a.start_visible {
+                    if a.start < a.end {
+                        (a.start, a.start + 1)
+                    } else {
+                        (a.start.saturating_sub(1), a.start)
+                    }
+                } else if a.end_visible {
+                    if a.start < a.end {
+                        (a.end.saturating_sub(1), a.end)
+                    } else {
+                        (a.end, a.end + 1)
+                    }
+                } else {
+                    // Should not happen
+                    (0, 0)
+                };
+                !(a_high < range_low || a_low > range_high)
+            });
+
+            if !has_conflict {
+                best_col = Some(col);
+                break;
+            }
+        }
+
+        if let Some(c) = best_col {
+            active_arrows.push(ArrowInfo {
+                start: src,
+                end: dst,
+                col: c,
+                target_addr: target_opt,
+                start_visible,
+                end_visible,
             });
         }
     }
@@ -1516,87 +1602,80 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
         }
 
         for arrow in &active_arrows {
-            let (low, high) = if arrow.start < arrow.end {
-                (arrow.start, arrow.end)
-            } else {
-                (arrow.end, arrow.start)
-            };
+            let c_idx = arrow.col * 2;
+            let is_down = arrow.start < arrow.end;
+            let is_relative_target = arrow.target_addr.is_some() && current_line == arrow.end;
 
-            if current_line >= low && current_line <= high {
-                let c_idx = arrow.col * 2;
-
-                let is_relative_target = arrow.target_addr.is_some() && current_line == arrow.end;
-
-                // If it's a relative target on its main line, we must be careful.
-                // If Jump Down: Arrow stops at relative sub-line (above main line). So do NOT draw anything on main line.
-                // If Jump Up: Arrow comes from below, passes through main line to reach relative sub-line above. Draw Vertical.
-
-                let skip_render = if is_relative_target {
-                    if arrow.start < arrow.end {
-                        // Jump Down: Ends above us.
-                        true
-                    } else {
-                        // Jump Up: Passes through us.
-                        false
-                    }
+            // Simplified Visibility Logic
+            if arrow.start_visible && arrow.end_visible {
+                // Fully Visible -> Draw normally including vertical line
+                let (low, high) = if is_down {
+                    (arrow.start, arrow.end)
                 } else {
-                    false
+                    (arrow.end, arrow.start)
                 };
 
-                if skip_render {
-                    continue;
+                // Vertical Line
+                if current_line > low && current_line < high {
+                    if chars[c_idx] == ' ' {
+                        chars[c_idx] = '│';
+                    } else if chars[c_idx] == '─' {
+                        // Crossing
+                        chars[c_idx] = '┼';
+                    }
                 }
 
-                // Vertical line
-                if current_line > low && current_line < high && chars[c_idx] == ' ' {
+                // If Jump Up Relative Target: We pass through the main line (vertical) to reach the comment line above
+                if is_relative_target
+                    && !is_down
+                    && current_line == arrow.end
+                    && chars[c_idx] == ' '
+                {
                     chars[c_idx] = '│';
                 }
 
-                // For Jump Up relative target, treating main line as "pass through" (vertical)
-                if is_relative_target && arrow.start > arrow.end {
-                    // Jump Up
-                    if chars[c_idx] == ' ' {
-                        chars[c_idx] = '│';
+                // Endpoints
+                if current_line == arrow.start {
+                    chars[c_idx] = if is_down { '┌' } else { '└' };
+                    chars[c_idx + 1] = '─';
+                } else if current_line == arrow.end && !is_relative_target {
+                    chars[c_idx] = if is_down { '└' } else { '┌' };
+                    chars[c_idx + 1] = '─';
+                }
+            } else if arrow.start_visible {
+                // Start Only -> Extended Stub (2 lines)
+                if current_line == arrow.start {
+                    chars[c_idx] = if is_down { '┌' } else { '└' };
+                    chars[c_idx + 1] = '─'; // Horizontal start
+                } else {
+                    // Check extension line
+                    if is_down {
+                        if current_line == arrow.start + 1 {
+                            chars[c_idx] = '▼';
+                        }
+                    } else {
+                        // Up
+                        if current_line == arrow.start.saturating_sub(1) {
+                            chars[c_idx] = '▲';
+                        }
                     }
                 }
-
-                if !is_relative_target {
-                    // Endpoints (Original Logic)
-                    if current_line == arrow.start {
-                        if arrow.start < arrow.end {
-                            chars[c_idx] = '┌';
-                            chars[c_idx + 1] = '─';
-                        } else {
-                            chars[c_idx] = '└';
-                            chars[c_idx + 1] = '─';
-                        }
-                    } else if current_line == arrow.end {
-                        if arrow.start < arrow.end {
-                            // Jump Down
-                            chars[c_idx] = '└';
-                            chars[c_idx + 1] = '─';
-                            // Arrow head
-                            if arrow.col == 0 {
-                                chars[c_idx + 1] = '►'; // Just pointing right
-                            }
-                        } else {
-                            // Jump Up
-                            chars[c_idx] = '┌';
-                            chars[c_idx + 1] = '─';
-                        }
-                    }
+            } else if arrow.end_visible {
+                // End Only -> Extended Stub (2 lines)
+                if current_line == arrow.end && !is_relative_target {
+                    chars[c_idx] = if is_down { '└' } else { '┌' };
+                    chars[c_idx + 1] = '─'; // Horizontal end
                 } else {
-                    // It IS a relative target.
-                    // If Jump Down: We skipped render above.
-                    // If Jump Up: We treated as pass through.
-                    // But we still need to handle the START point if current_line == arrow.start
-                    if current_line == arrow.start {
-                        if arrow.start < arrow.end {
-                            chars[c_idx] = '┌';
-                            chars[c_idx + 1] = '─';
-                        } else {
-                            chars[c_idx] = '└';
-                            chars[c_idx + 1] = '─';
+                    // Check extension line (entry)
+                    if is_down {
+                        // From Up -> Enters at end - 1
+                        if current_line == arrow.end.saturating_sub(1) {
+                            chars[c_idx] = '│';
+                        }
+                    } else {
+                        // From Down -> Enters at end + 1
+                        if current_line == arrow.end + 1 {
+                            chars[c_idx] = '│';
                         }
                     }
                 }
@@ -1605,21 +1684,24 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
 
         // Post-process for horizontal lines and crossings
         for arrow in &active_arrows {
-            // If relative target, arrow.end is NOT the end on the Main Line.
-            // But arrow.start IS on the Main Line.
             let is_relative_target = arrow.target_addr.is_some();
             let is_end_line = current_line == arrow.end;
+            let is_start_line = current_line == arrow.start;
 
-            let draw_crossing = if is_relative_target && is_end_line {
-                // Only if Jump Up (pass through) do we maybe cross?
-                // Actually if Jump Up, we draw vertical.
-                // If Jump Down, we skipped.
-                false
+            // Determine if we need to draw horizontal line connection to code
+            let draw_horizontal = if arrow.start_visible && arrow.end_visible {
+                is_start_line || (is_end_line && !is_relative_target)
+            } else if arrow.start_visible {
+                is_start_line
+            } else if arrow.end_visible {
+                // Draw horizontal for end line (connection to address)
+                // Note: If relative target, we might skip if logic dictates, but generally we want to show arrival.
+                is_end_line
             } else {
-                current_line == arrow.start || (current_line == arrow.end && !is_relative_target)
+                false
             };
 
-            if draw_crossing {
+            if draw_horizontal {
                 let c_idx = arrow.col * 2;
                 for c in chars.iter_mut().skip(c_idx + 1) {
                     if *c == ' ' {
@@ -1628,7 +1710,10 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                         *c = '┼';
                     }
                 }
-                if current_line == arrow.end && !is_relative_target {
+
+                // Arrow Head at the end of the line (rightmost) - indicating arrival at line
+                // Only if it's the Destination (End)
+                if is_end_line && arrow.end_visible {
                     let last = chars.len() - 1;
                     chars[last] = '►';
                 }

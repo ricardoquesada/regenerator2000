@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::state::{AppState, BlockType};
+    use crate::state::{AppState, BlockType, ProjectSaveContext};
 
     #[test]
     fn test_save_and_restore_cursor() {
@@ -22,16 +22,16 @@ mod tests {
         app_state.project_path = Some(path.clone());
 
         app_state
-            .save_project(
-                Some(start_cursor_addr),
-                Some(start_hex_cursor_addr),
-                None,
-                None,
-                None,
-                false,
-                false,
-                crate::state::PetsciiMode::default(),
-            )
+            .save_project(ProjectSaveContext {
+                cursor_address: Some(start_cursor_addr),
+                hex_dump_cursor_address: Some(start_hex_cursor_addr),
+                sprites_cursor_address: None,
+                right_pane_visible: None,
+                charset_cursor_address: None,
+                sprite_multicolor_mode: false,
+                charset_multicolor_mode: false,
+                petscii_mode: crate::state::PetsciiMode::default(),
+            })
             .expect("Failed to save project");
 
         // 3. Create fresh app state and load
@@ -61,7 +61,7 @@ mod tests {
         let json = format!(
             r#"{{
             "origin": 4096,
-            "raw_data_base64": "{}", 
+            "raw_data_base64": "{}",
             "blocks": [],
             "labels": {{}},
             "settings": {{

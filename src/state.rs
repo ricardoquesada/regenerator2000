@@ -257,6 +257,18 @@ pub enum ImmediateFormat {
     InvertedBinary,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProjectSaveContext {
+    pub cursor_address: Option<u16>,
+    pub hex_dump_cursor_address: Option<u16>,
+    pub sprites_cursor_address: Option<u16>,
+    pub right_pane_visible: Option<String>,
+    pub charset_cursor_address: Option<u16>,
+    pub sprite_multicolor_mode: bool,
+    pub charset_multicolor_mode: bool,
+    pub petscii_mode: PetsciiMode,
+}
+
 pub struct AppState {
     pub file_path: Option<PathBuf>,
     pub project_path: Option<PathBuf>,
@@ -458,17 +470,7 @@ impl AppState {
         })
     }
 
-    pub fn save_project(
-        &mut self,
-        cursor_address: Option<u16>,
-        hex_dump_cursor_address: Option<u16>,
-        sprites_cursor_address: Option<u16>,
-        right_pane_visible: Option<String>,
-        charset_cursor_address: Option<u16>,
-        sprite_multicolor_mode: bool,
-        charset_multicolor_mode: bool,
-        petscii_mode: PetsciiMode,
-    ) -> anyhow::Result<()> {
+    pub fn save_project(&mut self, ctx: ProjectSaveContext) -> anyhow::Result<()> {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
                 origin: self.origin,
@@ -492,14 +494,14 @@ impl AppState {
                 user_line_comments: self.user_line_comments.clone(),
                 immediate_value_formats: self.immediate_value_formats.clone(),
                 settings: self.settings,
-                cursor_address,
-                hex_dump_cursor_address,
-                sprites_cursor_address,
-                right_pane_visible,
-                charset_cursor_address,
-                sprite_multicolor_mode,
-                charset_multicolor_mode,
-                petscii_mode,
+                cursor_address: ctx.cursor_address,
+                hex_dump_cursor_address: ctx.hex_dump_cursor_address,
+                sprites_cursor_address: ctx.sprites_cursor_address,
+                right_pane_visible: ctx.right_pane_visible,
+                charset_cursor_address: ctx.charset_cursor_address,
+                sprite_multicolor_mode: ctx.sprite_multicolor_mode,
+                charset_multicolor_mode: ctx.charset_multicolor_mode,
+                petscii_mode: ctx.petscii_mode,
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;
@@ -1074,16 +1076,16 @@ mod save_project_tests {
         app_state.project_path = Some(path.clone());
 
         app_state
-            .save_project(
-                None,
-                None,
-                None,
-                None,
-                None,
-                false,
-                false,
-                PetsciiMode::default(),
-            )
+            .save_project(ProjectSaveContext {
+                cursor_address: None,
+                hex_dump_cursor_address: None,
+                sprites_cursor_address: None,
+                right_pane_visible: None,
+                charset_cursor_address: None,
+                sprite_multicolor_mode: false,
+                charset_multicolor_mode: false,
+                petscii_mode: PetsciiMode::default(),
+            })
             .expect("Save failed");
 
         // 4. Read back JSON manually to inspect

@@ -266,16 +266,18 @@ pub fn run_app<B: Backend>(
 
                                 let right_pane_str = format!("{:?}", ui_state.right_pane);
 
-                                if let Err(e) = app_state.save_project(
-                                    cursor_addr,
-                                    hex_addr,
-                                    sprites_addr,
-                                    Some(right_pane_str),
-                                    charset_addr,
-                                    ui_state.sprite_multicolor_mode,
-                                    ui_state.charset_multicolor_mode,
-                                    ui_state.petscii_mode,
-                                ) {
+                                if let Err(e) =
+                                    app_state.save_project(crate::state::ProjectSaveContext {
+                                        cursor_address: cursor_addr,
+                                        hex_dump_cursor_address: hex_addr,
+                                        sprites_cursor_address: sprites_addr,
+                                        right_pane_visible: Some(right_pane_str),
+                                        charset_cursor_address: charset_addr,
+                                        sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
+                                        charset_multicolor_mode: ui_state.charset_multicolor_mode,
+                                        petscii_mode: ui_state.petscii_mode,
+                                    })
+                                {
                                     ui_state.set_status_message(format!("Error saving: {}", e));
                                 } else {
                                     ui_state.set_status_message("Project saved");
@@ -2052,16 +2054,16 @@ fn execute_menu_action(
 
                 let right_pane_str = format!("{:?}", ui_state.right_pane);
 
-                if let Err(e) = app_state.save_project(
-                    cursor_addr,
-                    hex_addr,
-                    sprites_addr,
-                    Some(right_pane_str),
-                    charset_addr,
-                    ui_state.sprite_multicolor_mode,  // Added
-                    ui_state.charset_multicolor_mode, // Added
-                    ui_state.petscii_mode,            // Added
-                ) {
+                if let Err(e) = app_state.save_project(crate::state::ProjectSaveContext {
+                    cursor_address: cursor_addr,
+                    hex_dump_cursor_address: hex_addr,
+                    sprites_cursor_address: sprites_addr,
+                    right_pane_visible: Some(right_pane_str),
+                    charset_cursor_address: charset_addr,
+                    sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
+                    charset_multicolor_mode: ui_state.charset_multicolor_mode,
+                    petscii_mode: ui_state.petscii_mode,
+                }) {
                     ui_state.set_status_message(format!("Error saving: {}", e));
                 } else {
                     ui_state.set_status_message("Project saved");
