@@ -13,5 +13,15 @@ l0:
 	bmi l1
 	jsr l1
 	jmp l1
-l1:
+
+l1: 	jmp l1
 	jmp (l1)
+
+
+l2:	bne l2
+	bne l2
+	bne l2
+	bne l1
+	bne l0
+
+l3:	bne l3

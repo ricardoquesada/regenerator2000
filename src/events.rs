@@ -541,7 +541,11 @@ pub fn run_app<B: Backend>(
                                             if addr >= origin + padding {
                                                 let offset = addr - (origin + padding);
                                                 ui_state.sprites_cursor_index = offset / 64;
+                                            } else {
+                                                ui_state.sprites_cursor_index = 0;
                                             }
+                                        } else {
+                                            ui_state.sprites_cursor_index = 0;
                                         }
 
                                         if let Some(charset_addr) = loaded_charset_cursor {
@@ -553,7 +557,11 @@ pub fn run_app<B: Backend>(
                                             if addr >= aligned_start_addr {
                                                 let offset = addr - aligned_start_addr;
                                                 ui_state.charset_cursor_index = offset / 8;
+                                            } else {
+                                                ui_state.charset_cursor_index = 0;
                                             }
+                                        } else {
+                                            ui_state.charset_cursor_index = 0;
                                         }
 
                                         if let Some(pane_str) = loaded_right_pane {
@@ -579,6 +587,7 @@ pub fn run_app<B: Backend>(
                                         }
 
                                         // Restore Hex Cursor
+                                        // Restore or Reset Hex Cursor
                                         if let Some(hex_addr) = loaded_hex_cursor
                                             && !app_state.raw_data.is_empty()
                                         {
@@ -590,16 +599,26 @@ pub fn run_app<B: Backend>(
                                             if target >= aligned_origin {
                                                 let offset = target - aligned_origin;
                                                 let row = offset / 16;
-                                                // Ensure row is within bounds
-                                                // Max rows calculation:
-                                                let total_len =
-                                                    app_state.raw_data.len() + alignment_padding;
-                                                let max_rows = total_len.div_ceil(16);
-
-                                                if row < max_rows {
-                                                    ui_state.hex_cursor_index = row;
-                                                }
+                                                ui_state.hex_cursor_index = row;
+                                            } else {
+                                                ui_state.hex_cursor_index = 0;
                                             }
+                                        } else {
+                                            ui_state.hex_cursor_index = 0;
+                                        }
+
+                                        // Validate Hex Cursor Bounds
+                                        if !app_state.raw_data.is_empty() {
+                                            let origin = app_state.origin as usize;
+                                            let alignment_padding = origin % 16;
+                                            let total_len =
+                                                app_state.raw_data.len() + alignment_padding;
+                                            let max_rows = total_len.div_ceil(16);
+                                            if ui_state.hex_cursor_index >= max_rows {
+                                                ui_state.hex_cursor_index = 0;
+                                            }
+                                        } else {
+                                            ui_state.hex_cursor_index = 0;
                                         }
                                     }
                                 }

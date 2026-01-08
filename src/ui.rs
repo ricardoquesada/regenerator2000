@@ -1362,6 +1362,14 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             // Since disassembly can be large, linear scan for dst_idx for EVERY jump is O(Jumps * Lines).
             // Can we do better?
             // Use binary search if possible? app_state.disassembly is usually sorted by address.
+            // NEW: Filter out indirect jumps (e.g. JMP ($1234))
+            // These point to the address of the pointer, not the destination, creating confusing control flow arrows.
+            // NEW: Filter out indirect jumps (e.g. JMP ($1234))
+            // These point to the address of the pointer, not the destination, creating confusing control flow arrows.
+            if line.mnemonic.to_ascii_uppercase().starts_with("JMP") && line.operand.contains('(') {
+                continue;
+            }
+
             let dst_result = app_state
                 .disassembly
                 .binary_search_by_key(&target_addr, |l| l.address);
@@ -1453,7 +1461,7 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
     let view_end = offset + visible_height;
 
     // Split into Full and Partial
-    let (full_arrows, partial_arrows): (Vec<_>, Vec<_>) =
+    let (full_arrows, mut partial_arrows): (Vec<_>, Vec<_>) =
         sorted_arrows.into_iter().partition(|(src, dst, _)| {
             let start_visible = *src >= view_start && *src < view_end;
             let end_visible = *dst >= view_start && *dst < view_end;
@@ -1514,6 +1522,10 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 start_visible: true,
                 end_visible: true,
             });
+        } else {
+            // Fallback: If no column available for FULL arrow, treat as PARTIAL.
+            // Add to partial_arrows list for processing in next step.
+            partial_arrows.push((src, dst, target_opt));
         }
     }
 
@@ -1688,8 +1700,17 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             let is_end_line = current_line == arrow.end;
             let is_start_line = current_line == arrow.start;
 
+            let c_idx = arrow.col * 2;
+
+            // Self-Loop Logic
+            if arrow.start == arrow.end && current_line == arrow.start && arrow.start_visible {
+                chars[c_idx] = '∞';
+            }
+
             // Determine if we need to draw horizontal line connection to code
-            let draw_horizontal = if arrow.start_visible && arrow.end_visible {
+            let draw_horizontal = if arrow.start == arrow.end {
+                arrow.start_visible // Self-loop always draws horizontal if visible
+            } else if arrow.start_visible && arrow.end_visible {
                 is_start_line || (is_end_line && !is_relative_target)
             } else if arrow.start_visible {
                 is_start_line
@@ -1702,7 +1723,6 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             };
 
             if draw_horizontal {
-                let c_idx = arrow.col * 2;
                 for c in chars.iter_mut().skip(c_idx + 1) {
                     if *c == ' ' {
                         *c = '─';
