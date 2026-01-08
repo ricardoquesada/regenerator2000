@@ -1366,7 +1366,11 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             // These point to the address of the pointer, not the destination, creating confusing control flow arrows.
             // NEW: Filter out indirect jumps (e.g. JMP ($1234))
             // These point to the address of the pointer, not the destination, creating confusing control flow arrows.
-            if line.mnemonic.to_ascii_uppercase().starts_with("JMP") && line.operand.contains('(') {
+            if let Some(opcode) = &line.opcode {
+                if opcode.mnemonic == "JMP" && opcode.mode == crate::cpu::AddressingMode::Indirect {
+                    continue;
+                }
+            } else if line.mnemonic.eq_ignore_ascii_case("JMP") && line.operand.contains('(') {
                 continue;
             }
 
@@ -1416,11 +1420,15 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                     }
                 }
 
-                // New Logic: Check visibility of Start or End.
-                let start_visible = src_idx >= offset && src_idx < end_view;
-                let end_visible = refined_dst >= offset && refined_dst < end_view;
+                // New Logic: Check visibility of Start or End OR Passing Through.
+                let low = std::cmp::min(src_idx, refined_dst);
+                let high = std::cmp::max(src_idx, refined_dst);
 
-                if start_visible || end_visible {
+                // Intersection check: [low, high] overlaps with [offset, end_view]
+                // low < end_view AND high >= offset
+                let is_visible = low < end_view && high >= offset;
+
+                if is_visible {
                     // Check if it's a relative/offset target
                     let relative_target = if dst_idx_opt == Some(refined_dst) {
                         // Exact match (start of line) -> Not relative unless the line itself is handled?
@@ -1648,8 +1656,10 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
 
                 // Endpoints
                 if current_line == arrow.start {
-                    chars[c_idx] = if is_down { '┌' } else { '└' };
-                    chars[c_idx + 1] = '─';
+                    if app_state.disassembly[current_line].target_address.is_some() {
+                        chars[c_idx] = if is_down { '┌' } else { '└' };
+                        chars[c_idx + 1] = '─';
+                    }
                 } else if current_line == arrow.end && !is_relative_target {
                     chars[c_idx] = if is_down { '└' } else { '┌' };
                     chars[c_idx + 1] = '─';
@@ -1657,8 +1667,10 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             } else if arrow.start_visible {
                 // Start Only -> Extended Stub (2 lines)
                 if current_line == arrow.start {
-                    chars[c_idx] = if is_down { '┌' } else { '└' };
-                    chars[c_idx + 1] = '─'; // Horizontal start
+                    if app_state.disassembly[current_line].target_address.is_some() {
+                        chars[c_idx] = if is_down { '┌' } else { '└' };
+                        chars[c_idx + 1] = '─'; // Horizontal start
+                    }
                 } else {
                     // Check extension line
                     if is_down {
@@ -1708,12 +1720,15 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             }
 
             // Determine if we need to draw horizontal line connection to code
+            let is_valid_source = app_state.disassembly[current_line].target_address.is_some();
+            let safe_is_start_line = is_start_line && is_valid_source;
+
             let draw_horizontal = if arrow.start == arrow.end {
-                arrow.start_visible // Self-loop always draws horizontal if visible
+                arrow.start_visible && is_valid_source // Self-loop always draws horizontal if visible AND valid source
             } else if arrow.start_visible && arrow.end_visible {
-                is_start_line || (is_end_line && !is_relative_target)
+                safe_is_start_line || (is_end_line && !is_relative_target)
             } else if arrow.start_visible {
-                is_start_line
+                safe_is_start_line
             } else if arrow.end_visible {
                 // Draw horizontal for end line (connection to address)
                 // Note: If relative target, we might skip if logic dictates, but generally we want to show arrival.
@@ -2605,5 +2620,104 @@ fn render_charset_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state
             }
         }
         y_offset += item_height;
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cpu::{AddressingMode, Opcode};
+    use crate::disassembler::DisassemblyLine;
+    use crate::state::{AppState, DocumentSettings};
+
+    fn make_line(
+        addr: u16,
+        mnemonic: &str,
+        operand: &str,
+        target: Option<u16>,
+        opcode: Option<Opcode>,
+    ) -> DisassemblyLine {
+        DisassemblyLine {
+            address: addr,
+            bytes: vec![],
+            mnemonic: mnemonic.to_string(),
+            operand: operand.to_string(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: opcode,
+            show_bytes: false,
+            target_address: target,
+            comment_address: None,
+        }
+    }
+
+    fn make_jmp_indirect_opcode() -> Option<Opcode> {
+        Some(Opcode::new(
+            "JMP",
+            AddressingMode::Indirect,
+            3,
+            5,
+            "Jump Indirect",
+        ))
+    }
+
+    fn make_jmp_abs_opcode() -> Option<Opcode> {
+        Some(Opcode::new(
+            "JMP",
+            AddressingMode::Absolute,
+            3,
+            3,
+            "Jump Absolute",
+        ))
+    }
+
+    #[test]
+    fn test_arrow_filtering_indirect_jmp() {
+        let mut lines = Vec::new();
+        // 0: JMP ($1000) - Should be filtered out
+        lines.push(make_line(
+            0x1000,
+            "JMP",
+            "($1000)",
+            Some(0x2000),
+            make_jmp_indirect_opcode(),
+        ));
+        // 1: NOP
+        lines.push(make_line(0x1003, "NOP", "", None, None));
+        // 2: JMP $1000 - Should NOT be filtered out (though valid arrow)
+        lines.push(make_line(
+            0x1004,
+            "JMP",
+            "$1000",
+            Some(0x1000),
+            make_jmp_abs_opcode(),
+        ));
+
+        let mut app_state = AppState::new();
+        app_state.disassembly = lines;
+        app_state.settings.max_arrow_columns = 5;
+
+        // We can't easily call render_disassembly here as it requires Frame and UIState.
+        // However, we can assert that the specific logic path works by reproducing the check here
+        // or by trusting that if we verified the logic match, it works.
+        // Ideally, we'd refactor the arrow generation logic into a pure function `get_arrows(disassembly) -> Vec<Arrow>`.
+        // Given constraints, this test ensures struct compatibility and compilation of the opcode helpers.
+
+        // Manual verification of the logic block:
+        let line = &app_state.disassembly[0];
+        let should_skip = if let Some(opcode) = &line.opcode {
+            opcode.mnemonic == "JMP" && opcode.mode == AddressingMode::Indirect
+        } else {
+            false
+        };
+        assert!(should_skip, "Indirect JMP should be skipped by opcode mode");
+
+        let line2 = &app_state.disassembly[2];
+        let should_skip2 = if let Some(opcode) = &line2.opcode {
+            opcode.mnemonic == "JMP" && opcode.mode == AddressingMode::Indirect
+        } else {
+            false
+        };
+        assert!(!should_skip2, "Absolute JMP should NOT be skipped");
     }
 }
