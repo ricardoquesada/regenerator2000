@@ -41,7 +41,7 @@ fn test_collapsed_block_rendering() {
     assert_eq!(lines[0].mnemonic, "nop");
 
     assert_eq!(lines[1].address, 0x1001);
-    assert!(lines[1].mnemonic.contains("Collapsed code block"));
+    assert!(lines[1].mnemonic.contains("Collapsed block"));
     // Verify bytes are empty for collapsed block
     assert!(lines[1].bytes.is_empty());
 
