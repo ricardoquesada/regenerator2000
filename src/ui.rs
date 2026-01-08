@@ -213,6 +213,8 @@ fn render_shortcuts_dialog(
         ("l", "Label"),
         ("Ctrl+a", "Analyze"),
         ("m", "Toggle Petscii (Hex) / Multicolor (Sprites/Charset)"),
+        ("Ctrl+k", "Collapse Block"),
+        ("Ctrl+Shift+k", "Uncollapse Block"),
     ];
 
     let items: Vec<ListItem> = shortcuts
