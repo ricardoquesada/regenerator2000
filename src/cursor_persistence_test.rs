@@ -31,6 +31,7 @@ mod tests {
                 sprite_multicolor_mode: false,
                 charset_multicolor_mode: false,
                 petscii_mode: crate::state::PetsciiMode::default(),
+                collapsed_blocks: Vec::new(),
             })
             .expect("Failed to save project");
 

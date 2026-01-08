@@ -68,6 +68,7 @@ mod tests {
                 sprite_multicolor_mode: false,
                 charset_multicolor_mode: false,
                 petscii_mode: crate::state::PetsciiMode::default(),
+                collapsed_blocks: Vec::new(),
             })
             .expect("First save failed");
         let first_save_content =
@@ -90,6 +91,7 @@ mod tests {
                 sprite_multicolor_mode: false,
                 charset_multicolor_mode: false,
                 petscii_mode: crate::state::PetsciiMode::default(),
+                collapsed_blocks: Vec::new(),
             })
             .expect("Second save failed");
         let second_save_content =

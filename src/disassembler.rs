@@ -13,6 +13,8 @@ use tass::TassFormatter;
 #[cfg(test)]
 mod brk_tests;
 #[cfg(test)]
+mod collapsed_tests;
+#[cfg(test)]
 mod illegal_opcodes_tests;
 #[cfg(test)]
 mod label_placement_tests;
@@ -75,13 +77,43 @@ impl Disassembler {
 
         immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
         cross_refs: &BTreeMap<u16, Vec<u16>>,
+        collapsed_blocks: &[(usize, usize)],
     ) -> Vec<DisassemblyLine> {
         let formatter = Self::create_formatter(settings.assembler);
 
         let mut lines = Vec::new();
         let mut pc = 0;
 
+        // Convert collapsed blocks to a map for O(1) lookup? Or just iterate since it's likely small?
+        // Let's iterate for now, but sorting would be better if we had to do it often.
+        // Actually, we can just check if pc is in a collapsed block.
+
         while pc < data.len() {
+            // Check for collapsed block
+            if let Some((_start, end)) = collapsed_blocks.iter().find(|(s, _)| *s == pc) {
+                let start_addr = origin.wrapping_add(pc as u16);
+                let end_addr = origin.wrapping_add(*end as u16);
+
+                lines.push(DisassemblyLine {
+                    address: start_addr,
+                    bytes: vec![], // No bytes shown
+                    mnemonic: format!(
+                        "; Collapsed block from ${:04X}-${:04X}",
+                        start_addr, end_addr
+                    ),
+                    operand: String::new(),
+                    comment: String::new(),
+                    line_comment: None,
+                    label: None,
+                    opcode: None,
+                    show_bytes: false,
+                    target_address: None,
+                    comment_address: None,
+                });
+                pc = *end + 1;
+                continue;
+            }
+
             let address = origin.wrapping_add(pc as u16);
 
             let label_name = self.get_label_name(address, labels, formatter.as_ref());

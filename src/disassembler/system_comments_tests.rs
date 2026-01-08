@@ -34,6 +34,7 @@ fn test_system_comments_logic() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &[],
     );
 
     assert_eq!(lines.len(), 1);
@@ -84,6 +85,7 @@ fn test_system_comment_on_sta() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &[],
     );
 
     assert_eq!(lines.len(), 1);

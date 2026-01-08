@@ -234,6 +234,8 @@ pub struct ProjectState {
     pub charset_multicolor_mode: bool,
     #[serde(default)]
     pub petscii_mode: PetsciiMode,
+    #[serde(default)]
+    pub collapsed_blocks: Vec<(usize, usize)>,
 }
 
 pub struct LoadedProjectData {
@@ -267,6 +269,7 @@ pub struct ProjectSaveContext {
     pub sprite_multicolor_mode: bool,
     pub charset_multicolor_mode: bool,
     pub petscii_mode: PetsciiMode,
+    pub collapsed_blocks: Vec<(usize, usize)>,
 }
 
 pub struct AppState {
@@ -293,6 +296,7 @@ pub struct AppState {
     pub undo_stack: crate::commands::UndoStack,
     pub last_saved_pointer: usize,
     pub excluded_addresses: std::collections::HashSet<u16>,
+    pub collapsed_blocks: Vec<(usize, usize)>,
 }
 
 impl AppState {
@@ -317,6 +321,7 @@ impl AppState {
             undo_stack: crate::commands::UndoStack::new(),
             last_saved_pointer: 0,
             excluded_addresses: std::collections::HashSet::new(),
+            collapsed_blocks: Vec::new(),
         }
     }
 
@@ -423,8 +428,8 @@ impl AppState {
             sprites_cursor_address: None,
             right_pane_visible: None,
             charset_cursor_address: None,
-            sprite_multicolor_mode: false,
             charset_multicolor_mode: false,
+            sprite_multicolor_mode: false,
             petscii_mode: PetsciiMode::default(),
         })
     }
@@ -453,6 +458,7 @@ impl AppState {
         let (analyzed_labels, cross_refs) = crate::analyzer::analyze(self);
         self.labels = analyzed_labels;
         self.cross_refs = cross_refs;
+        self.collapsed_blocks = project.collapsed_blocks;
 
         self.undo_stack = crate::commands::UndoStack::new();
         self.last_saved_pointer = 0;
@@ -502,6 +508,7 @@ impl AppState {
                 sprite_multicolor_mode: ctx.sprite_multicolor_mode,
                 charset_multicolor_mode: ctx.charset_multicolor_mode,
                 petscii_mode: ctx.petscii_mode,
+                collapsed_blocks: ctx.collapsed_blocks,
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;
@@ -777,6 +784,7 @@ impl AppState {
             &self.user_line_comments,
             &self.immediate_value_formats,
             &self.cross_refs,
+            &self.collapsed_blocks,
         );
 
         // Add external label definitions at the top if enabled
@@ -820,9 +828,12 @@ impl AppState {
         self.disassembly.iter().position(|line| {
             let start = line.address;
             let len = line.bytes.len() as u16;
+
+            // For collapsed blocks or special lines with no bytes, we match if address is exact
             if len == 0 {
-                return false;
+                return start == address;
             }
+
             let end = start.wrapping_add(len);
 
             if start < end {
@@ -1085,6 +1096,7 @@ mod save_project_tests {
                 sprite_multicolor_mode: false,
                 charset_multicolor_mode: false,
                 petscii_mode: PetsciiMode::default(),
+                collapsed_blocks: Vec::new(),
             })
             .expect("Save failed");
 
@@ -1322,5 +1334,32 @@ mod analysis_tests {
         let l2 = app_state.labels.get(&0x2001);
         assert!(l2.is_some(), "Should generate label for external address");
         assert_eq!(l2.unwrap()[0].name, "a2001");
+    }
+    #[test]
+    fn test_get_line_index_with_collapsed_block() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        state.raw_data = vec![0xEA, 0xEA, 0xEA];
+        state.block_types = vec![BlockType::Code; 3];
+
+        // Collapse middle byte (offset 1, length 1)
+        state.collapsed_blocks.push((1, 1));
+        state.disassemble();
+
+        // Line 0: NOP ($1000)
+        // Line 1: Collapsed ($1001)
+        // Line 2: NOP ($1002)
+
+        // Test finding start of collapsed block
+        let idx = state.get_line_index_containing_address(0x1001);
+        assert_eq!(
+            idx,
+            Some(1),
+            "Should find index of collapsed block summary line"
+        );
+
+        // Test finding normal lines
+        assert_eq!(state.get_line_index_containing_address(0x1000), Some(0));
+        assert_eq!(state.get_line_index_containing_address(0x1002), Some(2));
     }
 }

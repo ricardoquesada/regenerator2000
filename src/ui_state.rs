@@ -65,6 +65,8 @@ pub enum MenuAction {
     ToggleSpriteMulticolor,
     ToggleCharsetView,
     ToggleCharsetMulticolor,
+    CollapseBlock,
+    UncollapseBlock,
 }
 
 impl MenuAction {
@@ -578,6 +580,17 @@ impl MenuState {
                             "Document Settings",
                             Some("Ctrl+Shift+D"),
                             Some(MenuAction::DocumentSettings),
+                        ),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Collapse Block",
+                            Some("Ctrl+K"),
+                            Some(MenuAction::CollapseBlock),
+                        ),
+                        MenuItem::new(
+                            "Uncollapse Block",
+                            Some("Ctrl+Shift+K"),
+                            Some(MenuAction::UncollapseBlock),
                         ),
                     ],
                 },

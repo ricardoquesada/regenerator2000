@@ -2624,10 +2624,9 @@ fn render_charset_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state
 }
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::cpu::{AddressingMode, Opcode};
     use crate::disassembler::DisassemblyLine;
-    use crate::state::{AppState, DocumentSettings};
+    use crate::state::AppState;
 
     fn make_line(
         addr: u16,
@@ -2644,7 +2643,7 @@ mod tests {
             comment: String::new(),
             line_comment: None,
             label: None,
-            opcode: opcode,
+            opcode,
             show_bytes: false,
             target_address: target,
             comment_address: None,
@@ -2673,25 +2672,20 @@ mod tests {
 
     #[test]
     fn test_arrow_filtering_indirect_jmp() {
-        let mut lines = Vec::new();
-        // 0: JMP ($1000) - Should be filtered out
-        lines.push(make_line(
-            0x1000,
-            "JMP",
-            "($1000)",
-            Some(0x2000),
-            make_jmp_indirect_opcode(),
-        ));
-        // 1: NOP
-        lines.push(make_line(0x1003, "NOP", "", None, None));
-        // 2: JMP $1000 - Should NOT be filtered out (though valid arrow)
-        lines.push(make_line(
-            0x1004,
-            "JMP",
-            "$1000",
-            Some(0x1000),
-            make_jmp_abs_opcode(),
-        ));
+        let lines = vec![
+            // 0: JMP ($1000) - Should be filtered out
+            make_line(
+                0x1000,
+                "JMP",
+                "($1000)",
+                Some(0x2000),
+                make_jmp_indirect_opcode(),
+            ),
+            // 1: NOP
+            make_line(0x1003, "NOP", "", None, None),
+            // 2: JMP $1000 - Should NOT be filtered out (though valid arrow)
+            make_line(0x1004, "JMP", "$1000", Some(0x1000), make_jmp_abs_opcode()),
+        ];
 
         let mut app_state = AppState::new();
         app_state.disassembly = lines;

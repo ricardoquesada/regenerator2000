@@ -37,6 +37,7 @@ mod tests {
             sprite_multicolor_mode: false,
             charset_multicolor_mode: false,
             petscii_mode: crate::state::PetsciiMode::default(),
+            collapsed_blocks: Vec::new(),
         };
 
         let json = serde_json::to_string(&project).unwrap();

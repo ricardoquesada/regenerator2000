@@ -13,7 +13,22 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         Vec::new()
     };
 
-    for line in external_lines.iter().chain(state.disassembly.iter()) {
+    // Regenerate disassembly without collapsed blocks for export
+    let full_disassembly = state.disassembler.disassemble(
+        &state.raw_data,
+        &state.block_types,
+        &state.labels,
+        state.origin,
+        &state.settings,
+        &state.system_comments,
+        &state.user_side_comments,
+        &state.user_line_comments,
+        &state.immediate_value_formats,
+        &state.cross_refs,
+        &[], // Ignore collapsed_blocks
+    );
+
+    for line in external_lines.iter().chain(full_disassembly.iter()) {
         // Special case: Header (starts with ;)
         if line.mnemonic.starts_with(';') {
             output.push_str(&format!("{}\n", line.mnemonic));
@@ -788,6 +803,58 @@ mod tests {
             "Output missing @w prefix for AbsoluteX ZP target. content: {}",
             content
         );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_export_ignores_collapsed_blocks() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+
+        // Data: 3 NOPs
+        state.raw_data = vec![0xEA, 0xEA, 0xEA];
+        state.block_types = vec![crate::state::BlockType::Code; 3];
+
+        // Collapse the 2nd NOP (offset 1)
+        state.collapsed_blocks.push((1, 1)); // Single byte collapsed
+
+        // Manually trigger disassemble to update state (though export regenerates it)
+        state.disassemble();
+
+        // Verify state.disassembly has the collapsed block (summary line)
+        // 0: NOP
+        // 1: Collapsed...
+        // 2: NOP
+        assert_eq!(state.disassembly.len(), 3);
+        assert!(state.disassembly[1].mnemonic.contains("Collapsed"));
+
+        let file_name = "test_export_collapsed.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        println!("Content:\n{}", content);
+
+        // Export should regenerate WITHOUT collapsed blocks, so we expect 3 NOPs.
+        // It should NOT contain "Collapsed"
+        assert!(
+            !content.contains("Collapsed"),
+            "Export should not contain collapsed block summary"
+        );
+
+        // Should contain 3 NOPs (or rather, the bytes for 3 NOPs)
+        // Since we are mocking, we rely on disassemble logic.
+        // Disassembler for 3 NOPs -> 3 lines of NOP.
+        // So content should have NOP appearing 3 times?
+        // Let's just count NOPs.
+        let nop_count = content.to_lowercase().matches("nop").count();
+        assert_eq!(nop_count, 3, "Should export all 3 NOPs");
 
         let _ = std::fs::remove_file(&path);
     }

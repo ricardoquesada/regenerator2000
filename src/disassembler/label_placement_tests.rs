@@ -39,6 +39,7 @@ fn test_tass_label_placement_on_text() {
         &BTreeMap::new(), // user_line_comments
         &BTreeMap::new(), // immediate_value_formats
         &cross_refs,      // cross_refs
+        &[],
     );
 
     // Expected Tass output:
@@ -108,6 +109,7 @@ fn test_tass_label_placement_on_screencode() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &[],
     );
 
     // Expected Tass output:

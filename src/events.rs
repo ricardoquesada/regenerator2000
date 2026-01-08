@@ -276,6 +276,7 @@ pub fn run_app<B: Backend>(
                                         sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
                                         charset_multicolor_mode: ui_state.charset_multicolor_mode,
                                         petscii_mode: ui_state.petscii_mode,
+                                        collapsed_blocks: app_state.collapsed_blocks.clone(),
                                     })
                                 {
                                     ui_state.set_status_message(format!("Error saving: {}", e));
@@ -1572,6 +1573,22 @@ pub fn run_app<B: Backend>(
                         );
                     }
 
+                    KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::UncollapseBlock,
+                            );
+                        } else {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::CollapseBlock,
+                            );
+                        }
+                    }
+
                     // Vim-like G command
                     KeyCode::Char('G')
                         if !key
@@ -2114,6 +2131,7 @@ fn execute_menu_action(
                     sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
                     charset_multicolor_mode: ui_state.charset_multicolor_mode,
                     petscii_mode: ui_state.petscii_mode,
+                    collapsed_blocks: app_state.collapsed_blocks.clone(),
                 }) {
                     ui_state.set_status_message(format!("Error saving: {}", e));
                 } else {
@@ -2799,6 +2817,75 @@ fn execute_menu_action(
                     command.apply(app_state);
                     app_state.undo_stack.push(command);
                     app_state.disassemble();
+                }
+            }
+        }
+        MenuAction::CollapseBlock => {
+            if let Some(start_index) = ui_state.selection_start {
+                let start_row = start_index.min(ui_state.cursor_index);
+                let end_row = start_index.max(ui_state.cursor_index);
+
+                let start_line = &app_state.disassembly[start_row];
+                let start_addr = start_line.address;
+
+                // For end address, we need to handle if the last selected line is itself a collapsed block
+                let end_line = &app_state.disassembly[end_row];
+                let offset = (end_line.address as usize).wrapping_sub(app_state.origin as usize);
+
+                let end_addr = if let Some((_, end_offset)) = app_state
+                    .collapsed_blocks
+                    .iter()
+                    .find(|(s, _)| *s == offset)
+                {
+                    (app_state.origin as usize + end_offset) as u16
+                } else {
+                    end_line
+                        .address
+                        .wrapping_add(end_line.bytes.len() as u16)
+                        .wrapping_sub(1)
+                };
+
+                let start_offset = (start_addr as usize).wrapping_sub(app_state.origin as usize);
+                let end_offset = (end_addr as usize).wrapping_sub(app_state.origin as usize);
+
+                if start_offset < end_offset {
+                    let command = crate::commands::Command::CollapseBlock {
+                        range: (start_offset, end_offset),
+                    };
+                    command.apply(app_state);
+                    app_state.undo_stack.push(command);
+
+                    ui_state.selection_start = None;
+                    ui_state.is_visual_mode = false;
+                    app_state.disassemble();
+                    ui_state.set_status_message("Block Collapsed");
+
+                    // Move cursor to start of collapsed block
+                    if let Some(idx) = app_state.get_line_index_containing_address(start_addr) {
+                        ui_state.cursor_index = idx;
+                    }
+                } else {
+                    ui_state.set_status_message("Invalid Selection Range");
+                }
+            } else {
+                ui_state.set_status_message("Select a range to collapse");
+            }
+        }
+        MenuAction::UncollapseBlock => {
+            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                let offset = (line.address as usize).wrapping_sub(app_state.origin as usize);
+                if let Some(&range) = app_state
+                    .collapsed_blocks
+                    .iter()
+                    .find(|(s, _)| *s == offset)
+                {
+                    let command = crate::commands::Command::UncollapseBlock { range };
+                    command.apply(app_state);
+                    app_state.undo_stack.push(command);
+                    app_state.disassemble();
+                    ui_state.set_status_message("Block Uncollapsed");
+                } else {
+                    ui_state.set_status_message("Not a collapsed block");
                 }
             }
         }

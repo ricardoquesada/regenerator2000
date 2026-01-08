@@ -39,11 +39,23 @@ pub enum Command {
         new_format: Option<ImmediateFormat>,
         old_format: Option<ImmediateFormat>,
     },
+    CollapseBlock {
+        range: (usize, usize),
+    },
+    UncollapseBlock {
+        range: (usize, usize),
+    },
 }
 
 impl Command {
     pub fn apply(&self, state: &mut AppState) {
         match self {
+            Command::CollapseBlock { range } => {
+                state.collapsed_blocks.push(*range);
+            }
+            Command::UncollapseBlock { range } => {
+                state.collapsed_blocks.retain(|r| r != range);
+            }
             Command::SetBlockType {
                 range,
                 new_type,
@@ -209,6 +221,12 @@ impl Command {
                 } else {
                     state.immediate_value_formats.remove(address);
                 }
+            }
+            Command::CollapseBlock { range } => {
+                state.collapsed_blocks.retain(|r| r != range);
+            }
+            Command::UncollapseBlock { range } => {
+                state.collapsed_blocks.push(*range);
             }
         }
     }
