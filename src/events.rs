@@ -1090,14 +1090,18 @@ pub fn run_app<B: Backend>(
                             crate::ui_state::MenuAction::Exit,
                         );
                     }
-                    KeyCode::Char('/') => {
+                    KeyCode::Char('/') if key.modifiers.is_empty() => {
                         ui_state.vim_search_active = true;
                         ui_state.vim_search_input.clear();
                     }
-                    KeyCode::Char('n') => {
+                    KeyCode::Char('n') if key.modifiers.is_empty() => {
                         perform_search(&mut app_state, &mut ui_state, true);
                     }
-                    KeyCode::Char('N') => {
+                    KeyCode::Char('N')
+                        if !key
+                            .modifiers
+                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                    {
                         perform_search(&mut app_state, &mut ui_state, false);
                     }
                     KeyCode::F(10) => {
@@ -1247,7 +1251,7 @@ pub fn run_app<B: Backend>(
                             }
                         }
                     }
-                    KeyCode::Char('u') => {
+                    KeyCode::Char('u') if key.modifiers.is_empty() => {
                         handle_menu_action(
                             &mut app_state,
                             &mut ui_state,
@@ -1292,7 +1296,7 @@ pub fn run_app<B: Backend>(
                                     crate::ui_state::MenuAction::JumpToLine,
                                 );
                             }
-                        } else {
+                        } else if key.modifiers.is_empty() {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -1339,7 +1343,7 @@ pub fn run_app<B: Backend>(
                     }
 
                     // Data Conversion Shortcuts
-                    KeyCode::Char('c') => {
+                    KeyCode::Char('c') if key.modifiers.is_empty() => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,
@@ -1348,7 +1352,7 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
-                    KeyCode::Char('b') => {
+                    KeyCode::Char('b') if key.modifiers.is_empty() => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,
@@ -1357,7 +1361,7 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
-                    KeyCode::Char('w') => {
+                    KeyCode::Char('w') if key.modifiers.is_empty() => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,
@@ -1366,7 +1370,7 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
-                    KeyCode::Char('a') => {
+                    KeyCode::Char('a') if key.modifiers.is_empty() => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,
@@ -1375,7 +1379,7 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
-                    KeyCode::Char('t') => {
+                    KeyCode::Char('t') if key.modifiers.is_empty() => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,
@@ -1384,7 +1388,7 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
-                    KeyCode::Char('s') => {
+                    KeyCode::Char('s') if key.modifiers.is_empty() => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,
@@ -1394,7 +1398,11 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     // p moved to m
-                    KeyCode::Char('?') => {
+                    KeyCode::Char('?')
+                        if !key
+                            .modifiers
+                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                    {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,
@@ -1403,7 +1411,11 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
-                    KeyCode::Char('<') => {
+                    KeyCode::Char('<')
+                        if !key
+                            .modifiers
+                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                    {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,
@@ -1412,7 +1424,11 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
-                    KeyCode::Char('>') => {
+                    KeyCode::Char('>')
+                        if !key
+                            .modifiers
+                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                    {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,
@@ -1421,7 +1437,7 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
-                    KeyCode::Char(';') => {
+                    KeyCode::Char(';') if key.modifiers.is_empty() => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,
@@ -1430,7 +1446,11 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
-                    KeyCode::Char(':') => {
+                    KeyCode::Char(':')
+                        if !key
+                            .modifiers
+                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                    {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,
@@ -1441,7 +1461,7 @@ pub fn run_app<B: Backend>(
                     }
 
                     // Label
-                    KeyCode::Char('l') => {
+                    KeyCode::Char('l') if key.modifiers.is_empty() => {
                         if ui_state.active_pane == ActivePane::Charset {
                             let origin = app_state.origin as usize;
                             let base_alignment = 0x400;
@@ -1509,7 +1529,11 @@ pub fn run_app<B: Backend>(
                     }
 
                     // Visual Mode Toggle
-                    KeyCode::Char('V') => {
+                    KeyCode::Char('V')
+                        if !key
+                            .modifiers
+                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                    {
                         if !app_state.raw_data.is_empty() {
                             if ui_state.active_pane == ActivePane::Disassembly {
                                 ui_state.is_visual_mode = !ui_state.is_visual_mode;
@@ -1528,7 +1552,7 @@ pub fn run_app<B: Backend>(
                         }
                     }
 
-                    KeyCode::Char('d') => {
+                    KeyCode::Char('d') if key.modifiers.is_empty() => {
                         handle_menu_action(
                             &mut app_state,
                             &mut ui_state,
@@ -1536,7 +1560,11 @@ pub fn run_app<B: Backend>(
                         );
                     }
 
-                    KeyCode::Char('D') => {
+                    KeyCode::Char('D')
+                        if !key
+                            .modifiers
+                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                    {
                         handle_menu_action(
                             &mut app_state,
                             &mut ui_state,
@@ -1545,7 +1573,11 @@ pub fn run_app<B: Backend>(
                     }
 
                     // Vim-like G command
-                    KeyCode::Char('G') => {
+                    KeyCode::Char('G')
+                        if !key
+                            .modifiers
+                            .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+                    {
                         let entered_number = ui_state.input_buffer.parse::<usize>().unwrap_or(0);
                         let is_buffer_empty = ui_state.input_buffer.is_empty();
                         ui_state.input_buffer.clear();
@@ -1933,7 +1965,7 @@ pub fn run_app<B: Backend>(
                             }
                         }
                     }
-                    KeyCode::Char('m') => {
+                    KeyCode::Char('m') if key.modifiers.is_empty() => {
                         if ui_state.active_pane == ActivePane::HexDump {
                             handle_menu_action(
                                 &mut app_state,
