@@ -48,12 +48,57 @@ pub struct Theme {
     pub highlight_fg: Color, // e.g. bold yellow/green text
     pub highlight_bg: Color,
     pub error_fg: Color,
+
+    // Block Types (Foregrounds)
+    pub block_code_fg: Color,
+    pub block_data_byte_fg: Color,
+    pub block_data_word_fg: Color,
+    pub block_address_fg: Color,
+    pub block_text_fg: Color,
+    pub block_screencode_fg: Color,
+    pub block_lohi_fg: Color,
+    pub block_hilo_fg: Color,
+    pub block_external_file_fg: Color,
+    pub block_undefined_fg: Color,
+
+    // Block Types (Backgrounds)
+    pub block_code_bg: Color,
+    pub block_data_byte_bg: Color,
+    pub block_data_word_bg: Color,
+    pub block_address_bg: Color,
+    pub block_text_bg: Color,
+    pub block_screencode_bg: Color,
+    pub block_lohi_bg: Color,
+    pub block_hilo_bg: Color,
+    pub block_external_file_bg: Color,
+    pub block_undefined_bg: Color,
 }
 
 impl Default for Theme {
     fn default() -> Self {
         Self::dark()
     }
+}
+
+// Solarized Palette
+struct Solarized;
+impl Solarized {
+    const BASE03: Color = Color::Rgb(0, 43, 54);
+    const BASE02: Color = Color::Rgb(7, 54, 66);
+    const BASE01: Color = Color::Rgb(88, 110, 117);
+    const BASE00: Color = Color::Rgb(101, 123, 131);
+    const BASE0: Color = Color::Rgb(131, 148, 150);
+    const BASE1: Color = Color::Rgb(147, 161, 161);
+    const BASE2: Color = Color::Rgb(238, 232, 213);
+    const BASE3: Color = Color::Rgb(253, 246, 227);
+    const YELLOW: Color = Color::Rgb(181, 137, 0);
+    const ORANGE: Color = Color::Rgb(203, 75, 22);
+    const RED: Color = Color::Rgb(220, 50, 47);
+    const MAGENTA: Color = Color::Rgb(211, 54, 130);
+    const VIOLET: Color = Color::Rgb(108, 113, 196);
+    const BLUE: Color = Color::Rgb(38, 139, 210);
+    const CYAN: Color = Color::Rgb(42, 161, 152);
+    const GREEN: Color = Color::Rgb(133, 153, 0);
 }
 
 impl Theme {
@@ -67,93 +112,136 @@ impl Theme {
     pub fn dark() -> Self {
         Self {
             name: "Dark",
-            background: Color::Reset,
-            foreground: Color::White,
-            border_active: Color::Green,
-            border_inactive: Color::DarkGray,
-            selection_bg: Color::DarkGray,
-            selection_fg: Color::White,
-            status_bar_bg: Color::Rgb(45, 45, 45),
-            status_bar_fg: Color::Rgb(220, 220, 220),
+            background: Solarized::BASE03,
+            foreground: Solarized::BASE0,
+            border_active: Solarized::BLUE,
+            border_inactive: Solarized::BASE01,
+            selection_bg: Solarized::BASE02,
+            selection_fg: Solarized::BASE1,
+            status_bar_bg: Solarized::BASE02,
+            status_bar_fg: Solarized::BASE1,
 
-            address: Color::Yellow,
-            bytes: Color::Gray,
-            mnemonic: Color::Cyan, // Or a lighter blue
-            operand: Color::White,
-            label: Color::Magenta,
-            label_def: Color::Magenta,
-            comment: Color::Gray, // Or DarkGray
-            arrow: Color::Gray,
-            collapsed_block: Color::Rgb(100, 160, 255), // Lightish Blue to distinguish from Gray comments
-            collapsed_block_bg: Color::Rgb(30, 30, 40), // Very dark blue/gray
+            address: Solarized::YELLOW,
+            bytes: Solarized::BASE01,
+            mnemonic: Solarized::BLUE,
+            operand: Solarized::BASE1,
+            label: Solarized::MAGENTA,
+            label_def: Solarized::MAGENTA,
+            comment: Solarized::BASE01,
+            arrow: Solarized::BASE01,
+            collapsed_block: Solarized::BLUE,
+            collapsed_block_bg: Solarized::BASE02,
 
-            hex_bytes: Color::White,
-            hex_ascii: Color::Green,
+            hex_bytes: Solarized::BASE1,
+            hex_ascii: Solarized::CYAN,
 
-            dialog_bg: Color::DarkGray,
-            dialog_fg: Color::White,
-            dialog_border: Color::White,
-            menu_bg: Color::Rgb(45, 128, 128),
-            menu_fg: Color::Rgb(240, 240, 240),
-            menu_selected_bg: Color::Rgb(32, 64, 64),
-            menu_selected_fg: Color::White,
-            menu_disabled_fg: Color::Gray,
+            dialog_bg: Solarized::BASE02,
+            dialog_fg: Solarized::BASE0,
+            dialog_border: Solarized::BASE1,
+            menu_bg: Solarized::BASE02,
+            menu_fg: Solarized::BASE0,
+            menu_selected_bg: Solarized::BASE01,
+            menu_selected_fg: Solarized::BASE3,
+            menu_disabled_fg: Solarized::BASE01,
 
-            sprite_multicolor_1: Color::Red,
-            sprite_multicolor_2: Color::LightBlue,
-            charset_multicolor_1: Color::Rgb(200, 100, 100), // Distinct from sprite
-            charset_multicolor_2: Color::Rgb(100, 200, 100),
+            sprite_multicolor_1: Solarized::RED,
+            sprite_multicolor_2: Solarized::BLUE,
+            charset_multicolor_1: Solarized::ORANGE,
+            charset_multicolor_2: Solarized::GREEN,
 
-            highlight_fg: Color::Yellow,
-            highlight_bg: Color::DarkGray,
-            error_fg: Color::Red,
+            highlight_fg: Solarized::ORANGE,
+            highlight_bg: Solarized::BASE02,
+            error_fg: Solarized::RED,
+
+            // Blocks - Dark (Bg is slightly lighter than proper background)
+            block_code_fg: Solarized::BLUE,
+            block_code_bg: Solarized::BASE02,
+            block_data_byte_fg: Solarized::CYAN,
+            block_data_byte_bg: Solarized::BASE02,
+            block_data_word_fg: Solarized::VIOLET,
+            block_data_word_bg: Solarized::BASE02,
+            block_address_fg: Solarized::YELLOW,
+            block_address_bg: Solarized::BASE02,
+            block_text_fg: Solarized::GREEN,
+            block_text_bg: Solarized::BASE02,
+            block_screencode_fg: Solarized::ORANGE,
+            block_screencode_bg: Solarized::BASE02,
+            block_lohi_fg: Solarized::RED,
+            block_lohi_bg: Solarized::BASE02,
+            block_hilo_fg: Solarized::MAGENTA,
+            block_hilo_bg: Solarized::BASE02,
+            block_external_file_fg: Solarized::BASE1,
+            block_external_file_bg: Solarized::BASE02,
+            block_undefined_fg: Solarized::BASE01,
+            block_undefined_bg: Solarized::BASE02,
         }
     }
 
     pub fn light() -> Self {
-        // VS Code Light ish
         Self {
             name: "Light",
-            background: Color::White,
-            foreground: Color::Black,
-            border_active: Color::Blue,
-            border_inactive: Color::Gray,
-            selection_bg: Color::Rgb(220, 220, 220), // Light Gray
-            selection_fg: Color::Black,
-            status_bar_bg: Color::Rgb(0, 122, 204), // VS Code Blue
-            status_bar_fg: Color::White,
+            background: Solarized::BASE3,
+            foreground: Solarized::BASE00,
+            border_active: Solarized::BLUE,
+            border_inactive: Solarized::BASE1,
+            selection_bg: Solarized::BASE2,
+            selection_fg: Solarized::BASE01,
+            status_bar_bg: Solarized::BASE2,
+            status_bar_fg: Solarized::BASE01,
 
-            address: Color::Rgb(100, 100, 100), // Dark Gray
-            bytes: Color::Rgb(100, 100, 100),
-            mnemonic: Color::Rgb(0, 0, 255), // Blue
-            operand: Color::Black,
-            label: Color::Rgb(128, 0, 128), // Purple
-            label_def: Color::Rgb(128, 0, 128),
-            comment: Color::Rgb(0, 128, 0), // Green for comments
-            arrow: Color::DarkGray,
-            collapsed_block: Color::Blue, // Distinct from Green comments
-            collapsed_block_bg: Color::Rgb(240, 240, 255), // Very light blue/white
+            address: Solarized::BASE01,
+            bytes: Solarized::BASE1,
+            mnemonic: Solarized::BLUE,
+            operand: Solarized::BASE00,
+            label: Solarized::MAGENTA,
+            label_def: Solarized::MAGENTA,
+            comment: Solarized::BASE1,
+            arrow: Solarized::BASE1,
+            collapsed_block: Solarized::BLUE,
+            collapsed_block_bg: Solarized::BASE2,
 
-            hex_bytes: Color::Black,
-            hex_ascii: Color::Rgb(0, 0, 255), // Blue for ASCII
+            hex_bytes: Solarized::BASE00,
+            hex_ascii: Solarized::CYAN,
 
-            dialog_bg: Color::White,
-            dialog_fg: Color::Black,
-            dialog_border: Color::Black,
-            menu_bg: Color::Rgb(240, 240, 240),
-            menu_fg: Color::Black,
-            menu_selected_bg: Color::Rgb(0, 122, 204),
-            menu_selected_fg: Color::White,
-            menu_disabled_fg: Color::Gray,
+            dialog_bg: Solarized::BASE2,
+            dialog_fg: Solarized::BASE00,
+            dialog_border: Solarized::BASE01,
+            menu_bg: Solarized::BASE2,
+            menu_fg: Solarized::BASE00,
+            menu_selected_bg: Solarized::BASE1,
+            menu_selected_fg: Solarized::BASE3,
+            menu_disabled_fg: Solarized::BASE1,
 
-            sprite_multicolor_1: Color::Red,
-            sprite_multicolor_2: Color::Blue,
-            charset_multicolor_1: Color::Red,
-            charset_multicolor_2: Color::Blue,
+            sprite_multicolor_1: Solarized::RED,
+            sprite_multicolor_2: Solarized::BLUE,
+            charset_multicolor_1: Solarized::ORANGE,
+            charset_multicolor_2: Solarized::GREEN,
 
-            highlight_fg: Color::Rgb(255, 140, 0), // Dark Orange
-            highlight_bg: Color::Rgb(240, 240, 240),
-            error_fg: Color::Red,
+            highlight_fg: Solarized::ORANGE,
+            highlight_bg: Solarized::BASE2,
+            error_fg: Solarized::RED,
+
+            // Blocks - Light (Bg is slightly darker than proper background)
+            block_code_fg: Solarized::BLUE,
+            block_code_bg: Solarized::BASE2,
+            block_data_byte_fg: Solarized::CYAN,
+            block_data_byte_bg: Solarized::BASE2,
+            block_data_word_fg: Solarized::VIOLET,
+            block_data_word_bg: Solarized::BASE2,
+            block_address_fg: Solarized::YELLOW,
+            block_address_bg: Solarized::BASE2,
+            block_text_fg: Solarized::GREEN,
+            block_text_bg: Solarized::BASE2,
+            block_screencode_fg: Solarized::ORANGE,
+            block_screencode_bg: Solarized::BASE2,
+            block_lohi_fg: Solarized::RED,
+            block_lohi_bg: Solarized::BASE2,
+            block_hilo_fg: Solarized::MAGENTA,
+            block_hilo_bg: Solarized::BASE2,
+            block_external_file_fg: Solarized::BASE01,
+            block_external_file_bg: Solarized::BASE2,
+            block_undefined_fg: Solarized::BASE1,
+            block_undefined_bg: Solarized::BASE2,
         }
     }
 
