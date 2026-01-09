@@ -109,8 +109,12 @@ fn main() -> Result<()> {
                         "HexDump" => ui_state.right_pane = crate::ui_state::RightPane::HexDump,
                         "Sprites" => ui_state.right_pane = crate::ui_state::RightPane::Sprites,
                         "Charset" => ui_state.right_pane = crate::ui_state::RightPane::Charset,
+                        "Blocks" => ui_state.right_pane = crate::ui_state::RightPane::Blocks,
                         _ => {}
                     }
+                }
+                if let Some(idx) = loaded_data.blocks_view_cursor {
+                    ui_state.blocks_list_state.select(Some(idx));
                 }
                 if let Some(sprites_addr) = loaded_sprites_cursor {
                     let origin = app_state.origin as usize;
@@ -180,8 +184,12 @@ fn main() -> Result<()> {
                         "HexDump" => ui_state.right_pane = crate::ui_state::RightPane::HexDump,
                         "Sprites" => ui_state.right_pane = crate::ui_state::RightPane::Sprites,
                         "Charset" => ui_state.right_pane = crate::ui_state::RightPane::Charset,
+                        "Blocks" => ui_state.right_pane = crate::ui_state::RightPane::Blocks,
                         _ => {}
                     }
+                }
+                if let Some(idx) = loaded_data.blocks_view_cursor {
+                    ui_state.blocks_list_state.select(Some(idx));
                 }
                 if let Some(sprites_addr) = loaded_sprites_cursor {
                     let origin = app_state.origin as usize;

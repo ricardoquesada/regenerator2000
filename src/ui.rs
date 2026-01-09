@@ -1170,7 +1170,7 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         RightPane::HexDump => 75,
         RightPane::Sprites => 36, // 24 chars + border + padding
         RightPane::Charset => 76, // Grid view: 8 cols * (8+1) width + padding
-        RightPane::Blocks => 32,
+        RightPane::Blocks => 42,
     };
     let disasm_view_width = area.width.saturating_sub(right_pane_width);
 
@@ -2698,7 +2698,8 @@ fn render_blocks_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
     let theme = &ui_state.theme;
     let items: Vec<ListItem> = blocks
         .iter()
-        .map(|b| {
+        .enumerate()
+        .map(|(index, b)| {
             let start_addr = app_state.origin.wrapping_add(b.start as u16);
             let end_addr = app_state.origin.wrapping_add(b.end as u16);
 
@@ -2729,7 +2730,18 @@ fn render_blocks_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
 
             let type_str = b.type_.to_string();
             // Increased spacing from 10 to 20
-            let content = format!("{:<20} ${:04X}-${:04X}", type_str, start_addr, end_addr);
+
+            // Handle selection indicator manually to avoid shifting
+            let is_selected = ui_state
+                .blocks_list_state
+                .selected()
+                .map_or(false, |s_idx| s_idx == index);
+            let prefix = if is_selected { "> " } else { "  " };
+
+            let content = format!(
+                "{}{:<20} ${:04X}-${:04X}",
+                prefix, type_str, start_addr, end_addr
+            );
 
             ListItem::new(content).style(Style::default().fg(fg).bg(bg))
         })
@@ -2737,7 +2749,7 @@ fn render_blocks_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
 
     let list = List::new(items)
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-        .highlight_symbol("> ");
+        .highlight_symbol(""); // Set to empty as we handle the symbol manually
 
     f.render_stateful_widget(list, inner_area, &mut ui_state.blocks_list_state);
 }

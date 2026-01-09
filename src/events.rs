@@ -285,6 +285,7 @@ pub fn run_app<B: Backend>(
                                         petscii_mode: ui_state.petscii_mode,
                                         collapsed_blocks: app_state.collapsed_blocks.clone(),
                                         splitters: app_state.splitters.clone(),
+                                        blocks_view_cursor: ui_state.blocks_list_state.selected(),
                                     },
                                     true,
                                 ) {
@@ -515,6 +516,10 @@ pub fn run_app<B: Backend>(
                                             loaded_data.charset_multicolor_mode;
                                         ui_state.petscii_mode = loaded_data.petscii_mode;
 
+                                        if let Some(idx) = loaded_data.blocks_view_cursor {
+                                            ui_state.blocks_list_state.select(Some(idx));
+                                        }
+
                                         // Auto-analyze if it's a binary file (not json)
                                         let is_project = selected_path
                                             .extension()
@@ -587,6 +592,10 @@ pub fn run_app<B: Backend>(
                                                 "Charset" => {
                                                     ui_state.right_pane =
                                                         crate::ui_state::RightPane::Charset
+                                                }
+                                                "Blocks" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::Blocks
                                                 }
                                                 "None" => {
                                                     ui_state.right_pane =
@@ -2230,6 +2239,7 @@ fn execute_menu_action(
                         petscii_mode: ui_state.petscii_mode,
                         collapsed_blocks: app_state.collapsed_blocks.clone(),
                         splitters: app_state.splitters.clone(),
+                        blocks_view_cursor: ui_state.blocks_list_state.selected(),
                     },
                     true,
                 ) {

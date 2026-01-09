@@ -256,6 +256,8 @@ pub struct ProjectState {
     pub collapsed_blocks: Vec<(usize, usize)>,
     #[serde(default)]
     pub splitters: BTreeSet<u16>,
+    #[serde(default)]
+    pub blocks_view_cursor: Option<usize>,
 }
 
 pub struct LoadedProjectData {
@@ -267,6 +269,7 @@ pub struct LoadedProjectData {
     pub sprite_multicolor_mode: bool,
     pub charset_multicolor_mode: bool,
     pub petscii_mode: PetsciiMode,
+    pub blocks_view_cursor: Option<usize>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -291,6 +294,7 @@ pub struct ProjectSaveContext {
     pub petscii_mode: PetsciiMode,
     pub collapsed_blocks: Vec<(usize, usize)>,
     pub splitters: BTreeSet<u16>,
+    pub blocks_view_cursor: Option<usize>,
 }
 
 pub struct AppState {
@@ -488,6 +492,7 @@ impl AppState {
             charset_multicolor_mode: false,
             sprite_multicolor_mode: false,
             petscii_mode: PetsciiMode::default(),
+            blocks_view_cursor: None,
         })
     }
 
@@ -531,6 +536,7 @@ impl AppState {
             sprite_multicolor_mode: project.sprite_multicolor_mode,
             charset_multicolor_mode: project.charset_multicolor_mode,
             petscii_mode: project.petscii_mode,
+            blocks_view_cursor: project.blocks_view_cursor,
         })
     }
 
@@ -570,8 +576,10 @@ impl AppState {
                 sprite_multicolor_mode: ctx.sprite_multicolor_mode,
                 charset_multicolor_mode: ctx.charset_multicolor_mode,
                 petscii_mode: ctx.petscii_mode,
+
                 collapsed_blocks: ctx.collapsed_blocks,
                 splitters: ctx.splitters,
+                blocks_view_cursor: ctx.blocks_view_cursor,
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;

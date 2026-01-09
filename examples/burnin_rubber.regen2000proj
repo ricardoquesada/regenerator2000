@@ -500,7 +500,7 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 17408,
+  "cursor_address": 5632,
   "hex_dump_cursor_address": 16384,
   "sprites_cursor_address": 12416,
   "charset_cursor_address": 8192,
@@ -528,5 +528,6 @@
   ],
   "splitters": [
     12288
-  ]
+  ],
+  "blocks_view_cursor": 19
 }
