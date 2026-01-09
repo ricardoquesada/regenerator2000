@@ -67,6 +67,7 @@ pub enum MenuAction {
     ToggleCharsetMulticolor,
     CollapseBlock,
     UncollapseBlock,
+    ToggleSplitter,
 }
 
 impl MenuAction {
@@ -565,21 +566,17 @@ impl MenuState {
                             Some(MenuAction::PreviousImmediateFormat),
                         ),
                         MenuItem::separator(),
+                        MenuItem::new(
+                            "Toggle Splitter",
+                            Some("|"),
+                            Some(MenuAction::ToggleSplitter),
+                        ),
+                        MenuItem::separator(),
                         MenuItem::new("Side Comment", Some(";"), Some(MenuAction::SideComment)),
                         MenuItem::new(
                             "Line Comment",
                             Some("Shift+;"),
                             Some(MenuAction::LineComment),
-                        ),
-                        MenuItem::separator(),
-                        MenuItem::new("Change Origin", None, Some(MenuAction::ChangeOrigin)),
-                        MenuItem::separator(),
-                        MenuItem::new("Analyze", Some("Ctrl+A"), Some(MenuAction::Analyze)),
-                        MenuItem::separator(),
-                        MenuItem::new(
-                            "Document Settings",
-                            Some("Ctrl+Shift+D"),
-                            Some(MenuAction::DocumentSettings),
                         ),
                         MenuItem::separator(),
                         MenuItem::new(
@@ -591,6 +588,16 @@ impl MenuState {
                             "Uncollapse Block",
                             Some("Ctrl+Shift+K"),
                             Some(MenuAction::UncollapseBlock),
+                        ),
+                        MenuItem::separator(),
+                        MenuItem::new("Change Origin", None, Some(MenuAction::ChangeOrigin)),
+                        MenuItem::separator(),
+                        MenuItem::new("Analyze", Some("Ctrl+A"), Some(MenuAction::Analyze)),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Document Settings",
+                            Some("Ctrl+Shift+D"),
+                            Some(MenuAction::DocumentSettings),
                         ),
                     ],
                 },

@@ -1,7 +1,7 @@
 use crate::config::SystemConfig;
 use crate::disassembler::{Disassembler, DisassemblyLine};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -236,6 +236,8 @@ pub struct ProjectState {
     pub petscii_mode: PetsciiMode,
     #[serde(default)]
     pub collapsed_blocks: Vec<(usize, usize)>,
+    #[serde(default)]
+    pub splitters: BTreeSet<u16>,
 }
 
 pub struct LoadedProjectData {
@@ -270,6 +272,7 @@ pub struct ProjectSaveContext {
     pub charset_multicolor_mode: bool,
     pub petscii_mode: PetsciiMode,
     pub collapsed_blocks: Vec<(usize, usize)>,
+    pub splitters: BTreeSet<u16>,
 }
 
 pub struct AppState {
@@ -297,6 +300,7 @@ pub struct AppState {
     pub last_saved_pointer: usize,
     pub excluded_addresses: std::collections::HashSet<u16>,
     pub collapsed_blocks: Vec<(usize, usize)>,
+    pub splitters: BTreeSet<u16>,
 }
 
 impl AppState {
@@ -322,6 +326,7 @@ impl AppState {
             last_saved_pointer: 0,
             excluded_addresses: std::collections::HashSet::new(),
             collapsed_blocks: Vec::new(),
+            splitters: BTreeSet::new(),
         }
     }
 
@@ -449,8 +454,9 @@ impl AppState {
         self.labels = project.labels;
         self.user_side_comments = project.user_side_comments;
         self.user_line_comments = project.user_line_comments;
-        self.immediate_value_formats = project.immediate_value_formats;
+        self.immediate_value_formats = project.immediate_value_formats.clone();
         self.settings = project.settings;
+        self.splitters = project.splitters.clone();
 
         self.load_system_assets();
 
@@ -513,6 +519,7 @@ impl AppState {
                 charset_multicolor_mode: ctx.charset_multicolor_mode,
                 petscii_mode: ctx.petscii_mode,
                 collapsed_blocks: ctx.collapsed_blocks,
+                splitters: ctx.splitters,
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;
@@ -791,6 +798,7 @@ impl AppState {
             &self.immediate_value_formats,
             &self.cross_refs,
             &self.collapsed_blocks,
+            &self.splitters,
         );
 
         // Add external label definitions at the top if enabled
@@ -853,6 +861,20 @@ impl AppState {
 
     pub fn is_dirty(&self) -> bool {
         self.undo_stack.get_pointer() != self.last_saved_pointer
+    }
+
+    pub fn toggle_splitter(&mut self, address: u16) {
+        // Toggle splitter for the generic address
+        if self.splitters.contains(&address) {
+            self.splitters.remove(&address);
+        } else {
+            self.splitters.insert(address);
+        }
+        self.disassemble();
+    }
+
+    pub fn has_splitter(&self, address: u16) -> bool {
+        self.splitters.contains(&address)
     }
 
     pub fn push_command(&mut self, command: crate::commands::Command) {
@@ -1104,6 +1126,7 @@ mod save_project_tests {
                     charset_multicolor_mode: false,
                     petscii_mode: PetsciiMode::default(),
                     collapsed_blocks: Vec::new(),
+                    splitters: BTreeSet::new(),
                 },
                 false,
             )

@@ -2077,8 +2077,28 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                     line_style.fg(ui_state.theme.arrow),
                 ),
                 Span::styled(
-                    format!("{:04X}  ", line.address),
-                    line_style.fg(ui_state.theme.address),
+                    format!(
+                        "{:04X}{} ",
+                        line.address,
+                        if app_state.splitters.contains(&line.address) {
+                            "*"
+                        } else {
+                            " "
+                        }
+                    ),
+                    if let Some(next_line) = app_state.disassembly.get(i + 1)
+                        && app_state.splitters.contains(&next_line.address)
+                    {
+                        line_style
+                            .fg(ui_state.theme.address)
+                            .add_modifier(Modifier::UNDERLINED)
+                    } else if app_state.splitters.contains(&line.address) {
+                        line_style
+                            .fg(ui_state.theme.address)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        line_style.fg(ui_state.theme.address)
+                    },
                 ),
                 Span::styled(
                     format!(

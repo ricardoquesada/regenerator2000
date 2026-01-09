@@ -26,6 +26,7 @@ fn test_illegal_opcodes_disabled_by_default() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &[],
+        &std::collections::BTreeSet::new(),
     );
 
     // Should NOT disassemble as SLO, but as Invalid/Byte
@@ -63,6 +64,7 @@ fn test_illegal_opcodes_enabled() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &[],
+        &std::collections::BTreeSet::new(),
     );
 
     // Should disassemble as SLO
@@ -93,6 +95,7 @@ fn test_new_illegal_opcodes() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &[],
+        &std::collections::BTreeSet::new(),
     );
     assert_eq!(lines[0].mnemonic, "anc");
     assert_eq!(lines[0].operand, "#$10");
@@ -111,6 +114,7 @@ fn test_new_illegal_opcodes() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &[],
+        &std::collections::BTreeSet::new(),
     );
     assert_eq!(lines[0].mnemonic, "asr");
     assert_eq!(lines[0].operand, "#$20");
@@ -129,6 +133,7 @@ fn test_new_illegal_opcodes() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &[],
+        &std::collections::BTreeSet::new(),
     );
     assert_eq!(lines[0].mnemonic, "arr");
     assert_eq!(lines[0].operand, "#$30");
@@ -147,6 +152,7 @@ fn test_new_illegal_opcodes() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &[],
+        &std::collections::BTreeSet::new(),
     );
     assert_eq!(lines[0].mnemonic, "sbx");
     assert_eq!(lines[0].operand, "#$40");
@@ -165,6 +171,7 @@ fn test_new_illegal_opcodes() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &[],
+        &std::collections::BTreeSet::new(),
     );
     assert_eq!(lines[0].mnemonic, "lax");
     assert_eq!(lines[0].operand, "#$00");

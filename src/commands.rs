@@ -45,6 +45,9 @@ pub enum Command {
     UncollapseBlock {
         range: (usize, usize),
     },
+    ToggleSplitter {
+        address: u16,
+    },
 }
 
 impl Command {
@@ -137,6 +140,9 @@ impl Command {
                     state.immediate_value_formats.remove(address);
                 }
             }
+            Command::ToggleSplitter { address } => {
+                state.toggle_splitter(*address);
+            }
         }
     }
 
@@ -227,6 +233,9 @@ impl Command {
             }
             Command::UncollapseBlock { range } => {
                 state.collapsed_blocks.push(*range);
+            }
+            Command::ToggleSplitter { address } => {
+                state.toggle_splitter(*address);
             }
         }
     }

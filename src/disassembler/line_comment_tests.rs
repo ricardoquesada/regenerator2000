@@ -32,6 +32,7 @@ fn test_user_line_comments_basic() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &[],
+        &std::collections::BTreeSet::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -71,6 +72,7 @@ fn test_user_line_and_side_comments_coexist() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &[],
+        &std::collections::BTreeSet::new(),
     );
 
     assert_eq!(lines.len(), 1);

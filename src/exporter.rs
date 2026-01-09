@@ -26,6 +26,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         &state.immediate_value_formats,
         &state.cross_refs,
         &[], // Ignore collapsed_blocks
+        &state.splitters,
     );
 
     for line in external_lines.iter().chain(full_disassembly.iter()) {

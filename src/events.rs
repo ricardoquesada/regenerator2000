@@ -277,6 +277,7 @@ pub fn run_app<B: Backend>(
                                         charset_multicolor_mode: ui_state.charset_multicolor_mode,
                                         petscii_mode: ui_state.petscii_mode,
                                         collapsed_blocks: app_state.collapsed_blocks.clone(),
+                                        splitters: app_state.splitters.clone(),
                                     },
                                     true,
                                 ) {
@@ -1448,6 +1449,18 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
+                    KeyCode::Char('|') => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::ToggleSplitter,
+                            );
+                        } else {
+                            ui_state.set_status_message("No open document");
+                        }
+                    }
+
                     KeyCode::Char(':')
                         if !key
                             .modifiers
@@ -2134,6 +2147,7 @@ fn execute_menu_action(
                         charset_multicolor_mode: ui_state.charset_multicolor_mode,
                         petscii_mode: ui_state.petscii_mode,
                         collapsed_blocks: app_state.collapsed_blocks.clone(),
+                        splitters: app_state.splitters.clone(),
                     },
                     true,
                 ) {
@@ -2893,6 +2907,23 @@ fn execute_menu_action(
                 }
             }
         }
+        MenuAction::ToggleSplitter => {
+            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                let address = line.address;
+
+                let command = crate::commands::Command::ToggleSplitter { address };
+                command.apply(app_state);
+                app_state.undo_stack.push(command);
+                app_state.disassemble();
+
+                let status = if app_state.has_splitter(address) {
+                    "Splitter Added"
+                } else {
+                    "Splitter Removed"
+                };
+                ui_state.set_status_message(status);
+            }
+        }
     }
 }
 
@@ -3126,6 +3157,7 @@ fn search_collapsed_content(
         &app_state.immediate_value_formats,
         &app_state.cross_refs,
         &[], // No collapsed blocks in this subsequence
+        &app_state.splitters,
     );
 
     for line in expanded_lines {
@@ -3191,7 +3223,7 @@ mod tests {
     }
     #[test]
     fn test_get_line_matches_priority() {
-        let mut app_state = AppState::new();
+        let app_state = AppState::new();
         let line = DisassemblyLine {
             address: 0x1000,
             bytes: vec![0x8D, 0x20, 0xD0], // 8d20d0 -> STA D020

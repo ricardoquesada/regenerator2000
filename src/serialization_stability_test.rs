@@ -70,6 +70,7 @@ mod tests {
                     charset_multicolor_mode: false,
                     petscii_mode: crate::state::PetsciiMode::default(),
                     collapsed_blocks: Vec::new(),
+                    splitters: std::collections::BTreeSet::new(),
                 },
                 false,
             )
@@ -96,6 +97,7 @@ mod tests {
                     charset_multicolor_mode: false,
                     petscii_mode: crate::state::PetsciiMode::default(),
                     collapsed_blocks: Vec::new(),
+                    splitters: std::collections::BTreeSet::new(),
                 },
                 false,
             )

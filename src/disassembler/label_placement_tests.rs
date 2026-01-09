@@ -40,6 +40,7 @@ fn test_tass_label_placement_on_text() {
         &BTreeMap::new(), // immediate_value_formats
         &cross_refs,      // cross_refs
         &[],
+        &std::collections::BTreeSet::new(),
     );
 
     // Expected Tass output:
@@ -110,6 +111,7 @@ fn test_tass_label_placement_on_screencode() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &[],
+        &std::collections::BTreeSet::new(),
     );
 
     // Expected Tass output:

@@ -1,6 +1,6 @@
 use crate::cpu::{Opcode, get_opcodes};
 use crate::state::{Assembler, BlockType, DocumentSettings, Label};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 mod acme;
 pub mod formatter;
@@ -78,6 +78,7 @@ impl Disassembler {
         immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
         cross_refs: &BTreeMap<u16, Vec<u16>>,
         collapsed_blocks: &[(usize, usize)],
+        splitters: &BTreeSet<u16>,
     ) -> Vec<DisassemblyLine> {
         let formatter = Self::create_formatter(settings.assembler);
 
@@ -156,6 +157,7 @@ impl Disassembler {
                     label_name,
                     side_comment,
                     line_comment,
+                    splitters,
                 ),
                 BlockType::DataWord => self.handle_data_word(
                     pc,
@@ -168,6 +170,7 @@ impl Disassembler {
                     label_name,
                     side_comment,
                     line_comment,
+                    splitters,
                 ),
                 BlockType::Address => self.handle_address(
                     pc,
@@ -182,6 +185,7 @@ impl Disassembler {
                     line_comment,
                     system_comments,
                     user_side_comments,
+                    splitters,
                 ),
                 BlockType::Text => self.handle_text(
                     pc,
@@ -195,6 +199,7 @@ impl Disassembler {
                     label_name,
                     side_comment,
                     line_comment,
+                    splitters,
                 ),
                 BlockType::Screencode => self.handle_screencode(
                     pc,
@@ -208,6 +213,7 @@ impl Disassembler {
                     label_name,
                     side_comment,
                     line_comment,
+                    splitters,
                 ),
                 BlockType::LoHi => self.handle_lohi(
                     pc,
@@ -220,6 +226,7 @@ impl Disassembler {
                     label_name,
                     side_comment,
                     line_comment,
+                    splitters,
                 ),
                 BlockType::HiLo => self.handle_hilo(
                     pc,
@@ -232,6 +239,7 @@ impl Disassembler {
                     label_name,
                     side_comment,
                     line_comment,
+                    splitters,
                 ),
                 BlockType::Undefined => self.handle_undefined_byte(
                     pc,
@@ -264,11 +272,20 @@ impl Disassembler {
         label_name: Option<String>,
         side_comment: String,
         line_comment: Option<String>,
+        splitters: &BTreeSet<u16>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut count = 0;
         // Find extent of LoHi block, stopping at end of contiguous LoHi blocks
         while pc + count < data.len() {
             let current_pc = pc + count;
+
+            // Check for splitter (except at start)
+            if count > 0 {
+                let current_addr = origin.wrapping_add(current_pc as u16);
+                if splitters.contains(&current_addr) {
+                    break;
+                }
+            }
 
             if block_types.get(current_pc) != Some(&BlockType::LoHi) {
                 break;
@@ -413,11 +430,20 @@ impl Disassembler {
         label_name: Option<String>,
         side_comment: String,
         line_comment: Option<String>,
+        splitters: &BTreeSet<u16>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut count = 0;
         // Find extent of HiLo block, stopping at end of contiguous HiLo blocks
         while pc + count < data.len() {
             let current_pc = pc + count;
+
+            // Check for splitter (except at start)
+            if count > 0 {
+                let current_addr = origin.wrapping_add(current_pc as u16);
+                if splitters.contains(&current_addr) {
+                    break;
+                }
+            }
 
             if block_types.get(current_pc) != Some(&BlockType::HiLo) {
                 break;
@@ -940,6 +966,7 @@ impl Disassembler {
         label_name: Option<String>,
         side_comment: String,
         line_comment: Option<String>,
+        splitters: &BTreeSet<u16>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -951,6 +978,11 @@ impl Disassembler {
 
             // Stop if type changes
             if block_types.get(current_pc) != Some(&BlockType::DataByte) {
+                break;
+            }
+
+            // Stop if splitter exists (except start)
+            if count > 0 && splitters.contains(&current_address) {
                 break;
             }
 
@@ -996,6 +1028,7 @@ impl Disassembler {
         label_name: Option<String>,
         side_comment: String,
         line_comment: Option<String>,
+        splitters: &BTreeSet<u16>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -1004,10 +1037,23 @@ impl Disassembler {
         while pc + (count * 2) + 1 < data.len() && count < 4 {
             let current_pc_start = pc + (count * 2);
             let current_address = origin.wrapping_add(current_pc_start as u16);
+            let next_address = current_address.wrapping_add(1);
 
             if block_types.get(current_pc_start) != Some(&BlockType::DataWord)
                 || block_types.get(current_pc_start + 1) != Some(&BlockType::DataWord)
             {
+                break;
+            }
+
+            if count > 0 {
+                // Check if splitter exists at start of this word
+                if splitters.contains(&current_address) {
+                    break;
+                }
+            }
+
+            // Check if splitter exists in the middle of this word
+            if splitters.contains(&next_address) {
                 break;
             }
 
@@ -1072,6 +1118,7 @@ impl Disassembler {
         line_comment: Option<String>,
         system_comments: &BTreeMap<u16, String>,
         user_side_comments: &BTreeMap<u16, String>,
+        _splitters: &BTreeSet<u16>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -1171,6 +1218,7 @@ impl Disassembler {
         label_name: Option<String>,
         side_comment: String,
         line_comment: Option<String>,
+        splitters: &BTreeSet<u16>,
     ) -> (usize, Vec<DisassemblyLine>) {
         use crate::disassembler::formatter::TextFragment;
 
@@ -1183,6 +1231,10 @@ impl Disassembler {
             let current_address = origin.wrapping_add(current_pc as u16);
 
             if block_types.get(current_pc) != Some(&BlockType::Text) {
+                break;
+            }
+
+            if count > 0 && splitters.contains(&current_address) {
                 break;
             }
 
@@ -1299,6 +1351,7 @@ impl Disassembler {
         label_name: Option<String>,
         side_comment: String,
         line_comment: Option<String>,
+        splitters: &BTreeSet<u16>,
     ) -> (usize, Vec<DisassemblyLine>) {
         use crate::disassembler::formatter::TextFragment;
 
@@ -1311,6 +1364,10 @@ impl Disassembler {
             let current_address = origin.wrapping_add(current_pc as u16);
 
             if block_types.get(current_pc) != Some(&BlockType::Screencode) {
+                break;
+            }
+
+            if count > 0 && splitters.contains(&current_address) {
                 break;
             }
 
