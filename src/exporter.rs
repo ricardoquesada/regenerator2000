@@ -85,14 +85,12 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             let data_slice = &state.raw_data[start_idx..end_idx];
 
             // Generate filename
-            let project_name = state
-                .project_path
-                .as_ref()
-                .and_then(|p| p.file_stem())
+            let base_name = path
+                .file_stem()
                 .and_then(|s| s.to_str())
-                .unwrap_or("project");
+                .unwrap_or("export");
 
-            let bin_filename = format!("{}-{:04x}-{:04x}.bin", project_name, start_addr, end_addr);
+            let bin_filename = format!("{}_{:04x}_{:04x}.bin", base_name, start_addr, end_addr);
 
             // Allow override of path directory? Use same dir as asm file
             let bin_path = path
@@ -327,7 +325,7 @@ mod tests {
             let _ = std::fs::remove_file(&path);
         }
 
-        let bin_path = PathBuf::from("test_project-1001-1002.bin");
+        let bin_path = PathBuf::from("test_export_external_1001_1002.bin");
         if bin_path.exists() {
             let _ = std::fs::remove_file(&bin_path);
         }
@@ -341,11 +339,8 @@ mod tests {
         println!("Content:\n{}", content);
 
         // Check for .binary directive
-        // Note: The bin filename logic in exporter.rs uses project name or "project".
-        // Here we set project_path to /tmp/test_project.regen2000proj
-        // So stem is "test_project".
-        // Filename: test_project-1001-1002.bin
-        assert!(content.contains(".binary \"test_project-1001-1002.bin\""));
+        // Filename: test_export_external_1001_1002.bin
+        assert!(content.contains(".binary \"test_export_external_1001_1002.bin\""));
         assert!(!content.contains(".BYTE $11"));
 
         // Check bin file creation
@@ -364,7 +359,7 @@ mod tests {
         let res = export_asm(&state, &path);
         assert!(res.is_ok());
         let content = std::fs::read_to_string(&path).unwrap();
-        assert!(content.contains("!binary \"test_project-1001-1002.bin\""));
+        assert!(content.contains("!binary \"test_export_external_1001_1002.bin\""));
 
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(&bin_path);
