@@ -140,6 +140,7 @@ pub enum BlockType {
     Screencode,
     LoHi,
     HiLo,
+    ExternalFile,
     Undefined,
 }
 

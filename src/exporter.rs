@@ -29,22 +29,148 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         &state.splitters,
     );
 
-    for line in external_lines.iter().chain(full_disassembly.iter()) {
+    let all_lines: Vec<&crate::disassembler::DisassemblyLine> = external_lines
+        .iter()
+        .chain(full_disassembly.iter())
+        .collect();
+
+    let mut i = 0;
+    while i < all_lines.len() {
+        let line = all_lines[i];
+
         // Special case: Header (starts with ;)
         if line.mnemonic.starts_with(';') {
             output.push_str(&format!("{}\n", line.mnemonic));
+            i += 1;
             continue;
         }
 
         // Special case: Equate (contains =)
         if line.mnemonic.contains('=') {
             output.push_str(&format!("{}\n", line.mnemonic));
+            i += 1;
             continue;
         }
 
         // Special case: Empty line (separator)
         if line.mnemonic.is_empty() && line.bytes.is_empty() && line.comment.is_empty() {
             output.push('\n');
+            i += 1;
+            continue;
+        }
+
+        // Check for ExternalFile
+        let offset = line.address as isize - state.origin as isize;
+        let is_external = if offset >= 0 && (offset as usize) < state.block_types.len() {
+            state.block_types[offset as usize] == crate::state::BlockType::ExternalFile
+        } else {
+            false
+        };
+
+        if is_external {
+            // Find end of contiguous block
+            let start_idx = offset as usize;
+            let mut end_idx = start_idx;
+            while end_idx < state.block_types.len()
+                && state.block_types[end_idx] == crate::state::BlockType::ExternalFile
+            {
+                end_idx += 1;
+            }
+            // end_idx is exclusive
+            let byte_count = end_idx - start_idx;
+            let start_addr = line.address;
+            let end_addr = line.address.wrapping_add(byte_count as u16).wrapping_sub(1);
+
+            // Extract data
+            let data_slice = &state.raw_data[start_idx..end_idx];
+
+            // Generate filename
+            let project_name = state
+                .project_path
+                .as_ref()
+                .and_then(|p| p.file_stem())
+                .and_then(|s| s.to_str())
+                .unwrap_or("project");
+
+            let bin_filename = format!("{}-{:04x}-{:04x}.bin", project_name, start_addr, end_addr);
+
+            // Allow override of path directory? Use same dir as asm file
+            let bin_path = path
+                .parent()
+                .unwrap_or(&std::path::PathBuf::from("."))
+                .join(&bin_filename);
+
+            if let Err(e) = std::fs::write(&bin_path, data_slice) {
+                // Determine how to report error? For now print to stdout or just panic?
+                // Returning Result is better.
+                return Err(std::io::Error::other(format!(
+                    "Failed to write external binary {}: {}",
+                    bin_filename, e
+                )));
+            }
+
+            // Output directive
+            // 64tass: .binary
+            // ACME: !binary
+            // We need to check assembler settings.
+            match state.settings.assembler {
+                crate::state::Assembler::Tass64 => {
+                    output.push_str(&format!(".binary \"{}\"\n", bin_filename));
+                }
+                crate::state::Assembler::Acme => {
+                    output.push_str(&format!("!binary \"{}\"\n", bin_filename));
+                }
+            }
+
+            // Ensure origin is printed if this is the first thing
+            if !origin_printed {
+                // But wait, .binary usually implies data at current PC.
+                // If we haven't set PC (origin), it might be wrong.
+                // We should print origin.
+                // But strictly speaking, if we just output .binary, it puts data there.
+                // So we need headers if not printed.
+                // Reuse logic below?
+            }
+            // Actually, we should check origin_printed before outputting .binary?
+            // Yes.
+            if !origin_printed {
+                output.push_str(&format!(
+                    "{}\n",
+                    formatter.format_header_origin(state.origin)
+                ));
+                origin_printed = true;
+            }
+
+            // Skip lines that are covered by this block
+            // We iterate `all_lines` until address exceeds end_addr.
+            while i < all_lines.len() {
+                let next_line_addr = all_lines[i].address;
+                // Check if next_line_addr is within [start_addr, end_addr]
+                // Be careful with wrapping, though typically blocks don't wrap in this view.
+                // Logic: if next_line_addr < start_addr + byte_count
+
+                // Simple generic check:
+                // If the line address is inside the range we just exported, skip it.
+                // But lines might be "Header" or comments that don't have address?
+                // Header/Empty lines handled above (continue).
+                // Comments should probably be kept?
+                // But our "ExternalFile" logic in Disassembler generates dummy lines with .BYTE
+                // We want to suppress those.
+
+                // If we check strictly address:
+                let line_in_range = if next_line_addr >= start_addr {
+                    let delta = next_line_addr.wrapping_sub(start_addr);
+                    (delta as usize) < byte_count
+                } else {
+                    false
+                };
+
+                if line_in_range {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
             continue;
         }
 
@@ -67,12 +193,12 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         }
 
         if line.bytes.len() > 1 {
-            for i in 1..line.bytes.len() {
-                let mid_addr = line.address.wrapping_add(i as u16);
+            for j in 1..line.bytes.len() {
+                let mid_addr = line.address.wrapping_add(j as u16);
                 if let Some(label_vec) = state.labels.get(&mid_addr) {
                     for label in label_vec {
                         let formatted_name = formatter.format_label(&label.name);
-                        output.push_str(&format!("{} =*+${:02x}\n", formatted_name, i));
+                        output.push_str(&format!("{} =*+${:02x}\n", formatted_name, j));
                     }
                 }
             }
@@ -101,6 +227,8 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         } else {
             output.push_str(&format!("{}\n", line_out));
         }
+
+        i += 1;
     }
 
     // Fallback if no code labels/instructions found (empty file?)
@@ -118,7 +246,129 @@ mod tests {
     use super::*;
     use crate::disassembler::DisassemblyLine;
     use crate::state::AppState;
+    use std::path::PathBuf;
     use std::process::Command;
+
+    #[test]
+    fn test_export_external_file() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        // Data: 0x1000..0x1004 (4 bytes)
+        // 1000: NOP
+        // 1001-1002: External File (2 bytes)
+        // 1003: RTS
+        state.raw_data = vec![0xEA, 0x11, 0x22, 0x60];
+        // Note: BlockType::ExternalFile needs to be imported or use crate::state::BlockType
+        state.block_types = vec![
+            crate::state::BlockType::Code,
+            crate::state::BlockType::ExternalFile,
+            crate::state::BlockType::ExternalFile,
+            crate::state::BlockType::Code,
+        ];
+        state.project_path = Some(PathBuf::from("/tmp/test_project.regen2000proj"));
+
+        // Mock disassembly lines
+        state.disassembly.push(DisassemblyLine {
+            address: 0x1000,
+            mnemonic: "NOP".to_string(),
+            operand: "".to_string(),
+            bytes: vec![0xEA],
+            comment: "".to_string(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            comment_address: None,
+        });
+        state.disassembly.push(DisassemblyLine {
+            address: 0x1001,
+            mnemonic: ".BYTE".to_string(),
+            operand: "$11".to_string(),
+            bytes: vec![0x11],
+            comment: "".to_string(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            comment_address: None,
+        });
+        state.disassembly.push(DisassemblyLine {
+            address: 0x1002,
+            mnemonic: ".BYTE".to_string(),
+            operand: "$22".to_string(),
+            bytes: vec![0x22],
+            comment: "".to_string(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            comment_address: None,
+        });
+        state.disassembly.push(DisassemblyLine {
+            address: 0x1003,
+            mnemonic: "RTS".to_string(),
+            operand: "".to_string(),
+            bytes: vec![0x60],
+            comment: "".to_string(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            comment_address: None,
+        });
+
+        let file_name = "test_export_external.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let bin_path = PathBuf::from("test_project-1001-1002.bin");
+        if bin_path.exists() {
+            let _ = std::fs::remove_file(&bin_path);
+        }
+
+        // Test 64tass
+        state.settings.assembler = crate::state::Assembler::Tass64;
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        println!("Content:\n{}", content);
+
+        // Check for .binary directive
+        // Note: The bin filename logic in exporter.rs uses project name or "project".
+        // Here we set project_path to /tmp/test_project.regen2000proj
+        // So stem is "test_project".
+        // Filename: test_project-1001-1002.bin
+        assert!(content.contains(".binary \"test_project-1001-1002.bin\""));
+        assert!(!content.contains(".BYTE $11"));
+
+        // Check bin file creation
+        // Note: exporter writes relative to `path` parent.
+        // `path` is "test_export_external.asm". Parent is "" (current dir).
+        // So bin file is "test_project-1001-1002.bin" in current dir.
+        assert!(bin_path.exists());
+        let bin_content = std::fs::read(&bin_path).unwrap();
+        assert_eq!(bin_content, vec![0x11, 0x22]);
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(&bin_path);
+
+        // Test ACME
+        state.settings.assembler = crate::state::Assembler::Acme;
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("!binary \"test_project-1001-1002.bin\""));
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(&bin_path);
+    }
 
     #[test]
     fn test_export_compiles_with_64tass() {
@@ -399,9 +649,7 @@ mod tests {
 
         // Sync external labels into disassembly
         let externals = state.get_external_label_definitions();
-        let mut new_disassembly = externals;
-        new_disassembly.extend(state.disassembly);
-        state.disassembly = new_disassembly;
+        state.disassembly = externals.into_iter().chain(state.disassembly).collect();
 
         let res = export_asm(&state, &path);
         assert!(res.is_ok());
@@ -529,9 +777,7 @@ mod tests {
 
         // Sync external labels into disassembly
         let externals = state.get_external_label_definitions();
-        let mut new_disassembly = externals;
-        new_disassembly.extend(state.disassembly);
-        state.disassembly = new_disassembly;
+        state.disassembly = externals.into_iter().chain(state.disassembly).collect();
 
         let res = export_asm(&state, &path);
         assert!(res.is_ok());

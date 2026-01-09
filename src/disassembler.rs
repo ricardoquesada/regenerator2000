@@ -241,6 +241,19 @@ impl Disassembler {
                     line_comment,
                     splitters,
                 ),
+                BlockType::ExternalFile => self.handle_external_file(
+                    pc,
+                    data,
+                    block_types,
+                    address,
+                    formatter.as_ref(),
+                    labels,
+                    origin,
+                    label_name,
+                    side_comment,
+                    line_comment,
+                    splitters,
+                ),
                 BlockType::Undefined => self.handle_undefined_byte(
                     pc,
                     data,
@@ -1101,6 +1114,68 @@ impl Disassembler {
                 "Word",
             )
         }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn handle_external_file(
+        &self,
+        pc: usize,
+        data: &[u8],
+        block_types: &[BlockType],
+        address: u16,
+        formatter: &dyn Formatter,
+        labels: &BTreeMap<u16, Vec<Label>>,
+        origin: u16,
+        label_name: Option<String>,
+        side_comment: String,
+        line_comment: Option<String>,
+        splitters: &BTreeSet<u16>,
+    ) -> (usize, Vec<DisassemblyLine>) {
+        let mut bytes = Vec::new();
+        let mut operands = Vec::new();
+        let mut count = 0;
+
+        while pc + count < data.len() && count < 8 {
+            let current_pc = pc + count;
+            let current_address = origin.wrapping_add(current_pc as u16);
+
+            // Stop if type changes
+            if block_types.get(current_pc) != Some(&BlockType::ExternalFile) {
+                break;
+            }
+
+            // Stop if splitter exists (except start)
+            if count > 0 && splitters.contains(&current_address) {
+                break;
+            }
+
+            // Stop if label exists (except for the first byte)
+            if count > 0 && labels.contains_key(&current_address) {
+                break;
+            }
+
+            let b = data[current_pc];
+            bytes.push(b);
+            operands.push(formatter.format_byte(b));
+            count += 1;
+        }
+
+        (
+            count,
+            vec![DisassemblyLine {
+                address,
+                bytes,
+                mnemonic: formatter.byte_directive().to_string(),
+                operand: operands.join(", "),
+                comment: side_comment,
+                line_comment,
+                label: label_name,
+                opcode: None,
+                show_bytes: false,
+                target_address: None,
+                comment_address: None,
+            }],
+        )
     }
 
     #[allow(clippy::too_many_arguments)]

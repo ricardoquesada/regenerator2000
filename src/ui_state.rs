@@ -47,6 +47,7 @@ pub enum MenuAction {
 
     SetLoHi,
     SetHiLo,
+    SetExternalFile,
     SideComment,
     LineComment,
     ToggleHexDump,
@@ -551,6 +552,11 @@ impl MenuState {
                         MenuItem::new("Address", Some("A"), Some(MenuAction::Address)),
                         MenuItem::new("Lo/Hi Address", Some("<"), Some(MenuAction::SetLoHi)),
                         MenuItem::new("Hi/Lo Address", Some(">"), Some(MenuAction::SetHiLo)),
+                        MenuItem::new(
+                            "External File",
+                            Some("e"),
+                            Some(MenuAction::SetExternalFile),
+                        ),
                         MenuItem::new("Text", Some("T"), Some(MenuAction::Text)),
                         MenuItem::new("Screencode", Some("S"), Some(MenuAction::Screencode)),
                         MenuItem::new("Undefined", Some("?"), Some(MenuAction::Undefined)),

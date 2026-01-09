@@ -1603,6 +1603,15 @@ pub fn run_app<B: Backend>(
                         }
                     }
 
+                    // External File
+                    KeyCode::Char('e') => {
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::SetExternalFile,
+                        );
+                    }
+
                     // Vim-like G command
                     KeyCode::Char('G')
                         if !key
@@ -2307,6 +2316,38 @@ fn execute_menu_action(
             } else {
                 app_state.set_block_type_region(
                     crate::state::BlockType::DataWord,
+                    ui_state.selection_start,
+                    ui_state.cursor_index,
+                );
+            }
+        }
+        MenuAction::SetExternalFile => {
+            if let Some(start_index) = ui_state.selection_start {
+                let start = start_index.min(ui_state.cursor_index);
+                let end = start_index.max(ui_state.cursor_index);
+
+                let target_address = if let Some(line) = app_state.disassembly.get(end) {
+                    line.address
+                        .wrapping_add(line.bytes.len() as u16)
+                        .wrapping_sub(1)
+                } else {
+                    0
+                };
+
+                app_state.set_block_type_region(
+                    crate::state::BlockType::ExternalFile,
+                    Some(start),
+                    end,
+                );
+                ui_state.selection_start = None;
+                ui_state.is_visual_mode = false;
+
+                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
+                    ui_state.cursor_index = idx;
+                }
+            } else {
+                app_state.set_block_type_region(
+                    crate::state::BlockType::ExternalFile,
                     ui_state.selection_start,
                     ui_state.cursor_index,
                 );
