@@ -100,8 +100,9 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 |                | **Next/Prev Immediate Mode Format**                          | `d` / `D`                               |
 |                | **Set Lo/Hi Address**                                        | `<`                                     |
 |                | **Set Hi/Lo Address**                                        | `>`                                     |
-|                | **Collapse Block**                                         | `Ctrl + k`                              |
-|                | **Uncollapse Block**                                       | `Ctrl + Shift + k`                      |
+|                | **Collapse Block**                                           | `Ctrl + k`                              |
+|                | **Uncollapse Block**                                         | `Ctrl + Shift + k`                      |
+|                | **Toggle Splitter**                                          | `\|`                                    |
 |                | **Analyze**                                                  | `Ctrl + a`                              |
 | **View**       | **Toggle PETSCII Shifted/Unshifted** (only in Hex Dump View) | `m`                                     |
 |                | **Toggle Multicolor Sprites** (only in Sprites View)         | `m`                                     |
