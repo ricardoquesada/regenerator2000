@@ -2057,8 +2057,12 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
 
             let is_highlighted =
                 !is_selected && is_cursor_row && ui_state.sub_cursor_index == current_sub_index;
+            let is_collapsed = line.mnemonic.starts_with("; Collapsed block");
             let line_style = if is_highlighted {
                 Style::default().bg(ui_state.theme.selection_bg)
+            } else if is_collapsed {
+                // Apply background color for collapsed blocks if not selected/highlighted
+                Style::default().bg(ui_state.theme.collapsed_block_bg)
             } else {
                 Style::default()
             };
@@ -2095,9 +2099,15 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 ),
                 Span::styled(
                     format!("{: <4} ", line.mnemonic),
-                    line_style
-                        .fg(ui_state.theme.mnemonic)
-                        .add_modifier(Modifier::BOLD),
+                    if is_collapsed {
+                        line_style
+                            .fg(ui_state.theme.collapsed_block)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        line_style
+                            .fg(ui_state.theme.mnemonic)
+                            .add_modifier(Modifier::BOLD)
+                    },
                 ),
                 Span::styled(
                     format!("{: <15}", line.operand),

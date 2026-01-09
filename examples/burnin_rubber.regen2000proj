@@ -359,6 +359,16 @@
     },
     {
       "start": 19199,
+      "end": 19281,
+      "type_": "Code"
+    },
+    {
+      "start": 19282,
+      "end": 19294,
+      "type_": "DataByte"
+    },
+    {
+      "start": 19295,
       "end": 19350,
       "type_": "Code"
     },
@@ -500,7 +510,7 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 16344,
+  "cursor_address": 12282,
   "hex_dump_cursor_address": 16384,
   "sprites_cursor_address": 12416,
   "charset_cursor_address": 22536,
@@ -508,5 +518,14 @@
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
   "petscii_mode": "Unshifted",
-  "collapsed_blocks": []
+  "collapsed_blocks": [
+    [
+      4421,
+      4606
+    ],
+    [
+      6143,
+      7166
+    ]
+  ]
 }

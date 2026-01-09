@@ -22,6 +22,8 @@ pub struct Theme {
     pub label_def: Color,
     pub comment: Color,
     pub arrow: Color,
+    pub collapsed_block: Color,
+    pub collapsed_block_bg: Color,
 
     // Hex View
     pub hex_bytes: Color,
@@ -82,6 +84,8 @@ impl Theme {
             label_def: Color::Magenta,
             comment: Color::Gray, // Or DarkGray
             arrow: Color::Gray,
+            collapsed_block: Color::Rgb(100, 160, 255), // Lightish Blue to distinguish from Gray comments
+            collapsed_block_bg: Color::Rgb(30, 30, 40), // Very dark blue/gray
 
             hex_bytes: Color::White,
             hex_ascii: Color::Green,
@@ -127,6 +131,8 @@ impl Theme {
             label_def: Color::Rgb(128, 0, 128),
             comment: Color::Rgb(0, 128, 0), // Green for comments
             arrow: Color::DarkGray,
+            collapsed_block: Color::Blue, // Distinct from Green comments
+            collapsed_block_bg: Color::Rgb(240, 240, 255), // Very light blue/white
 
             hex_bytes: Color::Black,
             hex_ascii: Color::Rgb(0, 0, 255), // Blue for ASCII
