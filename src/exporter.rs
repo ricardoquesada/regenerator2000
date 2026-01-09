@@ -693,9 +693,6 @@ mod tests {
 
         // Note: The exporter relies on `line.opcode` to know it was Absolute.
 
-        use crate::cpu::AddressingMode;
-        use crate::cpu::Opcode;
-
         // Line 1: LDA $0012 (Absolute)
         // state.disassembly.push(...) - Remove manual push
 
