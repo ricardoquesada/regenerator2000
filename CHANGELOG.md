@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Added block splitters
+- Added support for collapsed blocks
+- Added support for searching within comments
+- Added 'm' keyboard shortcut to toggle shifted/unshifted charset modes
+- Improved arrow visualization in disassembly (removed "ghost" arrows, better styling)
+- Improved keyboard shortcuts reliability
+- Fixed valid tests altering global configuration (`last_project_path`)
+- Fixed search cursor positioning logic
+- Fixed 64tass export regression
+
 ## [0.2.2] - 2026-01-06
 
 - Update keyboard shortcuts (again, sorry)
