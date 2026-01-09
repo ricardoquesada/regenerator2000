@@ -274,13 +274,8 @@
     },
     {
       "start": 14335,
-      "end": 15357,
-      "type_": "DataByte"
-    },
-    {
-      "start": 15358,
       "end": 15358,
-      "type_": "Undefined"
+      "type_": "DataByte"
     },
     {
       "start": 15359,
@@ -505,11 +500,11 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 8192,
+  "cursor_address": 17408,
   "hex_dump_cursor_address": 16384,
   "sprites_cursor_address": 12416,
   "charset_cursor_address": 8192,
-  "right_pane_visible": "Charset",
+  "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
   "petscii_mode": "Unshifted",
