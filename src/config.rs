@@ -11,7 +11,7 @@ pub struct SystemConfig {
 }
 
 fn default_theme() -> String {
-    "Dark".to_string()
+    "Solarized Dark".to_string()
 }
 
 impl Default for SystemConfig {
@@ -19,7 +19,7 @@ impl Default for SystemConfig {
         Self {
             open_last_project: true,
             last_project_path: None,
-            theme: "Dark".to_string(),
+            theme: "Solarized Dark".to_string(),
         }
     }
 }

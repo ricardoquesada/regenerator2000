@@ -104,14 +104,14 @@ impl Solarized {
 impl Theme {
     pub fn from_name(name: &str) -> Self {
         match name {
-            "Light" => Self::light(),
+            "Solarized Light" => Self::light(),
             _ => Self::dark(),
         }
     }
 
     pub fn dark() -> Self {
         Self {
-            name: "Dark",
+            name: "Solarized Dark",
             background: Solarized::BASE03,
             foreground: Solarized::BASE0,
             border_active: Solarized::BLUE,
@@ -179,7 +179,7 @@ impl Theme {
 
     pub fn light() -> Self {
         Self {
-            name: "Light",
+            name: "Solarized Light",
             background: Solarized::BASE3,
             foreground: Solarized::BASE00,
             border_active: Solarized::BLUE,
@@ -246,6 +246,6 @@ impl Theme {
     }
 
     pub fn all_names() -> Vec<&'static str> {
-        vec!["Dark", "Light"]
+        vec!["Solarized Dark", "Solarized Light"]
     }
 }
