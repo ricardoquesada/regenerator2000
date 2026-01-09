@@ -1170,6 +1170,7 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         RightPane::HexDump => 75,
         RightPane::Sprites => 36, // 24 chars + border + padding
         RightPane::Charset => 76, // Grid view: 8 cols * (8+1) width + padding
+        RightPane::Blocks => 32,
     };
     let disasm_view_width = area.width.saturating_sub(right_pane_width);
 
@@ -1188,6 +1189,7 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         RightPane::HexDump => render_hex_view(f, layout[1], app_state, ui_state),
         RightPane::Sprites => render_sprites_view(f, layout[1], app_state, ui_state),
         RightPane::Charset => render_charset_view(f, layout[1], app_state, ui_state),
+        RightPane::Blocks => render_blocks_view(f, layout[1], app_state, ui_state),
     }
 }
 
@@ -2676,6 +2678,42 @@ fn render_charset_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state
         y_offset += item_height;
     }
 }
+fn render_blocks_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
+    let is_active = ui_state.active_pane == ActivePane::Blocks;
+    let border_style = if is_active {
+        Style::default().fg(ui_state.theme.border_active)
+    } else {
+        Style::default().fg(ui_state.theme.border_inactive)
+    };
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("Blocks")
+        .style(border_style);
+
+    let inner_area = block.inner(area);
+    f.render_widget(block, area);
+
+    let blocks = app_state.get_compressed_blocks();
+    let items: Vec<ListItem> = blocks
+        .iter()
+        .map(|b| {
+            let start_addr = app_state.origin.wrapping_add(b.start as u16);
+            let end_addr = app_state.origin.wrapping_add(b.end as u16);
+
+            let type_str = b.type_.to_string();
+            let content = format!("{:<10} ${:04X}-${:04X}", type_str, start_addr, end_addr);
+            ListItem::new(content)
+        })
+        .collect();
+
+    let list = List::new(items)
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+        .highlight_symbol("> ");
+
+    f.render_stateful_widget(list, inner_area, &mut ui_state.blocks_list_state);
+}
+
 #[cfg(test)]
 mod tests {
     use crate::cpu::{AddressingMode, Opcode};

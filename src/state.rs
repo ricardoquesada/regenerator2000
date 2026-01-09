@@ -348,6 +348,10 @@ impl AppState {
         }
     }
 
+    pub fn get_compressed_blocks(&self) -> Vec<Block> {
+        compress_block_types(&self.block_types)
+    }
+
     pub fn load_system_assets(&mut self) {
         // Clear existing system labels
         for labels in self.labels.values_mut() {
@@ -933,7 +937,7 @@ impl AppState {
     }
 }
 
-fn compress_block_types(types: &[BlockType]) -> Vec<Block> {
+pub fn compress_block_types(types: &[BlockType]) -> Vec<Block> {
     if types.is_empty() {
         return Vec::new();
     }

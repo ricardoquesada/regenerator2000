@@ -157,6 +157,13 @@ pub fn run_app<B: Backend>(
                                                 ui_state.set_status_message("Address out of range");
                                             }
                                         }
+                                        ActivePane::Blocks => {
+                                            // Blocks doesn't support jump to address yet (search blocks?)
+                                            // Only jump to line index for now if needed.
+                                            ui_state.set_status_message(
+                                                "Jump to address not supported in Blocks view",
+                                            );
+                                        }
                                     }
 
                                     ui_state.jump_dialog.close();
@@ -1205,6 +1212,15 @@ pub fn run_app<B: Backend>(
                                 ui_state.charset_cursor_index =
                                     ui_state.charset_cursor_index.saturating_sub(10);
                             }
+                            ActivePane::Blocks => {
+                                ui_state.blocks_list_state.select(Some(
+                                    ui_state
+                                        .blocks_list_state
+                                        .selected()
+                                        .unwrap_or(0)
+                                        .saturating_sub(10),
+                                ));
+                            }
                         }
                     }
 
@@ -1251,9 +1267,17 @@ pub fn run_app<B: Backend>(
                                         + 10)
                                         .min(max_char_index.saturating_sub(1));
                                 }
+                                ActivePane::Blocks => {
+                                    let blocks = app_state.get_compressed_blocks();
+                                    let current =
+                                        ui_state.blocks_list_state.selected().unwrap_or(0);
+                                    let next = (current + 10).min(blocks.len().saturating_sub(1));
+                                    ui_state.blocks_list_state.select(Some(next));
+                                }
                             }
                         }
                     }
+
                     KeyCode::Char('u') if key.modifiers.is_empty() => {
                         handle_menu_action(
                             &mut app_state,
@@ -1287,6 +1311,13 @@ pub fn run_app<B: Backend>(
                             &mut app_state,
                             &mut ui_state,
                             crate::ui_state::MenuAction::ToggleCharsetView,
+                        );
+                    }
+                    KeyCode::Char('5') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::ToggleBlocksView,
                         );
                     }
 
@@ -1730,6 +1761,21 @@ pub fn run_app<B: Backend>(
                                 ui_state
                                     .set_status_message(format!("Jumped to char {}", target_char));
                             }
+                            ActivePane::Blocks => {
+                                let blocks = app_state.get_compressed_blocks();
+                                let target = if is_buffer_empty {
+                                    blocks.len()
+                                } else {
+                                    entered_number
+                                };
+                                let new_selection = if target == 0 {
+                                    blocks.len().saturating_sub(1)
+                                } else {
+                                    target.saturating_sub(1).min(blocks.len().saturating_sub(1))
+                                };
+                                ui_state.blocks_list_state.select(Some(new_selection));
+                                ui_state.set_status_message(format!("Jumped to block {}", target));
+                            }
                         }
                     }
 
@@ -1739,6 +1785,7 @@ pub fn run_app<B: Backend>(
                             || ui_state.active_pane == ActivePane::HexDump
                             || ui_state.active_pane == ActivePane::Sprites
                             || ui_state.active_pane == ActivePane::Charset
+                            || ui_state.active_pane == ActivePane::Blocks
                         {
                             // Only append if it's a valid number sequence (avoid overflow though usize is large)
                             if ui_state.input_buffer.len() < 10 {
@@ -1752,6 +1799,12 @@ pub fn run_app<B: Backend>(
                     KeyCode::Down | KeyCode::Char('j') => {
                         ui_state.input_buffer.clear();
                         match ui_state.active_pane {
+                            ActivePane::Blocks => {
+                                let blocks = app_state.get_compressed_blocks();
+                                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
+                                let next = (current + 1).min(blocks.len().saturating_sub(1));
+                                ui_state.blocks_list_state.select(Some(next));
+                            }
                             ActivePane::Disassembly => {
                                 if key.modifiers.contains(KeyModifiers::SHIFT)
                                     || ui_state.is_visual_mode
@@ -1880,6 +1933,11 @@ pub fn run_app<B: Backend>(
                                 ui_state.charset_cursor_index =
                                     ui_state.charset_cursor_index.saturating_sub(8);
                             }
+                            ActivePane::Blocks => {
+                                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
+                                let next = current.saturating_sub(1);
+                                ui_state.blocks_list_state.select(Some(next));
+                            }
                         }
                     }
                     KeyCode::Tab => {
@@ -1889,10 +1947,12 @@ pub fn run_app<B: Backend>(
                                 crate::ui_state::RightPane::HexDump => ActivePane::HexDump,
                                 crate::ui_state::RightPane::Sprites => ActivePane::Sprites,
                                 crate::ui_state::RightPane::Charset => ActivePane::Charset,
+                                crate::ui_state::RightPane::Blocks => ActivePane::Blocks,
                             },
-                            ActivePane::HexDump | ActivePane::Sprites | ActivePane::Charset => {
-                                ActivePane::Disassembly
-                            }
+                            ActivePane::HexDump
+                            | ActivePane::Sprites
+                            | ActivePane::Charset
+                            | ActivePane::Blocks => ActivePane::Disassembly,
                         };
                     }
                     KeyCode::Esc => {
@@ -1908,40 +1968,42 @@ pub fn run_app<B: Backend>(
                     }
                     KeyCode::PageDown => {
                         ui_state.input_buffer.clear();
-                        match ui_state.active_pane {
-                            ActivePane::Disassembly => {
-                                ui_state.cursor_index = (ui_state.cursor_index + 10)
-                                    .min(app_state.disassembly.len().saturating_sub(1));
-                            }
-                            ActivePane::HexDump => {
-                                let bytes_per_row = 16;
-                                let padding = (app_state.origin as usize) % bytes_per_row;
-                                let total_rows =
-                                    (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
-                                ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
-                                    .min(total_rows.saturating_sub(1));
-                            }
-                            ActivePane::Sprites => {
-                                let origin = app_state.origin as usize;
-                                let padding = (64 - (origin % 64)) % 64;
-                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
-                                let total_sprites = usable_len.div_ceil(64);
-                                ui_state.sprites_cursor_index = (ui_state.sprites_cursor_index
-                                    + 10)
-                                    .min(total_sprites.saturating_sub(1));
-                            }
-                            ActivePane::Charset => {
-                                let origin = app_state.origin as usize;
-                                let base_alignment = 0x400;
-                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                                let end_addr = origin + app_state.raw_data.len();
-                                let max_char_index =
-                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            ui_state.cursor_index = (ui_state.cursor_index + 30)
+                                .min(app_state.disassembly.len().saturating_sub(1));
+                        } else if ui_state.active_pane == ActivePane::Blocks {
+                            ui_state.blocks_list_state.select(Some(
+                                ui_state
+                                    .blocks_list_state
+                                    .selected()
+                                    .unwrap_or(0)
+                                    .saturating_add(30)
+                                    .min(app_state.get_compressed_blocks().len().saturating_sub(1)),
+                            ));
+                        } else if ui_state.active_pane == ActivePane::HexDump {
+                            let bytes_per_row = 16;
+                            let padding = (app_state.origin as usize) % bytes_per_row;
+                            let total_rows =
+                                (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
+                            ui_state.hex_cursor_index =
+                                (ui_state.hex_cursor_index + 10).min(total_rows.saturating_sub(1));
+                        } else if ui_state.active_pane == ActivePane::Sprites {
+                            let origin = app_state.origin as usize;
+                            let padding = (64 - (origin % 64)) % 64;
+                            let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                            let total_sprites = usable_len.div_ceil(64);
+                            ui_state.sprites_cursor_index = (ui_state.sprites_cursor_index + 10)
+                                .min(total_sprites.saturating_sub(1));
+                        } else if ui_state.active_pane == ActivePane::Charset {
+                            let origin = app_state.origin as usize;
+                            let base_alignment = 0x400;
+                            let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                            let end_addr = origin + app_state.raw_data.len();
+                            let max_char_index =
+                                (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
 
-                                ui_state.charset_cursor_index = (ui_state.charset_cursor_index
-                                    + 256)
-                                    .min(max_char_index.saturating_sub(1));
-                            }
+                            ui_state.charset_cursor_index = (ui_state.charset_cursor_index + 256)
+                                .min(max_char_index.saturating_sub(1));
                         }
                     }
                     KeyCode::PageUp => {
@@ -1962,6 +2024,11 @@ pub fn run_app<B: Backend>(
                                 ui_state.charset_cursor_index =
                                     ui_state.charset_cursor_index.saturating_sub(256);
                             }
+                            ActivePane::Blocks => {
+                                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
+                                let next = current.saturating_sub(10);
+                                ui_state.blocks_list_state.select(Some(next));
+                            }
                         }
                     }
                     KeyCode::Home => {
@@ -1971,6 +2038,7 @@ pub fn run_app<B: Backend>(
                             ActivePane::HexDump => ui_state.hex_cursor_index = 0,
                             ActivePane::Sprites => ui_state.sprites_cursor_index = 0,
                             ActivePane::Charset => ui_state.charset_cursor_index = 0,
+                            ActivePane::Blocks => ui_state.blocks_list_state.select(Some(0)),
                         }
                     }
                     KeyCode::End => {
@@ -1979,6 +2047,11 @@ pub fn run_app<B: Backend>(
                             ActivePane::Disassembly => {
                                 ui_state.cursor_index =
                                     app_state.disassembly.len().saturating_sub(1)
+                            }
+                            ActivePane::Blocks => {
+                                let blocks = app_state.get_compressed_blocks();
+                                let last = blocks.len().saturating_sub(1);
+                                ui_state.blocks_list_state.select(Some(last));
                             }
                             ActivePane::HexDump => {
                                 let bytes_per_row = 16;
@@ -2571,6 +2644,17 @@ fn execute_menu_action(
                     let aligned_start_addr = (origin / base_alignment) * base_alignment;
                     Some((aligned_start_addr + ui_state.charset_cursor_index * 8) as u16)
                 }
+                ActivePane::Blocks => {
+                    // Jump to start of selected block
+                    let blocks = app_state.get_compressed_blocks();
+                    let idx = ui_state.blocks_list_state.selected().unwrap_or(0);
+                    if idx < blocks.len() {
+                        let offset = blocks[idx].start as u16;
+                        Some(app_state.origin.wrapping_add(offset))
+                    } else {
+                        None
+                    }
+                }
             };
 
             if let Some(addr) = target_addr {
@@ -2761,6 +2845,19 @@ fn execute_menu_action(
                 ui_state.right_pane = crate::ui_state::RightPane::Charset;
                 ui_state.active_pane = ActivePane::Charset;
                 ui_state.set_status_message("Charset View Shown");
+            }
+        }
+        MenuAction::ToggleBlocksView => {
+            if ui_state.right_pane == crate::ui_state::RightPane::Blocks {
+                ui_state.right_pane = crate::ui_state::RightPane::None;
+                ui_state.set_status_message("Blocks View Hidden");
+                if ui_state.active_pane == ActivePane::Blocks {
+                    ui_state.active_pane = ActivePane::Disassembly;
+                }
+            } else {
+                ui_state.right_pane = crate::ui_state::RightPane::Blocks;
+                ui_state.active_pane = ActivePane::Blocks;
+                ui_state.set_status_message("Blocks View Shown");
             }
         }
         MenuAction::KeyboardShortcuts => {

@@ -9,7 +9,9 @@ pub enum ActivePane {
     Disassembly,
     HexDump,
     Sprites,
+
     Charset,
+    Blocks,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -18,7 +20,9 @@ pub enum RightPane {
     #[default]
     HexDump,
     Sprites,
+
     Charset,
+    Blocks,
 }
 
 use crate::state::PetsciiMode;
@@ -66,6 +70,8 @@ pub enum MenuAction {
     ToggleSpriteMulticolor,
     ToggleCharsetView,
     ToggleCharsetMulticolor,
+
+    ToggleBlocksView,
     CollapseBlock,
     UncollapseBlock,
     ToggleSplitter,
@@ -674,6 +680,11 @@ impl MenuState {
                             Some("Ctrl+4"),
                             Some(MenuAction::ToggleCharsetView),
                         ),
+                        MenuItem::new(
+                            "Toggle Blocks View",
+                            Some("Ctrl+5"),
+                            Some(MenuAction::ToggleBlocksView),
+                        ),
                     ],
                 },
                 MenuCategory {
@@ -878,6 +889,8 @@ pub struct UIState {
     pub hex_cursor_index: usize,
     pub sprites_cursor_index: usize,
     pub charset_cursor_index: usize,
+
+    pub blocks_list_state: ListState,
     #[allow(dead_code)]
     pub hex_scroll_index: usize,
     pub right_pane: RightPane,
@@ -926,8 +939,11 @@ impl UIState {
             scroll_index: 0,
             hex_cursor_index: 0,
             sprites_cursor_index: 0,
+
             charset_cursor_index: 0,
+            blocks_list_state: ListState::default(),
             hex_scroll_index: 0,
+
             right_pane: RightPane::HexDump,
             sprite_multicolor_mode: false,
             charset_multicolor_mode: false,
