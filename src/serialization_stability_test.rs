@@ -59,17 +59,20 @@ mod tests {
 
         // 2. Save for the first time
         app_state
-            .save_project(ProjectSaveContext {
-                cursor_address: None,
-                hex_dump_cursor_address: None,
-                sprites_cursor_address: None,
-                right_pane_visible: None,
-                charset_cursor_address: None,
-                sprite_multicolor_mode: false,
-                charset_multicolor_mode: false,
-                petscii_mode: crate::state::PetsciiMode::default(),
-                collapsed_blocks: Vec::new(),
-            })
+            .save_project(
+                ProjectSaveContext {
+                    cursor_address: None,
+                    hex_dump_cursor_address: None,
+                    sprites_cursor_address: None,
+                    right_pane_visible: None,
+                    charset_cursor_address: None,
+                    sprite_multicolor_mode: false,
+                    charset_multicolor_mode: false,
+                    petscii_mode: crate::state::PetsciiMode::default(),
+                    collapsed_blocks: Vec::new(),
+                },
+                false,
+            )
             .expect("First save failed");
         let first_save_content =
             std::fs::read_to_string(&temp_path).expect("Read first save failed");
@@ -82,17 +85,20 @@ mod tests {
 
         // 4. Save again
         app_state_2
-            .save_project(ProjectSaveContext {
-                cursor_address: None,
-                hex_dump_cursor_address: None,
-                sprites_cursor_address: None,
-                right_pane_visible: None,
-                charset_cursor_address: None,
-                sprite_multicolor_mode: false,
-                charset_multicolor_mode: false,
-                petscii_mode: crate::state::PetsciiMode::default(),
-                collapsed_blocks: Vec::new(),
-            })
+            .save_project(
+                ProjectSaveContext {
+                    cursor_address: None,
+                    hex_dump_cursor_address: None,
+                    sprites_cursor_address: None,
+                    right_pane_visible: None,
+                    charset_cursor_address: None,
+                    sprite_multicolor_mode: false,
+                    charset_multicolor_mode: false,
+                    petscii_mode: crate::state::PetsciiMode::default(),
+                    collapsed_blocks: Vec::new(),
+                },
+                false,
+            )
             .expect("Second save failed");
         let second_save_content =
             std::fs::read_to_string(&temp_path).expect("Read second save failed");

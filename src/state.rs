@@ -476,7 +476,11 @@ impl AppState {
         })
     }
 
-    pub fn save_project(&mut self, ctx: ProjectSaveContext) -> anyhow::Result<()> {
+    pub fn save_project(
+        &mut self,
+        ctx: ProjectSaveContext,
+        update_global_config: bool,
+    ) -> anyhow::Result<()> {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
                 origin: self.origin,
@@ -514,8 +518,10 @@ impl AppState {
             std::fs::write(path, data)?;
             self.last_saved_pointer = self.undo_stack.get_pointer();
 
-            self.system_config.last_project_path = Some(path.clone());
-            let _ = self.system_config.save();
+            if update_global_config {
+                self.system_config.last_project_path = Some(path.clone());
+                let _ = self.system_config.save();
+            }
 
             Ok(())
         } else {
@@ -1087,17 +1093,20 @@ mod save_project_tests {
         app_state.project_path = Some(path.clone());
 
         app_state
-            .save_project(ProjectSaveContext {
-                cursor_address: None,
-                hex_dump_cursor_address: None,
-                sprites_cursor_address: None,
-                right_pane_visible: None,
-                charset_cursor_address: None,
-                sprite_multicolor_mode: false,
-                charset_multicolor_mode: false,
-                petscii_mode: PetsciiMode::default(),
-                collapsed_blocks: Vec::new(),
-            })
+            .save_project(
+                ProjectSaveContext {
+                    cursor_address: None,
+                    hex_dump_cursor_address: None,
+                    sprites_cursor_address: None,
+                    right_pane_visible: None,
+                    charset_cursor_address: None,
+                    sprite_multicolor_mode: false,
+                    charset_multicolor_mode: false,
+                    petscii_mode: PetsciiMode::default(),
+                    collapsed_blocks: Vec::new(),
+                },
+                false,
+            )
             .expect("Save failed");
 
         // 4. Read back JSON manually to inspect

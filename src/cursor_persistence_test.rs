@@ -22,17 +22,20 @@ mod tests {
         app_state.project_path = Some(path.clone());
 
         app_state
-            .save_project(ProjectSaveContext {
-                cursor_address: Some(start_cursor_addr),
-                hex_dump_cursor_address: Some(start_hex_cursor_addr),
-                sprites_cursor_address: None,
-                right_pane_visible: None,
-                charset_cursor_address: None,
-                sprite_multicolor_mode: false,
-                charset_multicolor_mode: false,
-                petscii_mode: crate::state::PetsciiMode::default(),
-                collapsed_blocks: Vec::new(),
-            })
+            .save_project(
+                ProjectSaveContext {
+                    cursor_address: Some(start_cursor_addr),
+                    hex_dump_cursor_address: Some(start_hex_cursor_addr),
+                    sprites_cursor_address: None,
+                    right_pane_visible: None,
+                    charset_cursor_address: None,
+                    sprite_multicolor_mode: false,
+                    charset_multicolor_mode: false,
+                    petscii_mode: crate::state::PetsciiMode::default(),
+                    collapsed_blocks: Vec::new(),
+                },
+                false,
+            )
             .expect("Failed to save project");
 
         // 3. Create fresh app state and load
