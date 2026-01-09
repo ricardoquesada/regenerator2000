@@ -169,13 +169,8 @@
     },
     {
       "start": 6121,
-      "end": 6141,
-      "type_": "DataByte"
-    },
-    {
-      "start": 6142,
       "end": 6142,
-      "type_": "Undefined"
+      "type_": "DataByte"
     },
     {
       "start": 6143,
@@ -500,7 +495,7 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 5632,
+  "cursor_address": 12288,
   "hex_dump_cursor_address": 16384,
   "sprites_cursor_address": 12416,
   "charset_cursor_address": 8192,
@@ -526,8 +521,6 @@
       7166
     ]
   ],
-  "splitters": [
-    12288
-  ],
-  "blocks_view_cursor": 19
+  "splitters": [],
+  "blocks_view_cursor": 37
 }

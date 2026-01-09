@@ -60,6 +60,7 @@ pub struct Theme {
     pub block_hilo_fg: Color,
     pub block_external_file_fg: Color,
     pub block_undefined_fg: Color,
+    pub block_splitter_fg: Color,
 
     // Block Types (Backgrounds)
     pub block_code_bg: Color,
@@ -72,6 +73,7 @@ pub struct Theme {
     pub block_hilo_bg: Color,
     pub block_external_file_bg: Color,
     pub block_undefined_bg: Color,
+    pub block_splitter_bg: Color,
 }
 
 impl Default for Theme {
@@ -223,6 +225,8 @@ impl Theme {
             block_external_file_bg: Solarized::BASE02,
             block_undefined_fg: Solarized::BASE01,
             block_undefined_bg: Solarized::BASE02,
+            block_splitter_fg: Solarized::BASE1,
+            block_splitter_bg: Solarized::BASE02,
         }
     }
 
@@ -291,6 +295,8 @@ impl Theme {
             block_external_file_bg: Solarized::BASE2,
             block_undefined_fg: Solarized::BASE1,
             block_undefined_bg: Solarized::BASE2,
+            block_splitter_fg: Solarized::BASE1,
+            block_splitter_bg: Solarized::BASE2,
         }
     }
 
@@ -368,6 +374,8 @@ impl Theme {
             block_external_file_bg: Dracula::BACKGROUND,
             block_undefined_fg: Dracula::COMMENT,
             block_undefined_bg: Dracula::BACKGROUND,
+            block_splitter_fg: Dracula::COMMENT,
+            block_splitter_bg: Dracula::BACKGROUND,
         }
     }
 
@@ -435,6 +443,8 @@ impl Theme {
             block_external_file_bg: Gruvbox::BG0,
             block_undefined_fg: Gruvbox::GRAY,
             block_undefined_bg: Gruvbox::BG0,
+            block_splitter_fg: Gruvbox::GRAY,
+            block_splitter_bg: Gruvbox::BG0,
         }
     }
 
@@ -502,6 +512,8 @@ impl Theme {
             block_external_file_bg: Monokai::BACKGROUND,
             block_undefined_fg: Monokai::COMMENT,
             block_undefined_bg: Monokai::BACKGROUND,
+            block_splitter_fg: Monokai::COMMENT,
+            block_splitter_bg: Monokai::BACKGROUND,
         }
     }
 }

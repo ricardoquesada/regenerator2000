@@ -989,6 +989,147 @@ fn expand_blocks(ranges: &[Block], len: usize) -> Vec<BlockType> {
     types
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum BlockItem {
+    Block {
+        start: u16,
+        end: u16,
+        type_: BlockType,
+    },
+    Splitter(u16),
+}
+
+impl AppState {
+    pub fn get_blocks_view_items(&self) -> Vec<BlockItem> {
+        let compressed_blocks = self.get_compressed_blocks();
+        let mut items = Vec::new();
+
+        // Convert compressed blocks to our list, splicing in splitters
+        for block in compressed_blocks {
+            let block_start = self.origin.wrapping_add(block.start as u16);
+            let block_end = self.origin.wrapping_add(block.end as u16);
+
+            // Collect splitters that fall strictly WITHIN this block (exclusive of start, inclusive of end?)
+            // Logic: Splitter at START of block doesn't split it (it's just a boundary).
+            // Splitter at END of block... well, blocks are [start, end].
+            // If we have a block $1000-$1010.
+            // Splitter at $1005.
+            // Result: Block $1000-$1004, Splitter $1005, Block $1005-$1010 ?
+            // No, Splitter is a point. It divides.
+            // Wait, existing behavior: Splitter at $1005 means code at $1005 starts a new instruction/data sequence?
+            // In `disassembler.rs`, splitter breaks the flow.
+            // If we have a solid block of DataByte from $1000 to $1010.
+            // And we add a splitter at $1005.
+            // The `compressed_block_types` calculation *should* already reflect this if the types are different?
+            // No, splitters don't change the *type*. They just force a disassembly/analysis break.
+            // BUT, if the type is the SAME on both sides, `compress_block_types` merges them.
+            // WE want to visually show the splitter.
+
+            // So we iterate through the splitters.
+            // Find splitters that are in (block_start..=block_end).
+            // Actually, if a splitter is at block_start, it visually separates from PREVIOUS block.
+            // But here we are processing THIS block.
+            // If splitter is at $1000 (start), do we show it BEFORE the block?
+            // If we show it before, it might duplicate if the previous block ended at $0FFF.
+            // Let's decide: Splitter at X belongs to the block starting at X or ending at X?
+            // A splitter is an address.
+            // Any splitter >= block_start && splitter <= block_end is relevant.
+
+            // However, `get_compressed_blocks` returns blocks based on `block_types` array indices.
+            // We need to map `block.start`/`end` (indices) to addresses.
+
+            let current_end_idx = block.end;
+
+            // Filter splitters relevant to this block range
+            // Relevant: splitter_addr >= block_start_addr AND splitter_addr <= block_end_addr
+            // Note: Indices are relative to 0 (start of memory buffer). Address = origin + index.
+
+            let relevant_splitters: Vec<u16> = self
+                .splitters
+                .range(block_start..=block_end)
+                .copied()
+                .collect();
+
+            // If splitter is exactly at block_start, do we split?
+            // If we split, we get Empty Block, Splitter, Block.
+            // We probably just want Splitter, Block.
+            // But we should filter out splitters that are at the very beginning if we handled them in the previous block?
+            // No, we process blocks sequentially.
+
+            // Wait, if we have Block1 ($1000-$1004) and Block2 ($1005-$1010).
+            // And Splitter is at $1005.
+            // Block1 ends at $1004. Splitter ($1005) is NOT in Block1.
+            // Block2 starts at $1005. Splitter ($1005) IS in Block2.
+            // So it will appear at the start of Block2.
+            // What if Splitter is at $1011? It would be after Block2.
+
+            // SPECIAL CASE: multiple blocks of SAME type are merged by `compress_block_types`.
+            // So if $1000-$1010 is all Code, we get ONE `Block`.
+            // If we have a splitter at $1005.
+            // We want: Block ($1000-$1004), Splitter ($1005), Block ($1005-$1010).
+            // Addresses:
+            // Block 1: start=$1000, end=$1004 (len 5)
+            // Splitter: $1005
+            // Block 2: start=$1005, end=$1010 (len 6)
+
+            // Implementation:
+            // Iterate range of indices in this block.
+            // If index corresponds to a splitter address -> Split.
+
+            let origin = self.origin;
+            let mut sub_block_start = block.start;
+
+            for splitter_addr in relevant_splitters {
+                // Convert splitter address to index
+                // We need to handle wrapping if any (though usually origin + len fits in u16 space or distinct).
+                // index = splitter_addr - origin.
+                let splitter_idx = (splitter_addr.wrapping_sub(origin)) as usize;
+
+                // If splitter is outside current bounds (shouldn't happen due to range filter), skip.
+                if splitter_idx < sub_block_start || splitter_idx > current_end_idx {
+                    continue;
+                }
+
+                // If splitter is > sub_block_start, we have a chunk before the splitter.
+                if splitter_idx > sub_block_start {
+                    items.push(BlockItem::Block {
+                        start: sub_block_start as u16,
+                        end: (splitter_idx - 1) as u16,
+                        type_: block.type_,
+                    });
+                }
+
+                // Emit Splitter
+                items.push(BlockItem::Splitter(splitter_addr));
+
+                // The rest of the block including splitter starts at splitter_idx.
+                // Wait, does the splitter consume a byte? No.
+                // A splitter is a designated point.
+                // But visually we want to break the block.
+                // If Block is Code $1000-$1010.
+                // Splitter at $1005.
+                // We want Block $1000-$1004.
+                // Splitter $1005 item.
+                // Block $1005-$1010.
+                // So next sub_block starts at splitter_idx.
+
+                sub_block_start = splitter_idx;
+            }
+
+            // Emit remainder
+            if sub_block_start <= current_end_idx {
+                items.push(BlockItem::Block {
+                    start: sub_block_start as u16,
+                    end: current_end_idx as u16,
+                    type_: block.type_,
+                });
+            }
+        }
+
+        items
+    }
+}
+
 use base64::{Engine as _, engine::general_purpose};
 use flate2::Compression;
 use flate2::read::GzDecoder;

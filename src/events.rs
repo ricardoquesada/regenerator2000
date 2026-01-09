@@ -1387,7 +1387,9 @@ pub fn run_app<B: Backend>(
 
                     // Data Conversion Shortcuts
                     KeyCode::Char('c') if key.modifiers.is_empty() => {
-                        if ui_state.active_pane == ActivePane::Disassembly {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -1396,7 +1398,9 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     KeyCode::Char('b') if key.modifiers.is_empty() => {
-                        if ui_state.active_pane == ActivePane::Disassembly {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -1405,7 +1409,9 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     KeyCode::Char('w') if key.modifiers.is_empty() => {
-                        if ui_state.active_pane == ActivePane::Disassembly {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -1414,7 +1420,9 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     KeyCode::Char('a') if key.modifiers.is_empty() => {
-                        if ui_state.active_pane == ActivePane::Disassembly {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -1423,7 +1431,9 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     KeyCode::Char('t') if key.modifiers.is_empty() => {
-                        if ui_state.active_pane == ActivePane::Disassembly {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -1432,7 +1442,9 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     KeyCode::Char('s') if key.modifiers.is_empty() => {
-                        if ui_state.active_pane == ActivePane::Disassembly {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -1446,7 +1458,9 @@ pub fn run_app<B: Backend>(
                             .modifiers
                             .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
                     {
-                        if ui_state.active_pane == ActivePane::Disassembly {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -1459,7 +1473,9 @@ pub fn run_app<B: Backend>(
                             .modifiers
                             .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
                     {
-                        if ui_state.active_pane == ActivePane::Disassembly {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -1472,7 +1488,9 @@ pub fn run_app<B: Backend>(
                             .modifiers
                             .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
                     {
-                        if ui_state.active_pane == ActivePane::Disassembly {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -1490,7 +1508,9 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     KeyCode::Char('|') => {
-                        if ui_state.active_pane == ActivePane::Disassembly {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -1771,7 +1791,7 @@ pub fn run_app<B: Backend>(
                                     .set_status_message(format!("Jumped to char {}", target_char));
                             }
                             ActivePane::Blocks => {
-                                let blocks = app_state.get_compressed_blocks();
+                                let blocks = app_state.get_blocks_view_items();
                                 let target = if is_buffer_empty {
                                     blocks.len()
                                 } else {
@@ -2058,7 +2078,7 @@ pub fn run_app<B: Backend>(
                                     app_state.disassembly.len().saturating_sub(1)
                             }
                             ActivePane::Blocks => {
-                                let blocks = app_state.get_compressed_blocks();
+                                let blocks = app_state.get_blocks_view_items();
                                 let last = blocks.len().saturating_sub(1);
                                 ui_state.blocks_list_state.select(Some(last));
                             }
@@ -2313,7 +2333,23 @@ fn execute_menu_action(
         }
 
         MenuAction::Code => {
-            if let Some(start_index) = ui_state.selection_start {
+            if ui_state.active_pane == ActivePane::Blocks {
+                let blocks = app_state.get_blocks_view_items();
+                if let Some(idx) = ui_state.blocks_list_state.selected() {
+                    if idx < blocks.len() {
+                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
+                            let start_idx = start as usize;
+                            let end_idx = end as usize;
+                            app_state.set_block_type_region(
+                                crate::state::BlockType::Code,
+                                Some(start_idx),
+                                end_idx,
+                            );
+                            ui_state.set_status_message("Set block type to Code");
+                        }
+                    }
+                }
+            } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
                 let end = start_index.max(ui_state.cursor_index);
 
@@ -2341,7 +2377,23 @@ fn execute_menu_action(
             }
         }
         MenuAction::Byte => {
-            if let Some(start_index) = ui_state.selection_start {
+            if ui_state.active_pane == ActivePane::Blocks {
+                let blocks = app_state.get_blocks_view_items();
+                if let Some(idx) = ui_state.blocks_list_state.selected() {
+                    if idx < blocks.len() {
+                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
+                            let start_idx = start as usize;
+                            let end_idx = end as usize;
+                            app_state.set_block_type_region(
+                                crate::state::BlockType::DataByte,
+                                Some(start_idx),
+                                end_idx,
+                            );
+                            ui_state.set_status_message("Set block type to Byte");
+                        }
+                    }
+                }
+            } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
                 let end = start_index.max(ui_state.cursor_index);
 
@@ -2373,7 +2425,23 @@ fn execute_menu_action(
             }
         }
         MenuAction::Word => {
-            if let Some(start_index) = ui_state.selection_start {
+            if ui_state.active_pane == ActivePane::Blocks {
+                let blocks = app_state.get_blocks_view_items();
+                if let Some(idx) = ui_state.blocks_list_state.selected() {
+                    if idx < blocks.len() {
+                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
+                            let start_idx = start as usize;
+                            let end_idx = end as usize;
+                            app_state.set_block_type_region(
+                                crate::state::BlockType::DataWord,
+                                Some(start_idx),
+                                end_idx,
+                            );
+                            ui_state.set_status_message("Set block type to Word");
+                        }
+                    }
+                }
+            } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
                 let end = start_index.max(ui_state.cursor_index);
 
@@ -2405,7 +2473,9 @@ fn execute_menu_action(
             }
         }
         MenuAction::SetExternalFile => {
-            if let Some(start_index) = ui_state.selection_start {
+            if ui_state.active_pane == ActivePane::Blocks {
+                // Not supported/No specific action on block yet
+            } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
                 let end = start_index.max(ui_state.cursor_index);
 
@@ -2437,7 +2507,23 @@ fn execute_menu_action(
             }
         }
         MenuAction::Address => {
-            if let Some(start_index) = ui_state.selection_start {
+            if ui_state.active_pane == ActivePane::Blocks {
+                let blocks = app_state.get_blocks_view_items();
+                if let Some(idx) = ui_state.blocks_list_state.selected() {
+                    if idx < blocks.len() {
+                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
+                            let start_idx = start as usize;
+                            let end_idx = end as usize;
+                            app_state.set_block_type_region(
+                                crate::state::BlockType::Address,
+                                Some(start_idx),
+                                end_idx,
+                            );
+                            ui_state.set_status_message("Set block type to Address");
+                        }
+                    }
+                }
+            } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
                 let end = start_index.max(ui_state.cursor_index);
 
@@ -2465,7 +2551,23 @@ fn execute_menu_action(
             }
         }
         MenuAction::Text => {
-            if let Some(start_index) = ui_state.selection_start {
+            if ui_state.active_pane == ActivePane::Blocks {
+                let blocks = app_state.get_blocks_view_items();
+                if let Some(idx) = ui_state.blocks_list_state.selected() {
+                    if idx < blocks.len() {
+                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
+                            let start_idx = start as usize;
+                            let end_idx = end as usize;
+                            app_state.set_block_type_region(
+                                crate::state::BlockType::Text,
+                                Some(start_idx),
+                                end_idx,
+                            );
+                            ui_state.set_status_message("Set block type to Text");
+                        }
+                    }
+                }
+            } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
                 let end = start_index.max(ui_state.cursor_index);
 
@@ -2493,7 +2595,23 @@ fn execute_menu_action(
             }
         }
         MenuAction::Screencode => {
-            if let Some(start_index) = ui_state.selection_start {
+            if ui_state.active_pane == ActivePane::Blocks {
+                let blocks = app_state.get_blocks_view_items();
+                if let Some(idx) = ui_state.blocks_list_state.selected() {
+                    if idx < blocks.len() {
+                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
+                            let start_idx = start as usize;
+                            let end_idx = end as usize;
+                            app_state.set_block_type_region(
+                                crate::state::BlockType::Screencode,
+                                Some(start_idx),
+                                end_idx,
+                            );
+                            ui_state.set_status_message("Set block type to Screencode");
+                        }
+                    }
+                }
+            } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
                 let end = start_index.max(ui_state.cursor_index);
 
@@ -2525,7 +2643,23 @@ fn execute_menu_action(
             }
         }
         MenuAction::Undefined => {
-            if let Some(start_index) = ui_state.selection_start {
+            if ui_state.active_pane == ActivePane::Blocks {
+                let blocks = app_state.get_blocks_view_items();
+                if let Some(idx) = ui_state.blocks_list_state.selected() {
+                    if idx < blocks.len() {
+                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
+                            let start_idx = start as usize;
+                            let end_idx = end as usize;
+                            app_state.set_block_type_region(
+                                crate::state::BlockType::Undefined,
+                                Some(start_idx),
+                                end_idx,
+                            );
+                            ui_state.set_status_message("Set block type to Undefined");
+                        }
+                    }
+                }
+            } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
                 let end = start_index.max(ui_state.cursor_index);
 
@@ -2656,11 +2790,16 @@ fn execute_menu_action(
                 }
                 ActivePane::Blocks => {
                     // Jump to start of selected block
-                    let blocks = app_state.get_compressed_blocks();
+                    let blocks = app_state.get_blocks_view_items();
                     let idx = ui_state.blocks_list_state.selected().unwrap_or(0);
                     if idx < blocks.len() {
-                        let offset = blocks[idx].start as u16;
-                        Some(app_state.origin.wrapping_add(offset))
+                        match blocks[idx] {
+                            crate::state::BlockItem::Block { start, .. } => {
+                                let offset = start as u16;
+                                Some(app_state.origin.wrapping_add(offset))
+                            }
+                            crate::state::BlockItem::Splitter(addr) => Some(addr),
+                        }
                     } else {
                         None
                     }
@@ -2700,6 +2839,34 @@ fn execute_menu_action(
             };
             ui_state.set_status_message(format!("Hex Dump: {} PETSCII", status));
         }
+        MenuAction::ToggleSplitter => {
+            if ui_state.active_pane == ActivePane::Blocks {
+                let blocks = app_state.get_blocks_view_items();
+                if let Some(idx) = ui_state.blocks_list_state.selected() {
+                    if idx < blocks.len() {
+                        // If it's a splitter, toggle it (remove it).
+                        // If it's a block, do we allow adding a splitter at the START?
+                        // Or maybe we don't support adding splitters from blocks view except by selecting a splitter to remove it.
+                        // Actually, if we select a splitter and hit '|', we should remove it.
+                        if let crate::state::BlockItem::Splitter(addr) = blocks[idx] {
+                            app_state.toggle_splitter(addr);
+                            ui_state
+                                .set_status_message(format!("Removed splitter at ${:04X}", addr));
+                        }
+                    }
+                }
+            } else if ui_state.active_pane == ActivePane::Disassembly {
+                let addr_to_toggle = app_state
+                    .disassembly
+                    .get(ui_state.cursor_index)
+                    .map(|line| line.address);
+
+                if let Some(addr) = addr_to_toggle {
+                    app_state.toggle_splitter(addr);
+                    ui_state.set_status_message(format!("Toggled splitter at ${:04X}", addr));
+                }
+            }
+        }
         MenuAction::ToggleSpriteMulticolor => {
             ui_state.sprite_multicolor_mode = !ui_state.sprite_multicolor_mode;
             if ui_state.sprite_multicolor_mode {
@@ -2717,7 +2884,30 @@ fn execute_menu_action(
             }
         }
         MenuAction::SetLoHi => {
-            if let Some(start_index) = ui_state.selection_start {
+            if ui_state.active_pane == ActivePane::Blocks {
+                let blocks = app_state.get_blocks_view_items();
+                if let Some(idx) = ui_state.blocks_list_state.selected() {
+                    if idx < blocks.len() {
+                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
+                            let len = (end as usize) - (start as usize) + 1;
+                            if len % 2 != 0 {
+                                ui_state.set_status_message(
+                                    "Error: LoHi requires even number of bytes",
+                                );
+                            } else {
+                                let start_idx = start as usize;
+                                let end_idx = end as usize;
+                                app_state.set_block_type_region(
+                                    crate::state::BlockType::LoHi,
+                                    Some(start_idx),
+                                    end_idx,
+                                );
+                                ui_state.set_status_message("Set block type to LoHi");
+                            }
+                        }
+                    }
+                }
+            } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
                 let end = start_index.max(ui_state.cursor_index);
                 let len = end - start + 1;
@@ -2755,7 +2945,30 @@ fn execute_menu_action(
             }
         }
         MenuAction::SetHiLo => {
-            if let Some(start_index) = ui_state.selection_start {
+            if ui_state.active_pane == ActivePane::Blocks {
+                let blocks = app_state.get_blocks_view_items();
+                if let Some(idx) = ui_state.blocks_list_state.selected() {
+                    if idx < blocks.len() {
+                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
+                            let len = (end as usize) - (start as usize) + 1;
+                            if len % 2 != 0 {
+                                ui_state.set_status_message(
+                                    "Error: HiLo requires even number of bytes",
+                                );
+                            } else {
+                                let start_idx = start as usize;
+                                let end_idx = end as usize;
+                                app_state.set_block_type_region(
+                                    crate::state::BlockType::HiLo,
+                                    Some(start_idx),
+                                    end_idx,
+                                );
+                                ui_state.set_status_message("Set block type to HiLo");
+                            }
+                        }
+                    }
+                }
+            } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
                 let end = start_index.max(ui_state.cursor_index);
                 let len = end - start + 1;
@@ -3053,23 +3266,6 @@ fn execute_menu_action(
                 } else {
                     ui_state.set_status_message("Not a collapsed block");
                 }
-            }
-        }
-        MenuAction::ToggleSplitter => {
-            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                let address = line.address;
-
-                let command = crate::commands::Command::ToggleSplitter { address };
-                command.apply(app_state);
-                app_state.undo_stack.push(command);
-                app_state.disassemble();
-
-                let status = if app_state.has_splitter(address) {
-                    "Splitter Added"
-                } else {
-                    "Splitter Removed"
-                };
-                ui_state.set_status_message(status);
             }
         }
     }

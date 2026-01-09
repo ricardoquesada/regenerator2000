@@ -2694,53 +2694,69 @@ fn render_blocks_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
     let inner_area = block.inner(area);
     f.render_widget(block, area);
 
-    let blocks = app_state.get_compressed_blocks();
+    let blocks = app_state.get_blocks_view_items();
     let theme = &ui_state.theme;
     let items: Vec<ListItem> = blocks
         .iter()
         .enumerate()
-        .map(|(index, b)| {
-            let start_addr = app_state.origin.wrapping_add(b.start as u16);
-            let end_addr = app_state.origin.wrapping_add(b.end as u16);
+        .map(|(index, item)| {
+            match item {
+                crate::state::BlockItem::Block { start, end, type_ } => {
+                    let start_addr = app_state.origin.wrapping_add(*start);
+                    let end_addr = app_state.origin.wrapping_add(*end);
 
-            let (fg, bg) = match b.type_ {
-                crate::state::BlockType::Code => (theme.block_code_fg, theme.block_code_bg),
-                crate::state::BlockType::DataByte => {
-                    (theme.block_data_byte_fg, theme.block_data_byte_bg)
-                }
-                crate::state::BlockType::DataWord => {
-                    (theme.block_data_word_fg, theme.block_data_word_bg)
-                }
-                crate::state::BlockType::Address => {
-                    (theme.block_address_fg, theme.block_address_bg)
-                }
-                crate::state::BlockType::Text => (theme.block_text_fg, theme.block_text_bg),
-                crate::state::BlockType::Screencode => {
-                    (theme.block_screencode_fg, theme.block_screencode_bg)
-                }
-                crate::state::BlockType::LoHi => (theme.block_lohi_fg, theme.block_lohi_bg),
-                crate::state::BlockType::HiLo => (theme.block_hilo_fg, theme.block_hilo_bg),
-                crate::state::BlockType::ExternalFile => {
-                    (theme.block_external_file_fg, theme.block_external_file_bg)
-                }
-                crate::state::BlockType::Undefined => {
-                    (theme.block_undefined_fg, theme.block_undefined_bg)
-                }
-            };
+                    let (fg, bg) = match type_ {
+                        crate::state::BlockType::Code => (theme.block_code_fg, theme.block_code_bg),
+                        crate::state::BlockType::DataByte => {
+                            (theme.block_data_byte_fg, theme.block_data_byte_bg)
+                        }
+                        crate::state::BlockType::DataWord => {
+                            (theme.block_data_word_fg, theme.block_data_word_bg)
+                        }
+                        crate::state::BlockType::Address => {
+                            (theme.block_address_fg, theme.block_address_bg)
+                        }
+                        crate::state::BlockType::Text => (theme.block_text_fg, theme.block_text_bg),
+                        crate::state::BlockType::Screencode => {
+                            (theme.block_screencode_fg, theme.block_screencode_bg)
+                        }
+                        crate::state::BlockType::LoHi => (theme.block_lohi_fg, theme.block_lohi_bg),
+                        crate::state::BlockType::HiLo => (theme.block_hilo_fg, theme.block_hilo_bg),
+                        crate::state::BlockType::ExternalFile => {
+                            (theme.block_external_file_fg, theme.block_external_file_bg)
+                        }
+                        crate::state::BlockType::Undefined => {
+                            (theme.block_undefined_fg, theme.block_undefined_bg)
+                        }
+                    };
 
-            let type_str = b.type_.to_string();
-            // Increased spacing from 10 to 20
+                    let type_str = type_.to_string();
 
-            // Handle selection indicator manually to avoid shifting
-            let is_selected = ui_state.blocks_list_state.selected() == Some(index);
-            let prefix = if is_selected { "> " } else { "  " };
+                    let is_selected = ui_state.blocks_list_state.selected() == Some(index);
+                    let prefix = if is_selected { "> " } else { "  " };
 
-            let content = format!(
-                "{}{:<20} ${:04X}-${:04X}",
-                prefix, type_str, start_addr, end_addr
-            );
+                    let content = format!(
+                        "{}{:<20} ${:04X}-${:04X}",
+                        prefix, type_str, start_addr, end_addr
+                    );
 
-            ListItem::new(content).style(Style::default().fg(fg).bg(bg))
+                    ListItem::new(content).style(Style::default().fg(fg).bg(bg))
+                }
+                crate::state::BlockItem::Splitter(addr) => {
+                    let is_selected = ui_state.blocks_list_state.selected() == Some(index);
+                    let prefix = if is_selected { "> " } else { "  " };
+
+                    // Align address with other blocks (Prefix + 20 chars type + space + $)
+                    // "-- Splitter --" serves as the type string.
+                    let content = format!("{}{:<20} ${:04X}", prefix, "-- Splitter --", addr);
+
+                    ListItem::new(content).style(
+                        Style::default()
+                            .fg(theme.block_splitter_fg)
+                            .bg(theme.block_splitter_bg),
+                    )
+                }
+            }
         })
         .collect();
 
