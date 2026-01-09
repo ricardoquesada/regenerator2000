@@ -2935,11 +2935,25 @@ fn perform_search(app_state: &mut crate::state::AppState, ui_state: &mut UIState
             }
         };
 
-        if let Some(line) = app_state.disassembly.get(idx)
-            && match_search(line, &query_lower)
-        {
-            found_idx = Some(idx);
-            break;
+        if let Some(line) = app_state.disassembly.get(idx) {
+            // Check main line
+            if match_search(line, &query_lower) {
+                found_idx = Some(idx);
+                break;
+            }
+
+            // Check if this line represents a collapsed block
+            let pc = line.address.wrapping_sub(app_state.origin) as usize;
+            if let Some((start, end)) = app_state
+                .collapsed_blocks
+                .iter()
+                .find(|(s, _)| *s == pc)
+                .copied()
+                && search_collapsed_content(app_state, start, end, &query_lower)
+            {
+                found_idx = Some(idx);
+                break;
+            }
         }
     }
 
@@ -3016,6 +3030,49 @@ fn match_search(line: &crate::disassembler::DisassemblyLine, query_lower: &str) 
     false
 }
 
+fn search_collapsed_content(
+    app_state: &AppState,
+    start: usize,
+    end: usize,
+    query_lower: &str,
+) -> bool {
+    // Safety check for bounds
+    if start >= app_state.raw_data.len() || end >= app_state.raw_data.len() {
+        return false;
+    }
+
+    let origin = app_state.origin.wrapping_add(start as u16);
+    let data_slice = &app_state.raw_data[start..=end];
+
+    // Safety check for block_types bounds
+    if start >= app_state.block_types.len() || end >= app_state.block_types.len() {
+        return false;
+    }
+    let block_slice = &app_state.block_types[start..=end];
+
+    // We need to pass empty collapsed_blocks to ensure we get the full content
+    let expanded_lines = app_state.disassembler.disassemble(
+        data_slice,
+        block_slice,
+        &app_state.labels,
+        origin,
+        &app_state.settings,
+        &app_state.system_comments,
+        &app_state.user_side_comments,
+        &app_state.user_line_comments,
+        &app_state.immediate_value_formats,
+        &app_state.cross_refs,
+        &[], // No collapsed blocks in this subsequence
+    );
+
+    for line in expanded_lines {
+        if match_search(&line, query_lower) {
+            return true;
+        }
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -3051,5 +3108,22 @@ mod tests {
 
         // "02" is in "8d0208" starting at index 2 -> Should PASS
         assert!(match_search(&line, "02"));
+    }
+
+    #[test]
+    fn test_search_collapsed_content() {
+        let mut app_state = AppState::new();
+        // Setup data: 3 NOPs (0xEA)
+        app_state.raw_data = vec![0xEA, 0xEA, 0xEA];
+        app_state.block_types = vec![crate::state::BlockType::Code; 3];
+        app_state.origin = 0x1000;
+
+        // This search should find "nop" in the disassembled content
+        // We use check_search helper via search_collapsed_content
+        // Note: match_search expects lowercase query
+        assert!(search_collapsed_content(&app_state, 0, 2, "nop"));
+
+        // This search should NOT find "lda"
+        assert!(!search_collapsed_content(&app_state, 0, 2, "lda"));
     }
 }
