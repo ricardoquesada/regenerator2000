@@ -34,6 +34,7 @@ mod tests {
                     petscii_mode: crate::state::PetsciiMode::default(),
                     collapsed_blocks: Vec::new(),
                     splitters: std::collections::BTreeSet::new(),
+                    blocks_view_cursor: None,
                 },
                 false,
             )

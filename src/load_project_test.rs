@@ -39,6 +39,7 @@ mod tests {
             petscii_mode: crate::state::PetsciiMode::default(),
             collapsed_blocks: Vec::new(),
             splitters: std::collections::BTreeSet::new(),
+            blocks_view_cursor: None,
         };
 
         let json = serde_json::to_string(&project).unwrap();

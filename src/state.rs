@@ -1187,6 +1187,7 @@ mod save_project_tests {
                     petscii_mode: PetsciiMode::default(),
                     collapsed_blocks: Vec::new(),
                     splitters: BTreeSet::new(),
+                    blocks_view_cursor: None,
                 },
                 false,
             )

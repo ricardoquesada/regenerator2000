@@ -2732,10 +2732,7 @@ fn render_blocks_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
             // Increased spacing from 10 to 20
 
             // Handle selection indicator manually to avoid shifting
-            let is_selected = ui_state
-                .blocks_list_state
-                .selected()
-                .map_or(false, |s_idx| s_idx == index);
+            let is_selected = ui_state.blocks_list_state.selected() == Some(index);
             let prefix = if is_selected { "> " } else { "  " };
 
             let content = format!(
