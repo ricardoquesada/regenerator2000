@@ -2905,25 +2905,43 @@ fn perform_search(app_state: &mut crate::state::AppState, ui_state: &mut UIState
         return;
     }
 
-    let start_idx = if forward {
-        // Start from next line
-        if ui_state.cursor_index + 1 < disassembly_len {
-            ui_state.cursor_index + 1
-        } else {
-            0 // Wrap
-        }
-    } else if ui_state.cursor_index > 0 {
-        ui_state.cursor_index - 1
-    } else {
-        disassembly_len.saturating_sub(1)
-    };
-
+    let start_idx = ui_state.cursor_index;
     let mut found_idx = None;
+    let mut found_sub_idx = 0;
 
-    // Iterate len times to cover the whole buffer if we wrap.
-    // We implement a simple linear search from start_idx.
+    // We search:
+    // 1. Current line (from current_sub_index + 1 if forward, or -1 if backward)
+    // 2. Wrap around lines
 
-    for i in 0..disassembly_len {
+    // Check current line first for subsequent matches
+    if let Some(line) = app_state.disassembly.get(start_idx) {
+        let matches = get_line_matches(line, app_state, &query_lower);
+
+        // Filter based on current sub_index
+        let candidate = if forward {
+            matches
+                .into_iter()
+                .find(|&sub| sub > ui_state.sub_cursor_index)
+        } else {
+            matches
+                .into_iter()
+                // Reverse to find the one immediately before
+                .rev()
+                .find(|&sub| sub < ui_state.sub_cursor_index)
+        };
+
+        if let Some(sub) = candidate {
+            ui_state
+                .navigation_history
+                .push((ActivePane::Disassembly, ui_state.cursor_index));
+            ui_state.sub_cursor_index = sub;
+            ui_state.set_status_message(format!("Found '{}'", query));
+            return;
+        }
+    }
+
+    // Iterate other lines
+    for i in 1..disassembly_len {
         let idx = if forward {
             (start_idx + i) % disassembly_len
         } else {
@@ -2936,9 +2954,14 @@ fn perform_search(app_state: &mut crate::state::AppState, ui_state: &mut UIState
         };
 
         if let Some(line) = app_state.disassembly.get(idx) {
-            // Check main line
-            if match_search(line, &query_lower) {
+            let matches = get_line_matches(line, app_state, &query_lower);
+            if !matches.is_empty() {
                 found_idx = Some(idx);
+                found_sub_idx = if forward {
+                    *matches.first().unwrap()
+                } else {
+                    *matches.last().unwrap()
+                };
                 break;
             }
 
@@ -2952,6 +2975,7 @@ fn perform_search(app_state: &mut crate::state::AppState, ui_state: &mut UIState
                 && search_collapsed_content(app_state, start, end, &query_lower)
             {
                 found_idx = Some(idx);
+                found_sub_idx = 0; // Collapsed block is treated as single item usually
                 break;
             }
         }
@@ -2962,15 +2986,56 @@ fn perform_search(app_state: &mut crate::state::AppState, ui_state: &mut UIState
             .navigation_history
             .push((ActivePane::Disassembly, ui_state.cursor_index));
         ui_state.cursor_index = idx;
+        ui_state.sub_cursor_index = found_sub_idx;
         ui_state.set_status_message(format!("Found '{}'", query));
     } else {
         ui_state.set_status_message(format!("'{}' not found", query));
     }
 }
 
-fn match_search(line: &crate::disassembler::DisassemblyLine, query_lower: &str) -> bool {
-    // Free search: address, bytes, mnemonic, operand, comments, labels
+fn get_line_matches(
+    line: &crate::disassembler::DisassemblyLine,
+    app_state: &crate::state::AppState,
+    query_lower: &str,
+) -> Vec<usize> {
+    let mut matches = Vec::new();
+    let mut current_sub = 0;
 
+    // 1. Relative Labels (match UI rendering order)
+    if line.bytes.len() > 1 {
+        for offset in 1..line.bytes.len() {
+            let mid_addr = line.address.wrapping_add(offset as u16);
+            if let Some(labels) = app_state.labels.get(&mid_addr) {
+                for label in labels {
+                    if label.name.to_lowercase().contains(query_lower) {
+                        matches.push(current_sub);
+                    }
+                    current_sub += 1;
+                }
+            }
+        }
+    }
+
+    // 2. Line Comment
+    if let Some(lc) = &line.line_comment {
+        if lc.to_lowercase().contains(query_lower) {
+            matches.push(current_sub);
+        }
+        current_sub += 1;
+    }
+
+    // 3. Instruction Content
+    if match_instruction_content(line, query_lower) {
+        matches.push(current_sub);
+    }
+
+    matches
+}
+
+fn match_instruction_content(
+    line: &crate::disassembler::DisassemblyLine,
+    query_lower: &str,
+) -> bool {
     // Address
     if format!("{:04x}", line.address).contains(query_lower) {
         return true;
@@ -3012,12 +3077,6 @@ fn match_search(line: &crate::disassembler::DisassemblyLine, query_lower: &str) 
     }
 
     if line.comment.to_lowercase().contains(query_lower) {
-        return true;
-    }
-
-    if let Some(lc) = &line.line_comment
-        && lc.to_lowercase().contains(query_lower)
-    {
         return true;
     }
 
@@ -3066,7 +3125,9 @@ fn search_collapsed_content(
     );
 
     for line in expanded_lines {
-        if match_search(&line, query_lower) {
+        // We use get_line_matches to check if ANY part of the line matches.
+        // This includes labels, comments, and instruction content.
+        if !get_line_matches(&line, app_state, query_lower).is_empty() {
             return true;
         }
     }
@@ -3079,7 +3140,7 @@ mod tests {
     use crate::disassembler::DisassemblyLine;
 
     #[test]
-    fn test_match_search_bytes_alignment() {
+    fn test_match_instruction_content_bytes_alignment() {
         let line = DisassemblyLine {
             address: 0x1000,
             bytes: vec![0x8D, 0x02, 0x08], // 8d0208
@@ -3095,19 +3156,19 @@ mod tests {
         };
 
         // "d020" is in "8d0208" starting at index 1 -> Should FAIL
-        assert!(!match_search(&line, "d020"));
+        assert!(!match_instruction_content(&line, "d020"));
 
         // "8d02" is in "8d0208" starting at index 0 -> Should PASS
-        assert!(match_search(&line, "8d02"));
+        assert!(match_instruction_content(&line, "8d02"));
 
         // "0208" is in "8d0208" starting at index 2 -> Should PASS
-        assert!(match_search(&line, "0208"));
+        assert!(match_instruction_content(&line, "0208"));
 
         // "d0" is in "8d0208" starting at index 1 -> Should FAIL
-        assert!(!match_search(&line, "d0"));
+        assert!(!match_instruction_content(&line, "d0"));
 
         // "02" is in "8d0208" starting at index 2 -> Should PASS
-        assert!(match_search(&line, "02"));
+        assert!(match_instruction_content(&line, "02"));
     }
 
     #[test]
@@ -3119,11 +3180,45 @@ mod tests {
         app_state.origin = 0x1000;
 
         // This search should find "nop" in the disassembled content
-        // We use check_search helper via search_collapsed_content
-        // Note: match_search expects lowercase query
         assert!(search_collapsed_content(&app_state, 0, 2, "nop"));
 
         // This search should NOT find "lda"
         assert!(!search_collapsed_content(&app_state, 0, 2, "lda"));
+    }
+    #[test]
+    fn test_get_line_matches_priority() {
+        let mut app_state = AppState::new();
+        let line = DisassemblyLine {
+            address: 0x1000,
+            bytes: vec![0x8D, 0x20, 0xD0], // 8d20d0 -> STA D020
+            mnemonic: "STA".to_string(),
+            operand: "$D020".to_string(),
+            comment: String::new(),
+            line_comment: Some("check d020".to_string()),
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            comment_address: None,
+        };
+
+        // Query "d020" matches both Line Comment ("...d020") and Operand ("$D020")
+        // Visual Order: Line Comment (Index 0), Instruction (Index 1)
+        // Wait, current logic:
+        // Rel Labels loop (none)
+        // Line Comment -> current_sub = 0 -> push 0.
+        // Instruction -> match_instruction_content -> push 1.
+        // Result should be [0, 1].
+
+        let matches = get_line_matches(&line, &app_state, "d020");
+        assert_eq!(matches, vec![0, 1]);
+
+        // Query "check" matches only Line Comment
+        let matches_check = get_line_matches(&line, &app_state, "check");
+        assert_eq!(matches_check, vec![0]);
+
+        // Query "sta" matches only Instruction
+        let matches_sta = get_line_matches(&line, &app_state, "sta");
+        assert_eq!(matches_sta, vec![1]);
     }
 }
