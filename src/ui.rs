@@ -2206,15 +2206,36 @@ fn render_status_bar(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: 
     f.render_widget(status_msg, chunks[0]);
 
     // Right: Info
+    let cursor_addr = app_state
+        .disassembly
+        .get(ui_state.cursor_index)
+        .map(|l| l.address)
+        .unwrap_or(0);
+
+    let block_info =
+        if let Some(offset) = (cursor_addr as isize).checked_sub(app_state.origin as isize) {
+            if offset >= 0 && (offset as usize) < app_state.block_types.len() {
+                let block_type = app_state.block_types[offset as usize];
+                if let Some((start, end)) = app_state.get_block_range(cursor_addr) {
+                    format!(
+                        "{} | {}: ${:04X}-${:04X} | ",
+                        app_state.settings.assembler, block_type, start, end
+                    )
+                } else {
+                    format!("{} | {}: ??? | ", app_state.settings.assembler, block_type)
+                }
+            } else {
+                format!("{} | ", app_state.settings.assembler)
+            }
+        } else {
+            format!("{} | ", app_state.settings.assembler)
+        };
+
     let info = format!(
-        "{} | {} | Cursor: {:04X} | Origin: {:04X} | File: {:?}{}",
+        "{} | {}Cursor: {:04X} | Origin: {:04X} | File: {:?}{}",
         app_state.settings.platform,
-        app_state.settings.assembler,
-        app_state
-            .disassembly
-            .get(ui_state.cursor_index)
-            .map(|l| l.address)
-            .unwrap_or(0),
+        block_info,
+        cursor_addr,
         app_state.origin,
         app_state
             .file_path

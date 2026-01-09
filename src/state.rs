@@ -144,6 +144,23 @@ pub enum BlockType {
     Undefined,
 }
 
+impl std::fmt::Display for BlockType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BlockType::Code => write!(f, "Code"),
+            BlockType::DataByte => write!(f, "Byte"),
+            BlockType::DataWord => write!(f, "Word"),
+            BlockType::Address => write!(f, "Address"),
+            BlockType::Text => write!(f, "Text"),
+            BlockType::Screencode => write!(f, "Screencode"),
+            BlockType::LoHi => write!(f, "Lo/Hi"),
+            BlockType::HiLo => write!(f, "Hi/Lo"),
+            BlockType::ExternalFile => write!(f, "External File"),
+            BlockType::Undefined => write!(f, "Undefined"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LabelKind {
     User,
@@ -355,6 +372,36 @@ impl AppState {
 
     pub fn get_formatter(&self) -> Box<dyn crate::disassembler::formatter::Formatter> {
         Disassembler::create_formatter(self.settings.assembler)
+    }
+
+    pub fn get_block_range(&self, address: u16) -> Option<(u16, u16)> {
+        let origin = self.origin;
+        if address < origin {
+            return None;
+        }
+        let index = (address - origin) as usize;
+        if index >= self.block_types.len() {
+            return None;
+        }
+
+        let target_type = self.block_types[index];
+        let mut start = index;
+        let mut end = index;
+
+        // Search backward
+        while start > 0 && self.block_types[start - 1] == target_type {
+            start -= 1;
+        }
+
+        // Search forward
+        while end < self.block_types.len() - 1 && self.block_types[end + 1] == target_type {
+            end += 1;
+        }
+
+        let start_addr = origin.wrapping_add(start as u16);
+        let end_addr = origin.wrapping_add(end as u16);
+
+        Some((start_addr, end_addr))
     }
 
     pub fn load_file(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
