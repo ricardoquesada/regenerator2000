@@ -122,3 +122,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 ```bash
 cargo run
 ```
+
+## User Guide
+
+* [User Guide](docs/user_guide.md)
