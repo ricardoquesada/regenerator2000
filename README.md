@@ -21,6 +21,8 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 - **Charset**:
     - Side-by-side view with disassembly.
     - Multicolor or Single Color
+- **Blocks**:
+    - Side-by-side view with disassembly.
 - **Platforms**: Supports Commodore 8-bit machines like C64, C128, Plus/4, etc.
 - **Import**: Load `.prg`, `.crt`, `.t64`, `.vsf`, `.bin`, `.raw`, and
   `.regen2000proj` files.
@@ -31,10 +33,10 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 - **Analysis**: Auto-analysis to identify code and data regions.
 - **Editing**:
     - **Labels**: Add, edit, and remove local and global labels.
-    - **Comments**: Add side comments (`;`) and line comments (`:`).
+    - **Comments**: Add side comments and line comments.
     - **Origin**: Change the load address/origin of the binary.
-    - **Data Types**: Convert regions to Code, Byte, Word, Address, Text, or
-      Screencode.
+    - **Data Types**: Convert regions to Code, Byte, Word, Address, Lo/Hi Address, Hi/Lo Address, Text,
+      Screencode, External file or Unknown.
     - **Undo/Redo**: Full history support for all actions.
 - **Navigation**:
     - **Jump**: Go to specific addresses, specific line numbers, or follow
@@ -54,6 +56,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 ![hexdump screenshot](docs/regenerator2000_hexdump_screenshot.png)
 ![charset screenshot](docs/regenerator2000_charset_screenshot.png)
 ![sprites screenshot](docs/regenerator2000_sprites_screenshot.png)
+![blocks screenshot](docs/regenerator2000_blocks_screenshot.png)
 
 ## Keyboard Shortcuts
 

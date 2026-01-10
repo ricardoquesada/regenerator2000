@@ -104,8 +104,8 @@ Handles the generation of complete, compilable source code files.
 - **`events.rs`**: Listens for input and maps key combinations to `Command`s. It also handles main application logic that intersects with UI actions (like navigation or search).
 - **`ui.rs`**: Renders the application to the terminal using `ratatui`. It is stateless regarding business logic, only displaying what is in `AppState` and `UiState`.
 - **`ui_state.rs`**: Manages the transient state of the user interface, such as:
-    - **Active Pane**: Tracks focus between Disassembly, Hex Dump, Sprites, and Charset views.
-    - **Right Pane**: Controls which secondary view is visible (Hex Dump, Sprites, or Charset).
+    - **Active Pane**: Tracks focus between Disassembly, Hex Dump, Sprites, Charset and Blocks views
+    - **Right Pane**: Controls which secondary view is visible (Hex Dump, Sprites, Charset or Blocks).
     - Dialog States (Search, About, Confirmation, etc.)
     - Scroll Offsets and Cursor Positions (if not directly in `AppState`)
 
