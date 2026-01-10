@@ -2089,7 +2089,7 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                 ),
                 Span::styled(
                     format!(
-                        "{:04X}{} ",
+                        "${:04X}{} ",
                         line.address,
                         if app_state.splitters.contains(&line.address) {
                             "*"
