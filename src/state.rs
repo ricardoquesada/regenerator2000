@@ -1128,6 +1128,24 @@ impl AppState {
 
         items
     }
+
+    pub fn get_block_index_for_address(&self, address: u16) -> Option<usize> {
+        let items = self.get_blocks_view_items();
+        items.iter().position(|item| match item {
+            BlockItem::Block { start, end, .. } => {
+                let s = self.origin.wrapping_add(*start);
+                let e = self.origin.wrapping_add(*end);
+                // Check if address is within [s, e]
+                if s <= e {
+                    address >= s && address <= e
+                } else {
+                    // Wrap around
+                    address >= s || address <= e
+                }
+            }
+            BlockItem::Splitter(addr) => *addr == address,
+        })
+    }
 }
 
 use base64::{Engine as _, engine::general_purpose};

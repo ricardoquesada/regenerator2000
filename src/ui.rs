@@ -975,6 +975,14 @@ fn render_system_settings_dialog(
                 "[ ]"
             }
         ),
+        format!(
+            "{} Sync Blocks View",
+            if app_state.system_config.sync_blocks_view {
+                "[X]"
+            } else {
+                "[ ]"
+            }
+        ),
         format!("Theme: < {} >", app_state.system_config.theme),
     ];
 

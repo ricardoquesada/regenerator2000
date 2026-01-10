@@ -8,6 +8,12 @@ pub struct SystemConfig {
     pub last_project_path: Option<PathBuf>,
     #[serde(default = "default_theme")]
     pub theme: String,
+    #[serde(default = "default_true")]
+    pub sync_blocks_view: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 fn default_theme() -> String {
@@ -20,6 +26,7 @@ impl Default for SystemConfig {
             open_last_project: true,
             last_project_path: None,
             theme: "Solarized Dark".to_string(),
+            sync_blocks_view: true,
         }
     }
 }

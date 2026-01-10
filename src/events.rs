@@ -19,6 +19,15 @@ pub fn run_app<B: Backend>(
             ui_state.active_pane,
         );
 
+        if ui_state.active_pane == ActivePane::Disassembly
+            && ui_state.right_pane == crate::ui_state::RightPane::Blocks
+            && app_state.system_config.sync_blocks_view
+            && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+            && let Some(idx) = app_state.get_block_index_for_address(line.address)
+        {
+            ui_state.blocks_list_state.select(Some(idx));
+        }
+
         terminal
             .draw(|f| ui(f, &app_state, &mut ui_state))
             .map_err(|e| io::Error::other(e.to_string()))?;
@@ -1017,8 +1026,8 @@ pub fn run_app<B: Backend>(
                             app_state.system_config.theme = new_theme.clone();
                             ui_state.theme = crate::theme::Theme::from_name(&new_theme);
                         } else {
-                            // Limit to 1 (2 items)
-                            if ui_state.system_settings_dialog.selected_index < 1 {
+                            // Limit to 2 (3 items)
+                            if ui_state.system_settings_dialog.selected_index < 2 {
                                 ui_state.system_settings_dialog.selected_index += 1;
                             }
                         }
@@ -1032,6 +1041,10 @@ pub fn run_app<B: Backend>(
                                 !app_state.system_config.open_last_project;
                             let _ = app_state.system_config.save();
                         } else if ui_state.system_settings_dialog.selected_index == 1 {
+                            app_state.system_config.sync_blocks_view =
+                                !app_state.system_config.sync_blocks_view;
+                            let _ = app_state.system_config.save();
+                        } else if ui_state.system_settings_dialog.selected_index == 2 {
                             ui_state.system_settings_dialog.is_selecting_theme = true;
                         }
                     }
@@ -2335,19 +2348,18 @@ fn execute_menu_action(
         MenuAction::Code => {
             if ui_state.active_pane == ActivePane::Blocks {
                 let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected() {
-                    if idx < blocks.len() {
-                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
-                            let start_idx = start as usize;
-                            let end_idx = end as usize;
-                            app_state.set_block_type_region(
-                                crate::state::BlockType::Code,
-                                Some(start_idx),
-                                end_idx,
-                            );
-                            ui_state.set_status_message("Set block type to Code");
-                        }
-                    }
+                if let Some(idx) = ui_state.blocks_list_state.selected()
+                    && idx < blocks.len()
+                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
+                {
+                    let start_idx = start as usize;
+                    let end_idx = end as usize;
+                    app_state.set_block_type_region(
+                        crate::state::BlockType::Code,
+                        Some(start_idx),
+                        end_idx,
+                    );
+                    ui_state.set_status_message("Set block type to Code");
                 }
             } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
@@ -2379,19 +2391,18 @@ fn execute_menu_action(
         MenuAction::Byte => {
             if ui_state.active_pane == ActivePane::Blocks {
                 let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected() {
-                    if idx < blocks.len() {
-                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
-                            let start_idx = start as usize;
-                            let end_idx = end as usize;
-                            app_state.set_block_type_region(
-                                crate::state::BlockType::DataByte,
-                                Some(start_idx),
-                                end_idx,
-                            );
-                            ui_state.set_status_message("Set block type to Byte");
-                        }
-                    }
+                if let Some(idx) = ui_state.blocks_list_state.selected()
+                    && idx < blocks.len()
+                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
+                {
+                    let start_idx = start as usize;
+                    let end_idx = end as usize;
+                    app_state.set_block_type_region(
+                        crate::state::BlockType::DataByte,
+                        Some(start_idx),
+                        end_idx,
+                    );
+                    ui_state.set_status_message("Set block type to Byte");
                 }
             } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
@@ -2427,19 +2438,18 @@ fn execute_menu_action(
         MenuAction::Word => {
             if ui_state.active_pane == ActivePane::Blocks {
                 let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected() {
-                    if idx < blocks.len() {
-                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
-                            let start_idx = start as usize;
-                            let end_idx = end as usize;
-                            app_state.set_block_type_region(
-                                crate::state::BlockType::DataWord,
-                                Some(start_idx),
-                                end_idx,
-                            );
-                            ui_state.set_status_message("Set block type to Word");
-                        }
-                    }
+                if let Some(idx) = ui_state.blocks_list_state.selected()
+                    && idx < blocks.len()
+                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
+                {
+                    let start_idx = start as usize;
+                    let end_idx = end as usize;
+                    app_state.set_block_type_region(
+                        crate::state::BlockType::DataWord,
+                        Some(start_idx),
+                        end_idx,
+                    );
+                    ui_state.set_status_message("Set block type to Word");
                 }
             } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
@@ -2509,19 +2519,18 @@ fn execute_menu_action(
         MenuAction::Address => {
             if ui_state.active_pane == ActivePane::Blocks {
                 let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected() {
-                    if idx < blocks.len() {
-                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
-                            let start_idx = start as usize;
-                            let end_idx = end as usize;
-                            app_state.set_block_type_region(
-                                crate::state::BlockType::Address,
-                                Some(start_idx),
-                                end_idx,
-                            );
-                            ui_state.set_status_message("Set block type to Address");
-                        }
-                    }
+                if let Some(idx) = ui_state.blocks_list_state.selected()
+                    && idx < blocks.len()
+                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
+                {
+                    let start_idx = start as usize;
+                    let end_idx = end as usize;
+                    app_state.set_block_type_region(
+                        crate::state::BlockType::Address,
+                        Some(start_idx),
+                        end_idx,
+                    );
+                    ui_state.set_status_message("Set block type to Address");
                 }
             } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
@@ -2553,19 +2562,18 @@ fn execute_menu_action(
         MenuAction::Text => {
             if ui_state.active_pane == ActivePane::Blocks {
                 let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected() {
-                    if idx < blocks.len() {
-                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
-                            let start_idx = start as usize;
-                            let end_idx = end as usize;
-                            app_state.set_block_type_region(
-                                crate::state::BlockType::Text,
-                                Some(start_idx),
-                                end_idx,
-                            );
-                            ui_state.set_status_message("Set block type to Text");
-                        }
-                    }
+                if let Some(idx) = ui_state.blocks_list_state.selected()
+                    && idx < blocks.len()
+                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
+                {
+                    let start_idx = start as usize;
+                    let end_idx = end as usize;
+                    app_state.set_block_type_region(
+                        crate::state::BlockType::Text,
+                        Some(start_idx),
+                        end_idx,
+                    );
+                    ui_state.set_status_message("Set block type to Text");
                 }
             } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
@@ -2597,19 +2605,18 @@ fn execute_menu_action(
         MenuAction::Screencode => {
             if ui_state.active_pane == ActivePane::Blocks {
                 let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected() {
-                    if idx < blocks.len() {
-                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
-                            let start_idx = start as usize;
-                            let end_idx = end as usize;
-                            app_state.set_block_type_region(
-                                crate::state::BlockType::Screencode,
-                                Some(start_idx),
-                                end_idx,
-                            );
-                            ui_state.set_status_message("Set block type to Screencode");
-                        }
-                    }
+                if let Some(idx) = ui_state.blocks_list_state.selected()
+                    && idx < blocks.len()
+                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
+                {
+                    let start_idx = start as usize;
+                    let end_idx = end as usize;
+                    app_state.set_block_type_region(
+                        crate::state::BlockType::Screencode,
+                        Some(start_idx),
+                        end_idx,
+                    );
+                    ui_state.set_status_message("Set block type to Screencode");
                 }
             } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
@@ -2645,19 +2652,18 @@ fn execute_menu_action(
         MenuAction::Undefined => {
             if ui_state.active_pane == ActivePane::Blocks {
                 let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected() {
-                    if idx < blocks.len() {
-                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
-                            let start_idx = start as usize;
-                            let end_idx = end as usize;
-                            app_state.set_block_type_region(
-                                crate::state::BlockType::Undefined,
-                                Some(start_idx),
-                                end_idx,
-                            );
-                            ui_state.set_status_message("Set block type to Undefined");
-                        }
-                    }
+                if let Some(idx) = ui_state.blocks_list_state.selected()
+                    && idx < blocks.len()
+                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
+                {
+                    let start_idx = start as usize;
+                    let end_idx = end as usize;
+                    app_state.set_block_type_region(
+                        crate::state::BlockType::Undefined,
+                        Some(start_idx),
+                        end_idx,
+                    );
+                    ui_state.set_status_message("Set block type to Undefined");
                 }
             } else if let Some(start_index) = ui_state.selection_start {
                 let start = start_index.min(ui_state.cursor_index);
@@ -2795,7 +2801,7 @@ fn execute_menu_action(
                     if idx < blocks.len() {
                         match blocks[idx] {
                             crate::state::BlockItem::Block { start, .. } => {
-                                let offset = start as u16;
+                                let offset = start;
                                 Some(app_state.origin.wrapping_add(offset))
                             }
                             crate::state::BlockItem::Splitter(addr) => Some(addr),
@@ -2842,18 +2848,16 @@ fn execute_menu_action(
         MenuAction::ToggleSplitter => {
             if ui_state.active_pane == ActivePane::Blocks {
                 let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected() {
-                    if idx < blocks.len() {
-                        // If it's a splitter, toggle it (remove it).
-                        // If it's a block, do we allow adding a splitter at the START?
-                        // Or maybe we don't support adding splitters from blocks view except by selecting a splitter to remove it.
-                        // Actually, if we select a splitter and hit '|', we should remove it.
-                        if let crate::state::BlockItem::Splitter(addr) = blocks[idx] {
-                            app_state.toggle_splitter(addr);
-                            ui_state
-                                .set_status_message(format!("Removed splitter at ${:04X}", addr));
-                        }
-                    }
+                if let Some(idx) = ui_state.blocks_list_state.selected()
+                    && idx < blocks.len()
+                    // If it's a splitter, toggle it (remove it).
+                    // If it's a block, do we allow adding a splitter at the START?
+                    // Or maybe we don't support adding splitters from blocks view except by selecting a splitter to remove it.
+                    // Actually, if we select a splitter and hit '|', we should remove it.
+                    && let crate::state::BlockItem::Splitter(addr) = blocks[idx]
+                {
+                    app_state.toggle_splitter(addr);
+                    ui_state.set_status_message(format!("Removed splitter at ${:04X}", addr));
                 }
             } else if ui_state.active_pane == ActivePane::Disassembly {
                 let addr_to_toggle = app_state
@@ -2886,25 +2890,22 @@ fn execute_menu_action(
         MenuAction::SetLoHi => {
             if ui_state.active_pane == ActivePane::Blocks {
                 let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected() {
-                    if idx < blocks.len() {
-                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
-                            let len = (end as usize) - (start as usize) + 1;
-                            if len % 2 != 0 {
-                                ui_state.set_status_message(
-                                    "Error: LoHi requires even number of bytes",
-                                );
-                            } else {
-                                let start_idx = start as usize;
-                                let end_idx = end as usize;
-                                app_state.set_block_type_region(
-                                    crate::state::BlockType::LoHi,
-                                    Some(start_idx),
-                                    end_idx,
-                                );
-                                ui_state.set_status_message("Set block type to LoHi");
-                            }
-                        }
+                if let Some(idx) = ui_state.blocks_list_state.selected()
+                    && idx < blocks.len()
+                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
+                {
+                    let len = (end as usize) - (start as usize) + 1;
+                    if !len.is_multiple_of(2) {
+                        ui_state.set_status_message("Error: LoHi requires even number of bytes");
+                    } else {
+                        let start_idx = start as usize;
+                        let end_idx = end as usize;
+                        app_state.set_block_type_region(
+                            crate::state::BlockType::LoHi,
+                            Some(start_idx),
+                            end_idx,
+                        );
+                        ui_state.set_status_message("Set block type to LoHi");
                     }
                 }
             } else if let Some(start_index) = ui_state.selection_start {
@@ -2947,25 +2948,22 @@ fn execute_menu_action(
         MenuAction::SetHiLo => {
             if ui_state.active_pane == ActivePane::Blocks {
                 let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected() {
-                    if idx < blocks.len() {
-                        if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
-                            let len = (end as usize) - (start as usize) + 1;
-                            if len % 2 != 0 {
-                                ui_state.set_status_message(
-                                    "Error: HiLo requires even number of bytes",
-                                );
-                            } else {
-                                let start_idx = start as usize;
-                                let end_idx = end as usize;
-                                app_state.set_block_type_region(
-                                    crate::state::BlockType::HiLo,
-                                    Some(start_idx),
-                                    end_idx,
-                                );
-                                ui_state.set_status_message("Set block type to HiLo");
-                            }
-                        }
+                if let Some(idx) = ui_state.blocks_list_state.selected()
+                    && idx < blocks.len()
+                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
+                {
+                    let len = (end as usize) - (start as usize) + 1;
+                    if !len.is_multiple_of(2) {
+                        ui_state.set_status_message("Error: HiLo requires even number of bytes");
+                    } else {
+                        let start_idx = start as usize;
+                        let end_idx = end as usize;
+                        app_state.set_block_type_region(
+                            crate::state::BlockType::HiLo,
+                            Some(start_idx),
+                            end_idx,
+                        );
+                        ui_state.set_status_message("Set block type to HiLo");
                     }
                 }
             } else if let Some(start_index) = ui_state.selection_start {
