@@ -173,8 +173,8 @@ impl Theme {
             selection_fg: Solarized::BASE1,
             status_bar_bg: Solarized::BASE02,
             status_bar_fg: Solarized::BASE1,
-            block_selection_bg: Solarized::BASE01, // Higher contrast
-            block_selection_fg: Solarized::BASE3,  // Higher contrast
+            block_selection_bg: Solarized::BASE02, // Match Hex Dump
+            block_selection_fg: Solarized::BASE1,  // Match Hex Dump
 
             address: Solarized::YELLOW,
             bytes: Solarized::BASE01,
@@ -210,27 +210,27 @@ impl Theme {
 
             // Blocks - Dark (Bg is slightly lighter than proper background)
             block_code_fg: Solarized::BLUE,
-            block_code_bg: Solarized::BASE02,
+            block_code_bg: Solarized::BASE03,
             block_data_byte_fg: Solarized::CYAN,
-            block_data_byte_bg: Solarized::BASE02,
+            block_data_byte_bg: Solarized::BASE03,
             block_data_word_fg: Solarized::VIOLET,
-            block_data_word_bg: Solarized::BASE02,
+            block_data_word_bg: Solarized::BASE03,
             block_address_fg: Solarized::YELLOW,
-            block_address_bg: Solarized::BASE02,
+            block_address_bg: Solarized::BASE03,
             block_text_fg: Solarized::GREEN,
-            block_text_bg: Solarized::BASE02,
+            block_text_bg: Solarized::BASE03,
             block_screencode_fg: Solarized::ORANGE,
-            block_screencode_bg: Solarized::BASE02,
+            block_screencode_bg: Solarized::BASE03,
             block_lohi_fg: Solarized::RED,
-            block_lohi_bg: Solarized::BASE02,
+            block_lohi_bg: Solarized::BASE03,
             block_hilo_fg: Solarized::MAGENTA,
-            block_hilo_bg: Solarized::BASE02,
+            block_hilo_bg: Solarized::BASE03,
             block_external_file_fg: Solarized::BASE1,
-            block_external_file_bg: Solarized::BASE02,
+            block_external_file_bg: Solarized::BASE03,
             block_undefined_fg: Solarized::BASE01,
-            block_undefined_bg: Solarized::BASE02,
+            block_undefined_bg: Solarized::BASE03,
             block_splitter_fg: Solarized::BASE1,
-            block_splitter_bg: Solarized::BASE02,
+            block_splitter_bg: Solarized::BASE03,
         }
     }
 
