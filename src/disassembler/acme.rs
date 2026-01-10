@@ -53,7 +53,7 @@ impl Formatter for AcmeFormatter {
 
         match opcode.mode {
             AddressingMode::Implied => String::new(),
-            AddressingMode::Accumulator => "a".to_string(),
+            AddressingMode::Accumulator => String::new(),
             AddressingMode::Immediate => {
                 let val = operands[0];
                 match immediate_value_formats.get(&address) {

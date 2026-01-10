@@ -1995,3 +1995,52 @@ fn test_inverted_binary_format() {
     assert_eq!(lines[0].operand, "#~%11111111");
     assert_eq!(lines[1].operand, "#~%00000000");
 }
+
+#[test]
+fn test_acme_accumulator_formatting() {
+    let settings = DocumentSettings {
+        assembler: Assembler::Acme,
+        ..Default::default()
+    };
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    // ASL A (0x0A), LSR A (0x4A), ROL A (0x2A), ROR A (0x6A)
+    let code = vec![0x0A, 0x4A, 0x2A, 0x6A];
+    let block_types = vec![
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+        BlockType::Code,
+    ];
+
+    let lines = disassembler.disassemble(
+        &code,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &[],
+        &BTreeSet::new(),
+    );
+
+    assert_eq!(lines.len(), 4);
+    assert_eq!(lines[0].mnemonic, "asl");
+    assert_eq!(lines[0].operand, ""); // Expect empty operand for accumulator in ACME
+
+    assert_eq!(lines[1].mnemonic, "lsr");
+    assert_eq!(lines[1].operand, "");
+
+    assert_eq!(lines[2].mnemonic, "rol");
+    assert_eq!(lines[2].operand, "");
+
+    assert_eq!(lines[3].mnemonic, "ror");
+    assert_eq!(lines[3].operand, "");
+}
