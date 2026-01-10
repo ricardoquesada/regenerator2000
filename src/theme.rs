@@ -10,6 +10,8 @@ pub struct Theme {
     pub border_inactive: Color,
     pub selection_bg: Color,
     pub selection_fg: Color,
+    pub block_selection_bg: Color,
+    pub block_selection_fg: Color,
     pub status_bar_bg: Color,
     pub status_bar_fg: Color,
 
@@ -171,6 +173,8 @@ impl Theme {
             selection_fg: Solarized::BASE1,
             status_bar_bg: Solarized::BASE02,
             status_bar_fg: Solarized::BASE1,
+            block_selection_bg: Solarized::BASE01, // Higher contrast
+            block_selection_fg: Solarized::BASE3,  // Higher contrast
 
             address: Solarized::YELLOW,
             bytes: Solarized::BASE01,
@@ -241,6 +245,8 @@ impl Theme {
             selection_fg: Solarized::BASE01,
             status_bar_bg: Solarized::BASE2,
             status_bar_fg: Solarized::BASE01,
+            block_selection_bg: Solarized::BASE1, // Higher contrast
+            block_selection_fg: Solarized::BASE3, // Higher contrast
 
             address: Solarized::BASE01,
             bytes: Solarized::BASE1,
@@ -321,6 +327,8 @@ impl Theme {
             selection_fg: Dracula::FOREGROUND,
             status_bar_bg: Dracula::CURRENT_LINE,
             status_bar_fg: Dracula::CYAN,
+            block_selection_bg: Dracula::CURRENT_LINE, // Default to selection_bg
+            block_selection_fg: Dracula::FOREGROUND,   // Default to selection_fg
 
             address: Dracula::PURPLE,
             bytes: Dracula::COMMENT,
@@ -390,6 +398,8 @@ impl Theme {
             selection_fg: Gruvbox::FG,
             status_bar_bg: Gruvbox::BG1,
             status_bar_fg: Gruvbox::FG,
+            block_selection_bg: Gruvbox::BG1, // Default to selection_bg
+            block_selection_fg: Gruvbox::FG,  // Default to selection_fg
 
             address: Gruvbox::YELLOW,
             bytes: Gruvbox::GRAY,
@@ -459,6 +469,8 @@ impl Theme {
             selection_fg: Monokai::FOREGROUND,
             status_bar_bg: Monokai::BACKGROUND,
             status_bar_fg: Monokai::FOREGROUND,
+            block_selection_bg: Monokai::COMMENT, // Default to selection_bg
+            block_selection_fg: Monokai::FOREGROUND, // Default to selection_fg
 
             address: Monokai::PURPLE,
             bytes: Monokai::COMMENT,

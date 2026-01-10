@@ -2769,7 +2769,11 @@ fn render_blocks_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
         .collect();
 
     let list = List::new(items)
-        .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+        .highlight_style(
+            Style::default()
+                .bg(theme.block_selection_bg)
+                .fg(theme.block_selection_fg),
+        )
         .highlight_symbol(""); // Set to empty as we handle the symbol manually
 
     f.render_stateful_widget(list, inner_area, &mut ui_state.blocks_list_state);
