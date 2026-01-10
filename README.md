@@ -113,6 +113,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 |                | **Toggle Hex Dump View**                                     | `Ctrl + 2`                              |
 |                | **Toggle Sprites View**                                      | `Ctrl + 3`                              |
 |                | **Toggle Charset View**                                      | `Ctrl + 4`                              |
+|                | **Toggle Blocks View**                                       | `Ctrl + 5`                              |
 | **Menus**      | **Navigate Menu**                                            | Arrows                                  |
 |                | **Select Item**                                              | `Enter`                                 |
 |                | **Close Menu**                                               | `Esc`                                   |
