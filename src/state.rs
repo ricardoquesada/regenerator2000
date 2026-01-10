@@ -933,10 +933,6 @@ impl AppState {
         self.disassemble();
     }
 
-    pub fn has_splitter(&self, address: u16) -> bool {
-        self.splitters.contains(&address)
-    }
-
     pub fn push_command(&mut self, command: crate::commands::Command) {
         if self.undo_stack.get_pointer() < self.last_saved_pointer {
             self.last_saved_pointer = usize::MAX;

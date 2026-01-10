@@ -2856,7 +2856,9 @@ fn execute_menu_action(
                     // Actually, if we select a splitter and hit '|', we should remove it.
                     && let crate::state::BlockItem::Splitter(addr) = blocks[idx]
                 {
-                    app_state.toggle_splitter(addr);
+                    let command = crate::commands::Command::ToggleSplitter { address: addr };
+                    command.apply(app_state);
+                    app_state.push_command(command);
                     ui_state.set_status_message(format!("Removed splitter at ${:04X}", addr));
                 }
             } else if ui_state.active_pane == ActivePane::Disassembly {
@@ -2866,7 +2868,9 @@ fn execute_menu_action(
                     .map(|line| line.address);
 
                 if let Some(addr) = addr_to_toggle {
-                    app_state.toggle_splitter(addr);
+                    let command = crate::commands::Command::ToggleSplitter { address: addr };
+                    command.apply(app_state);
+                    app_state.push_command(command);
                     ui_state.set_status_message(format!("Toggled splitter at ${:04X}", addr));
                 }
             }
