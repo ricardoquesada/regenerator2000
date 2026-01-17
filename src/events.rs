@@ -1707,6 +1707,16 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
+                    // Handle Shift+; as :
+                    KeyCode::Char(';') if key.modifiers == KeyModifiers::SHIFT => {
+                        if ui_state.active_pane == ActivePane::Disassembly {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::LineComment,
+                            )
+                        }
+                    }
 
                     // Label
                     KeyCode::Char('l') if key.modifiers.is_empty() => {

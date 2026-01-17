@@ -184,8 +184,8 @@ impl Theme {
             label_def: Solarized::MAGENTA,
             comment: Solarized::BASE01,
             arrow: Solarized::BASE01,
-            collapsed_block: Solarized::BLUE,
-            collapsed_block_bg: Solarized::BASE02,
+            collapsed_block: Solarized::YELLOW,
+            collapsed_block_bg: Solarized::BASE03,
 
             hex_bytes: Solarized::BASE1,
             hex_ascii: Solarized::CYAN,
@@ -256,8 +256,8 @@ impl Theme {
             label_def: Solarized::MAGENTA,
             comment: Solarized::BASE1,
             arrow: Solarized::BASE1,
-            collapsed_block: Solarized::BLUE,
-            collapsed_block_bg: Solarized::BASE2,
+            collapsed_block: Solarized::MAGENTA,
+            collapsed_block_bg: Solarized::BASE3,
 
             hex_bytes: Solarized::BASE00,
             hex_ascii: Solarized::CYAN,
@@ -338,8 +338,8 @@ impl Theme {
             label_def: Dracula::CYAN,
             comment: Dracula::COMMENT,
             arrow: Dracula::COMMENT,
-            collapsed_block: Dracula::PURPLE,
-            collapsed_block_bg: Dracula::CURRENT_LINE,
+            collapsed_block: Dracula::YELLOW,
+            collapsed_block_bg: Dracula::BACKGROUND,
 
             hex_bytes: Dracula::FOREGROUND,
             hex_ascii: Dracula::CYAN,
@@ -409,8 +409,8 @@ impl Theme {
             label_def: Gruvbox::AQUA,
             comment: Gruvbox::GRAY,
             arrow: Gruvbox::GRAY,
-            collapsed_block: Gruvbox::ORANGE,
-            collapsed_block_bg: Gruvbox::BG1,
+            collapsed_block: Gruvbox::YELLOW,
+            collapsed_block_bg: Gruvbox::BG0,
 
             hex_bytes: Gruvbox::FG,
             hex_ascii: Gruvbox::AQUA,
