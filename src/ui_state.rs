@@ -72,8 +72,7 @@ pub enum MenuAction {
     ToggleCharsetMulticolor,
 
     ToggleBlocksView,
-    CollapseBlock,
-    UncollapseBlock,
+    ToggleCollapsedBlock,
     ToggleSplitter,
 }
 
@@ -592,14 +591,9 @@ impl MenuState {
                         ),
                         MenuItem::separator(),
                         MenuItem::new(
-                            "Collapse Block",
+                            "Toggle Collapsed Block",
                             Some("Ctrl+K"),
-                            Some(MenuAction::CollapseBlock),
-                        ),
-                        MenuItem::new(
-                            "Uncollapse Block",
-                            Some("Ctrl+Shift+K"),
-                            Some(MenuAction::UncollapseBlock),
+                            Some(MenuAction::ToggleCollapsedBlock),
                         ),
                         MenuItem::separator(),
                         MenuItem::new("Change Origin", None, Some(MenuAction::ChangeOrigin)),

@@ -213,8 +213,7 @@ fn render_shortcuts_dialog(
         ("l", "Label"),
         ("Ctrl+a", "Analyze"),
         ("m", "Toggle Petscii (Hex) / Multicolor (Sprites/Charset)"),
-        ("Ctrl+k", "Collapse Block"),
-        ("Ctrl+Shift+k", "Uncollapse Block"),
+        ("Ctrl+k", "Toggle Collapsed Block"),
         ("|", "Toggle Splitter"),
     ];
 

@@ -1624,6 +1624,18 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
+                    // Handle Shift+/ as ?
+                    KeyCode::Char('/') if key.modifiers == KeyModifiers::SHIFT => {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::Undefined,
+                            )
+                        }
+                    }
                     KeyCode::Char('<')
                         if !key
                             .modifiers
@@ -1847,19 +1859,11 @@ pub fn run_app<B: Backend>(
                     }
 
                     KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
-                            handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                crate::ui_state::MenuAction::UncollapseBlock,
-                            );
-                        } else {
-                            handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                crate::ui_state::MenuAction::CollapseBlock,
-                            );
-                        }
+                        handle_menu_action(
+                            &mut app_state,
+                            &mut ui_state,
+                            crate::ui_state::MenuAction::ToggleCollapsedBlock,
+                        );
                     }
 
                     // External File
@@ -3259,66 +3263,128 @@ fn execute_menu_action(
                 }
             }
         }
-        MenuAction::CollapseBlock => {
-            let cursor_addr = app_state
-                .disassembly
-                .get(ui_state.cursor_index)
-                .map(|line| line.address)
-                .unwrap_or(0);
+        MenuAction::ToggleCollapsedBlock => {
+            if ui_state.active_pane == ActivePane::Blocks {
+                let blocks = app_state.get_blocks_view_items();
+                if let Some(idx) = ui_state.blocks_list_state.selected() {
+                    if let Some(crate::state::BlockItem::Block { start, end, .. }) = blocks.get(idx)
+                    {
+                        let start_offset = *start as usize;
+                        let end_offset = *end as usize;
 
-            if let Some((start_addr, end_addr)) = app_state.get_block_range(cursor_addr) {
-                let start_offset = (start_addr as usize).wrapping_sub(app_state.origin as usize);
-                let end_offset = (end_addr as usize).wrapping_sub(app_state.origin as usize);
+                        let current_cursor_addr = app_state
+                            .disassembly
+                            .get(ui_state.cursor_index)
+                            .map(|line| line.address);
 
-                // Check if already collapsed
-                if let Some(&range) = app_state
-                    .collapsed_blocks
-                    .iter()
-                    .find(|(s, e)| *s == start_offset && *e == end_offset)
-                {
-                    // Uncollapse
-                    let command = crate::commands::Command::UncollapseBlock { range };
-                    command.apply(app_state);
-                    app_state.undo_stack.push(command);
-                    app_state.disassemble();
-                    ui_state.set_status_message("Block Uncollapsed");
-                } else {
-                    // Collapse
-                    let command = crate::commands::Command::CollapseBlock {
-                        range: (start_offset, end_offset),
-                    };
-                    command.apply(app_state);
-                    app_state.undo_stack.push(command);
+                        // Check if already collapsed
+                        if let Some(&range) = app_state
+                            .collapsed_blocks
+                            .iter()
+                            .find(|(s, e)| *s == start_offset && *e == end_offset)
+                        {
+                            // Uncollapse
+                            let command = crate::commands::Command::UncollapseBlock { range };
+                            command.apply(app_state);
+                            app_state.undo_stack.push(command);
+                            app_state.disassemble();
+                            ui_state.set_status_message("Block Uncollapsed");
+                        } else {
+                            // Collapse
+                            let command = crate::commands::Command::CollapseBlock {
+                                range: (start_offset, end_offset),
+                            };
+                            command.apply(app_state);
+                            app_state.undo_stack.push(command);
+                            app_state.disassemble();
+                            ui_state.set_status_message("Block Collapsed");
+                        }
 
-                    ui_state.selection_start = None; // clear selection if any
-                    ui_state.is_visual_mode = false;
-                    app_state.disassemble();
-                    ui_state.set_status_message("Block Collapsed");
-
-                    // Move cursor to start of collapsed block
-                    if let Some(idx) = app_state.get_line_index_containing_address(start_addr) {
-                        ui_state.cursor_index = idx;
+                        // Restore cursor to the same address if possible
+                        if let Some(addr) = current_cursor_addr {
+                            if let Some(new_idx) = app_state.get_line_index_containing_address(addr)
+                            {
+                                ui_state.cursor_index = new_idx;
+                            } else {
+                                // Fallback: try to find nearest address or clamp?
+                                // get_line_index_containing_address usually handles clamping or nearest logic inside?
+                                // Actually it usually finds the specific line.
+                                // If the line disappeared (e.g. it was inside the block we just collapsed),
+                                // we might want to point to the start of the collapsed block.
+                                // If we just collapsed a block, `get_line_index_containing_address` for an address INSIDE the block
+                                // might return the index of the collapsed placeholder line?
+                                // Let's trust `get_line_index_containing_address` behavior or default to keeping index if not found.
+                            }
+                        }
+                    } else {
+                        ui_state.set_status_message("Selected item is not a block");
                     }
                 }
             } else {
-                ui_state.set_status_message("No block found at cursor");
-            }
-        }
-        MenuAction::UncollapseBlock => {
-            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                let offset = (line.address as usize).wrapping_sub(app_state.origin as usize);
-                if let Some(&range) = app_state
-                    .collapsed_blocks
-                    .iter()
-                    .find(|(s, _)| *s == offset)
-                {
-                    let command = crate::commands::Command::UncollapseBlock { range };
-                    command.apply(app_state);
-                    app_state.undo_stack.push(command);
-                    app_state.disassemble();
-                    ui_state.set_status_message("Block Uncollapsed");
+                let cursor_addr = app_state
+                    .disassembly
+                    .get(ui_state.cursor_index)
+                    .map(|line| line.address)
+                    .unwrap_or(0);
+
+                // First check if we are ON a collapsed block placeholder (Uncollapse case)
+                if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                    let offset = (line.address as usize).wrapping_sub(app_state.origin as usize);
+                    if let Some(&range) = app_state
+                        .collapsed_blocks
+                        .iter()
+                        .find(|(s, _)| *s == offset)
+                    {
+                        let command = crate::commands::Command::UncollapseBlock { range };
+                        command.apply(app_state);
+                        app_state.undo_stack.push(command);
+                        app_state.disassemble();
+                        ui_state.set_status_message("Block Uncollapsed");
+                        return;
+                    }
+                }
+
+                // If not uncollapsing, try to Collapse
+                if let Some((start_addr, end_addr)) = app_state.get_block_range(cursor_addr) {
+                    let start_offset =
+                        (start_addr as usize).wrapping_sub(app_state.origin as usize);
+                    let end_offset = (end_addr as usize).wrapping_sub(app_state.origin as usize);
+
+                    // Check if already collapsed (redundant check if uncollapse logic above is correct,
+                    // but safety against duplicate ranges or different lookup method)
+                    if let Some(&range) = app_state
+                        .collapsed_blocks
+                        .iter()
+                        .find(|(s, e)| *s == start_offset && *e == end_offset)
+                    {
+                        // Should have been caught above if cursor is at start, but maybe cursor is middle?
+                        // If collapsed, it's just one line, so cursor must be at start.
+                        // Just uncollapse to be safe.
+                        let command = crate::commands::Command::UncollapseBlock { range };
+                        command.apply(app_state);
+                        app_state.undo_stack.push(command);
+                        app_state.disassemble();
+                        ui_state.set_status_message("Block Uncollapsed");
+                    } else {
+                        // Collapse
+                        let command = crate::commands::Command::CollapseBlock {
+                            range: (start_offset, end_offset),
+                        };
+                        command.apply(app_state);
+                        app_state.undo_stack.push(command);
+
+                        ui_state.selection_start = None; // clear selection if any
+                        ui_state.is_visual_mode = false;
+                        app_state.disassemble();
+                        ui_state.set_status_message("Block Collapsed");
+
+                        // Move cursor to start of collapsed block
+                        if let Some(idx) = app_state.get_line_index_containing_address(start_addr) {
+                            ui_state.cursor_index = idx;
+                        }
+                    }
                 } else {
-                    ui_state.set_status_message("Not a collapsed block");
+                    ui_state.set_status_message("No block found at cursor");
                 }
             }
         }
