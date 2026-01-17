@@ -265,4 +265,34 @@ impl Formatter for Ca65Formatter {
         };
         format!("{} = {}", name, operand)
     }
+
+    fn format_instruction(&self, ctx: &super::formatter::FormatContext) -> (String, String) {
+        let mnemonic = self.format_mnemonic(ctx.opcode.mnemonic);
+        let operand = self.format_operand(ctx);
+
+        // Check for forced absolute addressing
+        let val = if !ctx.operands.is_empty() {
+            if ctx.operands.len() >= 2 {
+                (ctx.operands[1] as u16) << 8 | (ctx.operands[0] as u16)
+            } else {
+                ctx.operands[0] as u16
+            }
+        } else {
+            0
+        };
+
+        if val <= 0xFF && ctx.settings.preserve_long_bytes {
+            match ctx.opcode.mode {
+                AddressingMode::Absolute
+                | AddressingMode::AbsoluteX
+                | AddressingMode::AbsoluteY => {
+                    // ca65 uses a: prefix for absolute addressing override
+                    return (mnemonic, format!("a:{}", operand));
+                }
+                _ => {}
+            }
+        }
+
+        (mnemonic, operand)
+    }
 }

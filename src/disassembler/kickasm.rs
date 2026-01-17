@@ -251,17 +251,45 @@ impl Formatter for KickAsmFormatter {
         } else {
             format!("${:04x}", value)
         };
-        format!(".const {} = {}", name, operand) // KickAssembler prefers .const or .var, or just label = val?
-        // "symbol = value" works for constants in KickAssembler too.
-        // But ".const symbol = value" is also valid and clearer.
-        // Let's stick to "symbol = value" for now as it's standard-ish.
-        // Wait, KickAssembler uses ".const" for constants usually.
-        // "label = $1000" defines a label address?
-        // Let's use ".const" for definitions.
-        // Or actually, simple "=" is standard for most assemblers.
-        // KickAssembler guide says: ".const label = value".
-        // Let's try simple assignment first.
-        // actually .label or .const?
-        // "label = $02"
+        format!(".const {} = {}", name, operand)
+    }
+
+    fn format_relative_label(&self, name: &str, offset: usize) -> String {
+        // KickAssembler syntax: .label myLabel = * + 10
+        format!(".label {} = * + {}", self.format_label(name), offset)
+    }
+
+    fn format_instruction(&self, ctx: &super::formatter::FormatContext) -> (String, String) {
+        let mnemonic = self.format_mnemonic(ctx.opcode.mnemonic);
+        let operand = self.format_operand(ctx);
+
+        // Check for forced absolute addressing
+        // If mode is Absolute*, but value fits in ZP, we force .abs suffix
+        let val = if !ctx.operands.is_empty() {
+            if ctx.operands.len() >= 2 {
+                (ctx.operands[1] as u16) << 8 | (ctx.operands[0] as u16)
+            } else {
+                ctx.operands[0] as u16
+            }
+        } else {
+            0
+        };
+
+        if val <= 0xFF && ctx.settings.preserve_long_bytes {
+            match ctx.opcode.mode {
+                AddressingMode::Absolute => {
+                    return (format!("{}.abs", mnemonic), operand);
+                }
+                AddressingMode::AbsoluteX => {
+                    return (format!("{}.abs", mnemonic), operand);
+                }
+                AddressingMode::AbsoluteY => {
+                    return (format!("{}.abs", mnemonic), operand);
+                }
+                _ => {}
+            }
+        }
+
+        (mnemonic, operand)
     }
 }

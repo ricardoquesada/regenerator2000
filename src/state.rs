@@ -805,7 +805,7 @@ impl AppState {
                 lines.push(DisassemblyLine {
                     address: 0,
                     bytes: vec![],
-                    mnemonic: format!("; {}", title),
+                    mnemonic: format!("{} {}", formatter.comment_prefix(), title),
                     operand: String::new(),
                     comment: String::new(),
                     line_comment: None,

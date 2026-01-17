@@ -65,3 +65,83 @@ fn test_labels() {
     assert_eq!(formatter.format_label("MyLabel"), "MyLabel");
     assert_eq!(formatter.format_label_definition("MyLabel"), "MyLabel:");
 }
+
+#[test]
+fn test_relative_label() {
+    let settings = DocumentSettings {
+        assembler: Assembler::Kick,
+        ..Default::default()
+    };
+    let formatter = Disassembler::create_formatter(settings.assembler);
+    // .label myLabel = * + 10
+    assert_eq!(
+        formatter.format_relative_label("myLabel", 10),
+        ".label myLabel = * + 10"
+    );
+}
+
+#[test]
+fn test_forced_absolute() {
+    let mut settings = DocumentSettings::default();
+    settings.assembler = Assembler::Kick;
+    let formatter = Disassembler::create_formatter(settings.assembler);
+    let labels = BTreeMap::new();
+    let immediate_value_formats = BTreeMap::new();
+    let opcodes = crate::cpu::get_opcodes();
+
+    // True functionality: should output .abs
+    settings.preserve_long_bytes = true;
+    let ctx = crate::disassembler::formatter::FormatContext {
+        opcode: &opcodes[0xAD].as_ref().unwrap(),
+        operands: &[0x02, 0x00],
+        address: 0x1000,
+        target_context: None,
+        labels: &labels,
+        settings: &settings,
+        immediate_value_formats: &immediate_value_formats,
+    };
+    assert_eq!(
+        formatter.format_instruction(&ctx),
+        ("lda.abs".to_string(), "$0002".to_string())
+    );
+
+    // False functionality: should NOT output .abs
+    // Note: If preserve_long_bytes is false, the disassembler usually tries to reduce to ZP if possible
+    // but here we are testing the formatter output given a specific instruction context (Absolute).
+    // If the instruction IS Absolute in the context (0xAD) but the settings say don't preserve long bytes,
+    // technically the re-assembler might optimize it back to ZP if we don't force it.
+    // But the request is to control the .abs suffix.
+    // If we omit .abs, KickAssembler will likely assemble it as ZP ($A5).
+    // This matches the behavior of "not preserving" the long form.
+    let mut settings_false = settings.clone();
+    settings_false.preserve_long_bytes = false;
+    let ctx_false = crate::disassembler::formatter::FormatContext {
+        opcode: &opcodes[0xAD].as_ref().unwrap(),
+        operands: &[0x02, 0x00],
+        address: 0x1000,
+        target_context: None,
+        labels: &labels,
+        settings: &settings_false,
+        immediate_value_formats: &immediate_value_formats,
+    };
+    assert_eq!(
+        formatter.format_instruction(&ctx_false),
+        ("lda".to_string(), "$0002".to_string())
+    );
+
+    // LDA $02 (ZeroPage) -> A5 02
+    // Should be formatted as "lda $02"
+    let ctx_zp = crate::disassembler::formatter::FormatContext {
+        opcode: &opcodes[0xA5].as_ref().unwrap(),
+        operands: &[0x02],
+        address: 0x1000,
+        target_context: None,
+        labels: &labels,
+        settings: &settings,
+        immediate_value_formats: &immediate_value_formats,
+    };
+    assert_eq!(
+        formatter.format_instruction(&ctx_zp),
+        ("lda".to_string(), "$02".to_string())
+    );
+}

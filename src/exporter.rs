@@ -7,11 +7,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let mut origin_printed = false;
     let formatter = state.get_formatter();
 
-    let external_lines = if !state.settings.all_labels {
-        state.get_external_label_definitions()
-    } else {
-        Vec::new()
-    };
+    let external_lines = state.get_external_label_definitions();
 
     // Regenerate disassembly without collapsed blocks for export
     let full_disassembly = state.disassembler.disassemble(
@@ -201,8 +197,10 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 let mid_addr = line.address.wrapping_add(j as u16);
                 if let Some(label_vec) = state.labels.get(&mid_addr) {
                     for label in label_vec {
-                        let formatted_name = formatter.format_label(&label.name);
-                        output.push_str(&format!("{} =*+${:02x}\n", formatted_name, j));
+                        output.push_str(&format!(
+                            "{}\n",
+                            formatter.format_relative_label(&label.name, j)
+                        ));
                     }
                 }
             }
@@ -1154,6 +1152,85 @@ mod tests {
         // Must contain the label definition
         assert!(content.contains("f10 = $10"));
         assert!(content.contains("; ZP FIELDS"));
+
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+
+    #[test]
+    fn test_export_kick_external_comments() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        state.settings.assembler = crate::state::Assembler::Kick;
+        state.settings.all_labels = true;
+        state.raw_data = vec![0xEA];
+
+        // Add an external label to trigger header generation
+        state.labels.insert(
+            0x0002,
+            vec![crate::state::Label {
+                name: "f0002".to_string(),
+                kind: crate::state::LabelKind::Auto,
+                label_type: crate::state::LabelType::ZeroPageField,
+            }],
+        );
+
+        let file_name = "test_kick_comments.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        // Check for KickAssembler comment style in header
+        assert!(content.contains("// ZP FIELDS"));
+        // Standard check
+        assert!(content.contains("f0002 = $02"));
+
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+
+    #[test]
+    fn test_export_kick_relative_labels() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        state.settings.assembler = crate::state::Assembler::Kick;
+
+        let file_name = "test_kick_rel.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        // Mock disassembly with bytes > 1 to trigger relative label logic
+        // JMP $1001 (0x4C, 0x01, 0x10) - 3 bytes
+        state.raw_data = vec![0x4C, 0x01, 0x10];
+        state.block_types = vec![crate::state::BlockType::Code; 3];
+
+        // No disassembly push needed as export_asm calls disassemble()
+
+        // Add label at 1001 (+1)
+        state.labels.insert(
+            0x1001,
+            vec![crate::state::Label {
+                name: "rel1".to_string(),
+                kind: crate::state::LabelKind::User,
+                label_type: crate::state::LabelType::UserDefined,
+            }],
+        );
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        // Check for .label syntax
+        assert!(content.contains(".label rel1 = * + 1"));
 
         if path.exists() {
             let _ = std::fs::remove_file(&path);
