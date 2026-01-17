@@ -768,6 +768,12 @@ pub fn run_app<B: Backend>(
                         } else if ui_state.settings_dialog.is_editing_text_char_limit {
                             ui_state.settings_dialog.is_editing_text_char_limit = false;
                             ui_state.settings_dialog.text_char_limit_input.clear();
+                        } else if ui_state.settings_dialog.is_editing_addresses_per_line {
+                            ui_state.settings_dialog.is_editing_addresses_per_line = false;
+                            ui_state.settings_dialog.addresses_per_line_input.clear();
+                        } else if ui_state.settings_dialog.is_editing_bytes_per_line {
+                            ui_state.settings_dialog.is_editing_bytes_per_line = false;
+                            ui_state.settings_dialog.bytes_per_line_input.clear();
                         } else {
                             ui_state.settings_dialog.close();
                             ui_state.set_status_message("Ready");
@@ -806,6 +812,8 @@ pub fn run_app<B: Backend>(
                         } else if !ui_state.settings_dialog.is_editing_xref_count
                             && !ui_state.settings_dialog.is_editing_arrow_columns
                             && !ui_state.settings_dialog.is_editing_text_char_limit
+                            && !ui_state.settings_dialog.is_editing_addresses_per_line
+                            && !ui_state.settings_dialog.is_editing_bytes_per_line
                         {
                             ui_state.settings_dialog.previous();
                         }
@@ -814,6 +822,8 @@ pub fn run_app<B: Backend>(
                         if !ui_state.settings_dialog.is_editing_xref_count
                             && !ui_state.settings_dialog.is_editing_arrow_columns
                             && !ui_state.settings_dialog.is_editing_text_char_limit
+                            && !ui_state.settings_dialog.is_editing_addresses_per_line
+                            && !ui_state.settings_dialog.is_editing_bytes_per_line
                         {
                             match ui_state.settings_dialog.selected_index {
                                 7 => {
@@ -828,6 +838,16 @@ pub fn run_app<B: Backend>(
                                     app_state.settings.text_char_limit =
                                         app_state.settings.text_char_limit.saturating_sub(1);
                                 }
+                                10 => {
+                                    if app_state.settings.addresses_per_line > 1 {
+                                        app_state.settings.addresses_per_line -= 1;
+                                    }
+                                }
+                                11 => {
+                                    if app_state.settings.bytes_per_line > 1 {
+                                        app_state.settings.bytes_per_line -= 1;
+                                    }
+                                }
                                 _ => {}
                             }
                         }
@@ -836,6 +856,8 @@ pub fn run_app<B: Backend>(
                         if !ui_state.settings_dialog.is_editing_xref_count
                             && !ui_state.settings_dialog.is_editing_arrow_columns
                             && !ui_state.settings_dialog.is_editing_text_char_limit
+                            && !ui_state.settings_dialog.is_editing_addresses_per_line
+                            && !ui_state.settings_dialog.is_editing_bytes_per_line
                         {
                             match ui_state.settings_dialog.selected_index {
                                 7 => {
@@ -849,6 +871,16 @@ pub fn run_app<B: Backend>(
                                 9 => {
                                     app_state.settings.text_char_limit =
                                         app_state.settings.text_char_limit.saturating_add(1);
+                                }
+                                10 => {
+                                    if app_state.settings.addresses_per_line < 8 {
+                                        app_state.settings.addresses_per_line += 1;
+                                    }
+                                }
+                                11 => {
+                                    if app_state.settings.bytes_per_line < 40 {
+                                        app_state.settings.bytes_per_line += 1;
+                                    }
                                 }
                                 _ => {}
                             }
@@ -876,6 +908,8 @@ pub fn run_app<B: Backend>(
                         } else if !ui_state.settings_dialog.is_editing_xref_count
                             && !ui_state.settings_dialog.is_editing_arrow_columns
                             && !ui_state.settings_dialog.is_editing_text_char_limit
+                            && !ui_state.settings_dialog.is_editing_addresses_per_line
+                            && !ui_state.settings_dialog.is_editing_bytes_per_line
                         {
                             ui_state.settings_dialog.next();
                         }
@@ -912,6 +946,39 @@ pub fn run_app<B: Backend>(
                             {
                                 app_state.settings.text_char_limit = val;
                                 ui_state.settings_dialog.is_editing_text_char_limit = false;
+                            }
+                        } else if ui_state.settings_dialog.is_editing_addresses_per_line {
+                            // Commit value
+                            if let Ok(val) = ui_state
+                                .settings_dialog
+                                .addresses_per_line_input
+                                .parse::<usize>()
+                            {
+                                if (1..=8).contains(&val) {
+                                    app_state.settings.addresses_per_line = val;
+                                    ui_state.settings_dialog.is_editing_addresses_per_line = false;
+                                } else {
+                                    // Invalid range, maybe reset or keep editing?
+                                    // Let's clamped it for UX or just keep editing?
+                                    // Keeping editing is safer.
+                                    ui_state.settings_dialog.addresses_per_line_input =
+                                        "Invalid (1-8)".to_string();
+                                }
+                            }
+                        } else if ui_state.settings_dialog.is_editing_bytes_per_line {
+                            // Commit value
+                            if let Ok(val) = ui_state
+                                .settings_dialog
+                                .bytes_per_line_input
+                                .parse::<usize>()
+                            {
+                                if (1..=40).contains(&val) {
+                                    app_state.settings.bytes_per_line = val;
+                                    ui_state.settings_dialog.is_editing_bytes_per_line = false;
+                                } else {
+                                    ui_state.settings_dialog.bytes_per_line_input =
+                                        "Invalid (1-40)".to_string();
+                                }
                             }
                         } else {
                             // Toggle checkbox or enter mode
@@ -959,6 +1026,16 @@ pub fn run_app<B: Backend>(
                                     ui_state.settings_dialog.text_char_limit_input =
                                         app_state.settings.text_char_limit.to_string();
                                 }
+                                10 => {
+                                    ui_state.settings_dialog.is_editing_addresses_per_line = true;
+                                    ui_state.settings_dialog.addresses_per_line_input =
+                                        app_state.settings.addresses_per_line.to_string();
+                                }
+                                11 => {
+                                    ui_state.settings_dialog.is_editing_bytes_per_line = true;
+                                    ui_state.settings_dialog.bytes_per_line_input =
+                                        app_state.settings.bytes_per_line.to_string();
+                                }
                                 _ => {}
                             }
                         }
@@ -970,19 +1047,33 @@ pub fn run_app<B: Backend>(
                             ui_state.settings_dialog.arrow_columns_input.pop();
                         } else if ui_state.settings_dialog.is_editing_text_char_limit {
                             ui_state.settings_dialog.text_char_limit_input.pop();
+                        } else if ui_state.settings_dialog.is_editing_addresses_per_line {
+                            ui_state.settings_dialog.addresses_per_line_input.pop();
+                        } else if ui_state.settings_dialog.is_editing_bytes_per_line {
+                            ui_state.settings_dialog.bytes_per_line_input.pop();
                         }
                     }
                     KeyCode::Char(c) => {
-                        if ui_state.settings_dialog.is_editing_xref_count && c.is_ascii_digit() {
-                            ui_state.settings_dialog.xref_count_input.push(c);
-                        } else if ui_state.settings_dialog.is_editing_arrow_columns
-                            && c.is_ascii_digit()
-                        {
-                            ui_state.settings_dialog.arrow_columns_input.push(c);
-                        } else if ui_state.settings_dialog.is_editing_text_char_limit
-                            && c.is_ascii_digit()
-                        {
-                            ui_state.settings_dialog.text_char_limit_input.push(c);
+                        if ui_state.settings_dialog.is_editing_xref_count {
+                            if c.is_ascii_digit() {
+                                ui_state.settings_dialog.xref_count_input.push(c);
+                            }
+                        } else if ui_state.settings_dialog.is_editing_arrow_columns {
+                            if c.is_ascii_digit() {
+                                ui_state.settings_dialog.arrow_columns_input.push(c);
+                            }
+                        } else if ui_state.settings_dialog.is_editing_text_char_limit {
+                            if c.is_ascii_digit() {
+                                ui_state.settings_dialog.text_char_limit_input.push(c);
+                            }
+                        } else if ui_state.settings_dialog.is_editing_addresses_per_line {
+                            if c.is_ascii_digit() {
+                                ui_state.settings_dialog.addresses_per_line_input.push(c);
+                            }
+                        } else if ui_state.settings_dialog.is_editing_bytes_per_line {
+                            if c.is_ascii_digit() {
+                                ui_state.settings_dialog.bytes_per_line_input.push(c);
+                            }
                         }
                     }
                     _ => {}

@@ -2044,3 +2044,153 @@ fn test_acme_accumulator_formatting() {
     assert_eq!(lines[3].mnemonic, "ror");
     assert_eq!(lines[3].operand, "");
 }
+
+#[test]
+fn test_addresses_per_line() {
+    // Set addresses per line to 2
+    let settings = DocumentSettings {
+        addresses_per_line: 2,
+        ..Default::default()
+    };
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x1000;
+
+    // 8 bytes of data -> 4 pairs for LoHi
+    // Lo: 00, 01, 02, 03
+    // Hi: 10, 11, 12, 13
+    // Addresses per line = 2
+    // Expected output:
+    // Line 1: .byte <, < (Lo part 1) - wait, Lo bytes combined with Hi bytes form address?
+    // Let's re-read LoHi logic.
+    // LoHi: Lo bytes are at [pc], Hi bytes are at [pc + split_offset].
+    // Value = (Hi << 8) | Lo.
+    // The operand is output as <Label or >Label.
+    // If no label, it formats address.
+    // Lo line: .byte <, <
+    // Hi line: .byte >, >
+
+    // Let's construct data such that resulting addresses are known.
+    // Byte 0 (Lo): 00. Byte 4 (Hi): 10. Addr: .
+    // Byte 1 (Lo): 01. Byte 5 (Hi): 11. Addr: .
+    // Byte 2 (Lo): 02. Byte 6 (Hi): 12. Addr: .
+    // Byte 3 (Lo): 03. Byte 7 (Hi): 13. Addr: .
+
+    let data = vec![0x00, 0x01, 0x02, 0x03, 0x10, 0x11, 0x12, 0x13];
+    let block_types = vec![BlockType::LoHi; 8];
+
+    // Standard formatter (Tass64) uses < and > for low/high bytes of address.
+    // If no label, it formats as < etc.
+
+    let lines = disassembler.disassemble(
+        &data,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &[],
+        &BTreeSet::new(),
+    );
+
+    // We expect 4 lines because 4 pairs / 2 pairs per line = 2 lines for Lo, 2 lines for Hi.
+    assert_eq!(lines.len(), 4);
+
+    // Verify content
+    // Line 0 (Lo 1): <, <
+    // Line 1 (Lo 2): <, <
+    // Line 2 (Hi 1): >, >
+    // Line 3 (Hi 2): >, >
+
+    // Tass formatter: format_address returns .
+    // So operands will be <, <
+
+    assert_eq!(lines[0].operand, "<$1000, <$1101");
+    assert_eq!(lines[1].operand, "<$1202, <$1303");
+    assert_eq!(lines[2].operand, ">$1000, >$1101");
+    assert_eq!(lines[3].operand, ">$1202, >$1303");
+}
+
+#[test]
+fn test_words_per_line() {
+    // Set words/addresses per line to 3
+    let settings = DocumentSettings {
+        addresses_per_line: 3,
+        ..Default::default()
+    };
+
+    let disassembler = Disassembler::new();
+    let labels = BTreeMap::new();
+    let origin = 0x2000;
+
+    // 8 bytes -> 4 words
+    // Word 1: 00 10 ->
+    // Word 2: 01 11 ->
+    // Word 3: 02 12 ->
+    // Word 4: 03 13 ->
+
+    // addresses_per_line = 3
+    // Line 1: .word , ,
+    // Line 2: .word
+
+    let data = vec![0x00, 0x10, 0x01, 0x11, 0x02, 0x12, 0x03, 0x13];
+    let block_types = vec![BlockType::DataWord; 8];
+
+    let lines = disassembler.disassemble(
+        &data,
+        &block_types,
+        &labels,
+        origin,
+        &settings,
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &[],
+        &BTreeSet::new(),
+    );
+
+    assert_eq!(lines.len(), 2);
+
+    // Tass formatter typically uses .word directive.
+    // Check operands
+    assert_eq!(lines[0].operand, "$1000, $1101, $1202");
+    assert_eq!(lines[1].operand, "$1303");
+}
+
+#[test]
+fn test_bytes_per_line() {
+    let mut settings = DocumentSettings::default();
+    settings.bytes_per_line = 3;
+
+    let data = [0x11, 0x22, 0x33, 0x44, 0x55];
+    let block_types = vec![BlockType::DataByte; 5];
+    let disassembler = Disassembler::new();
+    let formatter = Box::new(crate::disassembler::tass::TassFormatter);
+
+    let (consumed, lines) = disassembler.handle_data_byte(
+        0,
+        &data,
+        &block_types,
+        0x1000,
+        formatter.as_ref(),
+        &BTreeMap::new(),
+        0x1000,
+        None,
+        String::new(),
+        None,
+        &BTreeSet::new(),
+        &settings,
+    );
+
+    assert_eq!(consumed, 3);
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].bytes.len(), 3);
+    assert_eq!(lines[0].bytes, vec![0x11, 0x22, 0x33]);
+}

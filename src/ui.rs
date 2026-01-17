@@ -424,6 +424,8 @@ fn render_settings_dialog(
             Constraint::Length(2), // Max X-Refs
             Constraint::Length(2), // Arrow Columns
             Constraint::Length(2), // Text Line Limit
+            Constraint::Length(2), // Addresses Per Line
+            Constraint::Length(2), // Bytes Per Line
         ])
         .split(inner);
 
@@ -559,6 +561,50 @@ fn render_settings_dialog(
     f.render_widget(
         text_limit_widget,
         Rect::new(layout[5].x + 2, layout[5].y, layout[5].width - 4, 1),
+    );
+
+    // Addresses Per Line
+    let addr_limit_selected = dialog.selected_index == 10;
+    let addr_limit_value_str = if dialog.is_editing_addresses_per_line {
+        dialog.addresses_per_line_input.clone()
+    } else {
+        settings.addresses_per_line.to_string()
+    };
+    let addr_limit_text = format!("Words/Addrs per line: < {} >", addr_limit_value_str);
+
+    let addr_limit_widget = Paragraph::new(addr_limit_text).style(if addr_limit_selected {
+        Style::default()
+            .fg(theme.highlight_fg)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(theme.dialog_fg)
+    });
+
+    f.render_widget(
+        addr_limit_widget,
+        Rect::new(layout[6].x + 2, layout[6].y, layout[6].width - 4, 1),
+    );
+
+    // Bytes Per Line
+    let bytes_limit_selected = dialog.selected_index == 11;
+    let bytes_limit_value_str = if dialog.is_editing_bytes_per_line {
+        dialog.bytes_per_line_input.clone()
+    } else {
+        settings.bytes_per_line.to_string()
+    };
+    let bytes_limit_text = format!("Bytes per line: < {} >", bytes_limit_value_str);
+
+    let bytes_limit_widget = Paragraph::new(bytes_limit_text).style(if bytes_limit_selected {
+        Style::default()
+            .fg(theme.highlight_fg)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(theme.dialog_fg)
+    });
+
+    f.render_widget(
+        bytes_limit_widget,
+        Rect::new(layout[7].x + 2, layout[7].y, layout[7].width - 4, 1),
     );
 
     // Platform Popup

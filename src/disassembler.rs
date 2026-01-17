@@ -48,8 +48,6 @@ pub struct Disassembler {
     pub opcodes: [Option<Opcode>; 256],
 }
 
-const ADDRESSES_PER_LINE: usize = 4;
-
 impl Disassembler {
     pub fn new() -> Self {
         Self {
@@ -162,6 +160,7 @@ impl Disassembler {
                     side_comment,
                     line_comment,
                     splitters,
+                    settings,
                 ),
                 BlockType::DataWord => self.handle_data_word(
                     pc,
@@ -175,6 +174,7 @@ impl Disassembler {
                     side_comment,
                     line_comment,
                     splitters,
+                    settings,
                 ),
                 BlockType::Address => self.handle_address(
                     pc,
@@ -190,6 +190,7 @@ impl Disassembler {
                     system_comments,
                     user_side_comments,
                     splitters,
+                    settings,
                 ),
                 BlockType::Text => self.handle_text(
                     pc,
@@ -231,6 +232,7 @@ impl Disassembler {
                     side_comment,
                     line_comment,
                     splitters,
+                    settings,
                 ),
                 BlockType::HiLo => self.handle_hilo(
                     pc,
@@ -244,6 +246,7 @@ impl Disassembler {
                     side_comment,
                     line_comment,
                     splitters,
+                    settings,
                 ),
                 BlockType::ExternalFile => self.handle_external_file(
                     pc,
@@ -257,6 +260,7 @@ impl Disassembler {
                     side_comment,
                     line_comment,
                     splitters,
+                    settings,
                 ),
                 BlockType::Undefined => self.handle_undefined_byte(
                     pc,
@@ -290,6 +294,7 @@ impl Disassembler {
         side_comment: String,
         line_comment: Option<String>,
         splitters: &BTreeSet<u16>,
+        settings: &DocumentSettings,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut count = 0;
         // Find extent of LoHi block, stopping at end of contiguous LoHi blocks
@@ -365,7 +370,7 @@ impl Disassembler {
         // Output Lo Lines
         let mut i = 0;
         while i < pair_count {
-            let chunk_size = (pair_count - i).min(ADDRESSES_PER_LINE);
+            let chunk_size = (pair_count - i).min(settings.addresses_per_line);
             let mut bytes = Vec::new();
             let mut operands = Vec::new();
 
@@ -399,7 +404,7 @@ impl Disassembler {
         // Output Hi Lines
         let mut i = 0;
         while i < pair_count {
-            let chunk_size = (pair_count - i).min(ADDRESSES_PER_LINE);
+            let chunk_size = (pair_count - i).min(settings.addresses_per_line);
             let mut bytes = Vec::new();
             let mut operands = Vec::new();
 
@@ -450,6 +455,7 @@ impl Disassembler {
         side_comment: String,
         line_comment: Option<String>,
         splitters: &BTreeSet<u16>,
+        settings: &DocumentSettings,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut count = 0;
         // Find extent of HiLo block, stopping at end of contiguous HiLo blocks
@@ -512,7 +518,7 @@ impl Disassembler {
         // Output Hi Lines (First half of data)
         let mut i = 0;
         while i < pair_count {
-            let chunk_size = (pair_count - i).min(ADDRESSES_PER_LINE);
+            let chunk_size = (pair_count - i).min(settings.addresses_per_line);
             let mut bytes = Vec::new();
             let mut operands = Vec::new();
 
@@ -546,7 +552,7 @@ impl Disassembler {
         // Output Lo Lines (Second half of data)
         let mut i = 0;
         while i < pair_count {
-            let chunk_size = (pair_count - i).min(ADDRESSES_PER_LINE);
+            let chunk_size = (pair_count - i).min(settings.addresses_per_line);
             let mut bytes = Vec::new();
             let mut operands = Vec::new();
 
@@ -993,12 +999,13 @@ impl Disassembler {
         side_comment: String,
         line_comment: Option<String>,
         splitters: &BTreeSet<u16>,
+        settings: &DocumentSettings,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0;
 
-        while pc + count < data.len() && count < 8 {
+        while pc + count < data.len() && count < settings.bytes_per_line {
             let current_pc = pc + count;
             let current_address = origin.wrapping_add(current_pc as u16);
 
@@ -1056,12 +1063,13 @@ impl Disassembler {
         side_comment: String,
         line_comment: Option<String>,
         splitters: &BTreeSet<u16>,
+        settings: &DocumentSettings,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0; // Number of words
 
-        while pc + (count * 2) + 1 < data.len() && count < 4 {
+        while pc + (count * 2) + 1 < data.len() && count < settings.addresses_per_line {
             let current_pc_start = pc + (count * 2);
             let current_address = origin.wrapping_add(current_pc_start as u16);
             let next_address = current_address.wrapping_add(1);
@@ -1145,12 +1153,13 @@ impl Disassembler {
         side_comment: String,
         line_comment: Option<String>,
         splitters: &BTreeSet<u16>,
+        settings: &DocumentSettings,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0;
 
-        while pc + count < data.len() && count < 8 {
+        while pc + count < data.len() && count < settings.bytes_per_line {
             let current_pc = pc + count;
             let current_address = origin.wrapping_add(current_pc as u16);
 
@@ -1210,12 +1219,13 @@ impl Disassembler {
         system_comments: &BTreeMap<u16, String>,
         user_side_comments: &BTreeMap<u16, String>,
         _splitters: &BTreeSet<u16>,
+        settings: &DocumentSettings,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0;
 
-        while pc + (count * 2) + 1 < data.len() && count < ADDRESSES_PER_LINE {
+        while pc + (count * 2) + 1 < data.len() && count < settings.addresses_per_line {
             let current_pc_start = pc + (count * 2);
             let current_address = origin.wrapping_add(current_pc_start as u16);
 

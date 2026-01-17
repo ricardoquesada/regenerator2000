@@ -95,10 +95,22 @@ pub struct DocumentSettings {
     pub use_illegal_opcodes: bool, // default false
     #[serde(default = "default_text_char_limit")]
     pub text_char_limit: usize, // default 40
+    #[serde(default = "default_addresses_per_line")]
+    pub addresses_per_line: usize, // default 5
+    #[serde(default = "default_bytes_per_line")]
+    pub bytes_per_line: usize, // default 8
 }
 
 fn default_text_char_limit() -> usize {
     40
+}
+
+fn default_addresses_per_line() -> usize {
+    5
+}
+
+fn default_bytes_per_line() -> usize {
+    8
 }
 
 fn default_true() -> bool {
@@ -126,6 +138,8 @@ impl Default for DocumentSettings {
             max_arrow_columns: 6,
             use_illegal_opcodes: false,
             text_char_limit: 40,
+            addresses_per_line: 5,
+            bytes_per_line: 8,
         }
     }
 }

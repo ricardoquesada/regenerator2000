@@ -426,6 +426,10 @@ pub struct SettingsDialogState {
     pub arrow_columns_input: String,
     pub is_editing_text_char_limit: bool,
     pub text_char_limit_input: String,
+    pub is_editing_addresses_per_line: bool,
+    pub addresses_per_line_input: String,
+    pub is_editing_bytes_per_line: bool,
+    pub bytes_per_line_input: String,
 }
 
 impl SettingsDialogState {
@@ -441,6 +445,10 @@ impl SettingsDialogState {
             arrow_columns_input: String::new(),
             is_editing_text_char_limit: false,
             text_char_limit_input: String::new(),
+            is_editing_addresses_per_line: false,
+            addresses_per_line_input: String::new(),
+            is_editing_bytes_per_line: false,
+            bytes_per_line_input: String::new(),
         }
     }
 
@@ -455,6 +463,10 @@ impl SettingsDialogState {
         self.arrow_columns_input.clear();
         self.is_editing_text_char_limit = false;
         self.text_char_limit_input.clear();
+        self.is_editing_addresses_per_line = false;
+        self.addresses_per_line_input.clear();
+        self.is_editing_bytes_per_line = false;
+        self.bytes_per_line_input.clear();
     }
 
     pub fn close(&mut self) {
@@ -473,12 +485,14 @@ impl SettingsDialogState {
         // 7: Arrow Columns
         // 8: Use Illegal Opcodes
         // 9: Text Line Limit
-        let max_items = 10;
+        // 10: Addresses Per Line
+        // 11: Bytes Per Line
+        let max_items = 12;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 10;
+        let max_items = 12;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {
