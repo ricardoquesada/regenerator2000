@@ -2068,7 +2068,7 @@ fn render_disassembly(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
 
             let is_highlighted =
                 !is_selected && is_cursor_row && ui_state.sub_cursor_index == current_sub_index;
-            let is_collapsed = line.mnemonic.starts_with("; Collapsed block");
+            let is_collapsed = line.is_collapsed;
             let line_style = if is_highlighted {
                 Style::default().bg(ui_state.theme.selection_bg)
             } else if is_collapsed {
@@ -2811,6 +2811,7 @@ mod tests {
             show_bytes: false,
             target_address: target,
             comment_address: None,
+            is_collapsed: false,
         }
     }
 

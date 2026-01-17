@@ -3587,6 +3587,7 @@ mod tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         };
 
         // "d020" is in "8d0208" starting at index 1 -> Should FAIL
@@ -3634,6 +3635,7 @@ mod tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         };
 
         // Query "d020" matches both Line Comment ("...d020") and Operand ("$D020")

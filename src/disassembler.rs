@@ -41,6 +41,7 @@ pub struct DisassemblyLine {
     pub show_bytes: bool,
     pub target_address: Option<u16>,
     pub comment_address: Option<u16>,
+    pub is_collapsed: bool,
 }
 
 pub struct Disassembler {
@@ -111,7 +112,9 @@ impl Disassembler {
                     show_bytes: false,
                     target_address: None,
                     comment_address: None,
+                    is_collapsed: true,
                 });
+
                 pc = *end + 1;
                 continue;
             }
@@ -387,6 +390,7 @@ impl Disassembler {
                 show_bytes: false,
                 target_address: None,
                 comment_address: None,
+                is_collapsed: false,
             });
 
             i += chunk_size;
@@ -423,6 +427,7 @@ impl Disassembler {
                 show_bytes: false,
                 target_address: None,
                 comment_address: None,
+                is_collapsed: false,
             });
 
             i += chunk_size;
@@ -532,6 +537,7 @@ impl Disassembler {
                 show_bytes: false,
                 target_address: None,
                 comment_address: None,
+                is_collapsed: false,
             });
 
             i += chunk_size;
@@ -567,6 +573,7 @@ impl Disassembler {
                 show_bytes: false,
                 target_address: None,
                 comment_address: None,
+                is_collapsed: false,
             });
 
             i += chunk_size;
@@ -767,6 +774,7 @@ impl Disassembler {
                                     show_bytes: true,
                                     target_address: None,
                                     comment_address: None,
+                                    is_collapsed: false,
                                 },
                                 DisassemblyLine {
                                     address: address.wrapping_add(1),
@@ -784,6 +792,7 @@ impl Disassembler {
                                     show_bytes: true,
                                     target_address: None,
                                     comment_address: None,
+                                    is_collapsed: false,
                                 },
                             ],
                         );
@@ -806,6 +815,7 @@ impl Disassembler {
                                 show_bytes: true,
                                 target_address: None,
                                 comment_address: None,
+                                is_collapsed: false,
                             }],
                         );
                     }
@@ -938,6 +948,7 @@ impl Disassembler {
                             show_bytes: true,
                             target_address,
                             comment_address: None,
+                            is_collapsed: false,
                         }],
                     );
                 }
@@ -963,6 +974,7 @@ impl Disassembler {
                 show_bytes: true,
                 target_address: None,
                 comment_address: None,
+                is_collapsed: false,
             }],
         )
     }
@@ -1025,6 +1037,7 @@ impl Disassembler {
                 show_bytes: false,
                 target_address: None,
                 comment_address: None,
+                is_collapsed: false,
             }],
         )
     }
@@ -1100,6 +1113,7 @@ impl Disassembler {
                     show_bytes: false,
                     target_address: None,
                     comment_address: None,
+                    is_collapsed: false,
                 }],
             )
         } else {
@@ -1175,6 +1189,7 @@ impl Disassembler {
                 show_bytes: false,
                 target_address: None,
                 comment_address: None,
+                is_collapsed: false,
             }],
         )
     }
@@ -1264,6 +1279,7 @@ impl Disassembler {
                     show_bytes: false,
                     target_address: None,
                     comment_address: None,
+                    is_collapsed: false,
                 }],
             )
         } else {
@@ -1394,6 +1410,7 @@ impl Disassembler {
                     show_bytes: false,
                     target_address: None,
                     comment_address: None,
+                    is_collapsed: false,
                 });
             }
 
@@ -1566,6 +1583,7 @@ impl Disassembler {
                     show_bytes: false,
                     target_address: None,
                     comment_address: None,
+                    is_collapsed: false,
                 });
             }
 
@@ -1616,6 +1634,7 @@ impl Disassembler {
                     show_bytes: true,
                     target_address: None,
                     comment_address: None,
+                    is_collapsed: false,
                 }],
             )
         } else {
@@ -1634,6 +1653,7 @@ impl Disassembler {
                     show_bytes: true,
                     target_address: None,
                     comment_address: None,
+                    is_collapsed: false,
                 }],
             )
         }
@@ -1665,6 +1685,7 @@ impl Disassembler {
                 show_bytes: true,
                 target_address: None,
                 comment_address: None,
+                is_collapsed: false,
             }],
         )
     }

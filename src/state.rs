@@ -791,6 +791,7 @@ impl AppState {
                     show_bytes: true,
                     target_address: None,
                     comment_address: None,
+                    is_collapsed: false,
                 });
 
                 for (addr, name) in group {
@@ -814,6 +815,7 @@ impl AppState {
                         show_bytes: true,
                         target_address: None,
                         comment_address: Some(addr),
+                        is_collapsed: false,
                     });
                 }
 
@@ -829,6 +831,7 @@ impl AppState {
                     show_bytes: true,
                     target_address: None,
                     comment_address: None,
+                    is_collapsed: false,
                 });
             }
         };
@@ -1431,6 +1434,7 @@ mod cursor_tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
 
         // Simulate code at origin
@@ -1446,6 +1450,7 @@ mod cursor_tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
 
         // Should return index 1 (the code), not index 0 (the header)
@@ -1468,6 +1473,7 @@ mod cursor_tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
 
         // Actual code at $0000
@@ -1483,6 +1489,7 @@ mod cursor_tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
 
         let idx = app_state_zero.get_line_index_for_address(0);

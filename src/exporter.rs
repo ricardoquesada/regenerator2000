@@ -278,6 +278,7 @@ mod tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
         state.disassembly.push(DisassemblyLine {
             address: 0x1001,
@@ -291,6 +292,7 @@ mod tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
         state.disassembly.push(DisassemblyLine {
             address: 0x1002,
@@ -304,6 +306,7 @@ mod tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
         state.disassembly.push(DisassemblyLine {
             address: 0x1003,
@@ -317,6 +320,7 @@ mod tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
 
         let file_name = "test_export_external.asm";
@@ -385,6 +389,7 @@ mod tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
         // STA $D020
         state.disassembly.push(DisassemblyLine {
@@ -399,6 +404,7 @@ mod tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
         // RTS
         state.disassembly.push(DisassemblyLine {
@@ -413,6 +419,7 @@ mod tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
 
         // 2. Export to a temp file
@@ -634,6 +641,7 @@ mod tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
 
         let file_name = "test_external_fields.asm";
@@ -886,6 +894,7 @@ mod tests {
             show_bytes: true,
             target_address: None,
             comment_address: None,
+            is_collapsed: false,
         });
 
         let file_name = "test_external_name_check.asm";
