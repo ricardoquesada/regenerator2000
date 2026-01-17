@@ -2738,19 +2738,21 @@ fn render_blocks_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                         }
                     };
 
-                    let type_str = type_.to_string();
-
                     let is_selected = ui_state.blocks_list_state.selected() == Some(index);
                     let prefix = if is_selected { "> " } else { "  " };
 
                     let is_collapsed = app_state
                         .collapsed_blocks
                         .contains(&(*start as usize, *end as usize));
-                    let collapsed_str = if is_collapsed { " (Collapsed)" } else { "" };
+                    let type_display = if is_collapsed {
+                        format!("{} (C)", type_)
+                    } else {
+                        type_.to_string()
+                    };
 
                     let content = format!(
-                        "{}{:<20} ${:04X}-${:04X}{}",
-                        prefix, type_str, start_addr, end_addr, collapsed_str
+                        "{}{:<20} ${:04X}-${:04X}",
+                        prefix, type_display, start_addr, end_addr
                     );
 
                     ListItem::new(content).style(Style::default().fg(fg).bg(bg))
