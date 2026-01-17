@@ -5,6 +5,10 @@ use crate::state::LabelType;
 pub struct TassFormatter;
 
 impl Formatter for TassFormatter {
+    fn comment_prefix(&self) -> &'static str {
+        ";"
+    }
+
     fn byte_directive(&self) -> &'static str {
         ".byte"
     }

@@ -3,19 +3,27 @@ use crate::state::{Assembler, BlockType, DocumentSettings, Label};
 use std::collections::{BTreeMap, BTreeSet};
 
 mod acme;
+mod ca65;
 pub mod formatter;
+mod kickasm;
 mod tass;
 
 use acme::AcmeFormatter;
+use ca65::Ca65Formatter;
 use formatter::Formatter;
+use kickasm::KickAsmFormatter;
 use tass::TassFormatter;
 
 #[cfg(test)]
 mod brk_tests;
 #[cfg(test)]
+mod ca65_tests;
+#[cfg(test)]
 mod collapsed_tests;
 #[cfg(test)]
 mod illegal_opcodes_tests;
+#[cfg(test)]
+mod kickasm_tests;
 #[cfg(test)]
 mod label_placement_tests;
 #[cfg(test)]
@@ -59,6 +67,8 @@ impl Disassembler {
         match assembler {
             Assembler::Tass64 => Box::new(TassFormatter),
             Assembler::Acme => Box::new(AcmeFormatter),
+            Assembler::Ca65 => Box::new(Ca65Formatter),
+            Assembler::Kick => Box::new(KickAsmFormatter),
         }
     }
 
@@ -99,8 +109,11 @@ impl Disassembler {
                     address: start_addr,
                     bytes: vec![], // No bytes shown
                     mnemonic: format!(
-                        "; Collapsed {} block from ${:04X}-${:04X}",
-                        block_type, start_addr, end_addr
+                        "{} Collapsed {} block from ${:04X}-${:04X}",
+                        formatter.comment_prefix(),
+                        block_type,
+                        start_addr,
+                        end_addr
                     ),
                     operand: String::new(),
                     comment: String::new(),
@@ -127,6 +140,7 @@ impl Disassembler {
                 system_comments,
                 user_side_comments,
                 cross_refs,
+                formatter.comment_prefix(),
             );
             let line_comment = user_line_comments.get(&address).cloned();
 
@@ -690,6 +704,7 @@ impl Disassembler {
             .map(|l| formatter.format_label(&l.name))
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn get_side_comment(
         &self,
         address: u16,
@@ -699,6 +714,7 @@ impl Disassembler {
 
         user_side_comments: &BTreeMap<u16, String>,
         cross_refs: &BTreeMap<u16, Vec<u16>>,
+        comment_prefix: &str,
     ) -> String {
         let mut comment_parts = Vec::new();
 
@@ -723,7 +739,8 @@ impl Disassembler {
             }
         }
 
-        comment_parts.join("; ")
+        let separator = format!(" {} ", comment_prefix); // e.g. " ; " or " // "
+        comment_parts.join(&separator)
     }
 
     #[allow(clippy::too_many_arguments)]

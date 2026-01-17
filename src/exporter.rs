@@ -38,8 +38,8 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     while i < all_lines.len() {
         let line = all_lines[i];
 
-        // Special case: Header (starts with ;)
-        if line.mnemonic.starts_with(';') {
+        // Special case: Header (starts with comment prefix)
+        if line.mnemonic.starts_with(formatter.comment_prefix()) {
             output.push_str(&format!("{}\n", line.mnemonic));
             i += 1;
             continue;
@@ -118,6 +118,12 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 crate::state::Assembler::Acme => {
                     output.push_str(&format!("!binary \"{}\"\n", bin_filename));
                 }
+                crate::state::Assembler::Ca65 => {
+                    output.push_str(&format!(".incbin \"{}\"\n", bin_filename));
+                }
+                crate::state::Assembler::Kick => {
+                    output.push_str(&format!(".import binary \"{}\"\n", bin_filename));
+                }
             }
 
             // Ensure origin is printed if this is the first thing
@@ -187,7 +193,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         // If we have a multi-byte instruction/data, we check if any byte inside has a label.
         // We start from 1 because 0 is the address itself (handled above as label line).
         if let Some(comment) = &line.line_comment {
-            output.push_str(&format!("; {}\n", comment));
+            output.push_str(&format!("{} {}\n", formatter.comment_prefix(), comment));
         }
 
         if line.bytes.len() > 1 {
@@ -221,7 +227,12 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         let line_out = format!("{:<24}{}", label_part, instruction_part);
 
         if !line.comment.is_empty() {
-            output.push_str(&format!("{:<40} ; {}\n", line_out, line.comment));
+            output.push_str(&format!(
+                "{:<40} {} {}\n",
+                line_out,
+                formatter.comment_prefix(),
+                line.comment
+            ));
         } else {
             output.push_str(&format!("{}\n", line_out));
         }

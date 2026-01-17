@@ -56,6 +56,8 @@ pub enum Assembler {
     #[default]
     Tass64,
     Acme,
+    Ca65,
+    Kick,
 }
 
 impl std::fmt::Display for Assembler {
@@ -63,13 +65,20 @@ impl std::fmt::Display for Assembler {
         match self {
             Assembler::Tass64 => write!(f, "64tass"),
             Assembler::Acme => write!(f, "ACME"),
+            Assembler::Ca65 => write!(f, "ca65"),
+            Assembler::Kick => write!(f, "KickAssembler"),
         }
     }
 }
 
 impl Assembler {
     pub fn all() -> &'static [Assembler] {
-        &[Assembler::Tass64, Assembler::Acme]
+        &[
+            Assembler::Tass64,
+            Assembler::Acme,
+            Assembler::Ca65,
+            Assembler::Kick,
+        ]
     }
 }
 

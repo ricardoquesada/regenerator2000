@@ -2,19 +2,19 @@ use super::formatter::Formatter;
 use crate::cpu::AddressingMode;
 use crate::state::LabelType;
 
-pub struct AcmeFormatter;
+pub struct Ca65Formatter;
 
-impl Formatter for AcmeFormatter {
+impl Formatter for Ca65Formatter {
     fn comment_prefix(&self) -> &'static str {
         ";"
     }
 
     fn byte_directive(&self) -> &'static str {
-        "!byte"
+        ".byte"
     }
 
     fn word_directive(&self) -> &'static str {
-        "!word"
+        ".word"
     }
 
     fn format_byte(&self, byte: u8) -> String {
@@ -57,7 +57,7 @@ impl Formatter for AcmeFormatter {
 
         match opcode.mode {
             AddressingMode::Implied => String::new(),
-            AddressingMode::Accumulator => String::new(),
+            AddressingMode::Accumulator => "a".to_string(), // ca65 usually accepts implicit 'a' or explicit 'a' for accumulation, but often explicit is safer.
             AddressingMode::Immediate => {
                 let val = operands[0];
                 match immediate_value_formats.get(&address) {
@@ -86,7 +86,7 @@ impl Formatter for AcmeFormatter {
             AddressingMode::ZeroPageX => {
                 let addr = operands[0] as u16;
                 if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{},x", name) // ACME is case insensitive but often convention is lowercase regs
+                    format!("{},x", name)
                 } else {
                     format!("${:02x},x", addr)
                 }
@@ -105,6 +105,7 @@ impl Formatter for AcmeFormatter {
                 if let Some(name) = get_label(target, LabelType::Branch) {
                     name
                 } else {
+                    // ca65 uses *+offset usually for anonymous, but absolute addr is fine too
                     format!("${:04x}", target)
                 }
             }
@@ -175,11 +176,12 @@ impl Formatter for AcmeFormatter {
     }
 
     fn format_label(&self, name: &str) -> String {
+        // ca65 uses : for definition, but here we return the name for reference/storage
         name.to_string()
     }
 
     fn format_label_definition(&self, name: &str) -> String {
-        name.to_string()
+        format!("{}:", name)
     }
 
     fn format_text(
@@ -199,7 +201,7 @@ impl Formatter for AcmeFormatter {
                 TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
             }
         }
-        vec![("!text".to_string(), parts.join(", "), true)]
+        vec![(".byte".to_string(), parts.join(", "), true)]
     }
 
     fn format_screencode_pre(&self) -> Vec<(String, String)> {
@@ -210,50 +212,41 @@ impl Formatter for AcmeFormatter {
         &self,
         fragments: &[super::formatter::TextFragment],
     ) -> Vec<(String, String, bool)> {
+        // ca65 doesn't have a direct !scr equivalent without macros.
+        // We will output as bytes for safety, OR revert to .byte "string" but inverted manually if we want.
+        // But since we don't have a reliable way to say "this string is screencode" in vanilla ca65 without macros/charmaps
+        // let's stick to byte values for now to ensure correctness, OR
+        // use .byte with comments?
+        // Actually, users prefer readable text.
+        // For ACME we inverted.
+        // For ca65, we can use a similar strategy: emit bytes, but maybe comment specific chars?
+        // Wait, Tass uses .text encoding "screen".
+        // ca65 has .charmap.
+        // But setting up charmaps is complex.
+        // Let's just output bytes for screencodes to be safe and correct.
+        // OR try to mimic ACME logic but output .byte
         use super::formatter::TextFragment;
         let mut parts = Vec::new();
         for fragment in fragments {
             match fragment {
                 TextFragment::Text(s) => {
-                    let mut current_literal = String::new();
                     for c in s.chars() {
-                        if matches!(c, '{' | '|' | '}' | '~') {
-                            if !current_literal.is_empty() {
-                                let escaped =
-                                    current_literal.replace('\\', "\\\\").replace('"', "\\\"");
-                                parts.push(format!("\"{}\"", escaped));
-                                current_literal.clear();
-                            }
-                            // Output as hex
-                            let hex_val = match c {
-                                '{' => "$5b",
-                                '|' => "$5c",
-                                '}' => "$5d",
-                                '~' => "$5e",
-                                _ => unreachable!(),
-                            };
-                            parts.push(hex_val.to_string());
+                        // Invert case logic similar to ACME
+                        let inverted_char = if c.is_ascii_lowercase() {
+                            c.to_ascii_uppercase()
+                        } else if c.is_ascii_uppercase() {
+                            c.to_ascii_lowercase()
                         } else {
-                            // Invert case: ACME assumes shifted charset in !scr
-                            let inverted_char = if c.is_ascii_lowercase() {
-                                c.to_ascii_uppercase()
-                            } else if c.is_ascii_uppercase() {
-                                c.to_ascii_lowercase()
-                            } else {
-                                c
-                            };
-                            current_literal.push(inverted_char);
-                        }
-                    }
-                    if !current_literal.is_empty() {
-                        let escaped = current_literal.replace('\\', "\\\\").replace('"', "\\\"");
-                        parts.push(format!("\"{}\"", escaped));
+                            c
+                        };
+                        // We output as byte to be safe
+                        parts.push(format!("${:02x}", inverted_char as u8));
                     }
                 }
                 TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
             }
         }
-        vec![("!scr".to_string(), parts.join(", "), true)]
+        vec![(".byte".to_string(), parts.join(", "), true)]
     }
 
     fn format_screencode_post(&self) -> Vec<(String, String)> {
@@ -261,7 +254,7 @@ impl Formatter for AcmeFormatter {
     }
 
     fn format_header_origin(&self, origin: u16) -> String {
-        format!("* = ${:04x}", origin)
+        format!(".org ${:04x}", origin)
     }
 
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String {
@@ -271,40 +264,5 @@ impl Formatter for AcmeFormatter {
             format!("${:04x}", value)
         };
         format!("{} = {}", name, operand)
-    }
-
-    fn format_instruction(&self, ctx: &super::formatter::FormatContext) -> (String, String) {
-        let opcode = ctx.opcode;
-        let operands = ctx.operands;
-        let _address = ctx.address;
-        let settings = ctx.settings;
-
-        let mnemonic = self.format_mnemonic(opcode.mnemonic);
-        let operand = self.format_operand(ctx);
-
-        // Check if we need to force 16-bit addressing with +2
-        // Only if settings.use_w_prefix is true AND address fits in ZP (<= 0xFF)
-        // And addressing mode is Absolute, AbsoluteX, or AbsoluteY
-        if settings.preserve_long_bytes {
-            let should_force = match opcode.mode {
-                AddressingMode::Absolute
-                | AddressingMode::AbsoluteX
-                | AddressingMode::AbsoluteY => {
-                    if operands.len() >= 2 {
-                        let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
-                        addr <= 0xFF
-                    } else {
-                        false
-                    }
-                }
-                _ => false,
-            };
-
-            if should_force {
-                return (format!("{}+2", mnemonic), operand);
-            }
-        }
-
-        (mnemonic, operand)
     }
 }

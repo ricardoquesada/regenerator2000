@@ -18,6 +18,7 @@ pub struct FormatContext<'a> {
 }
 
 pub trait Formatter {
+    fn comment_prefix(&self) -> &'static str;
     fn byte_directive(&self) -> &'static str;
     fn word_directive(&self) -> &'static str;
     fn format_byte(&self, byte: u8) -> String;

@@ -1070,10 +1070,10 @@ pub fn run_app<B: Backend>(
                             if c.is_ascii_digit() {
                                 ui_state.settings_dialog.addresses_per_line_input.push(c);
                             }
-                        } else if ui_state.settings_dialog.is_editing_bytes_per_line {
-                            if c.is_ascii_digit() {
-                                ui_state.settings_dialog.bytes_per_line_input.push(c);
-                            }
+                        } else if ui_state.settings_dialog.is_editing_bytes_per_line
+                            && c.is_ascii_digit()
+                        {
+                            ui_state.settings_dialog.bytes_per_line_input.push(c);
                         }
                     }
                     _ => {}
@@ -1448,149 +1448,137 @@ pub fn run_app<B: Backend>(
                                 &mut ui_state,
                                 crate::ui_state::MenuAction::JumpToAddress,
                             );
-                        } else if key.modifiers == KeyModifiers::SHIFT {
-                            // Vim-like G command (Shift+g)
-                            let entered_number =
-                                ui_state.input_buffer.parse::<usize>().unwrap_or(0);
-                            let is_buffer_empty = ui_state.input_buffer.is_empty();
-                            ui_state.input_buffer.clear();
+                        }
+                    }
 
-                            match ui_state.active_pane {
-                                ActivePane::Disassembly => {
-                                    let target_line = if is_buffer_empty {
-                                        app_state.disassembly.len()
-                                    } else {
-                                        entered_number
-                                    };
+                    KeyCode::Char('G') if key.modifiers == KeyModifiers::SHIFT => {
+                        // Vim-like G command (Shift+g)
+                        let entered_number = ui_state.input_buffer.parse::<usize>().unwrap_or(0);
+                        let is_buffer_empty = ui_state.input_buffer.is_empty();
+                        ui_state.input_buffer.clear();
 
-                                    let new_cursor = if target_line == 0 {
-                                        app_state.disassembly.len().saturating_sub(1)
-                                    } else {
-                                        target_line
-                                            .saturating_sub(1)
-                                            .min(app_state.disassembly.len().saturating_sub(1))
-                                    };
+                        match ui_state.active_pane {
+                            ActivePane::Disassembly => {
+                                let target_line = if is_buffer_empty {
+                                    app_state.disassembly.len()
+                                } else {
+                                    entered_number
+                                };
 
-                                    // Handle Visual Mode
-                                    if ui_state.is_visual_mode && ui_state.selection_start.is_none()
-                                    {
-                                        ui_state.selection_start = Some(ui_state.cursor_index);
-                                    }
+                                let new_cursor = if target_line == 0 {
+                                    app_state.disassembly.len().saturating_sub(1)
+                                } else {
+                                    target_line
+                                        .saturating_sub(1)
+                                        .min(app_state.disassembly.len().saturating_sub(1))
+                                };
 
-                                    ui_state
-                                        .navigation_history
-                                        .push((ui_state.active_pane, ui_state.cursor_index));
-                                    ui_state.cursor_index = new_cursor;
-                                    ui_state.set_status_message(format!(
-                                        "Jumped to line {}",
-                                        target_line
-                                    ));
+                                // Handle Visual Mode
+                                if ui_state.is_visual_mode && ui_state.selection_start.is_none() {
+                                    ui_state.selection_start = Some(ui_state.cursor_index);
                                 }
-                                ActivePane::HexDump => {
-                                    let padding = (app_state.origin as usize) % 16;
-                                    let total_rows =
-                                        (app_state.raw_data.len() + padding).div_ceil(16);
-                                    let target_row = if is_buffer_empty {
-                                        total_rows
-                                    } else {
-                                        entered_number
-                                    };
 
-                                    let new_cursor = if target_row == 0 {
-                                        total_rows.saturating_sub(1)
-                                    } else {
-                                        target_row
-                                            .saturating_sub(1)
-                                            .min(total_rows.saturating_sub(1))
-                                    };
+                                ui_state
+                                    .navigation_history
+                                    .push((ui_state.active_pane, ui_state.cursor_index));
+                                ui_state.cursor_index = new_cursor;
+                                ui_state
+                                    .set_status_message(format!("Jumped to line {}", target_line));
+                            }
+                            ActivePane::HexDump => {
+                                let padding = (app_state.origin as usize) % 16;
+                                let total_rows = (app_state.raw_data.len() + padding).div_ceil(16);
+                                let target_row = if is_buffer_empty {
+                                    total_rows
+                                } else {
+                                    entered_number
+                                };
 
-                                    ui_state
-                                        .navigation_history
-                                        .push((ui_state.active_pane, ui_state.hex_cursor_index));
-                                    ui_state.hex_cursor_index = new_cursor;
-                                    ui_state.set_status_message(format!(
-                                        "Jumped to row {}",
-                                        target_row
-                                    ));
-                                }
-                                ActivePane::Sprites => {
-                                    let origin = app_state.origin as usize;
-                                    let padding = (64 - (origin % 64)) % 64;
-                                    let usable_len =
-                                        app_state.raw_data.len().saturating_sub(padding);
-                                    let total_sprites = usable_len.div_ceil(64);
-                                    let target_sprite = if is_buffer_empty {
-                                        total_sprites
-                                    } else {
-                                        entered_number
-                                    };
+                                let new_cursor = if target_row == 0 {
+                                    total_rows.saturating_sub(1)
+                                } else {
+                                    target_row
+                                        .saturating_sub(1)
+                                        .min(total_rows.saturating_sub(1))
+                                };
 
-                                    let new_cursor = if target_sprite == 0 {
-                                        total_sprites.saturating_sub(1)
-                                    } else {
-                                        target_sprite
-                                            .saturating_sub(1)
-                                            .min(total_sprites.saturating_sub(1))
-                                    };
+                                ui_state
+                                    .navigation_history
+                                    .push((ui_state.active_pane, ui_state.hex_cursor_index));
+                                ui_state.hex_cursor_index = new_cursor;
+                                ui_state
+                                    .set_status_message(format!("Jumped to row {}", target_row));
+                            }
+                            ActivePane::Sprites => {
+                                let origin = app_state.origin as usize;
+                                let padding = (64 - (origin % 64)) % 64;
+                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                                let total_sprites = usable_len.div_ceil(64);
+                                let target_sprite = if is_buffer_empty {
+                                    total_sprites
+                                } else {
+                                    entered_number
+                                };
 
-                                    ui_state.navigation_history.push((
-                                        ui_state.active_pane,
-                                        ui_state.sprites_cursor_index,
-                                    ));
-                                    ui_state.sprites_cursor_index = new_cursor;
-                                    ui_state.set_status_message(format!(
-                                        "Jumped to sprite {}",
-                                        target_sprite
-                                    ));
-                                }
-                                ActivePane::Charset => {
-                                    let origin = app_state.origin as usize;
-                                    let base_alignment = 0x400;
-                                    let aligned_start_addr =
-                                        (origin / base_alignment) * base_alignment;
-                                    let end_addr = origin + app_state.raw_data.len();
-                                    let max_char_index =
-                                        (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
-                                    let target_char = if is_buffer_empty {
-                                        max_char_index
-                                    } else {
-                                        entered_number
-                                    };
+                                let new_cursor = if target_sprite == 0 {
+                                    total_sprites.saturating_sub(1)
+                                } else {
+                                    target_sprite
+                                        .saturating_sub(1)
+                                        .min(total_sprites.saturating_sub(1))
+                                };
 
-                                    let new_cursor = if target_char == 0 {
-                                        max_char_index.saturating_sub(1)
-                                    } else {
-                                        target_char
-                                            .saturating_sub(1)
-                                            .min(max_char_index.saturating_sub(1))
-                                    };
+                                ui_state
+                                    .navigation_history
+                                    .push((ui_state.active_pane, ui_state.sprites_cursor_index));
+                                ui_state.sprites_cursor_index = new_cursor;
+                                ui_state.set_status_message(format!(
+                                    "Jumped to sprite {}",
+                                    target_sprite
+                                ));
+                            }
+                            ActivePane::Charset => {
+                                let origin = app_state.origin as usize;
+                                let base_alignment = 0x400;
+                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                                let end_addr = origin + app_state.raw_data.len();
+                                let max_char_index =
+                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+                                let target_char = if is_buffer_empty {
+                                    max_char_index
+                                } else {
+                                    entered_number
+                                };
 
-                                    ui_state.navigation_history.push((
-                                        ui_state.active_pane,
-                                        ui_state.charset_cursor_index,
-                                    ));
-                                    ui_state.charset_cursor_index = new_cursor;
-                                    ui_state.set_status_message(format!(
-                                        "Jumped to char {}",
-                                        target_char
-                                    ));
-                                }
-                                ActivePane::Blocks => {
-                                    let blocks = app_state.get_blocks_view_items();
-                                    let target = if is_buffer_empty {
-                                        blocks.len()
-                                    } else {
-                                        entered_number
-                                    };
-                                    let new_selection = if target == 0 {
-                                        blocks.len().saturating_sub(1)
-                                    } else {
-                                        target.saturating_sub(1).min(blocks.len().saturating_sub(1))
-                                    };
-                                    ui_state.blocks_list_state.select(Some(new_selection));
-                                    ui_state
-                                        .set_status_message(format!("Jumped to block {}", target));
-                                }
+                                let new_cursor = if target_char == 0 {
+                                    max_char_index.saturating_sub(1)
+                                } else {
+                                    target_char
+                                        .saturating_sub(1)
+                                        .min(max_char_index.saturating_sub(1))
+                                };
+
+                                ui_state
+                                    .navigation_history
+                                    .push((ui_state.active_pane, ui_state.charset_cursor_index));
+                                ui_state.charset_cursor_index = new_cursor;
+                                ui_state
+                                    .set_status_message(format!("Jumped to char {}", target_char));
+                            }
+                            ActivePane::Blocks => {
+                                let blocks = app_state.get_blocks_view_items();
+                                let target = if is_buffer_empty {
+                                    blocks.len()
+                                } else {
+                                    entered_number
+                                };
+                                let new_selection = if target == 0 {
+                                    blocks.len().saturating_sub(1)
+                                } else {
+                                    target.saturating_sub(1).min(blocks.len().saturating_sub(1))
+                                };
+                                ui_state.blocks_list_state.select(Some(new_selection));
+                                ui_state.set_status_message(format!("Jumped to block {}", target));
                             }
                         }
                     }
@@ -1716,7 +1704,7 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     // Handle Shift+/ as ?
-                    KeyCode::Char('/') if key.modifiers == KeyModifiers::SHIFT => {
+                    KeyCode::Char('?') if key.modifiers == KeyModifiers::SHIFT => {
                         if ui_state.active_pane == ActivePane::Disassembly
                             || ui_state.active_pane == ActivePane::Blocks
                         {
@@ -1743,7 +1731,7 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     // Handle Shift+, as <
-                    KeyCode::Char(',') if key.modifiers == KeyModifiers::SHIFT => {
+                    KeyCode::Char('<') if key.modifiers == KeyModifiers::SHIFT => {
                         if ui_state.active_pane == ActivePane::Disassembly
                             || ui_state.active_pane == ActivePane::Blocks
                         {
@@ -1770,7 +1758,7 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     // Handle Shift+. as >
-                    KeyCode::Char('.') if key.modifiers == KeyModifiers::SHIFT => {
+                    KeyCode::Char('>') if key.modifiers == KeyModifiers::SHIFT => {
                         if ui_state.active_pane == ActivePane::Disassembly
                             || ui_state.active_pane == ActivePane::Blocks
                         {
@@ -1791,7 +1779,7 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     // Handle Shift+\ as |
-                    KeyCode::Char('\\') if key.modifiers == KeyModifiers::SHIFT => {
+                    KeyCode::Char('|') if key.modifiers == KeyModifiers::SHIFT => {
                         if ui_state.active_pane == ActivePane::Disassembly
                             || ui_state.active_pane == ActivePane::Blocks
                         {
@@ -1834,7 +1822,7 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     // Handle Shift+; as :
-                    KeyCode::Char(';') if key.modifiers == KeyModifiers::SHIFT => {
+                    KeyCode::Char(':') if key.modifiers == KeyModifiers::SHIFT => {
                         if ui_state.active_pane == ActivePane::Disassembly {
                             handle_menu_action(
                                 &mut app_state,
@@ -1913,7 +1901,7 @@ pub fn run_app<B: Backend>(
                     }
 
                     // Visual Mode Toggle
-                    KeyCode::Char('v') if key.modifiers == KeyModifiers::SHIFT => {
+                    KeyCode::Char('V') if key.modifiers == KeyModifiers::SHIFT => {
                         if !app_state.raw_data.is_empty() {
                             if ui_state.active_pane == ActivePane::Disassembly {
                                 ui_state.is_visual_mode = !ui_state.is_visual_mode;
@@ -1941,7 +1929,7 @@ pub fn run_app<B: Backend>(
                     }
 
                     // Previous Immediate Format (Shift+d)
-                    KeyCode::Char('d') if key.modifiers == KeyModifiers::SHIFT => {
+                    KeyCode::Char('D') if key.modifiers == KeyModifiers::SHIFT => {
                         handle_menu_action(
                             &mut app_state,
                             &mut ui_state,
