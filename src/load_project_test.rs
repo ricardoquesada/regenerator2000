@@ -23,6 +23,7 @@ mod tests {
                 start: 0,
                 end: 5,
                 type_: BlockType::Code,
+                collapsed: false,
             }],
             labels: BTreeMap::new(), // EMPTY! No saved labels.
             user_side_comments: BTreeMap::new(),
@@ -37,7 +38,6 @@ mod tests {
             sprite_multicolor_mode: false,
             charset_multicolor_mode: false,
             petscii_mode: crate::state::PetsciiMode::default(),
-            collapsed_blocks: Vec::new(),
             splitters: std::collections::BTreeSet::new(),
             blocks_view_cursor: None,
         };

@@ -5,402 +5,482 @@
     {
       "start": 0,
       "end": 33,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 34,
       "end": 82,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 83,
       "end": 2046,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 2047,
       "end": 2549,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 2550,
       "end": 2558,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 2559,
       "end": 2689,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 2690,
       "end": 2750,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 2751,
       "end": 2766,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 2767,
       "end": 2798,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 2799,
       "end": 2805,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 2806,
       "end": 2814,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 2815,
       "end": 3283,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 3284,
       "end": 3294,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 3295,
       "end": 3305,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 3306,
       "end": 3310,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 3311,
       "end": 3321,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 3322,
       "end": 3326,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 3327,
       "end": 3580,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 3581,
       "end": 3582,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 3583,
       "end": 3743,
-      "type_": "Screencode"
+      "type_": "Screencode",
+      "collapsed": false
     },
     {
       "start": 3744,
       "end": 3754,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 3755,
       "end": 3758,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 3759,
       "end": 3990,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 3991,
       "end": 3991,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 3992,
       "end": 4053,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 4054,
       "end": 4059,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 4060,
       "end": 4091,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 4092,
       "end": 4094,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 4095,
       "end": 4420,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 4421,
       "end": 4606,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": true
     },
     {
       "start": 4607,
       "end": 4861,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 4862,
       "end": 4862,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 4863,
       "end": 6120,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 6121,
       "end": 6142,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 6143,
       "end": 7166,
-      "type_": "ExternalFile"
+      "type_": "ExternalFile",
+      "collapsed": false
     },
     {
       "start": 7167,
       "end": 10224,
-      "type_": "Screencode"
+      "type_": "Screencode",
+      "collapsed": false
     },
     {
       "start": 10225,
       "end": 10238,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 10239,
       "end": 12670,
-      "type_": "ExternalFile"
+      "type_": "ExternalFile",
+      "collapsed": false
     },
     {
       "start": 12671,
       "end": 13488,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 13489,
       "end": 13502,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 13503,
       "end": 13548,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 13549,
       "end": 13550,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 13551,
       "end": 13562,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 13563,
       "end": 13566,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 13567,
       "end": 13732,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 13733,
       "end": 13742,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 13743,
       "end": 13817,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 13818,
       "end": 13822,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 13823,
       "end": 13976,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 13977,
       "end": 13982,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 13983,
       "end": 14078,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 14079,
       "end": 14207,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 14208,
       "end": 14334,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 14335,
       "end": 15358,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 15359,
       "end": 16254,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 16255,
       "end": 16286,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 16287,
       "end": 16605,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 16606,
       "end": 16606,
-      "type_": "Undefined"
+      "type_": "Undefined",
+      "collapsed": false
     },
     {
       "start": 16607,
       "end": 16633,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 16634,
       "end": 16638,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 16639,
       "end": 16886,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 16887,
       "end": 16894,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 16895,
       "end": 17184,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 17185,
       "end": 17406,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 17407,
       "end": 18362,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 18363,
       "end": 18430,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 18431,
       "end": 19061,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 19062,
       "end": 19198,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 19199,
       "end": 19281,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 19282,
       "end": 19294,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 19295,
       "end": 19350,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 19351,
       "end": 19454,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 19455,
       "end": 19650,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 19651,
       "end": 20158,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 20159,
       "end": 20185,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 20186,
       "end": 20222,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 20223,
       "end": 20320,
-      "type_": "Code"
+      "type_": "Code",
+      "collapsed": false
     },
     {
       "start": 20321,
       "end": 20334,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     },
     {
       "start": 20335,
       "end": 20388,
-      "type_": "Screencode"
+      "type_": "Screencode",
+      "collapsed": false
     },
     {
       "start": 20389,
       "end": 36870,
-      "type_": "DataByte"
+      "type_": "DataByte",
+      "collapsed": false
     }
   ],
   "labels": {
@@ -495,7 +575,7 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 14749,
+  "cursor_address": 6656,
   "hex_dump_cursor_address": 16384,
   "sprites_cursor_address": 12416,
   "charset_cursor_address": 8192,
@@ -503,24 +583,6 @@
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
   "petscii_mode": "Unshifted",
-  "collapsed_blocks": [
-    [
-      4421,
-      4606
-    ],
-    [
-      83,
-      2046
-    ],
-    [
-      10239,
-      12670
-    ],
-    [
-      6143,
-      7166
-    ]
-  ],
   "splitters": [],
-  "blocks_view_cursor": 38
+  "blocks_view_cursor": 30
 }

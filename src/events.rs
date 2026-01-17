@@ -292,7 +292,6 @@ pub fn run_app<B: Backend>(
                                         sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
                                         charset_multicolor_mode: ui_state.charset_multicolor_mode,
                                         petscii_mode: ui_state.petscii_mode,
-                                        collapsed_blocks: app_state.collapsed_blocks.clone(),
                                         splitters: app_state.splitters.clone(),
                                         blocks_view_cursor: ui_state.blocks_list_state.selected(),
                                     },
@@ -1640,11 +1639,35 @@ pub fn run_app<B: Backend>(
                             )
                         }
                     }
+                    // Handle Shift+, as <
+                    KeyCode::Char(',') if key.modifiers == KeyModifiers::SHIFT => {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::SetLoHi,
+                            )
+                        }
+                    }
                     KeyCode::Char('>')
                         if !key
                             .modifiers
                             .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
                     {
+                        if ui_state.active_pane == ActivePane::Disassembly
+                            || ui_state.active_pane == ActivePane::Blocks
+                        {
+                            handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                crate::ui_state::MenuAction::SetHiLo,
+                            )
+                        }
+                    }
+                    // Handle Shift+. as >
+                    KeyCode::Char('.') if key.modifiers == KeyModifiers::SHIFT => {
                         if ui_state.active_pane == ActivePane::Disassembly
                             || ui_state.active_pane == ActivePane::Blocks
                         {
@@ -2306,7 +2329,6 @@ fn execute_menu_action(
                         sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
                         charset_multicolor_mode: ui_state.charset_multicolor_mode,
                         petscii_mode: ui_state.petscii_mode,
-                        collapsed_blocks: app_state.collapsed_blocks.clone(),
                         splitters: app_state.splitters.clone(),
                         blocks_view_cursor: ui_state.blocks_list_state.selected(),
                     },
@@ -3238,41 +3260,37 @@ fn execute_menu_action(
             }
         }
         MenuAction::CollapseBlock => {
-            if let Some(start_index) = ui_state.selection_start {
-                let start_row = start_index.min(ui_state.cursor_index);
-                let end_row = start_index.max(ui_state.cursor_index);
+            let cursor_addr = app_state
+                .disassembly
+                .get(ui_state.cursor_index)
+                .map(|line| line.address)
+                .unwrap_or(0);
 
-                let start_line = &app_state.disassembly[start_row];
-                let start_addr = start_line.address;
-
-                // For end address, we need to handle if the last selected line is itself a collapsed block
-                let end_line = &app_state.disassembly[end_row];
-                let offset = (end_line.address as usize).wrapping_sub(app_state.origin as usize);
-
-                let end_addr = if let Some((_, end_offset)) = app_state
-                    .collapsed_blocks
-                    .iter()
-                    .find(|(s, _)| *s == offset)
-                {
-                    (app_state.origin as usize + end_offset) as u16
-                } else {
-                    end_line
-                        .address
-                        .wrapping_add(end_line.bytes.len() as u16)
-                        .wrapping_sub(1)
-                };
-
+            if let Some((start_addr, end_addr)) = app_state.get_block_range(cursor_addr) {
                 let start_offset = (start_addr as usize).wrapping_sub(app_state.origin as usize);
                 let end_offset = (end_addr as usize).wrapping_sub(app_state.origin as usize);
 
-                if start_offset < end_offset {
+                // Check if already collapsed
+                if let Some(&range) = app_state
+                    .collapsed_blocks
+                    .iter()
+                    .find(|(s, e)| *s == start_offset && *e == end_offset)
+                {
+                    // Uncollapse
+                    let command = crate::commands::Command::UncollapseBlock { range };
+                    command.apply(app_state);
+                    app_state.undo_stack.push(command);
+                    app_state.disassemble();
+                    ui_state.set_status_message("Block Uncollapsed");
+                } else {
+                    // Collapse
                     let command = crate::commands::Command::CollapseBlock {
                         range: (start_offset, end_offset),
                     };
                     command.apply(app_state);
                     app_state.undo_stack.push(command);
 
-                    ui_state.selection_start = None;
+                    ui_state.selection_start = None; // clear selection if any
                     ui_state.is_visual_mode = false;
                     app_state.disassemble();
                     ui_state.set_status_message("Block Collapsed");
@@ -3281,11 +3299,9 @@ fn execute_menu_action(
                     if let Some(idx) = app_state.get_line_index_containing_address(start_addr) {
                         ui_state.cursor_index = idx;
                     }
-                } else {
-                    ui_state.set_status_message("Invalid Selection Range");
                 }
             } else {
-                ui_state.set_status_message("Select a range to collapse");
+                ui_state.set_status_message("No block found at cursor");
             }
         }
         MenuAction::UncollapseBlock => {

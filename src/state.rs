@@ -215,6 +215,8 @@ pub struct Block {
     pub start: usize,
     pub end: usize,
     pub type_: BlockType,
+    #[serde(default)]
+    pub collapsed: bool,
 }
 
 // Note: We use BTreeMap instead of HashMap for all address-keyed collections
@@ -253,8 +255,6 @@ pub struct ProjectState {
     #[serde(default)]
     pub petscii_mode: PetsciiMode,
     #[serde(default)]
-    pub collapsed_blocks: Vec<(usize, usize)>,
-    #[serde(default)]
     pub splitters: BTreeSet<u16>,
     #[serde(default)]
     pub blocks_view_cursor: Option<usize>,
@@ -292,7 +292,6 @@ pub struct ProjectSaveContext {
     pub sprite_multicolor_mode: bool,
     pub charset_multicolor_mode: bool,
     pub petscii_mode: PetsciiMode,
-    pub collapsed_blocks: Vec<(usize, usize)>,
     pub splitters: BTreeSet<u16>,
     pub blocks_view_cursor: Option<usize>,
 }
@@ -353,7 +352,7 @@ impl AppState {
     }
 
     pub fn get_compressed_blocks(&self) -> Vec<Block> {
-        compress_block_types(&self.block_types)
+        compress_block_types(&self.block_types, &self.collapsed_blocks)
     }
 
     pub fn load_system_assets(&mut self) {
@@ -507,7 +506,9 @@ impl AppState {
         self.raw_data = decode_raw_data_from_base64(&project.raw_data)?;
 
         // Expand address types
-        self.block_types = expand_blocks(&project.blocks, self.raw_data.len());
+        // Expand address types and collapsed blocks
+        let (block_types, collapsed_ranges) = expand_blocks(&project.blocks, self.raw_data.len());
+        self.block_types = block_types;
         self.labels = project.labels;
         self.user_side_comments = project.user_side_comments;
         self.user_line_comments = project.user_line_comments;
@@ -521,7 +522,7 @@ impl AppState {
         let (analyzed_labels, cross_refs) = crate::analyzer::analyze(self);
         self.labels = analyzed_labels;
         self.cross_refs = cross_refs;
-        self.collapsed_blocks = project.collapsed_blocks;
+        self.collapsed_blocks = collapsed_ranges;
 
         self.undo_stack = crate::commands::UndoStack::new();
         self.last_saved_pointer = 0;
@@ -549,7 +550,7 @@ impl AppState {
             let project = ProjectState {
                 origin: self.origin,
                 raw_data: encode_raw_data_to_base64(&self.raw_data),
-                blocks: compress_block_types(&self.block_types),
+                blocks: compress_block_types(&self.block_types, &self.collapsed_blocks),
                 labels: self
                     .labels
                     .clone()
@@ -577,7 +578,6 @@ impl AppState {
                 charset_multicolor_mode: ctx.charset_multicolor_mode,
                 petscii_mode: ctx.petscii_mode,
 
-                collapsed_blocks: ctx.collapsed_blocks,
                 splitters: ctx.splitters,
                 blocks_view_cursor: ctx.blocks_view_cursor,
             };
@@ -941,24 +941,34 @@ impl AppState {
     }
 }
 
-pub fn compress_block_types(types: &[BlockType]) -> Vec<Block> {
+pub fn compress_block_types(
+    types: &[BlockType],
+    collapsed_ranges: &[(usize, usize)],
+) -> Vec<Block> {
     if types.is_empty() {
         return Vec::new();
     }
 
+    let is_collapsed =
+        |idx: usize| -> bool { collapsed_ranges.iter().any(|(s, e)| idx >= *s && idx <= *e) };
+
     let mut ranges = Vec::new();
     let mut start = 0;
     let mut current_type = types[0];
+    let mut current_collapsed = is_collapsed(0);
 
     for (i, t) in types.iter().enumerate().skip(1) {
-        if *t != current_type {
+        let collapsed = is_collapsed(i);
+        if *t != current_type || collapsed != current_collapsed {
             ranges.push(Block {
                 start,
                 end: i - 1,
                 type_: current_type,
+                collapsed: current_collapsed,
             });
             start = i;
             current_type = *t;
+            current_collapsed = collapsed;
         }
     }
 
@@ -967,22 +977,27 @@ pub fn compress_block_types(types: &[BlockType]) -> Vec<Block> {
         start,
         end: types.len() - 1,
         type_: current_type,
+        collapsed: current_collapsed,
     });
 
     ranges
 }
 
-fn expand_blocks(ranges: &[Block], len: usize) -> Vec<BlockType> {
+fn expand_blocks(ranges: &[Block], len: usize) -> (Vec<BlockType>, Vec<(usize, usize)>) {
     let mut types = vec![BlockType::Code; len];
+    let mut collapsed_ranges = Vec::new();
 
     for range in ranges {
         let end = range.end.min(len - 1);
         if range.start <= end {
+            if range.collapsed {
+                collapsed_ranges.push((range.start, end));
+            }
             types[range.start..=end].fill(range.type_);
         }
     }
 
-    types
+    (types, collapsed_ranges)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1179,11 +1194,13 @@ mod serialization_tests {
             BlockType::DataByte,
             BlockType::Code,
         ];
-        let ranges = compress_block_types(&types);
+        let empty_collapsed: Vec<(usize, usize)> = Vec::new();
+        let ranges = compress_block_types(&types, &empty_collapsed);
         assert_eq!(ranges.len(), 3);
         assert_eq!(ranges[0].start, 0);
         assert_eq!(ranges[0].end, 1);
         assert_eq!(ranges[0].type_, BlockType::Code);
+        assert_eq!(ranges[0].collapsed, false);
 
         assert_eq!(ranges[1].start, 2);
         assert_eq!(ranges[1].end, 3);
@@ -1201,25 +1218,31 @@ mod serialization_tests {
                 start: 0,
                 end: 1,
                 type_: BlockType::Code,
+                collapsed: false,
             },
             Block {
                 start: 2,
                 end: 3,
                 type_: BlockType::DataByte,
+                collapsed: true,
             },
             Block {
                 start: 4,
                 end: 4,
                 type_: BlockType::Code,
+                collapsed: false,
             },
         ];
-        let types = expand_blocks(&ranges, 5);
+        let (types, collapsed) = expand_blocks(&ranges, 5);
         assert_eq!(types.len(), 5);
         assert_eq!(types[0], BlockType::Code);
         assert_eq!(types[1], BlockType::Code);
         assert_eq!(types[2], BlockType::DataByte);
         assert_eq!(types[3], BlockType::DataByte);
         assert_eq!(types[4], BlockType::Code);
+
+        assert_eq!(collapsed.len(), 1);
+        assert_eq!(collapsed[0], (2, 3));
     }
 
     #[test]
@@ -1340,7 +1363,6 @@ mod save_project_tests {
                     sprite_multicolor_mode: false,
                     charset_multicolor_mode: false,
                     petscii_mode: PetsciiMode::default(),
-                    collapsed_blocks: Vec::new(),
                     splitters: BTreeSet::new(),
                     blocks_view_cursor: None,
                 },

@@ -94,13 +94,14 @@ impl Disassembler {
             if let Some((_start, end)) = collapsed_blocks.iter().find(|(s, _)| *s == pc) {
                 let start_addr = origin.wrapping_add(pc as u16);
                 let end_addr = origin.wrapping_add(*end as u16);
+                let block_type = block_types.get(pc).unwrap_or(&BlockType::Code);
 
                 lines.push(DisassemblyLine {
                     address: start_addr,
                     bytes: vec![], // No bytes shown
                     mnemonic: format!(
-                        "; Collapsed block from ${:04X}-${:04X}",
-                        start_addr, end_addr
+                        "; Collapsed {} block from ${:04X}-${:04X}",
+                        block_type, start_addr, end_addr
                     ),
                     operand: String::new(),
                     comment: String::new(),

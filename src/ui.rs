@@ -2743,9 +2743,14 @@ fn render_blocks_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state:
                     let is_selected = ui_state.blocks_list_state.selected() == Some(index);
                     let prefix = if is_selected { "> " } else { "  " };
 
+                    let is_collapsed = app_state
+                        .collapsed_blocks
+                        .contains(&(*start as usize, *end as usize));
+                    let collapsed_str = if is_collapsed { " (Collapsed)" } else { "" };
+
                     let content = format!(
-                        "{}{:<20} ${:04X}-${:04X}",
-                        prefix, type_str, start_addr, end_addr
+                        "{}{:<20} ${:04X}-${:04X}{}",
+                        prefix, type_str, start_addr, end_addr, collapsed_str
                     );
 
                     ListItem::new(content).style(Style::default().fg(fg).bg(bg))
