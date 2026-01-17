@@ -555,7 +555,7 @@
     "brk_single_byte": false,
     "patch_brk": true,
     "platform": "Commodore64",
-    "assembler": "Tass64",
+    "assembler": "Kick",
     "max_xref_count": 5,
     "max_arrow_columns": 6,
     "use_illegal_opcodes": false,

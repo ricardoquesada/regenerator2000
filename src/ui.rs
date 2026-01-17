@@ -420,12 +420,12 @@ fn render_settings_dialog(
         .constraints([
             Constraint::Length(items.len() as u16 + 1), // Checkboxes + padding
             Constraint::Length(2),                      // Platform
-            Constraint::Length(2), // Assembler (increased to 2 to match platform spacing style/consistency if needed, or keeping previous logic) -- Previous was Min(1). Let's stick to consistent spacing.
-            Constraint::Length(2), // Max X-Refs
-            Constraint::Length(2), // Arrow Columns
-            Constraint::Length(2), // Text Line Limit
-            Constraint::Length(2), // Addresses Per Line
-            Constraint::Length(2), // Bytes Per Line
+            Constraint::Length(2),                      // Max X-Refs
+            Constraint::Length(2),                      // Arrow Columns
+            Constraint::Length(2),                      // Text Line Limit
+            Constraint::Length(2),                      // Addresses Per Line
+            Constraint::Length(2),                      // Bytes Per Line
+            Constraint::Length(2),                      // Assembler
         ])
         .split(inner);
 
@@ -470,36 +470,8 @@ fn render_settings_dialog(
         Rect::new(layout[1].x + 2, layout[1].y, layout[1].width - 4, 1),
     );
 
-    // Assembler Section
-    // Use layout[2] for assembler
-    // We can render label if we want, or just the selection line like Platform does (Platform: < C64 >)
-    // The code above renders "Platform: < C64 >" OVER the "Platform:" label?
-    // Wait, the previous code rendered valid label at layout[1].y
-    // And THEN rendered platform_text at layout[1].y
-    // So it overwrites it?
-    // "Platform:" vs "Platform: < C64 >".
-    // Yes, it seems redundant or intentional. "Platform: < C64 >" contains the label text too.
-    // I'll stick to the "Platform: < ... >" format for Assembler too.
-
-    let assembler_selected = dialog.selected_index == 6;
-    let assembler_text = format!("Assembler: < {} >", settings.assembler);
-
-    let assembler_widget = Paragraph::new(assembler_text).style(if assembler_selected {
-        Style::default()
-            .fg(theme.highlight_fg)
-            .add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(theme.dialog_fg)
-    });
-
-    // Assembler uses layout[2]
-    f.render_widget(
-        assembler_widget,
-        Rect::new(layout[2].x + 2, layout[2].y, layout[2].width - 4, 1),
-    );
-
-    // X-Refs uses layout[3]
-    let xref_selected = dialog.selected_index == 7;
+    // X-Refs uses layout[2]
+    let xref_selected = dialog.selected_index == 6;
     let xref_value_str = if dialog.is_editing_xref_count {
         dialog.xref_count_input.clone()
     } else {
@@ -508,7 +480,7 @@ fn render_settings_dialog(
     let xref_text = format!("Max X-Refs: < {} >", xref_value_str);
 
     // Arrow Columns
-    let arrow_selected = dialog.selected_index == 8;
+    let arrow_selected = dialog.selected_index == 7;
     let arrow_value_str = if dialog.is_editing_arrow_columns {
         dialog.arrow_columns_input.clone()
     } else {
@@ -525,7 +497,7 @@ fn render_settings_dialog(
 
     f.render_widget(
         xref_widget,
-        Rect::new(layout[3].x + 2, layout[3].y, layout[3].width - 4, 1),
+        Rect::new(layout[2].x + 2, layout[2].y, layout[2].width - 4, 1),
     );
 
     let arrow_widget = Paragraph::new(arrow_text).style(if arrow_selected {
@@ -538,11 +510,11 @@ fn render_settings_dialog(
 
     f.render_widget(
         arrow_widget,
-        Rect::new(layout[4].x + 2, layout[4].y, layout[4].width - 4, 1),
+        Rect::new(layout[3].x + 2, layout[3].y, layout[3].width - 4, 1),
     );
 
     // Text Line Limit
-    let text_limit_selected = dialog.selected_index == 9;
+    let text_limit_selected = dialog.selected_index == 8;
     let text_limit_value_str = if dialog.is_editing_text_char_limit {
         dialog.text_char_limit_input.clone()
     } else {
@@ -560,11 +532,11 @@ fn render_settings_dialog(
 
     f.render_widget(
         text_limit_widget,
-        Rect::new(layout[5].x + 2, layout[5].y, layout[5].width - 4, 1),
+        Rect::new(layout[4].x + 2, layout[4].y, layout[4].width - 4, 1),
     );
 
     // Addresses Per Line
-    let addr_limit_selected = dialog.selected_index == 10;
+    let addr_limit_selected = dialog.selected_index == 9;
     let addr_limit_value_str = if dialog.is_editing_addresses_per_line {
         dialog.addresses_per_line_input.clone()
     } else {
@@ -582,11 +554,11 @@ fn render_settings_dialog(
 
     f.render_widget(
         addr_limit_widget,
-        Rect::new(layout[6].x + 2, layout[6].y, layout[6].width - 4, 1),
+        Rect::new(layout[5].x + 2, layout[5].y, layout[5].width - 4, 1),
     );
 
     // Bytes Per Line
-    let bytes_limit_selected = dialog.selected_index == 11;
+    let bytes_limit_selected = dialog.selected_index == 10;
     let bytes_limit_value_str = if dialog.is_editing_bytes_per_line {
         dialog.bytes_per_line_input.clone()
     } else {
@@ -604,6 +576,24 @@ fn render_settings_dialog(
 
     f.render_widget(
         bytes_limit_widget,
+        Rect::new(layout[6].x + 2, layout[6].y, layout[6].width - 4, 1),
+    );
+
+    // Assembler Section (Moved to end)
+    let assembler_selected = dialog.selected_index == 11;
+    let assembler_text = format!("Assembler: < {} >", settings.assembler);
+
+    let assembler_widget = Paragraph::new(assembler_text).style(if assembler_selected {
+        Style::default()
+            .fg(theme.highlight_fg)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(theme.dialog_fg)
+    });
+
+    // Assembler uses layout[7]
+    f.render_widget(
+        assembler_widget,
         Rect::new(layout[7].x + 2, layout[7].y, layout[7].width - 4, 1),
     );
 

@@ -480,13 +480,12 @@ impl SettingsDialogState {
         // 2: BRK single byte
         // 3: Patch BRK
         // 4: Platform
-        // 5: Assembler
-        // 6: Max X-Refs
-        // 7: Arrow Columns
-        // 8: Use Illegal Opcodes
-        // 9: Text Line Limit
-        // 10: Addresses Per Line
-        // 11: Bytes Per Line
+        // 5: Max X-Refs
+        // 6: Arrow Columns
+        // 7: Text Line Limit
+        // 8: Addresses Per Line
+        // 9: Bytes Per Line
+        // 10: Assembler
         let max_items = 12;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
