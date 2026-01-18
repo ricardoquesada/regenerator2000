@@ -59,7 +59,7 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     }
 
     if ui_state.system_settings_dialog.active {
-        render_system_settings_dialog(
+        crate::dialog_settings::render(
             f,
             f.area(),
             app_state,
@@ -537,101 +537,6 @@ fn render_menu(
     let menu_bar = Paragraph::new(Line::from(spans))
         .style(Style::default().bg(theme.menu_bg).fg(theme.menu_fg));
     f.render_widget(menu_bar, area);
-}
-
-fn render_system_settings_dialog(
-    f: &mut Frame,
-    area: Rect,
-    app_state: &AppState,
-    dialog: &crate::ui_state::SystemSettingsDialogState,
-    theme: &crate::theme::Theme,
-) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Settings ")
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-
-    let area = centered_rect(50, 40, area); // Increased height for popup space
-    f.render_widget(ratatui::widgets::Clear, area);
-    f.render_widget(block.clone(), area);
-
-    let inner = block.inner(area);
-
-    let items = vec![
-        format!(
-            "{} Open the latest file on startup",
-            if app_state.system_config.open_last_project {
-                "[X]"
-            } else {
-                "[ ]"
-            }
-        ),
-        format!(
-            "{} Sync Blocks View",
-            if app_state.system_config.sync_blocks_view {
-                "[X]"
-            } else {
-                "[ ]"
-            }
-        ),
-        format!("Theme: < {} >", app_state.system_config.theme),
-    ];
-
-    for (i, item) in items.into_iter().enumerate() {
-        let style = if dialog.selected_index == i {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(theme.dialog_fg)
-        };
-
-        f.render_widget(
-            Paragraph::new(item).style(style),
-            Rect::new(inner.x + 2, inner.y + 1 + i as u16, inner.width - 4, 1),
-        );
-    }
-
-    // Theme Selection Popup
-    if dialog.is_selecting_theme {
-        let popup_area = centered_rect(40, 30, area);
-        f.render_widget(ratatui::widgets::Clear, popup_area);
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(" Select Theme ")
-            .border_style(Style::default().fg(theme.dialog_border))
-            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-
-        let themes = crate::theme::Theme::all_names();
-        let list_items: Vec<ListItem> = themes
-            .iter()
-            .map(|t| {
-                let is_selected = *t == app_state.system_config.theme;
-                let style = if is_selected {
-                    Style::default()
-                        .bg(theme.menu_selected_bg)
-                        .fg(theme.menu_selected_fg)
-                } else {
-                    Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
-                };
-                ListItem::new(t.to_string()).style(style)
-            })
-            .collect();
-
-        let selected_idx = themes
-            .iter()
-            .position(|t| *t == app_state.system_config.theme)
-            .unwrap_or(0);
-
-        let mut list_state = ListState::default();
-        list_state.select(Some(selected_idx));
-
-        let list = List::new(list_items)
-            .block(block)
-            .highlight_style(Style::default().add_modifier(Modifier::BOLD));
-        f.render_stateful_widget(list, popup_area, &mut list_state);
-    }
 }
 
 fn render_menu_popup(

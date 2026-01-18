@@ -751,67 +751,7 @@ pub fn run_app<B: Backend>(
             } else if ui_state.settings_dialog.active {
                 crate::dialog_document_settings::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.system_settings_dialog.active {
-                match key.code {
-                    KeyCode::Esc => {
-                        if ui_state.system_settings_dialog.is_selecting_theme {
-                            ui_state.system_settings_dialog.is_selecting_theme = false;
-                        } else {
-                            ui_state.system_settings_dialog.close();
-                            ui_state.set_status_message("Ready");
-                        }
-                    }
-                    KeyCode::Up => {
-                        if ui_state.system_settings_dialog.is_selecting_theme {
-                            // Cycle themes
-                            let themes = crate::theme::Theme::all_names();
-                            let current = app_state.system_config.theme.as_str();
-                            let idx = themes.iter().position(|t| *t == current).unwrap_or(0);
-                            let new_idx = if idx == 0 { themes.len() - 1 } else { idx - 1 };
-                            let new_theme = themes[new_idx].to_string();
-                            app_state.system_config.theme = new_theme.clone();
-                            ui_state.theme = crate::theme::Theme::from_name(&new_theme);
-                        } else {
-                            ui_state.system_settings_dialog.selected_index = ui_state
-                                .system_settings_dialog
-                                .selected_index
-                                .saturating_sub(1);
-                        }
-                    }
-                    KeyCode::Down => {
-                        if ui_state.system_settings_dialog.is_selecting_theme {
-                            // Cycle themes
-                            let themes = crate::theme::Theme::all_names();
-                            let current = app_state.system_config.theme.as_str();
-                            let idx = themes.iter().position(|t| *t == current).unwrap_or(0);
-                            let new_idx = (idx + 1) % themes.len();
-                            let new_theme = themes[new_idx].to_string();
-                            app_state.system_config.theme = new_theme.clone();
-                            ui_state.theme = crate::theme::Theme::from_name(&new_theme);
-                        } else {
-                            // Limit to 2 (3 items)
-                            if ui_state.system_settings_dialog.selected_index < 2 {
-                                ui_state.system_settings_dialog.selected_index += 1;
-                            }
-                        }
-                    }
-                    KeyCode::Enter | KeyCode::Char(' ') => {
-                        if ui_state.system_settings_dialog.is_selecting_theme {
-                            ui_state.system_settings_dialog.is_selecting_theme = false;
-                            let _ = app_state.system_config.save();
-                        } else if ui_state.system_settings_dialog.selected_index == 0 {
-                            app_state.system_config.open_last_project =
-                                !app_state.system_config.open_last_project;
-                            let _ = app_state.system_config.save();
-                        } else if ui_state.system_settings_dialog.selected_index == 1 {
-                            app_state.system_config.sync_blocks_view =
-                                !app_state.system_config.sync_blocks_view;
-                            let _ = app_state.system_config.save();
-                        } else if ui_state.system_settings_dialog.selected_index == 2 {
-                            ui_state.system_settings_dialog.is_selecting_theme = true;
-                        }
-                    }
-                    _ => {}
-                }
+                crate::dialog_settings::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.origin_dialog.active {
                 match key.code {
                     KeyCode::Esc => {

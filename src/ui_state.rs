@@ -398,27 +398,6 @@ impl OriginDialogState {
 }
 
 #[derive(Default)]
-pub struct SystemSettingsDialogState {
-    pub active: bool,
-    pub selected_index: usize,
-    pub is_selecting_theme: bool,
-}
-
-impl SystemSettingsDialogState {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn open(&mut self) {
-        self.active = true;
-        self.selected_index = 0;
-        self.is_selecting_theme = false; // Reset on open
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-    }
-}
 
 pub struct MenuState {
     pub active: bool,
@@ -774,7 +753,7 @@ pub struct UIState {
     pub shortcuts_dialog: ShortcutsDialogState,
     pub origin_dialog: OriginDialogState,
     pub confirmation_dialog: ConfirmationDialogState,
-    pub system_settings_dialog: SystemSettingsDialogState,
+    pub system_settings_dialog: crate::dialog_settings::SettingsDialog,
     pub search_dialog: SearchDialogState,
     pub menu: MenuState,
 
@@ -832,7 +811,7 @@ impl UIState {
             shortcuts_dialog: ShortcutsDialogState::new(),
             origin_dialog: OriginDialogState::new(),
             confirmation_dialog: ConfirmationDialogState::new(),
-            system_settings_dialog: SystemSettingsDialogState::new(),
+            system_settings_dialog: crate::dialog_settings::SettingsDialog::new(),
             search_dialog: SearchDialogState::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),
