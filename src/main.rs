@@ -8,6 +8,7 @@ mod commands;
 mod cpu;
 mod dialog_about;
 mod dialog_document_settings;
+mod dialog_keyboard_shortcut;
 mod dialog_settings;
 mod disassembler;
 mod events;

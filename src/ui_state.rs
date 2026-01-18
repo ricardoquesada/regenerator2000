@@ -152,39 +152,6 @@ impl ConfirmationDialogState {
     }
 }
 
-pub struct ShortcutsDialogState {
-    pub active: bool,
-    pub scroll_offset: usize,
-}
-
-impl ShortcutsDialogState {
-    pub fn new() -> Self {
-        Self {
-            active: false,
-            scroll_offset: 0,
-        }
-    }
-
-    pub fn open(&mut self) {
-        self.active = true;
-        self.scroll_offset = 0;
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-    }
-
-    pub fn scroll_down(&mut self) {
-        self.scroll_offset += 1;
-    }
-
-    pub fn scroll_up(&mut self) {
-        if self.scroll_offset > 0 {
-            self.scroll_offset -= 1;
-        }
-    }
-}
-
 pub struct FilePickerState {
     pub active: bool,
     pub current_dir: PathBuf,
@@ -750,7 +717,7 @@ pub struct UIState {
     pub comment_dialog: CommentDialogState,
     pub settings_dialog: crate::dialog_document_settings::DocumentSettingsDialog,
     pub about_dialog: crate::dialog_about::AboutDialog,
-    pub shortcuts_dialog: ShortcutsDialogState,
+    pub shortcuts_dialog: crate::dialog_keyboard_shortcut::ShortcutsDialog,
     pub origin_dialog: OriginDialogState,
     pub confirmation_dialog: ConfirmationDialogState,
     pub system_settings_dialog: crate::dialog_settings::SettingsDialog,
@@ -808,7 +775,7 @@ impl UIState {
             comment_dialog: CommentDialogState::new(),
             settings_dialog: crate::dialog_document_settings::DocumentSettingsDialog::new(),
             about_dialog: crate::dialog_about::AboutDialog::new(),
-            shortcuts_dialog: ShortcutsDialogState::new(),
+            shortcuts_dialog: crate::dialog_keyboard_shortcut::ShortcutsDialog::new(),
             origin_dialog: OriginDialogState::new(),
             confirmation_dialog: ConfirmationDialogState::new(),
             system_settings_dialog: crate::dialog_settings::SettingsDialog::new(),

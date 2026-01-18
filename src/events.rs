@@ -720,15 +720,7 @@ pub fn run_app<B: Backend>(
             } else if ui_state.about_dialog.active {
                 crate::dialog_about::handle_input(key, &mut ui_state);
             } else if ui_state.shortcuts_dialog.active {
-                match key.code {
-                    KeyCode::Esc | KeyCode::Enter => {
-                        ui_state.shortcuts_dialog.close();
-                        ui_state.set_status_message("Ready");
-                    }
-                    KeyCode::Down => ui_state.shortcuts_dialog.scroll_down(),
-                    KeyCode::Up => ui_state.shortcuts_dialog.scroll_up(),
-                    _ => {}
-                }
+                crate::dialog_keyboard_shortcut::handle_input(key, &mut ui_state);
             } else if ui_state.confirmation_dialog.active {
                 match key.code {
                     KeyCode::Esc => {
