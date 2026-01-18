@@ -720,8 +720,8 @@ mod tests {
         assert!(content.contains(
             ";=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
         ));
-        // Note: The user's code produces "; https://...;" which might be unintentional but we verify it as is.
-        assert!(content.contains("; https://github.com/ricardoquesada/regenerator2000;"));
+        // Note: The user's code produces "; https://..." with a newline
+        assert!(content.contains("; https://github.com/ricardoquesada/regenerator2000"));
         assert!(content.contains("; Assemble with:"));
         // cl65 -t c64 -C c64-asm.cfg test_ca65_header.asm -o test_ca65_header.prg
         assert!(content.contains(
@@ -763,7 +763,7 @@ mod tests {
         assert!(content_acme.contains(
             ";=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
         ));
-        assert!(content_acme.contains("; https://github.com/ricardoquesada/regenerator2000;"));
+        assert!(content_acme.contains("; https://github.com/ricardoquesada/regenerator2000"));
         assert!(content_acme.contains("; Assemble with:"));
         assert!(
             content_acme
@@ -780,7 +780,7 @@ mod tests {
         assert!(content_kick.contains(
             "//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
         ));
-        assert!(content_kick.contains("// https://github.com/ricardoquesada/regenerator2000//"));
+        assert!(content_kick.contains("// https://github.com/ricardoquesada/regenerator2000"));
         assert!(content_kick.contains("// Assemble with:"));
         assert!(content_kick.contains("//   java -jar KickAss.jar test_kick_header.asm"));
         let _ = std::fs::remove_file(&path_kick);
@@ -794,7 +794,7 @@ mod tests {
         assert!(content_tass.contains(
             ";=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
         ));
-        assert!(content_tass.contains("; https://github.com/ricardoquesada/regenerator2000;"));
+        assert!(content_tass.contains("; https://github.com/ricardoquesada/regenerator2000"));
         assert!(content_tass.contains("; Assemble with:"));
         assert!(content_tass.contains(";   64tass -o test_tass_header.prg test_tass_header.asm"));
         let _ = std::fs::remove_file(&path_tass);
@@ -934,7 +934,7 @@ mod tests {
         // a20 = $20
         // ...
 
-        let mut idx = 8; // Skip header lines (Separator, Empty, Auto-gen, GitHub, Empty, Assemble, Command, Separator)
+        let mut idx = 9; // Skip header lines (Separator is line 8, ZP FIELDS is line 9)
         assert_eq!(lines[idx], "; ZP FIELDS");
         idx += 1;
         assert_eq!(lines[idx], "f05 = $05");
