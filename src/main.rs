@@ -6,6 +6,7 @@ mod parser_vsf;
 
 mod commands;
 mod cpu;
+mod dialog_document_settings;
 mod disassembler;
 mod events;
 mod exporter;

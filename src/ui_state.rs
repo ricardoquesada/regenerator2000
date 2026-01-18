@@ -415,92 +415,6 @@ impl OriginDialogState {
     }
 }
 
-pub struct SettingsDialogState {
-    pub active: bool,
-    pub selected_index: usize,
-    pub is_selecting_platform: bool,
-    pub is_selecting_assembler: bool,
-    pub is_editing_xref_count: bool,
-    pub xref_count_input: String,
-    pub is_editing_arrow_columns: bool,
-    pub arrow_columns_input: String,
-    pub is_editing_text_char_limit: bool,
-    pub text_char_limit_input: String,
-    pub is_editing_addresses_per_line: bool,
-    pub addresses_per_line_input: String,
-    pub is_editing_bytes_per_line: bool,
-    pub bytes_per_line_input: String,
-}
-
-impl SettingsDialogState {
-    pub fn new() -> Self {
-        Self {
-            active: false,
-            selected_index: 0,
-            is_selecting_platform: false,
-            is_selecting_assembler: false,
-            is_editing_xref_count: false,
-            xref_count_input: String::new(),
-            is_editing_arrow_columns: false,
-            arrow_columns_input: String::new(),
-            is_editing_text_char_limit: false,
-            text_char_limit_input: String::new(),
-            is_editing_addresses_per_line: false,
-            addresses_per_line_input: String::new(),
-            is_editing_bytes_per_line: false,
-            bytes_per_line_input: String::new(),
-        }
-    }
-
-    pub fn open(&mut self) {
-        self.active = true;
-        self.selected_index = 0;
-        self.is_selecting_platform = false;
-        self.is_selecting_assembler = false;
-        self.is_editing_xref_count = false;
-        self.xref_count_input.clear();
-        self.is_editing_arrow_columns = false;
-        self.arrow_columns_input.clear();
-        self.is_editing_text_char_limit = false;
-        self.text_char_limit_input.clear();
-        self.is_editing_addresses_per_line = false;
-        self.addresses_per_line_input.clear();
-        self.is_editing_bytes_per_line = false;
-        self.bytes_per_line_input.clear();
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-    }
-
-    pub fn next(&mut self) {
-        // Items:
-        // 0: All Labels
-        // 1: Use @w
-        // 2: BRK single byte
-        // 3: Patch BRK
-        // 4: Use Illegal Opcodes
-        // 5: Max X-Refs
-        // 6: Arrow Columns
-        // 7: Text Line Limit
-        // 8: Addresses Per Line
-        // 9: Bytes Per Line
-        // 10: Assembler
-        // 11: Platform
-        let max_items = 12;
-        self.selected_index = (self.selected_index + 1) % max_items;
-    }
-
-    pub fn previous(&mut self) {
-        let max_items = 12;
-        if self.selected_index == 0 {
-            self.selected_index = max_items - 1;
-        } else {
-            self.selected_index -= 1;
-        }
-    }
-}
-
 #[derive(Default)]
 pub struct SystemSettingsDialogState {
     pub active: bool,
@@ -873,7 +787,7 @@ pub struct UIState {
     pub save_dialog: SaveDialogState,
     pub label_dialog: LabelDialogState,
     pub comment_dialog: CommentDialogState,
-    pub settings_dialog: SettingsDialogState,
+    pub settings_dialog: crate::dialog_document_settings::DocumentSettingsDialog,
     pub about_dialog: AboutDialogState,
     pub shortcuts_dialog: ShortcutsDialogState,
     pub origin_dialog: OriginDialogState,
@@ -931,7 +845,7 @@ impl UIState {
             save_dialog: SaveDialogState::new(),
             label_dialog: LabelDialogState::new(),
             comment_dialog: CommentDialogState::new(),
-            settings_dialog: SettingsDialogState::new(),
+            settings_dialog: crate::dialog_document_settings::DocumentSettingsDialog::new(),
             about_dialog: AboutDialogState::new(),
             shortcuts_dialog: ShortcutsDialogState::new(),
             origin_dialog: OriginDialogState::new(),
