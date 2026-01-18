@@ -577,7 +577,7 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 8192,
+  "cursor_address": 5744,
   "hex_dump_cursor_address": 16384,
   "sprites_cursor_address": 12352,
   "charset_cursor_address": 8192,
@@ -586,5 +586,5 @@
   "charset_multicolor_mode": false,
   "petscii_mode": "Unshifted",
   "splitters": [],
-  "blocks_view_cursor": 34
+  "blocks_view_cursor": 19
 }
