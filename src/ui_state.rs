@@ -89,128 +89,6 @@ impl MenuAction {
     }
 }
 
-pub struct ConfirmationDialogState {
-    pub active: bool,
-    pub title: String,
-    pub message: String,
-    pub action_on_confirm: Option<MenuAction>,
-}
-
-impl ConfirmationDialogState {
-    pub fn new() -> Self {
-        Self {
-            active: false,
-            title: String::new(),
-            message: String::new(),
-            action_on_confirm: None,
-        }
-    }
-
-    pub fn open(
-        &mut self,
-        title: impl Into<String>,
-        message: impl Into<String>,
-        action: MenuAction,
-    ) {
-        self.active = true;
-        self.title = title.into();
-        self.message = message.into();
-        self.action_on_confirm = Some(action);
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-        self.action_on_confirm = None;
-    }
-}
-
-pub struct LabelDialogState {
-    pub active: bool,
-    pub input: String,
-    pub address: Option<u16>,
-}
-
-impl LabelDialogState {
-    pub fn new() -> Self {
-        Self {
-            active: false,
-            input: String::new(),
-            address: None,
-        }
-    }
-
-    pub fn open(&mut self, current_label: Option<&str>, address: u16) {
-        self.active = true;
-        self.input = current_label.unwrap_or("").to_string();
-        self.address = Some(address);
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-        self.input.clear();
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CommentType {
-    Side,
-    Line,
-}
-
-pub struct CommentDialogState {
-    pub active: bool,
-    pub input: String,
-    pub comment_type: CommentType,
-}
-
-impl CommentDialogState {
-    pub fn new() -> Self {
-        Self {
-            active: false,
-            input: String::new(),
-            comment_type: CommentType::Side,
-        }
-    }
-
-    pub fn open(&mut self, current_comment: Option<&str>, comment_type: CommentType) {
-        self.active = true;
-        self.input = current_comment.unwrap_or("").to_string();
-        self.comment_type = comment_type;
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-        self.input.clear();
-    }
-}
-
-pub struct OriginDialogState {
-    pub active: bool,
-    pub input: String,
-    pub address: u16,
-}
-
-impl OriginDialogState {
-    pub fn new() -> Self {
-        Self {
-            active: false,
-            input: String::new(),
-            address: 0,
-        }
-    }
-
-    pub fn open(&mut self, current_origin: u16) {
-        self.active = true;
-        self.input = format!("{:04X}", current_origin);
-        self.address = current_origin;
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-        self.input.clear();
-    }
-}
-
 #[derive(Default)]
 
 pub struct MenuState {
@@ -562,13 +440,13 @@ pub struct UIState {
     pub jump_to_line_dialog: crate::dialog_jump_to_line::JumpToLineDialog,
     pub save_as_dialog: crate::dialog_save_as::SaveAsDialog,
     pub export_as_dialog: crate::dialog_export_as::ExportAsDialog,
-    pub label_dialog: LabelDialogState,
-    pub comment_dialog: CommentDialogState,
+    pub label_dialog: crate::dialog_label::LabelDialogState,
+    pub comment_dialog: crate::dialog_comment::CommentDialogState,
     pub settings_dialog: crate::dialog_document_settings::DocumentSettingsDialog,
     pub about_dialog: crate::dialog_about::AboutDialog,
     pub shortcuts_dialog: crate::dialog_keyboard_shortcut::ShortcutsDialog,
-    pub origin_dialog: OriginDialogState,
-    pub confirmation_dialog: ConfirmationDialogState,
+    pub origin_dialog: crate::dialog_origin::OriginDialogState,
+    pub confirmation_dialog: crate::dialog_confirmation::ConfirmationDialogState,
     pub system_settings_dialog: crate::dialog_settings::SettingsDialog,
     pub search_dialog: crate::dialog_search::SearchDialog,
     pub menu: MenuState,
@@ -622,13 +500,13 @@ impl UIState {
             jump_to_line_dialog: crate::dialog_jump_to_line::JumpToLineDialog::new(),
             save_as_dialog: crate::dialog_save_as::SaveAsDialog::new(),
             export_as_dialog: crate::dialog_export_as::ExportAsDialog::new(),
-            label_dialog: LabelDialogState::new(),
-            comment_dialog: CommentDialogState::new(),
+            label_dialog: crate::dialog_label::LabelDialogState::new(),
+            comment_dialog: crate::dialog_comment::CommentDialogState::new(),
             settings_dialog: crate::dialog_document_settings::DocumentSettingsDialog::new(),
             about_dialog: crate::dialog_about::AboutDialog::new(),
             shortcuts_dialog: crate::dialog_keyboard_shortcut::ShortcutsDialog::new(),
-            origin_dialog: OriginDialogState::new(),
-            confirmation_dialog: ConfirmationDialogState::new(),
+            origin_dialog: crate::dialog_origin::OriginDialogState::new(),
+            confirmation_dialog: crate::dialog_confirmation::ConfirmationDialogState::new(),
             system_settings_dialog: crate::dialog_settings::SettingsDialog::new(),
             search_dialog: crate::dialog_search::SearchDialog::new(),
             menu: MenuState::new(),

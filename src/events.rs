@@ -147,7 +147,7 @@ pub fn run_app<B: Backend>(
                             };
 
                             let command = match ui_state.comment_dialog.comment_type {
-                                crate::ui_state::CommentType::Side => {
+                                crate::dialog_comment::CommentType::Side => {
                                     let old_comment =
                                         app_state.user_side_comments.get(&address).cloned();
                                     crate::commands::Command::SetUserSideComment {
@@ -156,7 +156,7 @@ pub fn run_app<B: Backend>(
                                         old_comment,
                                     }
                                 }
-                                crate::ui_state::CommentType::Line => {
+                                crate::dialog_comment::CommentType::Line => {
                                     let old_comment =
                                         app_state.user_line_comments.get(&address).cloned();
                                     crate::commands::Command::SetUserLineComment {
@@ -2117,7 +2117,7 @@ fn execute_menu_action(
                     .map(|s| s.as_str());
                 ui_state
                     .comment_dialog
-                    .open(current_comment, crate::ui_state::CommentType::Side);
+                    .open(current_comment, crate::dialog_comment::CommentType::Side);
                 ui_state.set_status_message(format!("Edit Side Comment at ${:04X}", address));
             }
         }
@@ -2130,7 +2130,7 @@ fn execute_menu_action(
                     .map(|s| s.as_str());
                 ui_state
                     .comment_dialog
-                    .open(current_comment, crate::ui_state::CommentType::Line);
+                    .open(current_comment, crate::dialog_comment::CommentType::Line);
                 ui_state.set_status_message(format!("Edit Line Comment at ${:04X}", address));
             }
         }

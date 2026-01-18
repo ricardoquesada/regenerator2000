@@ -1,10 +1,10 @@
 use crate::state::AppState;
 use crate::ui_state::{RightPane, UIState};
-use crate::utils::centered_rect;
+
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph},
 };
@@ -58,11 +58,21 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     }
 
     if ui_state.label_dialog.active {
-        render_label_dialog(f, f.area(), &ui_state.label_dialog, &ui_state.theme);
+        crate::dialog_label::render_label_dialog(
+            f,
+            f.area(),
+            &ui_state.label_dialog,
+            &ui_state.theme,
+        );
     }
 
     if ui_state.comment_dialog.active {
-        render_comment_dialog(f, f.area(), &ui_state.comment_dialog, &ui_state.theme);
+        crate::dialog_comment::render_comment_dialog(
+            f,
+            f.area(),
+            &ui_state.comment_dialog,
+            &ui_state.theme,
+        );
     }
 
     if ui_state.settings_dialog.active {
@@ -99,149 +109,26 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     }
 
     if ui_state.confirmation_dialog.active {
-        render_confirmation_dialog(f, f.area(), &ui_state.confirmation_dialog, &ui_state.theme);
+        crate::dialog_confirmation::render_confirmation_dialog(
+            f,
+            f.area(),
+            &ui_state.confirmation_dialog,
+            &ui_state.theme,
+        );
     }
 
     if ui_state.origin_dialog.active {
-        render_origin_dialog(f, f.area(), &ui_state.origin_dialog, &ui_state.theme);
+        crate::dialog_origin::render_origin_dialog(
+            f,
+            f.area(),
+            &ui_state.origin_dialog,
+            &ui_state.theme,
+        );
     }
 
     if ui_state.search_dialog.active {
         crate::dialog_search::render(f, f.area(), &ui_state.search_dialog, &ui_state.theme);
     }
-}
-
-fn render_confirmation_dialog(
-    f: &mut Frame,
-    area: Rect,
-    dialog: &crate::ui_state::ConfirmationDialogState,
-    theme: &crate::theme::Theme,
-) {
-    if !dialog.active {
-        return;
-    }
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(format!(" {} ", dialog.title))
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-
-    let area = centered_rect(50, 7, area);
-    f.render_widget(ratatui::widgets::Clear, area);
-    f.render_widget(block.clone(), area);
-
-    let inner = block.inner(area);
-
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1), // Message
-            Constraint::Length(1), // Gap
-            Constraint::Length(1), // Instructions
-        ])
-        .split(inner);
-
-    let message = Paragraph::new(dialog.message.clone())
-        .alignment(ratatui::layout::Alignment::Center)
-        .style(
-            Style::default()
-                .fg(theme.dialog_fg)
-                .add_modifier(Modifier::BOLD),
-        );
-
-    f.render_widget(message, layout[0]);
-
-    let instructions = Paragraph::new("Enter: Proceed  |  Esc: Cancel")
-        .alignment(ratatui::layout::Alignment::Center)
-        .style(Style::default().fg(theme.highlight_fg));
-
-    f.render_widget(instructions, layout[2]);
-}
-
-fn render_label_dialog(
-    f: &mut Frame,
-    area: Rect,
-    dialog: &crate::ui_state::LabelDialogState,
-    theme: &crate::theme::Theme,
-) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Enter Label Name ")
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-
-    // Fixed height of 3 (Border + Input + Border)
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Fill(1),
-            Constraint::Length(3),
-            Constraint::Fill(1),
-        ])
-        .split(area);
-
-    let area = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(50),
-            Constraint::Percentage(25),
-        ])
-        .split(layout[1])[1];
-    f.render_widget(ratatui::widgets::Clear, area);
-
-    let input = Paragraph::new(dialog.input.clone()).block(block).style(
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    );
-    f.render_widget(input, area);
-}
-
-fn render_comment_dialog(
-    f: &mut Frame,
-    area: Rect,
-    dialog: &crate::ui_state::CommentDialogState,
-    theme: &crate::theme::Theme,
-) {
-    let title = match dialog.comment_type {
-        crate::ui_state::CommentType::Line => " Enter Line Comment ",
-        crate::ui_state::CommentType::Side => " Enter Side Comment ",
-    };
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(title)
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-
-    // Fixed height of 3 (Border + Input + Border)
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Fill(1),
-            Constraint::Length(3),
-            Constraint::Fill(1),
-        ])
-        .split(area);
-
-    let area = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(50),
-            Constraint::Percentage(25),
-        ])
-        .split(layout[1])[1];
-    f.render_widget(ratatui::widgets::Clear, area);
-
-    let input = Paragraph::new(dialog.input.clone()).block(block).style(
-        Style::default()
-            .fg(theme.highlight_fg)
-            .add_modifier(Modifier::BOLD),
-    );
-    f.render_widget(input, area);
 }
 
 fn render_menu(
@@ -358,46 +245,6 @@ fn render_menu_popup(
     );
 
     f.render_widget(list, area);
-}
-
-fn render_origin_dialog(
-    f: &mut Frame,
-    area: Rect,
-    dialog: &crate::ui_state::OriginDialogState,
-    theme: &crate::theme::Theme,
-) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Change Origin (Hex) ")
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-
-    // Fixed height of 3 (Border + Input + Border)
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Fill(1),
-            Constraint::Length(3),
-            Constraint::Fill(1),
-        ])
-        .split(area);
-
-    let area = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(30),
-            Constraint::Percentage(40),
-            Constraint::Percentage(30),
-        ])
-        .split(layout[1])[1];
-    f.render_widget(ratatui::widgets::Clear, area);
-
-    let input = Paragraph::new(dialog.input.clone()).block(block).style(
-        Style::default()
-            .fg(theme.highlight_fg)
-            .add_modifier(Modifier::BOLD),
-    );
-    f.render_widget(input, area);
 }
 
 fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
