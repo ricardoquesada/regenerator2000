@@ -1,21 +1,22 @@
 * = $800
 
-	.TEXT  "0-9, HOLA COMO TE VA", 0
+	.TEXT  "0-9, HOLA COMO TE VA ""CARLOS"".", 0
 * = $820
-	.TEXT  "0-9, hola como te va", 0
+	.TEXT  "0-9, hola como te va ""carlos"".", 0
 
-* = $840
+* = $900
 	.ENCODE
 	.ENC "screen"
-	.TEXT  "0-9, HOLA COMO TE VA", 0
+	.TEXT  "0-9, HOLA COMO TE VA ""CARLOS"".", 0
 	.ENDENCODE
 
-* = $860
+* = $920
 	.ENCODE
 	.ENC "screen"
-	.TEXT  "0-9, hola como te va", 0
+	.TEXT  "0-9, hola como te va ""carlos"".", 0
 	.ENDENCODE
 
+* = $1000
 	lda $800
 	lda $801
 	lda $810
