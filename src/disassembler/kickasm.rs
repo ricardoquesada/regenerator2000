@@ -185,56 +185,97 @@ impl Formatter for KickAsmFormatter {
     fn format_text(
         &self,
         fragments: &[super::formatter::TextFragment],
-        _is_start: bool,
+        is_start: bool,
         _is_end: bool,
     ) -> Vec<(String, String, bool)> {
         use super::formatter::TextFragment;
-        let mut parts = Vec::new();
+        let mut lines = Vec::new();
+
+        if is_start {
+            lines.push((".encoding".to_string(), "\"ascii\"".to_string(), false));
+        }
+
+        let mut current_text_parts = Vec::new();
+        let mut current_byte_parts = Vec::new();
+
         for fragment in fragments {
             match fragment {
                 TextFragment::Text(s) => {
+                    // Flush bytes if any
+                    if !current_byte_parts.is_empty() {
+                        lines.push((".byte".to_string(), current_byte_parts.join(", "), true));
+                        current_byte_parts.clear();
+                    }
                     let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
-                    parts.push(format!("\"{}\"", escaped))
+                    current_text_parts.push(format!("@\"{}\"", escaped));
                 }
-                TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
+                TextFragment::Byte(b) => {
+                    // Flush text if any
+                    if !current_text_parts.is_empty() {
+                        lines.push((".text".to_string(), current_text_parts.join(", "), true));
+                        current_text_parts.clear();
+                    }
+                    current_byte_parts.push(format!("${:02x}", b));
+                }
             }
         }
-        vec![(".byte".to_string(), parts.join(", "), true)]
+
+        // Flush remaining
+        if !current_text_parts.is_empty() {
+            lines.push((".text".to_string(), current_text_parts.join(", "), true));
+        }
+        if !current_byte_parts.is_empty() {
+            lines.push((".byte".to_string(), current_byte_parts.join(", "), true));
+        }
+
+        lines
     }
 
     fn format_screencode_pre(&self) -> Vec<(String, String)> {
-        Vec::new()
+        vec![(".encoding".to_string(), "\"screencode_upper\"".to_string())]
     }
 
     fn format_screencode(
         &self,
         fragments: &[super::formatter::TextFragment],
     ) -> Vec<(String, String, bool)> {
-        // KickAssembler has .text "screen" support?
-        // It has text encoding support.
-        // For simplicity and correctness, we will output bytes or inverted chars in comments.
-        // Let's stick to byte output for now for safety, similar to Ca65 approach.
         use super::formatter::TextFragment;
-        let mut parts = Vec::new();
+        let mut lines = Vec::new();
+
+        let mut current_text_parts = Vec::new();
+        let mut current_byte_parts = Vec::new();
+
         for fragment in fragments {
             match fragment {
                 TextFragment::Text(s) => {
-                    for c in s.chars() {
-                        // Invert case logic similar to ACME
-                        let inverted_char = if c.is_ascii_lowercase() {
-                            c.to_ascii_uppercase()
-                        } else if c.is_ascii_uppercase() {
-                            c.to_ascii_lowercase()
-                        } else {
-                            c
-                        };
-                        parts.push(format!("${:02x}", inverted_char as u8));
+                    // Flush bytes if any
+                    if !current_byte_parts.is_empty() {
+                        lines.push((".byte".to_string(), current_byte_parts.join(", "), true));
+                        current_byte_parts.clear();
                     }
+                    let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
+                    current_text_parts.push(format!("@\"{}\"", escaped));
                 }
-                TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
+                TextFragment::Byte(b) => {
+                    // Flush text if any
+                    if !current_text_parts.is_empty() {
+                        lines.push((".text".to_string(), current_text_parts.join(", "), true));
+                        current_text_parts.clear();
+                    }
+                    current_byte_parts.push(format!("${:02x}", b));
+                }
             }
         }
-        vec![(".byte".to_string(), parts.join(", "), true)]
+
+        // Flush remaining
+        if !current_text_parts.is_empty() {
+            lines.push((".text".to_string(), current_text_parts.join(", "), true));
+        }
+        if !current_byte_parts.is_empty() {
+            lines.push((".byte".to_string(), current_byte_parts.join(", "), true));
+        }
+
+        lines
     }
 
     fn format_screencode_post(&self) -> Vec<(String, String)> {

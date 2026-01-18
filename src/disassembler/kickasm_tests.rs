@@ -145,3 +145,132 @@ fn test_forced_absolute() {
         ("lda".to_string(), "$02".to_string())
     );
 }
+
+#[test]
+fn test_text_encoding() {
+    let settings = DocumentSettings {
+        assembler: Assembler::Kick,
+        ..Default::default()
+    };
+    let formatter = Disassembler::create_formatter(settings.assembler);
+
+    // Test implicitly creates formatter
+    use crate::disassembler::formatter::TextFragment;
+
+    // 1. Text Start -> .encoding "ascii" + .text
+    let fragments = vec![TextFragment::Text("hello".to_string())];
+    let lines = formatter.format_text(&fragments, true, false);
+    assert_eq!(lines.len(), 2);
+    assert_eq!(
+        lines[0],
+        (".encoding".to_string(), "\"ascii\"".to_string(), false)
+    );
+    assert_eq!(
+        lines[1],
+        (".text".to_string(), "@\"hello\"".to_string(), true)
+    );
+
+    // 2. Text Continuation -> .text only
+    let lines_cont = formatter.format_text(&fragments, false, false);
+    assert_eq!(lines_cont.len(), 1);
+    assert_eq!(
+        lines_cont[0],
+        (".text".to_string(), "@\"hello\"".to_string(), true)
+    );
+}
+
+#[test]
+fn test_screencode_encoding() {
+    let settings = DocumentSettings {
+        assembler: Assembler::Kick,
+        ..Default::default()
+    };
+    let formatter = Disassembler::create_formatter(settings.assembler);
+    use crate::disassembler::formatter::TextFragment;
+
+    // 1. Screencode Pre -> .encoding "screencode_upper"
+    let pre_lines = formatter.format_screencode_pre();
+    assert_eq!(pre_lines.len(), 1);
+    assert_eq!(
+        pre_lines[0],
+        (".encoding".to_string(), "\"screencode_upper\"".to_string())
+    );
+
+    // 2. Screencode Body -> .text (no manual inversion)
+    // "Hello" should stay "Hello" because "screencode_upper" handles the mapping/inversion
+    let fragments = vec![TextFragment::Text("Hello".to_string())];
+    let lines = formatter.format_screencode(&fragments);
+    assert_eq!(lines.len(), 1);
+    assert_eq!(
+        lines[0],
+        (".text".to_string(), "@\"Hello\"".to_string(), true)
+    );
+}
+
+#[test]
+fn test_mixed_encoding() {
+    let settings = DocumentSettings {
+        assembler: Assembler::Kick,
+        ..Default::default()
+    };
+    let formatter = Disassembler::create_formatter(settings.assembler);
+    use crate::disassembler::formatter::TextFragment;
+
+    // Mixed text and bytes
+    let fragments = vec![
+        TextFragment::Text("hello".to_string()),
+        TextFragment::Byte(0xFF),
+        TextFragment::Text("world".to_string()),
+    ];
+
+    let lines = formatter.format_text(&fragments, true, false);
+    // Expected:
+    // .encoding "ascii"
+    // .text "hello"
+    // .byte $ff
+    // .text "world"
+    assert_eq!(lines.len(), 4);
+    assert_eq!(
+        lines[0],
+        (".encoding".to_string(), "\"ascii\"".to_string(), false)
+    );
+    assert_eq!(
+        lines[1],
+        (".text".to_string(), "@\"hello\"".to_string(), true)
+    );
+    assert_eq!(lines[2], (".byte".to_string(), "$ff".to_string(), true));
+    assert_eq!(
+        lines[3],
+        (".text".to_string(), "@\"world\"".to_string(), true)
+    );
+}
+
+#[test]
+fn test_quote_escaping() {
+    let settings = DocumentSettings {
+        assembler: Assembler::Kick,
+        ..Default::default()
+    };
+    let formatter = Disassembler::create_formatter(settings.assembler);
+    use crate::disassembler::formatter::TextFragment;
+
+    // String with quotes: He said "Hi"
+    let fragments = vec![TextFragment::Text("He said \"Hi\"".to_string())];
+    let lines = formatter.format_text(&fragments, true, false);
+
+    // Expected: .text @"He said \"Hi\""
+    assert_eq!(lines.len(), 2);
+    assert_eq!(
+        lines[0],
+        (".encoding".to_string(), "\"ascii\"".to_string(), false)
+    );
+    // Verify double-quote escaping
+    assert_eq!(
+        lines[1],
+        (
+            ".text".to_string(),
+            "@\"He said \\\"Hi\\\"\"".to_string(),
+            true
+        )
+    );
+}
