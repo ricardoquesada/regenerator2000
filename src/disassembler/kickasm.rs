@@ -257,7 +257,19 @@ impl Formatter for KickAsmFormatter {
                         lines.push((".byte".to_string(), current_byte_parts.join(", "), true));
                         current_byte_parts.clear();
                     }
-                    let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
+                    let swapped: String = s
+                        .chars()
+                        .map(|c| {
+                            if c.is_uppercase() {
+                                c.to_lowercase().collect::<String>()
+                            } else if c.is_lowercase() {
+                                c.to_uppercase().collect::<String>()
+                            } else {
+                                c.to_string()
+                            }
+                        })
+                        .collect();
+                    let escaped = swapped.replace('\\', "\\\\").replace('"', "\\\"");
                     current_text_parts.push(format!("@\"{}\"", escaped));
                 }
                 TextFragment::Byte(b) => {

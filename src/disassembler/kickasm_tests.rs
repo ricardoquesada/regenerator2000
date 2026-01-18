@@ -204,14 +204,33 @@ fn test_screencode_encoding() {
         (".encoding".to_string(), "\"screencode_mixed\"".to_string())
     );
 
-    // 2. Screencode Body -> .text (no manual inversion)
-    // "Hello" should stay "Hello" because "screencode_upper" handles the mapping/inversion
+    // 2. Screencode Body -> .text (inverted case)
+    // "Hello" should become "hELLO"
     let fragments = vec![TextFragment::Text("Hello".to_string())];
     let lines = formatter.format_screencode(&fragments);
     assert_eq!(lines.len(), 1);
     assert_eq!(
         lines[0],
-        (".text".to_string(), "@\"Hello\"".to_string(), true)
+        (".text".to_string(), "@\"hELLO\"".to_string(), true)
+    );
+}
+
+#[test]
+fn test_screencode_case_swap() {
+    let settings = DocumentSettings {
+        assembler: Assembler::Kick,
+        ..Default::default()
+    };
+    let formatter = Disassembler::create_formatter(settings.assembler);
+    use crate::disassembler::formatter::TextFragment;
+
+    // "Hello World" -> "hELLO wORLD"
+    let fragments = vec![TextFragment::Text("Hello World".to_string())];
+    let lines = formatter.format_screencode(&fragments);
+    assert_eq!(lines.len(), 1);
+    assert_eq!(
+        lines[0],
+        (".text".to_string(), "@\"hELLO wORLD\"".to_string(), true)
     );
 }
 
