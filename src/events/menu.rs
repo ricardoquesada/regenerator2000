@@ -48,62 +48,8 @@ pub fn execute_menu_action(
         }
         MenuAction::Save => {
             if app_state.project_path.is_some() {
-                let cursor_addr = app_state
-                    .disassembly
-                    .get(ui_state.cursor_index)
-                    .map(|l| l.address);
-
-                // Calculate hex cursor address
-                let hex_addr = if !app_state.raw_data.is_empty() {
-                    let origin = app_state.origin as usize;
-                    let alignment_padding = origin % 16;
-                    let aligned_origin = origin - alignment_padding;
-                    let row_start_offset = ui_state.hex_cursor_index * 16;
-                    let addr = aligned_origin + row_start_offset;
-                    Some(addr as u16)
-                } else {
-                    None
-                };
-
-                // Calculate sprites cursor address
-                let sprites_addr = if !app_state.raw_data.is_empty() {
-                    let origin = app_state.origin as usize;
-                    let padding = (64 - (origin % 64)) % 64;
-                    let sprite_offset = ui_state.sprites_cursor_index * 64;
-                    let addr = origin + padding + sprite_offset;
-                    Some(addr as u16)
-                } else {
-                    None
-                };
-
-                let charset_addr = if !app_state.raw_data.is_empty() {
-                    let origin = app_state.origin as usize;
-                    let base_alignment = 0x400;
-                    let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                    let char_offset = ui_state.charset_cursor_index * 8;
-                    let addr = aligned_start_addr + char_offset;
-                    Some(addr as u16)
-                } else {
-                    None
-                };
-
-                let right_pane_str = format!("{:?}", ui_state.right_pane);
-
-                if let Err(e) = app_state.save_project(
-                    crate::state::ProjectSaveContext {
-                        cursor_address: cursor_addr,
-                        hex_dump_cursor_address: hex_addr,
-                        sprites_cursor_address: sprites_addr,
-                        right_pane_visible: Some(right_pane_str),
-                        charset_cursor_address: charset_addr,
-                        sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
-                        charset_multicolor_mode: ui_state.charset_multicolor_mode,
-                        petscii_mode: ui_state.petscii_mode,
-                        splitters: app_state.splitters.clone(),
-                        blocks_view_cursor: ui_state.blocks_list_state.selected(),
-                    },
-                    true,
-                ) {
+                let context = create_save_context(app_state, ui_state);
+                if let Err(e) = app_state.save_project(context, true) {
                     ui_state.set_status_message(format!("Error saving: {}", e));
                 } else {
                     ui_state.set_status_message("Project saved");
@@ -173,356 +119,25 @@ pub fn execute_menu_action(
             ui_state.set_status_message(app_state.redo_last_command());
         }
 
-        MenuAction::Code => {
-            if ui_state.active_pane == ActivePane::Blocks {
-                let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected()
-                    && idx < blocks.len()
-                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
-                {
-                    let start_idx = start as usize;
-                    let end_idx = end as usize;
-                    app_state.set_block_type_region(
-                        crate::state::BlockType::Code,
-                        Some(start_idx),
-                        end_idx,
-                    );
-                    ui_state.set_status_message("Set block type to Code");
-                }
-            } else if let Some(start_index) = ui_state.selection_start {
-                let start = start_index.min(ui_state.cursor_index);
-                let end = start_index.max(ui_state.cursor_index);
-
-                let target_address = if let Some(line) = app_state.disassembly.get(end) {
-                    line.address
-                        .wrapping_add(line.bytes.len() as u16)
-                        .wrapping_sub(1)
-                } else {
-                    0
-                };
-
-                app_state.set_block_type_region(crate::state::BlockType::Code, Some(start), end);
-                ui_state.selection_start = None;
-                ui_state.is_visual_mode = false;
-
-                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
-                    ui_state.cursor_index = idx;
-                }
-            } else {
-                app_state.set_block_type_region(
-                    crate::state::BlockType::Code,
-                    ui_state.selection_start,
-                    ui_state.cursor_index,
-                );
-            }
-        }
+        MenuAction::Code => apply_block_type(app_state, ui_state, crate::state::BlockType::Code),
         MenuAction::Byte => {
-            if ui_state.active_pane == ActivePane::Blocks {
-                let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected()
-                    && idx < blocks.len()
-                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
-                {
-                    let start_idx = start as usize;
-                    let end_idx = end as usize;
-                    app_state.set_block_type_region(
-                        crate::state::BlockType::DataByte,
-                        Some(start_idx),
-                        end_idx,
-                    );
-                    ui_state.set_status_message("Set block type to Byte");
-                }
-            } else if let Some(start_index) = ui_state.selection_start {
-                let start = start_index.min(ui_state.cursor_index);
-                let end = start_index.max(ui_state.cursor_index);
-
-                let target_address = if let Some(line) = app_state.disassembly.get(end) {
-                    line.address
-                        .wrapping_add(line.bytes.len() as u16)
-                        .wrapping_sub(1)
-                } else {
-                    0
-                };
-
-                app_state.set_block_type_region(
-                    crate::state::BlockType::DataByte,
-                    Some(start),
-                    end,
-                );
-                ui_state.selection_start = None;
-                ui_state.is_visual_mode = false;
-
-                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
-                    ui_state.cursor_index = idx;
-                }
-            } else {
-                app_state.set_block_type_region(
-                    crate::state::BlockType::DataByte,
-                    ui_state.selection_start,
-                    ui_state.cursor_index,
-                );
-            }
+            apply_block_type(app_state, ui_state, crate::state::BlockType::DataByte)
         }
         MenuAction::Word => {
-            if ui_state.active_pane == ActivePane::Blocks {
-                let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected()
-                    && idx < blocks.len()
-                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
-                {
-                    let start_idx = start as usize;
-                    let end_idx = end as usize;
-                    app_state.set_block_type_region(
-                        crate::state::BlockType::DataWord,
-                        Some(start_idx),
-                        end_idx,
-                    );
-                    ui_state.set_status_message("Set block type to Word");
-                }
-            } else if let Some(start_index) = ui_state.selection_start {
-                let start = start_index.min(ui_state.cursor_index);
-                let end = start_index.max(ui_state.cursor_index);
-
-                let target_address = if let Some(line) = app_state.disassembly.get(end) {
-                    line.address
-                        .wrapping_add(line.bytes.len() as u16)
-                        .wrapping_sub(1)
-                } else {
-                    0
-                };
-
-                app_state.set_block_type_region(
-                    crate::state::BlockType::DataWord,
-                    Some(start),
-                    end,
-                );
-                ui_state.selection_start = None;
-                ui_state.is_visual_mode = false;
-
-                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
-                    ui_state.cursor_index = idx;
-                }
-            } else {
-                app_state.set_block_type_region(
-                    crate::state::BlockType::DataWord,
-                    ui_state.selection_start,
-                    ui_state.cursor_index,
-                );
-            }
+            apply_block_type(app_state, ui_state, crate::state::BlockType::DataWord)
         }
         MenuAction::SetExternalFile => {
-            if ui_state.active_pane == ActivePane::Blocks {
-                // Not supported/No specific action on block yet
-            } else if let Some(start_index) = ui_state.selection_start {
-                let start = start_index.min(ui_state.cursor_index);
-                let end = start_index.max(ui_state.cursor_index);
-
-                let target_address = if let Some(line) = app_state.disassembly.get(end) {
-                    line.address
-                        .wrapping_add(line.bytes.len() as u16)
-                        .wrapping_sub(1)
-                } else {
-                    0
-                };
-
-                app_state.set_block_type_region(
-                    crate::state::BlockType::ExternalFile,
-                    Some(start),
-                    end,
-                );
-                ui_state.selection_start = None;
-                ui_state.is_visual_mode = false;
-
-                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
-                    ui_state.cursor_index = idx;
-                }
-            } else {
-                app_state.set_block_type_region(
-                    crate::state::BlockType::ExternalFile,
-                    ui_state.selection_start,
-                    ui_state.cursor_index,
-                );
-            }
+            apply_block_type(app_state, ui_state, crate::state::BlockType::ExternalFile)
         }
         MenuAction::Address => {
-            if ui_state.active_pane == ActivePane::Blocks {
-                let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected()
-                    && idx < blocks.len()
-                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
-                {
-                    let start_idx = start as usize;
-                    let end_idx = end as usize;
-                    app_state.set_block_type_region(
-                        crate::state::BlockType::Address,
-                        Some(start_idx),
-                        end_idx,
-                    );
-                    ui_state.set_status_message("Set block type to Address");
-                }
-            } else if let Some(start_index) = ui_state.selection_start {
-                let start = start_index.min(ui_state.cursor_index);
-                let end = start_index.max(ui_state.cursor_index);
-
-                let target_address = if let Some(line) = app_state.disassembly.get(end) {
-                    line.address
-                        .wrapping_add(line.bytes.len() as u16)
-                        .wrapping_sub(1)
-                } else {
-                    0
-                };
-
-                app_state.set_block_type_region(crate::state::BlockType::Address, Some(start), end);
-                ui_state.selection_start = None;
-                ui_state.is_visual_mode = false;
-
-                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
-                    ui_state.cursor_index = idx;
-                }
-            } else {
-                app_state.set_block_type_region(
-                    crate::state::BlockType::Address,
-                    ui_state.selection_start,
-                    ui_state.cursor_index,
-                );
-            }
+            apply_block_type(app_state, ui_state, crate::state::BlockType::Address)
         }
-        MenuAction::Text => {
-            if ui_state.active_pane == ActivePane::Blocks {
-                let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected()
-                    && idx < blocks.len()
-                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
-                {
-                    let start_idx = start as usize;
-                    let end_idx = end as usize;
-                    app_state.set_block_type_region(
-                        crate::state::BlockType::Text,
-                        Some(start_idx),
-                        end_idx,
-                    );
-                    ui_state.set_status_message("Set block type to Text");
-                }
-            } else if let Some(start_index) = ui_state.selection_start {
-                let start = start_index.min(ui_state.cursor_index);
-                let end = start_index.max(ui_state.cursor_index);
-
-                let target_address = if let Some(line) = app_state.disassembly.get(end) {
-                    line.address
-                        .wrapping_add(line.bytes.len() as u16)
-                        .wrapping_sub(1)
-                } else {
-                    0
-                };
-
-                app_state.set_block_type_region(crate::state::BlockType::Text, Some(start), end);
-                ui_state.selection_start = None;
-                ui_state.is_visual_mode = false;
-
-                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
-                    ui_state.cursor_index = idx;
-                }
-            } else {
-                app_state.set_block_type_region(
-                    crate::state::BlockType::Text,
-                    ui_state.selection_start,
-                    ui_state.cursor_index,
-                );
-            }
-        }
+        MenuAction::Text => apply_block_type(app_state, ui_state, crate::state::BlockType::Text),
         MenuAction::Screencode => {
-            if ui_state.active_pane == ActivePane::Blocks {
-                let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected()
-                    && idx < blocks.len()
-                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
-                {
-                    let start_idx = start as usize;
-                    let end_idx = end as usize;
-                    app_state.set_block_type_region(
-                        crate::state::BlockType::Screencode,
-                        Some(start_idx),
-                        end_idx,
-                    );
-                    ui_state.set_status_message("Set block type to Screencode");
-                }
-            } else if let Some(start_index) = ui_state.selection_start {
-                let start = start_index.min(ui_state.cursor_index);
-                let end = start_index.max(ui_state.cursor_index);
-
-                let target_address = if let Some(line) = app_state.disassembly.get(end) {
-                    line.address
-                        .wrapping_add(line.bytes.len() as u16)
-                        .wrapping_sub(1)
-                } else {
-                    0
-                };
-
-                app_state.set_block_type_region(
-                    crate::state::BlockType::Screencode,
-                    Some(start),
-                    end,
-                );
-                ui_state.selection_start = None;
-                ui_state.is_visual_mode = false;
-
-                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
-                    ui_state.cursor_index = idx;
-                }
-            } else {
-                app_state.set_block_type_region(
-                    crate::state::BlockType::Screencode,
-                    ui_state.selection_start,
-                    ui_state.cursor_index,
-                );
-            }
+            apply_block_type(app_state, ui_state, crate::state::BlockType::Screencode)
         }
         MenuAction::Undefined => {
-            if ui_state.active_pane == ActivePane::Blocks {
-                let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected()
-                    && idx < blocks.len()
-                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
-                {
-                    let start_idx = start as usize;
-                    let end_idx = end as usize;
-                    app_state.set_block_type_region(
-                        crate::state::BlockType::Undefined,
-                        Some(start_idx),
-                        end_idx,
-                    );
-                    ui_state.set_status_message("Set block type to Undefined");
-                }
-            } else if let Some(start_index) = ui_state.selection_start {
-                let start = start_index.min(ui_state.cursor_index);
-                let end = start_index.max(ui_state.cursor_index);
-
-                let target_address = if let Some(line) = app_state.disassembly.get(end) {
-                    line.address
-                        .wrapping_add(line.bytes.len() as u16)
-                        .wrapping_sub(1)
-                } else {
-                    0
-                };
-
-                app_state.set_block_type_region(
-                    crate::state::BlockType::Undefined,
-                    Some(start),
-                    end,
-                );
-                ui_state.selection_start = None;
-                ui_state.is_visual_mode = false;
-
-                if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
-                    ui_state.cursor_index = idx;
-                }
-            } else {
-                app_state.set_block_type_region(
-                    crate::state::BlockType::Undefined,
-                    ui_state.selection_start,
-                    ui_state.cursor_index,
-                );
-            }
+            apply_block_type(app_state, ui_state, crate::state::BlockType::Undefined)
         }
         MenuAction::JumpToAddress => {
             ui_state.jump_to_address_dialog.open();
@@ -712,122 +327,8 @@ pub fn execute_menu_action(
                 ui_state.set_status_message("Charset: Single Color Mode");
             }
         }
-        MenuAction::SetLoHi => {
-            if ui_state.active_pane == ActivePane::Blocks {
-                let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected()
-                    && idx < blocks.len()
-                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
-                {
-                    let len = (end as usize) - (start as usize) + 1;
-                    if !len.is_multiple_of(2) {
-                        ui_state.set_status_message("Error: LoHi requires even number of bytes");
-                    } else {
-                        let start_idx = start as usize;
-                        let end_idx = end as usize;
-                        app_state.set_block_type_region(
-                            crate::state::BlockType::LoHi,
-                            Some(start_idx),
-                            end_idx,
-                        );
-                        ui_state.set_status_message("Set block type to LoHi");
-                    }
-                }
-            } else if let Some(start_index) = ui_state.selection_start {
-                let start = start_index.min(ui_state.cursor_index);
-                let end = start_index.max(ui_state.cursor_index);
-                let len = end - start + 1;
-
-                if len % 2 != 0 {
-                    ui_state.set_status_message("Error: LoHi requires even number of bytes");
-                } else {
-                    // Calculate target address (last byte of the selection)
-                    let target_address = if let Some(line) = app_state.disassembly.get(end) {
-                        line.address
-                            .wrapping_add(line.bytes.len() as u16)
-                            .wrapping_sub(1)
-                    } else {
-                        0
-                    };
-
-                    app_state.set_block_type_region(
-                        crate::state::BlockType::LoHi,
-                        Some(start),
-                        end,
-                    );
-                    ui_state.selection_start = None;
-                    ui_state.is_visual_mode = false;
-
-                    // Move cursor to the line containing target_address
-                    if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
-                        ui_state.cursor_index = idx;
-                    }
-
-                    ui_state.set_status_message("Set block type to Lo/Hi Address");
-                }
-            } else {
-                // Single byte is NOT allowed for LoHi as it's odd (length 1)
-                ui_state.set_status_message("Error: LoHi requires even number of bytes");
-            }
-        }
-        MenuAction::SetHiLo => {
-            if ui_state.active_pane == ActivePane::Blocks {
-                let blocks = app_state.get_blocks_view_items();
-                if let Some(idx) = ui_state.blocks_list_state.selected()
-                    && idx < blocks.len()
-                    && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
-                {
-                    let len = (end as usize) - (start as usize) + 1;
-                    if !len.is_multiple_of(2) {
-                        ui_state.set_status_message("Error: HiLo requires even number of bytes");
-                    } else {
-                        let start_idx = start as usize;
-                        let end_idx = end as usize;
-                        app_state.set_block_type_region(
-                            crate::state::BlockType::HiLo,
-                            Some(start_idx),
-                            end_idx,
-                        );
-                        ui_state.set_status_message("Set block type to HiLo");
-                    }
-                }
-            } else if let Some(start_index) = ui_state.selection_start {
-                let start = start_index.min(ui_state.cursor_index);
-                let end = start_index.max(ui_state.cursor_index);
-                let len = end - start + 1;
-
-                if len % 2 != 0 {
-                    ui_state.set_status_message("Error: HiLo requires even number of bytes");
-                } else {
-                    // Calculate target address (last byte of the selection)
-                    let target_address = if let Some(line) = app_state.disassembly.get(end) {
-                        line.address
-                            .wrapping_add(line.bytes.len() as u16)
-                            .wrapping_sub(1)
-                    } else {
-                        0
-                    };
-
-                    app_state.set_block_type_region(
-                        crate::state::BlockType::HiLo,
-                        Some(start),
-                        end,
-                    );
-                    ui_state.selection_start = None;
-                    ui_state.is_visual_mode = false;
-
-                    // Move cursor to the line containing target_address
-                    if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
-                        ui_state.cursor_index = idx;
-                    }
-
-                    ui_state.set_status_message("Set block type to Hi/Lo Address");
-                }
-            } else {
-                // Single byte is NOT allowed for HiLo as it's odd (length 1)
-                ui_state.set_status_message("Error: HiLo requires even number of bytes");
-            }
-        }
+        MenuAction::SetLoHi => apply_block_type(app_state, ui_state, crate::state::BlockType::LoHi),
+        MenuAction::SetHiLo => apply_block_type(app_state, ui_state, crate::state::BlockType::HiLo),
         MenuAction::SideComment => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                 let address = line.address;
@@ -1136,5 +637,138 @@ pub fn execute_menu_action(
                 }
             }
         }
+    }
+}
+
+fn apply_block_type(
+    app_state: &mut AppState,
+    ui_state: &mut UIState,
+    block_type: crate::state::BlockType,
+) {
+    let needs_even = matches!(
+        block_type,
+        crate::state::BlockType::LoHi | crate::state::BlockType::HiLo
+    );
+
+    if ui_state.active_pane == ActivePane::Blocks {
+        let blocks = app_state.get_blocks_view_items();
+        if let Some(idx) = ui_state.blocks_list_state.selected() {
+            if idx < blocks.len() {
+                if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
+                    let len = (end as usize) - (start as usize) + 1;
+                    if needs_even && len % 2 != 0 {
+                        ui_state.set_status_message(format!(
+                            "Error: {} requires even number of bytes",
+                            block_type
+                        ));
+                        return;
+                    }
+                    app_state.set_block_type_region(block_type, Some(start as usize), end as usize);
+                    ui_state.set_status_message(format!("Set block type to {}", block_type));
+                }
+            }
+        }
+    } else if let Some(start_index) = ui_state.selection_start {
+        let start = start_index.min(ui_state.cursor_index);
+        let end = start_index.max(ui_state.cursor_index);
+        let len = end - start + 1;
+
+        if needs_even && len % 2 != 0 {
+            ui_state.set_status_message(format!(
+                "Error: {} requires even number of bytes",
+                block_type
+            ));
+            return;
+        }
+
+        let target_address = if let Some(line) = app_state.disassembly.get(end) {
+            line.address
+                .wrapping_add(line.bytes.len() as u16)
+                .wrapping_sub(1)
+        } else {
+            0
+        };
+
+        app_state.set_block_type_region(block_type, Some(start), end);
+        ui_state.selection_start = None;
+        ui_state.is_visual_mode = false;
+
+        if let Some(idx) = app_state.get_line_index_containing_address(target_address) {
+            ui_state.cursor_index = idx;
+        }
+
+        ui_state.set_status_message(format!("Set block type to {}", block_type));
+    } else {
+        // Single line
+        if needs_even {
+            ui_state.set_status_message(format!(
+                "Error: {} requires even number of bytes",
+                block_type
+            ));
+            return;
+        }
+        app_state.set_block_type_region(
+            block_type,
+            ui_state.selection_start,
+            ui_state.cursor_index,
+        );
+        ui_state.set_status_message(format!("Set block type to {}", block_type));
+    }
+}
+
+fn create_save_context(
+    app_state: &AppState,
+    ui_state: &UIState,
+) -> crate::state::ProjectSaveContext {
+    let cursor_addr = app_state
+        .disassembly
+        .get(ui_state.cursor_index)
+        .map(|l| l.address);
+
+    let hex_addr = if !app_state.raw_data.is_empty() {
+        let origin = app_state.origin as usize;
+        let alignment_padding = origin % 16;
+        let aligned_origin = origin - alignment_padding;
+        let row_start_offset = ui_state.hex_cursor_index * 16;
+        let addr = aligned_origin + row_start_offset;
+        Some(addr as u16)
+    } else {
+        None
+    };
+
+    let sprites_addr = if !app_state.raw_data.is_empty() {
+        let origin = app_state.origin as usize;
+        let padding = (64 - (origin % 64)) % 64;
+        let sprite_offset = ui_state.sprites_cursor_index * 64;
+        let addr = origin + padding + sprite_offset;
+        Some(addr as u16)
+    } else {
+        None
+    };
+
+    let charset_addr = if !app_state.raw_data.is_empty() {
+        let origin = app_state.origin as usize;
+        let base_alignment = 0x400;
+        let aligned_start_addr = (origin / base_alignment) * base_alignment;
+        let char_offset = ui_state.charset_cursor_index * 8;
+        let addr = aligned_start_addr + char_offset;
+        Some(addr as u16)
+    } else {
+        None
+    };
+
+    let right_pane_str = format!("{:?}", ui_state.right_pane);
+
+    crate::state::ProjectSaveContext {
+        cursor_address: cursor_addr,
+        hex_dump_cursor_address: hex_addr,
+        sprites_cursor_address: sprites_addr,
+        right_pane_visible: Some(right_pane_str),
+        charset_cursor_address: charset_addr,
+        sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
+        charset_multicolor_mode: ui_state.charset_multicolor_mode,
+        petscii_mode: ui_state.petscii_mode,
+        splitters: app_state.splitters.clone(),
+        blocks_view_cursor: ui_state.blocks_list_state.selected(),
     }
 }
