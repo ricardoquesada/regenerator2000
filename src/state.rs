@@ -518,6 +518,23 @@ impl AppState {
         })
     }
 
+    pub fn resolve_initial_load(
+        &mut self,
+        args: &[String],
+    ) -> Option<anyhow::Result<(LoadedProjectData, PathBuf)>> {
+        if args.len() > 1 {
+            let path = PathBuf::from(&args[1]);
+            Some(self.load_file(path.clone()).map(|d| (d, path)))
+        } else if self.system_config.open_last_project
+            && let Some(last_path) = self.system_config.last_project_path.clone()
+            && last_path.exists()
+        {
+            Some(self.load_file(last_path.clone()).map(|d| (d, last_path)))
+        } else {
+            None
+        }
+    }
+
     pub fn load_project(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
         let data = std::fs::read_to_string(&path)?;
         let project: ProjectState = serde_json::from_str(&data)?;

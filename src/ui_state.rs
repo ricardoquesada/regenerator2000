@@ -544,4 +544,78 @@ impl UIState {
     pub fn set_status_message(&mut self, message: impl Into<String>) {
         self.status_message = message.into();
     }
+
+    pub fn restore_session(
+        &mut self,
+        loaded_data: &crate::state::LoadedProjectData,
+        app_state: &crate::state::AppState,
+    ) {
+        let loaded_cursor = loaded_data.cursor_address;
+        let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;
+        let loaded_sprites_cursor = loaded_data.sprites_cursor_address;
+        let loaded_right_pane = &loaded_data.right_pane_visible;
+        let loaded_charset_cursor = loaded_data.charset_cursor_address;
+
+        self.sprite_multicolor_mode = loaded_data.sprite_multicolor_mode;
+        self.charset_multicolor_mode = loaded_data.charset_multicolor_mode;
+        self.petscii_mode = loaded_data.petscii_mode;
+        let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
+        if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
+            self.cursor_index = idx;
+        }
+
+        // Also restore hex cursor if present
+        if let Some(hex_addr) = loaded_hex_cursor
+            && !app_state.raw_data.is_empty()
+        {
+            let origin = app_state.origin as usize;
+            let alignment_padding = origin % 16;
+            let aligned_origin = origin - alignment_padding;
+            let target = hex_addr as usize;
+
+            if target >= aligned_origin {
+                let offset = target - aligned_origin;
+                let row = offset / 16;
+                // Ensure row is within bounds
+                let total_len = app_state.raw_data.len() + alignment_padding;
+                let max_rows = total_len.div_ceil(16);
+                if row < max_rows {
+                    self.hex_cursor_index = row;
+                }
+            }
+        }
+
+        // Restore Right Pane and Sprites Cursor
+        if let Some(pane_str) = loaded_right_pane {
+            match pane_str.as_str() {
+                "HexDump" => self.right_pane = RightPane::HexDump,
+                "Sprites" => self.right_pane = RightPane::Sprites,
+                "Charset" => self.right_pane = RightPane::Charset,
+                "Blocks" => self.right_pane = RightPane::Blocks,
+                _ => {}
+            }
+        }
+        if let Some(idx) = loaded_data.blocks_view_cursor {
+            self.blocks_list_state.select(Some(idx));
+        }
+        if let Some(sprites_addr) = loaded_sprites_cursor {
+            let origin = app_state.origin as usize;
+            let padding = (64 - (origin % 64)) % 64;
+            let addr = sprites_addr as usize;
+            if addr >= origin + padding {
+                let offset = addr - (origin + padding);
+                self.sprites_cursor_index = offset / 64;
+            }
+        }
+        if let Some(charset_addr) = loaded_charset_cursor {
+            let origin = app_state.origin as usize;
+            let base_alignment = 0x400;
+            let aligned_start_addr = (origin / base_alignment) * base_alignment;
+            let addr = charset_addr as usize;
+            if addr >= aligned_start_addr {
+                let offset = addr - aligned_start_addr;
+                self.charset_cursor_index = offset / 8;
+            }
+        }
+    }
 }
