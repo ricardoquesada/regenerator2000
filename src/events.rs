@@ -9,7 +9,7 @@ use ratatui::{Terminal, backend::Backend};
 use std::io;
 
 use input::handle_global_input;
-use menu::handle_menu_action;
+use menu::{execute_menu_action, handle_menu_action};
 
 pub fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
@@ -252,7 +252,7 @@ pub fn run_app<B: Backend>(
                         {
                             ui_state.confirmation_dialog.close();
                             // Use the local helper that delegates to menu module
-                            handle_menu_action(&mut app_state, &mut ui_state, action);
+                            execute_menu_action(&mut app_state, &mut ui_state, action);
                         }
                     }
                     KeyCode::Char('n') => {
