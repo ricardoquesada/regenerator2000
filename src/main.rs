@@ -16,8 +16,11 @@ mod exporter;
 mod state;
 mod ui;
 mod ui_state;
+mod view_blocks;
+mod view_charset;
 mod view_disassembly;
 mod view_hexdump;
+mod view_sprites;
 
 mod config;
 mod theme;

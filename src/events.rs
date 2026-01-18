@@ -833,6 +833,42 @@ pub fn run_app<B: Backend>(
                     }
                 }
 
+                if ui_state.active_pane == ActivePane::Sprites {
+                    use crate::view_sprites::InputResult;
+                    match crate::view_sprites::handle_input(key, &mut app_state, &mut ui_state) {
+                        InputResult::Handled => continue,
+                        InputResult::Action(action) => {
+                            handle_menu_action(&mut app_state, &mut ui_state, action);
+                            continue;
+                        }
+                        InputResult::Ignored => {}
+                    }
+                }
+
+                if ui_state.active_pane == ActivePane::Charset {
+                    use crate::view_charset::InputResult;
+                    match crate::view_charset::handle_input(key, &mut app_state, &mut ui_state) {
+                        InputResult::Handled => continue,
+                        InputResult::Action(action) => {
+                            handle_menu_action(&mut app_state, &mut ui_state, action);
+                            continue;
+                        }
+                        InputResult::Ignored => {}
+                    }
+                }
+
+                if ui_state.active_pane == ActivePane::Blocks {
+                    use crate::view_blocks::InputResult;
+                    match crate::view_blocks::handle_input(key, &mut app_state, &mut ui_state) {
+                        InputResult::Handled => continue,
+                        InputResult::Action(action) => {
+                            handle_menu_action(&mut app_state, &mut ui_state, action);
+                            continue;
+                        }
+                        InputResult::Ignored => {}
+                    }
+                }
+
                 match key.code {
                     KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         handle_menu_action(
@@ -949,10 +985,7 @@ pub fn run_app<B: Backend>(
                                 ui_state.sprites_cursor_index =
                                     ui_state.sprites_cursor_index.saturating_sub(10);
                             }
-                            ActivePane::Charset => {
-                                ui_state.charset_cursor_index =
-                                    ui_state.charset_cursor_index.saturating_sub(10);
-                            }
+                            ActivePane::Charset => {}
                             ActivePane::Blocks => {
                                 ui_state.blocks_list_state.select(Some(
                                     ui_state
@@ -980,35 +1013,9 @@ pub fn run_app<B: Backend>(
                                 }
 
                                 ActivePane::HexDump => {}
-                                ActivePane::Sprites => {
-                                    let origin = app_state.origin as usize;
-                                    let padding = (64 - (origin % 64)) % 64;
-                                    let usable_len =
-                                        app_state.raw_data.len().saturating_sub(padding);
-                                    let total_sprites = usable_len.div_ceil(64);
-                                    ui_state.sprites_cursor_index = (ui_state.sprites_cursor_index
-                                        + 10)
-                                        .min(total_sprites.saturating_sub(1));
-                                }
-                                ActivePane::Charset => {
-                                    let origin = app_state.origin as usize;
-                                    let base_alignment = 0x400;
-                                    let aligned_start_addr =
-                                        (origin / base_alignment) * base_alignment;
-                                    let end_addr = origin + app_state.raw_data.len();
-                                    let max_char_index =
-                                        (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
-                                    ui_state.charset_cursor_index = (ui_state.charset_cursor_index
-                                        + 10)
-                                        .min(max_char_index.saturating_sub(1));
-                                }
-                                ActivePane::Blocks => {
-                                    let blocks = app_state.get_compressed_blocks();
-                                    let current =
-                                        ui_state.blocks_list_state.selected().unwrap_or(0);
-                                    let next = (current + 10).min(blocks.len().saturating_sub(1));
-                                    ui_state.blocks_list_state.select(Some(next));
-                                }
+                                ActivePane::Sprites => {}
+                                ActivePane::Charset => {}
+                                ActivePane::Blocks => {}
                             }
                         }
                     }
@@ -1110,77 +1117,9 @@ pub fn run_app<B: Backend>(
                             }
 
                             ActivePane::HexDump => {}
-                            ActivePane::Sprites => {
-                                let origin = app_state.origin as usize;
-                                let padding = (64 - (origin % 64)) % 64;
-                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
-                                let total_sprites = usable_len.div_ceil(64);
-                                let target_sprite = if is_buffer_empty {
-                                    total_sprites
-                                } else {
-                                    entered_number
-                                };
-
-                                let new_cursor = if target_sprite == 0 {
-                                    total_sprites.saturating_sub(1)
-                                } else {
-                                    target_sprite
-                                        .saturating_sub(1)
-                                        .min(total_sprites.saturating_sub(1))
-                                };
-
-                                ui_state
-                                    .navigation_history
-                                    .push((ui_state.active_pane, ui_state.sprites_cursor_index));
-                                ui_state.sprites_cursor_index = new_cursor;
-                                ui_state.set_status_message(format!(
-                                    "Jumped to sprite {}",
-                                    target_sprite
-                                ));
-                            }
-                            ActivePane::Charset => {
-                                let origin = app_state.origin as usize;
-                                let base_alignment = 0x400;
-                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                                let end_addr = origin + app_state.raw_data.len();
-                                let max_char_index =
-                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
-                                let target_char = if is_buffer_empty {
-                                    max_char_index
-                                } else {
-                                    entered_number
-                                };
-
-                                let new_cursor = if target_char == 0 {
-                                    max_char_index.saturating_sub(1)
-                                } else {
-                                    target_char
-                                        .saturating_sub(1)
-                                        .min(max_char_index.saturating_sub(1))
-                                };
-
-                                ui_state
-                                    .navigation_history
-                                    .push((ui_state.active_pane, ui_state.charset_cursor_index));
-                                ui_state.charset_cursor_index = new_cursor;
-                                ui_state
-                                    .set_status_message(format!("Jumped to char {}", target_char));
-                            }
-                            ActivePane::Blocks => {
-                                let blocks = app_state.get_blocks_view_items();
-                                let target = if is_buffer_empty {
-                                    blocks.len()
-                                } else {
-                                    entered_number
-                                };
-                                let new_selection = if target == 0 {
-                                    blocks.len().saturating_sub(1)
-                                } else {
-                                    target.saturating_sub(1).min(blocks.len().saturating_sub(1))
-                                };
-                                ui_state.blocks_list_state.select(Some(new_selection));
-                                ui_state.set_status_message(format!("Jumped to block {}", target));
-                            }
+                            ActivePane::Sprites => {}
+                            ActivePane::Charset => {}
+                            ActivePane::Blocks => {}
                         }
                     }
 
@@ -1582,12 +1521,7 @@ pub fn run_app<B: Backend>(
                     {
                         ui_state.input_buffer.clear();
                         match ui_state.active_pane {
-                            ActivePane::Blocks => {
-                                let blocks = app_state.get_compressed_blocks();
-                                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
-                                let next = (current + 1).min(blocks.len().saturating_sub(1));
-                                ui_state.blocks_list_state.select(Some(next));
-                            }
+                            ActivePane::Blocks => {}
                             ActivePane::Disassembly => {
                                 if key.modifiers.contains(KeyModifiers::SHIFT)
                                     || ui_state.is_visual_mode
@@ -1626,31 +1560,8 @@ pub fn run_app<B: Backend>(
                                     ui_state.sub_cursor_index = 0;
                                 }
                             }
-                            ActivePane::Sprites => {
-                                let origin = app_state.origin as usize;
-                                let padding = (64 - (origin % 64)) % 64;
-                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
-                                let total_sprites = usable_len.div_ceil(64);
-                                if ui_state.sprites_cursor_index < total_sprites.saturating_sub(1) {
-                                    ui_state.sprites_cursor_index += 1;
-                                }
-                            }
-                            ActivePane::Charset => {
-                                let origin = app_state.origin as usize;
-                                let base_alignment = 0x400;
-                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                                let end_addr = origin + app_state.raw_data.len();
-                                let max_char_index =
-                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
-
-                                // Move Down by 8 (one row)
-                                if ui_state.charset_cursor_index + 8 < max_char_index {
-                                    ui_state.charset_cursor_index += 8;
-                                } else {
-                                    ui_state.charset_cursor_index =
-                                        max_char_index.saturating_sub(1);
-                                }
-                            }
+                            ActivePane::Sprites => {}
+                            ActivePane::Charset => {}
                             ActivePane::HexDump => {}
                         }
                     }
@@ -1696,21 +1607,9 @@ pub fn run_app<B: Backend>(
                                 }
                             }
                             ActivePane::HexDump => {}
-                            ActivePane::Sprites => {
-                                if ui_state.sprites_cursor_index > 0 {
-                                    ui_state.sprites_cursor_index -= 1;
-                                }
-                            }
-                            ActivePane::Charset => {
-                                // Move Up by 8 (one row)
-                                ui_state.charset_cursor_index =
-                                    ui_state.charset_cursor_index.saturating_sub(8);
-                            }
-                            ActivePane::Blocks => {
-                                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
-                                let next = current.saturating_sub(1);
-                                ui_state.blocks_list_state.select(Some(next));
-                            }
+                            ActivePane::Sprites => {}
+                            ActivePane::Charset => {}
+                            ActivePane::Blocks => {}
                         }
                     }
                     KeyCode::Tab => {
@@ -1791,11 +1690,7 @@ pub fn run_app<B: Backend>(
                                 ui_state.charset_cursor_index =
                                     ui_state.charset_cursor_index.saturating_sub(256);
                             }
-                            ActivePane::Blocks => {
-                                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
-                                let next = current.saturating_sub(10);
-                                ui_state.blocks_list_state.select(Some(next));
-                            }
+                            ActivePane::Blocks => {}
                         }
                     }
                     KeyCode::Home => {
@@ -1803,9 +1698,9 @@ pub fn run_app<B: Backend>(
                         match ui_state.active_pane {
                             ActivePane::Disassembly => ui_state.cursor_index = 0,
                             ActivePane::HexDump => {}
-                            ActivePane::Sprites => ui_state.sprites_cursor_index = 0,
-                            ActivePane::Charset => ui_state.charset_cursor_index = 0,
-                            ActivePane::Blocks => ui_state.blocks_list_state.select(Some(0)),
+                            ActivePane::Sprites => {}
+                            ActivePane::Charset => {}
+                            ActivePane::Blocks => {}
                         }
                     }
                     KeyCode::End => {
@@ -1815,28 +1710,10 @@ pub fn run_app<B: Backend>(
                                 ui_state.cursor_index =
                                     app_state.disassembly.len().saturating_sub(1)
                             }
-                            ActivePane::Blocks => {
-                                let blocks = app_state.get_blocks_view_items();
-                                let last = blocks.len().saturating_sub(1);
-                                ui_state.blocks_list_state.select(Some(last));
-                            }
+                            ActivePane::Blocks => {}
                             ActivePane::HexDump => {}
-                            ActivePane::Sprites => {
-                                let origin = app_state.origin as usize;
-                                let padding = (64 - (origin % 64)) % 64;
-                                let usable_len = app_state.raw_data.len().saturating_sub(padding);
-                                let total_sprites = usable_len.div_ceil(64);
-                                ui_state.sprites_cursor_index = total_sprites.saturating_sub(1);
-                            }
-                            ActivePane::Charset => {
-                                let origin = app_state.origin as usize;
-                                let base_alignment = 0x400;
-                                let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                                let end_addr = origin + app_state.raw_data.len();
-                                let max_char_index =
-                                    (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
-                                ui_state.charset_cursor_index = max_char_index.saturating_sub(1);
-                            }
+                            ActivePane::Sprites => {}
+                            ActivePane::Charset => {}
                         }
                     }
                     KeyCode::Char('m') if key.modifiers.is_empty() => {
