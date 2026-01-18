@@ -809,7 +809,8 @@ pub fn run_app<B: Backend>(
                                 current_idx - 1
                             };
                             app_state.settings.assembler = assemblers[new_idx];
-                            if app_state.settings.assembler == crate::state::Assembler::Kick
+                            if (app_state.settings.assembler == crate::state::Assembler::Kick
+                                || app_state.settings.assembler == crate::state::Assembler::Ca65)
                                 && !app_state.settings.brk_single_byte
                             {
                                 app_state.settings.patch_brk = true;
@@ -910,7 +911,8 @@ pub fn run_app<B: Backend>(
                                 .unwrap_or(0);
                             let new_idx = (current_idx + 1) % assemblers.len();
                             app_state.settings.assembler = assemblers[new_idx];
-                            if app_state.settings.assembler == crate::state::Assembler::Kick
+                            if (app_state.settings.assembler == crate::state::Assembler::Kick
+                                || app_state.settings.assembler == crate::state::Assembler::Ca65)
                                 && !app_state.settings.brk_single_byte
                             {
                                 app_state.settings.patch_brk = true;
@@ -1005,15 +1007,19 @@ pub fn run_app<B: Backend>(
                                         app_state.settings.patch_brk = false;
                                     } else if app_state.settings.assembler
                                         == crate::state::Assembler::Kick
+                                        || app_state.settings.assembler
+                                            == crate::state::Assembler::Ca65
                                     {
                                         app_state.settings.patch_brk = true;
                                     }
                                 }
                                 3 => {
                                     if !app_state.settings.brk_single_byte {
-                                        let is_kick = app_state.settings.assembler
-                                            == crate::state::Assembler::Kick;
-                                        if !is_kick {
+                                        let is_enforced = app_state.settings.assembler
+                                            == crate::state::Assembler::Kick
+                                            || app_state.settings.assembler
+                                                == crate::state::Assembler::Ca65;
+                                        if !is_enforced {
                                             app_state.settings.patch_brk =
                                                 !app_state.settings.patch_brk;
                                         }

@@ -380,8 +380,9 @@ fn render_settings_dialog(
         Span::styled(format!("{} {}", check_char, label), style)
     };
 
-    let patch_brk_disabled =
-        settings.brk_single_byte || settings.assembler == crate::state::Assembler::Kick;
+    let patch_brk_disabled = settings.brk_single_byte
+        || settings.assembler == crate::state::Assembler::Kick
+        || settings.assembler == crate::state::Assembler::Ca65;
 
     let items = vec![
         checkbox(

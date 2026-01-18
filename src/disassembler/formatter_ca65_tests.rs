@@ -126,3 +126,72 @@ fn test_forced_absolute() {
         ("lda".to_string(), "$02".to_string())
     );
 }
+
+#[test]
+fn test_format_screencode() {
+    use crate::disassembler::formatter::TextFragment;
+    let settings = DocumentSettings {
+        assembler: Assembler::Ca65,
+        ..Default::default()
+    };
+    let formatter = Disassembler::create_formatter(settings.assembler);
+
+    // Case 1: Pure text
+    let fragments = vec![TextFragment::Text("HELLO WORLD".to_string())];
+    let lines = formatter.format_screencode(&fragments);
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].0, "scrcode");
+    assert_eq!(lines[0].1, "\"hello world\""); // Swapped case
+
+    // Case 2: Text mixed with bytes
+    let fragments = vec![
+        TextFragment::Text("HELLO".to_string()),
+        TextFragment::Byte(0x00),
+        TextFragment::Text("WORLD".to_string()),
+    ];
+    let lines = formatter.format_screencode(&fragments);
+    assert_eq!(lines.len(), 3);
+    assert_eq!(lines[0].0, "scrcode");
+    assert_eq!(lines[0].1, "\"hello\""); // Swapped case
+    assert_eq!(lines[1].0, ".byte");
+    assert_eq!(lines[1].1, "$00");
+    assert_eq!(lines[2].0, "scrcode");
+    assert_eq!(lines[2].1, "\"world\""); // Swapped case
+
+    // Case 3: Quote escaping
+    let fragments = vec![TextFragment::Text("FOO\"BAR".to_string())];
+    let lines = formatter.format_screencode(&fragments);
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].0, "scrcode");
+    assert_eq!(lines[0].1, "\"foo\", $22, \"bar\""); // Swapped case
+
+    // Case 4: Case swapping
+    // "Hello World" -> "hELLO wORLD"
+    let fragments = vec![TextFragment::Text("Hello World".to_string())];
+    let lines = formatter.format_screencode(&fragments);
+    assert_eq!(lines[0].1, "\"hELLO wORLD\"");
+}
+
+#[test]
+fn test_format_text_escaping() {
+    use crate::disassembler::formatter::TextFragment;
+    let settings = DocumentSettings {
+        assembler: Assembler::Ca65,
+        ..Default::default()
+    };
+    let formatter = Disassembler::create_formatter(settings.assembler);
+
+    // Case 1: Quotes
+    // Expected: "He said ", $22, "Hi", $22
+    let fragments = vec![TextFragment::Text("He said \"Hi\"".to_string())];
+    let lines = formatter.format_text(&fragments, true, true);
+    // format_text returns Vec<(String, String, bool)> where .1 is the operand
+    // We expect: .byte "He said ", $22, "Hi", $22
+    assert_eq!(lines[0].1, "\"He said \", $22, \"Hi\", $22");
+
+    // Case 2: Backslash
+    // Expected: "C:\DOS" (no escaping for backslash)
+    let fragments = vec![TextFragment::Text("C:\\DOS".to_string())];
+    let lines = formatter.format_text(&fragments, true, true);
+    assert_eq!(lines[0].1, "\"C:\\DOS\"");
+}

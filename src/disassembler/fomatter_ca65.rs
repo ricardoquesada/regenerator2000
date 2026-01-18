@@ -195,8 +195,18 @@ impl Formatter for Ca65Formatter {
         for fragment in fragments {
             match fragment {
                 TextFragment::Text(s) => {
-                    let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
-                    parts.push(format!("\"{}\"", escaped))
+                    let mut first = true;
+                    // ca65 doesn't support \" escapes. We must split by " and insert $22.
+                    // Also, we do NOT escape backslashes.
+                    for part in s.split('"') {
+                        if !first {
+                            parts.push("$22".to_string());
+                        }
+                        if !part.is_empty() {
+                            parts.push(format!("\"{}\"", part));
+                        }
+                        first = false;
+                    }
                 }
                 TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
             }
@@ -212,41 +222,45 @@ impl Formatter for Ca65Formatter {
         &self,
         fragments: &[super::formatter::TextFragment],
     ) -> Vec<(String, String, bool)> {
-        // ca65 doesn't have a direct !scr equivalent without macros.
-        // We will output as bytes for safety, OR revert to .byte "string" but inverted manually if we want.
-        // But since we don't have a reliable way to say "this string is screencode" in vanilla ca65 without macros/charmaps
-        // let's stick to byte values for now to ensure correctness, OR
-        // use .byte with comments?
-        // Actually, users prefer readable text.
-        // For ACME we inverted.
-        // For ca65, we can use a similar strategy: emit bytes, but maybe comment specific chars?
-        // Wait, Tass uses .text encoding "screen".
-        // ca65 has .charmap.
-        // But setting up charmaps is complex.
-        // Let's just output bytes for screencodes to be safe and correct.
-        // OR try to mimic ACME logic but output .byte
         use super::formatter::TextFragment;
-        let mut parts = Vec::new();
+        let mut lines = Vec::new();
         for fragment in fragments {
             match fragment {
                 TextFragment::Text(s) => {
-                    for c in s.chars() {
-                        // Invert case logic similar to ACME
-                        let inverted_char = if c.is_ascii_lowercase() {
-                            c.to_ascii_uppercase()
-                        } else if c.is_ascii_uppercase() {
-                            c.to_ascii_lowercase()
-                        } else {
-                            c
-                        };
-                        // We output as byte to be safe
-                        parts.push(format!("${:02x}", inverted_char as u8));
+                    let s_swapped: String = s
+                        .chars()
+                        .map(|c| {
+                            if c.is_ascii_uppercase() {
+                                c.to_ascii_lowercase()
+                            } else if c.is_ascii_lowercase() {
+                                c.to_ascii_uppercase()
+                            } else {
+                                c
+                            }
+                        })
+                        .collect();
+
+                    let mut parts = Vec::new();
+                    let mut first = true;
+                    for part in s_swapped.split('"') {
+                        if !first {
+                            parts.push("$22".to_string());
+                        }
+                        if !part.is_empty() {
+                            parts.push(format!("\"{}\"", part));
+                        }
+                        first = false;
+                    }
+                    if !parts.is_empty() {
+                        lines.push(("scrcode".to_string(), parts.join(", "), true));
                     }
                 }
-                TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
+                TextFragment::Byte(b) => {
+                    lines.push((".byte".to_string(), format!("${:02x}", b), true));
+                }
             }
         }
-        vec![(".byte".to_string(), parts.join(", "), true)]
+        lines
     }
 
     fn format_screencode_post(&self) -> Vec<(String, String)> {
