@@ -420,13 +420,13 @@ fn render_settings_dialog(
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(items.len() as u16 + 1), // Checkboxes + padding
-            Constraint::Length(2),                      // Platform
             Constraint::Length(2),                      // Max X-Refs
             Constraint::Length(2),                      // Arrow Columns
             Constraint::Length(2),                      // Text Line Limit
             Constraint::Length(2),                      // Addresses Per Line
             Constraint::Length(2),                      // Bytes Per Line
             Constraint::Length(2),                      // Assembler
+            Constraint::Length(2),                      // Platform
         ])
         .split(inner);
 
@@ -442,37 +442,8 @@ fn render_settings_dialog(
         );
     }
 
-    // Platform Section
-    let platform_label = Span::styled(
-        "Platform:",
-        Style::default().add_modifier(Modifier::UNDERLINED),
-    );
-    f.render_widget(
-        Paragraph::new(platform_label),
-        Rect::new(layout[1].x + 2, layout[1].y, layout[1].width - 4, 1),
-    );
-
-    let platforms = crate::state::Platform::all();
-
-    // Check if platform is selected
-    let platform_selected = dialog.selected_index == 5;
-
-    let platform_text = format!("Platform: < {} >", settings.platform);
-    let platform_widget = Paragraph::new(platform_text).style(if platform_selected {
-        Style::default()
-            .fg(theme.highlight_fg)
-            .add_modifier(Modifier::BOLD)
-    } else {
-        Style::default().fg(theme.dialog_fg)
-    });
-
-    f.render_widget(
-        platform_widget,
-        Rect::new(layout[1].x + 2, layout[1].y, layout[1].width - 4, 1),
-    );
-
-    // X-Refs uses layout[2]
-    let xref_selected = dialog.selected_index == 6;
+    // X-Refs uses layout[1]
+    let xref_selected = dialog.selected_index == 5;
     let xref_value_str = if dialog.is_editing_xref_count {
         dialog.xref_count_input.clone()
     } else {
@@ -480,14 +451,6 @@ fn render_settings_dialog(
     };
     let xref_text = format!("Max X-Refs: < {} >", xref_value_str);
 
-    // Arrow Columns
-    let arrow_selected = dialog.selected_index == 7;
-    let arrow_value_str = if dialog.is_editing_arrow_columns {
-        dialog.arrow_columns_input.clone()
-    } else {
-        settings.max_arrow_columns.to_string()
-    };
-    let arrow_text = format!("Arrow Columns: < {} >", arrow_value_str);
     let xref_widget = Paragraph::new(xref_text).style(if xref_selected {
         Style::default()
             .fg(theme.highlight_fg)
@@ -498,8 +461,17 @@ fn render_settings_dialog(
 
     f.render_widget(
         xref_widget,
-        Rect::new(layout[2].x + 2, layout[2].y, layout[2].width - 4, 1),
+        Rect::new(layout[1].x + 2, layout[1].y, layout[1].width - 4, 1),
     );
+
+    // Arrow Columns
+    let arrow_selected = dialog.selected_index == 6;
+    let arrow_value_str = if dialog.is_editing_arrow_columns {
+        dialog.arrow_columns_input.clone()
+    } else {
+        settings.max_arrow_columns.to_string()
+    };
+    let arrow_text = format!("Arrow Columns: < {} >", arrow_value_str);
 
     let arrow_widget = Paragraph::new(arrow_text).style(if arrow_selected {
         Style::default()
@@ -511,11 +483,11 @@ fn render_settings_dialog(
 
     f.render_widget(
         arrow_widget,
-        Rect::new(layout[3].x + 2, layout[3].y, layout[3].width - 4, 1),
+        Rect::new(layout[2].x + 2, layout[2].y, layout[2].width - 4, 1),
     );
 
     // Text Line Limit
-    let text_limit_selected = dialog.selected_index == 8;
+    let text_limit_selected = dialog.selected_index == 7;
     let text_limit_value_str = if dialog.is_editing_text_char_limit {
         dialog.text_char_limit_input.clone()
     } else {
@@ -533,11 +505,11 @@ fn render_settings_dialog(
 
     f.render_widget(
         text_limit_widget,
-        Rect::new(layout[4].x + 2, layout[4].y, layout[4].width - 4, 1),
+        Rect::new(layout[3].x + 2, layout[3].y, layout[3].width - 4, 1),
     );
 
     // Addresses Per Line
-    let addr_limit_selected = dialog.selected_index == 9;
+    let addr_limit_selected = dialog.selected_index == 8;
     let addr_limit_value_str = if dialog.is_editing_addresses_per_line {
         dialog.addresses_per_line_input.clone()
     } else {
@@ -555,11 +527,11 @@ fn render_settings_dialog(
 
     f.render_widget(
         addr_limit_widget,
-        Rect::new(layout[5].x + 2, layout[5].y, layout[5].width - 4, 1),
+        Rect::new(layout[4].x + 2, layout[4].y, layout[4].width - 4, 1),
     );
 
     // Bytes Per Line
-    let bytes_limit_selected = dialog.selected_index == 10;
+    let bytes_limit_selected = dialog.selected_index == 9;
     let bytes_limit_value_str = if dialog.is_editing_bytes_per_line {
         dialog.bytes_per_line_input.clone()
     } else {
@@ -577,11 +549,11 @@ fn render_settings_dialog(
 
     f.render_widget(
         bytes_limit_widget,
-        Rect::new(layout[6].x + 2, layout[6].y, layout[6].width - 4, 1),
+        Rect::new(layout[5].x + 2, layout[5].y, layout[5].width - 4, 1),
     );
 
-    // Assembler Section (Moved to end)
-    let assembler_selected = dialog.selected_index == 11;
+    // Assembler Section
+    let assembler_selected = dialog.selected_index == 10;
     let assembler_text = format!("Assembler: < {} >", settings.assembler);
 
     let assembler_widget = Paragraph::new(assembler_text).style(if assembler_selected {
@@ -592,9 +564,35 @@ fn render_settings_dialog(
         Style::default().fg(theme.dialog_fg)
     });
 
-    // Assembler uses layout[7]
+    // Assembler uses layout[6]
     f.render_widget(
         assembler_widget,
+        Rect::new(layout[6].x + 2, layout[6].y, layout[6].width - 4, 1),
+    );
+
+    // Platform Section (Moved to end)
+    let platform_label = Span::raw("Platform:");
+    f.render_widget(
+        Paragraph::new(platform_label),
+        Rect::new(layout[7].x + 2, layout[7].y, layout[7].width - 4, 1),
+    );
+
+    let platforms = crate::state::Platform::all();
+
+    // Check if platform is selected
+    let platform_selected = dialog.selected_index == 11;
+
+    let platform_text = format!("Platform: < {} >", settings.platform);
+    let platform_widget = Paragraph::new(platform_text).style(if platform_selected {
+        Style::default()
+            .fg(theme.highlight_fg)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default().fg(theme.dialog_fg)
+    });
+
+    f.render_widget(
+        platform_widget,
         Rect::new(layout[7].x + 2, layout[7].y, layout[7].width - 4, 1),
     );
 

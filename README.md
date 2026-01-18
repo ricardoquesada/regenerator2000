@@ -33,6 +33,8 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 - **Export**: Generate compatible assembly source code for:
     - **64tass**
     - **ACME**
+    - **Kick Assembler**
+    - **ca65**
 - **Project Management**: Save and load your work with `.regen2000proj` files.
 - **Analysis**: Auto-analysis to identify code and data regions.
 - **Editing**:

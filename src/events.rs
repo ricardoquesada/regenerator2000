@@ -1024,35 +1024,35 @@ pub fn run_app<B: Backend>(
                                         !app_state.settings.use_illegal_opcodes;
                                 }
                                 5 => {
-                                    ui_state.settings_dialog.is_selecting_platform = true;
-                                }
-                                6 => {
                                     ui_state.settings_dialog.is_editing_xref_count = true;
                                     ui_state.settings_dialog.xref_count_input =
                                         app_state.settings.max_xref_count.to_string();
                                 }
-                                7 => {
+                                6 => {
                                     ui_state.settings_dialog.is_editing_arrow_columns = true;
                                     ui_state.settings_dialog.arrow_columns_input =
                                         app_state.settings.max_arrow_columns.to_string();
                                 }
-                                8 => {
+                                7 => {
                                     ui_state.settings_dialog.is_editing_text_char_limit = true;
                                     ui_state.settings_dialog.text_char_limit_input =
                                         app_state.settings.text_char_limit.to_string();
                                 }
-                                9 => {
+                                8 => {
                                     ui_state.settings_dialog.is_editing_addresses_per_line = true;
                                     ui_state.settings_dialog.addresses_per_line_input =
                                         app_state.settings.addresses_per_line.to_string();
                                 }
-                                10 => {
+                                9 => {
                                     ui_state.settings_dialog.is_editing_bytes_per_line = true;
                                     ui_state.settings_dialog.bytes_per_line_input =
                                         app_state.settings.bytes_per_line.to_string();
                                 }
-                                11 => {
+                                10 => {
                                     ui_state.settings_dialog.is_selecting_assembler = true;
+                                }
+                                11 => {
+                                    ui_state.settings_dialog.is_selecting_platform = true;
                                 }
                                 _ => {}
                             }
