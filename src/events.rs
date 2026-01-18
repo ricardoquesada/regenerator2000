@@ -821,6 +821,18 @@ pub fn run_app<B: Backend>(
                     }
                 }
 
+                if ui_state.active_pane == ActivePane::HexDump {
+                    use crate::view_hexdump::InputResult;
+                    match crate::view_hexdump::handle_input(key, &mut app_state, &mut ui_state) {
+                        InputResult::Handled => continue,
+                        InputResult::Action(action) => {
+                            handle_menu_action(&mut app_state, &mut ui_state, action);
+                            continue;
+                        }
+                        InputResult::Ignored => {}
+                    }
+                }
+
                 match key.code {
                     KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         handle_menu_action(
@@ -966,14 +978,8 @@ pub fn run_app<B: Backend>(
                                     ui_state.cursor_index = (ui_state.cursor_index + 10)
                                         .min(app_state.disassembly.len().saturating_sub(1));
                                 }
-                                ActivePane::HexDump => {
-                                    let bytes_per_row = 16;
-                                    let padding = (app_state.origin as usize) % bytes_per_row;
-                                    let total_rows = (app_state.raw_data.len() + padding)
-                                        .div_ceil(bytes_per_row);
-                                    ui_state.hex_cursor_index = (ui_state.hex_cursor_index + 10)
-                                        .min(total_rows.saturating_sub(1));
-                                }
+
+                                ActivePane::HexDump => {}
                                 ActivePane::Sprites => {
                                     let origin = app_state.origin as usize;
                                     let padding = (64 - (origin % 64)) % 64;
@@ -1102,30 +1108,8 @@ pub fn run_app<B: Backend>(
                                 ui_state
                                     .set_status_message(format!("Jumped to line {}", target_line));
                             }
-                            ActivePane::HexDump => {
-                                let padding = (app_state.origin as usize) % 16;
-                                let total_rows = (app_state.raw_data.len() + padding).div_ceil(16);
-                                let target_row = if is_buffer_empty {
-                                    total_rows
-                                } else {
-                                    entered_number
-                                };
 
-                                let new_cursor = if target_row == 0 {
-                                    total_rows.saturating_sub(1)
-                                } else {
-                                    target_row
-                                        .saturating_sub(1)
-                                        .min(total_rows.saturating_sub(1))
-                                };
-
-                                ui_state
-                                    .navigation_history
-                                    .push((ui_state.active_pane, ui_state.hex_cursor_index));
-                                ui_state.hex_cursor_index = new_cursor;
-                                ui_state
-                                    .set_status_message(format!("Jumped to row {}", target_row));
-                            }
+                            ActivePane::HexDump => {}
                             ActivePane::Sprites => {
                                 let origin = app_state.origin as usize;
                                 let padding = (64 - (origin % 64)) % 64;
@@ -1642,15 +1626,6 @@ pub fn run_app<B: Backend>(
                                     ui_state.sub_cursor_index = 0;
                                 }
                             }
-                            ActivePane::HexDump => {
-                                let bytes_per_row = 16;
-                                let padding = (app_state.origin as usize) % bytes_per_row;
-                                let total_rows =
-                                    (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
-                                if ui_state.hex_cursor_index < total_rows.saturating_sub(1) {
-                                    ui_state.hex_cursor_index += 1;
-                                }
-                            }
                             ActivePane::Sprites => {
                                 let origin = app_state.origin as usize;
                                 let padding = (64 - (origin % 64)) % 64;
@@ -1676,6 +1651,7 @@ pub fn run_app<B: Backend>(
                                         max_char_index.saturating_sub(1);
                                 }
                             }
+                            ActivePane::HexDump => {}
                         }
                     }
                     KeyCode::Up | KeyCode::Char('k')
@@ -1719,11 +1695,7 @@ pub fn run_app<B: Backend>(
                                     ui_state.sub_cursor_index = sub_count - 1;
                                 }
                             }
-                            ActivePane::HexDump => {
-                                if ui_state.hex_cursor_index > 0 {
-                                    ui_state.hex_cursor_index -= 1;
-                                }
-                            }
+                            ActivePane::HexDump => {}
                             ActivePane::Sprites => {
                                 if ui_state.sprites_cursor_index > 0 {
                                     ui_state.sprites_cursor_index -= 1;
@@ -1782,12 +1754,6 @@ pub fn run_app<B: Backend>(
                                     .min(app_state.get_compressed_blocks().len().saturating_sub(1)),
                             ));
                         } else if ui_state.active_pane == ActivePane::HexDump {
-                            let bytes_per_row = 16;
-                            let padding = (app_state.origin as usize) % bytes_per_row;
-                            let total_rows =
-                                (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
-                            ui_state.hex_cursor_index =
-                                (ui_state.hex_cursor_index + 10).min(total_rows.saturating_sub(1));
                         } else if ui_state.active_pane == ActivePane::Sprites {
                             let origin = app_state.origin as usize;
                             let padding = (64 - (origin % 64)) % 64;
@@ -1836,7 +1802,7 @@ pub fn run_app<B: Backend>(
                         ui_state.input_buffer.clear();
                         match ui_state.active_pane {
                             ActivePane::Disassembly => ui_state.cursor_index = 0,
-                            ActivePane::HexDump => ui_state.hex_cursor_index = 0,
+                            ActivePane::HexDump => {}
                             ActivePane::Sprites => ui_state.sprites_cursor_index = 0,
                             ActivePane::Charset => ui_state.charset_cursor_index = 0,
                             ActivePane::Blocks => ui_state.blocks_list_state.select(Some(0)),
@@ -1854,13 +1820,7 @@ pub fn run_app<B: Backend>(
                                 let last = blocks.len().saturating_sub(1);
                                 ui_state.blocks_list_state.select(Some(last));
                             }
-                            ActivePane::HexDump => {
-                                let bytes_per_row = 16;
-                                let padding = (app_state.origin as usize) % bytes_per_row;
-                                let total_rows =
-                                    (app_state.raw_data.len() + padding).div_ceil(bytes_per_row);
-                                ui_state.hex_cursor_index = total_rows.saturating_sub(1);
-                            }
+                            ActivePane::HexDump => {}
                             ActivePane::Sprites => {
                                 let origin = app_state.origin as usize;
                                 let padding = (64 - (origin % 64)) % 64;
@@ -1880,13 +1840,7 @@ pub fn run_app<B: Backend>(
                         }
                     }
                     KeyCode::Char('m') if key.modifiers.is_empty() => {
-                        if ui_state.active_pane == ActivePane::HexDump {
-                            handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                crate::ui_state::MenuAction::TogglePetsciiMode,
-                            )
-                        } else if ui_state.active_pane == ActivePane::Sprites {
+                        if ui_state.active_pane == ActivePane::Sprites {
                             handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
