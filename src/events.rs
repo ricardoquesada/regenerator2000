@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui::ui;
-use crate::ui_state::{ActivePane, SaveDialogMode, UIState};
+use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::{self, Event, KeyCode, KeyModifiers};
 use ratatui::{Terminal, backend::Backend};
 use std::io;
@@ -37,294 +37,14 @@ pub fn run_app<B: Backend>(
                 continue;
             }
             ui_state.dismiss_logo = true;
-            if ui_state.jump_dialog.active {
-                match key.code {
-                    KeyCode::Esc => {
-                        ui_state.jump_dialog.close();
-                        ui_state.set_status_message("Ready");
-                    }
-                    KeyCode::Enter => {
-                        let input = &ui_state.jump_dialog.input;
-                        match ui_state.jump_dialog.mode {
-                            crate::ui_state::JumpDialogMode::Address => {
-                                if let Ok(addr) = u16::from_str_radix(input, 16) {
-                                    let target_addr = addr;
-
-                                    match ui_state.active_pane {
-                                        ActivePane::Disassembly => {
-                                            // Find closest address in disassembly
-                                            let mut found_idx = None;
-                                            for (i, line) in
-                                                app_state.disassembly.iter().enumerate()
-                                            {
-                                                if line.address == target_addr {
-                                                    found_idx = Some(i);
-                                                    break;
-                                                } else if line.address > target_addr {
-                                                    if i > 0 {
-                                                        found_idx = Some(i - 1);
-                                                    } else {
-                                                        found_idx = Some(0);
-                                                    }
-                                                    break;
-                                                }
-                                            }
-
-                                            if let Some(idx) = found_idx {
-                                                ui_state.navigation_history.push((
-                                                    crate::ui_state::ActivePane::Disassembly,
-                                                    ui_state.cursor_index,
-                                                ));
-                                                ui_state.cursor_index = idx;
-                                                ui_state.set_status_message(format!(
-                                                    "Jumped to ${:04X}",
-                                                    target_addr
-                                                ));
-                                            } else if !app_state.disassembly.is_empty() {
-                                                ui_state.navigation_history.push((
-                                                    crate::ui_state::ActivePane::Disassembly,
-                                                    ui_state.cursor_index,
-                                                ));
-                                                ui_state.cursor_index =
-                                                    app_state.disassembly.len() - 1;
-                                                ui_state.set_status_message("Jumped to end");
-                                            }
-                                        }
-                                        ActivePane::HexDump => {
-                                            let origin = app_state.origin as usize;
-                                            let target = target_addr as usize;
-                                            let data_len = app_state.raw_data.len();
-                                            let end_addr = origin + data_len;
-
-                                            if target >= origin && target < end_addr {
-                                                // Navigation history disabled for HexDump
-
-                                                let alignment_padding = origin % 16;
-                                                let aligned_origin = origin - alignment_padding;
-                                                let offset = target - aligned_origin;
-                                                let row = offset / 16;
-                                                ui_state.hex_cursor_index = row;
-                                                ui_state.set_status_message(format!(
-                                                    "Jumped to ${:04X}",
-                                                    target_addr
-                                                ));
-                                            } else {
-                                                ui_state.set_status_message("Address out of range");
-                                            }
-                                        }
-                                        ActivePane::Sprites => {
-                                            let origin = app_state.origin as usize;
-                                            let target = target_addr as usize;
-
-                                            // Calculate padding for alignment
-                                            let padding = (64 - (origin % 64)) % 64;
-                                            let aligned_start = origin + padding;
-
-                                            if target >= aligned_start
-                                                && target < origin + app_state.raw_data.len()
-                                            {
-                                                // Navigation history disabled for Sprites
-
-                                                // Calculate sprite index relative to aligned start
-                                                let offset = target - aligned_start;
-                                                let sprite_idx = offset / 64;
-                                                // Sprite number calculation: (target / 64) % 256
-                                                let sprite_num = (target / 64) % 256;
-
-                                                ui_state.sprites_cursor_index = sprite_idx;
-                                                ui_state.set_status_message(format!(
-                                                    "Jumped to sprite {} (${:04X})",
-                                                    sprite_num, target_addr
-                                                ));
-                                            } else {
-                                                ui_state.set_status_message(
-                                                    "Address out of range or unaligned area",
-                                                );
-                                            }
-                                        }
-                                        ActivePane::Charset => {
-                                            let origin = app_state.origin as usize;
-                                            let target = target_addr as usize;
-                                            let base_alignment = 0x400;
-                                            let aligned_start_addr =
-                                                (origin / base_alignment) * base_alignment;
-
-                                            let end_addr = origin + app_state.raw_data.len();
-
-                                            if target >= aligned_start_addr && target < end_addr {
-                                                // Navigation history disabled for Charset
-
-                                                let offset = target - aligned_start_addr;
-                                                let char_idx = offset / 8;
-
-                                                ui_state.charset_cursor_index = char_idx;
-                                                ui_state.set_status_message(format!(
-                                                    "Jumped to char index {} (${:04X})",
-                                                    char_idx, target_addr
-                                                ));
-                                            } else {
-                                                ui_state.set_status_message("Address out of range");
-                                            }
-                                        }
-                                        ActivePane::Blocks => {
-                                            // Blocks doesn't support jump to address yet (search blocks?)
-                                            // Only jump to line index for now if needed.
-                                            ui_state.set_status_message(
-                                                "Jump to address not supported in Blocks view",
-                                            );
-                                        }
-                                    }
-
-                                    ui_state.jump_dialog.close();
-                                } else {
-                                    ui_state.set_status_message("Invalid Hex Address");
-                                }
-                            }
-                            crate::ui_state::JumpDialogMode::Line => {
-                                if let Ok(line_num) = input.parse::<usize>() {
-                                    if line_num > 0 && line_num <= app_state.disassembly.len() {
-                                        ui_state.navigation_history.push((
-                                            crate::ui_state::ActivePane::Disassembly,
-                                            ui_state.cursor_index,
-                                        ));
-                                        ui_state.cursor_index = line_num - 1;
-                                        ui_state.set_status_message(format!(
-                                            "Jumped to line {}",
-                                            line_num
-                                        ));
-                                        ui_state.jump_dialog.close();
-                                    } else {
-                                        ui_state.set_status_message("Line number out of range");
-                                    }
-                                } else {
-                                    ui_state.set_status_message("Invalid Line Number");
-                                }
-                            }
-                        }
-                    }
-                    KeyCode::Backspace => {
-                        ui_state.jump_dialog.input.pop();
-                    }
-                    KeyCode::Char(c) => match ui_state.jump_dialog.mode {
-                        crate::ui_state::JumpDialogMode::Address => {
-                            if c.is_ascii_hexdigit() && ui_state.jump_dialog.input.len() < 4 {
-                                ui_state.jump_dialog.input.push(c.to_ascii_uppercase());
-                            }
-                        }
-                        crate::ui_state::JumpDialogMode::Line => {
-                            if c.is_ascii_digit() && ui_state.jump_dialog.input.len() < 10 {
-                                ui_state.jump_dialog.input.push(c);
-                            }
-                        }
-                    },
-                    _ => {}
-                }
-            } else if ui_state.save_dialog.active {
-                match key.code {
-                    KeyCode::Esc => {
-                        ui_state.save_dialog.close();
-                        ui_state.set_status_message("Ready");
-                    }
-                    KeyCode::Enter => {
-                        let filename = ui_state.save_dialog.input.clone();
-                        if !filename.is_empty() {
-                            let mut path = ui_state.file_picker.current_dir.join(filename);
-                            if ui_state.save_dialog.mode == SaveDialogMode::Project {
-                                if path.extension().is_none() {
-                                    path.set_extension("regen2000proj");
-                                }
-                                app_state.project_path = Some(path);
-                                let cursor_addr = app_state
-                                    .disassembly
-                                    .get(ui_state.cursor_index)
-                                    .map(|l| l.address);
-
-                                // Calculate hex cursor address
-                                let hex_addr = if !app_state.raw_data.is_empty() {
-                                    let origin = app_state.origin as usize;
-                                    let alignment_padding = origin % 16;
-                                    let aligned_origin = origin - alignment_padding;
-                                    let row_start_offset = ui_state.hex_cursor_index * 16;
-                                    // Make sure it's within valid range
-                                    // The cursor is at the start of the row
-                                    let addr = aligned_origin + row_start_offset;
-                                    // Check if this address is somewhat valid (it might be padding)
-                                    // But we just want to restore the row, so saving the row start address is fine.
-                                    Some(addr as u16)
-                                } else {
-                                    None
-                                };
-
-                                // Calculate sprites cursor address
-                                let sprites_addr = if !app_state.raw_data.is_empty() {
-                                    let origin = app_state.origin as usize;
-                                    let padding = (64 - (origin % 64)) % 64;
-                                    let sprite_offset = ui_state.sprites_cursor_index * 64;
-                                    let addr = origin + padding + sprite_offset;
-                                    Some(addr as u16)
-                                } else {
-                                    None
-                                };
-
-                                let charset_addr = if !app_state.raw_data.is_empty() {
-                                    let origin = app_state.origin as usize;
-                                    let base_alignment = 0x400;
-                                    let aligned_start_addr =
-                                        (origin / base_alignment) * base_alignment;
-                                    let char_offset = ui_state.charset_cursor_index * 8;
-                                    let addr = aligned_start_addr + char_offset;
-                                    // Could be before origin if we allowed viewing it, effectively index into virtual space?
-                                    // Just save what we calculated.
-                                    Some(addr as u16)
-                                } else {
-                                    None
-                                };
-
-                                let right_pane_str = format!("{:?}", ui_state.right_pane);
-
-                                if let Err(e) = app_state.save_project(
-                                    crate::state::ProjectSaveContext {
-                                        cursor_address: cursor_addr,
-                                        hex_dump_cursor_address: hex_addr,
-                                        sprites_cursor_address: sprites_addr,
-                                        right_pane_visible: Some(right_pane_str),
-                                        charset_cursor_address: charset_addr,
-                                        sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
-                                        charset_multicolor_mode: ui_state.charset_multicolor_mode,
-                                        petscii_mode: ui_state.petscii_mode,
-                                        splitters: app_state.splitters.clone(),
-                                        blocks_view_cursor: ui_state.blocks_list_state.selected(),
-                                    },
-                                    true,
-                                ) {
-                                    ui_state.set_status_message(format!("Error saving: {}", e));
-                                } else {
-                                    ui_state.set_status_message("Project saved");
-                                    ui_state.save_dialog.close();
-                                }
-                            } else {
-                                // Export ASM
-                                if path.extension().is_none() {
-                                    path.set_extension("asm");
-                                }
-                                app_state.export_path = Some(path.clone());
-                                if let Err(e) = crate::exporter::export_asm(&app_state, &path) {
-                                    ui_state.set_status_message(format!("Error exporting: {}", e));
-                                } else {
-                                    ui_state.set_status_message("Project Exported");
-                                    ui_state.save_dialog.close();
-                                }
-                            }
-                        }
-                    }
-                    KeyCode::Backspace => {
-                        ui_state.save_dialog.input.pop();
-                    }
-                    KeyCode::Char(c) => {
-                        ui_state.save_dialog.input.push(c);
-                    }
-                    _ => {}
-                }
+            if ui_state.jump_to_address_dialog.active {
+                crate::dialog_jump_to_address::handle_input(key, &mut app_state, &mut ui_state);
+            } else if ui_state.jump_to_line_dialog.active {
+                crate::dialog_jump_to_line::handle_input(key, &mut app_state, &mut ui_state);
+            } else if ui_state.save_as_dialog.active {
+                crate::dialog_save_as::handle_input(key, &mut app_state, &mut ui_state);
+            } else if ui_state.export_as_dialog.active {
+                crate::dialog_export_as::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.label_dialog.active {
                 match key.code {
                     KeyCode::Esc => {
@@ -463,216 +183,10 @@ pub fn run_app<B: Backend>(
                     }
                     _ => {}
                 }
-            } else if ui_state.file_picker.active {
-                match key.code {
-                    KeyCode::Esc => {
-                        ui_state.file_picker.close();
-                        ui_state.set_status_message("Ready");
-                    }
-                    KeyCode::Down => ui_state.file_picker.next(),
-                    KeyCode::Up => ui_state.file_picker.previous(),
-                    KeyCode::Backspace => {
-                        // Go to parent dir
-                        if let Some(parent) = ui_state
-                            .file_picker
-                            .current_dir
-                            .parent()
-                            .map(|p| p.to_path_buf())
-                        {
-                            ui_state.file_picker.current_dir = parent;
-                            ui_state.file_picker.refresh_files();
-                            ui_state.file_picker.selected_index = 0;
-                        }
-                    }
-                    KeyCode::Enter => {
-                        if !ui_state.file_picker.files.is_empty() {
-                            let selected_path = ui_state.file_picker.files
-                                [ui_state.file_picker.selected_index]
-                                .clone();
-                            if selected_path.is_dir() {
-                                ui_state.file_picker.current_dir = selected_path;
-                                ui_state.file_picker.refresh_files();
-                                ui_state.file_picker.selected_index = 0;
-                            } else {
-                                // Load file
-                                match app_state.load_file(selected_path.clone()) {
-                                    Err(e) => {
-                                        ui_state.set_status_message(format!(
-                                            "Error loading file: {}",
-                                            e
-                                        ));
-                                    }
-                                    Ok(loaded_data) => {
-                                        ui_state.set_status_message(format!(
-                                            "Loaded: {:?}",
-                                            selected_path
-                                        ));
-                                        ui_state.file_picker.close();
-
-                                        let loaded_cursor = loaded_data.cursor_address;
-                                        let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;
-                                        let loaded_sprites_cursor =
-                                            loaded_data.sprites_cursor_address;
-                                        let loaded_right_pane = loaded_data.right_pane_visible;
-                                        let loaded_charset_cursor =
-                                            loaded_data.charset_cursor_address;
-
-                                        // Load new modes
-                                        ui_state.sprite_multicolor_mode =
-                                            loaded_data.sprite_multicolor_mode;
-                                        ui_state.charset_multicolor_mode =
-                                            loaded_data.charset_multicolor_mode;
-                                        ui_state.petscii_mode = loaded_data.petscii_mode;
-
-                                        if let Some(idx) = loaded_data.blocks_view_cursor {
-                                            ui_state.blocks_list_state.select(Some(idx));
-                                        }
-
-                                        // Auto-analyze if it's a binary file (not json)
-                                        let is_project = selected_path
-                                            .extension()
-                                            .and_then(|e| e.to_str())
-                                            .map(|e| e.eq_ignore_ascii_case("regen2000proj"))
-                                            .unwrap_or(false);
-
-                                        if !is_project {
-                                            app_state.perform_analysis();
-                                        }
-
-                                        // Move cursor
-                                        if let Some(cursor_addr) = loaded_cursor {
-                                            if let Some(idx) =
-                                                app_state.get_line_index_for_address(cursor_addr)
-                                            {
-                                                ui_state.cursor_index = idx;
-                                            }
-                                        } else {
-                                            // Default to origin
-                                            if let Some(idx) = app_state
-                                                .get_line_index_for_address(app_state.origin)
-                                            {
-                                                ui_state.cursor_index = idx;
-                                            }
-                                        }
-
-                                        if let Some(sprites_addr) = loaded_sprites_cursor {
-                                            // Calculate index from address
-                                            // Index = (addr - origin - padding) / 64
-                                            let origin = app_state.origin as usize;
-                                            let padding = (64 - (origin % 64)) % 64;
-                                            let addr = sprites_addr as usize;
-                                            if addr >= origin + padding {
-                                                let offset = addr - (origin + padding);
-                                                ui_state.sprites_cursor_index = offset / 64;
-                                            } else {
-                                                ui_state.sprites_cursor_index = 0;
-                                            }
-                                        } else {
-                                            ui_state.sprites_cursor_index = 0;
-                                        }
-
-                                        if let Some(charset_addr) = loaded_charset_cursor {
-                                            let origin = app_state.origin as usize;
-                                            let base_alignment = 0x400;
-                                            let aligned_start_addr =
-                                                (origin / base_alignment) * base_alignment;
-                                            let addr = charset_addr as usize;
-                                            if addr >= aligned_start_addr {
-                                                let offset = addr - aligned_start_addr;
-                                                ui_state.charset_cursor_index = offset / 8;
-                                            } else {
-                                                ui_state.charset_cursor_index = 0;
-                                            }
-                                        } else {
-                                            ui_state.charset_cursor_index = 0;
-                                        }
-
-                                        if let Some(pane_str) = loaded_right_pane {
-                                            match pane_str.as_str() {
-                                                "HexDump" => {
-                                                    ui_state.right_pane =
-                                                        crate::ui_state::RightPane::HexDump
-                                                }
-                                                "Sprites" => {
-                                                    ui_state.right_pane =
-                                                        crate::ui_state::RightPane::Sprites
-                                                }
-                                                "Charset" => {
-                                                    ui_state.right_pane =
-                                                        crate::ui_state::RightPane::Charset
-                                                }
-                                                "Blocks" => {
-                                                    ui_state.right_pane =
-                                                        crate::ui_state::RightPane::Blocks
-                                                }
-                                                "None" => {
-                                                    ui_state.right_pane =
-                                                        crate::ui_state::RightPane::None
-                                                }
-                                                _ => {}
-                                            }
-                                        }
-
-                                        // Restore Hex Cursor
-                                        // Restore or Reset Hex Cursor
-                                        if let Some(hex_addr) = loaded_hex_cursor
-                                            && !app_state.raw_data.is_empty()
-                                        {
-                                            let origin = app_state.origin as usize;
-                                            let alignment_padding = origin % 16;
-                                            let aligned_origin = origin - alignment_padding;
-                                            let target = hex_addr as usize;
-
-                                            if target >= aligned_origin {
-                                                let offset = target - aligned_origin;
-                                                let row = offset / 16;
-                                                ui_state.hex_cursor_index = row;
-                                            } else {
-                                                ui_state.hex_cursor_index = 0;
-                                            }
-                                        } else {
-                                            ui_state.hex_cursor_index = 0;
-                                        }
-
-                                        // Validate Hex Cursor Bounds
-                                        if !app_state.raw_data.is_empty() {
-                                            let origin = app_state.origin as usize;
-                                            let alignment_padding = origin % 16;
-                                            let total_len =
-                                                app_state.raw_data.len() + alignment_padding;
-                                            let max_rows = total_len.div_ceil(16);
-                                            if ui_state.hex_cursor_index >= max_rows {
-                                                ui_state.hex_cursor_index = 0;
-                                            }
-                                        } else {
-                                            ui_state.hex_cursor_index = 0;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    _ => {}
-                }
+            } else if ui_state.open_dialog.active {
+                crate::dialog_open::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.search_dialog.active {
-                match key.code {
-                    KeyCode::Esc => {
-                        ui_state.search_dialog.close();
-                        ui_state.set_status_message("Ready");
-                    }
-                    KeyCode::Enter => {
-                        ui_state.search_dialog.last_search = ui_state.search_dialog.input.clone();
-                        ui_state.search_dialog.close();
-                        perform_search(&mut app_state, &mut ui_state, true);
-                    }
-                    KeyCode::Backspace => {
-                        ui_state.search_dialog.input.pop();
-                    }
-                    KeyCode::Char(c) => {
-                        ui_state.search_dialog.input.push(c);
-                    }
-                    _ => {}
-                }
+                crate::dialog_search::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.menu.active {
                 match key.code {
                     KeyCode::Esc => {
@@ -797,7 +311,7 @@ pub fn run_app<B: Backend>(
                     KeyCode::Enter => {
                         ui_state.search_dialog.last_search = ui_state.vim_search_input.clone();
                         ui_state.vim_search_active = false;
-                        perform_search(&mut app_state, &mut ui_state, true);
+                        crate::dialog_search::perform_search(&mut app_state, &mut ui_state, true);
                     }
                     KeyCode::Backspace => {
                         ui_state.vim_search_input.pop();
@@ -882,14 +396,14 @@ pub fn run_app<B: Backend>(
                         ui_state.vim_search_input.clear();
                     }
                     KeyCode::Char('n') if key.modifiers.is_empty() => {
-                        perform_search(&mut app_state, &mut ui_state, true);
+                        crate::dialog_search::perform_search(&mut app_state, &mut ui_state, true);
                     }
                     KeyCode::Char('N')
                         if !key
                             .modifiers
                             .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
                     {
-                        perform_search(&mut app_state, &mut ui_state, false);
+                        crate::dialog_search::perform_search(&mut app_state, &mut ui_state, false);
                     }
                     KeyCode::F(10) => {
                         ui_state.menu.active = true;
@@ -1387,9 +901,11 @@ pub fn run_app<B: Backend>(
                             }
                         } else if !app_state.raw_data.is_empty() {
                             if !ui_state.menu.active
-                                && !ui_state.jump_dialog.active
-                                && !ui_state.save_dialog.active
-                                && !ui_state.file_picker.active
+                                && !ui_state.jump_to_address_dialog.active
+                                && !ui_state.jump_to_line_dialog.active
+                                && !ui_state.save_as_dialog.active
+                                && !ui_state.export_as_dialog.active
+                                && !ui_state.open_dialog.active
                                 && ui_state.active_pane == ActivePane::Disassembly
                                 && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
                             {
@@ -1804,7 +1320,7 @@ fn execute_menu_action(
         MenuAction::Exit => ui_state.should_quit = true,
 
         MenuAction::Open => {
-            ui_state.file_picker.open();
+            ui_state.open_dialog.open();
             ui_state.set_status_message("Select a file to open");
         }
         MenuAction::Save => {
@@ -1870,12 +1386,12 @@ fn execute_menu_action(
                     ui_state.set_status_message("Project saved");
                 }
             } else {
-                ui_state.save_dialog.open(SaveDialogMode::Project);
+                ui_state.save_as_dialog.open();
                 ui_state.set_status_message("Enter Project filename");
             }
         }
         MenuAction::SaveAs => {
-            ui_state.save_dialog.open(SaveDialogMode::Project);
+            ui_state.save_as_dialog.open();
             ui_state.set_status_message("Enter Project filename");
         }
         MenuAction::ExportProject => {
@@ -1886,12 +1402,12 @@ fn execute_menu_action(
                     ui_state.set_status_message("Project Exported");
                 }
             } else {
-                ui_state.save_dialog.open(SaveDialogMode::ExportProject);
+                ui_state.export_as_dialog.open();
                 ui_state.set_status_message("Enter .asm filename");
             }
         }
         MenuAction::ExportProjectAs => {
-            ui_state.save_dialog.open(SaveDialogMode::ExportProject);
+            ui_state.export_as_dialog.open();
             ui_state.set_status_message("Enter .asm filename");
         }
         MenuAction::DocumentSettings => {
@@ -2286,15 +1802,11 @@ fn execute_menu_action(
             }
         }
         MenuAction::JumpToAddress => {
-            ui_state
-                .jump_dialog
-                .open(crate::ui_state::JumpDialogMode::Address);
+            ui_state.jump_to_address_dialog.open();
             ui_state.status_message = "Enter address (Hex)".to_string();
         }
         MenuAction::JumpToLine => {
-            ui_state
-                .jump_dialog
-                .open(crate::ui_state::JumpDialogMode::Line);
+            ui_state.jump_to_line_dialog.open();
             ui_state.status_message = "Enter Line Number (Dec)".to_string();
         }
         MenuAction::Search => {
@@ -2302,10 +1814,10 @@ fn execute_menu_action(
             ui_state.set_status_message("Search...");
         }
         MenuAction::FindNext => {
-            perform_search(app_state, ui_state, true);
+            crate::dialog_search::perform_search(app_state, ui_state, true);
         }
         MenuAction::FindPrevious => {
-            perform_search(app_state, ui_state, false);
+            crate::dialog_search::perform_search(app_state, ui_state, false);
         }
         MenuAction::JumpToOperand => {
             let target_addr = match ui_state.active_pane {
@@ -2915,339 +2427,5 @@ fn execute_menu_action(
                 }
             }
         }
-    }
-}
-
-fn perform_search(app_state: &mut crate::state::AppState, ui_state: &mut UIState, forward: bool) {
-    let query = &ui_state.search_dialog.last_search;
-    if query.is_empty() {
-        ui_state.set_status_message("No search query");
-        return;
-    }
-
-    let query_lower = query.to_lowercase();
-    let disassembly_len = app_state.disassembly.len();
-    if disassembly_len == 0 {
-        return;
-    }
-
-    let start_idx = ui_state.cursor_index;
-    let mut found_idx = None;
-    let mut found_sub_idx = 0;
-
-    // We search:
-    // 1. Current line (from current_sub_index + 1 if forward, or -1 if backward)
-    // 2. Wrap around lines
-
-    // Check current line first for subsequent matches
-    if let Some(line) = app_state.disassembly.get(start_idx) {
-        let matches = get_line_matches(line, app_state, &query_lower);
-
-        // Filter based on current sub_index
-        let candidate = if forward {
-            matches
-                .into_iter()
-                .find(|&sub| sub > ui_state.sub_cursor_index)
-        } else {
-            matches
-                .into_iter()
-                // Reverse to find the one immediately before
-                .rev()
-                .find(|&sub| sub < ui_state.sub_cursor_index)
-        };
-
-        if let Some(sub) = candidate {
-            ui_state
-                .navigation_history
-                .push((ActivePane::Disassembly, ui_state.cursor_index));
-            ui_state.sub_cursor_index = sub;
-            ui_state.set_status_message(format!("Found '{}'", query));
-            return;
-        }
-    }
-
-    // Iterate other lines
-    for i in 1..disassembly_len {
-        let idx = if forward {
-            (start_idx + i) % disassembly_len
-        } else {
-            // backward wrap
-            if i <= start_idx {
-                start_idx - i
-            } else {
-                disassembly_len - (i - start_idx)
-            }
-        };
-
-        if let Some(line) = app_state.disassembly.get(idx) {
-            let matches = get_line_matches(line, app_state, &query_lower);
-            if !matches.is_empty() {
-                found_idx = Some(idx);
-                found_sub_idx = if forward {
-                    *matches.first().unwrap()
-                } else {
-                    *matches.last().unwrap()
-                };
-                break;
-            }
-
-            // Check if this line represents a collapsed block
-            let pc = line.address.wrapping_sub(app_state.origin) as usize;
-            if let Some((start, end)) = app_state
-                .collapsed_blocks
-                .iter()
-                .find(|(s, _)| *s == pc)
-                .copied()
-                && search_collapsed_content(app_state, start, end, &query_lower)
-            {
-                found_idx = Some(idx);
-                found_sub_idx = 0; // Collapsed block is treated as single item usually
-                break;
-            }
-        }
-    }
-
-    if let Some(idx) = found_idx {
-        ui_state
-            .navigation_history
-            .push((ActivePane::Disassembly, ui_state.cursor_index));
-        ui_state.cursor_index = idx;
-        ui_state.sub_cursor_index = found_sub_idx;
-        ui_state.set_status_message(format!("Found '{}'", query));
-    } else {
-        ui_state.set_status_message(format!("'{}' not found", query));
-    }
-}
-
-fn get_line_matches(
-    line: &crate::disassembler::DisassemblyLine,
-    app_state: &crate::state::AppState,
-    query_lower: &str,
-) -> Vec<usize> {
-    let mut matches = Vec::new();
-    let mut current_sub = 0;
-
-    // 1. Relative Labels (match UI rendering order)
-    if line.bytes.len() > 1 {
-        for offset in 1..line.bytes.len() {
-            let mid_addr = line.address.wrapping_add(offset as u16);
-            if let Some(labels) = app_state.labels.get(&mid_addr) {
-                for label in labels {
-                    if label.name.to_lowercase().contains(query_lower) {
-                        matches.push(current_sub);
-                    }
-                    current_sub += 1;
-                }
-            }
-        }
-    }
-
-    // 2. Line Comment
-    if let Some(lc) = &line.line_comment {
-        if lc.to_lowercase().contains(query_lower) {
-            matches.push(current_sub);
-        }
-        current_sub += 1;
-    }
-
-    // 3. Instruction Content
-    if match_instruction_content(line, query_lower) {
-        matches.push(current_sub);
-    }
-
-    matches
-}
-
-fn match_instruction_content(
-    line: &crate::disassembler::DisassemblyLine,
-    query_lower: &str,
-) -> bool {
-    // Address
-    if format!("{:04x}", line.address).contains(query_lower) {
-        return true;
-    }
-
-    // Bytes (hex string)
-    // We can format bytes as hex string and check.
-    // e.g. "A9 00" -> "a900" or "a9 00"
-    // Let's check hex string without spaces for robust matching of byte sequences
-    let bytes_hex = line
-        .bytes
-        .iter()
-        .map(|b| format!("{:02x}", b))
-        .collect::<String>();
-    if bytes_hex
-        .match_indices(query_lower)
-        .any(|(idx, _)| idx % 2 == 0)
-    {
-        return true;
-    }
-
-    // Also with spaces?
-    let bytes_hex_spaces = line
-        .bytes
-        .iter()
-        .map(|b| format!("{:02x}", b))
-        .collect::<Vec<_>>()
-        .join(" ");
-    if bytes_hex_spaces.contains(query_lower) {
-        return true;
-    }
-
-    if line.mnemonic.to_lowercase().contains(query_lower) {
-        return true;
-    }
-
-    if line.operand.to_lowercase().contains(query_lower) {
-        return true;
-    }
-
-    if line.comment.to_lowercase().contains(query_lower) {
-        return true;
-    }
-
-    if let Some(lbl) = &line.label
-        && lbl.to_lowercase().contains(query_lower)
-    {
-        return true;
-    }
-
-    false
-}
-
-fn search_collapsed_content(
-    app_state: &AppState,
-    start: usize,
-    end: usize,
-    query_lower: &str,
-) -> bool {
-    // Safety check for bounds
-    if start >= app_state.raw_data.len() || end >= app_state.raw_data.len() {
-        return false;
-    }
-
-    let origin = app_state.origin.wrapping_add(start as u16);
-    let data_slice = &app_state.raw_data[start..=end];
-
-    // Safety check for block_types bounds
-    if start >= app_state.block_types.len() || end >= app_state.block_types.len() {
-        return false;
-    }
-    let block_slice = &app_state.block_types[start..=end];
-
-    // We need to pass empty collapsed_blocks to ensure we get the full content
-    let expanded_lines = app_state.disassembler.disassemble(
-        data_slice,
-        block_slice,
-        &app_state.labels,
-        origin,
-        &app_state.settings,
-        &app_state.system_comments,
-        &app_state.user_side_comments,
-        &app_state.user_line_comments,
-        &app_state.immediate_value_formats,
-        &app_state.cross_refs,
-        &[], // No collapsed blocks in this subsequence
-        &app_state.splitters,
-    );
-
-    for line in expanded_lines {
-        // We use get_line_matches to check if ANY part of the line matches.
-        // This includes labels, comments, and instruction content.
-        if !get_line_matches(&line, app_state, query_lower).is_empty() {
-            return true;
-        }
-    }
-    false
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::disassembler::DisassemblyLine;
-
-    #[test]
-    fn test_match_instruction_content_bytes_alignment() {
-        let line = DisassemblyLine {
-            address: 0x1000,
-            bytes: vec![0x8D, 0x02, 0x08], // 8d0208
-            mnemonic: "STA".to_string(),
-            operand: "$0802".to_string(),
-            comment: String::new(),
-            line_comment: None,
-            label: None,
-            opcode: None,
-            show_bytes: true,
-            target_address: None,
-            comment_address: None,
-            is_collapsed: false,
-        };
-
-        // "d020" is in "8d0208" starting at index 1 -> Should FAIL
-        assert!(!match_instruction_content(&line, "d020"));
-
-        // "8d02" is in "8d0208" starting at index 0 -> Should PASS
-        assert!(match_instruction_content(&line, "8d02"));
-
-        // "0208" is in "8d0208" starting at index 2 -> Should PASS
-        assert!(match_instruction_content(&line, "0208"));
-
-        // "d0" is in "8d0208" starting at index 1 -> Should FAIL
-        assert!(!match_instruction_content(&line, "d0"));
-
-        // "02" is in "8d0208" starting at index 2 -> Should PASS
-        assert!(match_instruction_content(&line, "02"));
-    }
-
-    #[test]
-    fn test_search_collapsed_content() {
-        let mut app_state = AppState::new();
-        // Setup data: 3 NOPs (0xEA)
-        app_state.raw_data = vec![0xEA, 0xEA, 0xEA];
-        app_state.block_types = vec![crate::state::BlockType::Code; 3];
-        app_state.origin = 0x1000;
-
-        // This search should find "nop" in the disassembled content
-        assert!(search_collapsed_content(&app_state, 0, 2, "nop"));
-
-        // This search should NOT find "lda"
-        assert!(!search_collapsed_content(&app_state, 0, 2, "lda"));
-    }
-    #[test]
-    fn test_get_line_matches_priority() {
-        let app_state = AppState::new();
-        let line = DisassemblyLine {
-            address: 0x1000,
-            bytes: vec![0x8D, 0x20, 0xD0], // 8d20d0 -> STA D020
-            mnemonic: "STA".to_string(),
-            operand: "$D020".to_string(),
-            comment: String::new(),
-            line_comment: Some("check d020".to_string()),
-            label: None,
-            opcode: None,
-            show_bytes: true,
-            target_address: None,
-            comment_address: None,
-            is_collapsed: false,
-        };
-
-        // Query "d020" matches both Line Comment ("...d020") and Operand ("$D020")
-        // Visual Order: Line Comment (Index 0), Instruction (Index 1)
-        // Wait, current logic:
-        // Rel Labels loop (none)
-        // Line Comment -> current_sub = 0 -> push 0.
-        // Instruction -> match_instruction_content -> push 1.
-        // Result should be [0, 1].
-
-        let matches = get_line_matches(&line, &app_state, "d020");
-        assert_eq!(matches, vec![0, 1]);
-
-        // Query "check" matches only Line Comment
-        let matches_check = get_line_matches(&line, &app_state, "check");
-        assert_eq!(matches_check, vec![0]);
-
-        // Query "sta" matches only Instruction
-        let matches_sta = get_line_matches(&line, &app_state, "sta");
-        assert_eq!(matches_sta, vec![1]);
     }
 }

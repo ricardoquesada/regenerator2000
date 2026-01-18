@@ -2,7 +2,6 @@ use crate::theme::Theme;
 use image::DynamicImage;
 use ratatui::widgets::ListState;
 use ratatui_image::picker::Picker;
-use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActivePane {
@@ -90,33 +89,6 @@ impl MenuAction {
     }
 }
 
-pub struct SearchDialogState {
-    pub active: bool,
-    pub input: String,
-    pub last_search: String,
-}
-
-impl SearchDialogState {
-    pub fn new() -> Self {
-        Self {
-            active: false,
-            input: String::new(),
-            last_search: String::new(),
-        }
-    }
-
-    pub fn open(&mut self) {
-        self.active = true;
-        // Pre-fill with last search is a nice touch, but optional.
-        self.input = self.last_search.clone();
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-        // Keep input for next time or save to last_search when executing
-    }
-}
-
 pub struct ConfirmationDialogState {
     pub active: bool,
     pub title: String,
@@ -149,131 +121,6 @@ impl ConfirmationDialogState {
     pub fn close(&mut self) {
         self.active = false;
         self.action_on_confirm = None;
-    }
-}
-
-pub struct FilePickerState {
-    pub active: bool,
-    pub current_dir: PathBuf,
-    pub files: Vec<PathBuf>,
-    pub selected_index: usize,
-    pub filter_extensions: Vec<String>,
-}
-
-impl FilePickerState {
-    pub fn new() -> Self {
-        let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        Self {
-            active: false,
-            current_dir,
-            files: Vec::new(),
-            selected_index: 0,
-            filter_extensions: vec![
-                "bin".to_string(),
-                "prg".to_string(),
-                "crt".to_string(),
-                "vsf".to_string(),
-                "t64".to_string(),
-                "raw".to_string(),
-                "regen2000proj".to_string(),
-            ],
-        }
-    }
-
-    pub fn open(&mut self) {
-        self.active = true;
-        self.refresh_files();
-        self.selected_index = 0;
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-    }
-
-    pub fn refresh_files(&mut self) {
-        self.files = crate::utils::list_files(&self.current_dir, &self.filter_extensions);
-    }
-
-    pub fn next(&mut self) {
-        if !self.files.is_empty() {
-            self.selected_index = (self.selected_index + 1) % self.files.len();
-        }
-    }
-
-    pub fn previous(&mut self) {
-        if !self.files.is_empty() {
-            if self.selected_index == 0 {
-                self.selected_index = self.files.len() - 1;
-            } else {
-                self.selected_index -= 1;
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum JumpDialogMode {
-    Address,
-    Line,
-}
-
-pub struct JumpDialogState {
-    pub active: bool,
-    pub input: String,
-    pub mode: JumpDialogMode,
-}
-
-impl JumpDialogState {
-    pub fn new() -> Self {
-        Self {
-            active: false,
-            input: String::new(),
-            mode: JumpDialogMode::Address,
-        }
-    }
-
-    pub fn open(&mut self, mode: JumpDialogMode) {
-        self.active = true;
-        self.mode = mode;
-        self.input.clear();
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-        self.input.clear();
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum SaveDialogMode {
-    Project,
-    ExportProject,
-}
-
-pub struct SaveDialogState {
-    pub active: bool,
-    pub input: String,
-    pub mode: SaveDialogMode,
-}
-
-impl SaveDialogState {
-    pub fn new() -> Self {
-        Self {
-            active: false,
-            input: String::new(),
-            mode: SaveDialogMode::Project,
-        }
-    }
-
-    pub fn open(&mut self, mode: SaveDialogMode) {
-        self.active = true;
-        self.input.clear();
-        self.mode = mode;
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-        self.input.clear();
     }
 }
 
@@ -710,9 +557,11 @@ impl MenuItem {
 }
 
 pub struct UIState {
-    pub file_picker: FilePickerState,
-    pub jump_dialog: JumpDialogState,
-    pub save_dialog: SaveDialogState,
+    pub open_dialog: crate::dialog_open::OpenDialog,
+    pub jump_to_address_dialog: crate::dialog_jump_to_address::JumpToAddressDialog,
+    pub jump_to_line_dialog: crate::dialog_jump_to_line::JumpToLineDialog,
+    pub save_as_dialog: crate::dialog_save_as::SaveAsDialog,
+    pub export_as_dialog: crate::dialog_export_as::ExportAsDialog,
     pub label_dialog: LabelDialogState,
     pub comment_dialog: CommentDialogState,
     pub settings_dialog: crate::dialog_document_settings::DocumentSettingsDialog,
@@ -721,7 +570,7 @@ pub struct UIState {
     pub origin_dialog: OriginDialogState,
     pub confirmation_dialog: ConfirmationDialogState,
     pub system_settings_dialog: crate::dialog_settings::SettingsDialog,
-    pub search_dialog: SearchDialogState,
+    pub search_dialog: crate::dialog_search::SearchDialog,
     pub menu: MenuState,
 
     pub navigation_history: Vec<(ActivePane, usize)>,
@@ -768,9 +617,11 @@ pub struct UIState {
 impl UIState {
     pub fn new(theme: Theme) -> Self {
         Self {
-            file_picker: FilePickerState::new(),
-            jump_dialog: JumpDialogState::new(),
-            save_dialog: SaveDialogState::new(),
+            open_dialog: crate::dialog_open::OpenDialog::new(),
+            jump_to_address_dialog: crate::dialog_jump_to_address::JumpToAddressDialog::new(),
+            jump_to_line_dialog: crate::dialog_jump_to_line::JumpToLineDialog::new(),
+            save_as_dialog: crate::dialog_save_as::SaveAsDialog::new(),
+            export_as_dialog: crate::dialog_export_as::ExportAsDialog::new(),
             label_dialog: LabelDialogState::new(),
             comment_dialog: CommentDialogState::new(),
             settings_dialog: crate::dialog_document_settings::DocumentSettingsDialog::new(),
@@ -779,7 +630,7 @@ impl UIState {
             origin_dialog: OriginDialogState::new(),
             confirmation_dialog: ConfirmationDialogState::new(),
             system_settings_dialog: crate::dialog_settings::SettingsDialog::new(),
-            search_dialog: SearchDialogState::new(),
+            search_dialog: crate::dialog_search::SearchDialog::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),
             disassembly_state: ListState::default(),

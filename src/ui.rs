@@ -6,7 +6,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Borders, List, ListItem, Paragraph},
 };
 
 pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
@@ -28,16 +28,33 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         render_menu_popup(f, chunks[0], &ui_state.menu, &ui_state.theme);
     }
 
-    if ui_state.file_picker.active {
-        render_file_picker(f, f.area(), &ui_state.file_picker, &ui_state.theme);
+    if ui_state.open_dialog.active {
+        crate::dialog_open::render(f, f.area(), &ui_state.open_dialog, &ui_state.theme);
     }
 
-    if ui_state.jump_dialog.active {
-        render_jump_dialog(f, f.area(), &ui_state.jump_dialog, &ui_state.theme);
+    if ui_state.jump_to_address_dialog.active {
+        crate::dialog_jump_to_address::render(
+            f,
+            f.area(),
+            &ui_state.jump_to_address_dialog,
+            &ui_state.theme,
+        );
+    }
+    if ui_state.jump_to_line_dialog.active {
+        crate::dialog_jump_to_line::render(
+            f,
+            f.area(),
+            &ui_state.jump_to_line_dialog,
+            &ui_state.theme,
+        );
     }
 
-    if ui_state.save_dialog.active {
-        render_save_dialog(f, f.area(), &ui_state.save_dialog, &ui_state.theme);
+    if ui_state.save_as_dialog.active {
+        crate::dialog_save_as::render(f, f.area(), &ui_state.save_as_dialog, &ui_state.theme);
+    }
+
+    if ui_state.export_as_dialog.active {
+        crate::dialog_export_as::render(f, f.area(), &ui_state.export_as_dialog, &ui_state.theme);
     }
 
     if ui_state.label_dialog.active {
@@ -90,7 +107,7 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     }
 
     if ui_state.search_dialog.active {
-        render_search_dialog(f, f.area(), &ui_state.search_dialog, &ui_state.theme);
+        crate::dialog_search::render(f, f.area(), &ui_state.search_dialog, &ui_state.theme);
     }
 }
 
@@ -225,183 +242,6 @@ fn render_comment_dialog(
             .add_modifier(Modifier::BOLD),
     );
     f.render_widget(input, area);
-}
-
-fn render_save_dialog(
-    f: &mut Frame,
-    area: Rect,
-    dialog: &crate::ui_state::SaveDialogState,
-    theme: &crate::theme::Theme,
-) {
-    let title = if dialog.mode == crate::ui_state::SaveDialogMode::ExportProject {
-        " Export Project As... "
-    } else {
-        " Save Project As... "
-    };
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(title)
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-
-    // Fixed height of 3 (Border + Input + Border)
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Fill(1),
-            Constraint::Length(3),
-            Constraint::Fill(1),
-        ])
-        .split(area);
-
-    let area = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(50),
-            Constraint::Percentage(25),
-        ])
-        .split(layout[1])[1];
-    f.render_widget(ratatui::widgets::Clear, area);
-
-    let input = Paragraph::new(dialog.input.clone()).block(block).style(
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    );
-    f.render_widget(input, area);
-}
-
-fn render_jump_dialog(
-    f: &mut Frame,
-    area: Rect,
-    dialog: &crate::ui_state::JumpDialogState,
-    theme: &crate::theme::Theme,
-) {
-    let title = match dialog.mode {
-        crate::ui_state::JumpDialogMode::Address => " Jump to Address (Hex) ",
-        crate::ui_state::JumpDialogMode::Line => " Jump to Line (Dec) ",
-    };
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(title)
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-
-    // Fixed height of 3 (Border + Input + Border)
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Fill(1),
-            Constraint::Length(3),
-            Constraint::Fill(1),
-        ])
-        .split(area);
-
-    let area = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(30),
-            Constraint::Percentage(40),
-            Constraint::Percentage(30),
-        ])
-        .split(layout[1])[1];
-    f.render_widget(ratatui::widgets::Clear, area);
-
-    let input = Paragraph::new(dialog.input.clone()).block(block).style(
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    );
-    f.render_widget(input, area);
-}
-
-fn render_search_dialog(
-    f: &mut Frame,
-    area: Rect,
-    dialog: &crate::ui_state::SearchDialogState,
-    theme: &crate::theme::Theme,
-) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Search ")
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-
-    // Fixed height of 3 (Border + Input + Border)
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Fill(1),
-            Constraint::Length(3),
-            Constraint::Fill(1),
-        ])
-        .split(area);
-
-    let area = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(50),
-            Constraint::Percentage(25),
-        ])
-        .split(layout[1])[1];
-    f.render_widget(ratatui::widgets::Clear, area);
-
-    let input = Paragraph::new(dialog.input.clone()).block(block).style(
-        Style::default()
-            .fg(theme.highlight_fg)
-            .add_modifier(Modifier::BOLD),
-    );
-    f.render_widget(input, area);
-}
-
-fn render_file_picker(
-    f: &mut Frame,
-    area: Rect,
-    picker: &crate::ui_state::FilePickerState,
-    theme: &crate::theme::Theme,
-) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Open File (Space to Open, Backspace to Go Back, Esc to Cancel) ")
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-
-    let area = centered_rect(60, 50, area);
-    f.render_widget(ratatui::widgets::Clear, area); // Clear background
-
-    let items: Vec<ListItem> = picker
-        .files
-        .iter()
-        .map(|path| {
-            let name = path.file_name().unwrap_or_default().to_string_lossy();
-            let name = if path.is_dir() {
-                format!("{}/", name)
-            } else {
-                name.to_string()
-            };
-
-            ListItem::new(name)
-        })
-        .collect();
-
-    let list = List::new(items)
-        .block(block)
-        .highlight_style(
-            Style::default()
-                .bg(theme.menu_selected_bg)
-                .fg(theme.menu_selected_fg)
-                .add_modifier(Modifier::BOLD),
-        )
-        .highlight_symbol(">> ");
-
-    let mut state = ListState::default();
-    state.select(Some(picker.selected_index));
-
-    f.render_stateful_widget(list, area, &mut state);
 }
 
 fn render_menu(
