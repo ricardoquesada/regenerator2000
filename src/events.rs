@@ -718,10 +718,7 @@ pub fn run_app<B: Backend>(
                     _ => {}
                 }
             } else if ui_state.about_dialog.active {
-                if let KeyCode::Esc | KeyCode::Enter | KeyCode::Char(_) = key.code {
-                    ui_state.about_dialog.close();
-                    ui_state.set_status_message("Ready");
-                }
+                crate::dialog_about::handle_input(key, &mut ui_state);
             } else if ui_state.shortcuts_dialog.active {
                 match key.code {
                     KeyCode::Esc | KeyCode::Enter => {

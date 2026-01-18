@@ -152,24 +152,6 @@ impl ConfirmationDialogState {
     }
 }
 
-pub struct AboutDialogState {
-    pub active: bool,
-}
-
-impl AboutDialogState {
-    pub fn new() -> Self {
-        Self { active: false }
-    }
-
-    pub fn open(&mut self) {
-        self.active = true;
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-    }
-}
-
 pub struct ShortcutsDialogState {
     pub active: bool,
     pub scroll_offset: usize,
@@ -788,7 +770,7 @@ pub struct UIState {
     pub label_dialog: LabelDialogState,
     pub comment_dialog: CommentDialogState,
     pub settings_dialog: crate::dialog_document_settings::DocumentSettingsDialog,
-    pub about_dialog: AboutDialogState,
+    pub about_dialog: crate::dialog_about::AboutDialog,
     pub shortcuts_dialog: ShortcutsDialogState,
     pub origin_dialog: OriginDialogState,
     pub confirmation_dialog: ConfirmationDialogState,
@@ -846,7 +828,7 @@ impl UIState {
             label_dialog: LabelDialogState::new(),
             comment_dialog: CommentDialogState::new(),
             settings_dialog: crate::dialog_document_settings::DocumentSettingsDialog::new(),
-            about_dialog: AboutDialogState::new(),
+            about_dialog: crate::dialog_about::AboutDialog::new(),
             shortcuts_dialog: ShortcutsDialogState::new(),
             origin_dialog: OriginDialogState::new(),
             confirmation_dialog: ConfirmationDialogState::new(),
