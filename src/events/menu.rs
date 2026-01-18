@@ -652,21 +652,20 @@ fn apply_block_type(
 
     if ui_state.active_pane == ActivePane::Blocks {
         let blocks = app_state.get_blocks_view_items();
-        if let Some(idx) = ui_state.blocks_list_state.selected() {
-            if idx < blocks.len() {
-                if let crate::state::BlockItem::Block { start, end, .. } = blocks[idx] {
-                    let len = (end as usize) - (start as usize) + 1;
-                    if needs_even && len % 2 != 0 {
-                        ui_state.set_status_message(format!(
-                            "Error: {} requires even number of bytes",
-                            block_type
-                        ));
-                        return;
-                    }
-                    app_state.set_block_type_region(block_type, Some(start as usize), end as usize);
-                    ui_state.set_status_message(format!("Set block type to {}", block_type));
-                }
+        if let Some(idx) = ui_state.blocks_list_state.selected()
+            && idx < blocks.len()
+            && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
+        {
+            let len = (end as usize) - (start as usize) + 1;
+            if needs_even && !len.is_multiple_of(2) {
+                ui_state.set_status_message(format!(
+                    "Error: {} requires even number of bytes",
+                    block_type
+                ));
+                return;
             }
+            app_state.set_block_type_region(block_type, Some(start as usize), end as usize);
+            ui_state.set_status_message(format!("Set block type to {}", block_type));
         }
     } else if let Some(start_index) = ui_state.selection_start {
         let start = start_index.min(ui_state.cursor_index);
