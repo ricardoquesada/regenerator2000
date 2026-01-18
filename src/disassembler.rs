@@ -2,28 +2,28 @@ use crate::cpu::{Opcode, get_opcodes};
 use crate::state::{Assembler, BlockType, DocumentSettings, Label};
 use std::collections::{BTreeMap, BTreeSet};
 
-mod acme;
-mod ca65;
+mod fomatter_ca65;
 pub mod formatter;
-mod kickasm;
-mod tass;
+mod formatter_64tass;
+mod formatter_acme;
+mod formatter_kickasm;
 
-use acme::AcmeFormatter;
-use ca65::Ca65Formatter;
+use fomatter_ca65::Ca65Formatter;
 use formatter::Formatter;
-use kickasm::KickAsmFormatter;
-use tass::TassFormatter;
+use formatter_64tass::TassFormatter;
+use formatter_acme::AcmeFormatter;
+use formatter_kickasm::KickAsmFormatter;
 
 #[cfg(test)]
 mod brk_tests;
 #[cfg(test)]
-mod ca65_tests;
-#[cfg(test)]
 mod collapsed_tests;
 #[cfg(test)]
-mod illegal_opcodes_tests;
+mod formatter_ca65_tests;
 #[cfg(test)]
-mod kickasm_tests;
+mod formatter_kickasm_tests;
+#[cfg(test)]
+mod illegal_opcodes_tests;
 #[cfg(test)]
 mod label_placement_tests;
 #[cfg(test)]

@@ -1,6 +1,8 @@
 mod analyzer;
 pub mod assets;
-mod crt;
+mod parser_crt;
+mod parser_t64;
+mod parser_vsf;
 
 mod commands;
 mod cpu;
@@ -12,10 +14,8 @@ mod ui;
 mod ui_state;
 
 mod config;
-mod t64;
 mod theme;
 mod utils;
-mod vsf;
 
 #[cfg(test)]
 mod cursor_persistence_test;

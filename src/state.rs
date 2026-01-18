@@ -473,18 +473,18 @@ impl AppState {
                 self.origin = (data[1] as u16) << 8 | (data[0] as u16);
                 self.raw_data = data[2..].to_vec();
             } else if ext.eq_ignore_ascii_case("crt") {
-                let (origin, raw_data) = crate::crt::parse_crt(&data)
+                let (origin, raw_data) = crate::parser_crt::parse_crt(&data)
                     .map_err(|e| anyhow::anyhow!("Failed to parse CRT: {}", e))?;
                 self.origin = origin;
                 self.raw_data = raw_data;
             } else if ext.eq_ignore_ascii_case("vsf") {
-                let vsf_data = crate::vsf::parse_vsf(&data)
+                let vsf_data = crate::parser_vsf::parse_vsf(&data)
                     .map_err(|e| anyhow::anyhow!("Failed to parse VSF: {}", e))?;
                 self.origin = 0;
                 self.raw_data = vsf_data.memory;
                 cursor_start = vsf_data.start_address;
             } else if ext.eq_ignore_ascii_case("t64") {
-                let (load_address, raw_data) = crate::t64::parse_t64(&data)
+                let (load_address, raw_data) = crate::parser_t64::parse_t64(&data)
                     .map_err(|e| anyhow::anyhow!("Failed to parse T64: {}", e))?;
                 self.origin = load_address;
                 self.raw_data = raw_data;

@@ -2174,7 +2174,7 @@ fn test_bytes_per_line() {
     let data = [0x11, 0x22, 0x33, 0x44, 0x55];
     let block_types = vec![BlockType::DataByte; 5];
     let disassembler = Disassembler::new();
-    let formatter = Box::new(crate::disassembler::tass::TassFormatter);
+    let formatter = Box::new(crate::disassembler::formatter_64tass::TassFormatter);
 
     let (consumed, lines) = disassembler.handle_data_byte(
         0,
