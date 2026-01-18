@@ -16,6 +16,7 @@ mod exporter;
 mod state;
 mod ui;
 mod ui_state;
+mod view_disassembly;
 
 mod config;
 mod theme;

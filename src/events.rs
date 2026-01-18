@@ -808,6 +808,19 @@ pub fn run_app<B: Backend>(
                     _ => {}
                 }
             } else {
+                if ui_state.active_pane == ActivePane::Disassembly {
+                    use crate::view_disassembly::InputResult;
+                    match crate::view_disassembly::handle_input(key, &mut app_state, &mut ui_state)
+                    {
+                        InputResult::Handled => continue,
+                        InputResult::Action(action) => {
+                            handle_menu_action(&mut app_state, &mut ui_state, action);
+                            continue;
+                        }
+                        InputResult::Ignored => {}
+                    }
+                }
+
                 match key.code {
                     KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                         handle_menu_action(
