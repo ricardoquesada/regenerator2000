@@ -210,8 +210,7 @@ impl Formatter for KickAsmFormatter {
                         lines.push((".byte".to_string(), current_byte_parts.join(", "), true));
                         current_byte_parts.clear();
                     }
-                    let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
-                    current_text_parts.push(format!("@\"{}\"", escaped));
+                    current_text_parts.push(self.format_string_literal(s));
                 }
                 TextFragment::Byte(b) => {
                     // Flush text if any
@@ -269,8 +268,7 @@ impl Formatter for KickAsmFormatter {
                             }
                         })
                         .collect();
-                    let escaped = swapped.replace('\\', "\\\\").replace('"', "\\\"");
-                    current_text_parts.push(format!("@\"{}\"", escaped));
+                    current_text_parts.push(self.format_string_literal(&swapped));
                 }
                 TextFragment::Byte(b) => {
                     // Flush text if any
@@ -348,5 +346,19 @@ impl Formatter for KickAsmFormatter {
         }
 
         (mnemonic, operand)
+    }
+}
+
+impl KickAsmFormatter {
+    fn format_string_literal(&self, s: &str) -> String {
+        // KickAssembler uses @ prefix to enable escape sequences.
+        // If the string contains quotes or control characters, we need to escape it and use @.
+        // Otherwise, we can use a plain string.
+        if s.contains('"') || s.chars().any(|c| c.is_control()) || s.contains('\\') {
+            let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
+            format!("@\"{}\"", escaped)
+        } else {
+            format!("\"{}\"", s)
+        }
     }
 }

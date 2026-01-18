@@ -1,4 +1,8 @@
-# Regenerator 2000 ![Rust](https://github.com/ricardoquesada/regenerator2000/actions/workflows/rust.yml/badge.svg) [![Crates.io Version](https://img.shields.io/crates/v/regenerator2000)](https://crates.io/crates/regenerator2000)
+# Regenerator 2000
+
+![Rust](https://github.com/ricardoquesada/regenerator2000/actions/workflows/rust.yml/badge.svg)
+[![Crates.io Version](https://img.shields.io/crates/v/regenerator2000)](https://crates.io/crates/regenerator2000)
+[![discord](https://img.shields.io/discord/775177861665521725.svg)](https://discord.gg/r5aMn6Cw5q)
 
 ![logo](docs/regenerator2000_logo.png)
 
@@ -125,4 +129,4 @@ cargo run
 
 ## User Guide
 
-* [User Guide](docs/user_guide.md)
+- [User Guide](docs/user_guide.md)

@@ -175,7 +175,7 @@ fn test_text_encoding() {
     );
     assert_eq!(
         lines[1],
-        (".text".to_string(), "@\"hello\"".to_string(), true)
+        (".text".to_string(), "\"hello\"".to_string(), true)
     );
 
     // 2. Text Continuation -> .text only
@@ -183,7 +183,7 @@ fn test_text_encoding() {
     assert_eq!(lines_cont.len(), 1);
     assert_eq!(
         lines_cont[0],
-        (".text".to_string(), "@\"hello\"".to_string(), true)
+        (".text".to_string(), "\"hello\"".to_string(), true)
     );
 }
 
@@ -211,7 +211,7 @@ fn test_screencode_encoding() {
     assert_eq!(lines.len(), 1);
     assert_eq!(
         lines[0],
-        (".text".to_string(), "@\"hELLO\"".to_string(), true)
+        (".text".to_string(), "\"hELLO\"".to_string(), true)
     );
 }
 
@@ -230,7 +230,7 @@ fn test_screencode_case_swap() {
     assert_eq!(lines.len(), 1);
     assert_eq!(
         lines[0],
-        (".text".to_string(), "@\"hELLO wORLD\"".to_string(), true)
+        (".text".to_string(), "\"hELLO wORLD\"".to_string(), true)
     );
 }
 
@@ -267,12 +267,12 @@ fn test_mixed_encoding() {
     );
     assert_eq!(
         lines[1],
-        (".text".to_string(), "@\"hello\"".to_string(), true)
+        (".text".to_string(), "\"hello\"".to_string(), true)
     );
     assert_eq!(lines[2], (".byte".to_string(), "$ff".to_string(), true));
     assert_eq!(
         lines[3],
-        (".text".to_string(), "@\"world\"".to_string(), true)
+        (".text".to_string(), "\"world\"".to_string(), true)
     );
 }
 
