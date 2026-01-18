@@ -2166,8 +2166,10 @@ fn test_words_per_line() {
 
 #[test]
 fn test_bytes_per_line() {
-    let mut settings = DocumentSettings::default();
-    settings.bytes_per_line = 3;
+    let settings = DocumentSettings {
+        bytes_per_line: 3,
+        ..Default::default()
+    };
 
     let data = [0x11, 0x22, 0x33, 0x44, 0x55];
     let block_types = vec![BlockType::DataByte; 5];

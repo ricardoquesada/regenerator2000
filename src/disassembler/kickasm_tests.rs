@@ -4,8 +4,10 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_format_instructions() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Kick;
+    let settings = DocumentSettings {
+        assembler: Assembler::Kick,
+        ..Default::default()
+    };
     let formatter = Disassembler::create_formatter(settings.assembler);
     let labels = BTreeMap::new();
     let immediate_value_formats = BTreeMap::new();
@@ -13,7 +15,7 @@ fn test_format_instructions() {
 
     // LDA #$00
     let ctx = crate::disassembler::formatter::FormatContext {
-        opcode: &opcodes[0xA9].as_ref().unwrap(),
+        opcode: opcodes[0xA9].as_ref().unwrap(),
         operands: &[0x00],
         address: 0x1000,
         target_context: None,
@@ -28,7 +30,7 @@ fn test_format_instructions() {
 
     // STA $D020
     let ctx = crate::disassembler::formatter::FormatContext {
-        opcode: &opcodes[0x8D].as_ref().unwrap(),
+        opcode: opcodes[0x8D].as_ref().unwrap(),
         operands: &[0x20, 0xD0],
         address: 0x1002,
         target_context: None,
@@ -82,8 +84,10 @@ fn test_relative_label() {
 
 #[test]
 fn test_forced_absolute() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Kick;
+    let mut settings = DocumentSettings {
+        assembler: Assembler::Kick,
+        ..Default::default()
+    };
     let formatter = Disassembler::create_formatter(settings.assembler);
     let labels = BTreeMap::new();
     let immediate_value_formats = BTreeMap::new();
@@ -92,7 +96,7 @@ fn test_forced_absolute() {
     // True functionality: should output .abs
     settings.preserve_long_bytes = true;
     let ctx = crate::disassembler::formatter::FormatContext {
-        opcode: &opcodes[0xAD].as_ref().unwrap(),
+        opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
         address: 0x1000,
         target_context: None,
@@ -113,10 +117,10 @@ fn test_forced_absolute() {
     // But the request is to control the .abs suffix.
     // If we omit .abs, KickAssembler will likely assemble it as ZP ($A5).
     // This matches the behavior of "not preserving" the long form.
-    let mut settings_false = settings.clone();
+    let mut settings_false = settings;
     settings_false.preserve_long_bytes = false;
     let ctx_false = crate::disassembler::formatter::FormatContext {
-        opcode: &opcodes[0xAD].as_ref().unwrap(),
+        opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
         address: 0x1000,
         target_context: None,
@@ -132,7 +136,7 @@ fn test_forced_absolute() {
     // LDA $02 (ZeroPage) -> A5 02
     // Should be formatted as "lda $02"
     let ctx_zp = crate::disassembler::formatter::FormatContext {
-        opcode: &opcodes[0xA5].as_ref().unwrap(),
+        opcode: opcodes[0xA5].as_ref().unwrap(),
         operands: &[0x02],
         address: 0x1000,
         target_context: None,
@@ -163,7 +167,11 @@ fn test_text_encoding() {
     assert_eq!(lines.len(), 2);
     assert_eq!(
         lines[0],
-        (".encoding".to_string(), "\"ascii\"".to_string(), false)
+        (
+            ".encoding".to_string(),
+            "\"petscii_upper\"".to_string(),
+            false
+        )
     );
     assert_eq!(
         lines[1],
@@ -193,7 +201,7 @@ fn test_screencode_encoding() {
     assert_eq!(pre_lines.len(), 1);
     assert_eq!(
         pre_lines[0],
-        (".encoding".to_string(), "\"screencode_upper\"".to_string())
+        (".encoding".to_string(), "\"screencode_mixed\"".to_string())
     );
 
     // 2. Screencode Body -> .text (no manual inversion)
@@ -232,7 +240,11 @@ fn test_mixed_encoding() {
     assert_eq!(lines.len(), 4);
     assert_eq!(
         lines[0],
-        (".encoding".to_string(), "\"ascii\"".to_string(), false)
+        (
+            ".encoding".to_string(),
+            "\"petscii_upper\"".to_string(),
+            false
+        )
     );
     assert_eq!(
         lines[1],
@@ -262,7 +274,11 @@ fn test_quote_escaping() {
     assert_eq!(lines.len(), 2);
     assert_eq!(
         lines[0],
-        (".encoding".to_string(), "\"ascii\"".to_string(), false)
+        (
+            ".encoding".to_string(),
+            "\"petscii_upper\"".to_string(),
+            false
+        )
     );
     // Verify double-quote escaping
     assert_eq!(

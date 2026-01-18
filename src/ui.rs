@@ -380,7 +380,8 @@ fn render_settings_dialog(
         Span::styled(format!("{} {}", check_char, label), style)
     };
 
-    let patch_brk_disabled = settings.brk_single_byte;
+    let patch_brk_disabled =
+        settings.brk_single_byte || settings.assembler == crate::state::Assembler::Kick;
 
     let items = vec![
         checkbox(
@@ -390,7 +391,7 @@ fn render_settings_dialog(
             false,
         ),
         checkbox(
-            "Preserve long bytes (@w, +2, etc)",
+            "Preserve long bytes (@w, +2, .abs, etc)",
             settings.preserve_long_bytes,
             dialog.selected_index == 1,
             false,

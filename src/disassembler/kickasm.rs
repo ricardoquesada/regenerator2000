@@ -192,7 +192,11 @@ impl Formatter for KickAsmFormatter {
         let mut lines = Vec::new();
 
         if is_start {
-            lines.push((".encoding".to_string(), "\"ascii\"".to_string(), false));
+            lines.push((
+                ".encoding".to_string(),
+                "\"petscii_upper\"".to_string(),
+                false,
+            ));
         }
 
         let mut current_text_parts = Vec::new();
@@ -232,7 +236,7 @@ impl Formatter for KickAsmFormatter {
     }
 
     fn format_screencode_pre(&self) -> Vec<(String, String)> {
-        vec![(".encoding".to_string(), "\"screencode_upper\"".to_string())]
+        vec![(".encoding".to_string(), "\"screencode_mixed\"".to_string())]
     }
 
     fn format_screencode(

@@ -1226,7 +1226,7 @@ mod serialization_tests {
         assert_eq!(ranges[0].start, 0);
         assert_eq!(ranges[0].end, 1);
         assert_eq!(ranges[0].type_, BlockType::Code);
-        assert_eq!(ranges[0].collapsed, false);
+        assert!(!ranges[0].collapsed);
 
         assert_eq!(ranges[1].start, 2);
         assert_eq!(ranges[1].end, 3);

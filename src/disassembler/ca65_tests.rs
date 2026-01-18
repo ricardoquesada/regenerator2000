@@ -4,8 +4,10 @@ use std::collections::BTreeMap;
 
 #[test]
 fn test_format_instructions() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Ca65;
+    let settings = DocumentSettings {
+        assembler: Assembler::Ca65,
+        ..Default::default()
+    };
     let formatter = Disassembler::create_formatter(settings.assembler);
     let labels = BTreeMap::new();
     let immediate_value_formats = BTreeMap::new();
@@ -13,7 +15,7 @@ fn test_format_instructions() {
 
     // LDA #$00
     let ctx = crate::disassembler::formatter::FormatContext {
-        opcode: &opcodes[0xA9].as_ref().unwrap(),
+        opcode: opcodes[0xA9].as_ref().unwrap(),
         operands: &[0x00],
         address: 0x1000,
         target_context: None,
@@ -28,7 +30,7 @@ fn test_format_instructions() {
 
     // STA $D020
     let ctx = crate::disassembler::formatter::FormatContext {
-        opcode: &opcodes[0x8D].as_ref().unwrap(),
+        opcode: opcodes[0x8D].as_ref().unwrap(),
         operands: &[0x20, 0xD0],
         address: 0x1002,
         target_context: None,
@@ -65,8 +67,10 @@ fn test_labels() {
 
 #[test]
 fn test_forced_absolute() {
-    let mut settings = DocumentSettings::default();
-    settings.assembler = Assembler::Ca65;
+    let mut settings = DocumentSettings {
+        assembler: Assembler::Ca65,
+        ..Default::default()
+    };
     let formatter = Disassembler::create_formatter(settings.assembler);
     let labels = BTreeMap::new();
     let immediate_value_formats = BTreeMap::new();
@@ -76,7 +80,7 @@ fn test_forced_absolute() {
     // Should be formatted as "lda a:$0002" because value <= $FF
     settings.preserve_long_bytes = true;
     let ctx = crate::disassembler::formatter::FormatContext {
-        opcode: &opcodes[0xAD].as_ref().unwrap(),
+        opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
         address: 0x1000,
         target_context: None,
@@ -90,10 +94,10 @@ fn test_forced_absolute() {
     );
 
     // False functionality: should NOT output a: prefix
-    let mut settings_false = settings.clone();
+    let mut settings_false = settings;
     settings_false.preserve_long_bytes = false;
     let ctx_false = crate::disassembler::formatter::FormatContext {
-        opcode: &opcodes[0xAD].as_ref().unwrap(),
+        opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
         address: 0x1000,
         target_context: None,
@@ -109,7 +113,7 @@ fn test_forced_absolute() {
     // LDA $02 (ZeroPage) -> A5 02
     // Should be formatted as "lda $02"
     let ctx_zp = crate::disassembler::formatter::FormatContext {
-        opcode: &opcodes[0xA5].as_ref().unwrap(),
+        opcode: opcodes[0xA5].as_ref().unwrap(),
         operands: &[0x02],
         address: 0x1000,
         target_context: None,
