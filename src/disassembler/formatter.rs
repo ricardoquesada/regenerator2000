@@ -39,6 +39,10 @@ pub trait Formatter {
     fn format_screencode(&self, fragments: &[TextFragment]) -> Vec<(String, String, bool)>;
     fn format_screencode_post(&self) -> Vec<(String, String)>;
     fn format_header_origin(&self, origin: u16) -> String;
+    fn format_file_header(&self, file_name: &str) -> String {
+        let _ = file_name;
+        String::new()
+    }
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String;
     fn format_relative_label(&self, name: &str, offset: usize) -> String {
         format!("{} =*+${:02x}", self.format_label(name), offset)

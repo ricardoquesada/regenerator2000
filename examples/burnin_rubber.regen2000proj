@@ -555,7 +555,7 @@
     "brk_single_byte": false,
     "patch_brk": true,
     "platform": "Commodore64",
-    "assembler": "Kick",
+    "assembler": "Ca65",
     "max_xref_count": 5,
     "max_arrow_columns": 6,
     "use_illegal_opcodes": false,
@@ -577,7 +577,7 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 5744,
+  "cursor_address": 5748,
   "hex_dump_cursor_address": 16384,
   "sprites_cursor_address": 12352,
   "charset_cursor_address": 8192,
