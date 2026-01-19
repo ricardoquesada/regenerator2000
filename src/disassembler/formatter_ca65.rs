@@ -224,9 +224,21 @@ impl Formatter for Ca65Formatter {
     ) -> Vec<(String, String, bool)> {
         use super::formatter::TextFragment;
         let mut lines = Vec::new();
+        let mut pending_bytes = Vec::new();
+
+        let flush_bytes = |bytes: &mut Vec<u8>, lines: &mut Vec<(String, String, bool)>| {
+            if !bytes.is_empty() {
+                let parts: Vec<String> = bytes.iter().map(|b| format!("${:02x}", b)).collect();
+                lines.push((".byte".to_string(), parts.join(", "), true));
+                bytes.clear();
+            }
+        };
+
         for fragment in fragments {
             match fragment {
                 TextFragment::Text(s) => {
+                    flush_bytes(&mut pending_bytes, &mut lines);
+
                     let s_swapped: String = s
                         .chars()
                         .map(|c| {
@@ -256,10 +268,11 @@ impl Formatter for Ca65Formatter {
                     }
                 }
                 TextFragment::Byte(b) => {
-                    lines.push((".byte".to_string(), format!("${:02x}", b), true));
+                    pending_bytes.push(*b);
                 }
             }
         }
+        flush_bytes(&mut pending_bytes, &mut lines);
         lines
     }
 

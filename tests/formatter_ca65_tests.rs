@@ -170,6 +170,16 @@ fn test_format_screencode() {
     let fragments = vec![TextFragment::Text("Hello World".to_string())];
     let lines = formatter.format_screencode(&fragments);
     assert_eq!(lines[0].1, "\"hELLO wORLD\"");
+    // Case 5: Multiple bytes
+    let fragments = vec![
+        TextFragment::Byte(0xA9),
+        TextFragment::Byte(0xA9),
+        TextFragment::Byte(0xA9),
+    ];
+    let lines = formatter.format_screencode(&fragments);
+    assert_eq!(lines.len(), 1);
+    assert_eq!(lines[0].0, ".byte");
+    assert_eq!(lines[0].1, "$a9, $a9, $a9");
 }
 
 #[test]
