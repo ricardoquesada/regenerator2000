@@ -6,7 +6,7 @@ use crate::ui::menu::handle_menu_action;
 
 pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UIState) {
     match key.code {
-        KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Exit);
         }
         KeyCode::F(10) => {
@@ -15,36 +15,34 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             ui_state.set_status_message("Menu Active");
         }
         // Global Shortcuts
-        KeyCode::Char('o') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('o') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Open)
         }
-        KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('a') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Analyze);
         }
-        KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            if key.modifiers.contains(KeyModifiers::SHIFT) {
-                handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::SaveAs);
-            } else {
-                handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Save);
-            }
+        KeyCode::Char('s') if key.modifiers == KeyModifiers::CONTROL => {
+            handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Save);
         }
-        KeyCode::Char('e') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            if key.modifiers.contains(KeyModifiers::SHIFT) {
-                handle_menu_action(
-                    app_state,
-                    ui_state,
-                    crate::ui_state::MenuAction::ExportProjectAs,
-                );
-            } else {
-                handle_menu_action(
-                    app_state,
-                    ui_state,
-                    crate::ui_state::MenuAction::ExportProject,
-                );
-            }
+        KeyCode::Char('S') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+            handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::SaveAs);
+        }
+        KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::ExportProject,
+            );
+        }
+        KeyCode::Char('E') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::ExportProjectAs,
+            );
         }
 
-        KeyCode::Char(',') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char(',') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(
                 app_state,
                 ui_state,
@@ -55,53 +53,46 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         KeyCode::Char('u') if key.modifiers.is_empty() => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Undo);
         }
-        KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Redo);
         }
-        KeyCode::Char('2') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('2') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(
                 app_state,
                 ui_state,
                 crate::ui_state::MenuAction::ToggleHexDump,
             );
         }
-        KeyCode::Char('3') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('3') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(
                 app_state,
                 ui_state,
                 crate::ui_state::MenuAction::ToggleSpritesView,
             );
         }
-        KeyCode::Char('4') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('4') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(
                 app_state,
                 ui_state,
                 crate::ui_state::MenuAction::ToggleCharsetView,
             );
         }
-        KeyCode::Char('5') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+        KeyCode::Char('5') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(
                 app_state,
                 ui_state,
                 crate::ui_state::MenuAction::ToggleBlocksView,
             );
         }
-        KeyCode::Char('g') => {
-            if key.modifiers.contains(KeyModifiers::CONTROL) {
-                if key.modifiers.contains(KeyModifiers::SHIFT) {
-                    handle_menu_action(
-                        app_state,
-                        ui_state,
-                        crate::ui_state::MenuAction::JumpToLine,
-                    );
-                }
-            } else if key.modifiers.is_empty() {
-                handle_menu_action(
-                    app_state,
-                    ui_state,
-                    crate::ui_state::MenuAction::JumpToAddress,
-                );
-            }
+        KeyCode::Char('g') if key.modifiers.is_empty() => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::JumpToAddress,
+            );
+        }
+        KeyCode::Char('G') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+            handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::JumpToLine);
         }
 
         // Input Buffer for Numbers

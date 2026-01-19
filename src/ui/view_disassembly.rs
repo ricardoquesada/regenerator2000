@@ -751,7 +751,7 @@ impl Widget for DisassemblyView {
             KeyCode::Down | KeyCode::Char('j')
                 if key.code == KeyCode::Down || key.modifiers.is_empty() =>
             {
-                if key.modifiers.contains(KeyModifiers::SHIFT) || ui_state.is_visual_mode {
+                if key.modifiers == KeyModifiers::SHIFT || ui_state.is_visual_mode {
                     if ui_state.selection_start.is_none() {
                         ui_state.selection_start = Some(ui_state.cursor_index);
                     }
@@ -784,7 +784,7 @@ impl Widget for DisassemblyView {
             KeyCode::Up | KeyCode::Char('k')
                 if key.code == KeyCode::Up || key.modifiers.is_empty() =>
             {
-                if key.modifiers.contains(KeyModifiers::SHIFT) || ui_state.is_visual_mode {
+                if key.modifiers == KeyModifiers::SHIFT || ui_state.is_visual_mode {
                     if ui_state.selection_start.is_none() {
                         ui_state.selection_start = Some(ui_state.cursor_index);
                     }
@@ -818,7 +818,7 @@ impl Widget for DisassemblyView {
                     (ui_state.cursor_index + 30).min(app_state.disassembly.len().saturating_sub(1));
                 WidgetResult::Handled
             }
-            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
                 ui_state.cursor_index =
                     (ui_state.cursor_index + 30).min(app_state.disassembly.len().saturating_sub(1));
                 WidgetResult::Handled
@@ -827,7 +827,7 @@ impl Widget for DisassemblyView {
                 ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
                 WidgetResult::Handled
             }
-            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
                 ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
                 WidgetResult::Handled
             }
@@ -840,10 +840,12 @@ impl Widget for DisassemblyView {
                 WidgetResult::Handled
             }
             KeyCode::F(3) => {
-                if key.modifiers.contains(KeyModifiers::SHIFT) {
+                if key.modifiers == KeyModifiers::SHIFT {
                     WidgetResult::Action(crate::ui_state::MenuAction::FindPrevious)
-                } else {
+                } else if key.modifiers.is_empty() {
                     WidgetResult::Action(crate::ui_state::MenuAction::FindNext)
+                } else {
+                    WidgetResult::Ignored
                 }
             }
             KeyCode::Char('/') if key.modifiers.is_empty() => {
@@ -863,10 +865,10 @@ impl Widget for DisassemblyView {
                 crate::ui::dialog_search::perform_search(app_state, ui_state, false);
                 WidgetResult::Handled
             }
-            KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            KeyCode::Char('f') if key.modifiers == KeyModifiers::CONTROL => {
                 WidgetResult::Action(crate::ui_state::MenuAction::Search)
             }
-            KeyCode::Char('G') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            KeyCode::Char('G') if key.modifiers == KeyModifiers::SHIFT => {
                 let entered_number = ui_state.input_buffer.parse::<usize>().unwrap_or(0);
                 let is_buffer_empty = ui_state.input_buffer.is_empty();
                 ui_state.input_buffer.clear();
@@ -896,7 +898,7 @@ impl Widget for DisassemblyView {
                 ui_state.set_status_message(format!("Jumped to line {}", target_line));
                 WidgetResult::Handled
             }
-            KeyCode::Char('V') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            KeyCode::Char('V') if key.modifiers == KeyModifiers::SHIFT => {
                 if !app_state.raw_data.is_empty() {
                     ui_state.is_visual_mode = !ui_state.is_visual_mode;
                     if ui_state.is_visual_mode {
@@ -972,43 +974,22 @@ impl Widget for DisassemblyView {
             KeyCode::Char('s') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::Screencode)
             }
-            KeyCode::Char('?')
-                if !key
-                    .modifiers
-                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
-            {
+            KeyCode::Char('?') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::Undefined)
             }
-            KeyCode::Char('<')
-                if !key
-                    .modifiers
-                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
-            {
+            KeyCode::Char('<') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::SetLoHi)
             }
-            KeyCode::Char('>')
-                if !key
-                    .modifiers
-                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
-            {
+            KeyCode::Char('>') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::SetHiLo)
             }
-            KeyCode::Char('|')
-                if key.modifiers.contains(KeyModifiers::SHIFT)
-                    || !key.modifiers.intersects(
-                        KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER,
-                    ) =>
-            {
+            KeyCode::Char('|') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::ToggleSplitter)
             }
             KeyCode::Char(';') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::SideComment)
             }
-            KeyCode::Char(':')
-                if !key
-                    .modifiers
-                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
-            {
+            KeyCode::Char(':') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::LineComment)
             }
             KeyCode::Char('e') if key.modifiers.is_empty() => {
@@ -1020,10 +1001,10 @@ impl Widget for DisassemblyView {
             KeyCode::Char('d') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::NextImmediateFormat)
             }
-            KeyCode::Char('D') if key.modifiers.contains(KeyModifiers::SHIFT) => {
+            KeyCode::Char('D') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::PreviousImmediateFormat)
             }
-            KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
                 WidgetResult::Action(MenuAction::ToggleCollapsedBlock)
             }
             KeyCode::Backspace => {

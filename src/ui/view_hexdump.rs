@@ -179,7 +179,7 @@ impl Widget for HexDumpView {
                     (ui_state.hex_cursor_index + 10).min(total_rows.saturating_sub(1));
                 WidgetResult::Handled
             }
-            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
                 ui_state.input_buffer.clear();
                 ui_state.hex_cursor_index =
                     (ui_state.hex_cursor_index + 10).min(total_rows.saturating_sub(1));
@@ -190,7 +190,7 @@ impl Widget for HexDumpView {
                 ui_state.hex_cursor_index = ui_state.hex_cursor_index.saturating_sub(10);
                 WidgetResult::Handled
             }
-            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
                 ui_state.input_buffer.clear();
                 ui_state.hex_cursor_index = ui_state.hex_cursor_index.saturating_sub(10);
                 WidgetResult::Handled
