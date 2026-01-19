@@ -191,8 +191,8 @@ impl MenuState {
                             Some("e"),
                             Some(MenuAction::SetExternalFile),
                         ),
-                        MenuItem::new("Text", Some("T"), Some(MenuAction::Text)),
-                        MenuItem::new("Screencode", Some("S"), Some(MenuAction::Screencode)),
+                        MenuItem::new("PETSCII Text", Some("T"), Some(MenuAction::Text)),
+                        MenuItem::new("Screencode Text", Some("S"), Some(MenuAction::Screencode)),
                         MenuItem::new("Undefined", Some("?"), Some(MenuAction::Undefined)),
                         MenuItem::separator(),
                         MenuItem::new(
