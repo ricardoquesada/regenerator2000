@@ -52,6 +52,9 @@ pub fn run_app<B: Backend>(
                         // Dialog closed.
                     }
                 }
+                if ui_state.should_quit {
+                    return Ok(());
+                }
                 continue;
             }
             // Label dialog removed (generic)            // Comment dialog removed (generic)
