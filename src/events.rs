@@ -1,12 +1,10 @@
 pub mod input;
-pub mod menu;
 
 use crate::state::AppState;
 use crate::ui::ui;
 use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::{self, Event, KeyCode};
 use input::handle_global_input;
-use menu::handle_menu_action;
 use ratatui::{Terminal, backend::Backend};
 use std::io;
 
@@ -59,49 +57,7 @@ pub fn run_app<B: Backend>(
             } else if ui_state.search_dialog.active {
                 crate::dialog_search::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.menu.active {
-                match key.code {
-                    KeyCode::Esc => {
-                        ui_state.menu.active = false;
-                        ui_state.menu.selected_item = None;
-                        ui_state.set_status_message("Ready");
-                    }
-                    KeyCode::Right => {
-                        ui_state.menu.next_category();
-                    }
-                    KeyCode::Left => {
-                        ui_state.menu.previous_category();
-                    }
-                    KeyCode::Down => {
-                        ui_state.menu.next_item();
-                    }
-                    KeyCode::Up => {
-                        ui_state.menu.previous_item();
-                    }
-                    KeyCode::Enter => {
-                        if let Some(item_idx) = ui_state.menu.selected_item {
-                            let category_idx = ui_state.menu.selected_category;
-                            let item = &ui_state.menu.categories[category_idx].items[item_idx];
-
-                            if !item.disabled {
-                                let action = item.action.clone();
-                                if let Some(action) = action {
-                                    handle_menu_action(&mut app_state, &mut ui_state, action);
-                                    // Close menu after valid action
-                                    ui_state.menu.active = false;
-                                    ui_state.menu.selected_item = None;
-                                }
-                            } else {
-                                // Optional: Feedback that it's disabled
-                                ui_state.set_status_message("Item is disabled");
-                            }
-                        } else {
-                            // Enter on category -> open first item?
-                            // ui_state.menu.selected_item = Some(0);
-                            ui_state.menu.select_first_enabled_item();
-                        }
-                    }
-                    _ => {}
-                }
+                crate::menu::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.about_dialog.active {
                 crate::dialog_about::handle_input(key, &mut ui_state);
             } else if ui_state.shortcuts_dialog.active {
@@ -140,7 +96,7 @@ pub fn run_app<B: Backend>(
                     {
                         InputResult::Handled => continue,
                         InputResult::Action(action) => {
-                            handle_menu_action(&mut app_state, &mut ui_state, action);
+                            crate::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
                             continue;
                         }
                         InputResult::Ignored => {}
@@ -152,7 +108,7 @@ pub fn run_app<B: Backend>(
                     match crate::view_hexdump::handle_input(key, &mut app_state, &mut ui_state) {
                         InputResult::Handled => continue,
                         InputResult::Action(action) => {
-                            handle_menu_action(&mut app_state, &mut ui_state, action);
+                            crate::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
                             continue;
                         }
                         InputResult::Ignored => {}
@@ -164,7 +120,7 @@ pub fn run_app<B: Backend>(
                     match crate::view_sprites::handle_input(key, &mut app_state, &mut ui_state) {
                         InputResult::Handled => continue,
                         InputResult::Action(action) => {
-                            handle_menu_action(&mut app_state, &mut ui_state, action);
+                            crate::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
                             continue;
                         }
                         InputResult::Ignored => {}
@@ -176,7 +132,7 @@ pub fn run_app<B: Backend>(
                     match crate::view_charset::handle_input(key, &mut app_state, &mut ui_state) {
                         InputResult::Handled => continue,
                         InputResult::Action(action) => {
-                            handle_menu_action(&mut app_state, &mut ui_state, action);
+                            crate::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
                             continue;
                         }
                         InputResult::Ignored => {}
@@ -188,7 +144,7 @@ pub fn run_app<B: Backend>(
                     match crate::view_blocks::handle_input(key, &mut app_state, &mut ui_state) {
                         InputResult::Handled => continue,
                         InputResult::Action(action) => {
-                            handle_menu_action(&mut app_state, &mut ui_state, action);
+                            crate::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
                             continue;
                         }
                         InputResult::Ignored => {}

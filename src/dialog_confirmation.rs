@@ -1,6 +1,5 @@
-use crate::events::menu::execute_menu_action;
+use crate::menu::{MenuAction, execute_menu_action};
 use crate::state::AppState;
-use crate::ui_state::MenuAction;
 use crate::ui_state::UIState;
 use crate::utils::centered_rect;
 use crossterm::event::{KeyCode, KeyEvent};

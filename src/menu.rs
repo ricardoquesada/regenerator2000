@@ -1,22 +1,584 @@
 use crate::state::AppState;
-use crate::ui_state::ActivePane;
-use crate::ui_state::UIState;
+use crate::ui_state::{ActivePane, UIState};
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::{
+    Frame,
+    layout::Rect,
+    style::{Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
+};
 
-pub fn handle_menu_action(
-    app_state: &mut AppState,
-    ui_state: &mut UIState,
-    action: crate::ui_state::MenuAction,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MenuAction {
+    Exit,
+    Open,
+    Save,
+    SaveAs,
+    ExportProject,
+    ExportProjectAs,
+    Undo,
+    Redo,
+    Code,
+    Byte,
+    Word,
+    Address,
+    Text,
+    Screencode,
+    Analyze,
+    DocumentSettings,
+    JumpToAddress,
+    JumpToLine,
+    JumpToOperand,
+
+    SetLoHi,
+    SetHiLo,
+    SetExternalFile,
+    SideComment,
+    LineComment,
+    ToggleHexDump,
+    ToggleSpritesView,
+    About,
+    ChangeOrigin,
+    KeyboardShortcuts,
+    Undefined,
+    SystemSettings,
+    NextImmediateFormat,
+    PreviousImmediateFormat,
+    Search,
+    FindNext,
+    FindPrevious,
+    TogglePetsciiMode,
+    ToggleSpriteMulticolor,
+    ToggleCharsetView,
+    ToggleCharsetMulticolor,
+
+    ToggleBlocksView,
+    ToggleCollapsedBlock,
+    ToggleSplitter,
+}
+
+impl MenuAction {
+    pub fn requires_document(&self) -> bool {
+        !matches!(
+            self,
+            MenuAction::Exit
+                | MenuAction::Open
+                | MenuAction::About
+                | MenuAction::KeyboardShortcuts
+                | MenuAction::SystemSettings
+                | MenuAction::Search
+        )
+    }
+}
+
+#[derive(Default)]
+pub struct MenuState {
+    pub active: bool,
+    pub categories: Vec<MenuCategory>,
+    pub selected_category: usize,
+    pub selected_item: Option<usize>,
+}
+
+impl MenuState {
+    pub fn new() -> Self {
+        Self {
+            active: false,
+            categories: vec![
+                MenuCategory {
+                    name: "File".to_string(),
+                    items: vec![
+                        MenuItem::new("Open", Some("Ctrl+O"), Some(MenuAction::Open)),
+                        MenuItem::new("Save", Some("Ctrl+S"), Some(MenuAction::Save)),
+                        MenuItem::new("Save As...", Some("Ctrl+Shift+S"), Some(MenuAction::SaveAs)),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Export Project",
+                            Some("Ctrl+E"),
+                            Some(MenuAction::ExportProject),
+                        ),
+                        MenuItem::new(
+                            "Export Project As...",
+                            Some("Ctrl+Shift+E"),
+                            Some(MenuAction::ExportProjectAs),
+                        ),
+                        MenuItem::separator(),
+                        MenuItem::new("Settings", Some("Ctrl+,"), Some(MenuAction::SystemSettings)),
+                        MenuItem::separator(),
+                        MenuItem::new("Exit", Some("Ctrl+Q"), Some(MenuAction::Exit)),
+                    ],
+                },
+                MenuCategory {
+                    name: "Edit".to_string(),
+                    items: vec![
+                        MenuItem::new("Undo", Some("U"), Some(MenuAction::Undo)),
+                        MenuItem::new("Redo", Some("Ctrl+R"), Some(MenuAction::Redo)),
+                        MenuItem::separator(),
+                        MenuItem::new("Code", Some("C"), Some(MenuAction::Code)),
+                        MenuItem::new("Byte", Some("B"), Some(MenuAction::Byte)),
+                        MenuItem::new("Word", Some("W"), Some(MenuAction::Word)),
+                        MenuItem::new("Address", Some("A"), Some(MenuAction::Address)),
+                        MenuItem::new("Lo/Hi Address", Some("<"), Some(MenuAction::SetLoHi)),
+                        MenuItem::new("Hi/Lo Address", Some(">"), Some(MenuAction::SetHiLo)),
+                        MenuItem::new(
+                            "External File",
+                            Some("e"),
+                            Some(MenuAction::SetExternalFile),
+                        ),
+                        MenuItem::new("Text", Some("T"), Some(MenuAction::Text)),
+                        MenuItem::new("Screencode", Some("S"), Some(MenuAction::Screencode)),
+                        MenuItem::new("Undefined", Some("?"), Some(MenuAction::Undefined)),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Next Imm. Mode Format",
+                            Some("d"),
+                            Some(MenuAction::NextImmediateFormat),
+                        ),
+                        MenuItem::new(
+                            "Prev Imm. Mode Format",
+                            Some("Shift+D"),
+                            Some(MenuAction::PreviousImmediateFormat),
+                        ),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Toggle Splitter",
+                            Some("|"),
+                            Some(MenuAction::ToggleSplitter),
+                        ),
+                        MenuItem::separator(),
+                        MenuItem::new("Side Comment", Some(";"), Some(MenuAction::SideComment)),
+                        MenuItem::new(
+                            "Line Comment",
+                            Some("Shift+;"),
+                            Some(MenuAction::LineComment),
+                        ),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Toggle Collapsed Block",
+                            Some("Ctrl+K"),
+                            Some(MenuAction::ToggleCollapsedBlock),
+                        ),
+                        MenuItem::separator(),
+                        MenuItem::new("Change Origin", None, Some(MenuAction::ChangeOrigin)),
+                        MenuItem::separator(),
+                        MenuItem::new("Analyze", Some("Ctrl+A"), Some(MenuAction::Analyze)),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Document Settings",
+                            Some("Ctrl+Shift+D"),
+                            Some(MenuAction::DocumentSettings),
+                        ),
+                    ],
+                },
+                MenuCategory {
+                    name: "Jump".to_string(),
+                    items: vec![
+                        MenuItem::new(
+                            "Jump to address",
+                            Some("G"),
+                            Some(MenuAction::JumpToAddress),
+                        ),
+                        MenuItem::new(
+                            "Jump to line",
+                            Some("Ctrl+Shift+G"),
+                            Some(MenuAction::JumpToLine),
+                        ),
+                        MenuItem::new(
+                            "Jump to operand",
+                            Some("Enter"),
+                            Some(MenuAction::JumpToOperand),
+                        ),
+                    ],
+                },
+                MenuCategory {
+                    name: "Search".to_string(),
+                    items: vec![
+                        MenuItem::new("Search...", Some("Ctrl+F"), Some(MenuAction::Search)),
+                        MenuItem::new("Find Next", Some("F3"), Some(MenuAction::FindNext)),
+                        MenuItem::new(
+                            "Find Previous",
+                            Some("Shift+F3"),
+                            Some(MenuAction::FindPrevious),
+                        ),
+                    ],
+                },
+                MenuCategory {
+                    name: "View".to_string(),
+
+                    items: vec![
+                        MenuItem::new(
+                            "Toggle PETSCII Shifted/Unshifted",
+                            Some("m"),
+                            Some(MenuAction::TogglePetsciiMode),
+                        ),
+                        MenuItem::new(
+                            "Toggle Multicolor Sprites",
+                            Some("m"),
+                            Some(MenuAction::ToggleSpriteMulticolor),
+                        ),
+                        MenuItem::new(
+                            "Toggle Multicolor Charset",
+                            Some("m"),
+                            Some(MenuAction::ToggleCharsetMulticolor),
+                        ),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Toggle Hex Dump",
+                            Some("Ctrl+2"),
+                            Some(MenuAction::ToggleHexDump),
+                        ),
+                        MenuItem::new(
+                            "Toggle Sprites View",
+                            Some("Ctrl+3"),
+                            Some(MenuAction::ToggleSpritesView),
+                        ),
+                        MenuItem::new(
+                            "Toggle Charset View",
+                            Some("Ctrl+4"),
+                            Some(MenuAction::ToggleCharsetView),
+                        ),
+                        MenuItem::new(
+                            "Toggle Blocks View",
+                            Some("Ctrl+5"),
+                            Some(MenuAction::ToggleBlocksView),
+                        ),
+                    ],
+                },
+                MenuCategory {
+                    name: "Help".to_string(),
+                    items: vec![
+                        MenuItem::new(
+                            "Keyboard Shortcuts",
+                            None,
+                            Some(MenuAction::KeyboardShortcuts),
+                        ),
+                        MenuItem::separator(),
+                        MenuItem::new("About", None, Some(MenuAction::About)),
+                    ],
+                },
+            ],
+            selected_category: 0,
+            selected_item: None,
+        }
+    }
+
+    pub fn next_category(&mut self) {
+        self.selected_category = (self.selected_category + 1) % self.categories.len();
+        // If we are active, select the first non-separator item
+        if self.active {
+            self.select_first_enabled_item();
+        }
+    }
+
+    pub fn previous_category(&mut self) {
+        if self.selected_category == 0 {
+            self.selected_category = self.categories.len() - 1;
+        } else {
+            self.selected_category -= 1;
+        }
+        if self.active {
+            self.select_first_enabled_item();
+        }
+    }
+
+    pub fn next_item(&mut self) {
+        let count = self.categories[self.selected_category].items.len();
+        if count == 0 {
+            return;
+        }
+        let current = self.selected_item.unwrap_or(0);
+        let mut next = (current + 1) % count;
+
+        // Skip separators and disabled items
+        // We iterate at most `count` times to avoid infinite loop
+        for _ in 0..count {
+            let item = &self.categories[self.selected_category].items[next];
+            if !item.is_separator && !item.disabled {
+                self.selected_item = Some(next);
+                return;
+            }
+            next = (next + 1) % count;
+        }
+    }
+
+    pub fn previous_item(&mut self) {
+        let count = self.categories[self.selected_category].items.len();
+        if count == 0 {
+            return;
+        }
+        let current = self.selected_item.unwrap_or(0);
+
+        let mut prev = if current == 0 { count - 1 } else { current - 1 };
+
+        // We iterate at most `count` times to avoid infinite loop
+        for _ in 0..count {
+            let item = &self.categories[self.selected_category].items[prev];
+            if !item.is_separator && !item.disabled {
+                self.selected_item = Some(prev);
+                return;
+            }
+            prev = if prev == 0 { count - 1 } else { prev - 1 };
+        }
+    }
+
+    pub fn select_first_enabled_item(&mut self) {
+        let items = &self.categories[self.selected_category].items;
+        for (i, item) in items.iter().enumerate() {
+            if !item.is_separator && !item.disabled {
+                self.selected_item = Some(i);
+                return;
+            }
+        }
+        self.selected_item = None;
+    }
+    pub fn update_availability(
+        &mut self,
+        app_state: &crate::state::AppState,
+        cursor_index: usize,
+        last_search_empty: bool,
+        active_pane: ActivePane,
+    ) {
+        let has_document = !app_state.raw_data.is_empty();
+        for category in &mut self.categories {
+            for item in &mut category.items {
+                if let Some(action) = &item.action {
+                    if action.requires_document() && !has_document {
+                        item.disabled = true;
+                    } else {
+                        // Context-specific checks
+                        match action {
+                            MenuAction::FindNext | MenuAction::FindPrevious => {
+                                item.disabled = last_search_empty;
+                            }
+                            MenuAction::NextImmediateFormat
+                            | MenuAction::PreviousImmediateFormat => {
+                                let mut is_immediate = false;
+                                if has_document
+                                    && let Some(line) = app_state.disassembly.get(cursor_index)
+                                    && let Some(opcode) = &line.opcode
+                                    && opcode.mode == crate::cpu::AddressingMode::Immediate
+                                {
+                                    is_immediate = true;
+                                }
+                                item.disabled = !is_immediate;
+                            }
+                            MenuAction::TogglePetsciiMode => {
+                                item.disabled = active_pane != ActivePane::HexDump;
+                            }
+                            MenuAction::ToggleSpriteMulticolor => {
+                                item.disabled = active_pane != ActivePane::Sprites;
+                            }
+                            MenuAction::ToggleCharsetMulticolor => {
+                                item.disabled = active_pane != ActivePane::Charset;
+                            }
+                            _ => item.disabled = false,
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+pub struct MenuCategory {
+    pub name: String,
+    pub items: Vec<MenuItem>,
+}
+
+#[derive(Clone)]
+pub struct MenuItem {
+    pub name: String,
+    pub shortcut: Option<String>,
+    pub is_separator: bool,
+    pub action: Option<MenuAction>,
+    pub disabled: bool,
+}
+
+impl MenuItem {
+    pub fn new(name: &str, shortcut: Option<&str>, action: Option<MenuAction>) -> Self {
+        Self {
+            name: name.to_string(),
+            shortcut: shortcut.map(|s| s.to_string()),
+            is_separator: false,
+            action,
+            disabled: false,
+        }
+    }
+
+    pub fn separator() -> Self {
+        Self {
+            name: String::new(),
+            shortcut: None,
+            is_separator: true,
+            action: None,
+            disabled: false,
+        }
+    }
+}
+
+pub fn render_menu(f: &mut Frame, area: Rect, menu_state: &MenuState, theme: &crate::theme::Theme) {
+    let mut spans = Vec::new();
+
+    for (i, category) in menu_state.categories.iter().enumerate() {
+        let style = if menu_state.active && i == menu_state.selected_category {
+            Style::default()
+                .bg(theme.menu_selected_bg)
+                .fg(theme.menu_selected_fg)
+        } else {
+            Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
+        };
+
+        spans.push(Span::styled(format!(" {} ", category.name), style));
+    }
+
+    // Fill the rest of the line
+    let menu_bar = Paragraph::new(Line::from(spans))
+        .style(Style::default().bg(theme.menu_bg).fg(theme.menu_fg));
+    f.render_widget(menu_bar, area);
+}
+
+pub fn render_menu_popup(
+    f: &mut Frame,
+    top_area: Rect,
+    menu_state: &MenuState,
+    theme: &crate::theme::Theme,
 ) {
+    // Calculate position based on selected category
+    // This is a bit hacky without exact text width calculation, but we can estimate.
+    let mut x_offset = 0;
+    for i in 0..menu_state.selected_category {
+        x_offset += menu_state.categories[i].name.len() as u16 + 2; // +2 for padding
+    }
+
+    let category = &menu_state.categories[menu_state.selected_category];
+
+    // Calculate dynamic width
+    let mut max_name_len = 0;
+    let mut max_shortcut_len = 0;
+    for item in &category.items {
+        max_name_len = max_name_len.max(item.name.len());
+        max_shortcut_len =
+            max_shortcut_len.max(item.shortcut.as_ref().map(|s| s.len()).unwrap_or(0));
+    }
+
+    // Width = name + spacing + shortcut + borders/padding
+    let content_width = max_name_len + 2 + max_shortcut_len; // 2 spaces gap
+    let width = (content_width as u16 + 2).max(20); // +2 for list item padding/borders, min 20
+
+    let height = category.items.len() as u16 + 2;
+
+    let area = Rect::new(top_area.x + x_offset, top_area.y + 1, width, height);
+
+    f.render_widget(Clear, area);
+
+    let items: Vec<ListItem> = category
+        .items
+        .iter()
+        .enumerate()
+        .map(|(i, item)| {
+            if item.is_separator {
+                let separator_len = (width as usize).saturating_sub(2);
+                let separator = "─".repeat(separator_len);
+                return ListItem::new(separator).style(Style::default().fg(theme.menu_fg));
+            }
+
+            let mut style = if Some(i) == menu_state.selected_item {
+                Style::default()
+                    .bg(theme.menu_selected_bg)
+                    .fg(theme.menu_selected_fg)
+            } else {
+                Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
+            };
+
+            if item.disabled {
+                style = style.fg(theme.menu_disabled_fg).add_modifier(Modifier::DIM);
+                // If disabled but selected, maybe keep cyan bg but dim text?
+                if Some(i) == menu_state.selected_item {
+                    style = Style::default()
+                        .bg(theme.menu_selected_bg)
+                        .fg(theme.menu_disabled_fg)
+                        .add_modifier(Modifier::DIM);
+                }
+            }
+
+            let shortcut = item.shortcut.clone().unwrap_or_default();
+            let name = &item.name;
+            // Dynamic formatting
+            let content = format!(
+                "{:<name_w$}  {:>short_w$}",
+                name,
+                shortcut,
+                name_w = max_name_len,
+                short_w = max_shortcut_len
+            );
+            ListItem::new(content).style(style)
+        })
+        .collect();
+
+    let list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.dialog_border))
+            .style(Style::default().bg(theme.menu_bg).fg(theme.menu_fg)),
+    );
+
+    f.render_widget(list, area);
+}
+
+pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UIState) {
+    match key.code {
+        KeyCode::Esc => {
+            ui_state.menu.active = false;
+            ui_state.menu.selected_item = None;
+            ui_state.set_status_message("Ready");
+        }
+        KeyCode::Right => {
+            ui_state.menu.next_category();
+        }
+        KeyCode::Left => {
+            ui_state.menu.previous_category();
+        }
+        KeyCode::Down => {
+            ui_state.menu.next_item();
+        }
+        KeyCode::Up => {
+            ui_state.menu.previous_item();
+        }
+        KeyCode::Enter => {
+            if let Some(item_idx) = ui_state.menu.selected_item {
+                let category_idx = ui_state.menu.selected_category;
+                let item = &ui_state.menu.categories[category_idx].items[item_idx];
+
+                if !item.disabled {
+                    let action = item.action.clone();
+                    if let Some(action) = action {
+                        handle_menu_action(app_state, ui_state, action);
+                        // Close menu after valid action
+                        ui_state.menu.active = false;
+                        ui_state.menu.selected_item = None;
+                    }
+                } else {
+                    // Optional: Feedback that it's disabled
+                    ui_state.set_status_message("Item is disabled");
+                }
+            } else {
+                // Enter on category -> open first item?
+                // ui_state.menu.selected_item = Some(0);
+                ui_state.menu.select_first_enabled_item();
+            }
+        }
+        _ => {}
+    }
+}
+
+pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: MenuAction) {
     if action.requires_document() && app_state.raw_data.is_empty() {
         ui_state.set_status_message("No open document");
         return;
     }
 
     // Check for changes on destructive actions
-    let is_destructive = matches!(
-        action,
-        crate::ui_state::MenuAction::Exit | crate::ui_state::MenuAction::Open
-    );
+    let is_destructive = matches!(action, MenuAction::Exit | MenuAction::Open);
 
     if is_destructive && app_state.is_dirty() {
         ui_state.confirmation_dialog.open(
@@ -30,14 +592,8 @@ pub fn handle_menu_action(
     execute_menu_action(app_state, ui_state, action);
 }
 
-pub fn execute_menu_action(
-    app_state: &mut AppState,
-    ui_state: &mut UIState,
-    action: crate::ui_state::MenuAction,
-) {
+pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: MenuAction) {
     ui_state.set_status_message(format!("Action: {:?}", action));
-
-    use crate::ui_state::MenuAction;
 
     match action {
         MenuAction::Exit => ui_state.should_quit = true,

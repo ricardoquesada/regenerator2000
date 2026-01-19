@@ -5,8 +5,8 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    text::Span,
+    widgets::Paragraph,
 };
 
 pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
@@ -19,13 +19,13 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         ])
         .split(f.area());
 
-    render_menu(f, chunks[0], &ui_state.menu, &ui_state.theme);
+    crate::menu::render_menu(f, chunks[0], &ui_state.menu, &ui_state.theme);
     render_main_view(f, chunks[1], app_state, ui_state);
     render_status_bar(f, chunks[2], app_state, ui_state);
 
     // Render Popup if needed
     if ui_state.menu.active && ui_state.menu.selected_item.is_some() {
-        render_menu_popup(f, chunks[0], &ui_state.menu, &ui_state.theme);
+        crate::menu::render_menu_popup(f, chunks[0], &ui_state.menu, &ui_state.theme);
     }
 
     if ui_state.open_dialog.active {
@@ -129,122 +129,6 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     if ui_state.search_dialog.active {
         crate::dialog_search::render(f, f.area(), &ui_state.search_dialog, &ui_state.theme);
     }
-}
-
-fn render_menu(
-    f: &mut Frame,
-    area: Rect,
-    menu_state: &crate::ui_state::MenuState,
-    theme: &crate::theme::Theme,
-) {
-    let mut spans = Vec::new();
-
-    for (i, category) in menu_state.categories.iter().enumerate() {
-        let style = if menu_state.active && i == menu_state.selected_category {
-            Style::default()
-                .bg(theme.menu_selected_bg)
-                .fg(theme.menu_selected_fg)
-        } else {
-            Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
-        };
-
-        spans.push(Span::styled(format!(" {} ", category.name), style));
-    }
-
-    // Fill the rest of the line
-    // Fill the rest of the line
-    let menu_bar = Paragraph::new(Line::from(spans))
-        .style(Style::default().bg(theme.menu_bg).fg(theme.menu_fg));
-    f.render_widget(menu_bar, area);
-}
-
-fn render_menu_popup(
-    f: &mut Frame,
-    top_area: Rect,
-    menu_state: &crate::ui_state::MenuState,
-    theme: &crate::theme::Theme,
-) {
-    // Calculate position based on selected category
-    // This is a bit hacky without exact text width calculation, but we can estimate.
-    let mut x_offset = 0;
-    for i in 0..menu_state.selected_category {
-        x_offset += menu_state.categories[i].name.len() as u16 + 2; // +2 for padding
-    }
-
-    let category = &menu_state.categories[menu_state.selected_category];
-
-    // Calculate dynamic width
-    let mut max_name_len = 0;
-    let mut max_shortcut_len = 0;
-    for item in &category.items {
-        max_name_len = max_name_len.max(item.name.len());
-        max_shortcut_len =
-            max_shortcut_len.max(item.shortcut.as_ref().map(|s| s.len()).unwrap_or(0));
-    }
-
-    // Width = name + spacing + shortcut + borders/padding
-    let content_width = max_name_len + 2 + max_shortcut_len; // 2 spaces gap
-    let width = (content_width as u16 + 2).max(20); // +2 for list item padding/borders, min 20
-
-    let height = category.items.len() as u16 + 2;
-
-    let area = Rect::new(top_area.x + x_offset, top_area.y + 1, width, height);
-
-    use ratatui::widgets::Clear;
-    f.render_widget(Clear, area);
-
-    let items: Vec<ListItem> = category
-        .items
-        .iter()
-        .enumerate()
-        .map(|(i, item)| {
-            if item.is_separator {
-                let separator_len = (width as usize).saturating_sub(2);
-                let separator = "─".repeat(separator_len);
-                return ListItem::new(separator).style(Style::default().fg(theme.menu_fg));
-            }
-
-            let mut style = if Some(i) == menu_state.selected_item {
-                Style::default()
-                    .bg(theme.menu_selected_bg)
-                    .fg(theme.menu_selected_fg)
-            } else {
-                Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
-            };
-
-            if item.disabled {
-                style = style.fg(theme.menu_disabled_fg).add_modifier(Modifier::DIM);
-                // If disabled but selected, maybe keep cyan bg but dim text?
-                if Some(i) == menu_state.selected_item {
-                    style = Style::default()
-                        .bg(theme.menu_selected_bg)
-                        .fg(theme.menu_disabled_fg)
-                        .add_modifier(Modifier::DIM);
-                }
-            }
-
-            let shortcut = item.shortcut.clone().unwrap_or_default();
-            let name = &item.name;
-            // Dynamic formatting
-            let content = format!(
-                "{:<name_w$}  {:>short_w$}",
-                name,
-                shortcut,
-                name_w = max_name_len,
-                short_w = max_shortcut_len
-            );
-            ListItem::new(content).style(style)
-        })
-        .collect();
-
-    let list = List::new(items).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(theme.dialog_border))
-            .style(Style::default().bg(theme.menu_bg).fg(theme.menu_fg)),
-    );
-
-    f.render_widget(list, area);
 }
 
 fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {

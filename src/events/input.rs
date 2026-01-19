@@ -2,7 +2,7 @@ use crate::state::AppState;
 use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
-use super::menu::handle_menu_action;
+use crate::menu::handle_menu_action;
 
 pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UIState) {
     match key.code {

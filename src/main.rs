@@ -23,6 +23,7 @@ mod dialog_settings;
 mod disassembler;
 mod events;
 mod exporter;
+pub mod menu;
 mod state;
 mod ui;
 mod ui_state;
