@@ -79,12 +79,16 @@ impl Widget for JumpToLineDialog {
             KeyCode::Enter => {
                 let input = self.input.clone();
                 if let Ok(line_num) = input.parse::<usize>() {
-                    if line_num > 0 && line_num <= app_state.disassembly.len() {
+                    if let Some(index) =
+                        crate::ui::view_disassembly::DisassemblyView::get_index_for_visual_line(
+                            app_state, line_num,
+                        )
+                    {
                         ui_state
                             .navigation_history
                             .push((ActivePane::Disassembly, ui_state.cursor_index));
-                        ui_state.cursor_index = line_num - 1;
-                        ui_state.set_status_message(format!("Jumped to line {}", line_num));
+                        ui_state.cursor_index = index;
+                        ui_state.set_status_message(format!("Jumped to visual line {}", line_num));
                         WidgetResult::Close
                     } else {
                         ui_state.set_status_message("Line number out of range");

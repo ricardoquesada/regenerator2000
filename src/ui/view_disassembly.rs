@@ -13,6 +13,52 @@ use crate::ui::widget::{Widget, WidgetResult};
 
 pub struct DisassemblyView;
 
+impl DisassemblyView {
+    pub fn get_visual_line_count_for_instruction(
+        line: &crate::disassembler::DisassemblyLine,
+        app_state: &AppState,
+    ) -> usize {
+        let mut count = 0;
+
+        // 1. Labels inside multi-byte instructions
+        if line.bytes.len() > 1 {
+            for offset in 1..line.bytes.len() {
+                let mid_addr = line.address.wrapping_add(offset as u16);
+                if let Some(labels) = app_state.labels.get(&mid_addr) {
+                    count += labels.len();
+                }
+            }
+        }
+
+        // 2. Line comment
+        if line.line_comment.is_some() {
+            count += 1;
+        }
+
+        // 3. The instruction itself
+        count += 1;
+
+        count
+    }
+
+    pub fn get_index_for_visual_line(app_state: &AppState, target_line: usize) -> Option<usize> {
+        let mut current_visual_line = 1;
+        for (index, line) in app_state.disassembly.iter().enumerate() {
+            let lines_for_this_instruction =
+                Self::get_visual_line_count_for_instruction(line, app_state);
+
+            if target_line >= current_visual_line
+                && target_line < current_visual_line + lines_for_this_instruction
+            {
+                return Some(index);
+            }
+
+            current_visual_line += lines_for_this_instruction;
+        }
+        None
+    }
+}
+
 impl Widget for DisassemblyView {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let is_active = ui_state.active_pane == ActivePane::Disassembly;
@@ -490,10 +536,7 @@ impl Widget for DisassemblyView {
         let mut current_line_num: usize = 1;
         for i in 0..offset {
             if let Some(line) = app_state.disassembly.get(i) {
-                if line.line_comment.is_some() {
-                    current_line_num += 1;
-                }
-                current_line_num += 1;
+                current_line_num += Self::get_visual_line_count_for_instruction(line, app_state);
             }
         }
 
