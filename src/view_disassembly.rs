@@ -969,6 +969,9 @@ pub fn handle_input(
         KeyCode::Char('D') if key.modifiers.contains(KeyModifiers::SHIFT) => {
             InputResult::Action(MenuAction::PreviousImmediateFormat)
         }
+        KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            InputResult::Action(MenuAction::ToggleCollapsedBlock)
+        }
         KeyCode::Backspace => {
             while let Some((pane, _)) = ui_state.navigation_history.last() {
                 if *pane != ActivePane::Disassembly {

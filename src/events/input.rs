@@ -133,14 +133,6 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             }
         }
 
-        KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            handle_menu_action(
-                app_state,
-                ui_state,
-                crate::ui_state::MenuAction::ToggleCollapsedBlock,
-            );
-        }
-
         // Input Buffer for Numbers
         KeyCode::Char(c)
             if c.is_ascii_digit()
