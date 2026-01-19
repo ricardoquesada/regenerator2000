@@ -66,62 +66,62 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 
 ## Keyboard Shortcuts
 
-| Context        | Action                                                       | Shortcut                                |
-|:---------------|:-------------------------------------------------------------|:----------------------------------------|
-| **Global**     | **Activate Menu**                                            | `F10`                                   |
-|                | **Exit**                                                     | `Ctrl + q`                              |
-|                | **Open File**                                                | `Ctrl + o`                              |
-|                | **Save Project**                                             | `Ctrl + s`                              |
-|                | **Save Project As**                                          | `Ctrl + Shift + s`                      |
-|                | **Export Project (ASM)**                                     | `Ctrl + e`                              |
-|                | **Export Project As (ASM)**                                  | `Ctrl + Shift + e`                      |
-|                | **Document Settings**                                        | `Ctrl + Shift + d`                      |
-|                | **Settings**                                                 | `Ctrl + ,`                              |
-|                | **Undo**                                                     | `u`                                     |
-|                | **Redo**                                                     | `Ctrl + r`                              |
-|                | **Switch Pane (Hex Dump/Disasm)**                            | `Tab`                                   |
-| **Navigation** | **Move Cursor**                                              | `Up` / `Down` / `j` / `k`               |
-|                | **Page Up/Down**                                             | `PageUp` / `PageDown`                   |
-|                | **Home/End**                                                 | `Home` / `End`                          |
-|                | **Jump to Address (Dialog)**                                 | `g`                                     |
-|                | **Jump to Line (Dialog)**                                    | `Ctrl + Shift + g`                      |
-|                | **Jump to Line / End of File**                               | `[Number] G`                            |
-|                | **Jump to Operand**                                          | `Enter`                                 |
-|                | **Jump Back (History)**                                      | `Backspace`                             |
-|                | **Previous/Next 10 Lines**                                   | `Ctrl + u` / `Ctrl + d`                 |
-| **Search**     | **Vim Search**                                               | `/`                                     |
-|                | **Next / Previous Match**                                    | `n` / `Shift + n`                       |
-|                | **Search Dialog**                                            | `Ctrl + f`                              |
-|                | **Find Next / Previous**                                     | `F3` / `Shift + F3`                     |
-| **Selection**  | **Toggle Visual Mode**                                       | `V`                                     |
-|                | **Select Text**                                              | `Shift + Up/Down` / Visual Mode + `j/k` |
-|                | **Clear Selection**                                          | `Esc`                                   |
-| **Editing**    | **Set Label**                                                | `l`                                     |
-|                | **Add Side Comment**                                         | `;`                                     |
-|                | **Add Line Comment**                                         | `:`                                     |
-|                | **Convert to Code**                                          | `c`                                     |
-|                | **Convert to Byte**                                          | `b`                                     |
-|                | **Convert to Word**                                          | `w`                                     |
-|                | **Convert to Address**                                       | `a`                                     |
-|                | **Convert to Text**                                          | `t`                                     |
-|                | **Convert to Screencode**                                    | `s`                                     |
-|                | **Convert to Undefined**                                     | `?`                                     |
-|                | **Next/Prev Immediate Mode Format**                          | `d` / `D`                               |
-|                | **Set Lo/Hi Address**                                        | `<`                                     |
-|                | **Set Hi/Lo Address**                                        | `>`                                     |
-|                | **Toggle Collapsed Block**                                   | `Ctrl + k`                              |
-|                | **Toggle Splitter**                                          | `\|`                                    |
-|                | **Analyze**                                                  | `Ctrl + a`                              |
-| **View**       | **Toggle PETSCII Shifted/Unshifted** (only in Hex Dump View) | `m`                                     |
-|                | **Toggle Multicolor Sprites** (only in Sprites View)         | `m`                                     |
-|                | **Toggle Multicolor Charset** (only in Charset View)         | `m`                                     |
-|                | **Toggle Hex Dump View**                                     | `Ctrl + 2`                              |
-|                | **Toggle Sprites View**                                      | `Ctrl + 3`                              |
-|                | **Toggle Charset View**                                      | `Ctrl + 4`                              |
-|                | **Toggle Blocks View**                                       | `Ctrl + 5`                              |
-| **Menus**      | **Navigate Menu**                                            | Arrows                                  |
-|                | **Select Item**                                              | `Enter`                                 |
-|                | **Close Menu**                                               | `Esc`                                   |
+| Context        | Action                                                | Shortcut                                |
+|:---------------|:------------------------------------------------------|:----------------------------------------|
+| **Global**     | **Activate Menu**                                     | `F10`                                   |
+|                | **Exit**                                              | `Ctrl + q`                              |
+|                | **Open File**                                         | `Ctrl + o`                              |
+|                | **Save Project**                                      | `Ctrl + s`                              |
+|                | **Save Project As**                                   | `Ctrl + Shift + s`                      |
+|                | **Export Project (ASM)**                              | `Ctrl + e`                              |
+|                | **Export Project As (ASM)**                           | `Ctrl + Shift + e`                      |
+|                | **Document Settings**                                 | `Ctrl + Shift + d`                      |
+|                | **Settings**                                          | `Ctrl + ,`                              |
+|                | **Undo**                                              | `u`                                     |
+|                | **Redo**                                              | `Ctrl + r`                              |
+|                | **Switch Pane (Hex Dump/Disasm)**                     | `Tab`                                   |
+| **Navigation** | **Move Cursor**                                       | `Up` / `Down` / `j` / `k`               |
+|                | **Page Up/Down**                                      | `PageUp` / `PageDown`                   |
+|                | **Home/End**                                          | `Home` / `End`                          |
+|                | **Jump to Address (Dialog)**                          | `g`                                     |
+|                | **Jump to Line (Dialog)**                             | `Ctrl + Shift + g`                      |
+|                | **Jump to Line / End of File**                        | `[Number] G`                            |
+|                | **Jump to Operand**                                   | `Enter`                                 |
+|                | **Jump Back (History)**                               | `Backspace`                             |
+|                | **Previous/Next 10 Lines**                            | `Ctrl + u` / `Ctrl + d`                 |
+| **Search**     | **Vim Search**                                        | `/`                                     |
+|                | **Next / Previous Match**                             | `n` / `Shift + n`                       |
+|                | **Search Dialog**                                     | `Ctrl + f`                              |
+|                | **Find Next / Previous**                              | `F3` / `Shift + F3`                     |
+| **Selection**  | **Toggle Visual Mode**                                | `V`                                     |
+|                | **Select Text**                                       | `Shift + Up/Down` / Visual Mode + `j/k` |
+|                | **Clear Selection**                                   | `Esc`                                   |
+| **Editing**    | **Set Label**                                         | `l`                                     |
+|                | **Add Side Comment**                                  | `;`                                     |
+|                | **Add Line Comment**                                  | `:`                                     |
+|                | **Convert to Code**                                   | `c`                                     |
+|                | **Convert to Byte**                                   | `b`                                     |
+|                | **Convert to Word**                                   | `w`                                     |
+|                | **Convert to Address**                                | `a`                                     |
+|                | **Convert to Text**                                   | `t`                                     |
+|                | **Convert to Screencode**                             | `s`                                     |
+|                | **Convert to Undefined**                              | `?`                                     |
+|                | **Next/Prev Immediate Mode Format**                   | `d` / `D`                               |
+|                | **Set Lo/Hi Address**                                 | `<`                                     |
+|                | **Set Hi/Lo Address**                                 | `>`                                     |
+|                | **Toggle Collapsed Block**                            | `Ctrl + k`                              |
+|                | **Toggle Splitter**                                   | `\|`                                    |
+|                | **Analyze**                                           | `Ctrl + a`                              |
+| **View**       | **Next / Prev Hex Dump Mode** (only in Hex Dump View) | `m` / `Shift + m`                       |
+|                | **Toggle Multicolor Sprites** (only in Sprites View)  | `m`                                     |
+|                | **Toggle Multicolor Charset** (only in Charset View)  | `m`                                     |
+|                | **Toggle Hex Dump View**                              | `Ctrl + 2`                              |
+|                | **Toggle Sprites View**                               | `Ctrl + 3`                              |
+|                | **Toggle Charset View**                               | `Ctrl + 4`                              |
+|                | **Toggle Blocks View**                                | `Ctrl + 5`                              |
+| **Menus**      | **Navigate Menu**                                     | Arrows                                  |
+|                | **Select Item**                                       | `Enter`                                 |
+|                | **Close Menu**                                        | `Esc`                                   |
 
 ## Build and Run
 

@@ -74,6 +74,7 @@ impl Widget for ShortcutsDialog {
             ("Ctrl+2", "Toggle Hex Dump View"),
             ("Ctrl+3", "Toggle Sprites View"),
             ("Ctrl+4", "Toggle Charset View"),
+            ("Ctrl+5", "Toggle Blocks View"),
             ("", ""),
             ("Navigation", ""),
             ("Up/Down/j/k", "Move Cursor"),
@@ -109,9 +110,9 @@ impl Widget for ShortcutsDialog {
             (":", "Line Comment"),
             ("l", "Label"),
             ("Ctrl+a", "Analyze"),
-            ("m", "Toggle Petscii (Hex) / Multicolor (Sprites/Charset)"),
+            ("m / M", "Next / Prev Hex Dump Mode"),
+            ("m", "Toggle Multicolor (Sprites/Charset)"),
             ("Ctrl+k", "Toggle Collapsed Block"),
-            ("Shift+m", "Toggle Blocks View"),
             ("|", "Toggle Splitter"),
         ];
 
