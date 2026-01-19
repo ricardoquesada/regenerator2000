@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::ui::dialog::{Dialog, DialogResult};
+use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
 use crossterm::event::KeyCode;
 use ratatui::Frame;
@@ -58,8 +58,8 @@ impl DocumentSettingsDialog {
     }
 }
 
-impl Dialog for DocumentSettingsDialog {
-    fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &UIState) {
+impl Widget for DocumentSettingsDialog {
+    fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let block = Block::default()
             .borders(Borders::ALL)
@@ -396,7 +396,7 @@ impl Dialog for DocumentSettingsDialog {
         key: crossterm::event::KeyEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
-    ) -> DialogResult {
+    ) -> WidgetResult {
         match key.code {
             KeyCode::Esc => {
                 if self.is_selecting_platform {
@@ -424,7 +424,7 @@ impl Dialog for DocumentSettingsDialog {
                     app_state.load_system_assets();
                     app_state.perform_analysis();
                     app_state.disassemble(); // Disassemble on close to apply all settings
-                    return DialogResult::Close;
+                    return WidgetResult::Close;
                 }
             }
             KeyCode::Up => {
@@ -721,6 +721,6 @@ impl Dialog for DocumentSettingsDialog {
             }
             _ => {}
         }
-        DialogResult::KeepOpen
+        WidgetResult::Handled
     }
 }

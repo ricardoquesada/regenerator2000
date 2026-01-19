@@ -8,7 +8,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::ui::dialog::{Dialog, DialogResult};
+use crate::ui::widget::{Widget, WidgetResult};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CommentType {
@@ -30,8 +30,8 @@ impl CommentDialog {
     }
 }
 
-impl Dialog for CommentDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &UIState) {
+impl Widget for CommentDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let title = match self.comment_type {
             CommentType::Line => " Enter Line Comment ",
@@ -77,11 +77,11 @@ impl Dialog for CommentDialog {
         key: KeyEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
-    ) -> DialogResult {
+    ) -> WidgetResult {
         match key.code {
             KeyCode::Esc => {
                 ui_state.set_status_message("Ready");
-                DialogResult::Close
+                WidgetResult::Close
             }
             KeyCode::Enter => {
                 if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
@@ -117,20 +117,20 @@ impl Dialog for CommentDialog {
 
                     ui_state.set_status_message("Comment set");
                     app_state.disassemble();
-                    DialogResult::Close
+                    WidgetResult::Close
                 } else {
-                    DialogResult::KeepOpen
+                    WidgetResult::Handled
                 }
             }
             KeyCode::Backspace => {
                 self.input.pop();
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
             KeyCode::Char(c) => {
                 self.input.push(c);
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
-            _ => DialogResult::KeepOpen,
+            _ => WidgetResult::Handled,
         }
     }
 }

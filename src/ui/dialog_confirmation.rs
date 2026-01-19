@@ -10,7 +10,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::ui::dialog::{Dialog, DialogResult};
+use crate::ui::widget::{Widget, WidgetResult};
 
 pub struct ConfirmationDialog {
     pub title: String,
@@ -28,8 +28,8 @@ impl ConfirmationDialog {
     }
 }
 
-impl Dialog for ConfirmationDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &UIState) {
+impl Widget for ConfirmationDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let block = Block::default()
             .borders(Borders::ALL)
@@ -74,11 +74,11 @@ impl Dialog for ConfirmationDialog {
         key: KeyEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
-    ) -> DialogResult {
+    ) -> WidgetResult {
         match key.code {
             KeyCode::Esc | KeyCode::Char('n') => {
                 ui_state.set_status_message("Action cancelled");
-                DialogResult::Close
+                WidgetResult::Close
             }
             KeyCode::Enter | KeyCode::Char('y') => {
                 // We need to clone the action because we can't move out of self in handle_input
@@ -88,9 +88,9 @@ impl Dialog for ConfirmationDialog {
                 // But handle_input takes &mut self.
                 // I will use Option in struct for safety.
                 execute_menu_action(app_state, ui_state, self.action.clone());
-                DialogResult::Close
+                WidgetResult::Close
             }
-            _ => DialogResult::KeepOpen,
+            _ => WidgetResult::Handled,
         }
     }
 }

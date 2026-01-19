@@ -45,11 +45,16 @@ pub fn run_app<B: Backend>(
             if let Some(mut dialog) = ui_state.active_dialog.take() {
                 let result = dialog.handle_input(key, &mut app_state, &mut ui_state);
                 match result {
-                    crate::ui::dialog::DialogResult::KeepOpen => {
+                    crate::ui::widget::WidgetResult::Ignored
+                    | crate::ui::widget::WidgetResult::Handled => {
                         ui_state.active_dialog = Some(dialog)
                     }
-                    crate::ui::dialog::DialogResult::Close => {
+                    crate::ui::widget::WidgetResult::Close => {
                         // Dialog closed.
+                    }
+                    crate::ui::widget::WidgetResult::Action(action) => {
+                        ui_state.active_dialog = Some(dialog);
+                        crate::ui::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
                     }
                 }
                 if ui_state.should_quit {
@@ -87,14 +92,14 @@ pub fn run_app<B: Backend>(
                 }
             } else {
                 if ui_state.active_pane == ActivePane::Disassembly {
-                    use crate::ui::view_disassembly::InputResult;
-                    match crate::ui::view_disassembly::handle_input(
+                    use crate::ui::widget::{Widget, WidgetResult};
+                    match crate::ui::view_disassembly::DisassemblyView.handle_input(
                         key,
                         &mut app_state,
                         &mut ui_state,
                     ) {
-                        InputResult::Handled => continue,
-                        InputResult::Action(action) => {
+                        WidgetResult::Handled => continue,
+                        WidgetResult::Action(action) => {
                             crate::ui::menu::handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -102,16 +107,20 @@ pub fn run_app<B: Backend>(
                             );
                             continue;
                         }
-                        InputResult::Ignored => {}
+                        WidgetResult::Ignored => {}
+                        WidgetResult::Close => {} // Disassembly view doesn't close
                     }
                 }
 
                 if ui_state.active_pane == ActivePane::HexDump {
-                    use crate::ui::view_hexdump::InputResult;
-                    match crate::ui::view_hexdump::handle_input(key, &mut app_state, &mut ui_state)
-                    {
-                        InputResult::Handled => continue,
-                        InputResult::Action(action) => {
+                    use crate::ui::widget::{Widget, WidgetResult};
+                    match crate::ui::view_hexdump::HexDumpView.handle_input(
+                        key,
+                        &mut app_state,
+                        &mut ui_state,
+                    ) {
+                        WidgetResult::Handled => continue,
+                        WidgetResult::Action(action) => {
                             crate::ui::menu::handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -119,16 +128,20 @@ pub fn run_app<B: Backend>(
                             );
                             continue;
                         }
-                        InputResult::Ignored => {}
+                        WidgetResult::Ignored => {}
+                        WidgetResult::Close => {}
                     }
                 }
 
                 if ui_state.active_pane == ActivePane::Sprites {
-                    use crate::ui::view_sprites::InputResult;
-                    match crate::ui::view_sprites::handle_input(key, &mut app_state, &mut ui_state)
-                    {
-                        InputResult::Handled => continue,
-                        InputResult::Action(action) => {
+                    use crate::ui::widget::{Widget, WidgetResult};
+                    match crate::ui::view_sprites::SpritesView.handle_input(
+                        key,
+                        &mut app_state,
+                        &mut ui_state,
+                    ) {
+                        WidgetResult::Handled => continue,
+                        WidgetResult::Action(action) => {
                             crate::ui::menu::handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -136,16 +149,20 @@ pub fn run_app<B: Backend>(
                             );
                             continue;
                         }
-                        InputResult::Ignored => {}
+                        WidgetResult::Ignored => {}
+                        WidgetResult::Close => {}
                     }
                 }
 
                 if ui_state.active_pane == ActivePane::Charset {
-                    use crate::ui::view_charset::InputResult;
-                    match crate::ui::view_charset::handle_input(key, &mut app_state, &mut ui_state)
-                    {
-                        InputResult::Handled => continue,
-                        InputResult::Action(action) => {
+                    use crate::ui::widget::{Widget, WidgetResult};
+                    match crate::ui::view_charset::CharsetView.handle_input(
+                        key,
+                        &mut app_state,
+                        &mut ui_state,
+                    ) {
+                        WidgetResult::Handled => continue,
+                        WidgetResult::Action(action) => {
                             crate::ui::menu::handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -153,15 +170,20 @@ pub fn run_app<B: Backend>(
                             );
                             continue;
                         }
-                        InputResult::Ignored => {}
+                        WidgetResult::Ignored => {}
+                        WidgetResult::Close => {}
                     }
                 }
 
                 if ui_state.active_pane == ActivePane::Blocks {
-                    use crate::ui::view_blocks::InputResult;
-                    match crate::ui::view_blocks::handle_input(key, &mut app_state, &mut ui_state) {
-                        InputResult::Handled => continue,
-                        InputResult::Action(action) => {
+                    use crate::ui::widget::{Widget, WidgetResult};
+                    match crate::ui::view_blocks::BlocksView.handle_input(
+                        key,
+                        &mut app_state,
+                        &mut ui_state,
+                    ) {
+                        WidgetResult::Handled => continue,
+                        WidgetResult::Action(action) => {
                             crate::ui::menu::handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -169,7 +191,8 @@ pub fn run_app<B: Backend>(
                             );
                             continue;
                         }
-                        InputResult::Ignored => {}
+                        WidgetResult::Ignored => {}
+                        WidgetResult::Close => {}
                     }
                 }
 

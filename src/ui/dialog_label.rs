@@ -8,7 +8,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::ui::dialog::{Dialog, DialogResult};
+use crate::ui::widget::{Widget, WidgetResult};
 
 pub struct LabelDialog {
     pub input: String,
@@ -24,8 +24,8 @@ impl LabelDialog {
     }
 }
 
-impl Dialog for LabelDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &UIState) {
+impl Widget for LabelDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let block = Block::default()
             .borders(Borders::ALL)
@@ -66,11 +66,11 @@ impl Dialog for LabelDialog {
         key: KeyEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
-    ) -> DialogResult {
+    ) -> WidgetResult {
         match key.code {
             KeyCode::Esc => {
                 ui_state.set_status_message("Ready");
-                DialogResult::Close
+                WidgetResult::Close
             }
             KeyCode::Enter => {
                 let address = self.address;
@@ -91,7 +91,7 @@ impl Dialog for LabelDialog {
 
                     ui_state.set_status_message("Label removed");
                     app_state.disassemble();
-                    DialogResult::Close
+                    WidgetResult::Close
                 } else {
                     // Check for duplicates (exclude current address in case of rename/edit)
                     let exists = app_state.labels.iter().any(|(addr, label_vec)| {
@@ -104,7 +104,7 @@ impl Dialog for LabelDialog {
                             label_name
                         ));
                         // Do not close dialog, let user correct it
-                        DialogResult::KeepOpen
+                        WidgetResult::Handled
                     } else {
                         let old_label_vec = app_state.labels.get(&address).cloned();
 
@@ -134,19 +134,19 @@ impl Dialog for LabelDialog {
 
                         ui_state.set_status_message("Label set");
                         app_state.disassemble();
-                        DialogResult::Close
+                        WidgetResult::Close
                     }
                 }
             }
             KeyCode::Backspace => {
                 self.input.pop();
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
             KeyCode::Char(c) => {
                 self.input.push(c);
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
-            _ => DialogResult::KeepOpen,
+            _ => WidgetResult::Handled,
         }
     }
 }

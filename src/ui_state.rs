@@ -1,6 +1,6 @@
 use crate::theme::Theme;
-use crate::ui::dialog::Dialog;
 pub use crate::ui::menu::{MenuAction, MenuState};
+use crate::ui::widget::Widget;
 use image::DynamicImage;
 use ratatui::widgets::ListState;
 use ratatui_image::picker::Picker;
@@ -30,7 +30,7 @@ pub enum RightPane {
 use crate::state::PetsciiMode;
 
 pub struct UIState {
-    pub active_dialog: Option<Box<dyn Dialog>>,
+    pub active_dialog: Option<Box<dyn Widget>>,
     pub file_dialog_current_dir: PathBuf,
 
     pub menu: MenuState,

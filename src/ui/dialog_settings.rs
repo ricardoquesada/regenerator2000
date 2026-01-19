@@ -7,7 +7,7 @@ use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
 
-use crate::ui::dialog::{Dialog, DialogResult};
+use crate::ui::widget::{Widget, WidgetResult};
 
 #[derive(Default)]
 pub struct SettingsDialog {
@@ -21,8 +21,8 @@ impl SettingsDialog {
     }
 }
 
-impl Dialog for SettingsDialog {
-    fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &UIState) {
+impl Widget for SettingsDialog {
+    fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let block = Block::default()
             .borders(Borders::ALL)
@@ -117,15 +117,15 @@ impl Dialog for SettingsDialog {
         key: crossterm::event::KeyEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
-    ) -> DialogResult {
+    ) -> WidgetResult {
         match key.code {
             KeyCode::Esc => {
                 if self.is_selecting_theme {
                     self.is_selecting_theme = false;
-                    DialogResult::KeepOpen
+                    WidgetResult::Handled
                 } else {
                     ui_state.set_status_message("Ready");
-                    DialogResult::Close
+                    WidgetResult::Close
                 }
             }
             KeyCode::Up => {
@@ -141,7 +141,7 @@ impl Dialog for SettingsDialog {
                 } else {
                     self.selected_index = self.selected_index.saturating_sub(1);
                 }
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
             KeyCode::Down => {
                 if self.is_selecting_theme {
@@ -159,7 +159,7 @@ impl Dialog for SettingsDialog {
                         self.selected_index += 1;
                     }
                 }
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
             KeyCode::Enter | KeyCode::Char(' ') => {
                 if self.is_selecting_theme {
@@ -176,9 +176,9 @@ impl Dialog for SettingsDialog {
                 } else if self.selected_index == 2 {
                     self.is_selecting_theme = true;
                 }
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
-            _ => DialogResult::KeepOpen,
+            _ => WidgetResult::Handled,
         }
     }
 }

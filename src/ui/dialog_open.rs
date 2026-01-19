@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::ui::dialog::{Dialog, DialogResult};
+use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
@@ -62,8 +62,8 @@ impl OpenDialog {
     }
 }
 
-impl Dialog for OpenDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &UIState) {
+impl Widget for OpenDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let block = Block::default()
             .borders(Borders::ALL)
@@ -110,19 +110,19 @@ impl Dialog for OpenDialog {
         key: KeyEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
-    ) -> DialogResult {
+    ) -> WidgetResult {
         match key.code {
             KeyCode::Esc => {
                 ui_state.set_status_message("Ready");
-                DialogResult::Close
+                WidgetResult::Close
             }
             KeyCode::Down => {
                 self.next();
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
             KeyCode::Up => {
                 self.previous();
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
             KeyCode::Backspace => {
                 // Go to parent dir
@@ -133,7 +133,7 @@ impl Dialog for OpenDialog {
                     // Persist to UIState
                     ui_state.file_dialog_current_dir = self.current_dir.clone();
                 }
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
             KeyCode::Enter => {
                 if !self.files.is_empty() {
@@ -144,12 +144,12 @@ impl Dialog for OpenDialog {
                         self.selected_index = 0;
                         // Persist to UIState
                         ui_state.file_dialog_current_dir = self.current_dir.clone();
-                        DialogResult::KeepOpen
+                        WidgetResult::Handled
                     } else {
                         match app_state.load_file(selected_path.clone()) {
                             Err(e) => {
                                 ui_state.set_status_message(format!("Error loading file: {}", e));
-                                DialogResult::KeepOpen // Or close? User might want to retry
+                                WidgetResult::Handled // Or close? User might want to retry
                             }
                             Ok(loaded_data) => {
                                 ui_state.set_status_message(format!("Loaded: {:?}", selected_path));
@@ -287,15 +287,15 @@ impl Dialog for OpenDialog {
                                     ui_state.hex_cursor_index = 0;
                                 }
 
-                                DialogResult::Close
+                                WidgetResult::Close
                             }
                         }
                     }
                 } else {
-                    DialogResult::KeepOpen
+                    WidgetResult::Handled
                 }
             }
-            _ => DialogResult::KeepOpen,
+            _ => WidgetResult::Handled,
         }
     }
 }

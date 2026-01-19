@@ -9,7 +9,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::ui::dialog::{Dialog, DialogResult};
+use crate::ui::widget::{Widget, WidgetResult};
 
 pub struct SearchDialog {
     pub input: String,
@@ -23,8 +23,8 @@ impl SearchDialog {
     }
 }
 
-impl Dialog for SearchDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &UIState) {
+impl Widget for SearchDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let block = Block::default()
             .borders(Borders::ALL)
@@ -64,26 +64,26 @@ impl Dialog for SearchDialog {
         key: KeyEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
-    ) -> DialogResult {
+    ) -> WidgetResult {
         match key.code {
             KeyCode::Esc => {
                 ui_state.set_status_message("Ready");
-                DialogResult::Close
+                WidgetResult::Close
             }
             KeyCode::Enter => {
                 ui_state.last_search_query = self.input.clone();
                 perform_search(app_state, ui_state, true);
-                DialogResult::Close
+                WidgetResult::Close
             }
             KeyCode::Backspace => {
                 self.input.pop();
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
             KeyCode::Char(c) => {
                 self.input.push(c);
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
-            _ => DialogResult::KeepOpen,
+            _ => WidgetResult::Handled,
         }
     }
 }

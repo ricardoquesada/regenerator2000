@@ -9,7 +9,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::ui::dialog::{Dialog, DialogResult};
+use crate::ui::widget::{Widget, WidgetResult};
 
 pub struct ExportAsDialog {
     pub input: String,
@@ -23,8 +23,8 @@ impl ExportAsDialog {
     }
 }
 
-impl Dialog for ExportAsDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &UIState) {
+impl Widget for ExportAsDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let block = Block::default()
             .borders(Borders::ALL)
@@ -64,11 +64,11 @@ impl Dialog for ExportAsDialog {
         key: KeyEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
-    ) -> DialogResult {
+    ) -> WidgetResult {
         match key.code {
             KeyCode::Esc => {
                 ui_state.set_status_message("Ready");
-                DialogResult::Close
+                WidgetResult::Close
             }
             KeyCode::Enter => {
                 let filename = self.input.clone();
@@ -80,24 +80,24 @@ impl Dialog for ExportAsDialog {
                     app_state.export_path = Some(path.clone());
                     if let Err(e) = crate::exporter::export_asm(app_state, &path) {
                         ui_state.set_status_message(format!("Error exporting: {}", e));
-                        DialogResult::KeepOpen
+                        WidgetResult::Handled
                     } else {
                         ui_state.set_status_message("Project Exported");
-                        DialogResult::Close
+                        WidgetResult::Close
                     }
                 } else {
-                    DialogResult::KeepOpen
+                    WidgetResult::Handled
                 }
             }
             KeyCode::Backspace => {
                 self.input.pop();
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
             KeyCode::Char(c) => {
                 self.input.push(c);
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
-            _ => DialogResult::KeepOpen,
+            _ => WidgetResult::Handled,
         }
     }
 }

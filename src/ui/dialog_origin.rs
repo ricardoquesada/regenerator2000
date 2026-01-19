@@ -8,7 +8,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::ui::dialog::{Dialog, DialogResult};
+use crate::ui::widget::{Widget, WidgetResult};
 
 pub struct OriginDialog {
     pub input: String,
@@ -22,8 +22,8 @@ impl OriginDialog {
     }
 }
 
-impl Dialog for OriginDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &UIState) {
+impl Widget for OriginDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let block = Block::default()
             .borders(Borders::ALL)
@@ -64,11 +64,11 @@ impl Dialog for OriginDialog {
         key: KeyEvent,
         app_state: &mut AppState,
         ui_state: &mut UIState,
-    ) -> DialogResult {
+    ) -> WidgetResult {
         match key.code {
             KeyCode::Esc => {
                 ui_state.set_status_message("Ready");
-                DialogResult::Close
+                WidgetResult::Close
             }
             KeyCode::Enter => {
                 if let Ok(new_origin) = u16::from_str_radix(&self.input, 16) {
@@ -86,27 +86,27 @@ impl Dialog for OriginDialog {
                         app_state.disassemble();
                         ui_state
                             .set_status_message(format!("Origin changed to ${:04X}", new_origin));
-                        DialogResult::Close
+                        WidgetResult::Close
                     } else {
                         ui_state.set_status_message("Error: Origin + Size exceeds $FFFF");
-                        DialogResult::KeepOpen
+                        WidgetResult::Handled
                     }
                 } else {
                     ui_state.set_status_message("Invalid Hex Address");
-                    DialogResult::KeepOpen
+                    WidgetResult::Handled
                 }
             }
             KeyCode::Backspace => {
                 self.input.pop();
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
             KeyCode::Char(c) => {
                 if c.is_ascii_hexdigit() && self.input.len() < 4 {
                     self.input.push(c.to_ascii_uppercase());
                 }
-                DialogResult::KeepOpen
+                WidgetResult::Handled
             }
-            _ => DialogResult::KeepOpen,
+            _ => WidgetResult::Handled,
         }
     }
 }

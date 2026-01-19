@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::ui::dialog::{Dialog, DialogResult};
+use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
 use crossterm::event::KeyCode;
 use ratatui::Frame;
@@ -15,8 +15,8 @@ impl AboutDialog {
     }
 }
 
-impl Dialog for AboutDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &UIState) {
+impl Widget for AboutDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         if let Some(logo) = &ui_state.logo
             && let Some(picker) = &ui_state.picker
         {
@@ -99,11 +99,11 @@ impl Dialog for AboutDialog {
         key: crossterm::event::KeyEvent,
         _app_state: &mut AppState,
         ui_state: &mut UIState,
-    ) -> DialogResult {
+    ) -> WidgetResult {
         if let KeyCode::Esc | KeyCode::Enter | KeyCode::Char(_) = key.code {
             ui_state.set_status_message("Ready");
-            return DialogResult::Close;
+            return WidgetResult::Close;
         }
-        DialogResult::KeepOpen
+        WidgetResult::Handled
     }
 }

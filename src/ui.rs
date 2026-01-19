@@ -1,7 +1,6 @@
 use crate::state::AppState;
 use crate::ui_state::{RightPane, UIState};
 
-pub mod dialog;
 pub mod dialog_about;
 pub mod dialog_comment;
 pub mod dialog_confirmation;
@@ -23,6 +22,9 @@ pub mod view_charset;
 pub mod view_disassembly;
 pub mod view_hexdump;
 pub mod view_sprites;
+pub mod widget;
+
+use crate::ui::widget::Widget;
 
 use ratatui::{
     Frame,
@@ -49,8 +51,9 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     }
 
     // Generic Active Dialog Handler (Refactored Dialogs)
-    if let Some(dialog) = &ui_state.active_dialog {
+    if let Some(dialog) = ui_state.active_dialog.take() {
         dialog.render(f, f.area(), app_state, ui_state);
+        ui_state.active_dialog = Some(dialog);
     }
 }
 
@@ -73,14 +76,14 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         ])
         .split(area);
 
-    view_disassembly::render(f, layout[0], app_state, ui_state);
+    view_disassembly::DisassemblyView.render(f, layout[0], app_state, ui_state);
 
     match ui_state.right_pane {
         RightPane::None => {}
-        RightPane::HexDump => view_hexdump::render(f, layout[1], app_state, ui_state),
-        RightPane::Sprites => view_sprites::render(f, layout[1], app_state, ui_state),
-        RightPane::Charset => view_charset::render(f, layout[1], app_state, ui_state),
-        RightPane::Blocks => view_blocks::render(f, layout[1], app_state, ui_state),
+        RightPane::HexDump => view_hexdump::HexDumpView.render(f, layout[1], app_state, ui_state),
+        RightPane::Sprites => view_sprites::SpritesView.render(f, layout[1], app_state, ui_state),
+        RightPane::Charset => view_charset::CharsetView.render(f, layout[1], app_state, ui_state),
+        RightPane::Blocks => view_blocks::BlocksView.render(f, layout[1], app_state, ui_state),
     }
 }
 
