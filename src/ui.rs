@@ -45,7 +45,10 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     render_main_view(f, chunks[1], app_state, ui_state);
     statusbar::StatusBar.render(f, chunks[2], app_state, ui_state);
 
-    // Menu Popup is now handled by Menu.render()
+    // Menu Popup is now handled here to ensure it's on top
+    if ui_state.menu.active && ui_state.menu.selected_item.is_some() {
+        menu::render_menu_popup(f, chunks[0], &ui_state.menu, &ui_state.theme);
+    }
 
     // Generic Active Dialog Handler (Refactored Dialogs)
     if let Some(dialog) = ui_state.active_dialog.take() {

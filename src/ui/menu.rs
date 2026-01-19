@@ -78,10 +78,6 @@ pub struct Menu;
 impl Widget for Menu {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         render_menu(f, area, &ui_state.menu, &ui_state.theme);
-
-        if ui_state.menu.active && ui_state.menu.selected_item.is_some() {
-            render_menu_popup(f, area, &ui_state.menu, &ui_state.theme);
-        }
     }
 
     fn handle_input(
