@@ -207,7 +207,7 @@ impl Widget for BlocksView {
                 }
                 WidgetResult::Handled
             }
-            KeyCode::Char(' ') if key.modifiers.is_empty() => {
+            KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 WidgetResult::Action(MenuAction::ToggleCollapsedBlock)
             }
 
