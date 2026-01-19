@@ -49,7 +49,8 @@ pub enum MenuAction {
     Search,
     FindNext,
     FindPrevious,
-    TogglePetsciiMode,
+    HexdumpViewModeNext,
+    HexdumpViewModePrev,
     ToggleSpriteMulticolor,
     ToggleCharsetView,
     ToggleCharsetMulticolor,
@@ -271,9 +272,14 @@ impl MenuState {
                     name: "View".to_string(),
                     items: vec![
                         MenuItem::new(
-                            "Toggle PETSCII Shifted/Unshifted",
+                            "Next Hex Dump Mode",
                             Some("m"),
-                            Some(MenuAction::TogglePetsciiMode),
+                            Some(MenuAction::HexdumpViewModeNext),
+                        ),
+                        MenuItem::new(
+                            "Prev Hex Dump Mode",
+                            Some("Shift+M"),
+                            Some(MenuAction::HexdumpViewModePrev),
                         ),
                         MenuItem::new(
                             "Toggle Multicolor Sprites",
@@ -426,7 +432,7 @@ impl MenuState {
                                 }
                                 item.disabled = !is_immediate;
                             }
-                            MenuAction::TogglePetsciiMode => {
+                            MenuAction::HexdumpViewModeNext | MenuAction::HexdumpViewModePrev => {
                                 item.disabled = active_pane != ActivePane::HexDump;
                             }
                             MenuAction::ToggleSpriteMulticolor => {
@@ -861,29 +867,41 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ui_state.active_dialog = Some(Box::new(crate::ui::dialog_about::AboutDialog::new()));
             ui_state.set_status_message("About Regenerator 2000");
         }
-        MenuAction::TogglePetsciiMode => {
+        MenuAction::HexdumpViewModeNext => {
             let new_mode = match ui_state.hexdump_view_mode {
                 crate::state::HexdumpViewMode::ScreencodeShifted => {
                     crate::state::HexdumpViewMode::ScreencodeUnshifted
                 }
                 crate::state::HexdumpViewMode::ScreencodeUnshifted => {
-                    crate::state::HexdumpViewMode::PETSCIIUnshifted
-                }
-                crate::state::HexdumpViewMode::PETSCIIUnshifted => {
                     crate::state::HexdumpViewMode::PETSCIIShifted
                 }
                 crate::state::HexdumpViewMode::PETSCIIShifted => {
+                    crate::state::HexdumpViewMode::PETSCIIUnshifted
+                }
+                crate::state::HexdumpViewMode::PETSCIIUnshifted => {
                     crate::state::HexdumpViewMode::ScreencodeShifted
                 }
             };
             ui_state.hexdump_view_mode = new_mode;
-            let status = match new_mode {
-                crate::state::HexdumpViewMode::PETSCIIUnshifted => "Unshifted (PETSCII)",
-                crate::state::HexdumpViewMode::PETSCIIShifted => "Shifted (PETSCII)",
-                crate::state::HexdumpViewMode::ScreencodeShifted => "Shifted (Screencode)",
-                crate::state::HexdumpViewMode::ScreencodeUnshifted => "Unshifted (Screencode)",
+            update_hexdump_status(ui_state, new_mode);
+        }
+        MenuAction::HexdumpViewModePrev => {
+            let new_mode = match ui_state.hexdump_view_mode {
+                crate::state::HexdumpViewMode::ScreencodeShifted => {
+                    crate::state::HexdumpViewMode::PETSCIIUnshifted
+                }
+                crate::state::HexdumpViewMode::ScreencodeUnshifted => {
+                    crate::state::HexdumpViewMode::ScreencodeShifted
+                }
+                crate::state::HexdumpViewMode::PETSCIIShifted => {
+                    crate::state::HexdumpViewMode::ScreencodeUnshifted
+                }
+                crate::state::HexdumpViewMode::PETSCIIUnshifted => {
+                    crate::state::HexdumpViewMode::PETSCIIShifted
+                }
             };
-            ui_state.set_status_message(format!("Hex Dump: {}", status));
+            ui_state.hexdump_view_mode = new_mode;
+            update_hexdump_status(ui_state, new_mode);
         }
         MenuAction::ToggleSplitter => {
             if ui_state.active_pane == ActivePane::Blocks {
@@ -1380,4 +1398,14 @@ fn create_save_context(
         splitters: app_state.splitters.clone(),
         blocks_view_cursor: ui_state.blocks_list_state.selected(),
     }
+}
+
+fn update_hexdump_status(ui_state: &mut UIState, mode: crate::state::HexdumpViewMode) {
+    let status = match mode {
+        crate::state::HexdumpViewMode::PETSCIIUnshifted => "Unshifted (PETSCII)",
+        crate::state::HexdumpViewMode::PETSCIIShifted => "Shifted (PETSCII)",
+        crate::state::HexdumpViewMode::ScreencodeShifted => "Shifted (Screencode)",
+        crate::state::HexdumpViewMode::ScreencodeUnshifted => "Unshifted (Screencode)",
+    };
+    ui_state.set_status_message(format!("Hex Dump: {}", status));
 }

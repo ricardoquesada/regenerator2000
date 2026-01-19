@@ -249,7 +249,10 @@ impl Widget for HexDumpView {
                 WidgetResult::Handled
             }
             KeyCode::Char('m') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::TogglePetsciiMode)
+                WidgetResult::Action(MenuAction::HexdumpViewModeNext)
+            }
+            KeyCode::Char('M') if key.modifiers == KeyModifiers::SHIFT => {
+                WidgetResult::Action(MenuAction::HexdumpViewModePrev)
             }
             _ => WidgetResult::Ignored,
         }
