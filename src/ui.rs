@@ -41,14 +41,11 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         ])
         .split(f.area());
 
-    menu::render_menu(f, chunks[0], &ui_state.menu, &ui_state.theme);
+    menu::Menu.render(f, chunks[0], app_state, ui_state);
     render_main_view(f, chunks[1], app_state, ui_state);
-    statusbar::render(f, chunks[2], app_state, ui_state);
+    statusbar::StatusBar.render(f, chunks[2], app_state, ui_state);
 
-    // Render Popup if needed
-    if ui_state.menu.active && ui_state.menu.selected_item.is_some() {
-        menu::render_menu_popup(f, chunks[0], &ui_state.menu, &ui_state.theme);
-    }
+    // Menu Popup is now handled by Menu.render()
 
     // Generic Active Dialog Handler (Refactored Dialogs)
     if let Some(dialog) = ui_state.active_dialog.take() {

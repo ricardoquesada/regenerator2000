@@ -64,7 +64,11 @@ pub fn run_app<B: Backend>(
             }
             // Label dialog removed (generic)            // Comment dialog removed (generic)
             if ui_state.menu.active {
-                crate::ui::menu::handle_input(key, &mut app_state, &mut ui_state);
+                use crate::ui::widget::Widget;
+                let result = crate::ui::menu::Menu.handle_input(key, &mut app_state, &mut ui_state);
+                if let crate::ui::widget::WidgetResult::Action(action) = result {
+                    crate::ui::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
+                }
             // Confirmation dialog removed (generic)
             // Origin dialog removed (generic)
             } else if ui_state.vim_search_active {

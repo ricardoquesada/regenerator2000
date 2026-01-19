@@ -1,4 +1,5 @@
 use crate::state::AppState;
+use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
@@ -69,6 +70,74 @@ impl MenuAction {
                 | MenuAction::SystemSettings
                 | MenuAction::Search
         )
+    }
+}
+
+pub struct Menu;
+
+impl Widget for Menu {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
+        render_menu(f, area, &ui_state.menu, &ui_state.theme);
+
+        if ui_state.menu.active && ui_state.menu.selected_item.is_some() {
+            render_menu_popup(f, area, &ui_state.menu, &ui_state.theme);
+        }
+    }
+
+    fn handle_input(
+        &mut self,
+        key: KeyEvent,
+        _app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> WidgetResult {
+        match key.code {
+            KeyCode::Esc => {
+                ui_state.menu.active = false;
+                ui_state.menu.selected_item = None;
+                ui_state.set_status_message("Ready");
+                WidgetResult::Handled
+            }
+            KeyCode::Right => {
+                ui_state.menu.next_category();
+                WidgetResult::Handled
+            }
+            KeyCode::Left => {
+                ui_state.menu.previous_category();
+                WidgetResult::Handled
+            }
+            KeyCode::Down => {
+                ui_state.menu.next_item();
+                WidgetResult::Handled
+            }
+            KeyCode::Up => {
+                ui_state.menu.previous_item();
+                WidgetResult::Handled
+            }
+            KeyCode::Enter => {
+                if let Some(item_idx) = ui_state.menu.selected_item {
+                    let category_idx = ui_state.menu.selected_category;
+                    let item = &ui_state.menu.categories[category_idx].items[item_idx];
+
+                    if !item.disabled {
+                        let action = item.action.clone();
+                        if let Some(action) = action {
+                            // Close menu after valid action
+                            ui_state.menu.active = false;
+                            ui_state.menu.selected_item = None;
+                            return WidgetResult::Action(action);
+                        }
+                    } else {
+                        // Optional: Feedback that it's disabled
+                        ui_state.set_status_message("Item is disabled");
+                    }
+                } else {
+                    // Enter on category -> open first item?
+                    ui_state.menu.select_first_enabled_item();
+                }
+                WidgetResult::Handled
+            }
+            _ => WidgetResult::Ignored,
+        }
     }
 }
 
@@ -204,7 +273,6 @@ impl MenuState {
                 },
                 MenuCategory {
                     name: "View".to_string(),
-
                     items: vec![
                         MenuItem::new(
                             "Toggle PETSCII Shifted/Unshifted",
@@ -523,52 +591,6 @@ pub fn render_menu_popup(
     );
 
     f.render_widget(list, area);
-}
-
-pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UIState) {
-    match key.code {
-        KeyCode::Esc => {
-            ui_state.menu.active = false;
-            ui_state.menu.selected_item = None;
-            ui_state.set_status_message("Ready");
-        }
-        KeyCode::Right => {
-            ui_state.menu.next_category();
-        }
-        KeyCode::Left => {
-            ui_state.menu.previous_category();
-        }
-        KeyCode::Down => {
-            ui_state.menu.next_item();
-        }
-        KeyCode::Up => {
-            ui_state.menu.previous_item();
-        }
-        KeyCode::Enter => {
-            if let Some(item_idx) = ui_state.menu.selected_item {
-                let category_idx = ui_state.menu.selected_category;
-                let item = &ui_state.menu.categories[category_idx].items[item_idx];
-
-                if !item.disabled {
-                    let action = item.action.clone();
-                    if let Some(action) = action {
-                        handle_menu_action(app_state, ui_state, action);
-                        // Close menu after valid action
-                        ui_state.menu.active = false;
-                        ui_state.menu.selected_item = None;
-                    }
-                } else {
-                    // Optional: Feedback that it's disabled
-                    ui_state.set_status_message("Item is disabled");
-                }
-            } else {
-                // Enter on category -> open first item?
-                // ui_state.menu.selected_item = Some(0);
-                ui_state.menu.select_first_enabled_item();
-            }
-        }
-        _ => {}
-    }
 }
 
 pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: MenuAction) {
