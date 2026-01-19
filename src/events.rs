@@ -91,109 +91,29 @@ pub fn run_app<B: Backend>(
                     _ => {}
                 }
             } else {
-                if ui_state.active_pane == ActivePane::Disassembly {
-                    use crate::ui::widget::{Widget, WidgetResult};
-                    match crate::ui::view_disassembly::DisassemblyView.handle_input(
-                        key,
-                        &mut app_state,
-                        &mut ui_state,
-                    ) {
-                        WidgetResult::Handled => continue,
-                        WidgetResult::Action(action) => {
-                            crate::ui::menu::handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                action,
-                            );
-                            continue;
-                        }
-                        WidgetResult::Ignored => {}
-                        WidgetResult::Close => {} // Disassembly view doesn't close
-                    }
-                }
+                use crate::ui::view_blocks::BlocksView;
+                use crate::ui::view_charset::CharsetView;
+                use crate::ui::view_disassembly::DisassemblyView;
+                use crate::ui::view_hexdump::HexDumpView;
+                use crate::ui::view_sprites::SpritesView;
+                use crate::ui::widget::{Widget, WidgetResult};
 
-                if ui_state.active_pane == ActivePane::HexDump {
-                    use crate::ui::widget::{Widget, WidgetResult};
-                    match crate::ui::view_hexdump::HexDumpView.handle_input(
-                        key,
-                        &mut app_state,
-                        &mut ui_state,
-                    ) {
-                        WidgetResult::Handled => continue,
-                        WidgetResult::Action(action) => {
-                            crate::ui::menu::handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                action,
-                            );
-                            continue;
-                        }
-                        WidgetResult::Ignored => {}
-                        WidgetResult::Close => {}
-                    }
-                }
+                let mut active_view: Box<dyn Widget> = match ui_state.active_pane {
+                    ActivePane::Disassembly => Box::new(DisassemblyView),
+                    ActivePane::HexDump => Box::new(HexDumpView),
+                    ActivePane::Sprites => Box::new(SpritesView),
+                    ActivePane::Charset => Box::new(CharsetView),
+                    ActivePane::Blocks => Box::new(BlocksView),
+                };
 
-                if ui_state.active_pane == ActivePane::Sprites {
-                    use crate::ui::widget::{Widget, WidgetResult};
-                    match crate::ui::view_sprites::SpritesView.handle_input(
-                        key,
-                        &mut app_state,
-                        &mut ui_state,
-                    ) {
-                        WidgetResult::Handled => continue,
-                        WidgetResult::Action(action) => {
-                            crate::ui::menu::handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                action,
-                            );
-                            continue;
-                        }
-                        WidgetResult::Ignored => {}
-                        WidgetResult::Close => {}
+                match active_view.handle_input(key, &mut app_state, &mut ui_state) {
+                    WidgetResult::Handled => continue,
+                    WidgetResult::Action(action) => {
+                        crate::ui::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
+                        continue;
                     }
-                }
-
-                if ui_state.active_pane == ActivePane::Charset {
-                    use crate::ui::widget::{Widget, WidgetResult};
-                    match crate::ui::view_charset::CharsetView.handle_input(
-                        key,
-                        &mut app_state,
-                        &mut ui_state,
-                    ) {
-                        WidgetResult::Handled => continue,
-                        WidgetResult::Action(action) => {
-                            crate::ui::menu::handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                action,
-                            );
-                            continue;
-                        }
-                        WidgetResult::Ignored => {}
-                        WidgetResult::Close => {}
-                    }
-                }
-
-                if ui_state.active_pane == ActivePane::Blocks {
-                    use crate::ui::widget::{Widget, WidgetResult};
-                    match crate::ui::view_blocks::BlocksView.handle_input(
-                        key,
-                        &mut app_state,
-                        &mut ui_state,
-                    ) {
-                        WidgetResult::Handled => continue,
-                        WidgetResult::Action(action) => {
-                            crate::ui::menu::handle_menu_action(
-                                &mut app_state,
-                                &mut ui_state,
-                                action,
-                            );
-                            continue;
-                        }
-                        WidgetResult::Ignored => {}
-                        WidgetResult::Close => {}
-                    }
+                    WidgetResult::Ignored => {}
+                    WidgetResult::Close => {}
                 }
 
                 handle_global_input(key, &mut app_state, &mut ui_state);
