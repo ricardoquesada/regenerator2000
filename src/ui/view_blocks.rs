@@ -1,10 +1,11 @@
-use crate::state::AppState;
+use crate::state::{AppState, BlockType};
 use crate::ui_state::{ActivePane, MenuAction, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     Frame,
     layout::Rect,
     style::Style,
+    text::{Line, Span},
     widgets::{Block, Borders, List, ListItem},
 };
 
@@ -37,18 +38,42 @@ impl Widget for BlocksView {
         let block_items = app_state.get_blocks_view_items();
         let items: Vec<ListItem> = block_items
             .iter()
-            .map(|item| {
-                let text = match item {
-                    crate::state::BlockItem::Block { start, end, type_ } => {
-                        let start_addr = app_state.origin.wrapping_add(*start);
-                        let end_addr = app_state.origin.wrapping_add(*end);
-                        format!("${:04X} - ${:04X} [{}]", start_addr, end_addr, type_)
-                    }
-                    crate::state::BlockItem::Splitter(addr) => {
-                        format!("${:04X} -----------------", addr)
-                    }
-                };
-                ListItem::new(text)
+            .map(|item| match item {
+                crate::state::BlockItem::Block {
+                    start,
+                    end,
+                    type_,
+                    collapsed,
+                } => {
+                    let start_addr = app_state.origin.wrapping_add(*start);
+                    let end_addr = app_state.origin.wrapping_add(*end);
+                    let color = match type_ {
+                        BlockType::Code => ui_state.theme.block_code_fg,
+                        BlockType::DataByte => ui_state.theme.block_data_byte_fg,
+                        BlockType::DataWord => ui_state.theme.block_data_word_fg,
+                        BlockType::Address => ui_state.theme.block_address_fg,
+                        BlockType::Text => ui_state.theme.block_text_fg,
+                        BlockType::Screencode => ui_state.theme.block_screencode_fg,
+                        BlockType::LoHi => ui_state.theme.block_lohi_fg,
+                        BlockType::HiLo => ui_state.theme.block_hilo_fg,
+                        BlockType::ExternalFile => ui_state.theme.block_external_file_fg,
+                        BlockType::Undefined => ui_state.theme.block_undefined_fg,
+                    };
+
+                    let collapse_char = if *collapsed { "+" } else { " " };
+                    let text = format!(
+                        "{} ${:04X} - ${:04X} [{}]",
+                        collapse_char, start_addr, end_addr, type_
+                    );
+                    ListItem::new(Line::from(Span::styled(text, Style::default().fg(color))))
+                }
+                crate::state::BlockItem::Splitter(addr) => {
+                    let text = format!("  ${:04X} -----------------", addr);
+                    ListItem::new(Line::from(Span::styled(
+                        text,
+                        Style::default().fg(ui_state.theme.block_splitter_fg),
+                    )))
+                }
             })
             .collect();
 
@@ -160,26 +185,7 @@ impl Widget for BlocksView {
                 if idx < blocks.len() {
                     let target_addr = match blocks[idx] {
                         crate::state::BlockItem::Block { start, .. } => {
-                            // start is u16 (offset from origin? or absolute?)
-                            // Block definition: start: u16, end: u16.
-                            // `get_blocks_view_items` logic:
-                            // `block_start = self.origin.wrapping_add(block.start as u16);`
-                            // But wait, `Block` in `AppState` uses `usize` for start/end (offset).
-                            // `BlockItem` (enum) uses `u16`?
-                            // Let's check BlockItem def again in Step 425.
-                            // `pub enum BlockItem { Block { start: u16, end: u16, type_: BlockType }, Splitter(u16) }`
-                            // So `start` in `BlockItem` SHOULD be offset?
-                            // Let's check `get_blocks_view_items` logic in Step 425? Steps 425 ended at 1060.
-                            // Line 1046: `let block_start = ... wrapping_add ...`
-                            // It implies `Block` struct has `start: usize`.
-                            // `BlockItem` struct has `start: u16`.
-                            // If `BlockItem` stores OFFSET, then `app_state.origin + start`.
-                            // If `BlockItem` stores ABSOLUTE ADDR, then just `start`.
-                            // Let's assume BlockItem stores OFFSET based on `start: u16` being typical for offsets in C64 context (lines 0-65535).
-                            // Actually, 64k size fits in u16.
-                            // Re-reading logic in Step 418 (events.rs):
-                            // `crate::state::BlockItem::Block { start, .. } => { let offset = start; Some(app_state.origin.wrapping_add(offset)) }`
-                            // So `start` is OFFSET.
+                            // start is u16 (offset from origin)
                             Some(app_state.origin.wrapping_add(start))
                         }
                         crate::state::BlockItem::Splitter(addr) => Some(addr),

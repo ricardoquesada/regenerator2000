@@ -1049,6 +1049,7 @@ pub enum BlockItem {
         start: u16,
         end: u16,
         type_: BlockType,
+        collapsed: bool,
     },
     Splitter(u16),
 }
@@ -1150,6 +1151,7 @@ impl AppState {
                         start: sub_block_start as u16,
                         end: (splitter_idx - 1) as u16,
                         type_: block.type_,
+                        collapsed: block.collapsed,
                     });
                 }
 
@@ -1176,6 +1178,7 @@ impl AppState {
                     start: sub_block_start as u16,
                     end: current_end_idx as u16,
                     type_: block.type_,
+                    collapsed: block.collapsed,
                 });
             }
         }
