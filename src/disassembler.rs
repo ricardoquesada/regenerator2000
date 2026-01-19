@@ -2,16 +2,16 @@ use crate::cpu::{Opcode, get_opcodes};
 use crate::state::{Assembler, BlockType, DocumentSettings, Label};
 use std::collections::{BTreeMap, BTreeSet};
 
-mod fomatter_ca65;
 pub mod formatter;
 mod formatter_64tass;
 mod formatter_acme;
+mod formatter_ca65;
 mod formatter_kickasm;
 
-use fomatter_ca65::Ca65Formatter;
 use formatter::Formatter;
 use formatter_64tass::TassFormatter;
 use formatter_acme::AcmeFormatter;
+use formatter_ca65::Ca65Formatter;
 use formatter_kickasm::KickAsmFormatter;
 
 #[cfg(test)]

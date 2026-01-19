@@ -1,8 +1,6 @@
 mod analyzer;
 pub mod assets;
-mod parser_crt;
-mod parser_t64;
-mod parser_vsf;
+mod parser;
 
 mod commands;
 mod cpu;
