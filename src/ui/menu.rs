@@ -708,10 +708,10 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ui_state.set_status_message("Search...");
         }
         MenuAction::FindNext => {
-            crate::dialog_search::perform_search(app_state, ui_state, true);
+            crate::ui::dialog_search::perform_search(app_state, ui_state, true);
         }
         MenuAction::FindPrevious => {
-            crate::dialog_search::perform_search(app_state, ui_state, false);
+            crate::ui::dialog_search::perform_search(app_state, ui_state, false);
         }
         MenuAction::JumpToOperand => {
             let target_addr = match ui_state.active_pane {
@@ -892,9 +892,10 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     .user_side_comments
                     .get(&address)
                     .map(|s| s.as_str());
-                ui_state
-                    .comment_dialog
-                    .open(current_comment, crate::dialog_comment::CommentType::Side);
+                ui_state.comment_dialog.open(
+                    current_comment,
+                    crate::ui::dialog_comment::CommentType::Side,
+                );
                 ui_state.set_status_message(format!("Edit Side Comment at ${:04X}", address));
             }
         }
@@ -905,9 +906,10 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     .user_line_comments
                     .get(&address)
                     .map(|s| s.as_str());
-                ui_state
-                    .comment_dialog
-                    .open(current_comment, crate::dialog_comment::CommentType::Line);
+                ui_state.comment_dialog.open(
+                    current_comment,
+                    crate::ui::dialog_comment::CommentType::Line,
+                );
                 ui_state.set_status_message(format!("Edit Line Comment at ${:04X}", address));
             }
         }

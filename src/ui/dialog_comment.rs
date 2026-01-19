@@ -103,7 +103,7 @@ pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UISt
                 };
 
                 let command = match ui_state.comment_dialog.comment_type {
-                    crate::dialog_comment::CommentType::Side => {
+                    crate::ui::dialog_comment::CommentType::Side => {
                         let old_comment = app_state.user_side_comments.get(&address).cloned();
                         crate::commands::Command::SetUserSideComment {
                             address,
@@ -111,7 +111,7 @@ pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UISt
                             old_comment,
                         }
                     }
-                    crate::dialog_comment::CommentType::Line => {
+                    crate::ui::dialog_comment::CommentType::Line => {
                         let old_comment = app_state.user_line_comments.get(&address).cloned();
                         crate::commands::Command::SetUserLineComment {
                             address,

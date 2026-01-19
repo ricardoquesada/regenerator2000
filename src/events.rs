@@ -41,35 +41,39 @@ pub fn run_app<B: Backend>(
             }
             ui_state.dismiss_logo = true;
             if ui_state.jump_to_address_dialog.active {
-                crate::dialog_jump_to_address::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::dialog_jump_to_address::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.jump_to_line_dialog.active {
-                crate::dialog_jump_to_line::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::dialog_jump_to_line::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.save_as_dialog.active {
-                crate::dialog_save_as::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::dialog_save_as::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.export_as_dialog.active {
-                crate::dialog_export_as::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::dialog_export_as::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.label_dialog.active {
-                crate::dialog_label::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::dialog_label::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.comment_dialog.active {
-                crate::dialog_comment::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::dialog_comment::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.open_dialog.active {
-                crate::dialog_open::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::dialog_open::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.search_dialog.active {
-                crate::dialog_search::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::dialog_search::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.menu.active {
-                crate::menu::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::menu::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.about_dialog.active {
-                crate::dialog_about::handle_input(key, &mut ui_state);
+                crate::ui::dialog_about::handle_input(key, &mut ui_state);
             } else if ui_state.shortcuts_dialog.active {
-                crate::dialog_keyboard_shortcut::handle_input(key, &mut ui_state);
+                crate::ui::dialog_keyboard_shortcut::handle_input(key, &mut ui_state);
             } else if ui_state.confirmation_dialog.active {
-                crate::dialog_confirmation::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::dialog_confirmation::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.settings_dialog.active {
-                crate::dialog_document_settings::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::dialog_document_settings::handle_input(
+                    key,
+                    &mut app_state,
+                    &mut ui_state,
+                );
             } else if ui_state.system_settings_dialog.active {
-                crate::dialog_settings::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::dialog_settings::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.origin_dialog.active {
-                crate::dialog_origin::handle_input(key, &mut app_state, &mut ui_state);
+                crate::ui::dialog_origin::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.vim_search_active {
                 match key.code {
                     KeyCode::Esc => {
@@ -79,7 +83,11 @@ pub fn run_app<B: Backend>(
                     KeyCode::Enter => {
                         ui_state.search_dialog.last_search = ui_state.vim_search_input.clone();
                         ui_state.vim_search_active = false;
-                        crate::dialog_search::perform_search(&mut app_state, &mut ui_state, true);
+                        crate::ui::dialog_search::perform_search(
+                            &mut app_state,
+                            &mut ui_state,
+                            true,
+                        );
                     }
                     KeyCode::Backspace => {
                         ui_state.vim_search_input.pop();
@@ -91,12 +99,19 @@ pub fn run_app<B: Backend>(
                 }
             } else {
                 if ui_state.active_pane == ActivePane::Disassembly {
-                    use crate::view_disassembly::InputResult;
-                    match crate::view_disassembly::handle_input(key, &mut app_state, &mut ui_state)
-                    {
+                    use crate::ui::view_disassembly::InputResult;
+                    match crate::ui::view_disassembly::handle_input(
+                        key,
+                        &mut app_state,
+                        &mut ui_state,
+                    ) {
                         InputResult::Handled => continue,
                         InputResult::Action(action) => {
-                            crate::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
+                            crate::ui::menu::handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                action,
+                            );
                             continue;
                         }
                         InputResult::Ignored => {}
@@ -104,11 +119,16 @@ pub fn run_app<B: Backend>(
                 }
 
                 if ui_state.active_pane == ActivePane::HexDump {
-                    use crate::view_hexdump::InputResult;
-                    match crate::view_hexdump::handle_input(key, &mut app_state, &mut ui_state) {
+                    use crate::ui::view_hexdump::InputResult;
+                    match crate::ui::view_hexdump::handle_input(key, &mut app_state, &mut ui_state)
+                    {
                         InputResult::Handled => continue,
                         InputResult::Action(action) => {
-                            crate::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
+                            crate::ui::menu::handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                action,
+                            );
                             continue;
                         }
                         InputResult::Ignored => {}
@@ -116,11 +136,16 @@ pub fn run_app<B: Backend>(
                 }
 
                 if ui_state.active_pane == ActivePane::Sprites {
-                    use crate::view_sprites::InputResult;
-                    match crate::view_sprites::handle_input(key, &mut app_state, &mut ui_state) {
+                    use crate::ui::view_sprites::InputResult;
+                    match crate::ui::view_sprites::handle_input(key, &mut app_state, &mut ui_state)
+                    {
                         InputResult::Handled => continue,
                         InputResult::Action(action) => {
-                            crate::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
+                            crate::ui::menu::handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                action,
+                            );
                             continue;
                         }
                         InputResult::Ignored => {}
@@ -128,11 +153,16 @@ pub fn run_app<B: Backend>(
                 }
 
                 if ui_state.active_pane == ActivePane::Charset {
-                    use crate::view_charset::InputResult;
-                    match crate::view_charset::handle_input(key, &mut app_state, &mut ui_state) {
+                    use crate::ui::view_charset::InputResult;
+                    match crate::ui::view_charset::handle_input(key, &mut app_state, &mut ui_state)
+                    {
                         InputResult::Handled => continue,
                         InputResult::Action(action) => {
-                            crate::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
+                            crate::ui::menu::handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                action,
+                            );
                             continue;
                         }
                         InputResult::Ignored => {}
@@ -140,11 +170,15 @@ pub fn run_app<B: Backend>(
                 }
 
                 if ui_state.active_pane == ActivePane::Blocks {
-                    use crate::view_blocks::InputResult;
-                    match crate::view_blocks::handle_input(key, &mut app_state, &mut ui_state) {
+                    use crate::ui::view_blocks::InputResult;
+                    match crate::ui::view_blocks::handle_input(key, &mut app_state, &mut ui_state) {
                         InputResult::Handled => continue,
                         InputResult::Action(action) => {
-                            crate::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
+                            crate::ui::menu::handle_menu_action(
+                                &mut app_state,
+                                &mut ui_state,
+                                action,
+                            );
                             continue;
                         }
                         InputResult::Ignored => {}

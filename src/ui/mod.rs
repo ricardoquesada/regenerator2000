@@ -1,6 +1,28 @@
 use crate::state::AppState;
 use crate::ui_state::{RightPane, UIState};
 
+pub mod dialog_about;
+pub mod dialog_comment;
+pub mod dialog_confirmation;
+pub mod dialog_document_settings;
+pub mod dialog_export_as;
+pub mod dialog_jump_to_address;
+pub mod dialog_jump_to_line;
+pub mod dialog_keyboard_shortcut;
+pub mod dialog_label;
+pub mod dialog_open;
+pub mod dialog_origin;
+pub mod dialog_save_as;
+pub mod dialog_search;
+pub mod dialog_settings;
+pub mod menu;
+pub mod statusbar;
+pub mod view_blocks;
+pub mod view_charset;
+pub mod view_disassembly;
+pub mod view_hexdump;
+pub mod view_sprites;
+
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -16,21 +38,21 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         ])
         .split(f.area());
 
-    crate::menu::render_menu(f, chunks[0], &ui_state.menu, &ui_state.theme);
+    menu::render_menu(f, chunks[0], &ui_state.menu, &ui_state.theme);
     render_main_view(f, chunks[1], app_state, ui_state);
-    crate::statusbar::render(f, chunks[2], app_state, ui_state);
+    statusbar::render(f, chunks[2], app_state, ui_state);
 
     // Render Popup if needed
     if ui_state.menu.active && ui_state.menu.selected_item.is_some() {
-        crate::menu::render_menu_popup(f, chunks[0], &ui_state.menu, &ui_state.theme);
+        menu::render_menu_popup(f, chunks[0], &ui_state.menu, &ui_state.theme);
     }
 
     if ui_state.open_dialog.active {
-        crate::dialog_open::render(f, f.area(), &ui_state.open_dialog, &ui_state.theme);
+        dialog_open::render(f, f.area(), &ui_state.open_dialog, &ui_state.theme);
     }
 
     if ui_state.jump_to_address_dialog.active {
-        crate::dialog_jump_to_address::render(
+        dialog_jump_to_address::render(
             f,
             f.area(),
             &ui_state.jump_to_address_dialog,
@@ -38,33 +60,23 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         );
     }
     if ui_state.jump_to_line_dialog.active {
-        crate::dialog_jump_to_line::render(
-            f,
-            f.area(),
-            &ui_state.jump_to_line_dialog,
-            &ui_state.theme,
-        );
+        dialog_jump_to_line::render(f, f.area(), &ui_state.jump_to_line_dialog, &ui_state.theme);
     }
 
     if ui_state.save_as_dialog.active {
-        crate::dialog_save_as::render(f, f.area(), &ui_state.save_as_dialog, &ui_state.theme);
+        dialog_save_as::render(f, f.area(), &ui_state.save_as_dialog, &ui_state.theme);
     }
 
     if ui_state.export_as_dialog.active {
-        crate::dialog_export_as::render(f, f.area(), &ui_state.export_as_dialog, &ui_state.theme);
+        dialog_export_as::render(f, f.area(), &ui_state.export_as_dialog, &ui_state.theme);
     }
 
     if ui_state.label_dialog.active {
-        crate::dialog_label::render_label_dialog(
-            f,
-            f.area(),
-            &ui_state.label_dialog,
-            &ui_state.theme,
-        );
+        dialog_label::render_label_dialog(f, f.area(), &ui_state.label_dialog, &ui_state.theme);
     }
 
     if ui_state.comment_dialog.active {
-        crate::dialog_comment::render_comment_dialog(
+        dialog_comment::render_comment_dialog(
             f,
             f.area(),
             &ui_state.comment_dialog,
@@ -73,7 +85,7 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     }
 
     if ui_state.settings_dialog.active {
-        crate::dialog_document_settings::render(
+        dialog_document_settings::render(
             f,
             f.area(),
             app_state,
@@ -83,7 +95,7 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     }
 
     if ui_state.system_settings_dialog.active {
-        crate::dialog_settings::render(
+        dialog_settings::render(
             f,
             f.area(),
             app_state,
@@ -93,20 +105,15 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     }
 
     if ui_state.about_dialog.active {
-        crate::dialog_about::render(f, ui_state, f.area(), &ui_state.about_dialog);
+        dialog_about::render(f, ui_state, f.area(), &ui_state.about_dialog);
     }
 
     if ui_state.shortcuts_dialog.active {
-        crate::dialog_keyboard_shortcut::render(
-            f,
-            f.area(),
-            &ui_state.shortcuts_dialog,
-            &ui_state.theme,
-        );
+        dialog_keyboard_shortcut::render(f, f.area(), &ui_state.shortcuts_dialog, &ui_state.theme);
     }
 
     if ui_state.confirmation_dialog.active {
-        crate::dialog_confirmation::render_confirmation_dialog(
+        dialog_confirmation::render_confirmation_dialog(
             f,
             f.area(),
             &ui_state.confirmation_dialog,
@@ -115,16 +122,11 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     }
 
     if ui_state.origin_dialog.active {
-        crate::dialog_origin::render_origin_dialog(
-            f,
-            f.area(),
-            &ui_state.origin_dialog,
-            &ui_state.theme,
-        );
+        dialog_origin::render_origin_dialog(f, f.area(), &ui_state.origin_dialog, &ui_state.theme);
     }
 
     if ui_state.search_dialog.active {
-        crate::dialog_search::render(f, f.area(), &ui_state.search_dialog, &ui_state.theme);
+        dialog_search::render(f, f.area(), &ui_state.search_dialog, &ui_state.theme);
     }
 }
 
@@ -147,14 +149,14 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         ])
         .split(area);
 
-    crate::view_disassembly::render(f, layout[0], app_state, ui_state);
+    view_disassembly::render(f, layout[0], app_state, ui_state);
 
     match ui_state.right_pane {
         RightPane::None => {}
-        RightPane::HexDump => crate::view_hexdump::render(f, layout[1], app_state, ui_state),
-        RightPane::Sprites => crate::view_sprites::render(f, layout[1], app_state, ui_state),
-        RightPane::Charset => crate::view_charset::render(f, layout[1], app_state, ui_state),
-        RightPane::Blocks => crate::view_blocks::render(f, layout[1], app_state, ui_state),
+        RightPane::HexDump => view_hexdump::render(f, layout[1], app_state, ui_state),
+        RightPane::Sprites => view_sprites::render(f, layout[1], app_state, ui_state),
+        RightPane::Charset => view_charset::render(f, layout[1], app_state, ui_state),
+        RightPane::Blocks => view_blocks::render(f, layout[1], app_state, ui_state),
     }
 }
 

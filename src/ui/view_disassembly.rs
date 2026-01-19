@@ -837,7 +837,7 @@ pub fn handle_input(
             InputResult::Handled
         }
         KeyCode::Char('n') if key.modifiers.is_empty() => {
-            crate::dialog_search::perform_search(app_state, ui_state, true);
+            crate::ui::dialog_search::perform_search(app_state, ui_state, true);
             InputResult::Handled
         }
         KeyCode::Char('N')
@@ -845,7 +845,7 @@ pub fn handle_input(
                 .modifiers
                 .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
         {
-            crate::dialog_search::perform_search(app_state, ui_state, false);
+            crate::ui::dialog_search::perform_search(app_state, ui_state, false);
             InputResult::Handled
         }
         KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {

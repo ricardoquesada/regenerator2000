@@ -1,5 +1,5 @@
-pub use crate::menu::{MenuAction, MenuState};
 use crate::theme::Theme;
+pub use crate::ui::menu::{MenuAction, MenuState};
 use image::DynamicImage;
 use ratatui::widgets::ListState;
 use ratatui_image::picker::Picker;
@@ -28,20 +28,20 @@ pub enum RightPane {
 use crate::state::PetsciiMode;
 
 pub struct UIState {
-    pub open_dialog: crate::dialog_open::OpenDialog,
-    pub jump_to_address_dialog: crate::dialog_jump_to_address::JumpToAddressDialog,
-    pub jump_to_line_dialog: crate::dialog_jump_to_line::JumpToLineDialog,
-    pub save_as_dialog: crate::dialog_save_as::SaveAsDialog,
-    pub export_as_dialog: crate::dialog_export_as::ExportAsDialog,
-    pub label_dialog: crate::dialog_label::LabelDialogState,
-    pub comment_dialog: crate::dialog_comment::CommentDialogState,
-    pub settings_dialog: crate::dialog_document_settings::DocumentSettingsDialog,
-    pub about_dialog: crate::dialog_about::AboutDialog,
-    pub shortcuts_dialog: crate::dialog_keyboard_shortcut::ShortcutsDialog,
-    pub origin_dialog: crate::dialog_origin::OriginDialogState,
-    pub confirmation_dialog: crate::dialog_confirmation::ConfirmationDialogState,
-    pub system_settings_dialog: crate::dialog_settings::SettingsDialog,
-    pub search_dialog: crate::dialog_search::SearchDialog,
+    pub open_dialog: crate::ui::dialog_open::OpenDialog,
+    pub jump_to_address_dialog: crate::ui::dialog_jump_to_address::JumpToAddressDialog,
+    pub jump_to_line_dialog: crate::ui::dialog_jump_to_line::JumpToLineDialog,
+    pub save_as_dialog: crate::ui::dialog_save_as::SaveAsDialog,
+    pub export_as_dialog: crate::ui::dialog_export_as::ExportAsDialog,
+    pub label_dialog: crate::ui::dialog_label::LabelDialogState,
+    pub comment_dialog: crate::ui::dialog_comment::CommentDialogState,
+    pub settings_dialog: crate::ui::dialog_document_settings::DocumentSettingsDialog,
+    pub about_dialog: crate::ui::dialog_about::AboutDialog,
+    pub shortcuts_dialog: crate::ui::dialog_keyboard_shortcut::ShortcutsDialog,
+    pub origin_dialog: crate::ui::dialog_origin::OriginDialogState,
+    pub confirmation_dialog: crate::ui::dialog_confirmation::ConfirmationDialogState,
+    pub system_settings_dialog: crate::ui::dialog_settings::SettingsDialog,
+    pub search_dialog: crate::ui::dialog_search::SearchDialog,
     pub menu: MenuState,
 
     pub navigation_history: Vec<(ActivePane, usize)>,
@@ -70,7 +70,7 @@ pub struct UIState {
 
     pub active_pane: ActivePane,
     pub should_quit: bool,
-    pub status_bar: crate::statusbar::StatusBarState,
+    pub status_bar: crate::ui::statusbar::StatusBarState,
 
     pub logo: Option<DynamicImage>,
     pub picker: Option<Picker>,
@@ -88,20 +88,20 @@ pub struct UIState {
 impl UIState {
     pub fn new(theme: Theme) -> Self {
         Self {
-            open_dialog: crate::dialog_open::OpenDialog::new(),
-            jump_to_address_dialog: crate::dialog_jump_to_address::JumpToAddressDialog::new(),
-            jump_to_line_dialog: crate::dialog_jump_to_line::JumpToLineDialog::new(),
-            save_as_dialog: crate::dialog_save_as::SaveAsDialog::new(),
-            export_as_dialog: crate::dialog_export_as::ExportAsDialog::new(),
-            label_dialog: crate::dialog_label::LabelDialogState::new(),
-            comment_dialog: crate::dialog_comment::CommentDialogState::new(),
-            settings_dialog: crate::dialog_document_settings::DocumentSettingsDialog::new(),
-            about_dialog: crate::dialog_about::AboutDialog::new(),
-            shortcuts_dialog: crate::dialog_keyboard_shortcut::ShortcutsDialog::new(),
-            origin_dialog: crate::dialog_origin::OriginDialogState::new(),
-            confirmation_dialog: crate::dialog_confirmation::ConfirmationDialogState::new(),
-            system_settings_dialog: crate::dialog_settings::SettingsDialog::new(),
-            search_dialog: crate::dialog_search::SearchDialog::new(),
+            open_dialog: crate::ui::dialog_open::OpenDialog::new(),
+            jump_to_address_dialog: crate::ui::dialog_jump_to_address::JumpToAddressDialog::new(),
+            jump_to_line_dialog: crate::ui::dialog_jump_to_line::JumpToLineDialog::new(),
+            save_as_dialog: crate::ui::dialog_save_as::SaveAsDialog::new(),
+            export_as_dialog: crate::ui::dialog_export_as::ExportAsDialog::new(),
+            label_dialog: crate::ui::dialog_label::LabelDialogState::new(),
+            comment_dialog: crate::ui::dialog_comment::CommentDialogState::new(),
+            settings_dialog: crate::ui::dialog_document_settings::DocumentSettingsDialog::new(),
+            about_dialog: crate::ui::dialog_about::AboutDialog::new(),
+            shortcuts_dialog: crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::new(),
+            origin_dialog: crate::ui::dialog_origin::OriginDialogState::new(),
+            confirmation_dialog: crate::ui::dialog_confirmation::ConfirmationDialogState::new(),
+            system_settings_dialog: crate::ui::dialog_settings::SettingsDialog::new(),
+            search_dialog: crate::ui::dialog_search::SearchDialog::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),
             disassembly_state: ListState::default(),
@@ -122,7 +122,7 @@ impl UIState {
             petscii_mode: PetsciiMode::Unshifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,
-            status_bar: crate::statusbar::StatusBarState::new(),
+            status_bar: crate::ui::statusbar::StatusBarState::new(),
             logo: crate::utils::load_logo(),
             picker: crate::utils::create_picker(),
             dismiss_logo: false,
