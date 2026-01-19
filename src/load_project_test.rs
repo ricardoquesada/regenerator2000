@@ -14,7 +14,7 @@ mod tests {
 
         // Create raw bytes: 4C 05 10 EA EA EA
         let raw_bytes: Vec<u8> = vec![0x4C, 0x05, 0x10, 0xEA, 0xEA, 0xEA];
-        let raw_data_base64 = crate::state::encode_raw_data_to_base64(&raw_bytes);
+        let raw_data_base64 = crate::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
 
         let project = ProjectState {
             origin: 0x1000,

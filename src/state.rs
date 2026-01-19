@@ -589,7 +589,7 @@ impl AppState {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
                 origin: self.origin,
-                raw_data: encode_raw_data_to_base64(&self.raw_data),
+                raw_data: encode_raw_data_to_base64(&self.raw_data)?,
                 blocks: compress_block_types(&self.block_types, &self.collapsed_blocks),
                 labels: self
                     .labels
@@ -1209,11 +1209,11 @@ use flate2::write::GzEncoder;
 use std::io::Read;
 use std::io::Write;
 
-pub(crate) fn encode_raw_data_to_base64(data: &[u8]) -> String {
+pub(crate) fn encode_raw_data_to_base64(data: &[u8]) -> anyhow::Result<String> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(data).unwrap();
-    let compressed_data = encoder.finish().unwrap();
-    general_purpose::STANDARD.encode(compressed_data)
+    encoder.write_all(data)?;
+    let compressed_data = encoder.finish()?;
+    Ok(general_purpose::STANDARD.encode(compressed_data))
 }
 
 pub(crate) fn decode_raw_data_from_base64(data: &str) -> anyhow::Result<Vec<u8>> {
@@ -1291,7 +1291,7 @@ mod serialization_tests {
     #[test]
     fn test_encode_decode_raw_data() {
         let data: Vec<u8> = (0..100).collect();
-        let encoded = encode_raw_data_to_base64(&data);
+        let encoded = encode_raw_data_to_base64(&data).unwrap();
         // Base64 string should not contain spaces
         assert!(!encoded.contains(' '));
 

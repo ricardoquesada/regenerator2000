@@ -62,7 +62,7 @@ mod tests {
 
         // 5. Test loading legacy project (without cursor_address)
         // Manually create JSON without cursor_address (or hex_cursor_address)
-        let legacy_raw_data = crate::state::encode_raw_data_to_base64(&raw_bytes);
+        let legacy_raw_data = crate::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
         let json = format!(
             r#"{{
             "origin": 4096,
