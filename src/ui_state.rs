@@ -70,7 +70,7 @@ pub struct UIState {
 
     pub active_pane: ActivePane,
     pub should_quit: bool,
-    pub status_message: String,
+    pub status_bar: crate::statusbar::StatusBarState,
 
     pub logo: Option<DynamicImage>,
     pub picker: Option<Picker>,
@@ -122,7 +122,7 @@ impl UIState {
             petscii_mode: PetsciiMode::Unshifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,
-            status_message: "Ready".to_string(),
+            status_bar: crate::statusbar::StatusBarState::new(),
             logo: crate::utils::load_logo(),
             picker: crate::utils::create_picker(),
             dismiss_logo: false,
@@ -135,7 +135,7 @@ impl UIState {
     }
 
     pub fn set_status_message(&mut self, message: impl Into<String>) {
-        self.status_message = message.into();
+        self.status_bar.set_message(message);
     }
 
     pub fn restore_session(

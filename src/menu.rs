@@ -697,11 +697,11 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         }
         MenuAction::JumpToAddress => {
             ui_state.jump_to_address_dialog.open();
-            ui_state.status_message = "Enter address (Hex)".to_string();
+            ui_state.set_status_message("Enter address (Hex)");
         }
         MenuAction::JumpToLine => {
             ui_state.jump_to_line_dialog.open();
-            ui_state.status_message = "Enter Line Number (Dec)".to_string();
+            ui_state.set_status_message("Enter Line Number (Dec)");
         }
         MenuAction::Search => {
             ui_state.search_dialog.open();
@@ -826,7 +826,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         }
         MenuAction::About => {
             ui_state.about_dialog.open();
-            ui_state.status_message = "About Regenerator 2000".to_string();
+            ui_state.set_status_message("About Regenerator 2000");
         }
         MenuAction::TogglePetsciiMode => {
             let new_mode = match ui_state.petscii_mode {

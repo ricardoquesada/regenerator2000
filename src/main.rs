@@ -25,6 +25,7 @@ mod events;
 mod exporter;
 pub mod menu;
 mod state;
+pub mod statusbar;
 mod ui;
 mod ui_state;
 mod view_blocks;
@@ -84,15 +85,15 @@ fn main() -> Result<()> {
             Ok((loaded_data, path)) => {
                 ui_state.restore_session(&loaded_data, &app_state);
                 if args.len() <= 1 {
-                    ui_state.status_message = format!("Loaded recent project: {:?}", path);
+                    ui_state.set_status_message(format!("Loaded recent project: {:?}", path));
                 }
             }
             Err(e) => {
                 if args.len() > 1 {
                     eprintln!("Error loading file: {}", e);
-                    ui_state.status_message = format!("Error loading file: {}", e);
+                    ui_state.set_status_message(format!("Error loading file: {}", e));
                 } else {
-                    ui_state.status_message = format!("Failed to load recent: {}", e);
+                    ui_state.set_status_message(format!("Failed to load recent: {}", e));
                 }
             }
         }
