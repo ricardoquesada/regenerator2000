@@ -91,38 +91,9 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                 crate::ui_state::MenuAction::ToggleBlocksView,
             );
         }
-        KeyCode::Char('g') if key.modifiers.is_empty() => {
-            handle_menu_action(
-                app_state,
-                ui_state,
-                crate::ui_state::MenuAction::JumpToAddress,
-            );
-        }
-        KeyCode::Char('G') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+        KeyCode::Char('g') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::JumpToLine);
         }
-
-        // Input Buffer for Numbers
-        KeyCode::Char(c)
-            if c.is_ascii_digit()
-                && !key.modifiers.intersects(
-                    KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER,
-                ) =>
-        {
-            if ui_state.active_pane == ActivePane::Disassembly
-                || ui_state.active_pane == ActivePane::HexDump
-                || ui_state.active_pane == ActivePane::Sprites
-                || ui_state.active_pane == ActivePane::Charset
-                || ui_state.active_pane == ActivePane::Blocks
-            {
-                // Only append if it's a valid number sequence (avoid overflow though usize is large)
-                if ui_state.input_buffer.len() < 10 {
-                    ui_state.input_buffer.push(c);
-                    ui_state.set_status_message(format!(":{}", ui_state.input_buffer));
-                }
-            }
-        }
-
         KeyCode::Tab => {
             ui_state.active_pane = match ui_state.active_pane {
                 ActivePane::Disassembly => match ui_state.right_pane {

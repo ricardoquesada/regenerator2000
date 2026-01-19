@@ -864,6 +864,21 @@ impl Widget for DisassemblyView {
             KeyCode::Char('f') if key.modifiers == KeyModifiers::CONTROL => {
                 WidgetResult::Action(crate::ui_state::MenuAction::Search)
             }
+            KeyCode::Char('g') if key.modifiers.is_empty() => {
+                WidgetResult::Action(crate::ui_state::MenuAction::JumpToAddress)
+            }
+            KeyCode::Char(c)
+                if c.is_ascii_digit()
+                    && !key.modifiers.intersects(
+                        KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER,
+                    ) =>
+            {
+                if ui_state.input_buffer.len() < 10 {
+                    ui_state.input_buffer.push(c);
+                    ui_state.set_status_message(format!(":{}", ui_state.input_buffer));
+                }
+                WidgetResult::Handled
+            }
             KeyCode::Char('G') if key.modifiers == KeyModifiers::SHIFT => {
                 let entered_number = ui_state.input_buffer.parse::<usize>().unwrap_or(0);
                 let is_buffer_empty = ui_state.input_buffer.is_empty();
