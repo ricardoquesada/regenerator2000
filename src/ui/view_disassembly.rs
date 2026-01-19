@@ -857,11 +857,7 @@ impl Widget for DisassemblyView {
                 crate::ui::dialog_search::perform_search(app_state, ui_state, true);
                 WidgetResult::Handled
             }
-            KeyCode::Char('N')
-                if !key
-                    .modifiers
-                    .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
-            {
+            KeyCode::Char('N') if key.modifiers == KeyModifiers::SHIFT => {
                 crate::ui::dialog_search::perform_search(app_state, ui_state, false);
                 WidgetResult::Handled
             }
@@ -1001,13 +997,13 @@ impl Widget for DisassemblyView {
             KeyCode::Char('d') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::NextImmediateFormat)
             }
-            KeyCode::Char('D') if key.modifiers.is_empty() => {
+            KeyCode::Char('D') if key.modifiers == KeyModifiers::SHIFT => {
                 WidgetResult::Action(MenuAction::PreviousImmediateFormat)
             }
             KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
                 WidgetResult::Action(MenuAction::ToggleCollapsedBlock)
             }
-            KeyCode::Backspace => {
+            KeyCode::Backspace if key.modifiers.is_empty() => {
                 while let Some((pane, _)) = ui_state.navigation_history.last() {
                     if *pane != ActivePane::Disassembly {
                         ui_state.navigation_history.pop();
