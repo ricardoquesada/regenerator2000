@@ -1,3 +1,6 @@
+use crate::state::AppState;
+use crate::ui_state::UIState;
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -70,4 +73,45 @@ pub fn render_origin_dialog(
             .add_modifier(Modifier::BOLD),
     );
     f.render_widget(input, area);
+}
+
+pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UIState) {
+    match key.code {
+        KeyCode::Esc => {
+            ui_state.origin_dialog.close();
+            ui_state.set_status_message("Ready");
+        }
+        KeyCode::Enter => {
+            if let Ok(new_origin) = u16::from_str_radix(&ui_state.origin_dialog.input, 16) {
+                let size = app_state.raw_data.len();
+                // Check for overflow
+                if (new_origin as usize) + size <= 0x10000 {
+                    let old_origin = app_state.origin;
+                    let command = crate::commands::Command::ChangeOrigin {
+                        new_origin,
+                        old_origin,
+                    };
+                    command.apply(app_state);
+                    app_state.push_command(command);
+
+                    app_state.disassemble();
+                    ui_state.set_status_message(format!("Origin changed to ${:04X}", new_origin));
+                    ui_state.origin_dialog.close();
+                } else {
+                    ui_state.set_status_message("Error: Origin + Size exceeds $FFFF");
+                }
+            } else {
+                ui_state.set_status_message("Invalid Hex Address");
+            }
+        }
+        KeyCode::Backspace => {
+            ui_state.origin_dialog.input.pop();
+        }
+        KeyCode::Char(c) => {
+            if c.is_ascii_hexdigit() && ui_state.origin_dialog.input.len() < 4 {
+                ui_state.origin_dialog.input.push(c.to_ascii_uppercase());
+            }
+        }
+        _ => {}
+    }
 }

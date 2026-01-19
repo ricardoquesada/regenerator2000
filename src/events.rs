@@ -113,49 +113,7 @@ pub fn run_app<B: Backend>(
             } else if ui_state.system_settings_dialog.active {
                 crate::dialog_settings::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.origin_dialog.active {
-                match key.code {
-                    KeyCode::Esc => {
-                        ui_state.origin_dialog.close();
-                        ui_state.set_status_message("Ready");
-                    }
-                    KeyCode::Enter => {
-                        if let Ok(new_origin) =
-                            u16::from_str_radix(&ui_state.origin_dialog.input, 16)
-                        {
-                            let size = app_state.raw_data.len();
-                            // Check for overflow
-                            if (new_origin as usize) + size <= 0x10000 {
-                                let old_origin = app_state.origin;
-                                let command = crate::commands::Command::ChangeOrigin {
-                                    new_origin,
-                                    old_origin,
-                                };
-                                command.apply(&mut app_state);
-                                app_state.push_command(command);
-
-                                app_state.disassemble();
-                                ui_state.set_status_message(format!(
-                                    "Origin changed to ${:04X}",
-                                    new_origin
-                                ));
-                                ui_state.origin_dialog.close();
-                            } else {
-                                ui_state.set_status_message("Error: Origin + Size exceeds $FFFF");
-                            }
-                        } else {
-                            ui_state.set_status_message("Invalid Hex Address");
-                        }
-                    }
-                    KeyCode::Backspace => {
-                        ui_state.origin_dialog.input.pop();
-                    }
-                    KeyCode::Char(c) => {
-                        if c.is_ascii_hexdigit() && ui_state.origin_dialog.input.len() < 4 {
-                            ui_state.origin_dialog.input.push(c.to_ascii_uppercase());
-                        }
-                    }
-                    _ => {}
-                }
+                crate::dialog_origin::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.vim_search_active {
                 match key.code {
                     KeyCode::Esc => {
