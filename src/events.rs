@@ -54,58 +54,7 @@ pub fn run_app<B: Backend>(
             } else if ui_state.label_dialog.active {
                 crate::dialog_label::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.comment_dialog.active {
-                match key.code {
-                    KeyCode::Esc => {
-                        ui_state.comment_dialog.close();
-                        ui_state.set_status_message("Ready");
-                    }
-                    KeyCode::Enter => {
-                        if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                            let address = line.comment_address.unwrap_or(line.address);
-                            let new_comment = ui_state.comment_dialog.input.trim().to_string();
-                            let new_comment_opt = if new_comment.is_empty() {
-                                None
-                            } else {
-                                Some(new_comment)
-                            };
-
-                            let command = match ui_state.comment_dialog.comment_type {
-                                crate::dialog_comment::CommentType::Side => {
-                                    let old_comment =
-                                        app_state.user_side_comments.get(&address).cloned();
-                                    crate::commands::Command::SetUserSideComment {
-                                        address,
-                                        new_comment: new_comment_opt,
-                                        old_comment,
-                                    }
-                                }
-                                crate::dialog_comment::CommentType::Line => {
-                                    let old_comment =
-                                        app_state.user_line_comments.get(&address).cloned();
-                                    crate::commands::Command::SetUserLineComment {
-                                        address,
-                                        new_comment: new_comment_opt,
-                                        old_comment,
-                                    }
-                                }
-                            };
-
-                            command.apply(&mut app_state);
-                            app_state.push_command(command);
-
-                            ui_state.set_status_message("Comment set");
-                            app_state.disassemble();
-                            ui_state.comment_dialog.close();
-                        }
-                    }
-                    KeyCode::Backspace => {
-                        ui_state.comment_dialog.input.pop();
-                    }
-                    KeyCode::Char(c) => {
-                        ui_state.comment_dialog.input.push(c);
-                    }
-                    _ => {}
-                }
+                crate::dialog_comment::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.open_dialog.active {
                 crate::dialog_open::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.search_dialog.active {
