@@ -824,6 +824,33 @@ pub fn handle_input(
             ui_state.cursor_index = app_state.disassembly.len().saturating_sub(1);
             InputResult::Handled
         }
+        KeyCode::F(3) => {
+            if key.modifiers.contains(KeyModifiers::SHIFT) {
+                InputResult::Action(crate::ui_state::MenuAction::FindPrevious)
+            } else {
+                InputResult::Action(crate::ui_state::MenuAction::FindNext)
+            }
+        }
+        KeyCode::Char('/') if key.modifiers.is_empty() => {
+            ui_state.vim_search_active = true;
+            ui_state.vim_search_input.clear();
+            InputResult::Handled
+        }
+        KeyCode::Char('n') if key.modifiers.is_empty() => {
+            crate::dialog_search::perform_search(app_state, ui_state, true);
+            InputResult::Handled
+        }
+        KeyCode::Char('N')
+            if !key
+                .modifiers
+                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
+        {
+            crate::dialog_search::perform_search(app_state, ui_state, false);
+            InputResult::Handled
+        }
+        KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            InputResult::Action(crate::ui_state::MenuAction::Search)
+        }
         KeyCode::Char('G') if key.modifiers.contains(KeyModifiers::SHIFT) => {
             let entered_number = ui_state.input_buffer.parse::<usize>().unwrap_or(0);
             let is_buffer_empty = ui_state.input_buffer.is_empty();

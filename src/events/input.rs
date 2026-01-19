@@ -9,20 +9,6 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Exit);
         }
-        KeyCode::Char('/') if key.modifiers.is_empty() => {
-            ui_state.vim_search_active = true;
-            ui_state.vim_search_input.clear();
-        }
-        KeyCode::Char('n') if key.modifiers.is_empty() => {
-            crate::dialog_search::perform_search(app_state, ui_state, true);
-        }
-        KeyCode::Char('N')
-            if !key
-                .modifiers
-                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT) =>
-        {
-            crate::dialog_search::perform_search(app_state, ui_state, false);
-        }
         KeyCode::F(10) => {
             ui_state.menu.active = true;
             ui_state.menu.select_first_enabled_item();
@@ -32,22 +18,8 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         KeyCode::Char('o') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Open)
         }
-        KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Search);
-        }
         KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Analyze);
-        }
-        KeyCode::F(3) => {
-            if key.modifiers.contains(KeyModifiers::SHIFT) {
-                handle_menu_action(
-                    app_state,
-                    ui_state,
-                    crate::ui_state::MenuAction::FindPrevious,
-                );
-            } else {
-                handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::FindNext);
-            }
         }
         KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             if key.modifiers.contains(KeyModifiers::SHIFT) {
@@ -114,7 +86,6 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                 crate::ui_state::MenuAction::ToggleBlocksView,
             );
         }
-
         KeyCode::Char('g') => {
             if key.modifiers.contains(KeyModifiers::CONTROL) {
                 if key.modifiers.contains(KeyModifiers::SHIFT) {
