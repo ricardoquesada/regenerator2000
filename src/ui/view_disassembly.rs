@@ -927,29 +927,32 @@ impl Widget for DisassemblyView {
                 let is_buffer_empty = ui_state.input_buffer.is_empty();
                 ui_state.input_buffer.clear();
 
-                let target_line = if is_buffer_empty {
-                    app_state.disassembly.len()
+                let new_cursor = if is_buffer_empty {
+                    Some(app_state.disassembly.len().saturating_sub(1))
                 } else {
-                    entered_number
+                    Self::get_index_for_visual_line(app_state, entered_number)
                 };
 
-                let new_cursor = if target_line == 0 {
-                    app_state.disassembly.len().saturating_sub(1)
-                } else {
-                    target_line
-                        .saturating_sub(1)
-                        .min(app_state.disassembly.len().saturating_sub(1))
-                };
+                if let Some(idx) = new_cursor {
+                    if ui_state.is_visual_mode && ui_state.selection_start.is_none() {
+                        ui_state.selection_start = Some(ui_state.cursor_index);
+                    }
 
-                if ui_state.is_visual_mode && ui_state.selection_start.is_none() {
-                    ui_state.selection_start = Some(ui_state.cursor_index);
+                    ui_state
+                        .navigation_history
+                        .push((ui_state.active_pane, ui_state.cursor_index));
+                    ui_state.cursor_index = idx;
+                    if is_buffer_empty {
+                        ui_state.set_status_message("Jumped to end");
+                    } else {
+                        ui_state.set_status_message(format!(
+                            "Jumped to visual line {}",
+                            entered_number
+                        ));
+                    }
+                } else {
+                    ui_state.set_status_message("Line number out of range");
                 }
-
-                ui_state
-                    .navigation_history
-                    .push((ui_state.active_pane, ui_state.cursor_index));
-                ui_state.cursor_index = new_cursor;
-                ui_state.set_status_message(format!("Jumped to line {}", target_line));
                 WidgetResult::Handled
             }
             KeyCode::Char('V') if key.modifiers == KeyModifiers::SHIFT => {
