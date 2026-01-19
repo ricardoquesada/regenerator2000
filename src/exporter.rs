@@ -728,7 +728,6 @@ mod tests {
             ";   cl65 -t c64 -C c64-asm.cfg test_ca65_header.asm -o test_ca65_header.prg"
         ));
         assert!(content.contains(".macpack cbm"));
-        assert!(content.contains(".include \"c64.inc\""));
         assert!(content.contains("nop"));
 
         let _ = std::fs::remove_file(&path);

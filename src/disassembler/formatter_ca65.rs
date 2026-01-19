@@ -191,27 +191,109 @@ impl Formatter for Ca65Formatter {
         _is_end: bool,
     ) -> Vec<(String, String, bool)> {
         use super::formatter::TextFragment;
-        let mut parts = Vec::new();
+
+        enum Token {
+            Char(char),
+            Byte(u8),
+        }
+
+        let mut tokens = Vec::new();
         for fragment in fragments {
             match fragment {
+                // ca65 doesn't support PETSCII, so we need to convert ASCII to PETSCII
                 TextFragment::Text(s) => {
-                    let mut first = true;
-                    // ca65 doesn't support \" escapes. We must split by " and insert $22.
-                    // Also, we do NOT escape backslashes.
-                    for part in s.split('"') {
-                        if !first {
-                            parts.push("$22".to_string());
+                    for c in s.chars() {
+                        let b = c as u8;
+                        if (0x20..=0x5f).contains(&b) {
+                            tokens.push(Token::Char(c.to_ascii_lowercase()));
+                        } else {
+                            tokens.push(Token::Byte(b));
                         }
-                        if !part.is_empty() {
-                            parts.push(format!("\"{}\"", part));
-                        }
-                        first = false;
                     }
                 }
-                TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
+                TextFragment::Byte(b) => tokens.push(Token::Byte(*b)),
             }
         }
-        vec![(".byte".to_string(), parts.join(", "), true)]
+
+        let mut lines = Vec::new();
+        let mut current_directive_is_text = None; // Some(true) for text, Some(false) for byte
+        let mut pending_text = String::new();
+        let mut pending_bytes = Vec::new();
+
+        let flush = |lines: &mut Vec<(String, String, bool)>,
+                     is_text: Option<bool>,
+                     p_text: &mut String,
+                     p_bytes: &mut Vec<u8>| {
+            match is_text {
+                Some(true) => {
+                    if !p_text.is_empty() {
+                        let mut parts = Vec::new();
+                        let mut first = true;
+                        // ca65 doesn't support \" escapes. We must split by " and insert $22.
+                        // quoting logic
+                        for part in p_text.split('"') {
+                            if !first {
+                                parts.push("$22".to_string());
+                            }
+                            if !part.is_empty() {
+                                parts.push(format!("\"{}\"", part.replace('\\', "\\\\")));
+                            }
+                            first = false;
+                        }
+                        if !parts.is_empty() {
+                            lines.push((".byte".to_string(), parts.join(", "), true));
+                        }
+                        p_text.clear();
+                    }
+                }
+                Some(false) => {
+                    if !p_bytes.is_empty() {
+                        let parts: Vec<String> =
+                            p_bytes.iter().map(|b| format!("${:02x}", b)).collect();
+                        lines.push((".byte".to_string(), parts.join(", "), true));
+                        p_bytes.clear();
+                    }
+                }
+                None => {}
+            }
+        };
+
+        for token in tokens {
+            match token {
+                Token::Char(c) => {
+                    if current_directive_is_text == Some(false) {
+                        flush(
+                            &mut lines,
+                            current_directive_is_text,
+                            &mut pending_text,
+                            &mut pending_bytes,
+                        );
+                    }
+                    current_directive_is_text = Some(true);
+                    pending_text.push(c);
+                }
+                Token::Byte(b) => {
+                    if current_directive_is_text == Some(true) {
+                        flush(
+                            &mut lines,
+                            current_directive_is_text,
+                            &mut pending_text,
+                            &mut pending_bytes,
+                        );
+                    }
+                    current_directive_is_text = Some(false);
+                    pending_bytes.push(b);
+                }
+            }
+        }
+        flush(
+            &mut lines,
+            current_directive_is_text,
+            &mut pending_text,
+            &mut pending_bytes,
+        );
+
+        lines
     }
 
     fn format_screencode_pre(&self) -> Vec<(String, String)> {
@@ -303,7 +385,7 @@ impl Formatter for Ca65Formatter {
             ";=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n",
         );
         s.push_str("\n.macpack cbm                            ; adds support for scrcode\n");
-        s.push_str(".include \"c64.inc\"                      ; c64 constants\n");
+        s.push('\n');
         s
     }
 
@@ -344,5 +426,58 @@ impl Formatter for Ca65Formatter {
         }
 
         (mnemonic, operand)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::disassembler::formatter::{Formatter, TextFragment};
+
+    #[test]
+    fn test_format_text_petscii() {
+        let formatter = Ca65Formatter;
+
+        // Test case 1: Range $40-$5f (should be lowercase)
+        let fragments = vec![TextFragment::Text("A".to_string())];
+        let result = formatter.format_text(&fragments, true, true);
+
+        assert!(
+            result
+                .iter()
+                .any(|(directive, operands, _)| directive == ".byte" && operands.contains("\"a\"")),
+            "Expected .byte \"a\", got {:?}",
+            result
+        );
+
+        // Test case 2: Range $60-$7f (should be .byte)
+        // 'a' is $61. Should become .byte $61
+        let fragments = vec![TextFragment::Text("a".to_string())];
+        let result = formatter.format_text(&fragments, true, true);
+
+        assert!(
+            result
+                .iter()
+                .any(|(directive, operands, _)| directive == ".byte" && operands.contains("$61")),
+            "Expected .byte $61, got {:?}",
+            result
+        );
+
+        // Test case 3: Mixed "Aa" -> .byte "a", .byte $61
+        let fragments = vec![TextFragment::Text("Aa".to_string())];
+        let result = formatter.format_text(&fragments, true, true);
+
+        // Should have two parts or combined correctly?
+        // Based on plan: separate them.
+        // First part: .byte "a"
+        // Second part: .byte $61
+        // (Order matters)
+        let part1 = &result[0];
+        assert_eq!(part1.0, ".byte");
+        assert!(part1.1.contains("\"a\""));
+
+        let part2 = &result[1];
+        assert_eq!(part2.0, ".byte");
+        assert!(part2.1.contains("$61"));
     }
 }

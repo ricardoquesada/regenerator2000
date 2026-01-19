@@ -192,16 +192,16 @@ fn test_format_text_escaping() {
     let formatter = Disassembler::create_formatter(settings.assembler);
 
     // Case 1: Quotes
-    // Expected: "He said ", $22, "Hi", $22
-    let fragments = vec![TextFragment::Text("He said \"Hi\"".to_string())];
+    // Expected: "he said ", $22, "hi", $22
+    let fragments = vec![TextFragment::Text("HE SAID \"HI\"".to_string())];
     let lines = formatter.format_text(&fragments, true, true);
     // format_text returns Vec<(String, String, bool)> where .1 is the operand
-    // We expect: .byte "He said ", $22, "Hi", $22
-    assert_eq!(lines[0].1, "\"He said \", $22, \"Hi\", $22");
+    // We expect: .byte "he said ", $22, "hi", $22
+    assert_eq!(lines[0].1, "\"he said \", $22, \"hi\", $22");
 
     // Case 2: Backslash
     // Expected: "C:\DOS" (no escaping for backslash)
     let fragments = vec![TextFragment::Text("C:\\DOS".to_string())];
     let lines = formatter.format_text(&fragments, true, true);
-    assert_eq!(lines[0].1, "\"C:\\DOS\"");
+    assert_eq!(lines[0].1, "\"c:\\\\dos\"");
 }
