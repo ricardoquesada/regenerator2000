@@ -1,5 +1,9 @@
+use crate::events::menu::execute_menu_action;
+use crate::state::AppState;
 use crate::ui_state::MenuAction;
+use crate::ui_state::UIState;
 use crate::utils::centered_rect;
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -88,4 +92,20 @@ pub fn render_confirmation_dialog(
         .style(Style::default().fg(theme.highlight_fg));
 
     f.render_widget(instructions, layout[2]);
+}
+
+pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UIState) {
+    match key.code {
+        KeyCode::Esc | KeyCode::Char('n') => {
+            ui_state.confirmation_dialog.close();
+            ui_state.set_status_message("Action cancelled");
+        }
+        KeyCode::Enter | KeyCode::Char('y') => {
+            if let Some(action) = ui_state.confirmation_dialog.action_on_confirm.take() {
+                ui_state.confirmation_dialog.close();
+                execute_menu_action(app_state, ui_state, action);
+            }
+        }
+        _ => {}
+    }
 }

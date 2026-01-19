@@ -5,11 +5,10 @@ use crate::state::AppState;
 use crate::ui::ui;
 use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::{self, Event, KeyCode};
+use input::handle_global_input;
+use menu::handle_menu_action;
 use ratatui::{Terminal, backend::Backend};
 use std::io;
-
-use input::handle_global_input;
-use menu::{execute_menu_action, handle_menu_action};
 
 pub fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
@@ -108,25 +107,7 @@ pub fn run_app<B: Backend>(
             } else if ui_state.shortcuts_dialog.active {
                 crate::dialog_keyboard_shortcut::handle_input(key, &mut ui_state);
             } else if ui_state.confirmation_dialog.active {
-                match key.code {
-                    KeyCode::Esc => {
-                        ui_state.confirmation_dialog.close();
-                        ui_state.set_status_message("Action cancelled");
-                    }
-                    KeyCode::Enter | KeyCode::Char('y') => {
-                        if let Some(action) = ui_state.confirmation_dialog.action_on_confirm.take()
-                        {
-                            ui_state.confirmation_dialog.close();
-                            // Use the local helper that delegates to menu module
-                            execute_menu_action(&mut app_state, &mut ui_state, action);
-                        }
-                    }
-                    KeyCode::Char('n') => {
-                        ui_state.confirmation_dialog.close();
-                        ui_state.set_status_message("Action cancelled");
-                    }
-                    _ => {}
-                }
+                crate::dialog_confirmation::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.settings_dialog.active {
                 crate::dialog_document_settings::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.system_settings_dialog.active {
