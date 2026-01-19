@@ -49,6 +49,13 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                 crate::ui_state::MenuAction::SystemSettings,
             );
         }
+        KeyCode::Char('d') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::DocumentSettings,
+            );
+        }
 
         KeyCode::Char('u') if key.modifiers.is_empty() => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Undo);
