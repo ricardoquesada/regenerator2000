@@ -95,18 +95,28 @@ impl Widget for BlocksView {
                 ui_state.blocks_list_state.select(Some(next));
                 WidgetResult::Handled
             }
-            KeyCode::PageDown | KeyCode::Char('d')
-                if key.modifiers.contains(KeyModifiers::CONTROL) =>
-            {
+            KeyCode::PageDown => {
                 ui_state.input_buffer.clear();
                 let current = ui_state.blocks_list_state.selected().unwrap_or(0);
                 let next = (current + 10).min(blocks.len().saturating_sub(1));
                 ui_state.blocks_list_state.select(Some(next));
                 WidgetResult::Handled
             }
-            KeyCode::PageUp | KeyCode::Char('u')
-                if key.modifiers.contains(KeyModifiers::CONTROL) =>
-            {
+            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                ui_state.input_buffer.clear();
+                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
+                let next = (current + 10).min(blocks.len().saturating_sub(1));
+                ui_state.blocks_list_state.select(Some(next));
+                WidgetResult::Handled
+            }
+            KeyCode::PageUp => {
+                ui_state.input_buffer.clear();
+                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
+                let next = current.saturating_sub(10);
+                ui_state.blocks_list_state.select(Some(next));
+                WidgetResult::Handled
+            }
+            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 ui_state.input_buffer.clear();
                 let current = ui_state.blocks_list_state.selected().unwrap_or(0);
                 let next = current.saturating_sub(10);

@@ -173,17 +173,24 @@ impl Widget for HexDumpView {
                 }
                 WidgetResult::Handled
             }
-            KeyCode::PageDown | KeyCode::Char('d')
-                if key.modifiers.contains(KeyModifiers::CONTROL) =>
-            {
+            KeyCode::PageDown => {
                 ui_state.input_buffer.clear();
                 ui_state.hex_cursor_index =
                     (ui_state.hex_cursor_index + 10).min(total_rows.saturating_sub(1));
                 WidgetResult::Handled
             }
-            KeyCode::PageUp | KeyCode::Char('u')
-                if key.modifiers.contains(KeyModifiers::CONTROL) =>
-            {
+            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                ui_state.input_buffer.clear();
+                ui_state.hex_cursor_index =
+                    (ui_state.hex_cursor_index + 10).min(total_rows.saturating_sub(1));
+                WidgetResult::Handled
+            }
+            KeyCode::PageUp => {
+                ui_state.input_buffer.clear();
+                ui_state.hex_cursor_index = ui_state.hex_cursor_index.saturating_sub(10);
+                WidgetResult::Handled
+            }
+            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 ui_state.input_buffer.clear();
                 ui_state.hex_cursor_index = ui_state.hex_cursor_index.saturating_sub(10);
                 WidgetResult::Handled

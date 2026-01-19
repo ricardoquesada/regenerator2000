@@ -813,16 +813,21 @@ impl Widget for DisassemblyView {
                 }
                 WidgetResult::Handled
             }
-            KeyCode::PageDown | KeyCode::Char('d')
-                if key.modifiers.contains(KeyModifiers::CONTROL) =>
-            {
+            KeyCode::PageDown => {
                 ui_state.cursor_index =
                     (ui_state.cursor_index + 30).min(app_state.disassembly.len().saturating_sub(1));
                 WidgetResult::Handled
             }
-            KeyCode::PageUp | KeyCode::Char('u')
-                if key.modifiers.contains(KeyModifiers::CONTROL) =>
-            {
+            KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                ui_state.cursor_index =
+                    (ui_state.cursor_index + 30).min(app_state.disassembly.len().saturating_sub(1));
+                WidgetResult::Handled
+            }
+            KeyCode::PageUp => {
+                ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
+                WidgetResult::Handled
+            }
+            KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
                 WidgetResult::Handled
             }
