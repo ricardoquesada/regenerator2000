@@ -18,7 +18,7 @@ pub fn run_app<B: Backend>(
         ui_state.menu.update_availability(
             &app_state,
             ui_state.cursor_index,
-            ui_state.search_dialog.last_search.is_empty(),
+            ui_state.last_search_query.is_empty(),
             ui_state.active_pane,
         );
 
@@ -54,31 +54,11 @@ pub fn run_app<B: Backend>(
                 }
                 continue;
             }
-
-            if ui_state.jump_to_address_dialog.active {
-                crate::ui::dialog_jump_to_address::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.jump_to_line_dialog.active {
-                crate::ui::dialog_jump_to_line::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.save_as_dialog.active {
-                crate::ui::dialog_save_as::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.export_as_dialog.active {
-                crate::ui::dialog_export_as::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.label_dialog.active {
-                crate::ui::dialog_label::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.comment_dialog.active {
-                crate::ui::dialog_comment::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.search_dialog.active {
-                crate::ui::dialog_search::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.menu.active {
+            // Label dialog removed (generic)            // Comment dialog removed (generic)
+            if ui_state.menu.active {
                 crate::ui::menu::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.shortcuts_dialog.active {
-                crate::ui::dialog_keyboard_shortcut::handle_input(key, &mut ui_state);
-            } else if ui_state.confirmation_dialog.active {
-                crate::ui::dialog_confirmation::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.system_settings_dialog.active {
-                crate::ui::dialog_settings::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.origin_dialog.active {
-                crate::ui::dialog_origin::handle_input(key, &mut app_state, &mut ui_state);
+            // Confirmation dialog removed (generic)
+            // Origin dialog removed (generic)
             } else if ui_state.vim_search_active {
                 match key.code {
                     KeyCode::Esc => {
@@ -86,7 +66,7 @@ pub fn run_app<B: Backend>(
                         ui_state.set_status_message("Ready");
                     }
                     KeyCode::Enter => {
-                        ui_state.search_dialog.last_search = ui_state.vim_search_input.clone();
+                        ui_state.last_search_query = ui_state.vim_search_input.clone();
                         ui_state.vim_search_active = false;
                         crate::ui::dialog_search::perform_search(
                             &mut app_state,

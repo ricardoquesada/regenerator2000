@@ -33,19 +33,6 @@ pub struct UIState {
     pub active_dialog: Option<Box<dyn Dialog>>,
     pub file_dialog_current_dir: PathBuf,
 
-    pub jump_to_address_dialog: crate::ui::dialog_jump_to_address::JumpToAddressDialog,
-    pub jump_to_line_dialog: crate::ui::dialog_jump_to_line::JumpToLineDialog,
-    pub save_as_dialog: crate::ui::dialog_save_as::SaveAsDialog,
-    pub export_as_dialog: crate::ui::dialog_export_as::ExportAsDialog,
-    pub label_dialog: crate::ui::dialog_label::LabelDialogState,
-    pub comment_dialog: crate::ui::dialog_comment::CommentDialogState,
-    // settings_dialog removed (DocumentSettingsDialog)
-    // about_dialog removed
-    pub shortcuts_dialog: crate::ui::dialog_keyboard_shortcut::ShortcutsDialog,
-    pub origin_dialog: crate::ui::dialog_origin::OriginDialogState,
-    pub confirmation_dialog: crate::ui::dialog_confirmation::ConfirmationDialogState,
-    pub system_settings_dialog: crate::ui::dialog_settings::SettingsDialog,
-    pub search_dialog: crate::ui::dialog_search::SearchDialog,
     pub menu: MenuState,
 
     pub navigation_history: Vec<(ActivePane, usize)>,
@@ -87,6 +74,7 @@ pub struct UIState {
     // Vim-like search
     pub vim_search_active: bool,
     pub vim_search_input: String,
+    pub last_search_query: String,
 }
 
 impl UIState {
@@ -95,17 +83,6 @@ impl UIState {
             active_dialog: None,
             file_dialog_current_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
 
-            jump_to_address_dialog: crate::ui::dialog_jump_to_address::JumpToAddressDialog::new(),
-            jump_to_line_dialog: crate::ui::dialog_jump_to_line::JumpToLineDialog::new(),
-            save_as_dialog: crate::ui::dialog_save_as::SaveAsDialog::new(),
-            export_as_dialog: crate::ui::dialog_export_as::ExportAsDialog::new(),
-            label_dialog: crate::ui::dialog_label::LabelDialogState::new(),
-            comment_dialog: crate::ui::dialog_comment::CommentDialogState::new(),
-            shortcuts_dialog: crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::new(),
-            origin_dialog: crate::ui::dialog_origin::OriginDialogState::new(),
-            confirmation_dialog: crate::ui::dialog_confirmation::ConfirmationDialogState::new(),
-            system_settings_dialog: crate::ui::dialog_settings::SettingsDialog::new(),
-            search_dialog: crate::ui::dialog_search::SearchDialog::new(),
             menu: MenuState::new(),
             navigation_history: Vec::new(),
             disassembly_state: ListState::default(),
@@ -132,6 +109,7 @@ impl UIState {
             input_buffer: String::new(),
             vim_search_active: false,
             vim_search_input: String::new(),
+            last_search_query: String::new(),
             theme,
         }
     }

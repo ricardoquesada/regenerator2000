@@ -10,101 +10,87 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-pub struct ConfirmationDialogState {
-    pub active: bool,
+use crate::ui::dialog::{Dialog, DialogResult};
+
+pub struct ConfirmationDialog {
     pub title: String,
     pub message: String,
-    pub action_on_confirm: Option<MenuAction>,
+    pub action: MenuAction,
 }
 
-impl ConfirmationDialogState {
-    pub fn new() -> Self {
+impl ConfirmationDialog {
+    pub fn new(title: impl Into<String>, message: impl Into<String>, action: MenuAction) -> Self {
         Self {
-            active: false,
-            title: String::new(),
-            message: String::new(),
-            action_on_confirm: None,
+            title: title.into(),
+            message: message.into(),
+            action,
         }
     }
+}
 
-    pub fn open(
+impl Dialog for ConfirmationDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &UIState) {
+        let theme = &ui_state.theme;
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(format!(" {} ", self.title))
+            .border_style(Style::default().fg(theme.dialog_border))
+            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+
+        let area = centered_rect(50, 7, area);
+        f.render_widget(ratatui::widgets::Clear, area);
+        f.render_widget(block.clone(), area);
+
+        let inner = block.inner(area);
+
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(1), // Message
+                Constraint::Length(1), // Gap
+                Constraint::Length(1), // Instructions
+            ])
+            .split(inner);
+
+        let message = Paragraph::new(self.message.clone())
+            .alignment(ratatui::layout::Alignment::Center)
+            .style(
+                Style::default()
+                    .fg(theme.dialog_fg)
+                    .add_modifier(Modifier::BOLD),
+            );
+
+        f.render_widget(message, layout[0]);
+
+        let instructions = Paragraph::new("Enter: Proceed  |  Esc: Cancel")
+            .alignment(ratatui::layout::Alignment::Center)
+            .style(Style::default().fg(theme.highlight_fg));
+
+        f.render_widget(instructions, layout[2]);
+    }
+
+    fn handle_input(
         &mut self,
-        title: impl Into<String>,
-        message: impl Into<String>,
-        action: MenuAction,
-    ) {
-        self.active = true;
-        self.title = title.into();
-        self.message = message.into();
-        self.action_on_confirm = Some(action);
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-        self.action_on_confirm = None;
-    }
-}
-
-pub fn render_confirmation_dialog(
-    f: &mut Frame,
-    area: Rect,
-    dialog: &ConfirmationDialogState,
-    theme: &crate::theme::Theme,
-) {
-    if !dialog.active {
-        return;
-    }
-
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(format!(" {} ", dialog.title))
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-
-    let area = centered_rect(50, 7, area);
-    f.render_widget(ratatui::widgets::Clear, area);
-    f.render_widget(block.clone(), area);
-
-    let inner = block.inner(area);
-
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1), // Message
-            Constraint::Length(1), // Gap
-            Constraint::Length(1), // Instructions
-        ])
-        .split(inner);
-
-    let message = Paragraph::new(dialog.message.clone())
-        .alignment(ratatui::layout::Alignment::Center)
-        .style(
-            Style::default()
-                .fg(theme.dialog_fg)
-                .add_modifier(Modifier::BOLD),
-        );
-
-    f.render_widget(message, layout[0]);
-
-    let instructions = Paragraph::new("Enter: Proceed  |  Esc: Cancel")
-        .alignment(ratatui::layout::Alignment::Center)
-        .style(Style::default().fg(theme.highlight_fg));
-
-    f.render_widget(instructions, layout[2]);
-}
-
-pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UIState) {
-    match key.code {
-        KeyCode::Esc | KeyCode::Char('n') => {
-            ui_state.confirmation_dialog.close();
-            ui_state.set_status_message("Action cancelled");
-        }
-        KeyCode::Enter | KeyCode::Char('y') => {
-            if let Some(action) = ui_state.confirmation_dialog.action_on_confirm.take() {
-                ui_state.confirmation_dialog.close();
-                execute_menu_action(app_state, ui_state, action);
+        key: KeyEvent,
+        app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> DialogResult {
+        match key.code {
+            KeyCode::Esc | KeyCode::Char('n') => {
+                ui_state.set_status_message("Action cancelled");
+                DialogResult::Close
             }
+            KeyCode::Enter | KeyCode::Char('y') => {
+                // We need to clone the action because we can't move out of self in handle_input
+                // But MenuAction should be Clone (it's an enum of simple types/strings?)
+                // Let's assume MenuAction is Clone. If not I need to make it Clone.
+                // Or I can use Option<MenuAction> in struct and take() it.
+                // But handle_input takes &mut self.
+                // I will use Option in struct for safety.
+                execute_menu_action(app_state, ui_state, self.action.clone());
+                DialogResult::Close
+            }
+            _ => DialogResult::KeepOpen,
         }
-        _ => {}
     }
 }

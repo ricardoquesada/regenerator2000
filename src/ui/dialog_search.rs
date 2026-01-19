@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::theme::Theme;
+// Theme import removed
 use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
@@ -9,93 +9,87 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
+use crate::ui::dialog::{Dialog, DialogResult};
+
 pub struct SearchDialog {
-    pub active: bool,
     pub input: String,
-    pub last_search: String,
 }
 
 impl SearchDialog {
-    pub fn new() -> Self {
+    pub fn new(initial_query: String) -> Self {
         Self {
-            active: false,
-            input: String::new(),
-            last_search: String::new(),
+            input: initial_query,
         }
-    }
-
-    pub fn open(&mut self) {
-        self.active = true;
-        self.input = self.last_search.clone();
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
     }
 }
 
-pub fn render(f: &mut Frame, area: Rect, dialog: &SearchDialog, theme: &Theme) {
-    if !dialog.active {
-        return;
+impl Dialog for SearchDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &UIState) {
+        let theme = &ui_state.theme;
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(" Search ")
+            .border_style(Style::default().fg(theme.dialog_border))
+            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Fill(1),
+                Constraint::Length(3),
+                Constraint::Fill(1),
+            ])
+            .split(area);
+
+        let area = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(25),
+                Constraint::Percentage(50),
+                Constraint::Percentage(25),
+            ])
+            .split(layout[1])[1];
+        f.render_widget(ratatui::widgets::Clear, area);
+
+        let input = Paragraph::new(self.input.clone()).block(block).style(
+            Style::default()
+                .fg(theme.highlight_fg)
+                .add_modifier(Modifier::BOLD),
+        );
+        f.render_widget(input, area);
     }
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Search ")
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
-
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Fill(1),
-            Constraint::Length(3),
-            Constraint::Fill(1),
-        ])
-        .split(area);
-
-    let area = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(50),
-            Constraint::Percentage(25),
-        ])
-        .split(layout[1])[1];
-    f.render_widget(ratatui::widgets::Clear, area);
-
-    let input = Paragraph::new(dialog.input.clone()).block(block).style(
-        Style::default()
-            .fg(theme.highlight_fg)
-            .add_modifier(Modifier::BOLD),
-    );
-    f.render_widget(input, area);
-}
-
-pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UIState) {
-    let dialog = &mut ui_state.search_dialog;
-    match key.code {
-        KeyCode::Esc => {
-            dialog.close();
-            ui_state.set_status_message("Ready");
+    fn handle_input(
+        &mut self,
+        key: KeyEvent,
+        app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> DialogResult {
+        match key.code {
+            KeyCode::Esc => {
+                ui_state.set_status_message("Ready");
+                DialogResult::Close
+            }
+            KeyCode::Enter => {
+                ui_state.last_search_query = self.input.clone();
+                perform_search(app_state, ui_state, true);
+                DialogResult::Close
+            }
+            KeyCode::Backspace => {
+                self.input.pop();
+                DialogResult::KeepOpen
+            }
+            KeyCode::Char(c) => {
+                self.input.push(c);
+                DialogResult::KeepOpen
+            }
+            _ => DialogResult::KeepOpen,
         }
-        KeyCode::Enter => {
-            dialog.last_search = dialog.input.clone();
-            dialog.close();
-            perform_search(app_state, ui_state, true);
-        }
-        KeyCode::Backspace => {
-            dialog.input.pop();
-        }
-        KeyCode::Char(c) => {
-            dialog.input.push(c);
-        }
-        _ => {}
     }
 }
 
 pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward: bool) {
-    let query = &ui_state.search_dialog.last_search;
+    let query = &ui_state.last_search_query;
     if query.is_empty() {
         ui_state.set_status_message("No search query");
         return;

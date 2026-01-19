@@ -581,11 +581,13 @@ pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, acti
     let is_destructive = matches!(action, MenuAction::Exit | MenuAction::Open);
 
     if is_destructive && app_state.is_dirty() {
-        ui_state.confirmation_dialog.open(
-            "Unsaved Changes",
-            "You have unsaved changes. Proceed?",
-            action,
-        );
+        ui_state.active_dialog = Some(Box::new(
+            crate::ui::dialog_confirmation::ConfirmationDialog::new(
+                "Unsaved Changes",
+                "You have unsaved changes. Proceed?",
+                action,
+            ),
+        ));
         return;
     }
 
@@ -613,12 +615,13 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     ui_state.set_status_message("Project saved");
                 }
             } else {
-                ui_state.save_as_dialog.open();
+                ui_state.active_dialog =
+                    Some(Box::new(crate::ui::dialog_save_as::SaveAsDialog::new()));
                 ui_state.set_status_message("Enter Project filename");
             }
         }
         MenuAction::SaveAs => {
-            ui_state.save_as_dialog.open();
+            ui_state.active_dialog = Some(Box::new(crate::ui::dialog_save_as::SaveAsDialog::new()));
             ui_state.set_status_message("Enter Project filename");
         }
         MenuAction::ExportProject => {
@@ -629,12 +632,14 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     ui_state.set_status_message("Project Exported");
                 }
             } else {
-                ui_state.export_as_dialog.open();
+                ui_state.active_dialog =
+                    Some(Box::new(crate::ui::dialog_export_as::ExportAsDialog::new()));
                 ui_state.set_status_message("Enter .asm filename");
             }
         }
         MenuAction::ExportProjectAs => {
-            ui_state.export_as_dialog.open();
+            ui_state.active_dialog =
+                Some(Box::new(crate::ui::dialog_export_as::ExportAsDialog::new()));
             ui_state.set_status_message("Enter .asm filename");
         }
         MenuAction::DocumentSettings => {
@@ -700,15 +705,21 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             apply_block_type(app_state, ui_state, crate::state::BlockType::Undefined)
         }
         MenuAction::JumpToAddress => {
-            ui_state.jump_to_address_dialog.open();
+            ui_state.active_dialog = Some(Box::new(
+                crate::ui::dialog_jump_to_address::JumpToAddressDialog::new(),
+            ));
             ui_state.set_status_message("Enter address (Hex)");
         }
         MenuAction::JumpToLine => {
-            ui_state.jump_to_line_dialog.open();
+            ui_state.active_dialog = Some(Box::new(
+                crate::ui::dialog_jump_to_line::JumpToLineDialog::new(),
+            ));
             ui_state.set_status_message("Enter Line Number (Dec)");
         }
         MenuAction::Search => {
-            ui_state.search_dialog.open();
+            ui_state.active_dialog = Some(Box::new(crate::ui::dialog_search::SearchDialog::new(
+                ui_state.last_search_query.clone(),
+            )));
             ui_state.set_status_message("Search...");
         }
         MenuAction::FindNext => {
@@ -896,10 +907,11 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     .user_side_comments
                     .get(&address)
                     .map(|s| s.as_str());
-                ui_state.comment_dialog.open(
-                    current_comment,
-                    crate::ui::dialog_comment::CommentType::Side,
-                );
+                ui_state.active_dialog =
+                    Some(Box::new(crate::ui::dialog_comment::CommentDialog::new(
+                        current_comment,
+                        crate::ui::dialog_comment::CommentType::Side,
+                    )));
                 ui_state.set_status_message(format!("Edit Side Comment at ${:04X}", address));
             }
         }
@@ -910,10 +922,11 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     .user_line_comments
                     .get(&address)
                     .map(|s| s.as_str());
-                ui_state.comment_dialog.open(
-                    current_comment,
-                    crate::ui::dialog_comment::CommentType::Line,
-                );
+                ui_state.active_dialog =
+                    Some(Box::new(crate::ui::dialog_comment::CommentDialog::new(
+                        current_comment,
+                        crate::ui::dialog_comment::CommentType::Line,
+                    )));
                 ui_state.set_status_message(format!("Edit Line Comment at ${:04X}", address));
             }
         }
@@ -970,16 +983,21 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             }
         }
         MenuAction::KeyboardShortcuts => {
-            ui_state.shortcuts_dialog.open();
+            ui_state.active_dialog = Some(Box::new(
+                crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::new(),
+            ));
             ui_state.set_status_message("Keyboard Shortcuts");
         }
         MenuAction::ChangeOrigin => {
-            ui_state.origin_dialog.open(app_state.origin);
+            ui_state.active_dialog = Some(Box::new(crate::ui::dialog_origin::OriginDialog::new(
+                app_state.origin,
+            )));
             ui_state.set_status_message("Enter new origin (Hex)");
         }
         MenuAction::SystemSettings => {
-            ui_state.system_settings_dialog.open();
-            ui_state.set_status_message("System Settings");
+            ui_state.active_dialog =
+                Some(Box::new(crate::ui::dialog_settings::SettingsDialog::new()));
+            ui_state.set_status_message("Settings");
         }
         MenuAction::NextImmediateFormat => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {

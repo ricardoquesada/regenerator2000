@@ -8,83 +8,73 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-pub struct LabelDialogState {
-    pub active: bool,
+use crate::ui::dialog::{Dialog, DialogResult};
+
+pub struct LabelDialog {
     pub input: String,
-    pub address: Option<u16>,
+    pub address: u16,
 }
 
-impl LabelDialogState {
-    pub fn new() -> Self {
+impl LabelDialog {
+    pub fn new(current_label: Option<&str>, address: u16) -> Self {
         Self {
-            active: false,
-            input: String::new(),
-            address: None,
+            input: current_label.unwrap_or("").to_string(),
+            address,
         }
-    }
-
-    pub fn open(&mut self, current_label: Option<&str>, address: u16) {
-        self.active = true;
-        self.input = current_label.unwrap_or("").to_string();
-        self.address = Some(address);
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-        self.input.clear();
     }
 }
 
-pub fn render_label_dialog(
-    f: &mut Frame,
-    area: Rect,
-    dialog: &LabelDialogState,
-    theme: &crate::theme::Theme,
-) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Enter Label Name ")
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+impl Dialog for LabelDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &UIState) {
+        let theme = &ui_state.theme;
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(" Enter Label Name ")
+            .border_style(Style::default().fg(theme.dialog_border))
+            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
-    // Fixed height of 3 (Border + Input + Border)
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Fill(1),
-            Constraint::Length(3),
-            Constraint::Fill(1),
-        ])
-        .split(area);
+        // Fixed height of 3 (Border + Input + Border)
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Fill(1),
+                Constraint::Length(3),
+                Constraint::Fill(1),
+            ])
+            .split(area);
 
-    let area = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(25),
-            Constraint::Percentage(50),
-            Constraint::Percentage(25),
-        ])
-        .split(layout[1])[1];
-    f.render_widget(ratatui::widgets::Clear, area);
+        let area = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(25),
+                Constraint::Percentage(50),
+                Constraint::Percentage(25),
+            ])
+            .split(layout[1])[1];
+        f.render_widget(ratatui::widgets::Clear, area);
 
-    let input = Paragraph::new(dialog.input.clone()).block(block).style(
-        Style::default()
-            .fg(Color::Yellow)
-            .add_modifier(Modifier::BOLD),
-    );
-    f.render_widget(input, area);
-}
+        let input = Paragraph::new(self.input.clone()).block(block).style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        );
+        f.render_widget(input, area);
+    }
 
-pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UIState) {
-    match key.code {
-        KeyCode::Esc => {
-            ui_state.label_dialog.close();
-            ui_state.set_status_message("Ready");
-        }
-        KeyCode::Enter => {
-            // Get address from dialog state
-            if let Some(address) = ui_state.label_dialog.address {
-                let label_name = ui_state.label_dialog.input.trim().to_string();
+    fn handle_input(
+        &mut self,
+        key: KeyEvent,
+        app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> DialogResult {
+        match key.code {
+            KeyCode::Esc => {
+                ui_state.set_status_message("Ready");
+                DialogResult::Close
+            }
+            KeyCode::Enter => {
+                let address = self.address;
+                let label_name = self.input.trim().to_string();
 
                 if label_name.is_empty() {
                     // Remove label
@@ -101,7 +91,7 @@ pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UISt
 
                     ui_state.set_status_message("Label removed");
                     app_state.disassemble();
-                    ui_state.label_dialog.close();
+                    DialogResult::Close
                 } else {
                     // Check for duplicates (exclude current address in case of rename/edit)
                     let exists = app_state.labels.iter().any(|(addr, label_vec)| {
@@ -114,6 +104,7 @@ pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UISt
                             label_name
                         ));
                         // Do not close dialog, let user correct it
+                        DialogResult::KeepOpen
                     } else {
                         let old_label_vec = app_state.labels.get(&address).cloned();
 
@@ -126,8 +117,6 @@ pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UISt
                         };
 
                         // If vector has items, we assume we are editing the first one (as that's what we showed).
-                        // If we want to SUPPORT multiple, we need a better UI.
-                        // For now, replace 0 or push.
                         if !new_label_vec.is_empty() {
                             new_label_vec[0] = new_label_entry;
                         } else {
@@ -145,17 +134,19 @@ pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UISt
 
                         ui_state.set_status_message("Label set");
                         app_state.disassemble();
-                        ui_state.label_dialog.close();
+                        DialogResult::Close
                     }
                 }
             }
+            KeyCode::Backspace => {
+                self.input.pop();
+                DialogResult::KeepOpen
+            }
+            KeyCode::Char(c) => {
+                self.input.push(c);
+                DialogResult::KeepOpen
+            }
+            _ => DialogResult::KeepOpen,
         }
-        KeyCode::Backspace => {
-            ui_state.label_dialog.input.pop();
-        }
-        KeyCode::Char(c) => {
-            ui_state.label_dialog.input.push(c);
-        }
-        _ => {}
     }
 }

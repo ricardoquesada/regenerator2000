@@ -8,110 +8,105 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-pub struct OriginDialogState {
-    pub active: bool,
+use crate::ui::dialog::{Dialog, DialogResult};
+
+pub struct OriginDialog {
     pub input: String,
-    pub address: u16,
 }
 
-impl OriginDialogState {
-    pub fn new() -> Self {
+impl OriginDialog {
+    pub fn new(current_origin: u16) -> Self {
         Self {
-            active: false,
-            input: String::new(),
-            address: 0,
+            input: format!("{:04X}", current_origin),
         }
-    }
-
-    pub fn open(&mut self, current_origin: u16) {
-        self.active = true;
-        self.input = format!("{:04X}", current_origin);
-        self.address = current_origin;
-    }
-
-    pub fn close(&mut self) {
-        self.active = false;
-        self.input.clear();
     }
 }
 
-pub fn render_origin_dialog(
-    f: &mut Frame,
-    area: Rect,
-    dialog: &OriginDialogState,
-    theme: &crate::theme::Theme,
-) {
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(" Change Origin (Hex) ")
-        .border_style(Style::default().fg(theme.dialog_border))
-        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+impl Dialog for OriginDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &UIState) {
+        let theme = &ui_state.theme;
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title(" Change Origin (Hex) ")
+            .border_style(Style::default().fg(theme.dialog_border))
+            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
-    // Fixed height of 3 (Border + Input + Border)
-    let layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Fill(1),
-            Constraint::Length(3),
-            Constraint::Fill(1),
-        ])
-        .split(area);
+        // Fixed height of 3 (Border + Input + Border)
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Fill(1),
+                Constraint::Length(3),
+                Constraint::Fill(1),
+            ])
+            .split(area);
 
-    let area = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(30),
-            Constraint::Percentage(40),
-            Constraint::Percentage(30),
-        ])
-        .split(layout[1])[1];
-    f.render_widget(ratatui::widgets::Clear, area);
+        let area = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(30),
+                Constraint::Percentage(40),
+                Constraint::Percentage(30),
+            ])
+            .split(layout[1])[1];
+        f.render_widget(ratatui::widgets::Clear, area);
 
-    let input = Paragraph::new(dialog.input.clone()).block(block).style(
-        Style::default()
-            .fg(theme.highlight_fg)
-            .add_modifier(Modifier::BOLD),
-    );
-    f.render_widget(input, area);
-}
+        let input = Paragraph::new(self.input.clone()).block(block).style(
+            Style::default()
+                .fg(theme.highlight_fg)
+                .add_modifier(Modifier::BOLD),
+        );
+        f.render_widget(input, area);
+    }
 
-pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UIState) {
-    match key.code {
-        KeyCode::Esc => {
-            ui_state.origin_dialog.close();
-            ui_state.set_status_message("Ready");
-        }
-        KeyCode::Enter => {
-            if let Ok(new_origin) = u16::from_str_radix(&ui_state.origin_dialog.input, 16) {
-                let size = app_state.raw_data.len();
-                // Check for overflow
-                if (new_origin as usize) + size <= 0x10000 {
-                    let old_origin = app_state.origin;
-                    let command = crate::commands::Command::ChangeOrigin {
-                        new_origin,
-                        old_origin,
-                    };
-                    command.apply(app_state);
-                    app_state.push_command(command);
+    fn handle_input(
+        &mut self,
+        key: KeyEvent,
+        app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> DialogResult {
+        match key.code {
+            KeyCode::Esc => {
+                ui_state.set_status_message("Ready");
+                DialogResult::Close
+            }
+            KeyCode::Enter => {
+                if let Ok(new_origin) = u16::from_str_radix(&self.input, 16) {
+                    let size = app_state.raw_data.len();
+                    // Check for overflow
+                    if (new_origin as usize) + size <= 0x10000 {
+                        let old_origin = app_state.origin;
+                        let command = crate::commands::Command::ChangeOrigin {
+                            new_origin,
+                            old_origin,
+                        };
+                        command.apply(app_state);
+                        app_state.push_command(command);
 
-                    app_state.disassemble();
-                    ui_state.set_status_message(format!("Origin changed to ${:04X}", new_origin));
-                    ui_state.origin_dialog.close();
+                        app_state.disassemble();
+                        ui_state
+                            .set_status_message(format!("Origin changed to ${:04X}", new_origin));
+                        DialogResult::Close
+                    } else {
+                        ui_state.set_status_message("Error: Origin + Size exceeds $FFFF");
+                        DialogResult::KeepOpen
+                    }
                 } else {
-                    ui_state.set_status_message("Error: Origin + Size exceeds $FFFF");
+                    ui_state.set_status_message("Invalid Hex Address");
+                    DialogResult::KeepOpen
                 }
-            } else {
-                ui_state.set_status_message("Invalid Hex Address");
             }
-        }
-        KeyCode::Backspace => {
-            ui_state.origin_dialog.input.pop();
-        }
-        KeyCode::Char(c) => {
-            if c.is_ascii_hexdigit() && ui_state.origin_dialog.input.len() < 4 {
-                ui_state.origin_dialog.input.push(c.to_ascii_uppercase());
+            KeyCode::Backspace => {
+                self.input.pop();
+                DialogResult::KeepOpen
             }
+            KeyCode::Char(c) => {
+                if c.is_ascii_hexdigit() && self.input.len() < 4 {
+                    self.input.push(c.to_ascii_uppercase());
+                }
+                DialogResult::KeepOpen
+            }
+            _ => DialogResult::KeepOpen,
         }
-        _ => {}
     }
 }

@@ -930,7 +930,10 @@ pub fn handle_input(
                     .get(&target_addr)
                     .and_then(|v| v.first())
                     .map(|l| l.name.as_str());
-                ui_state.label_dialog.open(text, target_addr);
+                ui_state.active_dialog = Some(Box::new(crate::ui::dialog_label::LabelDialog::new(
+                    text,
+                    target_addr,
+                )));
                 ui_state.set_status_message("Enter Label");
                 InputResult::Handled
             } else {
