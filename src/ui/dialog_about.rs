@@ -9,6 +9,12 @@ use ratatui_image::StatefulImage;
 
 pub struct AboutDialog;
 
+impl Default for AboutDialog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AboutDialog {
     pub fn new() -> Self {
         Self

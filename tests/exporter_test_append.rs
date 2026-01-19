@@ -1,3 +1,7 @@
+use regenerator2000::exporter::export_asm;
+use regenerator2000::state::AppState;
+use std::path::PathBuf;
+
 #[test]
 fn test_export_all_labels_disabled() {
     let mut state = AppState::new();
@@ -7,11 +11,10 @@ fn test_export_all_labels_disabled() {
     // Define an external label
     state.labels.insert(
         0x0010,
-        vec![crate::state::Label {
+        vec![regenerator2000::state::Label {
             name: "f10".to_string(),
-            kind: crate::state::LabelKind::Auto,
-            label_type: crate::state::LabelType::ZeroPageField,
-            refs: vec![],
+            kind: regenerator2000::state::LabelKind::Auto,
+            label_type: regenerator2000::state::LabelType::ZeroPageField,
         }],
     );
 

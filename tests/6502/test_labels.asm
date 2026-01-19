@@ -26,7 +26,7 @@
 
 	stx $fffe
 	sty $ffff
-	
+
 	; C128 related
 	jsr $FF8D
 

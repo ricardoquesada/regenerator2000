@@ -13,6 +13,12 @@ pub struct ShortcutsDialog {
     pub scroll_offset: usize,
 }
 
+impl Default for ShortcutsDialog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ShortcutsDialog {
     pub fn new() -> Self {
         Self { scroll_offset: 0 }

@@ -246,6 +246,12 @@ pub struct UndoStack {
     pointer: usize,
 }
 
+impl Default for UndoStack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl UndoStack {
     pub fn new() -> Self {
         Self {

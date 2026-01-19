@@ -1,27 +1,6 @@
-mod analyzer;
-pub mod assets;
-mod parser;
-
-mod commands;
-mod cpu;
-mod disassembler;
-mod events;
-mod exporter;
-mod state;
-mod ui;
-mod ui_state;
-
-mod config;
-mod theme;
-mod utils;
-
-#[cfg(test)]
-mod cursor_persistence_test;
-
-#[cfg(test)]
-mod load_project_test;
-#[cfg(test)]
-mod serialization_stability_test;
+use regenerator2000::events;
+use regenerator2000::state::AppState;
+use regenerator2000::ui_state::UIState;
 
 use anyhow::Result;
 use crossterm::{
@@ -33,9 +12,7 @@ use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
-use state::AppState;
 use std::io;
-use ui_state::UIState;
 
 fn main() -> Result<()> {
     // Setup terminal
@@ -52,7 +29,7 @@ fn main() -> Result<()> {
 
     // Create States
     let mut app_state = AppState::new();
-    let theme = crate::theme::Theme::from_name(&app_state.system_config.theme);
+    let theme = regenerator2000::theme::Theme::from_name(&app_state.system_config.theme);
     let mut ui_state = UIState::new(theme);
 
     // Check args and load initial project/file

@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::state::{AppState, BlockType, Label, LabelKind, LabelType, ProjectSaveContext};
+    use regenerator2000::state::{
+        AppState, BlockType, Label, LabelKind, LabelType, ProjectSaveContext,
+    };
     use std::collections::BTreeMap;
 
     #[test]
@@ -68,7 +70,7 @@ mod tests {
                     charset_cursor_address: None,
                     sprite_multicolor_mode: false,
                     charset_multicolor_mode: false,
-                    petscii_mode: crate::state::PetsciiMode::default(),
+                    petscii_mode: regenerator2000::state::PetsciiMode::default(),
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
                 },
@@ -95,7 +97,7 @@ mod tests {
                     charset_cursor_address: None,
                     sprite_multicolor_mode: false,
                     charset_multicolor_mode: false,
-                    petscii_mode: crate::state::PetsciiMode::default(),
+                    petscii_mode: regenerator2000::state::PetsciiMode::default(),
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
                 },

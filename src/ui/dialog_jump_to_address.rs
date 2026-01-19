@@ -15,6 +15,12 @@ pub struct JumpToAddressDialog {
     pub input: String,
 }
 
+impl Default for JumpToAddressDialog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JumpToAddressDialog {
     pub fn new() -> Self {
         Self {

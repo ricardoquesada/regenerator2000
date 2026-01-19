@@ -15,6 +15,12 @@ pub struct SaveAsDialog {
     pub input: String,
 }
 
+impl Default for SaveAsDialog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SaveAsDialog {
     pub fn new() -> Self {
         Self {

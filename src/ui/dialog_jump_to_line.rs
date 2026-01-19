@@ -15,6 +15,12 @@ pub struct JumpToLineDialog {
     pub input: String,
 }
 
+impl Default for JumpToLineDialog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JumpToLineDialog {
     pub fn new() -> Self {
         Self {

@@ -56,6 +56,12 @@ pub struct Disassembler {
     pub opcodes: [Option<Opcode>; 256],
 }
 
+impl Default for Disassembler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Disassembler {
     pub fn new() -> Self {
         Self {

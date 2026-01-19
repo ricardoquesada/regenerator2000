@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests {
-    use crate::state::{AppState, Block, BlockType, DocumentSettings, LabelKind, ProjectState};
+    use regenerator2000::state::{
+        AppState, Block, BlockType, DocumentSettings, LabelKind, ProjectState,
+    };
     use std::collections::BTreeMap;
 
     #[test]
@@ -14,7 +16,8 @@ mod tests {
 
         // Create raw bytes: 4C 05 10 EA EA EA
         let raw_bytes: Vec<u8> = vec![0x4C, 0x05, 0x10, 0xEA, 0xEA, 0xEA];
-        let raw_data_base64 = crate::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
+        let raw_data_base64 =
+            regenerator2000::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
 
         let project = ProjectState {
             origin: 0x1000,
@@ -37,7 +40,7 @@ mod tests {
             right_pane_visible: None,
             sprite_multicolor_mode: false,
             charset_multicolor_mode: false,
-            petscii_mode: crate::state::PetsciiMode::default(),
+            petscii_mode: regenerator2000::state::PetsciiMode::default(),
             splitters: std::collections::BTreeSet::new(),
             blocks_view_cursor: None,
         };

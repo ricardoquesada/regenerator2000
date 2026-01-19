@@ -15,6 +15,12 @@ pub struct ExportAsDialog {
     pub input: String,
 }
 
+impl Default for ExportAsDialog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExportAsDialog {
     pub fn new() -> Self {
         Self {

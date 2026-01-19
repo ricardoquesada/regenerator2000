@@ -24,6 +24,12 @@ pub struct DocumentSettingsDialog {
     pub bytes_per_line_input: String,
 }
 
+impl Default for DocumentSettingsDialog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DocumentSettingsDialog {
     pub fn new() -> Self {
         Self {

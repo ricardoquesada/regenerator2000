@@ -347,6 +347,12 @@ pub struct AppState {
     pub splitters: BTreeSet<u16>,
 }
 
+impl Default for AppState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AppState {
     pub fn new() -> Self {
         Self {
@@ -725,7 +731,7 @@ impl AppState {
     }
 
     pub fn undo_last_command(&mut self) -> String {
-        let mut stack = std::mem::replace(&mut self.undo_stack, crate::commands::UndoStack::new());
+        let mut stack = std::mem::take(&mut self.undo_stack);
         let msg = if let Some(msg) = stack.undo(self) {
             msg
         } else {
@@ -736,7 +742,7 @@ impl AppState {
     }
 
     pub fn redo_last_command(&mut self) -> String {
-        let mut stack = std::mem::replace(&mut self.undo_stack, crate::commands::UndoStack::new());
+        let mut stack = std::mem::take(&mut self.undo_stack);
         let msg = if let Some(msg) = stack.redo(self) {
             msg
         } else {
@@ -1212,14 +1218,14 @@ use flate2::write::GzEncoder;
 use std::io::Read;
 use std::io::Write;
 
-pub(crate) fn encode_raw_data_to_base64(data: &[u8]) -> anyhow::Result<String> {
+pub fn encode_raw_data_to_base64(data: &[u8]) -> anyhow::Result<String> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     encoder.write_all(data)?;
     let compressed_data = encoder.finish()?;
     Ok(general_purpose::STANDARD.encode(compressed_data))
 }
 
-pub(crate) fn decode_raw_data_from_base64(data: &str) -> anyhow::Result<Vec<u8>> {
+pub fn decode_raw_data_from_base64(data: &str) -> anyhow::Result<Vec<u8>> {
     let decoded_compressed = general_purpose::STANDARD.decode(data)?;
     let mut decoder = GzDecoder::new(&decoded_compressed[..]);
     let mut raw_data = Vec::new();

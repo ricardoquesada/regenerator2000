@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::state::{AppState, BlockType, ProjectSaveContext};
+    use regenerator2000::state::{AppState, BlockType, ProjectSaveContext};
 
     #[test]
     fn test_save_and_restore_cursor() {
@@ -31,7 +31,7 @@ mod tests {
                     charset_cursor_address: None,
                     sprite_multicolor_mode: false,
                     charset_multicolor_mode: false,
-                    petscii_mode: crate::state::PetsciiMode::default(),
+                    petscii_mode: regenerator2000::state::PetsciiMode::default(),
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
                 },
@@ -62,7 +62,8 @@ mod tests {
 
         // 5. Test loading legacy project (without cursor_address)
         // Manually create JSON without cursor_address (or hex_cursor_address)
-        let legacy_raw_data = crate::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
+        let legacy_raw_data =
+            regenerator2000::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
         let json = format!(
             r#"{{
             "origin": 4096,
