@@ -599,7 +599,9 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         MenuAction::Exit => ui_state.should_quit = true,
 
         MenuAction::Open => {
-            ui_state.open_dialog.open();
+            ui_state.active_dialog = Some(Box::new(crate::ui::dialog_open::OpenDialog::new(
+                ui_state.file_dialog_current_dir.clone(),
+            )));
             ui_state.set_status_message("Select a file to open");
         }
         MenuAction::Save => {
@@ -636,7 +638,9 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ui_state.set_status_message("Enter .asm filename");
         }
         MenuAction::DocumentSettings => {
-            ui_state.settings_dialog.open();
+            ui_state.active_dialog = Some(Box::new(
+                crate::ui::dialog_document_settings::DocumentSettingsDialog::new(),
+            ));
             ui_state.set_status_message("Document Settings");
         }
         MenuAction::Analyze => {
@@ -825,7 +829,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             }
         }
         MenuAction::About => {
-            ui_state.about_dialog.open();
+            ui_state.active_dialog = Some(Box::new(crate::ui::dialog_about::AboutDialog::new()));
             ui_state.set_status_message("About Regenerator 2000");
         }
         MenuAction::TogglePetsciiMode => {

@@ -1,6 +1,7 @@
 use crate::state::AppState;
 use crate::ui_state::{RightPane, UIState};
 
+pub mod dialog;
 pub mod dialog_about;
 pub mod dialog_comment;
 pub mod dialog_confirmation;
@@ -47,10 +48,6 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         menu::render_menu_popup(f, chunks[0], &ui_state.menu, &ui_state.theme);
     }
 
-    if ui_state.open_dialog.active {
-        dialog_open::render(f, f.area(), &ui_state.open_dialog, &ui_state.theme);
-    }
-
     if ui_state.jump_to_address_dialog.active {
         dialog_jump_to_address::render(
             f,
@@ -84,16 +81,6 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         );
     }
 
-    if ui_state.settings_dialog.active {
-        dialog_document_settings::render(
-            f,
-            f.area(),
-            app_state,
-            &ui_state.settings_dialog,
-            &ui_state.theme,
-        );
-    }
-
     if ui_state.system_settings_dialog.active {
         dialog_settings::render(
             f,
@@ -102,10 +89,6 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
             &ui_state.system_settings_dialog,
             &ui_state.theme,
         );
-    }
-
-    if ui_state.about_dialog.active {
-        dialog_about::render(f, ui_state, f.area(), &ui_state.about_dialog);
     }
 
     if ui_state.shortcuts_dialog.active {
@@ -127,6 +110,11 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
 
     if ui_state.search_dialog.active {
         dialog_search::render(f, f.area(), &ui_state.search_dialog, &ui_state.theme);
+    }
+
+    // Generic Active Dialog Handler (Refactored Dialogs)
+    if let Some(dialog) = &ui_state.active_dialog {
+        dialog.render(f, f.area(), app_state, ui_state);
     }
 }
 

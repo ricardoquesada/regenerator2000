@@ -40,6 +40,21 @@ pub fn run_app<B: Backend>(
                 continue;
             }
             ui_state.dismiss_logo = true;
+
+            // Handle Active Dialog (Generic)
+            if let Some(mut dialog) = ui_state.active_dialog.take() {
+                let result = dialog.handle_input(key, &mut app_state, &mut ui_state);
+                match result {
+                    crate::ui::dialog::DialogResult::KeepOpen => {
+                        ui_state.active_dialog = Some(dialog)
+                    }
+                    crate::ui::dialog::DialogResult::Close => {
+                        // Dialog closed.
+                    }
+                }
+                continue;
+            }
+
             if ui_state.jump_to_address_dialog.active {
                 crate::ui::dialog_jump_to_address::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.jump_to_line_dialog.active {
@@ -52,24 +67,14 @@ pub fn run_app<B: Backend>(
                 crate::ui::dialog_label::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.comment_dialog.active {
                 crate::ui::dialog_comment::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.open_dialog.active {
-                crate::ui::dialog_open::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.search_dialog.active {
                 crate::ui::dialog_search::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.menu.active {
                 crate::ui::menu::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.about_dialog.active {
-                crate::ui::dialog_about::handle_input(key, &mut ui_state);
             } else if ui_state.shortcuts_dialog.active {
                 crate::ui::dialog_keyboard_shortcut::handle_input(key, &mut ui_state);
             } else if ui_state.confirmation_dialog.active {
                 crate::ui::dialog_confirmation::handle_input(key, &mut app_state, &mut ui_state);
-            } else if ui_state.settings_dialog.active {
-                crate::ui::dialog_document_settings::handle_input(
-                    key,
-                    &mut app_state,
-                    &mut ui_state,
-                );
             } else if ui_state.system_settings_dialog.active {
                 crate::ui::dialog_settings::handle_input(key, &mut app_state, &mut ui_state);
             } else if ui_state.origin_dialog.active {

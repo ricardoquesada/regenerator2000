@@ -1,8 +1,10 @@
 use crate::theme::Theme;
+use crate::ui::dialog::Dialog;
 pub use crate::ui::menu::{MenuAction, MenuState};
 use image::DynamicImage;
 use ratatui::widgets::ListState;
 use ratatui_image::picker::Picker;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActivePane {
@@ -28,15 +30,17 @@ pub enum RightPane {
 use crate::state::PetsciiMode;
 
 pub struct UIState {
-    pub open_dialog: crate::ui::dialog_open::OpenDialog,
+    pub active_dialog: Option<Box<dyn Dialog>>,
+    pub file_dialog_current_dir: PathBuf,
+
     pub jump_to_address_dialog: crate::ui::dialog_jump_to_address::JumpToAddressDialog,
     pub jump_to_line_dialog: crate::ui::dialog_jump_to_line::JumpToLineDialog,
     pub save_as_dialog: crate::ui::dialog_save_as::SaveAsDialog,
     pub export_as_dialog: crate::ui::dialog_export_as::ExportAsDialog,
     pub label_dialog: crate::ui::dialog_label::LabelDialogState,
     pub comment_dialog: crate::ui::dialog_comment::CommentDialogState,
-    pub settings_dialog: crate::ui::dialog_document_settings::DocumentSettingsDialog,
-    pub about_dialog: crate::ui::dialog_about::AboutDialog,
+    // settings_dialog removed (DocumentSettingsDialog)
+    // about_dialog removed
     pub shortcuts_dialog: crate::ui::dialog_keyboard_shortcut::ShortcutsDialog,
     pub origin_dialog: crate::ui::dialog_origin::OriginDialogState,
     pub confirmation_dialog: crate::ui::dialog_confirmation::ConfirmationDialogState,
@@ -88,15 +92,15 @@ pub struct UIState {
 impl UIState {
     pub fn new(theme: Theme) -> Self {
         Self {
-            open_dialog: crate::ui::dialog_open::OpenDialog::new(),
+            active_dialog: None,
+            file_dialog_current_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+
             jump_to_address_dialog: crate::ui::dialog_jump_to_address::JumpToAddressDialog::new(),
             jump_to_line_dialog: crate::ui::dialog_jump_to_line::JumpToLineDialog::new(),
             save_as_dialog: crate::ui::dialog_save_as::SaveAsDialog::new(),
             export_as_dialog: crate::ui::dialog_export_as::ExportAsDialog::new(),
             label_dialog: crate::ui::dialog_label::LabelDialogState::new(),
             comment_dialog: crate::ui::dialog_comment::CommentDialogState::new(),
-            settings_dialog: crate::ui::dialog_document_settings::DocumentSettingsDialog::new(),
-            about_dialog: crate::ui::dialog_about::AboutDialog::new(),
             shortcuts_dialog: crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::new(),
             origin_dialog: crate::ui::dialog_origin::OriginDialogState::new(),
             confirmation_dialog: crate::ui::dialog_confirmation::ConfirmationDialogState::new(),
@@ -111,11 +115,9 @@ impl UIState {
             scroll_index: 0,
             hex_cursor_index: 0,
             sprites_cursor_index: 0,
-
             charset_cursor_index: 0,
             blocks_list_state: ListState::default(),
             hex_scroll_index: 0,
-
             right_pane: RightPane::HexDump,
             sprite_multicolor_mode: false,
             charset_multicolor_mode: false,

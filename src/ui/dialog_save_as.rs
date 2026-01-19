@@ -82,7 +82,7 @@ pub fn handle_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UISt
             let filename = dialog.input.clone();
             if !filename.is_empty() {
                 // Determine path relative to open dialog's current directory
-                let mut path = ui_state.open_dialog.current_dir.join(filename);
+                let mut path = ui_state.file_dialog_current_dir.join(filename);
                 if path.extension().is_none() {
                     path.set_extension("regen2000proj");
                 }
