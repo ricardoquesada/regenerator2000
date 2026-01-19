@@ -31,7 +31,7 @@ mod tests {
                     charset_cursor_address: None,
                     sprite_multicolor_mode: false,
                     charset_multicolor_mode: false,
-                    petscii_mode: regenerator2000::state::PetsciiMode::default(),
+                    hexdump_view_mode: regenerator2000::state::HexdumpViewMode::default(),
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
                 },

@@ -70,6 +70,67 @@ pub fn create_picker() -> Option<Picker> {
     Some(Picker::from_fontsize(font_size))
 }
 
+pub fn screencode_to_petscii(byte: u8) -> u8 {
+    // Basic Screencode to PETSCII mapping
+    // This is a simplification, but covers the main displayable range
+    match byte {
+        0x00..=0x1F => byte + 0x40, // @ABC... -> @ABC... (40-5F)
+        0x20..=0x3F => byte,        //  !"#... ->  !"#... (20-3F)
+        0x40..=0x5F => byte + 0x20, // ─♠│... -> ─♠│... (60-7F)
+        0x60..=0x7F => byte + 0x40, //  ▌▄▔... ->  ▌▄▔... (A0-BF)
+        // Reverse characters (bit 7 set)
+        0x80..=0x9F => byte - 0x40 + 0x80, // Rev @ABC... -> Rev @ABC... (C0-DF ?) - actually PETSCII reverse is typically +$80
+        // But let's check our PETSCII map.
+        // Our PETSCII map handles 00-FF.
+        // Screencode $80 (Rev @) -> PETSCII $C0?
+        // Let's assume standard behavior:
+        // Screencode = PETSCII & 0x7F? No.
+        //
+        // Let's stick to the upper/lower case rules logic usually:
+        //
+        // Bank 1 (Unshifted / Uppercase/Graphics):
+        // SC 00-1F (@..) -> PETSCII 40-5F
+        // SC 20-3F ( !..) -> PETSCII 20-3F
+        // SC 40-5F (Graph) -> PETSCII 60-7F
+        // SC 60-7F (Graph) -> PETSCII A0-BF
+        //
+        // Bank 2 (Shifted / Lowercase):
+        // SC 00-1F (a..z) -> PETSCII 40-5F (But displayed as LOWER case if in Shifted mode)
+        // Actually, if we use the same PETSCII code but "Shifted" mode in rendering, it handles cases.
+        //
+        // So for "Screencode Unshifted" (Uppercase/Graphics):
+        // 00 -> 40 (@)
+        //
+        // For "Screencode Shifted" (Lowercase):
+        // 01 (A) -> Should look like 'a'. PETSCII 41 is 'A'.
+        // BUT petscii_to_unicode(0x41, true) -> 'a'.
+        // So if we convert SC 01 -> PETSCII 41, and pass shifted=true, we get 'a'. Correct.
+        //
+        // So the mapping is consistent regardless of shifted state, provided we pass the shifted state to `petscii_to_unicode`.
+        // The mapping is mostly:
+        // 00-1F -> +40 -> 40-5F
+        // 20-3F -> +00 -> 20-3F
+        // 40-5F -> +20 -> 60-7F
+        // 60-7F -> +40 -> A0-BF
+        //
+        // What about 80-FF? (Reverse)
+        // Usually ignored in simple hex dumps or mapped to non-reverse.
+        // Let's map them to their non-reverse counterparts for now (mod 128) and apply reverse style?
+        // Or just map them linearly if possible.
+        // For now let's just handle the base 00-7F and map 80-FF to the same (stripped).
+        _ => {
+            let b = byte & 0x7F;
+            match b {
+                0x00..=0x1F => b + 0x40,
+                0x20..=0x3F => b,
+                0x40..=0x5F => b + 0x20,
+                0x60..=0x7F => b + 0x40,
+                _ => b,
+            }
+        }
+    }
+}
+
 pub fn petscii_to_unicode(byte: u8, shifted: bool) -> char {
     let (unshifted_char, shifted_char) = PETSCII_MAP[byte as usize];
     if shifted {

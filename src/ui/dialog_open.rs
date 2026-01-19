@@ -165,7 +165,7 @@ impl Widget for OpenDialog {
                                     loaded_data.sprite_multicolor_mode;
                                 ui_state.charset_multicolor_mode =
                                     loaded_data.charset_multicolor_mode;
-                                ui_state.petscii_mode = loaded_data.petscii_mode;
+                                ui_state.hexdump_view_mode = loaded_data.hexdump_view_mode;
 
                                 if let Some(idx) = loaded_data.blocks_view_cursor {
                                     ui_state.blocks_list_state.select(Some(idx));

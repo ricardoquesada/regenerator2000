@@ -135,7 +135,7 @@ impl Widget for SaveAsDialog {
                             charset_cursor_address: charset_addr,
                             sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
                             charset_multicolor_mode: ui_state.charset_multicolor_mode,
-                            petscii_mode: ui_state.petscii_mode,
+                            hexdump_view_mode: ui_state.hexdump_view_mode,
                             splitters: app_state.splitters.clone(),
                             blocks_view_cursor: ui_state.blocks_list_state.selected(),
                         },

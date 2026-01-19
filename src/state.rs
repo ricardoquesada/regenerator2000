@@ -17,10 +17,12 @@ pub enum Platform {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum PetsciiMode {
+pub enum HexdumpViewMode {
     #[default]
-    Unshifted,
-    Shifted,
+    ScreencodeShifted,
+    ScreencodeUnshifted,
+    PETSCIIShifted,
+    PETSCIIUnshifted,
 }
 
 impl std::fmt::Display for Platform {
@@ -276,7 +278,7 @@ pub struct ProjectState {
     #[serde(default)]
     pub charset_multicolor_mode: bool,
     #[serde(default)]
-    pub petscii_mode: PetsciiMode,
+    pub hexdump_view_mode: HexdumpViewMode,
     #[serde(default)]
     pub splitters: BTreeSet<u16>,
     #[serde(default)]
@@ -291,7 +293,7 @@ pub struct LoadedProjectData {
     pub charset_cursor_address: Option<u16>,
     pub sprite_multicolor_mode: bool,
     pub charset_multicolor_mode: bool,
-    pub petscii_mode: PetsciiMode,
+    pub hexdump_view_mode: HexdumpViewMode,
     pub blocks_view_cursor: Option<usize>,
 }
 
@@ -314,7 +316,7 @@ pub struct ProjectSaveContext {
     pub charset_cursor_address: Option<u16>,
     pub sprite_multicolor_mode: bool,
     pub charset_multicolor_mode: bool,
-    pub petscii_mode: PetsciiMode,
+    pub hexdump_view_mode: HexdumpViewMode,
     pub splitters: BTreeSet<u16>,
     pub blocks_view_cursor: Option<usize>,
 }
@@ -519,7 +521,7 @@ impl AppState {
             charset_cursor_address: None,
             charset_multicolor_mode: false,
             sprite_multicolor_mode: false,
-            petscii_mode: PetsciiMode::default(),
+            hexdump_view_mode: HexdumpViewMode::default(),
             blocks_view_cursor: None,
         })
     }
@@ -582,7 +584,7 @@ impl AppState {
             charset_cursor_address: project.charset_cursor_address,
             sprite_multicolor_mode: project.sprite_multicolor_mode,
             charset_multicolor_mode: project.charset_multicolor_mode,
-            petscii_mode: project.petscii_mode,
+            hexdump_view_mode: project.hexdump_view_mode,
             blocks_view_cursor: project.blocks_view_cursor,
         })
     }
@@ -622,7 +624,7 @@ impl AppState {
                 charset_cursor_address: ctx.charset_cursor_address,
                 sprite_multicolor_mode: ctx.sprite_multicolor_mode,
                 charset_multicolor_mode: ctx.charset_multicolor_mode,
-                petscii_mode: ctx.petscii_mode,
+                hexdump_view_mode: ctx.hexdump_view_mode,
 
                 splitters: ctx.splitters,
                 blocks_view_cursor: ctx.blocks_view_cursor,
@@ -1414,7 +1416,7 @@ mod save_project_tests {
                     charset_cursor_address: None,
                     sprite_multicolor_mode: false,
                     charset_multicolor_mode: false,
-                    petscii_mode: PetsciiMode::default(),
+                    hexdump_view_mode: HexdumpViewMode::default(),
                     splitters: BTreeSet::new(),
                     blocks_view_cursor: None,
                 },

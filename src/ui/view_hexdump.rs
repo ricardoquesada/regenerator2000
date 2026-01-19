@@ -1,4 +1,4 @@
-use crate::state::{AppState, PetsciiMode};
+use crate::state::{AppState, HexdumpViewMode};
 use crate::ui_state::{ActivePane, MenuAction, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
@@ -25,9 +25,11 @@ impl Widget for HexDumpView {
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(border_style)
-            .title(match ui_state.petscii_mode {
-                PetsciiMode::Shifted => " Hex Dump (Shifted) ",
-                PetsciiMode::Unshifted => " Hex Dump (Unshifted) ",
+            .title(match ui_state.hexdump_view_mode {
+                HexdumpViewMode::PETSCIIUnshifted => " Hex Dump (PETSCII Unshifted) ",
+                HexdumpViewMode::PETSCIIShifted => " Hex Dump (PETSCII Shifted) ",
+                HexdumpViewMode::ScreencodeUnshifted => " Hex Dump (Screencode Unshifted) ",
+                HexdumpViewMode::ScreencodeShifted => " Hex Dump (Screencode Shifted) ",
             })
             .style(
                 Style::default()
@@ -69,8 +71,23 @@ impl Widget for HexDumpView {
                         let b = app_state.raw_data[data_idx];
 
                         hex_part.push_str(&format!("{:02X} ", b));
-                        let is_shifted = ui_state.petscii_mode == PetsciiMode::Shifted;
-                        ascii_part.push(crate::utils::petscii_to_unicode(b, is_shifted));
+                        let char_to_render = match ui_state.hexdump_view_mode {
+                            HexdumpViewMode::PETSCIIShifted => {
+                                crate::utils::petscii_to_unicode(b, true)
+                            }
+                            HexdumpViewMode::PETSCIIUnshifted => {
+                                crate::utils::petscii_to_unicode(b, false)
+                            }
+                            HexdumpViewMode::ScreencodeShifted => {
+                                let petscii = crate::utils::screencode_to_petscii(b);
+                                crate::utils::petscii_to_unicode(petscii, true)
+                            }
+                            HexdumpViewMode::ScreencodeUnshifted => {
+                                let petscii = crate::utils::screencode_to_petscii(b);
+                                crate::utils::petscii_to_unicode(petscii, false)
+                            }
+                        };
+                        ascii_part.push(char_to_render);
                     } else {
                         // Padding
                         hex_part.push_str("   ");

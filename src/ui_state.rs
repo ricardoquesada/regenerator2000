@@ -27,7 +27,7 @@ pub enum RightPane {
     Blocks,
 }
 
-use crate::state::PetsciiMode;
+use crate::state::HexdumpViewMode;
 
 pub struct UIState {
     pub active_dialog: Option<Box<dyn Widget>>,
@@ -57,7 +57,7 @@ pub struct UIState {
     pub right_pane: RightPane,
     pub sprite_multicolor_mode: bool,
     pub charset_multicolor_mode: bool,
-    pub petscii_mode: PetsciiMode,
+    pub hexdump_view_mode: HexdumpViewMode,
 
     pub active_pane: ActivePane,
     pub should_quit: bool,
@@ -98,7 +98,7 @@ impl UIState {
             right_pane: RightPane::HexDump,
             sprite_multicolor_mode: false,
             charset_multicolor_mode: false,
-            petscii_mode: PetsciiMode::Unshifted,
+            hexdump_view_mode: HexdumpViewMode::ScreencodeUnshifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,
             status_bar: crate::ui::statusbar::StatusBarState::new(),
@@ -131,7 +131,7 @@ impl UIState {
 
         self.sprite_multicolor_mode = loaded_data.sprite_multicolor_mode;
         self.charset_multicolor_mode = loaded_data.charset_multicolor_mode;
-        self.petscii_mode = loaded_data.petscii_mode;
+        self.hexdump_view_mode = loaded_data.hexdump_view_mode;
         let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
         if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
             self.cursor_index = idx;

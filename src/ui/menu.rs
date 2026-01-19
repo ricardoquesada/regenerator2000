@@ -862,16 +862,28 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ui_state.set_status_message("About Regenerator 2000");
         }
         MenuAction::TogglePetsciiMode => {
-            let new_mode = match ui_state.petscii_mode {
-                crate::state::PetsciiMode::Unshifted => crate::state::PetsciiMode::Shifted,
-                crate::state::PetsciiMode::Shifted => crate::state::PetsciiMode::Unshifted,
+            let new_mode = match ui_state.hexdump_view_mode {
+                crate::state::HexdumpViewMode::ScreencodeShifted => {
+                    crate::state::HexdumpViewMode::ScreencodeUnshifted
+                }
+                crate::state::HexdumpViewMode::ScreencodeUnshifted => {
+                    crate::state::HexdumpViewMode::PETSCIIUnshifted
+                }
+                crate::state::HexdumpViewMode::PETSCIIUnshifted => {
+                    crate::state::HexdumpViewMode::PETSCIIShifted
+                }
+                crate::state::HexdumpViewMode::PETSCIIShifted => {
+                    crate::state::HexdumpViewMode::ScreencodeShifted
+                }
             };
-            ui_state.petscii_mode = new_mode;
+            ui_state.hexdump_view_mode = new_mode;
             let status = match new_mode {
-                crate::state::PetsciiMode::Shifted => "Shifted",
-                crate::state::PetsciiMode::Unshifted => "Unshifted",
+                crate::state::HexdumpViewMode::PETSCIIUnshifted => "Unshifted (PETSCII)",
+                crate::state::HexdumpViewMode::PETSCIIShifted => "Shifted (PETSCII)",
+                crate::state::HexdumpViewMode::ScreencodeShifted => "Shifted (Screencode)",
+                crate::state::HexdumpViewMode::ScreencodeUnshifted => "Unshifted (Screencode)",
             };
-            ui_state.set_status_message(format!("Hex Dump: {} PETSCII", status));
+            ui_state.set_status_message(format!("Hex Dump: {}", status));
         }
         MenuAction::ToggleSplitter => {
             if ui_state.active_pane == ActivePane::Blocks {
@@ -1364,7 +1376,7 @@ fn create_save_context(
         charset_cursor_address: charset_addr,
         sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
         charset_multicolor_mode: ui_state.charset_multicolor_mode,
-        petscii_mode: ui_state.petscii_mode,
+        hexdump_view_mode: ui_state.hexdump_view_mode,
         splitters: app_state.splitters.clone(),
         blocks_view_cursor: ui_state.blocks_list_state.selected(),
     }
