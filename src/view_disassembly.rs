@@ -807,25 +807,13 @@ pub fn handle_input(
             }
             InputResult::Handled
         }
-        KeyCode::PageDown => {
+        KeyCode::PageDown | KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             ui_state.cursor_index =
                 (ui_state.cursor_index + 30).min(app_state.disassembly.len().saturating_sub(1));
             InputResult::Handled
         }
-        KeyCode::PageUp => {
+        KeyCode::PageUp | KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
-            InputResult::Handled
-        }
-        KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
-            InputResult::Handled
-        }
-        KeyCode::Char('d')
-            if key.modifiers.contains(KeyModifiers::CONTROL)
-                && !key.modifiers.contains(KeyModifiers::SHIFT) =>
-        {
-            ui_state.cursor_index =
-                (ui_state.cursor_index + 10).min(app_state.disassembly.len().saturating_sub(1));
             InputResult::Handled
         }
         KeyCode::Home => {

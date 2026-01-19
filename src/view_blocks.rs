@@ -25,7 +25,7 @@ pub fn render(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UI
     let block = Block::default()
         .borders(Borders::ALL)
         .border_style(border_style)
-        .title(" Files / Blocks ")
+        .title(" Blocks ")
         .style(
             Style::default()
                 .bg(ui_state.theme.background)
@@ -77,18 +77,6 @@ pub fn handle_input(
     let blocks = app_state.get_blocks_view_items();
 
     match key.code {
-        KeyCode::Char(c)
-            if c.is_ascii_digit()
-                && !key.modifiers.intersects(
-                    KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER,
-                ) =>
-        {
-            if ui_state.input_buffer.len() < 10 {
-                ui_state.input_buffer.push(c);
-                ui_state.set_status_message(format!(":{}", ui_state.input_buffer));
-            }
-            InputResult::Handled
-        }
         KeyCode::Down | KeyCode::Char('j')
             if key.modifiers.is_empty() || key.code == KeyCode::Down =>
         {
@@ -105,14 +93,14 @@ pub fn handle_input(
             ui_state.blocks_list_state.select(Some(next));
             InputResult::Handled
         }
-        KeyCode::PageDown => {
+        KeyCode::PageDown | KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             ui_state.input_buffer.clear();
             let current = ui_state.blocks_list_state.selected().unwrap_or(0);
             let next = (current + 10).min(blocks.len().saturating_sub(1));
             ui_state.blocks_list_state.select(Some(next));
             InputResult::Handled
         }
-        KeyCode::PageUp => {
+        KeyCode::PageUp | KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             ui_state.input_buffer.clear();
             let current = ui_state.blocks_list_state.selected().unwrap_or(0);
             let next = current.saturating_sub(10);

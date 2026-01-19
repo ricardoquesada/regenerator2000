@@ -171,13 +171,13 @@ pub fn handle_input(
             }
             InputResult::Handled
         }
-        KeyCode::PageDown => {
+        KeyCode::PageDown | KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             ui_state.input_buffer.clear();
             ui_state.hex_cursor_index =
                 (ui_state.hex_cursor_index + 10).min(total_rows.saturating_sub(1));
             InputResult::Handled
         }
-        KeyCode::PageUp => {
+        KeyCode::PageUp | KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             ui_state.input_buffer.clear();
             ui_state.hex_cursor_index = ui_state.hex_cursor_index.saturating_sub(10);
             InputResult::Handled
@@ -216,15 +216,6 @@ pub fn handle_input(
                 .push((ui_state.active_pane, ui_state.hex_cursor_index));
             ui_state.hex_cursor_index = new_cursor;
             ui_state.set_status_message(format!("Jumped to row {}", target_row));
-            InputResult::Handled
-        }
-        KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            ui_state.hex_cursor_index = ui_state.hex_cursor_index.saturating_sub(10);
-            InputResult::Handled
-        }
-        KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-            ui_state.hex_cursor_index =
-                (ui_state.hex_cursor_index + 10).min(total_rows.saturating_sub(1));
             InputResult::Handled
         }
         KeyCode::Char('m') if key.modifiers.is_empty() => {

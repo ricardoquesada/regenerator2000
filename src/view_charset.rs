@@ -303,13 +303,13 @@ pub fn handle_input(
             }
             InputResult::Handled
         }
-        KeyCode::PageDown => {
+        KeyCode::PageDown | KeyCode::Char('d') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             ui_state.input_buffer.clear();
             ui_state.charset_cursor_index =
                 (ui_state.charset_cursor_index + 10).min(max_char_index.saturating_sub(1));
             InputResult::Handled
         }
-        KeyCode::PageUp => {
+        KeyCode::PageUp | KeyCode::Char('u') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             ui_state.input_buffer.clear();
             ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(10);
             InputResult::Handled
