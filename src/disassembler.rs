@@ -3,37 +3,16 @@ use crate::state::{Assembler, BlockType, DocumentSettings, Label};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub mod formatter;
-mod formatter_64tass;
-mod formatter_acme;
-mod formatter_ca65;
-mod formatter_kickasm;
+pub mod formatter_64tass;
+pub mod formatter_acme;
+pub mod formatter_ca65;
+pub mod formatter_kickasm;
 
 use formatter::Formatter;
 use formatter_64tass::TassFormatter;
 use formatter_acme::AcmeFormatter;
 use formatter_ca65::Ca65Formatter;
 use formatter_kickasm::KickAsmFormatter;
-
-#[cfg(test)]
-mod brk_tests;
-#[cfg(test)]
-mod collapsed_tests;
-#[cfg(test)]
-mod formatter_ca65_tests;
-#[cfg(test)]
-mod formatter_kickasm_tests;
-#[cfg(test)]
-mod illegal_opcodes_tests;
-#[cfg(test)]
-mod label_placement_tests;
-#[cfg(test)]
-mod line_comment_tests;
-#[cfg(test)]
-mod system_comments_tests;
-#[cfg(test)]
-mod tests;
-#[cfg(test)]
-mod user_comments_tests;
 
 #[derive(Debug, Clone)]
 pub struct DisassemblyLine {
@@ -750,7 +729,7 @@ impl Disassembler {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn handle_code(
+    pub fn handle_code(
         &self,
         pc: usize,
         data: &[u8],
@@ -1009,7 +988,7 @@ impl Disassembler {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn handle_data_byte(
+    pub fn handle_data_byte(
         &self,
         pc: usize,
         data: &[u8],

@@ -1,5 +1,5 @@
-use crate::disassembler::Disassembler;
-use crate::state::{Assembler, DocumentSettings};
+use regenerator2000::disassembler::Disassembler;
+use regenerator2000::state::{Assembler, DocumentSettings};
 use std::collections::BTreeMap;
 
 #[test]
@@ -11,10 +11,10 @@ fn test_format_instructions() {
     let formatter = Disassembler::create_formatter(settings.assembler);
     let labels = BTreeMap::new();
     let immediate_value_formats = BTreeMap::new();
-    let opcodes = crate::cpu::get_opcodes();
+    let opcodes = regenerator2000::cpu::get_opcodes();
 
     // LDA #$00
-    let ctx = crate::disassembler::formatter::FormatContext {
+    let ctx = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xA9].as_ref().unwrap(),
         operands: &[0x00],
         address: 0x1000,
@@ -29,7 +29,7 @@ fn test_format_instructions() {
     );
 
     // STA $D020
-    let ctx = crate::disassembler::formatter::FormatContext {
+    let ctx = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0x8D].as_ref().unwrap(),
         operands: &[0x20, 0xD0],
         address: 0x1002,
@@ -74,12 +74,12 @@ fn test_forced_absolute() {
     let formatter = Disassembler::create_formatter(settings.assembler);
     let labels = BTreeMap::new();
     let immediate_value_formats = BTreeMap::new();
-    let opcodes = crate::cpu::get_opcodes();
+    let opcodes = regenerator2000::cpu::get_opcodes();
 
     // LDA $0002 (Absolute) -> AD 02 00
     // Should be formatted as "lda a:$0002" because value <= $FF
     settings.preserve_long_bytes = true;
-    let ctx = crate::disassembler::formatter::FormatContext {
+    let ctx = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
         address: 0x1000,
@@ -96,7 +96,7 @@ fn test_forced_absolute() {
     // False functionality: should NOT output a: prefix
     let mut settings_false = settings;
     settings_false.preserve_long_bytes = false;
-    let ctx_false = crate::disassembler::formatter::FormatContext {
+    let ctx_false = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
         address: 0x1000,
@@ -112,7 +112,7 @@ fn test_forced_absolute() {
 
     // LDA $02 (ZeroPage) -> A5 02
     // Should be formatted as "lda $02"
-    let ctx_zp = crate::disassembler::formatter::FormatContext {
+    let ctx_zp = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xA5].as_ref().unwrap(),
         operands: &[0x02],
         address: 0x1000,
@@ -129,7 +129,7 @@ fn test_forced_absolute() {
 
 #[test]
 fn test_format_screencode() {
-    use crate::disassembler::formatter::TextFragment;
+    use regenerator2000::disassembler::formatter::TextFragment;
     let settings = DocumentSettings {
         assembler: Assembler::Ca65,
         ..Default::default()
@@ -174,7 +174,7 @@ fn test_format_screencode() {
 
 #[test]
 fn test_format_text_escaping() {
-    use crate::disassembler::formatter::TextFragment;
+    use regenerator2000::disassembler::formatter::TextFragment;
     let settings = DocumentSettings {
         assembler: Assembler::Ca65,
         ..Default::default()

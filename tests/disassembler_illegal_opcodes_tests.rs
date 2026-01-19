@@ -1,5 +1,5 @@
-use crate::disassembler::Disassembler;
-use crate::state::{BlockType, DocumentSettings};
+use regenerator2000::disassembler::Disassembler;
+use regenerator2000::state::{BlockType, DocumentSettings};
 use std::collections::BTreeMap;
 
 #[test]

@@ -1,5 +1,6 @@
-use super::*;
-use crate::state::{Assembler, DocumentSettings};
+use regenerator2000::disassembler::formatter_acme::AcmeFormatter;
+use regenerator2000::disassembler::{Disassembler, DisassemblyLine};
+use regenerator2000::state::{Assembler, BlockType, DocumentSettings, Label};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[test]
@@ -239,7 +240,7 @@ fn test_acme_directives() {
 
 #[test]
 fn test_contextual_label_formatting() {
-    use crate::state::{LabelKind, LabelType};
+    use regenerator2000::state::{LabelKind, LabelType};
 
     let settings = DocumentSettings {
         assembler: Assembler::Tass64,
@@ -373,10 +374,10 @@ fn test_acme_lowercase_output() {
     // Add a label with MixedCase name
     labels.insert(
         0x1005,
-        vec![crate::state::Label {
+        vec![regenerator2000::state::Label {
             name: "MixedCaseLabel".to_string(),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::AbsoluteAddress,
+            kind: regenerator2000::state::LabelKind::User,
+            label_type: regenerator2000::state::LabelType::AbsoluteAddress,
         }],
     );
 
@@ -473,10 +474,10 @@ fn test_xref_formatting_with_dollar() {
     // Create a label with references
     labels.insert(
         0x1000,
-        vec![crate::state::Label {
+        vec![regenerator2000::state::Label {
             name: "TestLabel".to_string(),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::AbsoluteAddress,
+            kind: regenerator2000::state::LabelKind::User,
+            label_type: regenerator2000::state::LabelType::AbsoluteAddress,
         }],
     );
 
@@ -522,10 +523,10 @@ fn test_xref_count_configurable() {
     // Create a label with many references
     labels.insert(
         0x1000,
-        vec![crate::state::Label {
+        vec![regenerator2000::state::Label {
             name: "ManyRefs".to_string(),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::AbsoluteAddress,
+            kind: regenerator2000::state::LabelKind::User,
+            label_type: regenerator2000::state::LabelType::AbsoluteAddress,
         }],
     );
 
@@ -1242,7 +1243,7 @@ fn test_tass_block_separation() {
 
 #[test]
 fn test_tass_label_interruption() {
-    use crate::state::{Label, LabelKind, LabelType};
+    use regenerator2000::state::{Label, LabelKind, LabelType};
 
     let settings = DocumentSettings {
         assembler: Assembler::Tass64,
@@ -1458,7 +1459,7 @@ fn test_screencode_limit_0x5f() {
 
     // Expected: .text "~", $5f, $60
     // Tass wraps in .encode ... .endencode
-    let text_lines: Vec<&crate::disassembler::DisassemblyLine> =
+    let text_lines: Vec<&regenerator2000::disassembler::DisassemblyLine> =
         lines.iter().filter(|l| l.mnemonic == ".text").collect();
 
     assert_eq!(text_lines.len(), 1);
@@ -1794,10 +1795,10 @@ fn test_lohi_block() {
     // Case 2: With Label at $C000
     labels.insert(
         0xC000,
-        vec![crate::state::Label {
+        vec![regenerator2000::state::Label {
             name: "MyLabel".to_string(),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::AbsoluteAddress,
+            kind: regenerator2000::state::LabelKind::User,
+            label_type: regenerator2000::state::LabelType::AbsoluteAddress,
         }],
     );
 
@@ -1843,10 +1844,10 @@ fn test_lohi_internal_label_regression() {
 
     labels.insert(
         0x1002, // Midpoint
-        vec![crate::state::Label {
+        vec![regenerator2000::state::Label {
             name: "HiPart".to_string(),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::AbsoluteAddress,
+            kind: regenerator2000::state::LabelKind::User,
+            label_type: regenerator2000::state::LabelType::AbsoluteAddress,
         }],
     );
 
@@ -1926,10 +1927,10 @@ fn test_hilo_block() {
     // Case 2: With Label at $C000
     labels.insert(
         0xC000,
-        vec![crate::state::Label {
+        vec![regenerator2000::state::Label {
             name: "MyLabel".to_string(),
-            kind: crate::state::LabelKind::User,
-            label_type: crate::state::LabelType::AbsoluteAddress,
+            kind: regenerator2000::state::LabelKind::User,
+            label_type: regenerator2000::state::LabelType::AbsoluteAddress,
         }],
     );
 
@@ -1974,8 +1975,14 @@ fn test_inverted_binary_format() {
     let block_types = vec![BlockType::Code; 4];
 
     let mut immediate_value_formats = BTreeMap::new();
-    immediate_value_formats.insert(0x1000, crate::state::ImmediateFormat::InvertedBinary);
-    immediate_value_formats.insert(0x1002, crate::state::ImmediateFormat::InvertedBinary);
+    immediate_value_formats.insert(
+        0x1000,
+        regenerator2000::state::ImmediateFormat::InvertedBinary,
+    );
+    immediate_value_formats.insert(
+        0x1002,
+        regenerator2000::state::ImmediateFormat::InvertedBinary,
+    );
 
     let lines = disassembler.disassemble(
         &code,
@@ -2174,7 +2181,7 @@ fn test_bytes_per_line() {
     let data = [0x11, 0x22, 0x33, 0x44, 0x55];
     let block_types = vec![BlockType::DataByte; 5];
     let disassembler = Disassembler::new();
-    let formatter = Box::new(crate::disassembler::formatter_64tass::TassFormatter);
+    let formatter = Box::new(regenerator2000::disassembler::formatter_64tass::TassFormatter);
 
     let (consumed, lines) = disassembler.handle_data_byte(
         0,
