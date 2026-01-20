@@ -831,27 +831,18 @@ impl Widget for DisassemblyView {
 
                 let line = &app_state.disassembly[ui_state.cursor_index];
                 let counts = Self::get_visual_line_counts(line, app_state);
+                let instruction_sub_idx = counts.labels + counts.comments;
 
-                if ui_state.sub_cursor_index < counts.labels.saturating_sub(1) {
-                    ui_state.sub_cursor_index += 1;
-                } else if ui_state.sub_cursor_index < counts.labels {
-                    // Skip comments, jump to instruction
-                    ui_state.sub_cursor_index = counts.labels + counts.comments;
-                } else if ui_state.sub_cursor_index >= counts.labels + counts.comments
-                    && ui_state.cursor_index < app_state.disassembly.len().saturating_sub(1)
-                {
+                if ui_state.sub_cursor_index < instruction_sub_idx {
+                    // If we are currently on a label or comment (e.g. mouse click), jump to the instruction
+                    ui_state.sub_cursor_index = instruction_sub_idx;
+                } else if ui_state.cursor_index < app_state.disassembly.len().saturating_sub(1) {
+                    // Move to next line
                     ui_state.cursor_index += 1;
                     let next_line = &app_state.disassembly[ui_state.cursor_index];
                     let next_counts = Self::get_visual_line_counts(next_line, app_state);
-
-                    if next_counts.labels > 0 {
-                        ui_state.sub_cursor_index = 0;
-                    } else {
-                        ui_state.sub_cursor_index = next_counts.comments;
-                    }
-                } else {
-                    // Safety fallback
-                    ui_state.sub_cursor_index = counts.labels + counts.comments;
+                    // Always land on the instruction, skipping labels and comments
+                    ui_state.sub_cursor_index = next_counts.labels + next_counts.comments;
                 }
                 WidgetResult::Handled
             }
@@ -866,25 +857,28 @@ impl Widget for DisassemblyView {
                     ui_state.selection_start = None;
                 }
 
-                let line = &app_state.disassembly[ui_state.cursor_index];
-                let counts = Self::get_visual_line_counts(line, app_state);
-
-                if ui_state.sub_cursor_index >= counts.labels + counts.comments {
-                    if counts.labels > 0 {
-                        ui_state.sub_cursor_index = counts.labels - 1;
-                    } else if ui_state.cursor_index > 0 {
-                        ui_state.cursor_index -= 1;
-                        let prev_line = &app_state.disassembly[ui_state.cursor_index];
-                        let prev_counts = Self::get_visual_line_counts(prev_line, app_state);
-                        ui_state.sub_cursor_index = prev_counts.labels + prev_counts.comments;
-                    }
-                } else if ui_state.sub_cursor_index > 0 {
-                    ui_state.sub_cursor_index -= 1;
-                } else if ui_state.sub_cursor_index == 0 && ui_state.cursor_index > 0 {
+                // Unlike Down, Up always takes us to the previous line's instruction
+                // regardless of where we are in the current line (instruction, comment, or label).
+                if ui_state.cursor_index > 0 {
                     ui_state.cursor_index -= 1;
                     let prev_line = &app_state.disassembly[ui_state.cursor_index];
                     let prev_counts = Self::get_visual_line_counts(prev_line, app_state);
                     ui_state.sub_cursor_index = prev_counts.labels + prev_counts.comments;
+                } else if ui_state.sub_cursor_index > 0 {
+                    // Optimization/Edge-case: If we are at index 0 but sub-index > 0 (comment/label at file start),
+                    // jump to instruction at index 0?
+                    // No, we technically want to go "Up" from them.
+                    // But if we are at line 0, we can't go to line -1.
+                    // So we stay at line 0.
+                    // Maybe jump to FIRST label?
+                    // If we are at Instruction 0, Up should does nothing or go to Labels?
+                    // The request implies skipping LABELS.
+                    // So "Up" from Instruction 0 should probably do nothing if there is no prev instruction.
+
+                    // However, if we are at Comment 0, Up should probably do nothing?
+                    // Or should it go to Label 0?
+                    // "Line 11 should be skipped". This implies we don't want to visit it.
+                    // So we just ignore.
                 }
                 WidgetResult::Handled
             }
