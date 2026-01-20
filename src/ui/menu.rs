@@ -538,6 +538,7 @@ pub fn render_menu_popup(
     let height = category.items.len() as u16 + 2;
 
     let area = Rect::new(top_area.x + x_offset, top_area.y + 1, width, height);
+    let area = area.intersection(f.area());
 
     f.render_widget(Clear, area);
 
@@ -1408,4 +1409,42 @@ fn update_hexdump_status(ui_state: &mut UIState, mode: crate::state::HexdumpView
         crate::state::HexdumpViewMode::ScreencodeUnshifted => "Unshifted (Screencode)",
     };
     ui_state.set_status_message(format!("Hex Dump: {}", status));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ratatui::Terminal;
+    use ratatui::backend::TestBackend;
+
+    #[test]
+    fn test_render_menu_popup_bounds_panic() {
+        // Create a very small terminal (20x5)
+        // The default "File" menu is longer than 5 lines
+        let backend = TestBackend::new(20, 5);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        let mut menu_state = MenuState::new();
+        menu_state.selected_category = 0; // File menu
+        menu_state.active = true;
+
+        let theme = crate::theme::Theme::default();
+
+        // This should NOT panic with the fix
+        let res = terminal.draw(|f| {
+            let area = f.area();
+            let chunks = ratatui::layout::Layout::default()
+                .direction(ratatui::layout::Direction::Vertical)
+                .constraints([
+                    ratatui::layout::Constraint::Length(1),
+                    ratatui::layout::Constraint::Min(0),
+                ])
+                .split(area);
+
+            let top_area = chunks[0];
+            render_menu_popup(f, top_area, &menu_state, &theme);
+        });
+
+        assert!(res.is_ok());
+    }
 }
