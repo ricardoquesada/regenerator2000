@@ -29,6 +29,10 @@ pub struct DisassemblyView;
 
 impl DisassemblyView {
     fn move_cursor_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        if app_state.disassembly.is_empty() {
+            return;
+        }
+
         for _ in 0..amount {
             let line = &app_state.disassembly[ui_state.cursor_index];
             let counts = Self::get_visual_line_counts(line, app_state);
@@ -49,6 +53,10 @@ impl DisassemblyView {
     }
 
     fn move_cursor_up(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        if app_state.disassembly.is_empty() {
+            return;
+        }
+
         for _ in 0..amount {
             // Unlike Down, Up always takes us to the previous line's instruction
             // regardless of where we are in the current line (instruction, comment, or label).
