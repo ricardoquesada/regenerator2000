@@ -153,44 +153,8 @@ impl Widget for HexDumpView {
                     }
                 }
 
-                let is_selected = if let Some(selection_start) = ui_state.selection_start {
-                    let (start, end) = if selection_start < ui_state.cursor_index {
-                        (selection_start, ui_state.cursor_index)
-                    } else {
-                        (ui_state.cursor_index, selection_start)
-                    };
-                    // Note: selection logic here seemingly refers to `ui_state.cursor_index`?
-                    // But HexDump uses `hex_cursor_index`.
-                    // The original code used `ui_state.cursor_index` in loop?
-                    // Wait, let's check original code.
-                    // "let (start, end) = if selection_start < ui_state.cursor_index ..."
-                    // This seems to link HexDump selection to Disassembly cursor? That sounds wrong or I misread.
-                    // In `view_hexdump.rs` line 108: `ui_state.cursor_index`.
-                    // BUT render uses `ui_state.hex_cursor_index` for current row style.
-                    // Using `selection_start < ui_state.cursor_index` looks like a bug copy-pasted from disassembly,
-                    // OR hex view selection interacts with disassembly cursor?
-                    // Given I am refactoring input, I should probably leave render logic alone unless it's clearly broken.
-                    // However, `selection_start` is usually for disassembly.
-                    // Hexdump doesn't seem to have its own selection start in UIState?
-                    // Check UIState later.
-
-                    // Actually, let's keep it as is to minimize regression risk, but this looks suspicious.
-                    // Original code: `selection_start < ui_state.cursor_index`
-                    // But `row_index` is checked against `start` and `end`.
-                    // If `ui_state.cursor_index` (disasm) is used to define range for HexDump, that implies they are synced?
-                    // `ui_state.hex_cursor_index` is used for styling the current row.
-
-                    row_index >= start && row_index <= end
-                } else {
-                    false
-                };
-
                 let style = if row_index == ui_state.hex_cursor_index {
                     Style::default().bg(ui_state.theme.selection_bg)
-                } else if is_selected {
-                    Style::default()
-                        .bg(ui_state.theme.selection_bg)
-                        .fg(ui_state.theme.selection_fg)
                 } else {
                     Style::default()
                 };
