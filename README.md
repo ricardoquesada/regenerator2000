@@ -18,7 +18,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 - **Hex Dump**:
     - Side-by-side view with disassembly.
     - Synchronized or independent navigation.
-    - Unshifted or Shifted PETSCII charset.
+    - Unshifted or Shifted PETSCII and Screencode charset.
 - **Sprites**:
     - Side-by-side view with disassembly.
     - Multicolor or Single Color
