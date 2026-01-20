@@ -129,6 +129,14 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 cargo run
 ```
 
-## User Guide
+## Support and Documentation
 
 - [User Guide](docs/user_guide.md)
+- [Architecture](architecture.md)
+- [Support in Discord][discord]
+
+[discord]: https://discord.gg/r5aMn6Cw5q
+
+## License
+
+Dual license: MIT and Apache 2
