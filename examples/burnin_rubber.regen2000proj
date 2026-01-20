@@ -6,7 +6,7 @@
       "start": 0,
       "end": 33,
       "type_": "DataByte",
-      "collapsed": false
+      "collapsed": true
     },
     {
       "start": 34,
@@ -544,7 +544,8 @@
     "6164": "$A000-$BFFF is BASIC ROM again"
   },
   "user_line_comments": {
-    "2083": "Boot strap",
+    "2049": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSYS 2083",
+    "2083": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nboot strap",
     "8192": "Charset",
     "12288": "sprites",
     "22272": "IRQ handler"
@@ -555,7 +556,7 @@
     "brk_single_byte": false,
     "patch_brk": true,
     "platform": "Commodore64",
-    "assembler": "Ca65",
+    "assembler": "Kick",
     "max_xref_count": 5,
     "max_arrow_columns": 6,
     "use_illegal_opcodes": false,
@@ -577,8 +578,8 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 5756,
-  "hex_dump_cursor_address": 5632,
+  "cursor_address": 2085,
+  "hex_dump_cursor_address": 2064,
   "sprites_cursor_address": 12352,
   "charset_cursor_address": 8192,
   "right_pane_visible": "HexDump",

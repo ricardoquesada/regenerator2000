@@ -98,6 +98,7 @@ impl Widget for CommentDialog {
 
         // Also set cursor style if needed, but default is usually inverse of style
         textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
+        textarea.set_cursor_line_style(Style::default());
 
         f.render_widget(&textarea, area);
     }
