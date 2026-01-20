@@ -11,7 +11,64 @@ use ratatui::{
 
 use crate::ui::widget::{Widget, WidgetResult};
 
+use crate::ui::navigable::{Navigable, handle_nav_input};
+
 pub struct BlocksView;
+
+impl Navigable for BlocksView {
+    fn len(&self, app_state: &AppState) -> usize {
+        app_state.get_blocks_view_items().len()
+    }
+
+    fn current_index(&self, _app_state: &AppState, ui_state: &UIState) -> usize {
+        ui_state.blocks_list_state.selected().unwrap_or(0)
+    }
+
+    fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        let len = self.len(app_state);
+        if len == 0 {
+            return;
+        }
+        let current = self.current_index(app_state, ui_state);
+        let next = (current + amount).min(len.saturating_sub(1));
+        ui_state.blocks_list_state.select(Some(next));
+    }
+
+    fn move_up(&self, _app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        let current = self.current_index(_app_state, ui_state);
+        let next = current.saturating_sub(amount);
+        ui_state.blocks_list_state.select(Some(next));
+    }
+
+    fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
+        self.move_down(app_state, ui_state, 10);
+    }
+
+    fn page_up(&self, app_state: &AppState, ui_state: &mut UIState) {
+        self.move_up(app_state, ui_state, 10);
+    }
+
+    fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
+        let len = self.len(app_state);
+        ui_state
+            .blocks_list_state
+            .select(Some(index.min(len.saturating_sub(1))));
+    }
+
+    fn jump_to_user_input(&self, app_state: &AppState, ui_state: &mut UIState, input: usize) {
+        let len = self.len(app_state);
+        let target = if input == 0 {
+            len.saturating_sub(1)
+        } else {
+            input.saturating_sub(1).min(len.saturating_sub(1))
+        };
+        ui_state.blocks_list_state.select(Some(target));
+    }
+
+    fn item_name(&self) -> &str {
+        "block"
+    }
+}
 
 impl Widget for BlocksView {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
@@ -99,98 +156,13 @@ impl Widget for BlocksView {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
+        if let WidgetResult::Handled = handle_nav_input(self, key, app_state, ui_state) {
+            return WidgetResult::Handled;
+        }
+
         let blocks = app_state.get_blocks_view_items();
 
         match key.code {
-            KeyCode::Down | KeyCode::Char('j')
-                if key.modifiers.is_empty() || key.code == KeyCode::Down =>
-            {
-                ui_state.input_buffer.clear();
-                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
-                let next = (current + 1).min(blocks.len().saturating_sub(1));
-                ui_state.blocks_list_state.select(Some(next));
-                WidgetResult::Handled
-            }
-            KeyCode::Up | KeyCode::Char('k')
-                if key.modifiers.is_empty() || key.code == KeyCode::Up =>
-            {
-                ui_state.input_buffer.clear();
-                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
-                let next = current.saturating_sub(1);
-                ui_state.blocks_list_state.select(Some(next));
-                WidgetResult::Handled
-            }
-            KeyCode::PageDown => {
-                ui_state.input_buffer.clear();
-                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
-                let next = (current + 10).min(blocks.len().saturating_sub(1));
-                ui_state.blocks_list_state.select(Some(next));
-                WidgetResult::Handled
-            }
-            KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
-                ui_state.input_buffer.clear();
-                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
-                let next = (current + 10).min(blocks.len().saturating_sub(1));
-                ui_state.blocks_list_state.select(Some(next));
-                WidgetResult::Handled
-            }
-            KeyCode::PageUp => {
-                ui_state.input_buffer.clear();
-                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
-                let next = current.saturating_sub(10);
-                ui_state.blocks_list_state.select(Some(next));
-                WidgetResult::Handled
-            }
-            KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
-                ui_state.input_buffer.clear();
-                let current = ui_state.blocks_list_state.selected().unwrap_or(0);
-                let next = current.saturating_sub(10);
-                ui_state.blocks_list_state.select(Some(next));
-                WidgetResult::Handled
-            }
-            KeyCode::Home => {
-                ui_state.input_buffer.clear();
-                ui_state.blocks_list_state.select(Some(0));
-                WidgetResult::Handled
-            }
-            KeyCode::End => {
-                ui_state.input_buffer.clear();
-                ui_state
-                    .blocks_list_state
-                    .select(Some(blocks.len().saturating_sub(1)));
-                WidgetResult::Handled
-            }
-            KeyCode::Char(c)
-                if c.is_ascii_digit()
-                    && !key.modifiers.intersects(
-                        KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER,
-                    ) =>
-            {
-                if ui_state.input_buffer.len() < 10 {
-                    ui_state.input_buffer.push(c);
-                    ui_state.set_status_message(format!(":{}", ui_state.input_buffer));
-                }
-                WidgetResult::Handled
-            }
-            KeyCode::Char('G') if key.modifiers == KeyModifiers::SHIFT => {
-                let entered_number = ui_state.input_buffer.parse::<usize>().unwrap_or(0);
-                let is_buffer_empty = ui_state.input_buffer.is_empty();
-                ui_state.input_buffer.clear();
-
-                let target = if is_buffer_empty {
-                    blocks.len()
-                } else {
-                    entered_number
-                };
-                let new_selection = if target == 0 {
-                    blocks.len().saturating_sub(1)
-                } else {
-                    target.saturating_sub(1).min(blocks.len().saturating_sub(1))
-                };
-                ui_state.blocks_list_state.select(Some(new_selection));
-                ui_state.set_status_message(format!("Jumped to block {}", target));
-                WidgetResult::Handled
-            }
             // Enter to jump to address of block
             KeyCode::Enter if key.modifiers.is_empty() => {
                 let idx = ui_state.blocks_list_state.selected().unwrap_or(0);

@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui_state::{ActivePane, MenuAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -11,7 +11,70 @@ use ratatui::{
 
 use crate::ui::widget::{Widget, WidgetResult};
 
+use crate::ui::navigable::{Navigable, handle_nav_input};
+
 pub struct CharsetView;
+
+impl Navigable for CharsetView {
+    fn len(&self, app_state: &AppState) -> usize {
+        let origin = app_state.origin as usize;
+        let base_alignment = 0x400;
+        let aligned_start_addr = (origin / base_alignment) * base_alignment;
+        let end_addr = origin + app_state.raw_data.len();
+        (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8)
+    }
+
+    fn current_index(&self, _app_state: &AppState, ui_state: &UIState) -> usize {
+        ui_state.charset_cursor_index
+    }
+
+    fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        let max_char_index = self.len(app_state);
+        // Move Down by 8 (one visual row)
+        // Note: amount is usually 1 for 'j' or keys mapped to move_down(1).
+        if ui_state.charset_cursor_index + (amount * 8) < max_char_index {
+            ui_state.charset_cursor_index += amount * 8;
+        } else {
+            ui_state.charset_cursor_index = max_char_index.saturating_sub(1);
+        }
+    }
+
+    fn move_up(&self, _app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        // Move Up by 8 (one visual row)
+        ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(amount * 8);
+    }
+
+    fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
+        let max_char_index = self.len(app_state);
+        ui_state.charset_cursor_index =
+            (ui_state.charset_cursor_index + 10).min(max_char_index.saturating_sub(1));
+    }
+
+    fn page_up(&self, _app_state: &AppState, ui_state: &mut UIState) {
+        ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(10);
+    }
+
+    fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
+        let max_char_index = self.len(app_state);
+        ui_state.charset_cursor_index = index.min(max_char_index.saturating_sub(1));
+    }
+
+    fn jump_to_user_input(&self, app_state: &AppState, ui_state: &mut UIState, input: usize) {
+        let max_char_index = self.len(app_state);
+        let target_char = if input == 0 {
+            max_char_index.saturating_sub(1)
+        } else {
+            input
+                .saturating_sub(1)
+                .min(max_char_index.saturating_sub(1))
+        };
+        ui_state.charset_cursor_index = target_char;
+    }
+
+    fn item_name(&self) -> &str {
+        "char"
+    }
+}
 
 impl Widget for CharsetView {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
@@ -248,45 +311,18 @@ impl Widget for CharsetView {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        let origin = app_state.origin as usize;
-        let base_alignment = 0x400;
-        let aligned_start_addr = (origin / base_alignment) * base_alignment;
-        let end_addr = origin + app_state.raw_data.len();
-        let max_char_index = (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+        if let WidgetResult::Handled = handle_nav_input(self, key, app_state, ui_state) {
+            return WidgetResult::Handled;
+        }
+
+        // Recalculate max_char_index for local logic (h/l)
+        // Or could we extract it?
+        // Let's rely on self.len() helper but it needs AppState.
+        // It's cleaner to just recalc here or use the helper if I made it public/extractable,
+        // but Navigable::len takes &self.
+        // So I can call self.len(app_state).
 
         match key.code {
-            KeyCode::Char(c)
-                if c.is_ascii_digit()
-                    && !key.modifiers.intersects(
-                        KeyModifiers::CONTROL | KeyModifiers::ALT | KeyModifiers::SUPER,
-                    ) =>
-            {
-                if ui_state.input_buffer.len() < 10 {
-                    ui_state.input_buffer.push(c);
-                    ui_state.set_status_message(format!(":{}", ui_state.input_buffer));
-                }
-                WidgetResult::Handled
-            }
-            KeyCode::Down | KeyCode::Char('j')
-                if key.modifiers.is_empty() || key.code == KeyCode::Down =>
-            {
-                ui_state.input_buffer.clear();
-                // Move Down by 8 (one row)
-                if ui_state.charset_cursor_index + 8 < max_char_index {
-                    ui_state.charset_cursor_index += 8;
-                } else {
-                    ui_state.charset_cursor_index = max_char_index.saturating_sub(1);
-                }
-                WidgetResult::Handled
-            }
-            KeyCode::Up | KeyCode::Char('k')
-                if key.modifiers.is_empty() || key.code == KeyCode::Up =>
-            {
-                ui_state.input_buffer.clear();
-                // Move Up by 8 (one row)
-                ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(8);
-                WidgetResult::Handled
-            }
             KeyCode::Left | KeyCode::Char('h')
                 if key.modifiers.is_empty() || key.code == KeyCode::Left =>
             {
@@ -300,67 +336,10 @@ impl Widget for CharsetView {
                 if key.modifiers.is_empty() || key.code == KeyCode::Right =>
             {
                 ui_state.input_buffer.clear();
+                let max_char_index = self.len(app_state);
                 if ui_state.charset_cursor_index < max_char_index.saturating_sub(1) {
                     ui_state.charset_cursor_index += 1;
                 }
-                WidgetResult::Handled
-            }
-            KeyCode::PageDown => {
-                ui_state.input_buffer.clear();
-                ui_state.charset_cursor_index =
-                    (ui_state.charset_cursor_index + 10).min(max_char_index.saturating_sub(1));
-                WidgetResult::Handled
-            }
-            KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
-                ui_state.input_buffer.clear();
-                ui_state.charset_cursor_index =
-                    (ui_state.charset_cursor_index + 10).min(max_char_index.saturating_sub(1));
-                WidgetResult::Handled
-            }
-            KeyCode::PageUp => {
-                ui_state.input_buffer.clear();
-                ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(10);
-                WidgetResult::Handled
-            }
-            KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
-                ui_state.input_buffer.clear();
-                ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(10);
-                WidgetResult::Handled
-            }
-            KeyCode::Home => {
-                ui_state.input_buffer.clear();
-                ui_state.charset_cursor_index = 0;
-                WidgetResult::Handled
-            }
-            KeyCode::End => {
-                ui_state.input_buffer.clear();
-                ui_state.charset_cursor_index = max_char_index.saturating_sub(1);
-                WidgetResult::Handled
-            }
-            KeyCode::Char('G') if key.modifiers == KeyModifiers::SHIFT => {
-                let entered_number = ui_state.input_buffer.parse::<usize>().unwrap_or(0);
-                let is_buffer_empty = ui_state.input_buffer.is_empty();
-                ui_state.input_buffer.clear();
-
-                let target_char = if is_buffer_empty {
-                    max_char_index
-                } else {
-                    entered_number
-                };
-
-                let new_cursor = if target_char == 0 {
-                    max_char_index.saturating_sub(1)
-                } else {
-                    target_char
-                        .saturating_sub(1)
-                        .min(max_char_index.saturating_sub(1))
-                };
-
-                ui_state
-                    .navigation_history
-                    .push((ui_state.active_pane, ui_state.charset_cursor_index));
-                ui_state.charset_cursor_index = new_cursor;
-                ui_state.set_status_message(format!("Jumped to char {}", target_char));
                 WidgetResult::Handled
             }
             KeyCode::Char('m') if key.modifiers.is_empty() => {

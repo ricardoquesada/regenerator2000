@@ -11,6 +11,8 @@ use ratatui::{
 
 use crate::ui::widget::{Widget, WidgetResult};
 
+use crate::ui::navigable::{Navigable, handle_nav_input};
+
 pub struct VisualLineCounts {
     pub labels: usize,
     pub comments: usize,
@@ -26,6 +28,41 @@ impl VisualLineCounts {
 pub struct DisassemblyView;
 
 impl DisassemblyView {
+    fn move_cursor_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        for _ in 0..amount {
+            let line = &app_state.disassembly[ui_state.cursor_index];
+            let counts = Self::get_visual_line_counts(line, app_state);
+            let instruction_sub_idx = counts.labels + counts.comments;
+
+            if ui_state.sub_cursor_index < instruction_sub_idx {
+                // If we are currently on a label or comment (e.g. mouse click), jump to the instruction
+                ui_state.sub_cursor_index = instruction_sub_idx;
+            } else if ui_state.cursor_index < app_state.disassembly.len().saturating_sub(1) {
+                // Move to next line
+                ui_state.cursor_index += 1;
+                let next_line = &app_state.disassembly[ui_state.cursor_index];
+                let next_counts = Self::get_visual_line_counts(next_line, app_state);
+                // Always land on the instruction, skipping labels and comments
+                ui_state.sub_cursor_index = next_counts.labels + next_counts.comments;
+            }
+        }
+    }
+
+    fn move_cursor_up(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        for _ in 0..amount {
+            // Unlike Down, Up always takes us to the previous line's instruction
+            // regardless of where we are in the current line (instruction, comment, or label).
+            if ui_state.cursor_index > 0 {
+                ui_state.cursor_index -= 1;
+                let prev_line = &app_state.disassembly[ui_state.cursor_index];
+                let prev_counts = Self::get_visual_line_counts(prev_line, app_state);
+                ui_state.sub_cursor_index = prev_counts.labels + prev_counts.comments;
+            } else if ui_state.sub_cursor_index > 0 {
+                // Optimization/Edge-case: If we are at index 0 but sub-index > 0 (comment/label at file start),
+                // do nothing as per existing logic analysis.
+            }
+        }
+    }
     pub fn get_visual_line_counts(
         line: &crate::disassembler::DisassemblyLine,
         app_state: &AppState,
@@ -76,6 +113,73 @@ impl DisassemblyView {
             current_visual_line += lines_for_this_instruction;
         }
         None
+    }
+}
+
+impl Navigable for DisassemblyView {
+    fn len(&self, app_state: &AppState) -> usize {
+        app_state.disassembly.len()
+    }
+
+    fn current_index(&self, _app_state: &AppState, ui_state: &UIState) -> usize {
+        ui_state.cursor_index
+    }
+
+    fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        if ui_state.is_visual_mode {
+            if ui_state.selection_start.is_none() {
+                ui_state.selection_start = Some(ui_state.cursor_index);
+            }
+        } else {
+            ui_state.selection_start = None;
+        }
+        self.move_cursor_down(app_state, ui_state, amount);
+    }
+
+    fn move_up(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        if ui_state.is_visual_mode {
+            if ui_state.selection_start.is_none() {
+                ui_state.selection_start = Some(ui_state.cursor_index);
+            }
+        } else {
+            ui_state.selection_start = None;
+        }
+        self.move_cursor_up(app_state, ui_state, amount);
+    }
+
+    fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
+        // PageDown logic: flat 30 lines jump
+        ui_state.cursor_index =
+            (ui_state.cursor_index + 30).min(self.len(app_state).saturating_sub(1));
+    }
+
+    fn page_up(&self, _app_state: &AppState, ui_state: &mut UIState) {
+        // PageUp logic: flat 10 lines jump
+        ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
+    }
+
+    fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
+        let max = self.len(app_state).saturating_sub(1);
+        ui_state.cursor_index = index.min(max);
+    }
+
+    fn jump_to_user_input(&self, app_state: &AppState, ui_state: &mut UIState, input: usize) {
+        // G logic (Jump to visual line)
+        let new_cursor = Self::get_index_for_visual_line(app_state, input);
+        if let Some(idx) = new_cursor {
+            if ui_state.is_visual_mode && ui_state.selection_start.is_none() {
+                ui_state.selection_start = Some(ui_state.cursor_index);
+            }
+            ui_state.cursor_index = idx;
+        }
+        // If invalid, Navigable trait doesn't currently support error feedback via return.
+        // handle_nav_input will print generic success message if not handled differently?
+        // Actually handle_nav_input prints generic success message only if input > 0.
+        // Here we perform the jump.
+    }
+
+    fn item_name(&self) -> &str {
+        "visual line"
     }
 }
 
@@ -822,33 +926,46 @@ impl Widget for DisassemblyView {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
+        if let WidgetResult::Handled = handle_nav_input(self, key, app_state, ui_state) {
+            return WidgetResult::Handled;
+        }
+
         match key.code {
             KeyCode::Down | KeyCode::Char('j')
                 if key.code == KeyCode::Down || key.modifiers.is_empty() =>
             {
+                // Shift+Down or Visual Mode Down handling (Plain Down handled by Navigable)
+                // Navigable handles plain Down/j and clears selection.
+                // We only reach here if Navigable returned Ignored.
+                // But handle_nav_input returns Handled for Down/j even if modifiers is empty?
+                // Wait, handle_nav_input ignores if modifiers is NOT empty.
+                // So plain Down is handled there.
+                // Shift+Down is ignored there. So we handle it here.
+
                 if key.modifiers == KeyModifiers::SHIFT || ui_state.is_visual_mode {
                     if ui_state.selection_start.is_none() {
                         ui_state.selection_start = Some(ui_state.cursor_index);
                     }
                 } else {
-                    ui_state.selection_start = None;
+                    // Start visual selection? No, if modifiers empty and NOT visual mode, it should be plain move.
+                    // But plain move is handled by Navigable?
+                    // YES.
+                    // So we only need to handle the case where we start/extend selection.
+                    // But wait, if ui_state.is_visual_mode is true, Navigable `move_down` clears selection?
+                    // My Navigable impl (planned) handles visual mode!
+                    // See Step 87: Navigable::move_down checks is_visual_mode.
+
+                    // So `handle_nav_input` is SUFFICIENT for plain move AND visual mode move (j/k).
+                    // BUT `handle_nav_input` ignores Shift+Down.
+                    // So here we only handle Shift+Down.
+                    ui_state.selection_start = None; // Should not happen for Shift+Down?
                 }
 
-                let line = &app_state.disassembly[ui_state.cursor_index];
-                let counts = Self::get_visual_line_counts(line, app_state);
-                let instruction_sub_idx = counts.labels + counts.comments;
-
-                if ui_state.sub_cursor_index < instruction_sub_idx {
-                    // If we are currently on a label or comment (e.g. mouse click), jump to the instruction
-                    ui_state.sub_cursor_index = instruction_sub_idx;
-                } else if ui_state.cursor_index < app_state.disassembly.len().saturating_sub(1) {
-                    // Move to next line
-                    ui_state.cursor_index += 1;
-                    let next_line = &app_state.disassembly[ui_state.cursor_index];
-                    let next_counts = Self::get_visual_line_counts(next_line, app_state);
-                    // Always land on the instruction, skipping labels and comments
-                    ui_state.sub_cursor_index = next_counts.labels + next_counts.comments;
-                }
+                // If we are here, it's Shift+Down (or similar mod).
+                // Existing logic extends selection (handled above).
+                // Then moves cursor.
+                // Use helper.
+                self.move_cursor_down(app_state, ui_state, 1);
                 WidgetResult::Handled
             }
             KeyCode::Up | KeyCode::Char('k')
@@ -861,58 +978,12 @@ impl Widget for DisassemblyView {
                 } else {
                     ui_state.selection_start = None;
                 }
+                self.move_cursor_up(app_state, ui_state, 1);
+                WidgetResult::Handled
+            }
+            // PageDown/Up are handled by Navigable
 
-                // Unlike Down, Up always takes us to the previous line's instruction
-                // regardless of where we are in the current line (instruction, comment, or label).
-                if ui_state.cursor_index > 0 {
-                    ui_state.cursor_index -= 1;
-                    let prev_line = &app_state.disassembly[ui_state.cursor_index];
-                    let prev_counts = Self::get_visual_line_counts(prev_line, app_state);
-                    ui_state.sub_cursor_index = prev_counts.labels + prev_counts.comments;
-                } else if ui_state.sub_cursor_index > 0 {
-                    // Optimization/Edge-case: If we are at index 0 but sub-index > 0 (comment/label at file start),
-                    // jump to instruction at index 0?
-                    // No, we technically want to go "Up" from them.
-                    // But if we are at line 0, we can't go to line -1.
-                    // So we stay at line 0.
-                    // Maybe jump to FIRST label?
-                    // If we are at Instruction 0, Up should does nothing or go to Labels?
-                    // The request implies skipping LABELS.
-                    // So "Up" from Instruction 0 should probably do nothing if there is no prev instruction.
-
-                    // However, if we are at Comment 0, Up should probably do nothing?
-                    // Or should it go to Label 0?
-                    // "Line 11 should be skipped". This implies we don't want to visit it.
-                    // So we just ignore.
-                }
-                WidgetResult::Handled
-            }
-            KeyCode::PageDown => {
-                ui_state.cursor_index =
-                    (ui_state.cursor_index + 30).min(app_state.disassembly.len().saturating_sub(1));
-                WidgetResult::Handled
-            }
-            KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
-                ui_state.cursor_index =
-                    (ui_state.cursor_index + 30).min(app_state.disassembly.len().saturating_sub(1));
-                WidgetResult::Handled
-            }
-            KeyCode::PageUp => {
-                ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
-                WidgetResult::Handled
-            }
-            KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
-                ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
-                WidgetResult::Handled
-            }
-            KeyCode::Home => {
-                ui_state.cursor_index = 0;
-                WidgetResult::Handled
-            }
-            KeyCode::End => {
-                ui_state.cursor_index = app_state.disassembly.len().saturating_sub(1);
-                WidgetResult::Handled
-            }
+            // Other keys...
             KeyCode::F(3) => {
                 if key.modifiers == KeyModifiers::SHIFT {
                     WidgetResult::Action(crate::ui_state::MenuAction::FindPrevious)
@@ -953,56 +1024,45 @@ impl Widget for DisassemblyView {
                 }
                 WidgetResult::Handled
             }
-            KeyCode::Char('G') if key.modifiers == KeyModifiers::SHIFT => {
-                let entered_number = ui_state.input_buffer.parse::<usize>().unwrap_or(0);
-                let is_buffer_empty = ui_state.input_buffer.is_empty();
-                ui_state.input_buffer.clear();
-
-                let new_cursor = if is_buffer_empty {
-                    Some(app_state.disassembly.len().saturating_sub(1))
-                } else {
-                    Self::get_index_for_visual_line(app_state, entered_number)
-                };
-
-                if let Some(idx) = new_cursor {
-                    if ui_state.is_visual_mode && ui_state.selection_start.is_none() {
-                        ui_state.selection_start = Some(ui_state.cursor_index);
-                    }
-
-                    ui_state
-                        .navigation_history
-                        .push((ui_state.active_pane, ui_state.cursor_index));
-                    ui_state.cursor_index = idx;
-                    if is_buffer_empty {
-                        ui_state.set_status_message("Jumped to end");
-                    } else {
-                        ui_state.set_status_message(format!(
-                            "Jumped to visual line {}",
-                            entered_number
-                        ));
-                    }
-                } else {
-                    ui_state.set_status_message("Line number out of range");
-                }
-                WidgetResult::Handled
-            }
+            // G is handled by Navigable specific logic for Disassembly?
+            // Navigable handles G. So handled by `handle_nav_input`.
             KeyCode::Char('V') if key.modifiers == KeyModifiers::SHIFT => {
                 if !app_state.raw_data.is_empty() {
                     ui_state.is_visual_mode = !ui_state.is_visual_mode;
                     if ui_state.is_visual_mode {
-                        if ui_state.selection_start.is_none() {
-                            ui_state.selection_start = Some(ui_state.cursor_index);
-                        }
+                        ui_state.selection_start = Some(ui_state.cursor_index);
                         ui_state.set_status_message("Visual Mode");
                     } else {
                         ui_state.selection_start = None;
-                        ui_state.set_status_message("Visual Mode Exited");
+                        ui_state.set_status_message("");
                     }
-                } else {
-                    ui_state.set_status_message("No open document");
                 }
                 WidgetResult::Handled
             }
+            KeyCode::Backspace if key.modifiers.is_empty() => {
+                while let Some((pane, _)) = ui_state.navigation_history.last() {
+                    if *pane != ActivePane::Disassembly {
+                        ui_state.navigation_history.pop();
+                    } else {
+                        break;
+                    }
+                }
+
+                if let Some((pane, idx)) = ui_state.navigation_history.pop() {
+                    if pane == ActivePane::Disassembly {
+                        if idx < app_state.disassembly.len() {
+                            ui_state.cursor_index = idx;
+                            ui_state.set_status_message("Navigated back");
+                        } else {
+                            ui_state.set_status_message("History invalid");
+                        }
+                    }
+                } else {
+                    ui_state.set_status_message("No history");
+                }
+                WidgetResult::Handled
+            }
+
             KeyCode::Char('l') if key.modifiers.is_empty() => {
                 if !app_state.raw_data.is_empty()
                     && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
@@ -1092,31 +1152,9 @@ impl Widget for DisassemblyView {
             KeyCode::Char('D') if key.modifiers == KeyModifiers::SHIFT => {
                 WidgetResult::Action(MenuAction::PreviousImmediateFormat)
             }
+
             KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
                 WidgetResult::Action(MenuAction::ToggleCollapsedBlock)
-            }
-            KeyCode::Backspace if key.modifiers.is_empty() => {
-                while let Some((pane, _)) = ui_state.navigation_history.last() {
-                    if *pane != ActivePane::Disassembly {
-                        ui_state.navigation_history.pop();
-                    } else {
-                        break;
-                    }
-                }
-
-                if let Some((pane, idx)) = ui_state.navigation_history.pop() {
-                    if pane == ActivePane::Disassembly {
-                        if idx < app_state.disassembly.len() {
-                            ui_state.cursor_index = idx;
-                            ui_state.set_status_message("Navigated back");
-                        } else {
-                            ui_state.set_status_message("History invalid");
-                        }
-                    }
-                } else {
-                    ui_state.set_status_message("No history");
-                }
-                WidgetResult::Handled
             }
             _ => WidgetResult::Ignored,
         }

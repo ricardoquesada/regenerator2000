@@ -16,6 +16,7 @@ pub mod dialog_save_as;
 pub mod dialog_search;
 pub mod dialog_settings;
 pub mod menu;
+pub mod navigable;
 pub mod statusbar;
 pub mod view_blocks;
 pub mod view_charset;
