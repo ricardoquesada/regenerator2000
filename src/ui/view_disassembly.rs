@@ -165,7 +165,13 @@ impl Navigable for DisassemblyView {
 
     fn jump_to_user_input(&self, app_state: &AppState, ui_state: &mut UIState, input: usize) {
         // G logic (Jump to visual line)
-        let new_cursor = Self::get_index_for_visual_line(app_state, input);
+        // If input is 0 (user typed "0G" or similar), treat it as jump to end
+        let new_cursor = if input == 0 {
+            Some(self.len(app_state).saturating_sub(1))
+        } else {
+            Self::get_index_for_visual_line(app_state, input)
+        };
+
         if let Some(idx) = new_cursor {
             if ui_state.is_visual_mode && ui_state.selection_start.is_none() {
                 ui_state.selection_start = Some(ui_state.cursor_index);
