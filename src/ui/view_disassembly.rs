@@ -650,7 +650,7 @@ impl Widget for DisassemblyView {
                                         ),
                                         line_style.fg(ui_state.theme.arrow),
                                     ),
-                                    Span::styled("                  ".to_string(), line_style),
+                                    Span::styled("                   ".to_string(), line_style),
                                     Span::styled(
                                         format!("{:<36}", label_def),
                                         line_style.fg(ui_state.theme.label_def),
@@ -717,7 +717,7 @@ impl Widget for DisassemblyView {
                     Style::default()
                 };
 
-                let content = Line::from(vec![
+                let mut spans = vec![
                     Span::styled(
                         format!("{:5} ", current_line_num),
                         line_style.fg(ui_state.theme.bytes),
@@ -761,38 +761,43 @@ impl Widget for DisassemblyView {
                         ),
                         line_style.fg(ui_state.theme.bytes),
                     ),
-                    Span::styled(
+                ];
+
+                if is_collapsed {
+                    spans.push(Span::styled(
+                        line.mnemonic.to_string(),
+                        line_style
+                            .fg(ui_state.theme.collapsed_block)
+                            .add_modifier(Modifier::BOLD),
+                    ));
+                } else {
+                    spans.push(Span::styled(
                         format!("{: <16}", label_text),
                         line_style
                             .fg(ui_state.theme.label_def)
                             .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(
+                    ));
+                    spans.push(Span::styled(
                         format!("{: <4} ", line.mnemonic),
-                        if is_collapsed {
-                            line_style
-                                .fg(ui_state.theme.collapsed_block)
-                                .add_modifier(Modifier::BOLD)
-                        } else {
-                            line_style
-                                .fg(ui_state.theme.mnemonic)
-                                .add_modifier(Modifier::BOLD)
-                        },
-                    ),
-                    Span::styled(
+                        line_style
+                            .fg(ui_state.theme.mnemonic)
+                            .add_modifier(Modifier::BOLD),
+                    ));
+                    spans.push(Span::styled(
                         format!("{: <15}", line.operand),
                         line_style.fg(ui_state.theme.operand),
-                    ),
-                    Span::styled(
+                    ));
+                    spans.push(Span::styled(
                         if line.comment.is_empty() {
                             String::new()
                         } else {
                             format!("{} {}", formatter.comment_prefix(), line.comment)
                         },
                         line_style.fg(ui_state.theme.comment),
-                    ),
-                ]);
-                item_lines.push(content);
+                    ));
+                }
+
+                item_lines.push(Line::from(spans));
                 current_line_num += 1;
 
                 ListItem::new(item_lines).style(item_base_style)
