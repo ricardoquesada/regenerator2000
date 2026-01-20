@@ -1,12 +1,13 @@
 use crate::state::AppState;
 use crate::ui_state::UIState;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders},
 };
+use tui_textarea::TextArea;
 
 use crate::ui::widget::{Widget, WidgetResult};
 
@@ -17,15 +18,40 @@ pub enum CommentType {
 }
 
 pub struct CommentDialog {
-    pub input: String,
+    pub textarea: TextArea<'static>,
     pub comment_type: CommentType,
 }
 
 impl CommentDialog {
     pub fn new(current_comment: Option<&str>, comment_type: CommentType) -> Self {
+        let textarea = if let Some(comment) = current_comment {
+            let t = TextArea::from(comment.lines());
+            // For existing comments, we assume user wants to edit them as is.
+            // If it was single line, lines() works.
+            // If empty string, lines() is empty, TextArea becomes empty.
+            if comment.is_empty() {
+                // Fallback to default logic if actually empty string passed (rare)
+                Self::create_default_textarea(&comment_type)
+            } else {
+                t
+            }
+        } else {
+            Self::create_default_textarea(&comment_type)
+        };
+
         Self {
-            input: current_comment.unwrap_or("").to_string(),
+            textarea,
             comment_type,
+        }
+    }
+
+    fn create_default_textarea(comment_type: &CommentType) -> TextArea<'static> {
+        match comment_type {
+            CommentType::Line => {
+                let default_text = "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-";
+                TextArea::from(vec![default_text.to_string()])
+            }
+            CommentType::Side => TextArea::default(),
         }
     }
 }
@@ -44,12 +70,12 @@ impl Widget for CommentDialog {
             .border_style(Style::default().fg(theme.dialog_border))
             .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
 
-        // Fixed height of 3 (Border + Input + Border)
+        // Fixed height of 10 for multi-line
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Fill(1),
-                Constraint::Length(3),
+                Constraint::Length(10),
                 Constraint::Fill(1),
             ])
             .split(area);
@@ -57,19 +83,23 @@ impl Widget for CommentDialog {
         let area = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(25),
-                Constraint::Percentage(50),
-                Constraint::Percentage(25),
+                Constraint::Percentage(15),
+                Constraint::Percentage(70),
+                Constraint::Percentage(15),
             ])
             .split(layout[1])[1];
         f.render_widget(ratatui::widgets::Clear, area);
 
-        let input = Paragraph::new(self.input.clone()).block(block).style(
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD),
-        );
-        f.render_widget(input, area);
+        let mut textarea = self.textarea.clone();
+        textarea.set_block(block);
+
+        let style = Style::default().fg(theme.highlight_fg);
+        textarea.set_style(style);
+
+        // Also set cursor style if needed, but default is usually inverse of style
+        textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
+
+        f.render_widget(&textarea, area);
     }
 
     fn handle_input(
@@ -84,9 +114,22 @@ impl Widget for CommentDialog {
                 WidgetResult::Close
             }
             KeyCode::Enter => {
-                if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                    if self.comment_type == CommentType::Line {
+                        self.textarea.insert_newline();
+                    }
+                    WidgetResult::Handled
+                } else if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                     let address = line.comment_address.unwrap_or(line.address);
-                    let new_comment = self.input.trim().to_string();
+
+                    let lines = self.textarea.lines();
+                    // Join with newline for Line comments, space for Side comments
+                    let full_comment = match self.comment_type {
+                        CommentType::Line => lines.join("\n"),
+                        CommentType::Side => lines.join(" "),
+                    };
+                    let new_comment = full_comment.trim().to_string();
+
                     let new_comment_opt = if new_comment.is_empty() {
                         None
                     } else {
@@ -122,15 +165,13 @@ impl Widget for CommentDialog {
                     WidgetResult::Handled
                 }
             }
-            KeyCode::Backspace => {
-                self.input.pop();
+            _ => {
+                // Determine if key is editing key or navigation
+                // tui-textarea handles input(key) and returns true if changed.
+                // We just pass it through.
+                self.textarea.input(key);
                 WidgetResult::Handled
             }
-            KeyCode::Char(c) => {
-                self.input.push(c);
-                WidgetResult::Handled
-            }
-            _ => WidgetResult::Handled,
         }
     }
 }

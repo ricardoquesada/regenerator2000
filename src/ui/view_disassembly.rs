@@ -31,8 +31,8 @@ impl DisassemblyView {
         }
 
         // 2. Line comment
-        if line.line_comment.is_some() {
-            count += 1;
+        if let Some(comment) = &line.line_comment {
+            count += comment.lines().count();
         }
 
         // 3. The instruction itself
@@ -591,7 +591,11 @@ impl Widget for DisassemblyView {
                                         .take(app_state.settings.max_xref_count)
                                         .map(|r| format!("${:04x}", r))
                                         .collect();
-                                    format!("; x-ref: {}", refs_str_list.join(", "))
+                                    format!(
+                                        "{} x-ref: {}",
+                                        formatter.comment_prefix(),
+                                        refs_str_list.join(", ")
+                                    )
                                 } else {
                                     String::new()
                                 }
@@ -651,32 +655,35 @@ impl Widget for DisassemblyView {
                 let arrow_padding = get_arrow_str(i);
 
                 if let Some(line_comment) = &line.line_comment {
-                    let is_highlighted = !is_selected
-                        && is_cursor_row
-                        && ui_state.sub_cursor_index == current_sub_index;
-                    let line_style = if is_highlighted {
-                        Style::default().bg(ui_state.theme.selection_bg)
-                    } else {
-                        Style::default()
-                    };
+                    for comment_part in line_comment.lines() {
+                        let is_highlighted = !is_selected
+                            && is_cursor_row
+                            && ui_state.sub_cursor_index == current_sub_index;
+                        let line_style = if is_highlighted {
+                            Style::default().bg(ui_state.theme.selection_bg)
+                        } else {
+                            Style::default()
+                        };
 
-                    let comment_arrow_padding = get_comment_arrow_str(i, None);
-                    item_lines.push(Line::from(vec![
-                        Span::styled(
-                            format!("{:5} ", current_line_num),
-                            line_style.fg(ui_state.theme.bytes),
-                        ),
-                        Span::styled(
-                            format!("{:width$} ", comment_arrow_padding, width = arrow_width),
-                            line_style.fg(ui_state.theme.arrow),
-                        ),
-                        Span::styled(
-                            format!("; {}", line_comment),
-                            line_style.fg(ui_state.theme.comment),
-                        ),
-                    ]));
-                    current_line_num += 1;
-                    current_sub_index += 1;
+                        let comment_arrow_padding = get_comment_arrow_str(i, None);
+                        item_lines.push(Line::from(vec![
+                            Span::styled(
+                                format!("{:5} ", current_line_num),
+                                line_style.fg(ui_state.theme.bytes),
+                            ),
+                            Span::styled(
+                                format!("{:width$} ", comment_arrow_padding, width = arrow_width),
+                                line_style.fg(ui_state.theme.arrow),
+                            ),
+                            Span::styled("                   ".to_string(), line_style),
+                            Span::styled(
+                                format!("{} {}", formatter.comment_prefix(), comment_part),
+                                line_style.fg(ui_state.theme.comment),
+                            ),
+                        ]));
+                        current_line_num += 1;
+                        current_sub_index += 1;
+                    }
                 }
 
                 let is_highlighted =
@@ -760,7 +767,7 @@ impl Widget for DisassemblyView {
                         if line.comment.is_empty() {
                             String::new()
                         } else {
-                            format!("; {}", line.comment)
+                            format!("{} {}", formatter.comment_prefix(), line.comment)
                         },
                         line_style.fg(ui_state.theme.comment),
                     ),

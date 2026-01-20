@@ -197,7 +197,13 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         // If we have a multi-byte instruction/data, we check if any byte inside has a label.
         // We start from 1 because 0 is the address itself (handled above as label line).
         if let Some(comment) = &line.line_comment {
-            output.push_str(&format!("{} {}\n", formatter.comment_prefix(), comment));
+            for comment_line in comment.lines() {
+                output.push_str(&format!(
+                    "{} {}\n",
+                    formatter.comment_prefix(),
+                    comment_line
+                ));
+            }
         }
 
         if line.bytes.len() > 1 {
@@ -1224,6 +1230,56 @@ mod tests {
             comment_idx < label_idx,
             "Line comment should appear before label"
         );
+
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+
+    #[test]
+    fn test_export_multiline_line_comments() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        state.settings.assembler = crate::state::Assembler::Tass64;
+
+        state.raw_data = vec![0xA9, 0x00];
+        state.block_types = vec![crate::state::BlockType::Code; 2];
+
+        let multiline_comment = "Line 1\nLine 2\nLine 3".to_string();
+        state.user_line_comments.insert(0x1000, multiline_comment);
+
+        let file_name = "test_export_multiline_line_comments.asm";
+        let path = PathBuf::from(file_name);
+        if path.exists() {
+            let _ = std::fs::remove_file(&path);
+        }
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        println!("Content:\n{}", content);
+
+        // Expected usage:
+        // ; Line 1
+        // ; Line 2
+        // ; Line 3
+        // LDA #$00
+
+        assert!(content.contains("; Line 1"));
+        assert!(content.contains("; Line 2"));
+        assert!(content.contains("; Line 3"));
+
+        // Ensure lines start with ;
+        for line in content.lines() {
+            if line.contains("Line ") {
+                assert!(
+                    line.trim().starts_with(';'),
+                    "Line should start with comment prefix: {}",
+                    line
+                );
+            }
+        }
 
         if path.exists() {
             let _ = std::fs::remove_file(&path);
