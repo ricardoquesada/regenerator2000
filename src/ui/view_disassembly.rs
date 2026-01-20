@@ -11,34 +11,54 @@ use ratatui::{
 
 use crate::ui::widget::{Widget, WidgetResult};
 
+pub struct VisualLineCounts {
+    pub labels: usize,
+    pub comments: usize,
+    pub instruction: usize,
+}
+
+impl VisualLineCounts {
+    pub fn total(&self) -> usize {
+        self.labels + self.comments + self.instruction
+    }
+}
+
 pub struct DisassemblyView;
 
 impl DisassemblyView {
-    pub fn get_visual_line_count_for_instruction(
+    pub fn get_visual_line_counts(
         line: &crate::disassembler::DisassemblyLine,
         app_state: &AppState,
-    ) -> usize {
-        let mut count = 0;
-
+    ) -> VisualLineCounts {
+        let mut labels = 0;
         // 1. Labels inside multi-byte instructions
         if line.bytes.len() > 1 {
             for offset in 1..line.bytes.len() {
                 let mid_addr = line.address.wrapping_add(offset as u16);
-                if let Some(labels) = app_state.labels.get(&mid_addr) {
-                    count += labels.len();
+                if let Some(l) = app_state.labels.get(&mid_addr) {
+                    labels += l.len();
                 }
             }
         }
 
+        let mut comments = 0;
         // 2. Line comment
         if let Some(comment) = &line.line_comment {
-            count += comment.lines().count();
+            comments += comment.lines().count();
         }
 
-        // 3. The instruction itself
-        count += 1;
+        VisualLineCounts {
+            labels,
+            comments,
+            instruction: 1,
+        }
+    }
 
-        count
+    pub fn get_visual_line_count_for_instruction(
+        line: &crate::disassembler::DisassemblyLine,
+        app_state: &AppState,
+    ) -> usize {
+        Self::get_visual_line_counts(line, app_state).total()
     }
 
     pub fn get_index_for_visual_line(app_state: &AppState, target_line: usize) -> Option<usize> {
@@ -810,24 +830,28 @@ impl Widget for DisassemblyView {
                 }
 
                 let line = &app_state.disassembly[ui_state.cursor_index];
-                let mut sub_count = 1;
-                if app_state.user_line_comments.contains_key(&line.address) {
-                    sub_count += 1;
-                }
-                if line.bytes.len() > 1 {
-                    for offset in 1..line.bytes.len() {
-                        let mid_addr = line.address.wrapping_add(offset as u16);
-                        if let Some(labels) = app_state.labels.get(&mid_addr) {
-                            sub_count += labels.len();
-                        }
-                    }
-                }
+                let counts = Self::get_visual_line_counts(line, app_state);
 
-                if ui_state.sub_cursor_index < sub_count - 1 {
+                if ui_state.sub_cursor_index < counts.labels.saturating_sub(1) {
                     ui_state.sub_cursor_index += 1;
-                } else if ui_state.cursor_index < app_state.disassembly.len().saturating_sub(1) {
+                } else if ui_state.sub_cursor_index < counts.labels {
+                    // Skip comments, jump to instruction
+                    ui_state.sub_cursor_index = counts.labels + counts.comments;
+                } else if ui_state.sub_cursor_index >= counts.labels + counts.comments
+                    && ui_state.cursor_index < app_state.disassembly.len().saturating_sub(1)
+                {
                     ui_state.cursor_index += 1;
-                    ui_state.sub_cursor_index = 0;
+                    let next_line = &app_state.disassembly[ui_state.cursor_index];
+                    let next_counts = Self::get_visual_line_counts(next_line, app_state);
+
+                    if next_counts.labels > 0 {
+                        ui_state.sub_cursor_index = 0;
+                    } else {
+                        ui_state.sub_cursor_index = next_counts.comments;
+                    }
+                } else {
+                    // Safety fallback
+                    ui_state.sub_cursor_index = counts.labels + counts.comments;
                 }
                 WidgetResult::Handled
             }
@@ -842,24 +866,25 @@ impl Widget for DisassemblyView {
                     ui_state.selection_start = None;
                 }
 
-                if ui_state.sub_cursor_index > 0 {
+                let line = &app_state.disassembly[ui_state.cursor_index];
+                let counts = Self::get_visual_line_counts(line, app_state);
+
+                if ui_state.sub_cursor_index >= counts.labels + counts.comments {
+                    if counts.labels > 0 {
+                        ui_state.sub_cursor_index = counts.labels - 1;
+                    } else if ui_state.cursor_index > 0 {
+                        ui_state.cursor_index -= 1;
+                        let prev_line = &app_state.disassembly[ui_state.cursor_index];
+                        let prev_counts = Self::get_visual_line_counts(prev_line, app_state);
+                        ui_state.sub_cursor_index = prev_counts.labels + prev_counts.comments;
+                    }
+                } else if ui_state.sub_cursor_index > 0 {
                     ui_state.sub_cursor_index -= 1;
-                } else if ui_state.cursor_index > 0 {
+                } else if ui_state.sub_cursor_index == 0 && ui_state.cursor_index > 0 {
                     ui_state.cursor_index -= 1;
-                    let line = &app_state.disassembly[ui_state.cursor_index];
-                    let mut sub_count = 1;
-                    if app_state.user_line_comments.contains_key(&line.address) {
-                        sub_count += 1;
-                    }
-                    if line.bytes.len() > 1 {
-                        for offset in 1..line.bytes.len() {
-                            let mid_addr = line.address.wrapping_add(offset as u16);
-                            if let Some(labels) = app_state.labels.get(&mid_addr) {
-                                sub_count += labels.len();
-                            }
-                        }
-                    }
-                    ui_state.sub_cursor_index = sub_count - 1;
+                    let prev_line = &app_state.disassembly[ui_state.cursor_index];
+                    let prev_counts = Self::get_visual_line_counts(prev_line, app_state);
+                    ui_state.sub_cursor_index = prev_counts.labels + prev_counts.comments;
                 }
                 WidgetResult::Handled
             }
