@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-01-20
+
+- Fix: Works in Windows
+- Fix: cursor at end of line, even for default comment
+- Refactor: dialog code simplified
+
 ## [0.4.0] - 2026-01-19
 
 - Pane view: Added "Blocks" view, that shows the different blocks.
