@@ -92,8 +92,8 @@ pub struct DocumentSettings {
     pub preserve_long_bytes: bool, // default true
     #[serde(default)]
     pub brk_single_byte: bool, // default false
-    #[serde(default)]
-    pub patch_brk: bool, // default false
+    #[serde(default = "default_true")]
+    pub patch_brk: bool, // default true
     #[serde(default)]
     pub platform: Platform, // default C64
     #[serde(default)]
@@ -142,7 +142,7 @@ impl Default for DocumentSettings {
             all_labels: false,
             preserve_long_bytes: true,
             brk_single_byte: false,
-            patch_brk: false,
+            patch_brk: true,
             platform: Platform::default(),
             assembler: Assembler::default(),
             max_xref_count: 5,
