@@ -15,6 +15,29 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
 
 fn main() -> Result<()> {
+    // Check args and load initial project/file
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() > 1 {
+        // Handle command line arguments
+        if args[1] == "--version" {
+            println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
+            return Ok(());
+        } else if args[1] == "--help" {
+            println!("Usage: {} [OPTIONS] [FILE]", env!("CARGO_PKG_NAME"));
+            println!();
+            println!("Supported file types: .prg, .crt, .t64, .vsf, .bin, .raw, .regen2000proj");
+            println!();
+            println!("Options:");
+            println!("    --help       Print this help message");
+            println!("    --version    Print version information");
+            return Ok(());
+        } else if args[1].starts_with('-') {
+            eprintln!("Error: Invalid command line option: {}", args[1]);
+            std::process::exit(1);
+        }
+    }
+
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -49,28 +72,6 @@ fn main() -> Result<()> {
         ui_state.set_status_message(error_msg);
     }
 
-    // Check args and load initial project/file
-    let args: Vec<String> = std::env::args().collect();
-
-    if args.len() > 1 {
-        // Handle command line arguments
-        if args[1] == "--version" {
-            println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-            return Ok(());
-        } else if args[1] == "--help" {
-            println!("Usage: {} [OPTIONS] [FILE]", env!("CARGO_PKG_NAME"));
-            println!();
-            println!("Supported file types: .prg, .crt, .t64, .vsf, .bin, .raw, .regen2000proj");
-            println!();
-            println!("Options:");
-            println!("    --help       Print this help message");
-            println!("    --version    Print version information");
-            return Ok(());
-        } else if args[1].starts_with('-') {
-            eprintln!("Error: Invalid command line option: {}", args[1]);
-            std::process::exit(1);
-        }
-    }
     if let Some(result) = app_state.resolve_initial_load(&args) {
         match result {
             Ok((loaded_data, path)) => {
