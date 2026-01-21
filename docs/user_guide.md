@@ -309,6 +309,70 @@ dialog (Shortcut: `Alt + d`, or `Ctrl + Shift + d`).
     - **Description**: Enables the disassembler to recognize and decode undocumented (illegal) opcodes. If disabled,
       these bytes will be treated as data.
 
+      When "Use Illegal Opcodes" is disabled, the disassembly might look like the following:
+      ```asm
+      sei
+      .byte $ab        ; Invalid or partial instruction
+      brk
+      .byte $8e
+      jsr $8ed0
+      and ($d0,x)
+      lda $d012        ; Raster Position
+      cmp #$60
+      bne $0816
+      ldy #$00
+      .byte $bf        ; Invalid or partial instruction
+      brk
+      .byte $09
+      stx $d020        ; Border Color
+      lda #$04
+      sta $02
+      .byte $c7        ; Invalid or partial instruction
+      .byte $02        ; Invalid or partial instruction
+      bne $0829
+      .byte $8f        ; Invalid or partial instruction
+      brk
+      .byte $04
+      iny
+      cpy #$28
+      bne $081f
+      lda #$80
+      .byte $0b        ; Invalid or partial instruction
+      .byte $ff        ; Invalid or partial instruction
+      bcc $083e
+      jmp $0816
+      inc $d020        ; Border Color
+      jmp $083e
+      ```
+
+      When "Use Illegal Opcodes" is disabled, the disassembly might look like the following:
+      ```asm
+      sei
+      lax #$00
+      stx $d020        ; Border Color
+      stx $d021        ; Background Color 0
+      lda $d012        ; x-ref: $081b, $083b; Raster Position
+      cmp #$60
+      bne $0816
+      ldy #$00
+      lax $0900,y      ; x-ref: $0833
+      stx $d020        ; Border Color
+      lda #$04
+      sta a02
+      dcp a02          ; x-ref: $082b
+      bne $0829
+      sax $0400
+      iny
+      cpy #$28
+      bne $081f
+      lda #$80
+      anc #$ff
+      bcc $083e
+      jmp $0816
+      inc $d020        ; x-ref: $0839, $0841; Border Color
+      jmp $083e
+      ```
+
 6. **Max X-Refs**
     - **Description**: The maximum number of Cross-References (addresses that call/jump to a location) to display in the
       side comments for any given line.
