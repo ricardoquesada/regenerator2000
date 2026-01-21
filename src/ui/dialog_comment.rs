@@ -50,7 +50,10 @@ impl CommentDialog {
         match comment_type {
             CommentType::Line => {
                 let default_text = "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-";
-                TextArea::from(vec![default_text.to_string()])
+                let mut textarea = TextArea::from(vec![default_text.to_string(), "".to_string()]);
+                textarea.move_cursor(CursorMove::Bottom);
+                textarea.move_cursor(CursorMove::End);
+                textarea
             }
             CommentType::Side => TextArea::default(),
         }
@@ -177,7 +180,7 @@ impl Widget for CommentDialog {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_cursor_position_at_end() {
         let comment = "Hello\nWorld";
@@ -195,5 +198,13 @@ mod tests {
         let dialog = CommentDialog::new(Some(comment), CommentType::Side);
         let cursor = dialog.textarea.cursor();
         assert_eq!(cursor, (0, 5));
+    }
+
+    #[test]
+    fn test_cursor_position_default_line_comment() {
+        let dialog = CommentDialog::new(None, CommentType::Line);
+        let cursor = dialog.textarea.cursor();
+        // Default line comment has 2 lines. Cursor should be at the start of the second line (index 1).
+        assert_eq!(cursor, (1, 0));
     }
 }
