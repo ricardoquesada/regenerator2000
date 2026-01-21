@@ -216,3 +216,62 @@ Beyond data types, you can organize your view using Splitters and Collapsing:
 - **Description**: Hides or shows the content of a block, showing only a summary line (e.g., "; ... 256 bytes ...").
 - **Use Case**: Use this to hide large tables, long text strings, or finished subroutines to keep your workspace clean
   and focus on the code you are currently analyzing.
+
+## Document Settings
+
+You can customize how Regenerator2000 analyzes the binary and exports the code by accessing the **Document Settings**
+dialog (Shortcut: `Alt + d`, or `Ctrl + Shift + d`).
+
+### Options
+
+1. **All Labels**
+    - **Description**: If enabled, generates labels for all branch targets and referenced addresses, even if they aren't
+      strictly necessary for the current view. Useful for ensuring a complete symbol table is generated.
+
+2. **Preserve long bytes**
+    - **Description**: Ensures that instructions using absolute addressing (3 bytes) are not optimized by the assembler
+      into zero-page addressing (2 bytes) upon re-assembly. It adds prefixes like `@w`, `+2`, or `.abs` depending on the
+      selected assembler to maintain the exact byte count of the original binary.
+
+3. **BRK single byte**
+    - **Description**: Treats the `BRK` instruction as a 1-byte instruction. By default, the 6502 treats `BRK` as a
+      2-byte instruction (the instruction itself followed by a padding/signature byte). Enable this if your code uses
+      `BRK` as a 1-byte breakpoint.
+
+4. **Patch BRK**
+    - **Description**: If `BRK single byte` is disabled (standard behavior), this option ensures that the exported
+      assembly code correctly includes the padding byte after `BRK`, preserving the original program structure on
+      assemblers that might otherwise treat `BRK` as a single byte.
+
+5. **Use Illegal Opcodes**
+    - **Description**: Enables the disassembler to recognize and decode undocumented (illegal) opcodes. If disabled,
+      these bytes will be treated as invalid instructions or data.
+
+6. **Max X-Refs**
+    - **Description**: The maximum number of Cross-References (addresses that call/jump to a location) to display in the
+      side comments for any given line.
+
+7. **Arrow Columns**
+    - **Description**: The number of character columns reserved on the left side of the disassembly view for drawing
+      control flow arrows (branches and jumps). Increasing this can make complex control flow easier to read.
+
+8. **Text Line Limit**
+    - **Description**: The maximum number of characters to display on a single line for Text block types before wrapping
+      or truncating.
+
+9. **Words/Addrs per line**
+    - **Description**: Controls how many 16-bit values (Words or Addresses) are displayed on a single line when using
+      that Block Type. Range: 1-8.
+
+10. **Bytes per line**
+    - **Description**: Controls how many 8-bit values (Bytes) are displayed on a single line when using the Byte Block
+      Type. Range: 1-40.
+
+11. **Assembler**
+    - **Description**: Selects the target assembler syntax for export. Supported assemblers include **64tass**, **ACME
+      **, **KickAssembler**, and **ca65**. Changing this updates the syntax used in the disassembly view to match the
+      target.
+
+12. **Platform**
+    - **Description**: Defines the target hardware platform (e.g., C64). This helps the analyzer identify
+      system-specific memory maps, hardware registers (like VIC-II or SID), and ROM routines.
