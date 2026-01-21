@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.1] - 2026-01-20
 
 - Fix: Works in Windows
+- Fix: Add alternative keyboard shortcuts for Windows
 - Fix: cursor at end of line, even for default comment
 - Refactor: dialog code simplified
 
