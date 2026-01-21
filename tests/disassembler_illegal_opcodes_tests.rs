@@ -11,6 +11,7 @@ fn test_illegal_opcodes_disabled_by_default() {
     let block_types = vec![BlockType::Code; 3];
     let settings = DocumentSettings {
         use_illegal_opcodes: false,
+        patch_brk: false,
         ..Default::default()
     };
 

@@ -1566,7 +1566,10 @@ fn test_target_address_population() {
 
 #[test]
 fn test_target_address_specific_instructions() {
-    let settings = DocumentSettings::default();
+    let settings = DocumentSettings {
+        patch_brk: false,
+        ..Default::default()
+    };
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
     let origin = 0x1000;
