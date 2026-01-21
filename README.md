@@ -64,6 +64,32 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 ![sprites screenshot](docs/regenerator2000_sprites_screenshot.png)
 ![blocks screenshot](docs/regenerator2000_blocks_screenshot.png)
 
+## Installation
+
+### From Crates.io
+
+```bash
+cargo install regenerator2000
+```
+
+### From Source
+
+```bash
+git clone https://github.com/ricardoquesada/regenerator2000.git
+cd regenerator2000
+cargo install --path .
+```
+
+## Usage
+
+Start the application with an optional file to load:
+
+```bash
+regenerator2000 [path/to/file.prg]
+```
+
+Supported file formats: `.prg`, `.crt`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.regen2000proj`.
+
 ## Keyboard Shortcuts
 
 | Context        | Action                                                | Shortcut                                |
@@ -123,12 +149,6 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 |                | **Select Item**                                       | `Enter`                                 |
 |                | **Close Menu**                                        | `Esc`                                   |
 
-## Build and Run
-
-```bash
-cargo run
-```
-
 ## Support and Documentation
 
 - [User Guide](docs/user_guide.md)
@@ -136,6 +156,16 @@ cargo run
 - [Support in Discord][discord]
 
 [discord]: https://discord.gg/r5aMn6Cw5q
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Acknowledgements
+
+- **[Regenerator][regenerator]**: The original 6502 disassembler for Windows.
+- **[64tass](https://sourceforge.net/projects/tass64/)**, **[ACME](https://github.com/meonwax/acme)**,
+  **[Kick Assembler](http://www.theweb.dk/KickAssembler/)**, **[ca65](https://cc65.github.io/)**: Supported assemblers.
 
 ## License
 
