@@ -24,7 +24,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         KeyCode::Char('s') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Save);
         }
-        KeyCode::Char('S') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+        KeyCode::Char('s') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::SaveAs);
         }
         KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
@@ -34,7 +34,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                 crate::ui_state::MenuAction::ExportProject,
             );
         }
-        KeyCode::Char('E') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+        KeyCode::Char('e') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
             handle_menu_action(
                 app_state,
                 ui_state,
