@@ -74,8 +74,8 @@ terminal.
 | Platform    | Recommended Terminals                              |
 |:------------|:---------------------------------------------------|
 | **Windows** | Windows Terminal, Alacritty, WezTerm               |
-| **macOS**   | iTerm2, Ghostty, WezTerm, Alacritty, kitty         |
-| **Linux**   | WezTerm, Ghostty, Alacritty, kitty, GNOME Terminal |
+| **macOS**   | iTerm2, Ghostty, Alacritty, kitty, WezTerm         |
+| **Linux**   | Ghostty, Alacritty, kitty, WezTerm, GNOME Terminal |
 
 ## Installation
 
