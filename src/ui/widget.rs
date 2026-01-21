@@ -23,3 +23,17 @@ pub trait Widget {
         ui_state: &mut UIState,
     ) -> WidgetResult;
 }
+
+pub fn create_dialog_block<'a>(
+    title: &'a str,
+    theme: &crate::theme::Theme,
+) -> ratatui::widgets::Block<'a> {
+    use ratatui::style::Style;
+    use ratatui::widgets::{Block, Borders};
+
+    Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .border_style(Style::default().fg(theme.dialog_border))
+        .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg))
+}

@@ -5,7 +5,7 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Paragraph},
+    widgets::Paragraph,
 };
 
 use crate::ui::widget::{Widget, WidgetResult};
@@ -27,11 +27,7 @@ impl LabelDialog {
 impl Widget for LabelDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(" Enter Label Name ")
-            .border_style(Style::default().fg(theme.dialog_border))
-            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+        let block = crate::ui::widget::create_dialog_block(" Enter Label Name ", theme);
 
         // Fixed height of 3 (Border + Input + Border)
         let layout = Layout::default()

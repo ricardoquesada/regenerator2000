@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
     layout::Rect,
     style::{Modifier, Style},
-    widgets::{Block, Borders, List, ListItem, ListState},
+    widgets::{List, ListItem, ListState},
 };
 use std::path::PathBuf;
 
@@ -65,11 +65,10 @@ impl OpenDialog {
 impl Widget for OpenDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(" Open File (Space to Open, Backspace to Go Back, Esc to Cancel) ")
-            .border_style(Style::default().fg(theme.dialog_border))
-            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+        let block = crate::ui::widget::create_dialog_block(
+            " Open File (Space to Open, Backspace to Go Back, Esc to Cancel) ",
+            theme,
+        );
 
         let area = crate::utils::centered_rect(60, 50, area);
         f.render_widget(ratatui::widgets::Clear, area); // Clear background

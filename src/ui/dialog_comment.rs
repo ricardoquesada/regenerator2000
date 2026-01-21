@@ -5,7 +5,6 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    widgets::{Block, Borders},
 };
 use tui_textarea::TextArea;
 
@@ -64,11 +63,7 @@ impl Widget for CommentDialog {
             CommentType::Side => " Enter Side Comment ",
         };
 
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(title)
-            .border_style(Style::default().fg(theme.dialog_border))
-            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+        let block = crate::ui::widget::create_dialog_block(title, theme);
 
         // Fixed height of 10 for multi-line
         let layout = Layout::default()

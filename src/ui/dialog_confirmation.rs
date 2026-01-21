@@ -7,7 +7,7 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    widgets::{Block, Borders, Paragraph},
+    widgets::Paragraph,
 };
 
 use crate::ui::widget::{Widget, WidgetResult};
@@ -31,11 +31,8 @@ impl ConfirmationDialog {
 impl Widget for ConfirmationDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(format!(" {} ", self.title))
-            .border_style(Style::default().fg(theme.dialog_border))
-            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+        let title = format!(" {} ", self.title);
+        let block = crate::ui::widget::create_dialog_block(&title, theme);
 
         let area = centered_rect(50, 7, area);
         f.render_widget(ratatui::widgets::Clear, area);

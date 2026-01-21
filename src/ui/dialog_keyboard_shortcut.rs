@@ -5,7 +5,7 @@ use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
-use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState};
+use ratatui::widgets::{Block, Clear, List, ListItem, ListState};
 
 use crate::ui::widget::{Widget, WidgetResult};
 
@@ -47,11 +47,7 @@ impl Widget for ShortcutsDialog {
         let area = centered_rect(60, 60, area);
         f.render_widget(Clear, area); // Clear background
 
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(" Keyboard Shortcuts ")
-            .border_style(Style::default().fg(theme.dialog_border))
-            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+        let block = crate::ui::widget::create_dialog_block(" Keyboard Shortcuts ", theme);
 
         f.render_widget(block.clone(), area);
 

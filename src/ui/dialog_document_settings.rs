@@ -6,7 +6,7 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Modifier, Style};
 use ratatui::text::Span;
-use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
+use ratatui::widgets::{Clear, List, ListItem, ListState, Paragraph};
 
 pub struct DocumentSettingsDialog {
     pub selected_index: usize,
@@ -67,11 +67,7 @@ impl DocumentSettingsDialog {
 impl Widget for DocumentSettingsDialog {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(" Document Settings ")
-            .border_style(Style::default().fg(theme.dialog_border))
-            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+        let block = crate::ui::widget::create_dialog_block(" Document Settings ", theme);
 
         let area = crate::utils::centered_rect(60, 60, area);
         f.render_widget(Clear, area);
@@ -325,9 +321,7 @@ impl Widget for DocumentSettingsDialog {
         if self.is_selecting_platform {
             let popup_area = crate::utils::centered_rect(40, 50, area);
             f.render_widget(Clear, popup_area);
-            let block = Block::default()
-                .borders(Borders::ALL)
-                .title(" Select Platform ");
+            let block = crate::ui::widget::create_dialog_block(" Select Platform ", theme);
 
             let list_items: Vec<ListItem> = platforms
                 .iter()
@@ -362,9 +356,7 @@ impl Widget for DocumentSettingsDialog {
         if self.is_selecting_assembler {
             let popup_area = crate::utils::centered_rect(40, 30, area); // Smaller height for fewer items
             f.render_widget(Clear, popup_area);
-            let block = Block::default()
-                .borders(Borders::ALL)
-                .title(" Select Assembler ");
+            let block = crate::ui::widget::create_dialog_block(" Select Assembler ", theme);
 
             let assemblers = crate::state::Assembler::all();
             let list_items: Vec<ListItem> = assemblers

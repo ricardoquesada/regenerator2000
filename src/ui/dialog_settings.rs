@@ -5,7 +5,7 @@ use crossterm::event::KeyCode;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
-use ratatui::widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph};
+use ratatui::widgets::{Clear, List, ListItem, ListState, Paragraph};
 
 use crate::ui::widget::{Widget, WidgetResult};
 
@@ -24,11 +24,7 @@ impl SettingsDialog {
 impl Widget for SettingsDialog {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(" Settings ")
-            .border_style(Style::default().fg(theme.dialog_border))
-            .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+        let block = crate::ui::widget::create_dialog_block(" Settings ", theme);
 
         let area = centered_rect(50, 40, area); // Increased height for popup space
         f.render_widget(Clear, area);
@@ -75,11 +71,7 @@ impl Widget for SettingsDialog {
         if self.is_selecting_theme {
             let popup_area = centered_rect(40, 30, area);
             f.render_widget(Clear, popup_area);
-            let block = Block::default()
-                .borders(Borders::ALL)
-                .title(" Select Theme ")
-                .border_style(Style::default().fg(theme.dialog_border))
-                .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg));
+            let block = crate::ui::widget::create_dialog_block(" Select Theme ", theme);
 
             let themes = crate::theme::Theme::all_names();
             let list_items: Vec<ListItem> = themes

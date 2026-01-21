@@ -4,7 +4,7 @@ use crate::ui_state::UIState;
 use crossterm::event::KeyCode;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Block, Clear, Paragraph};
 use ratatui_image::StatefulImage;
 
 pub struct AboutDialog;
@@ -38,7 +38,8 @@ impl Widget for AboutDialog {
 
             f.render_widget(Clear, popup_area);
 
-            let block = Block::default().title(" About ").borders(Borders::ALL);
+            let theme = &ui_state.theme;
+            let block = crate::ui::widget::create_dialog_block(" About ", theme);
             let inner = block.inner(popup_area);
             f.render_widget(block, popup_area);
 
