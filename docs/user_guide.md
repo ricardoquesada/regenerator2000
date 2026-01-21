@@ -222,30 +222,92 @@ Beyond data types, you can organize your view using Splitters and Collapsing:
 You can customize how Regenerator2000 analyzes the binary and exports the code by accessing the **Document Settings**
 dialog (Shortcut: `Alt + d`, or `Ctrl + Shift + d`).
 
+```text
+┌ Document Settings ----------------------───────────────────────────────┐
+│                                                                        │
+│  [ ] All Labels                                                        │
+│  [x] Preserve long bytes (@w, +2, .abs, etc)                           │
+│  [ ] BRK single byte                                                   │
+│  [x] Patch BRK                                                         │
+│  [ ] Use Illegal Opcodes                                               │
+│                                                                        │
+│  Max X-Refs: < 5 >                                                     │
+│                                                                        │
+│  Arrow Columns: < 6 >                                                  │
+│                                                                        │
+│  Text Line Limit: < 40 >                                               │
+│                                                                        │
+│  Words/Addrs per line: < 5 >                                           │
+│                                                                        │
+│  Bytes per line: < 8 >                                                 │
+│                                                                        │
+│  Assembler: < 64tass >                                                 │
+│                                                                        │
+│  Platform: < C64 >                                                     │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
 ### Options
 
 1. **All Labels**
-    - **Description**: If enabled, generates labels for all branch targets and referenced addresses, even if they aren't
-      strictly necessary for the current view. Useful for ensuring a complete symbol table is generated.
+    - **Description**: If enabled, generates labels, including external labels in the disassembly view. The exported
+      file will contain all labels, regardless of this option.
 
 2. **Preserve long bytes**
     - **Description**: Ensures that instructions using absolute addressing (3 bytes) are not optimized by the assembler
       into zero-page addressing (2 bytes) upon re-assembly. It adds prefixes like `@w`, `+2`, or `.abs` depending on the
       selected assembler to maintain the exact byte count of the original binary.
 
+      This is useful to preserve the original byte count of the binary, for example, when disassembling a binary that
+      contains absolute addresses.
+
 3. **BRK single byte**
     - **Description**: Treats the `BRK` instruction as a 1-byte instruction. By default, the 6502 treats `BRK` as a
       2-byte instruction (the instruction itself followed by a padding/signature byte). Enable this if your code uses
       `BRK` as a 1-byte breakpoint.
 
+   When "BRK single byte" is enabled, it gets represented as:
+    ```asm
+    ; These bytes will be diassembled as:
+    ; $00, $00, $00, $00
+    ; Each BRK consumes only one byte
+    $c000   brk
+    $c001   brk
+    $c002   brk
+    $c003   brk
+    ```
+
+
 4. **Patch BRK**
     - **Description**: If `BRK single byte` is disabled (standard behavior), this option ensures that the exported
       assembly code correctly includes the padding byte after `BRK`, preserving the original program structure on
       assemblers that might otherwise treat `BRK` as a single byte.
+    - Notice that not all assemblers support the "Patch BRK" disabled.
+
+   When "Patch BRK" is enabled, it gets represented as:
+    ```asm
+    ; These bytes will be diassembled as:
+    ; $00, $00, $00, $00
+    ; Each BRK consumes two bytes (BRK + byte data)
+    $c000   brk
+    $c001   .byte $00 
+    $c002   brk
+    $c003   .byte $00 
+    ```
+
+   When "Patch BRK" is disabled, it gets represented as:
+    ```asm
+    ; These bytes will be diassembled as:
+    ; $00, $00, $00, $00
+    ; Each BRK consumes two bytes
+    $c000   brk #$00
+    $c002   brk #$00
+    ```
 
 5. **Use Illegal Opcodes**
     - **Description**: Enables the disassembler to recognize and decode undocumented (illegal) opcodes. If disabled,
-      these bytes will be treated as invalid instructions or data.
+      these bytes will be treated as data.
 
 6. **Max X-Refs**
     - **Description**: The maximum number of Cross-References (addresses that call/jump to a location) to display in the
@@ -268,9 +330,9 @@ dialog (Shortcut: `Alt + d`, or `Ctrl + Shift + d`).
       Type. Range: 1-40.
 
 11. **Assembler**
-    - **Description**: Selects the target assembler syntax for export. Supported assemblers include **64tass**, **ACME
-      **, **KickAssembler**, and **ca65**. Changing this updates the syntax used in the disassembly view to match the
-      target.
+    - **Description**: Selects the target assembler syntax for export. Supported assemblers include **64tass**,
+      **ACME**, **KickAssembler**, and **ca65**. Changing this updates the syntax used in the disassembly view to match
+      the target.
 
 12. **Platform**
     - **Description**: Defines the target hardware platform (e.g., C64). This helps the analyzer identify
