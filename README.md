@@ -64,6 +64,19 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 ![sprites screenshot](docs/regenerator2000_sprites_screenshot.png)
 ![blocks screenshot](docs/regenerator2000_blocks_screenshot.png)
 
+## Requirements
+
+### Recommended Terminals
+
+To ensure the best experience, especially regarding keyboard shortcuts and rendering, we recommend using a modern
+terminal.
+
+| Platform    | Recommended Terminals                              |
+|:------------|:---------------------------------------------------|
+| **Windows** | Windows Terminal, Alacritty, WezTerm               |
+| **macOS**   | iTerm2, Ghostty, WezTerm, Alacritty, kitty         |
+| **Linux**   | WezTerm, Ghostty, Alacritty, kitty, GNOME Terminal |
+
 ## Installation
 
 ### From Crates.io
@@ -91,6 +104,9 @@ regenerator2000 [path/to/file.prg]
 Supported file formats: `.prg`, `.crt`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.regen2000proj`.
 
 ## Keyboard Shortcuts
+
+Some actions can be triggered with more than one keyboard combination. This is intentional to ensure compatibility
+across Windows, macOS, and Linux, and different terminal emulators.
 
 | Context        | Action                                                | Shortcut                                |
 |:---------------|:------------------------------------------------------|:----------------------------------------|
@@ -167,8 +183,11 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - [64tass][64tass], [ACME][ACME], [Kick Assembler][Kick Assembler], [ca65][ca65] : Supported assemblers.
 
 [64tass]: https://tass64.sourceforge.net/
+
 [ACME]: https://sourceforge.net/projects/acme-crossass/
+
 [Kick Assembler]: http://www.theweb.dk/KickAssembler/
+
 [ca65]: https://cc65.github.io/
 
 ## License
