@@ -11,6 +11,29 @@ background to trace code paths, identify subroutine entry points, and validate y
 that can be exported as fully compilable source code for popular assemblers like **64tass**, **ACME**, **KickAssembler**
 and **ca65**.
 
+## Command Line Options
+
+Regenerator2000 can be launched from the terminal with some options:
+
+```bash
+regenerator2000 [OPTIONS] [FILE]
+```
+
+### Options
+
+* `--help`: Displays the help message listing all available options and supported file types.
+* `--version`: Displays the current version of Regenerator2000.
+
+### Arguments
+
+* `FILE`: (Optional) The path to a file you wish to open. Regenerator2000 supports various formats, including:
+    * **C64 Program Files**: `.prg`
+    * **Cartridge Images**: `.crt`
+    * **Tape Images**: `.t64`
+    * **Vice Snapshot Files**: `.vsf`
+    * **Raw Binary Files**: `.bin`, `.raw`
+    * **Regenerator2000 Project Files**: `.regen2000proj`
+
 ## Block Types
 
 In Regenerator2000, every byte of the loaded binary is assigned a **Block Type**. This type tells the disassembly engine
