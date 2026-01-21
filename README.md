@@ -164,8 +164,12 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Acknowledgements
 
 - [Regenerator][regenerator]: The original 6502 disassembler for Windows.
-- [64tass](https://sourceforge.net/projects/tass64/), [ACME](https://github.com/meonwax/acme),
-  [Kick Assembler](http://www.theweb.dk/KickAssembler/), [ca65](https://cc65.github.io/): Supported assemblers.
+- [64tass][64tass], [ACME][ACME], [Kick Assembler][Kick Assembler], [ca65][ca65] : Supported assemblers.
+
+[64tass]: https://tass64.sourceforge.net/
+[ACME]: https://sourceforge.net/projects/acme-crossass/
+[Kick Assembler]: http://www.theweb.dk/KickAssembler/
+[ca65]: https://cc65.github.io/
 
 ## License
 
