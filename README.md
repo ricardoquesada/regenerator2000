@@ -41,8 +41,8 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
     - **Labels**: Add, edit, and remove local and global labels.
     - **Comments**: Add side comments and line comments.
     - **Origin**: Change the load address/origin of the binary.
-    - **Data Types**: Convert regions to Code, Byte, Word, Address, Lo/Hi Address, Hi/Lo Address, Text,
-      Screencode, External file or Unknown.
+    - **Data Types**: Convert regions to Code, Byte, Word, Address, Lo/Hi Address, Hi/Lo Address, PETSCII Text,
+      Screencode Text, External file or Unknown.
     - **Undo/Redo**: Full history support for all actions.
 - **Navigation**:
     - **Jump**: Go to specific addresses, specific line numbers, or follow
@@ -121,7 +121,7 @@ across Windows, macOS, and Linux, and different terminal emulators.
 |                | **Settings**                                          | `Alt + o`, `Ctrl + ,`                   |
 |                | **Undo**                                              | `u`                                     |
 |                | **Redo**                                              | `Ctrl + r`                              |
-|                | **Switch Pane (Hex Dump/Disasm)**                     | `Tab`                                   |
+|                | **Switch Pane (betweeen Disasm and right pane)**      | `Tab`                                   |
 | **Navigation** | **Move Cursor**                                       | `Up` / `Down` / `j` / `k`               |
 |                | **Page Up/Down**                                      | `PageUp` / `PageDown`                   |
 |                | **Home/End**                                          | `Home` / `End`                          |
@@ -145,8 +145,8 @@ across Windows, macOS, and Linux, and different terminal emulators.
 |                | **Convert to Byte**                                   | `b`                                     |
 |                | **Convert to Word**                                   | `w`                                     |
 |                | **Convert to Address**                                | `a`                                     |
-|                | **Convert to Text**                                   | `t`                                     |
-|                | **Convert to Screencode**                             | `s`                                     |
+|                | **Convert to PETSCII Text**                           | `t`                                     |
+|                | **Convert to Screencode Text**                        | `s`                                     |
 |                | **Convert to Undefined**                              | `?`                                     |
 |                | **Next/Prev Immediate Mode Format**                   | `d` / `D`                               |
 |                | **Set Lo/Hi Address**                                 | `<`                                     |
