@@ -6,7 +6,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
 };
-use tui_textarea::TextArea;
+use tui_textarea::{CursorMove, TextArea};
 
 use crate::ui::widget::{Widget, WidgetResult};
 
@@ -24,7 +24,7 @@ pub struct CommentDialog {
 impl CommentDialog {
     pub fn new(current_comment: Option<&str>, comment_type: CommentType) -> Self {
         let textarea = if let Some(comment) = current_comment {
-            let t = TextArea::from(comment.lines());
+            let mut t = TextArea::from(comment.lines());
             // For existing comments, we assume user wants to edit them as is.
             // If it was single line, lines() works.
             // If empty string, lines() is empty, TextArea becomes empty.
@@ -32,6 +32,8 @@ impl CommentDialog {
                 // Fallback to default logic if actually empty string passed (rare)
                 Self::create_default_textarea(&comment_type)
             } else {
+                t.move_cursor(CursorMove::Bottom);
+                t.move_cursor(CursorMove::End);
                 t
             }
         } else {
@@ -169,5 +171,29 @@ impl Widget for CommentDialog {
                 WidgetResult::Handled
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_cursor_position_at_end() {
+        let comment = "Hello\nWorld";
+        let dialog = CommentDialog::new(Some(comment), CommentType::Side);
+        let cursor = dialog.textarea.cursor();
+        // cursor is (row, col)
+        // Rows are 0-indexed. Hello is row 0. World is row 1.
+        // World has length 5. Cursor should be at (1, 5).
+        assert_eq!(cursor, (1, 5));
+    }
+
+    #[test]
+    fn test_cursor_position_single_line() {
+        let comment = "Hello";
+        let dialog = CommentDialog::new(Some(comment), CommentType::Side);
+        let cursor = dialog.textarea.cursor();
+        assert_eq!(cursor, (0, 5));
     }
 }
