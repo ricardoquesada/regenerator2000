@@ -24,7 +24,10 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         KeyCode::Char('s') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Save);
         }
-        KeyCode::Char('s') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+        KeyCode::Char('s')
+            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
+                || key.modifiers == KeyModifiers::ALT =>
+        {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::SaveAs);
         }
         KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
@@ -34,7 +37,10 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                 crate::ui_state::MenuAction::ExportProject,
             );
         }
-        KeyCode::Char('e') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+        KeyCode::Char('e')
+            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
+                || key.modifiers == KeyModifiers::ALT =>
+        {
             handle_menu_action(
                 app_state,
                 ui_state,
@@ -49,7 +55,18 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                 crate::ui_state::MenuAction::SystemSettings,
             );
         }
-        KeyCode::Char('d') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+        KeyCode::Char('o') if key.modifiers == KeyModifiers::ALT => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::SystemSettings,
+            );
+        }
+
+        KeyCode::Char('d')
+            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
+                || key.modifiers == KeyModifiers::ALT =>
+        {
             handle_menu_action(
                 app_state,
                 ui_state,
@@ -63,35 +80,46 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Redo);
         }
-        KeyCode::Char('2') if key.modifiers == KeyModifiers::CONTROL => {
+        KeyCode::Char('2')
+            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
+        {
             handle_menu_action(
                 app_state,
                 ui_state,
                 crate::ui_state::MenuAction::ToggleHexDump,
             );
         }
-        KeyCode::Char('3') if key.modifiers == KeyModifiers::CONTROL => {
+        KeyCode::Char('3')
+            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
+        {
             handle_menu_action(
                 app_state,
                 ui_state,
                 crate::ui_state::MenuAction::ToggleSpritesView,
             );
         }
-        KeyCode::Char('4') if key.modifiers == KeyModifiers::CONTROL => {
+        KeyCode::Char('4')
+            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
+        {
             handle_menu_action(
                 app_state,
                 ui_state,
                 crate::ui_state::MenuAction::ToggleCharsetView,
             );
         }
-        KeyCode::Char('5') if key.modifiers == KeyModifiers::CONTROL => {
+        KeyCode::Char('5')
+            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
+        {
             handle_menu_action(
                 app_state,
                 ui_state,
                 crate::ui_state::MenuAction::ToggleBlocksView,
             );
         }
-        KeyCode::Char('g') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+        KeyCode::Char('g')
+            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
+                || key.modifiers == KeyModifiers::ALT =>
+        {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::JumpToLine);
         }
         KeyCode::Tab => {

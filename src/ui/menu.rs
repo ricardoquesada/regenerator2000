@@ -156,7 +156,7 @@ impl MenuState {
                     items: vec![
                         MenuItem::new("Open", Some("Ctrl+O"), Some(MenuAction::Open)),
                         MenuItem::new("Save", Some("Ctrl+S"), Some(MenuAction::Save)),
-                        MenuItem::new("Save As...", Some("Ctrl+Shift+S"), Some(MenuAction::SaveAs)),
+                        MenuItem::new("Save As...", Some("Alt+S"), Some(MenuAction::SaveAs)),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Export Project",
@@ -165,11 +165,11 @@ impl MenuState {
                         ),
                         MenuItem::new(
                             "Export Project As...",
-                            Some("Ctrl+Shift+E"),
+                            Some("Alt+E"),
                             Some(MenuAction::ExportProjectAs),
                         ),
                         MenuItem::separator(),
-                        MenuItem::new("Settings", Some("Ctrl+,"), Some(MenuAction::SystemSettings)),
+                        MenuItem::new("Settings", Some("Alt+O"), Some(MenuAction::SystemSettings)),
                         MenuItem::separator(),
                         MenuItem::new("Exit", Some("Ctrl+Q"), Some(MenuAction::Exit)),
                     ],
@@ -231,7 +231,7 @@ impl MenuState {
                         MenuItem::separator(),
                         MenuItem::new(
                             "Document Settings",
-                            Some("Ctrl+Shift+D"),
+                            Some("Alt+D"),
                             Some(MenuAction::DocumentSettings),
                         ),
                     ],
@@ -244,11 +244,7 @@ impl MenuState {
                             Some("G"),
                             Some(MenuAction::JumpToAddress),
                         ),
-                        MenuItem::new(
-                            "Jump to line",
-                            Some("Ctrl+Shift+G"),
-                            Some(MenuAction::JumpToLine),
-                        ),
+                        MenuItem::new("Jump to line", Some("Alt+G"), Some(MenuAction::JumpToLine)),
                         MenuItem::new(
                             "Jump to operand",
                             Some("Enter"),
@@ -294,22 +290,22 @@ impl MenuState {
                         MenuItem::separator(),
                         MenuItem::new(
                             "Toggle Hex Dump",
-                            Some("Ctrl+2"),
+                            Some("Alt+2"),
                             Some(MenuAction::ToggleHexDump),
                         ),
                         MenuItem::new(
                             "Toggle Sprites View",
-                            Some("Ctrl+3"),
+                            Some("Alt+3"),
                             Some(MenuAction::ToggleSpritesView),
                         ),
                         MenuItem::new(
                             "Toggle Charset View",
-                            Some("Ctrl+4"),
+                            Some("Alt+4"),
                             Some(MenuAction::ToggleCharsetView),
                         ),
                         MenuItem::new(
                             "Toggle Blocks View",
-                            Some("Ctrl+5"),
+                            Some("Alt+5"),
                             Some(MenuAction::ToggleBlocksView),
                         ),
                     ],

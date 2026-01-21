@@ -98,11 +98,11 @@ Supported file formats: `.prg`, `.crt`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.re
 |                | **Exit**                                              | `Ctrl + q`                              |
 |                | **Open File**                                         | `Ctrl + o`                              |
 |                | **Save Project**                                      | `Ctrl + s`                              |
-|                | **Save Project As**                                   | `Ctrl + Shift + s`                      |
+|                | **Save Project As**                                   | `Alt + s`, `Ctrl + Shift + s`           |
 |                | **Export Project (ASM)**                              | `Ctrl + e`                              |
-|                | **Export Project As (ASM)**                           | `Ctrl + Shift + e`                      |
-|                | **Document Settings**                                 | `Ctrl + Shift + d`                      |
-|                | **Settings**                                          | `Ctrl + ,`                              |
+|                | **Export Project As (ASM)**                           | `Alt + e`, `Ctrl + Shift + e`           |
+|                | **Document Settings**                                 | `Alt + d`, `Ctrl + Shift + d`           |
+|                | **Settings**                                          | `Alt + o`, `Ctrl + ,`                   |
 |                | **Undo**                                              | `u`                                     |
 |                | **Redo**                                              | `Ctrl + r`                              |
 |                | **Switch Pane (Hex Dump/Disasm)**                     | `Tab`                                   |
@@ -110,7 +110,7 @@ Supported file formats: `.prg`, `.crt`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.re
 |                | **Page Up/Down**                                      | `PageUp` / `PageDown`                   |
 |                | **Home/End**                                          | `Home` / `End`                          |
 |                | **Jump to Address (Dialog)**                          | `g`                                     |
-|                | **Jump to Line (Dialog)**                             | `Ctrl + Shift + g`                      |
+|                | **Jump to Line (Dialog)**                             | `Alt + g`, `Ctrl + Shift + g`           |
 |                | **Jump to Line / End of File**                        | `[Number] G`                            |
 |                | **Jump to Operand**                                   | `Enter`                                 |
 |                | **Jump Back (History)**                               | `Backspace`                             |
@@ -141,10 +141,10 @@ Supported file formats: `.prg`, `.crt`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.re
 | **View**       | **Next / Prev Hex Dump Mode** (only in Hex Dump View) | `m` / `Shift + m`                       |
 |                | **Toggle Multicolor Sprites** (only in Sprites View)  | `m`                                     |
 |                | **Toggle Multicolor Charset** (only in Charset View)  | `m`                                     |
-|                | **Toggle Hex Dump View**                              | `Ctrl + 2`                              |
-|                | **Toggle Sprites View**                               | `Ctrl + 3`                              |
-|                | **Toggle Charset View**                               | `Ctrl + 4`                              |
-|                | **Toggle Blocks View**                                | `Ctrl + 5`                              |
+|                | **Toggle Hex Dump View**                              | `Alt + 2`, `Ctrl + 2`                   |
+|                | **Toggle Sprites View**                               | `Alt + 3`, `Ctrl + 3`                   |
+|                | **Toggle Charset View**                               | `Alt + 4`, `Ctrl + 4`                   |
+|                | **Toggle Blocks View**                                | `Alt + 5`, `Ctrl + 5`                   |
 | **Menus**      | **Navigate Menu**                                     | Arrows                                  |
 |                | **Select Item**                                       | `Enter`                                 |
 |                | **Close Menu**                                        | `Esc`                                   |
