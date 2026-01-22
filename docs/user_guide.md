@@ -1,10 +1,10 @@
-# Regenerator2000 User Guide
+# Regenerator 2000 User Guide
 
 ## Introduction
 
-**Regenerator2000** is a modern, interactive disassembler for the Commodore 64 (and related 8-bit systems) written in
-Rust. Unlike traditional batch disassemblers that produce a single text output, Regenerator2000 provides a \*
-\*unidirectional data flow\*\* environment where you can interactively refine your disassembly.
+**Regenerator 2000** is a modern, interactive disassembler for the Commodore 64 (and related 8-bit systems) written in
+Rust. Unlike traditional batch disassemblers that produce a single text output, Regenerator 2000 provides a
+**unidirectional data flow** environment where you can interactively refine your disassembly.
 
 As you identify code, data, and text regions, the built-in **Auto Labeler** and **Analyzer** constantly work in the
 background to trace code paths, identify subroutine entry points, and validate your changes. The result is a project
@@ -13,7 +13,7 @@ and **ca65**.
 
 ## Command Line Options
 
-Regenerator2000 can be launched from the terminal with some options:
+Regenerator 2000 can be launched from the terminal with some options:
 
 ```bash
 regenerator2000 [OPTIONS] [FILE]
@@ -22,23 +22,23 @@ regenerator2000 [OPTIONS] [FILE]
 ### Options
 
 * `--help`: Displays the help message listing all available options and supported file types.
-* `--version`: Displays the current version of Regenerator2000.
+* `--version`: Displays the current version of Regenerator 2000.
 
 ### Arguments
 
-* `FILE`: (Optional) The path to a file you wish to open. Regenerator2000 supports various formats, including:
+* `FILE`: (Optional) The path to a file you wish to open. Regenerator 2000 supports various formats, including:
     * **C64 Program Files**: `.prg`
     * **Cartridge Images**: `.crt`
     * **Tape Images**: `.t64`
     * **Vice Snapshot Files**: `.vsf`
     * **Raw Binary Files**: `.bin`, `.raw`
-    * **Regenerator2000 Project Files**: `.regen2000proj`
+    * **Regenerator 2000 Project Files**: `.regen2000proj`
 
 ## Block Types
 
-In Regenerator2000, every byte of the loaded binary is assigned a **Block Type**. This type tells the disassembly engine
-how to interpret that byte. You can change the Block Type for any region of memory using keyboard shortcuts (in Visual
-Mode or for the single line under the cursor).
+In Regenerator 2000, every byte of the loaded binary is assigned a **Block Type**. This type tells the disassembly
+engine how to interpret that byte. You can change the Block Type for any region of memory using keyboard shortcuts
+(in Visual Mode or for the single line under the cursor).
 
 The available Block Types are:
 
@@ -88,7 +88,7 @@ Example:
 - **Shortcut**: `a`
 - **Description**: Represents data as 16-bit addresses. Unlike "Data Word", this type explicitly tells the analyzer that
   the value points to a location in memory.
-- **Use Case**: Essential for **Jump Tables**. When you mark a table as "Address", Regenerator2000 will create
+- **Use Case**: Essential for **Jump Tables**. When you mark a table as "Address", Regenerator 2000 will create
   Cross-References (X-Refs) to the target locations, allowing you to see where indirect jumps land.
 
 Example:
@@ -118,8 +118,8 @@ Example:
 
 - **Shortcut**: `s`
 - **Description**: Interprets bytes as Commodore Screen Codes (Matrix codes) text.
-- **Use Case**: Use for data that is directly copied to Screen RAM ($0400). These values differ from standard PETSCII (
-  e.g., 'A' is 1, not 65).
+- **Use Case**: Use for data that is directly copied to Screen RAM ($0400). These values differ from standard PETSCII
+  (e.g., 'A' is 1, not 65).
 
 Example:
 
@@ -219,7 +219,7 @@ Beyond data types, you can organize your view using Splitters and Collapsing:
 
 ## Document Settings
 
-You can customize how Regenerator2000 analyzes the binary and exports the code by accessing the **Document Settings**
+You can customize how Regenerator 2000 analyzes the binary and exports the code by accessing the **Document Settings**
 dialog (Shortcut: `Alt + d`, or `Ctrl + Shift + d`).
 
 ```text
