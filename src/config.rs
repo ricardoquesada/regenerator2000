@@ -10,6 +10,8 @@ pub struct SystemConfig {
     pub theme: String,
     #[serde(default = "default_true")]
     pub sync_blocks_view: bool,
+    #[serde(default = "default_true")]
+    pub auto_analyze: bool,
 }
 
 fn default_true() -> bool {
@@ -27,6 +29,7 @@ impl Default for SystemConfig {
             last_project_path: None,
             theme: "Solarized Dark".to_string(),
             sync_blocks_view: true,
+            auto_analyze: true,
         }
     }
 }
