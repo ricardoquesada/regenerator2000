@@ -950,11 +950,32 @@ impl AppState {
     }
 
     pub fn get_line_index_containing_address(&self, address: u16) -> Option<usize> {
+        // Check if address is in a collapsed block
+        for (start_idx, end_idx) in &self.collapsed_blocks {
+            let start_addr = self.origin.wrapping_add(*start_idx as u16);
+            let end_addr = self.origin.wrapping_add(*end_idx as u16);
+
+            // Check if address is within this collapsed block [start, end]
+            // Handle wrap-around if necessary
+            let in_range = if start_addr <= end_addr {
+                address >= start_addr && address <= end_addr
+            } else {
+                address >= start_addr || address <= end_addr
+            };
+
+            if in_range {
+                // Return the index of the line that represents this collapsed block
+                // This line starts at start_addr and has is_collapsed=true
+                return self.get_line_index_for_address(start_addr);
+            }
+        }
+
         self.disassembly.iter().position(|line| {
             let start = line.address;
             let len = line.bytes.len() as u16;
 
             // For collapsed blocks or special lines with no bytes, we match if address is exact
+            // Note: Collapsed blocks are now handled above, but we keep this for other 0-byte lines (e.g. headers)
             if len == 0 {
                 return start == address;
             }
