@@ -33,6 +33,9 @@ pub fn analyze(
             let opcode_byte = state.raw_data[pc];
             if let Some(opcode) = &state.disassembler.opcodes[opcode_byte as usize] {
                 if opcode.illegal && !state.settings.use_illegal_opcodes {
+                    // TBD, but we can skip 1 byte, or the entire opcode.
+                    // Let's be safe, and skip 1 byte.
+                    // pc += opcode.size as usize;
                     pc += 1;
                     continue;
                 }
