@@ -12,6 +12,9 @@ pub struct SystemConfig {
     pub sync_blocks_view: bool,
     #[serde(default = "default_true")]
     pub auto_analyze: bool,
+	#[serde(default = "default_true")]
+	pub sync_hex_dump: bool,
+
 }
 
 fn default_true() -> bool {
@@ -30,6 +33,8 @@ impl Default for SystemConfig {
             theme: "Solarized Dark".to_string(),
             sync_blocks_view: true,
             auto_analyze: true,
+			sync_hex_dump: true,
+
         }
     }
 }

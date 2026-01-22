@@ -57,6 +57,14 @@ impl Widget for SettingsDialog {
                     "[ ]"
                 }
             ),
+			            format!(
+                "{} Sync Hex Dump View",
+                if app_state.system_config.sync_hex_dump {
+                    "[X]"
+                } else {
+                    "[ ]"
+                }
+            ),
             format!("Theme: < {} >", app_state.system_config.theme),
         ];
 
@@ -176,7 +184,10 @@ impl Widget for SettingsDialog {
                 } else if self.selected_index == 2 {
                     app_state.system_config.auto_analyze = !app_state.system_config.auto_analyze;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 3 {
+				} else if self.selected_index == 3 {
+                    app_state.system_config.sync_hex_dump = !app_state.system_config.sync_hex_dump;
+                    let _ = app_state.system_config.save();
+                } else if self.selected_index == 4 {
                     self.is_selecting_theme = true;
                 }
                 WidgetResult::Handled
