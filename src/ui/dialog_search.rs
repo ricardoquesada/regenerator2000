@@ -1,4 +1,5 @@
 use crate::state::AppState;
+use crate::utils::{petscii_to_unicode, screencode_to_petscii};
 // Theme import removed
 use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::{KeyCode, KeyEvent};
@@ -33,6 +34,7 @@ impl Widget for SearchDialog {
             .constraints([
                 Constraint::Fill(1),
                 Constraint::Length(3),
+                Constraint::Length(1),
                 Constraint::Fill(1),
             ])
             .split(area);
@@ -40,11 +42,21 @@ impl Widget for SearchDialog {
         let area = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(25),
-                Constraint::Percentage(50),
-                Constraint::Percentage(25),
+                Constraint::Percentage(20),
+                Constraint::Percentage(60),
+                Constraint::Percentage(20),
             ])
             .split(layout[1])[1];
+
+        let help_area = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(20),
+                Constraint::Percentage(60),
+                Constraint::Percentage(20),
+            ])
+            .split(layout[2])[1];
+
         f.render_widget(ratatui::widgets::Clear, area);
 
         let input = Paragraph::new(self.input.clone()).block(block).style(
@@ -53,6 +65,11 @@ impl Widget for SearchDialog {
                 .add_modifier(Modifier::BOLD),
         );
         f.render_widget(input, area);
+
+        let help =
+            Paragraph::new(" Opcodes, Labels, Comments, Hex (A9 ??), Strings (PETSCII/Screencode)")
+                .style(Style::default().fg(theme.comment));
+        f.render_widget(help, help_area);
     }
 
     fn handle_input(
@@ -224,11 +241,25 @@ fn get_line_matches(
     // 3. Instruction Content
     let mut instruction_match = match_instruction_content(line, query_lower);
 
-    if !instruction_match
-        && let Some(pattern) = hex_pattern
-        && check_hex_pattern(line.address, pattern, app_state)
-    {
-        instruction_match = true;
+    // 4. Hex pattern search and String pattern search
+    if !instruction_match {
+        for offset in 0..line.bytes.len() {
+            let addr = line.address.wrapping_add(offset as u16);
+
+            // Hex pattern search
+            if let Some(pattern) = hex_pattern
+                && check_hex_pattern(addr, pattern, app_state)
+            {
+                instruction_match = true;
+                break;
+            }
+
+            // String pattern search (PETSCII / Screencode)
+            if check_string_pattern(addr, query_lower, app_state) {
+                instruction_match = true;
+                break;
+            }
+        }
     }
 
     if instruction_match {
@@ -425,6 +456,56 @@ fn check_hex_pattern(address: u16, pattern: &[Option<u8>], app_state: &AppState)
 
     true
 }
+
+/// Check if the query string matches the raw bytes at the given address.
+/// Checks both PETSCII and Screencode encodings, case-insensitively.
+fn check_string_pattern(address: u16, query: &str, app_state: &AppState) -> bool {
+    let raw_len = app_state.raw_data.len();
+    if raw_len == 0 || query.is_empty() {
+        return false;
+    }
+
+    let start_offset = (address.wrapping_sub(app_state.origin)) as usize;
+    if start_offset >= raw_len {
+        return false;
+    }
+
+    let query_chars: Vec<char> = query.chars().collect();
+    let query_len = query_chars.len();
+
+    // Check if the pattern fits in the remaining data
+    if start_offset + query_len > raw_len {
+        return false;
+    }
+
+    // Check PETSCII encoding (both shifted and unshifted)
+    let petscii_match = (0..=1).any(|shift| {
+        let shifted = shift == 1;
+        query_chars.iter().enumerate().all(|(i, &query_char)| {
+            let idx = start_offset + i;
+            let byte = app_state.raw_data[idx];
+            let petscii_char = petscii_to_unicode(byte, shifted);
+            petscii_char.eq_ignore_ascii_case(&query_char)
+        })
+    });
+
+    if petscii_match {
+        return true;
+    }
+
+    // Check Screencode encoding (convert to PETSCII first, then to Unicode)
+    (0..=1).any(|shift| {
+        let shifted = shift == 1;
+        query_chars.iter().enumerate().all(|(i, &query_char)| {
+            let idx = start_offset + i;
+            let screencode_byte = app_state.raw_data[idx];
+            let petscii_byte = screencode_to_petscii(screencode_byte);
+            let sc_char = petscii_to_unicode(petscii_byte, shifted);
+            sc_char.eq_ignore_ascii_case(&query_char)
+        })
+    })
+}
+
 #[cfg(test)]
 mod tests_hex {
     use super::*;
@@ -453,5 +534,79 @@ mod tests_hex {
         assert_eq!(parse_hex_pattern("LDA"), None); // invalid chars
         assert_eq!(parse_hex_pattern(""), None); // empty
         assert_eq!(parse_hex_pattern("A?"), None); // invalid wildcard (must be ??)
+    }
+}
+
+#[cfg(test)]
+mod tests_string {
+    use super::*;
+    use crate::state::AppState;
+
+    #[test]
+    fn test_check_string_pattern() {
+        let mut app_state = AppState::new();
+        app_state.raw_data = vec![
+            0x48, 0x45, 0x4C, 0x4C, 0x4F, // "HELLO" in PETSCII (unshifted)
+            0x08, 0x05, 0x0C, 0x0C, 0x0F, // "hello" in Screencodes (Shifted/Lowercase)
+        ];
+        app_state.origin = 0x1000;
+
+        // 1. PETSCII match (unshifted)
+        assert!(check_string_pattern(0x1000, "HELLO", &app_state));
+        assert!(check_string_pattern(0x1000, "hello", &app_state)); // Case-insensitive
+        assert!(check_string_pattern(0x1000, "HellO", &app_state));
+
+        // 2. Screencode match
+        // Note: screencode_to_petscii(0x08) -> 0x48 ('H' or 'h' shifted)
+        assert!(check_string_pattern(0x1005, "hello", &app_state));
+        assert!(check_string_pattern(0x1005, "HELLO", &app_state));
+
+        // 3. No match
+        assert!(!check_string_pattern(0x1000, "WORLD", &app_state));
+        assert!(!check_string_pattern(0x1008, "HELLO", &app_state)); // Out of bounds/Too long
+    }
+
+    #[test]
+    fn test_string_search_at_offset() {
+        use crate::disassembler::DisassemblyLine;
+
+        let mut app_state = AppState::new();
+        // Screencode for "LANDING": 0C 01 0E 04 09 0E 07
+        // Let's put a dummy byte at the start to force an offset
+        app_state.raw_data = vec![0x00, 0x0C, 0x01, 0x0E, 0x04, 0x09, 0x0E, 0x07];
+        app_state.origin = 0x1000;
+
+        let line = DisassemblyLine {
+            address: 0x1000,
+            bytes: app_state.raw_data.clone(),
+            mnemonic: String::new(),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            comment_address: None,
+            is_collapsed: false,
+        };
+
+        // This is what get_line_matches CURRENTLY does (simplified)
+        let query = "landing";
+        let found_at_start = check_string_pattern(line.address, query, &app_state);
+        assert!(
+            !found_at_start,
+            "Should not find at start due to leading 0x00"
+        );
+
+        // The bug is that we don't check offsets. This test will help me verify the fix.
+        let mut found_at_any_offset = false;
+        for offset in 0..line.bytes.len() {
+            if check_string_pattern(line.address + offset as u16, query, &app_state) {
+                found_at_any_offset = true;
+                break;
+            }
+        }
+        assert!(found_at_any_offset, "Should find 'landing' at offset 1");
     }
 }

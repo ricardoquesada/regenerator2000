@@ -341,7 +341,7 @@ mod tests {
         }
 
         // Undo
-        let mut stack = std::mem::replace(&mut app_state.undo_stack, UndoStack::new());
+        let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
@@ -351,7 +351,7 @@ mod tests {
         }
 
         // Redo
-        let mut stack = std::mem::replace(&mut app_state.undo_stack, UndoStack::new());
+        let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
@@ -387,14 +387,14 @@ mod tests {
         );
 
         // Undo
-        let mut stack = std::mem::replace(&mut app_state.undo_stack, UndoStack::new());
+        let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
         assert!(!app_state.labels.contains_key(&address));
 
         // Redo
-        let mut stack = std::mem::replace(&mut app_state.undo_stack, UndoStack::new());
+        let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
@@ -445,7 +445,7 @@ mod tests {
         assert!(!app_state.labels.contains_key(&0x1005));
 
         // Undo
-        let mut stack = std::mem::replace(&mut app_state.undo_stack, AppState::new().undo_stack);
+        let mut stack = std::mem::take(&mut app_state.undo_stack);
         // Wait, AppState::new() creates empty stack.
         // My previous test code used `UndoStack::new()`. I should respect imports.
         // But `UndoStack` is in this module (super).
@@ -485,14 +485,14 @@ mod tests {
         assert_eq!(app_state.user_line_comments.get(&address), Some(&comment));
 
         // Undo
-        let mut stack = std::mem::replace(&mut app_state.undo_stack, UndoStack::new());
+        let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.undo(&mut app_state);
         app_state.undo_stack = stack;
 
         assert!(!app_state.user_line_comments.contains_key(&address));
 
         // Redo
-        let mut stack = std::mem::replace(&mut app_state.undo_stack, UndoStack::new());
+        let mut stack = std::mem::take(&mut app_state.undo_stack);
         stack.redo(&mut app_state);
         app_state.undo_stack = stack;
 
