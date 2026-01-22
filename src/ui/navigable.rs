@@ -116,3 +116,23 @@ pub fn handle_nav_input<T: Navigable>(
         _ => WidgetResult::Ignored,
     }
 }
+
+pub fn jump_to_disassembly_at_address(
+    app_state: &AppState,
+    ui_state: &mut UIState,
+    target_addr: u16,
+) -> WidgetResult {
+    if let Some(line_idx) = app_state.get_line_index_containing_address(target_addr) {
+        ui_state.navigation_history.push((
+            crate::ui_state::ActivePane::Disassembly,
+            ui_state.cursor_index,
+        ));
+        ui_state.cursor_index = line_idx;
+        ui_state.active_pane = crate::ui_state::ActivePane::Disassembly;
+        ui_state.sub_cursor_index = 0;
+        ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
+    } else {
+        ui_state.set_status_message(format!("Address ${:04X} not found", target_addr));
+    }
+    WidgetResult::Handled
+}

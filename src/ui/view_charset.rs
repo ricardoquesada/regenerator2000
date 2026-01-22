@@ -345,6 +345,18 @@ impl Widget for CharsetView {
             KeyCode::Char('m') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::ToggleCharsetMulticolor)
             }
+            KeyCode::Enter => {
+                let origin = app_state.origin as usize;
+                let base_alignment = 0x400;
+                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                let char_offset = ui_state.charset_cursor_index * 8;
+                let target_addr = (aligned_start_addr + char_offset) as u16;
+                crate::ui::navigable::jump_to_disassembly_at_address(
+                    app_state,
+                    ui_state,
+                    target_addr,
+                )
+            }
             _ => WidgetResult::Ignored,
         }
     }

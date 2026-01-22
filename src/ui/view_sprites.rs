@@ -249,6 +249,17 @@ impl Widget for SpritesView {
             KeyCode::Char('m') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::ToggleSpriteMulticolor)
             }
+            KeyCode::Enter => {
+                let origin = app_state.origin as usize;
+                let padding = (64 - (origin % 64)) % 64;
+                let sprite_offset = padding + ui_state.sprites_cursor_index * 64;
+                let target_addr = (origin + sprite_offset) as u16;
+                crate::ui::navigable::jump_to_disassembly_at_address(
+                    app_state,
+                    ui_state,
+                    target_addr,
+                )
+            }
             _ => WidgetResult::Ignored,
         }
     }

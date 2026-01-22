@@ -204,6 +204,18 @@ impl Widget for HexDumpView {
             KeyCode::Char('M') if key.modifiers == KeyModifiers::SHIFT => {
                 WidgetResult::Action(MenuAction::HexdumpViewModePrev)
             }
+            KeyCode::Enter => {
+                let origin = app_state.origin as usize;
+                let alignment_padding = origin % 16;
+                let aligned_origin = origin - alignment_padding;
+                // Hex cursor index is row index
+                let target_addr = (aligned_origin + ui_state.hex_cursor_index * 16) as u16;
+                crate::ui::navigable::jump_to_disassembly_at_address(
+                    app_state,
+                    ui_state,
+                    target_addr,
+                )
+            }
             _ => WidgetResult::Ignored,
         }
     }

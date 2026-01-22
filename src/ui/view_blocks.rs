@@ -176,17 +176,9 @@ impl Widget for BlocksView {
                     };
 
                     if let Some(addr) = target_addr {
-                        if let Some(line_idx) = app_state.get_line_index_containing_address(addr) {
-                            ui_state
-                                .navigation_history
-                                .push((ActivePane::Disassembly, ui_state.cursor_index));
-                            ui_state.cursor_index = line_idx;
-                            ui_state.active_pane = ActivePane::Disassembly;
-                            ui_state.sub_cursor_index = 0;
-                            ui_state.set_status_message(format!("Jumped to ${:04X}", addr));
-                        } else {
-                            ui_state.set_status_message(format!("Address ${:04X} not found", addr));
-                        }
+                        crate::ui::navigable::jump_to_disassembly_at_address(
+                            app_state, ui_state, addr,
+                        );
                     }
                 }
                 WidgetResult::Handled
