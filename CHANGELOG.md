@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Feature: Find Reference dialog (Shift+F7) 
 - Feature: Auto-analyze on file open (enabled by default)
+- Feature: pressing Enter in right-side pane, updates cursor in Disassembly view.
 - Config: "Patch BRK" enabled by default
 - UI: Don't show addresses if there are no bytes
 - Navigation: Move up/down skip lines without "real bytes"

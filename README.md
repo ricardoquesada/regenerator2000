@@ -129,12 +129,14 @@ across Windows, macOS, and Linux, and different terminal emulators.
 |                | **Jump to Line (Dialog)**                             | `Alt + g`, `Ctrl + Shift + g`           |
 |                | **Jump to Line / End of File**                        | `[Number] G`                            |
 |                | **Jump to Operand**                                   | `Enter`                                 |
+|                | **Jump to Disassembly (from Panels)**                 | `Enter`                                 |
 |                | **Jump Back (History)**                               | `Backspace`                             |
 |                | **Previous/Next 10 Lines**                            | `Ctrl + u` / `Ctrl + d`                 |
 | **Search**     | **Vim Search**                                        | `/`                                     |
 |                | **Next / Previous Match**                             | `n` / `Shift + n`                       |
 |                | **Search Dialog**                                     | `Ctrl + f`                              |
 |                | **Find Next / Previous**                              | `F3` / `Shift + F3`                     |
+|                | **Find References**                                   | `Shift + F7`                            |
 | **Selection**  | **Toggle Visual Mode**                                | `V`                                     |
 |                | **Select Text**                                       | `Shift + Up/Down` / Visual Mode + `j/k` |
 |                | **Clear Selection**                                   | `Esc`                                   |
