@@ -42,14 +42,6 @@ impl Widget for SettingsDialog {
                 }
             ),
             format!(
-                "{} Sync Blocks View",
-                if app_state.system_config.sync_blocks_view {
-                    "[X]"
-                } else {
-                    "[ ]"
-                }
-            ),
-            format!(
                 "{} Auto-analyze on load",
                 if app_state.system_config.auto_analyze {
                     "[X]"
@@ -57,9 +49,17 @@ impl Widget for SettingsDialog {
                     "[ ]"
                 }
             ),
-			            format!(
+            format!(
                 "{} Sync Hex Dump View",
                 if app_state.system_config.sync_hex_dump {
+                    "[X]"
+                } else {
+                    "[ ]"
+                }
+            ),
+            format!(
+                "{} Sync Blocks View",
+                if app_state.system_config.sync_blocks_view {
                     "[X]"
                 } else {
                     "[ ]"
@@ -162,8 +162,8 @@ impl Widget for SettingsDialog {
                     app_state.system_config.theme = new_theme.clone();
                     ui_state.theme = crate::theme::Theme::from_name(&new_theme);
                 } else {
-                    // Limit to 3 (4 items)
-                    if self.selected_index < 3 {
+                    // Limit to 4 (5 items)
+                    if self.selected_index < 4 {
                         self.selected_index += 1;
                     }
                 }
@@ -178,14 +178,14 @@ impl Widget for SettingsDialog {
                         !app_state.system_config.open_last_project;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 1 {
-                    app_state.system_config.sync_blocks_view =
-                        !app_state.system_config.sync_blocks_view;
-                    let _ = app_state.system_config.save();
-                } else if self.selected_index == 2 {
                     app_state.system_config.auto_analyze = !app_state.system_config.auto_analyze;
                     let _ = app_state.system_config.save();
-				} else if self.selected_index == 3 {
+                } else if self.selected_index == 2 {
                     app_state.system_config.sync_hex_dump = !app_state.system_config.sync_hex_dump;
+                    let _ = app_state.system_config.save();
+                } else if self.selected_index == 3 {
+                    app_state.system_config.sync_blocks_view =
+                        !app_state.system_config.sync_blocks_view;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 4 {
                     self.is_selecting_theme = true;
