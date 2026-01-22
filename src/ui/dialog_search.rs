@@ -224,12 +224,11 @@ fn get_line_matches(
     // 3. Instruction Content
     let mut instruction_match = match_instruction_content(line, query_lower);
 
-    if !instruction_match {
-        if let Some(pattern) = hex_pattern {
-            if check_hex_pattern(line.address, pattern, app_state) {
-                instruction_match = true;
-            }
-        }
+    if !instruction_match
+        && let Some(pattern) = hex_pattern
+        && check_hex_pattern(line.address, pattern, app_state)
+    {
+        instruction_match = true;
     }
 
     if instruction_match {
@@ -379,7 +378,7 @@ fn parse_hex_pattern(query: &str) -> Option<Vec<Option<u8>>> {
     }
 
     // Hex pattern must be pairs of characters (bytes)
-    if clean.len() % 2 != 0 {
+    if !clean.len().is_multiple_of(2) {
         return None;
     }
 
@@ -417,10 +416,10 @@ fn check_hex_pattern(address: u16, pattern: &[Option<u8>], app_state: &AppState)
 
     for (i, &byte_pat) in pattern.iter().enumerate() {
         let idx = start_offset + i;
-        if let Some(target) = byte_pat {
-            if idx >= raw_len || app_state.raw_data[idx] != target {
-                return false;
-            }
+        if let Some(target) = byte_pat
+            && (idx >= raw_len || app_state.raw_data[idx] != target)
+        {
+            return false;
         }
     }
 
