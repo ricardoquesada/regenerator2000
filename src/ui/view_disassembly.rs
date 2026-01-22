@@ -41,13 +41,24 @@ impl DisassemblyView {
             if ui_state.sub_cursor_index < instruction_sub_idx {
                 // If we are currently on a label or comment (e.g. mouse click), jump to the instruction
                 ui_state.sub_cursor_index = instruction_sub_idx;
-            } else if ui_state.cursor_index < app_state.disassembly.len().saturating_sub(1) {
-                // Move to next line
-                ui_state.cursor_index += 1;
-                let next_line = &app_state.disassembly[ui_state.cursor_index];
-                let next_counts = Self::get_visual_line_counts(next_line, app_state);
-                // Always land on the instruction, skipping labels and comments
-                ui_state.sub_cursor_index = next_counts.labels + next_counts.comments;
+            } else {
+                // Move to next line, skipping metadata lines
+                let mut next_idx = ui_state.cursor_index + 1;
+                while next_idx < app_state.disassembly.len() {
+                    let next_line = &app_state.disassembly[next_idx];
+                    if !next_line.bytes.is_empty() || next_line.is_collapsed {
+                        break;
+                    }
+                    next_idx += 1;
+                }
+
+                if next_idx < app_state.disassembly.len() {
+                    ui_state.cursor_index = next_idx;
+                    let next_line = &app_state.disassembly[ui_state.cursor_index];
+                    let next_counts = Self::get_visual_line_counts(next_line, app_state);
+                    // Always land on the instruction, skipping labels and comments
+                    ui_state.sub_cursor_index = next_counts.labels + next_counts.comments;
+                }
             }
         }
     }
@@ -61,10 +72,22 @@ impl DisassemblyView {
             // Unlike Down, Up always takes us to the previous line's instruction
             // regardless of where we are in the current line (instruction, comment, or label).
             if ui_state.cursor_index > 0 {
-                ui_state.cursor_index -= 1;
-                let prev_line = &app_state.disassembly[ui_state.cursor_index];
-                let prev_counts = Self::get_visual_line_counts(prev_line, app_state);
-                ui_state.sub_cursor_index = prev_counts.labels + prev_counts.comments;
+                let mut prev_idx = ui_state.cursor_index - 1;
+                while prev_idx > 0 {
+                    let prev_line = &app_state.disassembly[prev_idx];
+                    if !prev_line.bytes.is_empty() || prev_line.is_collapsed {
+                        break;
+                    }
+                    prev_idx -= 1;
+                }
+
+                // Check if the found prev_idx is valid (it might be 0 and valid, or 0 and invalid if file starts with metadata)
+                let prev_line = &app_state.disassembly[prev_idx];
+                if !prev_line.bytes.is_empty() || prev_line.is_collapsed {
+                    ui_state.cursor_index = prev_idx;
+                    let prev_counts = Self::get_visual_line_counts(prev_line, app_state);
+                    ui_state.sub_cursor_index = prev_counts.labels + prev_counts.comments;
+                }
             } else if ui_state.sub_cursor_index > 0 {
                 // Optimization/Edge-case: If we are at index 0 but sub-index > 0 (comment/label at file start),
                 // do nothing as per existing logic analysis.
