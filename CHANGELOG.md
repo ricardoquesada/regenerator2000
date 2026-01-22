@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Feature: Auto-analyze on file open (enabled by default)
+- Config: "Patch BRK" enabled by default
+- UI: Don't show addresses if there are no bytes
+- Navigation: Move up/down skip lines without "real bytes"
+- Docs: Updated User Guide with illegal opcodes, patch brk, and command line options explanations
+- Docs: README fixes and Discord channel correction
+- Fix: Jump to collapsed line works correctly
+
 ## [0.4.1] - 2026-01-20
 
 - Fix: Works in Windows
