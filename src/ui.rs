@@ -6,6 +6,7 @@ pub mod dialog_comment;
 pub mod dialog_confirmation;
 pub mod dialog_document_settings;
 pub mod dialog_export_as;
+pub mod dialog_find_references;
 pub mod dialog_jump_to_address;
 pub mod dialog_jump_to_line;
 pub mod dialog_keyboard_shortcut;

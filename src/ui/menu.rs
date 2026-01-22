@@ -58,6 +58,8 @@ pub enum MenuAction {
     ToggleBlocksView,
     ToggleCollapsedBlock,
     ToggleSplitter,
+    FindReferences,
+    NavigateToAddress(u16),
 }
 
 impl MenuAction {
@@ -261,6 +263,11 @@ impl MenuState {
                             "Find Previous",
                             Some("Shift+F3"),
                             Some(MenuAction::FindPrevious),
+                        ),
+                        MenuItem::new(
+                            "Find References",
+                            Some("Shift+F7"),
+                            Some(MenuAction::FindReferences),
                         ),
                     ],
                 },
@@ -749,6 +756,99 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         MenuAction::FindPrevious => {
             crate::ui::dialog_search::perform_search(app_state, ui_state, false);
         }
+        MenuAction::FindReferences => {
+            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                let addr = line.address;
+                ui_state.active_dialog = Some(Box::new(
+                    crate::ui::dialog_find_references::FindReferencesDialog::new(app_state, addr),
+                ));
+                ui_state.set_status_message(format!("References to ${:04X}", addr));
+            } else {
+                ui_state.set_status_message("No address selected");
+            }
+        }
+        MenuAction::NavigateToAddress(target_addr) => {
+            match ui_state.active_pane {
+                ActivePane::Disassembly => {
+                    if let Some(idx) = app_state
+                        .get_line_index_containing_address(target_addr)
+                        .or_else(|| app_state.get_line_index_for_address(target_addr))
+                    {
+                        ui_state
+                            .navigation_history
+                            .push((ActivePane::Disassembly, ui_state.cursor_index));
+                        ui_state.cursor_index = idx;
+                        ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
+                    } else if !app_state.disassembly.is_empty() {
+                        // Fallback to closest or valid range?
+                        // Existing logic was "Jumped to end" if not found?
+                        // Let's stick to "not found" or strict check unless requested otherwise.
+                        // But wait, the dialog logic had a fallback:
+                        // } else if !app_state.disassembly.is_empty() { ... jump to end ... }
+                        // We can keep that if desired, but "Address not found" is usually better.
+                        // Let's stick to strict behavior for now, or maybe just log it.
+                        ui_state
+                            .set_status_message(format!("Address ${:04X} not found", target_addr));
+                    }
+                }
+                ActivePane::HexDump => {
+                    let origin = app_state.origin as usize;
+                    let target = target_addr as usize;
+                    let end_addr = origin + app_state.raw_data.len();
+
+                    if target >= origin && target < end_addr {
+                        let alignment_padding = origin % 16;
+                        let aligned_origin = origin - alignment_padding;
+                        let offset = target - aligned_origin;
+                        let row = offset / 16;
+                        ui_state.hex_cursor_index = row;
+                        ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
+                    } else {
+                        ui_state.set_status_message("Address out of range");
+                    }
+                }
+                ActivePane::Sprites => {
+                    let origin = app_state.origin as usize;
+                    let target = target_addr as usize;
+                    let padding = (64 - (origin % 64)) % 64;
+                    let aligned_start = origin + padding;
+                    let end_addr = origin + app_state.raw_data.len();
+
+                    if target >= aligned_start && target < end_addr {
+                        let offset = target - aligned_start;
+                        let sprite_idx = offset / 64;
+                        ui_state.sprites_cursor_index = sprite_idx;
+                        ui_state.set_status_message(format!(
+                            "Jumped to sprite at ${:04X}",
+                            target_addr
+                        ));
+                    } else {
+                        ui_state.set_status_message("Address out of range or unaligned");
+                    }
+                }
+                ActivePane::Charset => {
+                    let origin = app_state.origin as usize;
+                    let target = target_addr as usize;
+                    let base_alignment = 0x400;
+                    let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                    let end_addr = origin + app_state.raw_data.len();
+
+                    if target >= aligned_start_addr && target < end_addr {
+                        let offset = target - aligned_start_addr;
+                        let char_idx = offset / 8;
+                        ui_state.charset_cursor_index = char_idx;
+                        ui_state
+                            .set_status_message(format!("Jumped to char at ${:04X}", target_addr));
+                    } else {
+                        ui_state.set_status_message("Address out of range");
+                    }
+                }
+                ActivePane::Blocks => {
+                    ui_state.set_status_message("Jump to address not supported in Blocks view");
+                }
+            }
+        }
+
         MenuAction::JumpToOperand => {
             let target_addr = match ui_state.active_pane {
                 ActivePane::Disassembly => {

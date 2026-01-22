@@ -14,6 +14,13 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             ui_state.menu.select_first_enabled_item();
             ui_state.set_status_message("Menu Active");
         }
+        KeyCode::F(7) if key.modifiers == KeyModifiers::SHIFT => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::FindReferences,
+            );
+        }
         // Global Shortcuts
         KeyCode::Char('o') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Open)
