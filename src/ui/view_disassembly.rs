@@ -835,6 +835,21 @@ impl Widget for DisassemblyView {
                     Style::default()
                 };
 
+                let show_address = !line.bytes.is_empty() || line.is_collapsed;
+                let address_str = if show_address {
+                    format!(
+                        "${:04X}{} ",
+                        line.address,
+                        if app_state.splitters.contains(&line.address) {
+                            "*"
+                        } else {
+                            " "
+                        }
+                    )
+                } else {
+                    "       ".to_string()
+                };
+
                 let mut spans = vec![
                     Span::styled(
                         format!("{:5} ", current_line_num),
@@ -845,22 +860,15 @@ impl Widget for DisassemblyView {
                         line_style.fg(ui_state.theme.arrow),
                     ),
                     Span::styled(
-                        format!(
-                            "${:04X}{} ",
-                            line.address,
-                            if app_state.splitters.contains(&line.address) {
-                                "*"
-                            } else {
-                                " "
-                            }
-                        ),
+                        address_str,
                         if let Some(next_line) = app_state.disassembly.get(i + 1)
                             && app_state.splitters.contains(&next_line.address)
+                            && show_address
                         {
                             line_style
                                 .fg(ui_state.theme.address)
                                 .add_modifier(Modifier::UNDERLINED)
-                        } else if app_state.splitters.contains(&line.address) {
+                        } else if app_state.splitters.contains(&line.address) && show_address {
                             line_style
                                 .fg(ui_state.theme.address)
                                 .add_modifier(Modifier::BOLD)
