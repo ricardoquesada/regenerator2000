@@ -101,9 +101,11 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
     let mut found_idx = None;
     let mut found_sub_idx = 0;
 
+    let hex_pattern = parse_hex_pattern(query);
+
     // Check current line first for subsequent matches
     if let Some(line) = app_state.disassembly.get(start_idx) {
-        let matches = get_line_matches(line, app_state, &query_lower);
+        let matches = get_line_matches(line, app_state, &query_lower, hex_pattern.as_deref());
 
         let candidate = if forward {
             matches
@@ -140,7 +142,7 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
         };
 
         if let Some(line) = app_state.disassembly.get(idx) {
-            let matches = get_line_matches(line, app_state, &query_lower);
+            let matches = get_line_matches(line, app_state, &query_lower, hex_pattern.as_deref());
             if !matches.is_empty() {
                 found_idx = Some(idx);
                 found_sub_idx = if forward {
@@ -159,7 +161,13 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
                 .find(|(s, _)| *s == pc)
                 .copied()
                 .is_some_and(|(start, end)| {
-                    search_collapsed_content(app_state, start, end, &query_lower)
+                    search_collapsed_content(
+                        app_state,
+                        start,
+                        end,
+                        &query_lower,
+                        hex_pattern.as_deref(),
+                    )
                 })
             {
                 found_idx = Some(idx);
@@ -185,6 +193,7 @@ fn get_line_matches(
     line: &crate::disassembler::DisassemblyLine,
     app_state: &AppState,
     query_lower: &str,
+    hex_pattern: Option<&[Option<u8>]>,
 ) -> Vec<usize> {
     let mut matches = Vec::new();
     let mut current_sub = 0;
@@ -213,7 +222,17 @@ fn get_line_matches(
     }
 
     // 3. Instruction Content
-    if match_instruction_content(line, query_lower) {
+    let mut instruction_match = match_instruction_content(line, query_lower);
+
+    if !instruction_match {
+        if let Some(pattern) = hex_pattern {
+            if check_hex_pattern(line.address, pattern, app_state) {
+                instruction_match = true;
+            }
+        }
+    }
+
+    if instruction_match {
         matches.push(current_sub);
     }
 
@@ -276,6 +295,7 @@ fn search_collapsed_content(
     start: usize,
     end: usize,
     query_lower: &str,
+    hex_pattern: Option<&[Option<u8>]>,
 ) -> bool {
     if start >= app_state.raw_data.len() || end >= app_state.raw_data.len() {
         return false;
@@ -305,7 +325,7 @@ fn search_collapsed_content(
     );
 
     for line in expanded_lines {
-        if !get_line_matches(&line, app_state, query_lower).is_empty() {
+        if !get_line_matches(&line, app_state, query_lower, hex_pattern).is_empty() {
             return true;
         }
     }
@@ -339,5 +359,100 @@ mod tests {
 
         // "8d02" is in "8d0208" starting at index 0 -> Should PASS
         assert!(match_instruction_content(&line, "8d02"));
+    }
+}
+
+fn parse_hex_pattern(query: &str) -> Option<Vec<Option<u8>>> {
+    let mut pattern = Vec::new();
+
+    // Safety check: ensure only contains hex chars, spaces, and '?'
+    let allowed_chars = "0123456789abcdefABCDEF? ";
+    if query.chars().any(|c| !allowed_chars.contains(c)) {
+        return None;
+    }
+
+    // Remove spaces to handle both "A9 00" and "A900"
+    let clean: String = query.chars().filter(|c| !c.is_whitespace()).collect();
+
+    if clean.is_empty() {
+        return None;
+    }
+
+    // Hex pattern must be pairs of characters (bytes)
+    if clean.len() % 2 != 0 {
+        return None;
+    }
+
+    let chars: Vec<char> = clean.chars().collect();
+    for chunk in chars.chunks(2) {
+        let s: String = chunk.iter().collect();
+        if s == "??" {
+            pattern.push(None);
+        } else {
+            match u8::from_str_radix(&s, 16) {
+                Ok(b) => pattern.push(Some(b)),
+                Err(_) => return None,
+            }
+        }
+    }
+    Some(pattern)
+}
+
+fn check_hex_pattern(address: u16, pattern: &[Option<u8>], app_state: &AppState) -> bool {
+    let raw_len = app_state.raw_data.len();
+    if raw_len == 0 {
+        return false;
+    }
+
+    let start_offset = (address.wrapping_sub(app_state.origin)) as usize;
+
+    if start_offset >= raw_len {
+        return false;
+    }
+
+    // Check if the pattern fits in the remaining data
+    if start_offset + pattern.len() > raw_len {
+        return false;
+    }
+
+    for (i, &byte_pat) in pattern.iter().enumerate() {
+        let idx = start_offset + i;
+        if let Some(target) = byte_pat {
+            if idx >= raw_len || app_state.raw_data[idx] != target {
+                return false;
+            }
+        }
+    }
+
+    true
+}
+#[cfg(test)]
+mod tests_hex {
+    use super::*;
+
+    #[test]
+    fn test_parse_hex_pattern() {
+        // Valid patterns
+        assert_eq!(
+            parse_hex_pattern("A9 00"),
+            Some(vec![Some(0xA9), Some(0x00)])
+        );
+        assert_eq!(
+            parse_hex_pattern("A9 00 ?? D0"),
+            Some(vec![Some(0xA9), Some(0x00), None, Some(0xD0)])
+        );
+        assert_eq!(
+            parse_hex_pattern("a900??d0"),
+            Some(vec![Some(0xA9), Some(0x00), None, Some(0xD0)])
+        );
+        assert_eq!(parse_hex_pattern("??"), Some(vec![None]));
+
+        // Invalid patterns
+        assert_eq!(parse_hex_pattern("A"), None); // odd length
+        assert_eq!(parse_hex_pattern("A9 0"), None); // odd length
+        assert_eq!(parse_hex_pattern("G0"), None); // invalid char
+        assert_eq!(parse_hex_pattern("LDA"), None); // invalid chars
+        assert_eq!(parse_hex_pattern(""), None); // empty
+        assert_eq!(parse_hex_pattern("A?"), None); // invalid wildcard (must be ??)
     }
 }
