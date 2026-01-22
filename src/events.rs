@@ -54,10 +54,56 @@ pub fn run_app<B: Backend>(
             }
         }
 
-        // Sync Disassembly view with HexDump when active on HexDump
-        if ui_state.active_pane == ActivePane::HexDump
-            && app_state.system_config.sync_hex_dump
+        // Sync Charset view with Disassembly when active on Disassembly
+        if ui_state.active_pane == ActivePane::Disassembly
+            && ui_state.right_pane == crate::ui_state::RightPane::Charset
+            && app_state.system_config.sync_charset_view
+            && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
         {
+            let origin = app_state.origin as usize;
+            let base_alignment = 0x400;
+            let aligned_start_addr = (origin / base_alignment) * base_alignment;
+            let target_addr = line.address as usize;
+
+            if target_addr >= aligned_start_addr {
+                let char_offset = target_addr - aligned_start_addr;
+                let idx = char_offset / 8;
+
+                let end_addr = origin + app_state.raw_data.len();
+                let total_chars = (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+
+                if idx < total_chars {
+                    ui_state.charset_cursor_index = idx;
+                }
+            }
+        }
+
+        // Sync Sprites view with Disassembly when active on Disassembly
+        if ui_state.active_pane == ActivePane::Disassembly
+            && ui_state.right_pane == crate::ui_state::RightPane::Sprites
+            && app_state.system_config.sync_sprites_view
+            && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+        {
+            let origin = app_state.origin as usize;
+            let padding = (64 - (origin % 64)) % 64;
+            let start_of_sprites = origin + padding;
+            let target_addr = line.address as usize;
+
+            if target_addr >= start_of_sprites {
+                let offset = target_addr - start_of_sprites;
+                let idx = offset / 64;
+
+                let usable_len = app_state.raw_data.len().saturating_sub(padding);
+                let total_sprites = usable_len.div_ceil(64);
+
+                if idx < total_sprites {
+                    ui_state.sprites_cursor_index = idx;
+                }
+            }
+        }
+
+        // Sync Disassembly view with HexDump when active on HexDump
+        if ui_state.active_pane == ActivePane::HexDump && app_state.system_config.sync_hex_dump {
             let origin = app_state.origin as usize;
             let alignment_padding = origin % 16;
             let aligned_origin = origin - alignment_padding;

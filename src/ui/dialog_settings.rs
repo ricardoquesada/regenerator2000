@@ -58,6 +58,22 @@ impl Widget for SettingsDialog {
                 }
             ),
             format!(
+                "{} Sync Charset View",
+                if app_state.system_config.sync_charset_view {
+                    "[X]"
+                } else {
+                    "[ ]"
+                }
+            ),
+            format!(
+                "{} Sync Sprites View",
+                if app_state.system_config.sync_sprites_view {
+                    "[X]"
+                } else {
+                    "[ ]"
+                }
+            ),
+            format!(
                 "{} Sync Blocks View",
                 if app_state.system_config.sync_blocks_view {
                     "[X]"
@@ -162,8 +178,8 @@ impl Widget for SettingsDialog {
                     app_state.system_config.theme = new_theme.clone();
                     ui_state.theme = crate::theme::Theme::from_name(&new_theme);
                 } else {
-                    // Limit to 4 (5 items)
-                    if self.selected_index < 4 {
+                    // Limit to 6 (7 items)
+                    if self.selected_index < 6 {
                         self.selected_index += 1;
                     }
                 }
@@ -184,10 +200,18 @@ impl Widget for SettingsDialog {
                     app_state.system_config.sync_hex_dump = !app_state.system_config.sync_hex_dump;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 3 {
+                    app_state.system_config.sync_charset_view =
+                        !app_state.system_config.sync_charset_view;
+                    let _ = app_state.system_config.save();
+                } else if self.selected_index == 4 {
+                    app_state.system_config.sync_sprites_view =
+                        !app_state.system_config.sync_sprites_view;
+                    let _ = app_state.system_config.save();
+                } else if self.selected_index == 5 {
                     app_state.system_config.sync_blocks_view =
                         !app_state.system_config.sync_blocks_view;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 4 {
+                } else if self.selected_index == 6 {
                     self.is_selecting_theme = true;
                 }
                 WidgetResult::Handled
