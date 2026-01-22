@@ -168,7 +168,7 @@ across Windows, macOS, and Linux, and different terminal emulators.
 ## Support and Documentation
 
 - [User Guide](docs/user_guide.md)
-- [Architecture](architecture.md)
+- [Architecture](docs/architecture.md)
 - [Support in Discord][discord] (join the #regenerator2000 channel, under "Misc Projects")
 
 [discord]: https://discord.gg/r5aMn6Cw5q
