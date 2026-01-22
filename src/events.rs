@@ -31,6 +31,43 @@ pub fn run_app<B: Backend>(
             ui_state.blocks_list_state.select(Some(idx));
         }
 
+        // Sync HexDump view with Disassembly when active on Disassembly
+        if ui_state.active_pane == ActivePane::Disassembly
+            && ui_state.right_pane == crate::ui_state::RightPane::HexDump
+            && app_state.system_config.sync_hex_dump
+            && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+        {
+            let origin = app_state.origin as usize;
+            let alignment_padding = origin % 16;
+            let aligned_origin = origin - alignment_padding;
+            let target_addr = line.address as usize;
+
+            if target_addr >= aligned_origin {
+                let offset = target_addr - aligned_origin;
+                let row = offset / 16;
+                let bytes_per_row = 16;
+                let total_len = app_state.raw_data.len() + alignment_padding;
+                let max_rows = total_len.div_ceil(bytes_per_row);
+                if row < max_rows {
+                    ui_state.hex_cursor_index = row;
+                }
+            }
+        }
+
+        // Sync Disassembly view with HexDump when active on HexDump
+        if ui_state.active_pane == ActivePane::HexDump
+            && app_state.system_config.sync_hex_dump
+        {
+            let origin = app_state.origin as usize;
+            let alignment_padding = origin % 16;
+            let aligned_origin = origin - alignment_padding;
+            let hex_addr = aligned_origin + ui_state.hex_cursor_index * 16;
+
+            if let Some(idx) = app_state.get_line_index_containing_address(hex_addr as u16) {
+                ui_state.cursor_index = idx;
+            }
+        }
+
         terminal
             .draw(|f| ui(f, &app_state, &mut ui_state))
             .map_err(|e| io::Error::other(e.to_string()))?;
