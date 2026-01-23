@@ -54,7 +54,8 @@ pub enum MenuAction {
     ToggleSpriteMulticolor,
     ToggleCharsetView,
     ToggleCharsetMulticolor,
-
+    ToggleBitmapView,
+    ToggleBitmapMulticolor,
     ToggleBlocksView,
     ToggleCollapsedBlock,
     ToggleSplitter,
@@ -290,6 +291,11 @@ impl MenuState {
                             Some(MenuAction::ToggleSpriteMulticolor),
                         ),
                         MenuItem::new(
+                            "Toggle Multicolor Bitmap",
+                            Some("m"),
+                            Some(MenuAction::ToggleBitmapMulticolor),
+                        ),
+                        MenuItem::new(
                             "Toggle Multicolor Charset",
                             Some("m"),
                             Some(MenuAction::ToggleCharsetMulticolor),
@@ -311,8 +317,13 @@ impl MenuState {
                             Some(MenuAction::ToggleCharsetView),
                         ),
                         MenuItem::new(
-                            "Toggle Blocks View",
+                            "Toggle Bitmap View",
                             Some("Alt+5"),
+                            Some(MenuAction::ToggleBitmapView),
+                        ),
+                        MenuItem::new(
+                            "Toggle Blocks View",
+                            Some("Alt+6"),
                             Some(MenuAction::ToggleBlocksView),
                         ),
                     ],
@@ -846,6 +857,9 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ActivePane::Blocks => {
                     ui_state.set_status_message("Jump to address not supported in Blocks view");
                 }
+                ActivePane::Bitmap => {
+                    ui_state.set_status_message("Jump to address not supported in Bitmap view");
+                }
             }
         }
 
@@ -940,6 +954,14 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     } else {
                         None
                     }
+                }
+                ActivePane::Bitmap => {
+                    let origin = app_state.origin as usize;
+                    // Bitmaps must be aligned to 8192-byte boundaries
+                    let first_aligned_addr = ((origin / 8192) * 8192)
+                        + if origin.is_multiple_of(8192) { 0 } else { 8192 };
+                    let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
+                    Some(bitmap_addr as u16)
                 }
             };
 
@@ -1113,6 +1135,27 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.active_pane = ActivePane::Charset;
                 ui_state.set_status_message("Charset View Shown");
             }
+        }
+        MenuAction::ToggleBitmapView => {
+            if ui_state.right_pane == crate::ui_state::RightPane::Bitmap {
+                ui_state.right_pane = crate::ui_state::RightPane::None;
+                ui_state.set_status_message("Bitmap View Hidden");
+                if ui_state.active_pane == ActivePane::Bitmap {
+                    ui_state.active_pane = ActivePane::Disassembly;
+                }
+            } else {
+                ui_state.right_pane = crate::ui_state::RightPane::Bitmap;
+                ui_state.active_pane = ActivePane::Bitmap;
+                ui_state.set_status_message("Bitmap View Shown");
+            }
+        }
+        MenuAction::ToggleBitmapMulticolor => {
+            ui_state.bitmap_multicolor_mode = !ui_state.bitmap_multicolor_mode;
+            ui_state.set_status_message(if ui_state.bitmap_multicolor_mode {
+                "Multicolor mode enabled"
+            } else {
+                "Single color mode enabled"
+            });
         }
         MenuAction::ToggleBlocksView => {
             if ui_state.right_pane == crate::ui_state::RightPane::Blocks {
@@ -1481,6 +1524,17 @@ fn create_save_context(
         None
     };
 
+    let bitmap_addr = if !app_state.raw_data.is_empty() {
+        let origin = app_state.origin as usize;
+        // Bitmaps must be aligned to 8192-byte boundaries
+        let first_aligned_addr =
+            ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
+        let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
+        Some(bitmap_addr as u16)
+    } else {
+        None
+    };
+
     let right_pane_str = format!("{:?}", ui_state.right_pane);
 
     crate::state::ProjectSaveContext {
@@ -1489,8 +1543,10 @@ fn create_save_context(
         sprites_cursor_address: sprites_addr,
         right_pane_visible: Some(right_pane_str),
         charset_cursor_address: charset_addr,
+        bitmap_cursor_address: bitmap_addr,
         sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
         charset_multicolor_mode: ui_state.charset_multicolor_mode,
+        bitmap_multicolor_mode: ui_state.bitmap_multicolor_mode,
         hexdump_view_mode: ui_state.hexdump_view_mode,
         splitters: app_state.splitters.clone(),
         blocks_view_cursor: ui_state.blocks_list_state.selected(),

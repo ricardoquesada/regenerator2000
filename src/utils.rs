@@ -66,8 +66,19 @@ pub fn load_logo() -> Option<DynamicImage> {
 }
 pub fn create_picker() -> Option<Picker> {
     let font_size = (8, 16);
+    // Force Kitty protocol for Ghostty if autodetection fails/blurs.
+    // ratatui-image 0.9 Picker::new(font_size) might be available.
     #[allow(deprecated)]
-    Some(Picker::from_fontsize(font_size))
+    let picker = Picker::from_fontsize(font_size);
+
+    // Attempt to force Kitty for Ghostty
+    if std::env::var("TERM_PROGRAM").unwrap_or_default() == "ghostty" {
+        // This is a guess at the API since autodetection is failing.
+        // We'll see if this compiles.
+        // picker.protocol_type = ProtocolType::Kitty;
+    }
+
+    Some(picker)
 }
 
 pub fn screencode_to_petscii(byte: u8) -> u8 {

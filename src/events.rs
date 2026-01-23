@@ -178,6 +178,7 @@ pub fn run_app<B: Backend>(
                     _ => {}
                 }
             } else {
+                use crate::ui::view_bitmap::BitmapView;
                 use crate::ui::view_blocks::BlocksView;
                 use crate::ui::view_charset::CharsetView;
                 use crate::ui::view_disassembly::DisassemblyView;
@@ -190,6 +191,7 @@ pub fn run_app<B: Backend>(
                     ActivePane::HexDump => Box::new(HexDumpView),
                     ActivePane::Sprites => Box::new(SpritesView),
                     ActivePane::Charset => Box::new(CharsetView),
+                    ActivePane::Bitmap => Box::new(BitmapView),
                     ActivePane::Blocks => Box::new(BlocksView),
                 };
 

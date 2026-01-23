@@ -19,6 +19,7 @@ pub mod dialog_settings;
 pub mod menu;
 pub mod navigable;
 pub mod statusbar;
+pub mod view_bitmap;
 pub mod view_blocks;
 pub mod view_charset;
 pub mod view_disassembly;
@@ -66,6 +67,7 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         RightPane::HexDump => 75,
         RightPane::Sprites => 36, // 24 chars + border + padding
         RightPane::Charset => 76, // Grid view: 8 cols * (8+1) width + padding
+        RightPane::Bitmap => 164, // 160 + border + padding for full resolution bitmap
         RightPane::Blocks => 42,
     };
     let disasm_view_width = area.width.saturating_sub(right_pane_width);
@@ -85,6 +87,7 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         RightPane::HexDump => view_hexdump::HexDumpView.render(f, layout[1], app_state, ui_state),
         RightPane::Sprites => view_sprites::SpritesView.render(f, layout[1], app_state, ui_state),
         RightPane::Charset => view_charset::CharsetView.render(f, layout[1], app_state, ui_state),
+        RightPane::Bitmap => view_bitmap::BitmapView.render(f, layout[1], app_state, ui_state),
         RightPane::Blocks => view_blocks::BlocksView.render(f, layout[1], app_state, ui_state),
     }
 }

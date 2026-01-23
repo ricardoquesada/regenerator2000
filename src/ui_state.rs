@@ -11,8 +11,8 @@ pub enum ActivePane {
     Disassembly,
     HexDump,
     Sprites,
-
     Charset,
+    Bitmap,
     Blocks,
 }
 
@@ -22,8 +22,8 @@ pub enum RightPane {
     #[default]
     HexDump,
     Sprites,
-
     Charset,
+    Bitmap,
     Blocks,
 }
 
@@ -50,6 +50,7 @@ pub struct UIState {
     pub hex_cursor_index: usize,
     pub sprites_cursor_index: usize,
     pub charset_cursor_index: usize,
+    pub bitmap_cursor_index: usize,
 
     pub blocks_list_state: ListState,
     #[allow(dead_code)]
@@ -57,6 +58,7 @@ pub struct UIState {
     pub right_pane: RightPane,
     pub sprite_multicolor_mode: bool,
     pub charset_multicolor_mode: bool,
+    pub bitmap_multicolor_mode: bool,
     pub hexdump_view_mode: HexdumpViewMode,
 
     pub active_pane: ActivePane,
@@ -75,6 +77,8 @@ pub struct UIState {
     pub vim_search_active: bool,
     pub vim_search_input: String,
     pub last_search_query: String,
+    pub bitmap_image: Option<DynamicImage>,
+    pub bitmap_info: Option<(usize, bool)>, // (address, multicolor)
 }
 
 impl UIState {
@@ -93,11 +97,13 @@ impl UIState {
             hex_cursor_index: 0,
             sprites_cursor_index: 0,
             charset_cursor_index: 0,
+            bitmap_cursor_index: 0,
             blocks_list_state: ListState::default(),
             hex_scroll_index: 0,
             right_pane: RightPane::HexDump,
             sprite_multicolor_mode: false,
             charset_multicolor_mode: false,
+            bitmap_multicolor_mode: false,
             hexdump_view_mode: HexdumpViewMode::ScreencodeUnshifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,
@@ -110,6 +116,8 @@ impl UIState {
             vim_search_active: false,
             vim_search_input: String::new(),
             last_search_query: String::new(),
+            bitmap_image: None,
+            bitmap_info: None,
             theme,
         }
     }
@@ -131,6 +139,7 @@ impl UIState {
 
         self.sprite_multicolor_mode = loaded_data.sprite_multicolor_mode;
         self.charset_multicolor_mode = loaded_data.charset_multicolor_mode;
+        self.bitmap_multicolor_mode = loaded_data.bitmap_multicolor_mode.unwrap_or(false);
         self.hexdump_view_mode = loaded_data.hexdump_view_mode;
         let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
         if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
@@ -164,6 +173,7 @@ impl UIState {
                 "HexDump" => self.right_pane = RightPane::HexDump,
                 "Sprites" => self.right_pane = RightPane::Sprites,
                 "Charset" => self.right_pane = RightPane::Charset,
+                "Bitmap" => self.right_pane = RightPane::Bitmap,
                 "Blocks" => self.right_pane = RightPane::Blocks,
                 _ => {}
             }
@@ -188,6 +198,19 @@ impl UIState {
             if addr >= aligned_start_addr {
                 let offset = addr - aligned_start_addr;
                 self.charset_cursor_index = offset / 8;
+            }
+        }
+
+        // Restore Bitmap Cursor
+        if let Some(bitmap_addr) = loaded_data.bitmap_cursor_address {
+            let origin = app_state.origin as usize;
+            // Bitmaps must be aligned to 8192-byte boundaries
+            let first_aligned_addr =
+                ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
+            let addr = bitmap_addr as usize;
+            if addr >= first_aligned_addr {
+                let offset = addr - first_aligned_addr;
+                self.bitmap_cursor_index = offset / 8192;
             }
         }
     }

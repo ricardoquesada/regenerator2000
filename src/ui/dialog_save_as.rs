@@ -120,6 +120,18 @@ impl Widget for SaveAsDialog {
                         None
                     };
 
+                    let bitmap_addr = if !app_state.raw_data.is_empty() {
+                        let origin = app_state.origin as usize;
+                        // Bitmaps must be aligned to 8192-byte boundaries
+                        let first_aligned_addr = ((origin / 8192) * 8192)
+                            + if origin.is_multiple_of(8192) { 0 } else { 8192 };
+                        let bitmap_addr =
+                            first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
+                        Some(bitmap_addr as u16)
+                    } else {
+                        None
+                    };
+
                     let right_pane_str = format!("{:?}", ui_state.right_pane);
 
                     if let Err(e) = app_state.save_project(
@@ -129,8 +141,10 @@ impl Widget for SaveAsDialog {
                             sprites_cursor_address: sprites_addr,
                             right_pane_visible: Some(right_pane_str),
                             charset_cursor_address: charset_addr,
+                            bitmap_cursor_address: bitmap_addr,
                             sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
                             charset_multicolor_mode: ui_state.charset_multicolor_mode,
+                            bitmap_multicolor_mode: ui_state.bitmap_multicolor_mode,
                             hexdump_view_mode: ui_state.hexdump_view_mode,
                             splitters: app_state.splitters.clone(),
                             blocks_view_cursor: ui_state.blocks_list_state.selected(),

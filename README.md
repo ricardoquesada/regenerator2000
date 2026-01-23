@@ -22,6 +22,10 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 - **Sprites**:
     - Side-by-side view with disassembly.
     - Multicolor or Single Color
+- **Bitmap**:
+    - Side-by-side view with disassembly.
+    - High-Resolution (320x200) and Multicolor (160x200).
+    - Uses quadrant-block rendering for full resolution in TUI.
 - **Charset**:
     - Side-by-side view with disassembly.
     - Multicolor or Single Color

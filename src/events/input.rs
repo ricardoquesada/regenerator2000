@@ -120,6 +120,15 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             handle_menu_action(
                 app_state,
                 ui_state,
+                crate::ui_state::MenuAction::ToggleBitmapView,
+            );
+        }
+        KeyCode::Char('6')
+            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
+        {
+            handle_menu_action(
+                app_state,
+                ui_state,
                 crate::ui_state::MenuAction::ToggleBlocksView,
             );
         }
@@ -136,11 +145,13 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                     crate::ui_state::RightPane::HexDump => ActivePane::HexDump,
                     crate::ui_state::RightPane::Sprites => ActivePane::Sprites,
                     crate::ui_state::RightPane::Charset => ActivePane::Charset,
+                    crate::ui_state::RightPane::Bitmap => ActivePane::Bitmap,
                     crate::ui_state::RightPane::Blocks => ActivePane::Blocks,
                 },
                 ActivePane::HexDump
                 | ActivePane::Sprites
                 | ActivePane::Charset
+                | ActivePane::Bitmap
                 | ActivePane::Blocks => ActivePane::Disassembly,
             };
         }

@@ -278,6 +278,10 @@ pub struct ProjectState {
     #[serde(default)]
     pub charset_multicolor_mode: bool,
     #[serde(default)]
+    pub bitmap_cursor_address: Option<u16>,
+    #[serde(default)]
+    pub bitmap_multicolor_mode: bool,
+    #[serde(default)]
     pub hexdump_view_mode: HexdumpViewMode,
     #[serde(default)]
     pub splitters: BTreeSet<u16>,
@@ -291,8 +295,10 @@ pub struct LoadedProjectData {
     pub sprites_cursor_address: Option<u16>,
     pub right_pane_visible: Option<String>,
     pub charset_cursor_address: Option<u16>,
+    pub bitmap_cursor_address: Option<u16>,
     pub sprite_multicolor_mode: bool,
     pub charset_multicolor_mode: bool,
+    pub bitmap_multicolor_mode: Option<bool>,
     pub hexdump_view_mode: HexdumpViewMode,
     pub blocks_view_cursor: Option<usize>,
 }
@@ -314,8 +320,10 @@ pub struct ProjectSaveContext {
     pub sprites_cursor_address: Option<u16>,
     pub right_pane_visible: Option<String>,
     pub charset_cursor_address: Option<u16>,
+    pub bitmap_cursor_address: Option<u16>,
     pub sprite_multicolor_mode: bool,
     pub charset_multicolor_mode: bool,
+    pub bitmap_multicolor_mode: bool,
     pub hexdump_view_mode: HexdumpViewMode,
     pub splitters: BTreeSet<u16>,
     pub blocks_view_cursor: Option<usize>,
@@ -524,8 +532,10 @@ impl AppState {
             sprites_cursor_address: None,
             right_pane_visible: None,
             charset_cursor_address: None,
+            bitmap_cursor_address: None,
             charset_multicolor_mode: false,
             sprite_multicolor_mode: false,
+            bitmap_multicolor_mode: None,
             hexdump_view_mode: HexdumpViewMode::default(),
             blocks_view_cursor: None,
         })
@@ -600,8 +610,10 @@ impl AppState {
             sprites_cursor_address: project.sprites_cursor_address,
             right_pane_visible: project.right_pane_visible,
             charset_cursor_address: project.charset_cursor_address,
+            bitmap_cursor_address: project.bitmap_cursor_address,
             sprite_multicolor_mode: project.sprite_multicolor_mode,
             charset_multicolor_mode: project.charset_multicolor_mode,
+            bitmap_multicolor_mode: Some(project.bitmap_multicolor_mode),
             hexdump_view_mode: project.hexdump_view_mode,
             blocks_view_cursor: project.blocks_view_cursor,
         })
@@ -640,8 +652,10 @@ impl AppState {
                 sprites_cursor_address: ctx.sprites_cursor_address,
                 right_pane_visible: ctx.right_pane_visible,
                 charset_cursor_address: ctx.charset_cursor_address,
+                bitmap_cursor_address: ctx.bitmap_cursor_address,
                 sprite_multicolor_mode: ctx.sprite_multicolor_mode,
                 charset_multicolor_mode: ctx.charset_multicolor_mode,
+                bitmap_multicolor_mode: ctx.bitmap_multicolor_mode,
                 hexdump_view_mode: ctx.hexdump_view_mode,
 
                 splitters: ctx.splitters,
@@ -1453,8 +1467,10 @@ mod save_project_tests {
                     sprites_cursor_address: None,
                     right_pane_visible: None,
                     charset_cursor_address: None,
+                    bitmap_cursor_address: None,
                     sprite_multicolor_mode: false,
                     charset_multicolor_mode: false,
+                    bitmap_multicolor_mode: false,
                     hexdump_view_mode: HexdumpViewMode::default(),
                     splitters: BTreeSet::new(),
                     blocks_view_cursor: None,
