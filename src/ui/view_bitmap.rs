@@ -154,19 +154,20 @@ impl Widget for BitmapView {
 
         f.render_widget(
             Paragraph::new(format!(
-                "Bitmap @ ${:04X} ({} bytes) | Screen RAM: {} bytes",
-                bitmap_addr, bitmap_size, screen_ram_size
+                "Bitmap @ ${:04X} ({} bytes)",
+                bitmap_addr, bitmap_size
             ))
             .style(Style::default().fg(ui_state.theme.comment)),
             Rect::new(inner_area.x, inner_area.y, inner_area.width, 1),
         );
 
-        let image_area = Rect::new(
-            inner_area.x,
-            inner_area.y + 2,
-            inner_area.width,
-            inner_area.height.saturating_sub(2),
-        );
+        // Calculate width based on image aspect ratio (320:200 = 8:5) and terminal cell ratio (~1:2)
+        // For H rows displaying 200 logical pixels, we need W columns displaying 320 logical pixels
+        // Terminal cells are roughly 1:2 (width:height), so W = H * (320/200) * 2 = H * 3.2
+        let image_height = inner_area.height.saturating_sub(2);
+        let image_width = ((image_height as f32) * 3.2) as u16;
+        let image_width = image_width.min(inner_area.width);
+        let image_area = Rect::new(inner_area.x, inner_area.y + 2, image_width, image_height);
 
         // --- ratatui-image integration ---
 
@@ -237,8 +238,8 @@ fn convert_to_dynamic_image(
     screen_ram_size: usize,
     multicolor: bool,
 ) -> DynamicImage {
-    // Original C64 resolution: 320x200
-    let mut rgb_img = RgbImage::new(320, 200);
+    // C64 resolution 320x200 scaled 2x to 640x400
+    let mut rgb_img = RgbImage::new(640, 400);
 
     let bitmap_data = &data[..bitmap_size];
     let screen_ram = if screen_ram_size > 0 {
@@ -289,12 +290,19 @@ fn convert_to_dynamic_image(
                             _ => unreachable!(),
                         };
 
-                        // Render fat pixel: C64 (2x1) -> Image (2x1)
-                        let start_x = cell_x * 8 + fat_pix * 2;
-                        let start_y = cell_y * 8 + row;
+                        // Render fat pixel: C64 (2x1) -> Image (4x2) for 2x scale
+                        let start_x = (cell_x * 8 + fat_pix * 2) * 2;
+                        let start_y = (cell_y * 8 + row) * 2;
 
-                        rgb_img.put_pixel(start_x as u32, start_y as u32, Rgb(rgb));
-                        rgb_img.put_pixel((start_x + 1) as u32, start_y as u32, Rgb(rgb));
+                        for dy in 0..2 {
+                            for dx in 0..4 {
+                                rgb_img.put_pixel(
+                                    (start_x + dx) as u32,
+                                    (start_y + dy) as u32,
+                                    Rgb(rgb),
+                                );
+                            }
+                        }
                     }
                 }
             }
@@ -333,11 +341,19 @@ fn convert_to_dynamic_image(
                         let val = (byte >> shift) & 1;
                         let rgb = if val == 1 { fg } else { bg };
 
-                        // Render pixel: C64 (1x1) -> Image (1x1)
-                        let start_x = cell_x * 8 + bit;
-                        let start_y = cell_y * 8 + row;
+                        // Render pixel: C64 (1x1) -> Image (2x2) for 2x scale
+                        let start_x = (cell_x * 8 + bit) * 2;
+                        let start_y = (cell_y * 8 + row) * 2;
 
-                        rgb_img.put_pixel(start_x as u32, start_y as u32, Rgb(rgb));
+                        for dy in 0..2 {
+                            for dx in 0..2 {
+                                rgb_img.put_pixel(
+                                    (start_x + dx) as u32,
+                                    (start_y + dy) as u32,
+                                    Rgb(rgb),
+                                );
+                            }
+                        }
                     }
                 }
             }

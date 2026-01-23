@@ -67,7 +67,7 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         RightPane::HexDump => 75,
         RightPane::Sprites => 36, // 24 chars + border + padding
         RightPane::Charset => 76, // Grid view: 8 cols * (8+1) width + padding
-        RightPane::Bitmap => 164, // 160 + border + padding for full resolution bitmap
+        RightPane::Bitmap => 80,  // Compact view, ratatui-image scales to fit
         RightPane::Blocks => 42,
     };
     let disasm_view_width = area.width.saturating_sub(right_pane_width);
