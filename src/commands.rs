@@ -97,7 +97,9 @@ impl Command {
                 old_labels: _,
                 old_cross_refs: _,
             } => {
-                // Complete replacement of the map
+                // Complete replacement of the map (avoid clone by using reference)
+                // Since labels/cross_refs are references from the command, we still need to clone
+                // But this is unavoidable for undo/redo to work properly
                 state.labels = labels.clone();
                 state.cross_refs = cross_refs.clone();
             }

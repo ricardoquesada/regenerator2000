@@ -575,9 +575,9 @@ impl AppState {
         self.labels = project.labels;
         self.user_side_comments = project.user_side_comments;
         self.user_line_comments = project.user_line_comments;
-        self.immediate_value_formats = project.immediate_value_formats.clone();
+        self.immediate_value_formats = project.immediate_value_formats;
         self.settings = project.settings;
-        self.splitters = project.splitters.clone();
+        self.splitters = project.splitters;
 
         self.load_system_assets();
 
@@ -631,15 +631,15 @@ impl AppState {
                 blocks: compress_block_types(&self.block_types, &self.collapsed_blocks),
                 labels: self
                     .labels
-                    .clone()
-                    .into_iter()
+                    .iter()
                     .map(|(k, v)| {
                         let mut user_labels: Vec<_> = v
-                            .into_iter()
+                            .iter()
                             .filter(|label| label.kind == LabelKind::User)
+                            .cloned()
                             .collect();
                         user_labels.sort_by(|a, b| a.name.cmp(&b.name));
-                        (k, user_labels)
+                        (*k, user_labels)
                     })
                     .filter(|(_, v)| !v.is_empty())
                     .collect(),
@@ -679,11 +679,11 @@ impl AppState {
     pub fn perform_analysis(&mut self) -> String {
         let (labels, cross_refs) = crate::analyzer::analyze(self);
 
-        // Capture old labels
-        let mut old_labels_map = std::collections::BTreeMap::new();
-        for k in labels.keys() {
-            old_labels_map.insert(*k, self.labels.get(k).cloned().unwrap_or_default());
-        }
+        // Capture old labels (more idiomatic with iterator)
+        let old_labels_map = labels
+            .keys()
+            .map(|k| (*k, self.labels.get(k).cloned().unwrap_or_default()))
+            .collect();
 
         // Also capture old cross_refs
         let old_cross_refs = self.cross_refs.clone();
