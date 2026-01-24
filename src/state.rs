@@ -226,6 +226,38 @@ impl LabelType {
             LabelType::UserDefined => 'L',
         }
     }
+
+    /// Formats a label name for the given address and label type.
+    ///
+    /// For zero-page addresses (0x00-0xFF):
+    /// - ExternalJump, AbsoluteAddress, Field, Pointer use 4 hex digits (e.g., "a00FF")
+    /// - Other types use 2 hex digits (e.g., "aFF")
+    ///
+    /// For non-zero-page addresses (0x100+):
+    /// - All types use 4 hex digits (e.g., "a1234")
+    pub fn format_label(&self, addr: u16) -> String {
+        let prefix = self.prefix();
+
+        if addr <= 0xFF {
+            // Zero page address
+            match self {
+                LabelType::ExternalJump
+                | LabelType::AbsoluteAddress
+                | LabelType::Field
+                | LabelType::Pointer => {
+                    // Force 4 digits for these types even in zero page
+                    format!("{}{:04X}", prefix, addr)
+                }
+                _ => {
+                    // Use 2 digits for zero page types
+                    format!("{}{:02X}", prefix, addr)
+                }
+            }
+        } else {
+            // Non-zero page: always use 4 digits
+            format!("{}{:04X}", prefix, addr)
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1361,6 +1393,75 @@ mod serialization_tests {
 
         let decoded = decode_raw_data_from_base64(&encoded).unwrap();
         assert_eq!(data, decoded);
+    }
+
+    #[test]
+    fn test_label_type_format_label() {
+        // Test zero page addresses with types that should use 4 digits
+        assert_eq!(
+            LabelType::ExternalJump.format_label(0xFF),
+            "e00FF",
+            "ExternalJump in ZP should use 4 digits"
+        );
+        assert_eq!(
+            LabelType::AbsoluteAddress.format_label(0xA0),
+            "a00A0",
+            "AbsoluteAddress in ZP should use 4 digits"
+        );
+        assert_eq!(
+            LabelType::Field.format_label(0x10),
+            "f0010",
+            "Field in ZP should use 4 digits"
+        );
+        assert_eq!(
+            LabelType::Pointer.format_label(0xFB),
+            "p00FB",
+            "Pointer in ZP should use 4 digits"
+        );
+
+        // Test zero page addresses with types that should use 2 digits
+        assert_eq!(
+            LabelType::ZeroPageField.format_label(0xFF),
+            "fFF",
+            "ZeroPageField in ZP should use 2 digits"
+        );
+        assert_eq!(
+            LabelType::ZeroPagePointer.format_label(0xFB),
+            "pFB",
+            "ZeroPagePointer in ZP should use 2 digits"
+        );
+        assert_eq!(
+            LabelType::Jump.format_label(0x10),
+            "j10",
+            "Jump in ZP should use 2 digits"
+        );
+        assert_eq!(
+            LabelType::Subroutine.format_label(0x20),
+            "s20",
+            "Subroutine in ZP should use 2 digits"
+        );
+
+        // Test non-zero page addresses (all should use 4 digits)
+        assert_eq!(
+            LabelType::Jump.format_label(0x1000),
+            "j1000",
+            "Jump outside ZP should use 4 digits"
+        );
+        assert_eq!(
+            LabelType::Subroutine.format_label(0xC000),
+            "sC000",
+            "Subroutine outside ZP should use 4 digits"
+        );
+        assert_eq!(
+            LabelType::Field.format_label(0x1234),
+            "f1234",
+            "Field outside ZP should use 4 digits"
+        );
+        assert_eq!(
+            LabelType::Pointer.format_label(0xD020),
+            "pD020",
+            "Pointer outside ZP should use 4 digits"
+        );
     }
 }
 #[cfg(test)]

@@ -212,20 +212,7 @@ pub fn analyze(
                     continue;
                 }
 
-                let prefix = l_type.prefix();
-                let name = if addr <= 0xFF {
-                    if l_type == LabelType::ExternalJump
-                        || l_type == LabelType::AbsoluteAddress
-                        || l_type == LabelType::Field
-                        || l_type == LabelType::Pointer
-                    {
-                        format!("{}{:04X}", prefix, addr)
-                    } else {
-                        format!("{}{:02X}", prefix, addr)
-                    }
-                } else {
-                    format!("{}{:04X}", prefix, addr)
-                };
+                let name = l_type.format_label(addr);
 
                 // Add Auto Label
                 if !state.excluded_addresses.contains(&addr) {
@@ -244,13 +231,7 @@ pub fn analyze(
                 // Logic: if usage contains Subroutine, promote to 's'.
                 // Internal: Single canonical label (first_wins)
                 let final_type = first_type;
-                let prefix = final_type.prefix();
-
-                let name = if addr <= 0xFF {
-                    format!("{}{:02X}", prefix, addr)
-                } else {
-                    format!("{}{:04X}", prefix, addr)
-                };
+                let name = final_type.format_label(addr);
 
                 addr_labels.push(crate::state::Label {
                     name,
