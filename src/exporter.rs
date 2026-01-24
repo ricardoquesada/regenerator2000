@@ -18,20 +18,21 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let external_lines = state.get_external_label_definitions();
 
     // Regenerate disassembly without collapsed blocks for export
-    let full_disassembly = state.disassembler.disassemble(
-        &state.raw_data,
-        &state.block_types,
-        &state.labels,
-        state.origin,
-        &state.settings,
-        &state.system_comments,
-        &state.user_side_comments,
-        &state.user_line_comments,
-        &state.immediate_value_formats,
-        &state.cross_refs,
-        &[], // Ignore collapsed_blocks
-        &state.splitters,
-    );
+    let ctx = crate::disassembler::DisassemblyContext {
+        data: &state.raw_data,
+        block_types: &state.block_types,
+        labels: &state.labels,
+        origin: state.origin,
+        settings: &state.settings,
+        system_comments: &state.system_comments,
+        user_side_comments: &state.user_side_comments,
+        user_line_comments: &state.user_line_comments,
+        immediate_value_formats: &state.immediate_value_formats,
+        cross_refs: &state.cross_refs,
+        collapsed_blocks: &[], // Ignore collapsed_blocks
+        splitters: &state.splitters,
+    };
+    let full_disassembly = state.disassembler.disassemble_ctx(&ctx);
 
     let all_lines: Vec<&crate::disassembler::DisassemblyLine> = external_lines
         .iter()

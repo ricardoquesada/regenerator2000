@@ -339,20 +339,21 @@ fn search_collapsed_content(
     }
     let block_slice = &app_state.block_types[start..=end];
 
-    let expanded_lines = app_state.disassembler.disassemble(
-        data_slice,
-        block_slice,
-        &app_state.labels,
+    let ctx = crate::disassembler::DisassemblyContext {
+        data: data_slice,
+        block_types: block_slice,
+        labels: &app_state.labels,
         origin,
-        &app_state.settings,
-        &app_state.system_comments,
-        &app_state.user_side_comments,
-        &app_state.user_line_comments,
-        &app_state.immediate_value_formats,
-        &app_state.cross_refs,
-        &[],
-        &app_state.splitters,
-    );
+        settings: &app_state.settings,
+        system_comments: &app_state.system_comments,
+        user_side_comments: &app_state.user_side_comments,
+        user_line_comments: &app_state.user_line_comments,
+        immediate_value_formats: &app_state.immediate_value_formats,
+        cross_refs: &app_state.cross_refs,
+        collapsed_blocks: &[],
+        splitters: &app_state.splitters,
+    };
+    let expanded_lines = app_state.disassembler.disassemble_ctx(&ctx);
 
     for line in expanded_lines {
         if !get_line_matches(&line, app_state, query_lower, hex_pattern).is_empty() {

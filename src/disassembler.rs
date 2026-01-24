@@ -14,6 +14,55 @@ use formatter_acme::AcmeFormatter;
 use formatter_ca65::Ca65Formatter;
 use formatter_kickasm::KickAsmFormatter;
 
+/// Context containing all the data needed for disassembly.
+pub struct DisassemblyContext<'a> {
+    pub data: &'a [u8],
+    pub block_types: &'a [BlockType],
+    pub labels: &'a BTreeMap<u16, Vec<Label>>,
+    pub origin: u16,
+    pub settings: &'a DocumentSettings,
+    pub system_comments: &'a BTreeMap<u16, String>,
+    pub user_side_comments: &'a BTreeMap<u16, String>,
+    pub user_line_comments: &'a BTreeMap<u16, String>,
+    pub immediate_value_formats: &'a BTreeMap<u16, crate::state::ImmediateFormat>,
+    pub cross_refs: &'a BTreeMap<u16, Vec<u16>>,
+    pub collapsed_blocks: &'a [(usize, usize)],
+    pub splitters: &'a BTreeSet<u16>,
+}
+
+impl<'a> DisassemblyContext<'a> {
+    #[allow(clippy::too_many_arguments)]
+    pub fn minimal(
+        data: &'a [u8],
+        block_types: &'a [BlockType],
+        labels: &'a BTreeMap<u16, Vec<Label>>,
+        origin: u16,
+        settings: &'a DocumentSettings,
+        system_comments: &'a BTreeMap<u16, String>,
+        user_side_comments: &'a BTreeMap<u16, String>,
+        user_line_comments: &'a BTreeMap<u16, String>,
+        immediate_value_formats: &'a BTreeMap<u16, crate::state::ImmediateFormat>,
+        cross_refs: &'a BTreeMap<u16, Vec<u16>>,
+        collapsed_blocks: &'a [(usize, usize)],
+        splitters: &'a BTreeSet<u16>,
+    ) -> Self {
+        Self {
+            data,
+            block_types,
+            labels,
+            origin,
+            settings,
+            system_comments,
+            user_side_comments,
+            user_line_comments,
+            immediate_value_formats,
+            cross_refs,
+            collapsed_blocks,
+            splitters,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DisassemblyLine {
     pub address: u16,
@@ -68,13 +117,30 @@ impl Disassembler {
         system_comments: &BTreeMap<u16, String>,
         user_side_comments: &BTreeMap<u16, String>,
         user_line_comments: &BTreeMap<u16, String>,
-
         immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
         cross_refs: &BTreeMap<u16, Vec<u16>>,
         collapsed_blocks: &[(usize, usize)],
         splitters: &BTreeSet<u16>,
     ) -> Vec<DisassemblyLine> {
-        let formatter = Self::create_formatter(settings.assembler);
+        let ctx = DisassemblyContext {
+            data,
+            block_types,
+            labels,
+            origin,
+            settings,
+            system_comments,
+            user_side_comments,
+            user_line_comments,
+            immediate_value_formats,
+            cross_refs,
+            collapsed_blocks,
+            splitters,
+        };
+        self.disassemble_ctx(&ctx)
+    }
+
+    pub fn disassemble_ctx(&self, ctx: &DisassemblyContext) -> Vec<DisassemblyLine> {
+        let formatter = Self::create_formatter(ctx.settings.assembler);
 
         let mut lines = Vec::new();
         let mut pc = 0;
@@ -83,12 +149,12 @@ impl Disassembler {
         // Let's iterate for now, but sorting would be better if we had to do it often.
         // Actually, we can just check if pc is in a collapsed block.
 
-        while pc < data.len() {
+        while pc < ctx.data.len() {
             // Check for collapsed block
-            if let Some((_start, end)) = collapsed_blocks.iter().find(|(s, _)| *s == pc) {
-                let start_addr = origin.wrapping_add(pc as u16);
-                let end_addr = origin.wrapping_add(*end as u16);
-                let block_type = block_types.get(pc).unwrap_or(&BlockType::Code);
+            if let Some((_start, end)) = ctx.collapsed_blocks.iter().find(|(s, _)| *s == pc) {
+                let start_addr = ctx.origin.wrapping_add(pc as u16);
+                let end_addr = ctx.origin.wrapping_add(*end as u16);
+                let block_type = ctx.block_types.get(pc).unwrap_or(&BlockType::Code);
 
                 lines.push(DisassemblyLine {
                     address: start_addr,
@@ -115,155 +181,155 @@ impl Disassembler {
                 continue;
             }
 
-            let address = origin.wrapping_add(pc as u16);
+            let address = ctx.origin.wrapping_add(pc as u16);
 
-            let label_name = self.get_label_name(address, labels, formatter.as_ref());
+            let label_name = self.get_label_name(address, ctx.labels, formatter.as_ref());
             let side_comment = self.get_side_comment(
                 address,
-                labels,
-                settings,
-                system_comments,
-                user_side_comments,
-                cross_refs,
+                ctx.labels,
+                ctx.settings,
+                ctx.system_comments,
+                ctx.user_side_comments,
+                ctx.cross_refs,
                 formatter.comment_prefix(),
             );
-            let line_comment = user_line_comments.get(&address).cloned();
+            let line_comment = ctx.user_line_comments.get(&address).cloned();
 
-            let current_type = block_types.get(pc).copied().unwrap_or(BlockType::Code);
+            let current_type = ctx.block_types.get(pc).copied().unwrap_or(BlockType::Code);
 
             let (bytes_consumed, new_lines) = match current_type {
                 BlockType::Code => self.handle_code(
                     pc,
-                    data,
-                    block_types,
+                    ctx.data,
+                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    labels,
-                    settings,
+                    ctx.labels,
+                    ctx.settings,
                     label_name,
                     side_comment,
                     line_comment,
-                    system_comments,
-                    user_side_comments,
-                    immediate_value_formats,
+                    ctx.system_comments,
+                    ctx.user_side_comments,
+                    ctx.immediate_value_formats,
                 ),
                 BlockType::DataByte => self.handle_data_byte(
                     pc,
-                    data,
-                    block_types,
+                    ctx.data,
+                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    labels,
-                    origin,
+                    ctx.labels,
+                    ctx.origin,
                     label_name,
                     side_comment,
                     line_comment,
-                    splitters,
-                    settings,
+                    ctx.splitters,
+                    ctx.settings,
                 ),
                 BlockType::DataWord => self.handle_data_word(
                     pc,
-                    data,
-                    block_types,
+                    ctx.data,
+                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    labels,
-                    origin,
+                    ctx.labels,
+                    ctx.origin,
                     label_name,
                     side_comment,
                     line_comment,
-                    splitters,
-                    settings,
+                    ctx.splitters,
+                    ctx.settings,
                 ),
                 BlockType::Address => self.handle_address(
                     pc,
-                    data,
-                    block_types,
+                    ctx.data,
+                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    labels,
-                    origin,
+                    ctx.labels,
+                    ctx.origin,
                     label_name,
                     side_comment,
                     line_comment,
-                    system_comments,
-                    user_side_comments,
-                    splitters,
-                    settings,
+                    ctx.system_comments,
+                    ctx.user_side_comments,
+                    ctx.splitters,
+                    ctx.settings,
                 ),
                 BlockType::Text => self.handle_text(
                     pc,
-                    data,
-                    block_types,
+                    ctx.data,
+                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    labels,
-                    origin,
-                    settings,
+                    ctx.labels,
+                    ctx.origin,
+                    ctx.settings,
                     label_name,
                     side_comment,
                     line_comment,
-                    splitters,
+                    ctx.splitters,
                 ),
                 BlockType::Screencode => self.handle_screencode(
                     pc,
-                    data,
-                    block_types,
+                    ctx.data,
+                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    labels,
-                    origin,
-                    settings,
+                    ctx.labels,
+                    ctx.origin,
+                    ctx.settings,
                     label_name,
                     side_comment,
                     line_comment,
-                    splitters,
+                    ctx.splitters,
                 ),
                 BlockType::LoHi => self.handle_lohi(
                     pc,
-                    data,
-                    block_types,
+                    ctx.data,
+                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    labels,
-                    origin,
+                    ctx.labels,
+                    ctx.origin,
                     label_name,
                     side_comment,
                     line_comment,
-                    splitters,
-                    settings,
+                    ctx.splitters,
+                    ctx.settings,
                 ),
                 BlockType::HiLo => self.handle_hilo(
                     pc,
-                    data,
-                    block_types,
+                    ctx.data,
+                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    labels,
-                    origin,
+                    ctx.labels,
+                    ctx.origin,
                     label_name,
                     side_comment,
                     line_comment,
-                    splitters,
-                    settings,
+                    ctx.splitters,
+                    ctx.settings,
                 ),
                 BlockType::ExternalFile => self.handle_external_file(
                     pc,
-                    data,
-                    block_types,
+                    ctx.data,
+                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    labels,
-                    origin,
+                    ctx.labels,
+                    ctx.origin,
                     label_name,
                     side_comment,
                     line_comment,
-                    splitters,
-                    settings,
+                    ctx.splitters,
+                    ctx.settings,
                 ),
                 BlockType::Undefined => self.handle_undefined_byte(
                     pc,
-                    data,
+                    ctx.data,
                     address,
                     formatter.as_ref(),
                     label_name,

@@ -961,20 +961,21 @@ impl AppState {
     }
 
     pub fn disassemble(&mut self) {
-        let mut lines = self.disassembler.disassemble(
-            &self.raw_data,
-            &self.block_types,
-            &self.labels,
-            self.origin,
-            &self.settings,
-            &self.system_comments,
-            &self.user_side_comments,
-            &self.user_line_comments,
-            &self.immediate_value_formats,
-            &self.cross_refs,
-            &self.collapsed_blocks,
-            &self.splitters,
-        );
+        let ctx = crate::disassembler::DisassemblyContext {
+            data: &self.raw_data,
+            block_types: &self.block_types,
+            labels: &self.labels,
+            origin: self.origin,
+            settings: &self.settings,
+            system_comments: &self.system_comments,
+            user_side_comments: &self.user_side_comments,
+            user_line_comments: &self.user_line_comments,
+            immediate_value_formats: &self.immediate_value_formats,
+            cross_refs: &self.cross_refs,
+            collapsed_blocks: &self.collapsed_blocks,
+            splitters: &self.splitters,
+        };
+        let mut lines = self.disassembler.disassemble_ctx(&ctx);
 
         // Add external label definitions at the top if enabled
         if self.settings.all_labels {
