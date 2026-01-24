@@ -5,15 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-01-24
 
 - Feature: Find Reference dialog (Ctrl+x)
 - Feature: Bitmap Viewer with High-Res and Multicolor support.
-- Feature: Auto-analyze on file open (enabled by default)
+- Feature: Settings: Auto-analyze on file open (enabled by default)
+- Feature: Settings: Sync between Disassembly and Hexdump, Sprites, Charset, Bitmap and Blocks views (enabled by default)
+- Feature: Partial bitmap and sprites rendering support
+- Feature: Visual selection mode in HexDump, Sprites, and Charset views
+- Feature: Search:
+  - Hex byte pattern search with wildcards
+  - Omni search now includes PETSCII and screencodes
+- Feature: Press 'b' in side panels to convert to bytes
 - Feature: pressing Enter in right-side pane, updates cursor in Disassembly view.
-- Config: "Patch BRK" enabled by default
+- UI: Updated Keyboard Shortcut dialog
+- UI: Reordered options in Settings dialog
 - UI: Don't show addresses if there are no bytes
+- Performance: Image caching for faster rendering (Bitmap view)
 - Navigation: Move up/down skip lines without "real bytes"
+- Settings: Config: "Patch BRK" enabled by default
 - Docs: Updated User Guide with illegal opcodes, patch brk, and command line options explanations
 - Docs: README fixes and Discord channel correction
 - Fix: Jump to collapsed line works correctly
