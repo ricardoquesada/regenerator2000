@@ -107,7 +107,7 @@ impl Widget for BitmapView {
         };
 
         let title = if ui_state.bitmap_multicolor_mode {
-            format!(" Bitmap (Multicolor 320×200) [{}] ", protocol_name)
+            format!(" Bitmap (Multicolor 160×200) [{}] ", protocol_name)
         } else {
             format!(" Bitmap (High-Res 320×200) [{}] ", protocol_name)
         };
@@ -140,12 +140,14 @@ impl Widget for BitmapView {
         let available_bytes = buffer_end_address.saturating_sub(bitmap_addr);
         let bitmap_size = 8000.min(available_bytes);
 
+        let screen_ram_addr = bitmap_addr + 8000;
+        let sub_header = format!(
+            "Bitmap @ ${:04X} ({} bytes), Screen RAM @ ${:04X}",
+            bitmap_addr, bitmap_size, screen_ram_addr
+        );
+
         f.render_widget(
-            Paragraph::new(format!(
-                "Bitmap @ ${:04X} ({} bytes)",
-                bitmap_addr, bitmap_size
-            ))
-            .style(Style::default().fg(ui_state.theme.comment)),
+            Paragraph::new(sub_header).style(Style::default().fg(ui_state.theme.comment)),
             Rect::new(inner_area.x, inner_area.y, inner_area.width, 1),
         );
 
