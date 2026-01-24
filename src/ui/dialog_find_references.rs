@@ -132,12 +132,14 @@ impl Widget for FindReferencesDialog {
             KeyCode::Enter => {
                 if !self.references.is_empty() {
                     let addr = self.references[self.selected_index];
-                    // Close the dialog and navigate
-                    ui_state.active_dialog = None;
-                    WidgetResult::Action(MenuAction::NavigateToAddress(addr))
-                } else {
-                    WidgetResult::Close
+                    // Navigate manually and close
+                    crate::ui::menu::execute_menu_action(
+                        _app_state,
+                        ui_state,
+                        MenuAction::NavigateToAddress(addr),
+                    );
                 }
+                WidgetResult::Close
             }
             _ => WidgetResult::Handled,
         }

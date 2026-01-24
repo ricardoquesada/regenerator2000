@@ -328,7 +328,15 @@ impl Widget for HexDumpView {
                 let alignment_padding = origin % 16;
                 let aligned_origin = origin - alignment_padding;
                 // Hex cursor index is row index
-                let target_addr = (aligned_origin + ui_state.hex_cursor_index * 16) as u16;
+                let row_addr = aligned_origin + ui_state.hex_cursor_index * 16;
+
+                // If this row contains the origin, jump to origin instead of the aligned boundary
+                let target_addr = if origin >= row_addr && origin < row_addr + 16 {
+                    origin as u16
+                } else {
+                    row_addr as u16
+                };
+
                 crate::ui::navigable::jump_to_disassembly_at_address(
                     app_state,
                     ui_state,

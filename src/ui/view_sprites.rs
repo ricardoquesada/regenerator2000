@@ -377,7 +377,15 @@ impl Widget for SpritesView {
                 let origin = app_state.origin as usize;
                 let aligned_origin = (origin / 64) * 64;
                 let sprite_offset = ui_state.sprites_cursor_index * 64;
-                let target_addr = (aligned_origin + sprite_offset) as u16;
+                let sprite_addr = aligned_origin + sprite_offset;
+
+                // If this sprite contains the origin, jump to origin instead of the aligned boundary
+                let target_addr = if origin >= sprite_addr && origin < sprite_addr + 64 {
+                    origin as u16
+                } else {
+                    sprite_addr as u16
+                };
+
                 crate::ui::navigable::jump_to_disassembly_at_address(
                     app_state,
                     ui_state,

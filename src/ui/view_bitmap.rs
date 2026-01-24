@@ -38,6 +38,7 @@ const VIC_II_RGB: [[u8; 3]; 16] = [
 impl Navigable for BitmapView {
     fn len(&self, app_state: &AppState) -> usize {
         // Bitmaps must be aligned to 8192-byte ($2000) boundaries
+        // We align to the floor to support partial bitmaps (padding with zeros before origin)
         let origin = app_state.origin as usize;
         let aligned_origin = (origin / 8192) * 8192;
         let end_address = origin + app_state.raw_data.len();
@@ -129,6 +130,7 @@ impl Widget for BitmapView {
         }
 
         let origin = app_state.origin as usize;
+        // Align to floor boundary to support partial bitmaps (bytes before origin are zeros)
         let aligned_origin = (origin / 8192) * 8192;
         let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
 
@@ -137,14 +139,40 @@ impl Widget for BitmapView {
             return;
         }
 
-        let available_bytes = buffer_end_address.saturating_sub(bitmap_addr);
-        let bitmap_size = 8000.min(available_bytes);
+        // Calculate the actual data range within this bitmap
+        let bitmap_end = bitmap_addr + 8000;
+        let data_start_in_bitmap = origin.max(bitmap_addr);
+        let data_end_in_bitmap = buffer_end_address.min(bitmap_end);
+
+        // If this bitmap contains actual data, show where it starts
+        let display_addr =
+            if data_start_in_bitmap < bitmap_end && data_start_in_bitmap >= bitmap_addr {
+                data_start_in_bitmap
+            } else {
+                bitmap_addr
+            };
+
+        let padding_bytes = data_start_in_bitmap.saturating_sub(bitmap_addr);
+        let actual_bytes = data_end_in_bitmap.saturating_sub(data_start_in_bitmap);
+        let total_bytes = padding_bytes + actual_bytes;
 
         let screen_ram_addr = bitmap_addr + 8000;
-        let sub_header = format!(
-            "Bitmap @ ${:04X} ({} bytes), Screen RAM @ ${:04X}",
-            bitmap_addr, bitmap_size, screen_ram_addr
-        );
+        let sub_header = if padding_bytes > 0 {
+            format!(
+                "Bitmap @ ${:04X} (aligned ${:04X}, {} bytes: {} padded + {} data), Screen RAM @ ${:04X}",
+                display_addr,
+                bitmap_addr,
+                total_bytes,
+                padding_bytes,
+                actual_bytes,
+                screen_ram_addr
+            )
+        } else {
+            format!(
+                "Bitmap @ ${:04X} ({} bytes), Screen RAM @ ${:04X}",
+                display_addr, total_bytes, screen_ram_addr
+            )
+        };
 
         f.render_widget(
             Paragraph::new(sub_header).style(Style::default().fg(ui_state.theme.comment)),
@@ -214,6 +242,7 @@ impl Widget for BitmapView {
             KeyCode::Char('b') if key.modifiers.is_empty() => {
                 // Convert current bitmap to bytes block (8000 bytes per bitmap)
                 let origin = app_state.origin as usize;
+                // Align to floor boundary to support partial bitmaps
                 let aligned_origin = (origin / 8192) * 8192;
                 let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
                 let end_address = origin + app_state.raw_data.len();
@@ -240,9 +269,22 @@ impl Widget for BitmapView {
             }
             KeyCode::Enter => {
                 let origin = app_state.origin as usize;
+                // Align to floor boundary to support partial bitmaps
                 let aligned_origin = (origin / 8192) * 8192;
                 let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
-                let target_addr = bitmap_addr as u16;
+
+                // Calculate the actual displayed address (consistent with header logic)
+                let bitmap_end = bitmap_addr + 8000;
+                let data_start_in_bitmap = origin.max(bitmap_addr);
+
+                let display_addr =
+                    if data_start_in_bitmap < bitmap_end && data_start_in_bitmap >= bitmap_addr {
+                        data_start_in_bitmap
+                    } else {
+                        bitmap_addr
+                    };
+
+                let target_addr = display_addr as u16;
                 crate::ui::navigable::jump_to_disassembly_at_address(
                     app_state,
                     ui_state,

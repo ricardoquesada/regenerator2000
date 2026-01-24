@@ -62,6 +62,7 @@ pub fn run_app<B: Backend>(
         {
             let origin = app_state.origin as usize;
             let base_alignment = 0x400;
+            // Use floor alignment to match view indexing
             let aligned_start_addr = (origin / base_alignment) * base_alignment;
             let target_addr = line.address as usize;
 
@@ -85,16 +86,17 @@ pub fn run_app<B: Backend>(
             && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
         {
             let origin = app_state.origin as usize;
-            let padding = (64 - (origin % 64)) % 64;
-            let start_of_sprites = origin + padding;
+            // Use floor alignment to match view indexing
+            let aligned_origin = (origin / 64) * 64;
             let target_addr = line.address as usize;
 
-            if target_addr >= start_of_sprites {
-                let offset = target_addr - start_of_sprites;
+            if target_addr >= aligned_origin {
+                let offset = target_addr - aligned_origin;
                 let idx = offset / 64;
 
-                let usable_len = app_state.raw_data.len().saturating_sub(padding);
-                let total_sprites = usable_len.div_ceil(64);
+                let data_len = app_state.raw_data.len();
+                let end_addr = origin + data_len;
+                let total_sprites = (end_addr.saturating_sub(aligned_origin)).div_ceil(64);
 
                 if idx < total_sprites {
                     ui_state.sprites_cursor_index = idx;
@@ -112,8 +114,8 @@ pub fn run_app<B: Backend>(
             let target_addr = line.address as usize;
 
             // Bitmaps must be aligned to 8192-byte ($2000) boundaries
-            let first_aligned_addr =
-                ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
+            // Use floor alignment to match view indexing
+            let first_aligned_addr = (origin / 8192) * 8192;
 
             if target_addr >= first_aligned_addr {
                 let offset = target_addr - first_aligned_addr;
@@ -121,14 +123,11 @@ pub fn run_app<B: Backend>(
 
                 // Calculate total number of bitmaps available
                 let data_len = app_state.raw_data.len();
-                let first_bitmap_offset = first_aligned_addr - origin;
-                if first_bitmap_offset < data_len {
-                    let remaining = data_len - first_bitmap_offset;
-                    let total_bitmaps = (remaining / 8192).max(1);
+                let end_addr = origin + data_len;
+                let total_bitmaps = (end_addr.saturating_sub(first_aligned_addr)).div_ceil(8192);
 
-                    if idx < total_bitmaps {
-                        ui_state.bitmap_cursor_index = idx;
-                    }
+                if idx < total_bitmaps {
+                    ui_state.bitmap_cursor_index = idx;
                 }
             }
         }

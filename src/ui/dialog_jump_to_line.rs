@@ -85,15 +85,13 @@ impl Widget for JumpToLineDialog {
                             .push((ActivePane::Disassembly, ui_state.cursor_index));
                         ui_state.cursor_index = index;
                         ui_state.set_status_message(format!("Jumped to visual line {}", line_num));
-                        WidgetResult::Close
                     } else {
                         ui_state.set_status_message("Line number out of range");
-                        WidgetResult::Handled
                     }
-                } else {
+                } else if !input.is_empty() {
                     ui_state.set_status_message("Invalid Line Number");
-                    WidgetResult::Handled
                 }
+                WidgetResult::Close
             }
             KeyCode::Backspace => {
                 self.input.pop();

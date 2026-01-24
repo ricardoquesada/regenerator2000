@@ -75,18 +75,16 @@ impl Widget for JumpToAddressDialog {
             KeyCode::Enter => {
                 let input = self.input.clone();
                 if let Ok(target_addr) = u16::from_str_radix(&input, 16) {
-                    // Delegate to global action
-                    // But first, we might want to check if it's potentially valid or just let the Action handle it?
-                    // The Action handles validation.
-                    // We just need to close the dialog and emit the action.
-                    ui_state.active_dialog = None; // Close self
-                    WidgetResult::Action(crate::ui::menu::MenuAction::NavigateToAddress(
-                        target_addr,
-                    ))
-                } else {
+                    // Navigate manually and close
+                    crate::ui::menu::execute_menu_action(
+                        _app_state,
+                        ui_state,
+                        crate::ui::menu::MenuAction::NavigateToAddress(target_addr),
+                    );
+                } else if !input.is_empty() {
                     ui_state.set_status_message("Invalid Hex Address");
-                    WidgetResult::Handled
                 }
+                WidgetResult::Close
             }
             KeyCode::Backspace => {
                 self.input.pop();

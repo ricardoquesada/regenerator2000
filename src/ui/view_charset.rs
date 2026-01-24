@@ -509,7 +509,15 @@ impl Widget for CharsetView {
                 let base_alignment = 0x400;
                 let aligned_start_addr = (origin / base_alignment) * base_alignment;
                 let char_offset = ui_state.charset_cursor_index * 8;
-                let target_addr = (aligned_start_addr + char_offset) as u16;
+                let char_addr = aligned_start_addr + char_offset;
+
+                // If this char contains the origin, jump to origin instead of the aligned boundary
+                let target_addr = if origin >= char_addr && origin < char_addr + 8 {
+                    origin as u16
+                } else {
+                    char_addr as u16
+                };
+
                 crate::ui::navigable::jump_to_disassembly_at_address(
                     app_state,
                     ui_state,

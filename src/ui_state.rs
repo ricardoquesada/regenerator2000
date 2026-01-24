@@ -190,10 +190,10 @@ impl UIState {
         }
         if let Some(sprites_addr) = loaded_sprites_cursor {
             let origin = app_state.origin as usize;
-            let padding = (64 - (origin % 64)) % 64;
+            let aligned_origin = (origin / 64) * 64;
             let addr = sprites_addr as usize;
-            if addr >= origin + padding {
-                let offset = addr - (origin + padding);
+            if addr >= aligned_origin {
+                let offset = addr - aligned_origin;
                 self.sprites_cursor_index = offset / 64;
             }
         }
@@ -212,11 +212,10 @@ impl UIState {
         if let Some(bitmap_addr) = loaded_data.bitmap_cursor_address {
             let origin = app_state.origin as usize;
             // Bitmaps must be aligned to 8192-byte boundaries
-            let first_aligned_addr =
-                ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
+            let aligned_start_addr = (origin / 8192) * 8192;
             let addr = bitmap_addr as usize;
-            if addr >= first_aligned_addr {
-                let offset = addr - first_aligned_addr;
+            if addr >= aligned_start_addr {
+                let offset = addr - aligned_start_addr;
                 self.bitmap_cursor_index = offset / 8192;
             }
         }
