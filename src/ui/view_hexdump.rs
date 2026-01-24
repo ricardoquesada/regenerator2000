@@ -204,6 +204,28 @@ impl Widget for HexDumpView {
             KeyCode::Char('M') if key.modifiers == KeyModifiers::SHIFT => {
                 WidgetResult::Action(MenuAction::HexdumpViewModePrev)
             }
+            KeyCode::Char('b') if key.modifiers.is_empty() => {
+                // Convert current row to bytes block (16 bytes per row)
+                let origin = app_state.origin as usize;
+                let bytes_per_row = 16;
+                let alignment_padding = origin % bytes_per_row;
+                let aligned_origin = origin - alignment_padding;
+                let row_start_addr = aligned_origin + (ui_state.hex_cursor_index * bytes_per_row);
+
+                // Calculate the byte offset range within raw_data
+                let start_offset = row_start_addr.saturating_sub(origin);
+                let end_offset = (start_offset + bytes_per_row - 1)
+                    .min(app_state.raw_data.len().saturating_sub(1));
+
+                if start_offset < app_state.raw_data.len() {
+                    WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
+                        start: start_offset,
+                        end: end_offset,
+                    })
+                } else {
+                    WidgetResult::Ignored
+                }
+            }
             KeyCode::Enter => {
                 let origin = app_state.origin as usize;
                 let alignment_padding = origin % 16;

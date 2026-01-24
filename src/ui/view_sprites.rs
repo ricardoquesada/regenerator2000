@@ -249,6 +249,26 @@ impl Widget for SpritesView {
             KeyCode::Char('m') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::ToggleSpriteMulticolor)
             }
+            KeyCode::Char('b') if key.modifiers.is_empty() => {
+                // Convert current sprite to bytes block (64 bytes per sprite)
+                let origin = app_state.origin as usize;
+                let padding = (64 - (origin % 64)) % 64;
+                let sprite_offset_in_data = padding + ui_state.sprites_cursor_index * 64;
+
+                // Calculate the byte offset range within raw_data
+                let start_offset = sprite_offset_in_data;
+                let end_offset =
+                    (start_offset + 63).min(app_state.raw_data.len().saturating_sub(1));
+
+                if start_offset < app_state.raw_data.len() {
+                    WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
+                        start: start_offset,
+                        end: end_offset,
+                    })
+                } else {
+                    WidgetResult::Ignored
+                }
+            }
             KeyCode::Enter => {
                 let origin = app_state.origin as usize;
                 let padding = (64 - (origin % 64)) % 64;

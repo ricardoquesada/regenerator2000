@@ -345,6 +345,27 @@ impl Widget for CharsetView {
             KeyCode::Char('m') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::ToggleCharsetMulticolor)
             }
+            KeyCode::Char('b') if key.modifiers.is_empty() => {
+                // Convert current character to bytes block (8 bytes per character)
+                let origin = app_state.origin as usize;
+                let base_alignment = 0x400;
+                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                let char_offset = ui_state.charset_cursor_index * 8;
+                let char_addr = aligned_start_addr + char_offset;
+
+                // Calculate the byte offset range within raw_data
+                let start_offset = char_addr.saturating_sub(origin);
+                let end_offset = (start_offset + 7).min(app_state.raw_data.len().saturating_sub(1));
+
+                if start_offset < app_state.raw_data.len() {
+                    WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
+                        start: start_offset,
+                        end: end_offset,
+                    })
+                } else {
+                    WidgetResult::Ignored
+                }
+            }
             KeyCode::Enter => {
                 let origin = app_state.origin as usize;
                 let base_alignment = 0x400;

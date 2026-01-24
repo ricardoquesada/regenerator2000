@@ -215,6 +215,28 @@ impl Widget for BitmapView {
             KeyCode::Char('m') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::ToggleBitmapMulticolor)
             }
+            KeyCode::Char('b') if key.modifiers.is_empty() => {
+                // Convert current bitmap to bytes block (8000 bytes per bitmap)
+                let origin = app_state.origin as usize;
+                let first_aligned_addr =
+                    ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
+                let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
+                let bitmap_offset = bitmap_addr.saturating_sub(origin);
+
+                // Calculate the byte offset range within raw_data (8000 bytes for bitmap data)
+                let start_offset = bitmap_offset;
+                let end_offset =
+                    (start_offset + 7999).min(app_state.raw_data.len().saturating_sub(1));
+
+                if start_offset < app_state.raw_data.len() {
+                    WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
+                        start: start_offset,
+                        end: end_offset,
+                    })
+                } else {
+                    WidgetResult::Ignored
+                }
+            }
             KeyCode::Enter => {
                 let origin = app_state.origin as usize;
                 let first_aligned_addr =

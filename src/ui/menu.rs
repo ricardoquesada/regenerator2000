@@ -61,6 +61,7 @@ pub enum MenuAction {
     ToggleSplitter,
     FindReferences,
     NavigateToAddress(u16),
+    SetBytesBlockByOffset { start: usize, end: usize },
 }
 
 impl MenuAction {
@@ -1289,6 +1290,38 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     app_state.undo_stack.push(command);
                     app_state.disassemble();
                 }
+            }
+        }
+        MenuAction::SetBytesBlockByOffset { start, end } => {
+            // Set block type to DataByte for a specific byte offset range
+            let block_type = crate::state::BlockType::DataByte;
+            let max_len = app_state.block_types.len();
+            if start < max_len {
+                let valid_end = end.min(max_len.saturating_sub(1));
+                let range = start..(valid_end + 1);
+
+                let old_types = app_state.block_types[range.clone()].to_vec();
+
+                let command = crate::commands::Command::SetBlockType {
+                    range: range.clone(),
+                    new_type: block_type,
+                    old_types,
+                };
+
+                command.apply(app_state);
+                app_state.push_command(command);
+                app_state.disassemble();
+
+                let start_addr = app_state.origin.wrapping_add(start as u16);
+                let end_addr = app_state.origin.wrapping_add(valid_end as u16);
+                ui_state.set_status_message(format!(
+                    "Set bytes block ${:04X}-${:04X} ({} bytes)",
+                    start_addr,
+                    end_addr,
+                    valid_end - start + 1
+                ));
+            } else {
+                ui_state.set_status_message("Error: offset out of range");
             }
         }
         MenuAction::ToggleCollapsedBlock => {
