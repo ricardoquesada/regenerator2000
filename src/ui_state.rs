@@ -4,6 +4,7 @@ use crate::ui::widget::Widget;
 use image::DynamicImage;
 use ratatui::widgets::ListState;
 use ratatui_image::picker::Picker;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,8 +81,9 @@ pub struct UIState {
     pub vim_search_active: bool,
     pub vim_search_input: String,
     pub last_search_query: String,
-    pub bitmap_image: Option<DynamicImage>,
-    pub bitmap_info: Option<(usize, bool)>, // (address, multicolor)
+
+    // Bitmap cache: key is (address, multicolor_mode)
+    pub bitmap_cache: HashMap<(usize, bool), DynamicImage>,
 }
 
 impl UIState {
@@ -122,8 +124,7 @@ impl UIState {
             vim_search_active: false,
             vim_search_input: String::new(),
             last_search_query: String::new(),
-            bitmap_image: None,
-            bitmap_info: None,
+            bitmap_cache: HashMap::new(),
             theme,
         }
     }

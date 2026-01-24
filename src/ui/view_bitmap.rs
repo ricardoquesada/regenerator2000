@@ -169,25 +169,25 @@ impl Widget for BitmapView {
         let image_width = image_width.min(inner_area.width);
         let image_area = Rect::new(inner_area.x, inner_area.y + 2, image_width, image_height);
 
-        // --- ratatui-image integration ---
+        // --- ratatui-image integration with caching ---
 
-        let needs_update = match ui_state.bitmap_info {
-            Some((addr, multi)) => addr != bitmap_addr || multi != ui_state.bitmap_multicolor_mode,
-            None => true,
-        };
+        // Create cache key from bitmap address and multicolor mode
+        let cache_key = (bitmap_addr, ui_state.bitmap_multicolor_mode);
 
-        if needs_update || ui_state.bitmap_image.is_none() {
+        // Check if we need to generate a new image or can use cached version
+        if !ui_state.bitmap_cache.contains_key(&cache_key) {
+            // Generate and cache the image
             let img = convert_to_dynamic_image(
                 &app_state.raw_data[bitmap_offset..],
                 bitmap_size,
                 screen_ram_size,
                 ui_state.bitmap_multicolor_mode,
             );
-            ui_state.bitmap_image = Some(img);
-            ui_state.bitmap_info = Some((bitmap_addr, ui_state.bitmap_multicolor_mode));
+            ui_state.bitmap_cache.insert(cache_key, img);
         }
 
-        if let Some(img) = &ui_state.bitmap_image {
+        // Get the cached image (guaranteed to exist now)
+        if let Some(img) = ui_state.bitmap_cache.get(&cache_key) {
             if let Some(picker) = &ui_state.picker {
                 let mut protocol = picker.new_resize_protocol(img.clone());
                 let widget = StatefulImage::new();
