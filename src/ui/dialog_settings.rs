@@ -74,6 +74,14 @@ impl Widget for SettingsDialog {
                 }
             ),
             format!(
+                "{} Sync Bitmap View",
+                if app_state.system_config.sync_bitmap_view {
+                    "[X]"
+                } else {
+                    "[ ]"
+                }
+            ),
+            format!(
                 "{} Sync Blocks View",
                 if app_state.system_config.sync_blocks_view {
                     "[X]"
@@ -178,8 +186,8 @@ impl Widget for SettingsDialog {
                     app_state.system_config.theme = new_theme.clone();
                     ui_state.theme = crate::theme::Theme::from_name(&new_theme);
                 } else {
-                    // Limit to 6 (7 items)
-                    if self.selected_index < 6 {
+                    // Limit to 7 (8 items)
+                    if self.selected_index < 7 {
                         self.selected_index += 1;
                     }
                 }
@@ -208,10 +216,14 @@ impl Widget for SettingsDialog {
                         !app_state.system_config.sync_sprites_view;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 5 {
+                    app_state.system_config.sync_bitmap_view =
+                        !app_state.system_config.sync_bitmap_view;
+                    let _ = app_state.system_config.save();
+                } else if self.selected_index == 6 {
                     app_state.system_config.sync_blocks_view =
                         !app_state.system_config.sync_blocks_view;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 6 {
+                } else if self.selected_index == 7 {
                     self.is_selecting_theme = true;
                 }
                 WidgetResult::Handled

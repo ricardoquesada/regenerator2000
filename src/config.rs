@@ -18,6 +18,8 @@ pub struct SystemConfig {
     pub sync_charset_view: bool,
     #[serde(default = "default_true")]
     pub sync_sprites_view: bool,
+    #[serde(default = "default_true")]
+    pub sync_bitmap_view: bool,
 }
 
 fn default_true() -> bool {
@@ -39,6 +41,7 @@ impl Default for SystemConfig {
             sync_hex_dump: true,
             sync_charset_view: true,
             sync_sprites_view: true,
+            sync_bitmap_view: true,
         }
     }
 }

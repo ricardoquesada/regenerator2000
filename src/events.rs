@@ -102,6 +102,37 @@ pub fn run_app<B: Backend>(
             }
         }
 
+        // Sync Bitmap view with Disassembly when active on Disassembly
+        if ui_state.active_pane == ActivePane::Disassembly
+            && ui_state.right_pane == crate::ui_state::RightPane::Bitmap
+            && app_state.system_config.sync_bitmap_view
+            && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+        {
+            let origin = app_state.origin as usize;
+            let target_addr = line.address as usize;
+
+            // Bitmaps must be aligned to 8192-byte ($2000) boundaries
+            let first_aligned_addr =
+                ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
+
+            if target_addr >= first_aligned_addr {
+                let offset = target_addr - first_aligned_addr;
+                let idx = offset / 8192;
+
+                // Calculate total number of bitmaps available
+                let data_len = app_state.raw_data.len();
+                let first_bitmap_offset = first_aligned_addr - origin;
+                if first_bitmap_offset < data_len {
+                    let remaining = data_len - first_bitmap_offset;
+                    let total_bitmaps = (remaining / 8192).max(1);
+
+                    if idx < total_bitmaps {
+                        ui_state.bitmap_cursor_index = idx;
+                    }
+                }
+            }
+        }
+
         // Sync Disassembly view with HexDump when active on HexDump
         if ui_state.active_pane == ActivePane::HexDump && app_state.system_config.sync_hex_dump {
             let origin = app_state.origin as usize;
