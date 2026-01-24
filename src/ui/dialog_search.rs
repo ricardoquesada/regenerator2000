@@ -163,9 +163,9 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
             if !matches.is_empty() {
                 found_idx = Some(idx);
                 found_sub_idx = if forward {
-                    *matches.first().unwrap()
+                    matches[0]
                 } else {
-                    *matches.last().unwrap()
+                    matches[matches.len() - 1]
                 };
                 break;
             }

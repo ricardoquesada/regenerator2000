@@ -464,29 +464,23 @@ mod tests {
         let output = Command::new("64tass").arg(file_name).output();
 
         // 4. Assert success
-        match output {
-            Ok(output) => {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                println!("stdout: {}", stdout);
-                println!("stderr: {}", stderr);
+        let output = output.expect(
+            "Failed to execute 64tass. \
+             Make sure 64tass is installed and available in PATH. \
+             You may need to skip this test if 64tass is not available.",
+        );
 
-                assert!(
-                    output.status.success(),
-                    "64tass compilation failed. \nStdout: {}\nStderr: {}",
-                    stdout,
-                    stderr
-                );
-            }
-            Err(e) => {
-                // If 64tass is not installed, this might fail.
-                // But the user request implies they want a test that it compiles WITH 64tass.
-                // If it's not installed, the test arguably should fail or be skipped.
-                // Given the instructions said "add a test that ... compiles with 64tass",
-                // we assume the environment should have it or it's a failure.
-                panic!("Failed to execute 64tass: {}", e);
-            }
-        }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        println!("stdout: {}", stdout);
+        println!("stderr: {}", stderr);
+
+        assert!(
+            output.status.success(),
+            "64tass compilation failed. \nStdout: {}\nStderr: {}",
+            stdout,
+            stderr
+        );
 
         // 5. Cleanup
         let _ = std::fs::remove_file(&path);
@@ -1307,13 +1301,12 @@ mod tests {
         // Run disassembly
         state.disassemble();
 
-        // precise verification: disassembly should NOT verify external label definition
+        // precise verification: disassembly should NOT contain external label definition
         for line in &state.disassembly {
-            if line.mnemonic.contains("ZP FIELDS") || line.mnemonic.contains("f10 =") {
-                panic!(
-                    "Disassembly contained external label definition but 'all_labels' is false!"
-                );
-            }
+            assert!(
+                !line.mnemonic.contains("ZP FIELDS") && !line.mnemonic.contains("f10 ="),
+                "Disassembly contained external label definition but 'all_labels' is false!"
+            );
         }
 
         // Now Export
