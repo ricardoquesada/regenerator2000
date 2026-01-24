@@ -27,6 +27,13 @@ impl Navigable for HexDumpView {
     }
 
     fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        if ui_state.is_visual_mode {
+            if ui_state.hex_selection_start.is_none() {
+                ui_state.hex_selection_start = Some(ui_state.hex_cursor_index);
+            }
+        } else {
+            ui_state.hex_selection_start = None;
+        }
         let total = self.len(app_state);
         if total == 0 {
             return;
@@ -36,6 +43,13 @@ impl Navigable for HexDumpView {
     }
 
     fn move_up(&self, _app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        if ui_state.is_visual_mode {
+            if ui_state.hex_selection_start.is_none() {
+                ui_state.hex_selection_start = Some(ui_state.hex_cursor_index);
+            }
+        } else {
+            ui_state.hex_selection_start = None;
+        }
         ui_state.hex_cursor_index = ui_state.hex_cursor_index.saturating_sub(amount);
     }
 
@@ -153,7 +167,18 @@ impl Widget for HexDumpView {
                     }
                 }
 
-                let style = if row_index == ui_state.hex_cursor_index {
+                let is_selected = if let Some(sel_start) = ui_state.hex_selection_start {
+                    let (start, end) = if sel_start < ui_state.hex_cursor_index {
+                        (sel_start, ui_state.hex_cursor_index)
+                    } else {
+                        (ui_state.hex_cursor_index, sel_start)
+                    };
+                    row_index >= start && row_index <= end
+                } else {
+                    row_index == ui_state.hex_cursor_index
+                };
+
+                let style = if is_selected {
                     Style::default().bg(ui_state.theme.selection_bg)
                 } else {
                     Style::default()
@@ -198,6 +223,61 @@ impl Widget for HexDumpView {
         }
 
         match key.code {
+            // Escape cancels visual mode / selection
+            KeyCode::Esc => {
+                if ui_state.hex_selection_start.is_some() || ui_state.is_visual_mode {
+                    ui_state.hex_selection_start = None;
+                    ui_state.is_visual_mode = false;
+                    ui_state.set_status_message("");
+                    WidgetResult::Handled
+                } else {
+                    WidgetResult::Ignored
+                }
+            }
+            // Visual mode toggle
+            KeyCode::Char('V') if key.modifiers == KeyModifiers::SHIFT => {
+                if !app_state.raw_data.is_empty() {
+                    ui_state.is_visual_mode = !ui_state.is_visual_mode;
+                    if ui_state.is_visual_mode {
+                        ui_state.hex_selection_start = Some(ui_state.hex_cursor_index);
+                        ui_state.set_status_message("Visual Mode");
+                    } else {
+                        ui_state.hex_selection_start = None;
+                        ui_state.set_status_message("");
+                    }
+                }
+                WidgetResult::Handled
+            }
+            // Shift+Down for selection
+            KeyCode::Down if key.modifiers == KeyModifiers::SHIFT => {
+                let saved_selection = ui_state.hex_selection_start;
+                if saved_selection.is_none() {
+                    ui_state.hex_selection_start = Some(ui_state.hex_cursor_index);
+                }
+                let selection_to_keep = ui_state.hex_selection_start;
+                // Move cursor (this may clear selection if not in visual mode)
+                let total = self.len(app_state);
+                if total > 0 {
+                    ui_state.hex_cursor_index =
+                        (ui_state.hex_cursor_index + 1).min(total.saturating_sub(1));
+                }
+                // Restore selection for shift+arrow mode
+                ui_state.hex_selection_start = selection_to_keep;
+                WidgetResult::Handled
+            }
+            // Shift+Up for selection
+            KeyCode::Up if key.modifiers == KeyModifiers::SHIFT => {
+                let saved_selection = ui_state.hex_selection_start;
+                if saved_selection.is_none() {
+                    ui_state.hex_selection_start = Some(ui_state.hex_cursor_index);
+                }
+                let selection_to_keep = ui_state.hex_selection_start;
+                // Move cursor
+                ui_state.hex_cursor_index = ui_state.hex_cursor_index.saturating_sub(1);
+                // Restore selection for shift+arrow mode
+                ui_state.hex_selection_start = selection_to_keep;
+                WidgetResult::Handled
+            }
             KeyCode::Char('m') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::HexdumpViewModeNext)
             }
@@ -205,17 +285,34 @@ impl Widget for HexDumpView {
                 WidgetResult::Action(MenuAction::HexdumpViewModePrev)
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
-                // Convert current row to bytes block (16 bytes per row)
+                // Convert selected rows or current row to bytes block (16 bytes per row)
                 let origin = app_state.origin as usize;
                 let bytes_per_row = 16;
                 let alignment_padding = origin % bytes_per_row;
                 let aligned_origin = origin - alignment_padding;
-                let row_start_addr = aligned_origin + (ui_state.hex_cursor_index * bytes_per_row);
+
+                // Determine row range based on selection
+                let (start_row, end_row) = if let Some(sel_start) = ui_state.hex_selection_start {
+                    if sel_start < ui_state.hex_cursor_index {
+                        (sel_start, ui_state.hex_cursor_index)
+                    } else {
+                        (ui_state.hex_cursor_index, sel_start)
+                    }
+                } else {
+                    (ui_state.hex_cursor_index, ui_state.hex_cursor_index)
+                };
+
+                let row_start_addr = aligned_origin + (start_row * bytes_per_row);
+                let row_end_addr = aligned_origin + ((end_row + 1) * bytes_per_row) - 1;
 
                 // Calculate the byte offset range within raw_data
                 let start_offset = row_start_addr.saturating_sub(origin);
-                let end_offset = (start_offset + bytes_per_row - 1)
+                let end_offset = (row_end_addr.saturating_sub(origin))
                     .min(app_state.raw_data.len().saturating_sub(1));
+
+                // Clear selection after action
+                ui_state.hex_selection_start = None;
+                ui_state.is_visual_mode = false;
 
                 if start_offset < app_state.raw_data.len() {
                     WidgetResult::Action(MenuAction::SetBytesBlockByOffset {

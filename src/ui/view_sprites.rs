@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui_state::{ActivePane, MenuAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -28,6 +28,13 @@ impl Navigable for SpritesView {
     }
 
     fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        if ui_state.is_visual_mode {
+            if ui_state.sprites_selection_start.is_none() {
+                ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
+            }
+        } else {
+            ui_state.sprites_selection_start = None;
+        }
         let total = self.len(app_state);
         if total == 0 {
             return;
@@ -37,6 +44,13 @@ impl Navigable for SpritesView {
     }
 
     fn move_up(&self, _app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        if ui_state.is_visual_mode {
+            if ui_state.sprites_selection_start.is_none() {
+                ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
+            }
+        } else {
+            ui_state.sprites_selection_start = None;
+        }
         ui_state.sprites_cursor_index = ui_state.sprites_cursor_index.saturating_sub(amount);
     }
 
@@ -137,7 +151,16 @@ impl Widget for SpritesView {
             }
 
             // Draw Sprite Header/Index
-            let is_selected = i == ui_state.sprites_cursor_index;
+            let is_selected = if let Some(sel_start) = ui_state.sprites_selection_start {
+                let (start, end) = if sel_start < ui_state.sprites_cursor_index {
+                    (sel_start, ui_state.sprites_cursor_index)
+                } else {
+                    (ui_state.sprites_cursor_index, sel_start)
+                };
+                i >= start && i <= end
+            } else {
+                i == ui_state.sprites_cursor_index
+            };
             let style = if is_selected {
                 Style::default()
                     .fg(ui_state.theme.highlight_fg)
@@ -246,19 +269,88 @@ impl Widget for SpritesView {
         }
 
         match key.code {
+            // Escape cancels visual mode / selection
+            KeyCode::Esc => {
+                if ui_state.sprites_selection_start.is_some() || ui_state.is_visual_mode {
+                    ui_state.sprites_selection_start = None;
+                    ui_state.is_visual_mode = false;
+                    ui_state.set_status_message("");
+                    WidgetResult::Handled
+                } else {
+                    WidgetResult::Ignored
+                }
+            }
+            // Visual mode toggle
+            KeyCode::Char('V') if key.modifiers == KeyModifiers::SHIFT => {
+                if !app_state.raw_data.is_empty() {
+                    ui_state.is_visual_mode = !ui_state.is_visual_mode;
+                    if ui_state.is_visual_mode {
+                        ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
+                        ui_state.set_status_message("Visual Mode");
+                    } else {
+                        ui_state.sprites_selection_start = None;
+                        ui_state.set_status_message("");
+                    }
+                }
+                WidgetResult::Handled
+            }
+            // Shift+Down for selection
+            KeyCode::Down if key.modifiers == KeyModifiers::SHIFT => {
+                let saved_selection = ui_state.sprites_selection_start;
+                if saved_selection.is_none() {
+                    ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
+                }
+                let selection_to_keep = ui_state.sprites_selection_start;
+                // Move cursor
+                let total = self.len(app_state);
+                if total > 0 {
+                    ui_state.sprites_cursor_index =
+                        (ui_state.sprites_cursor_index + 1).min(total.saturating_sub(1));
+                }
+                // Restore selection for shift+arrow mode
+                ui_state.sprites_selection_start = selection_to_keep;
+                WidgetResult::Handled
+            }
+            // Shift+Up for selection
+            KeyCode::Up if key.modifiers == KeyModifiers::SHIFT => {
+                let saved_selection = ui_state.sprites_selection_start;
+                if saved_selection.is_none() {
+                    ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
+                }
+                let selection_to_keep = ui_state.sprites_selection_start;
+                // Move cursor
+                ui_state.sprites_cursor_index = ui_state.sprites_cursor_index.saturating_sub(1);
+                // Restore selection for shift+arrow mode
+                ui_state.sprites_selection_start = selection_to_keep;
+                WidgetResult::Handled
+            }
             KeyCode::Char('m') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::ToggleSpriteMulticolor)
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
-                // Convert current sprite to bytes block (64 bytes per sprite)
+                // Convert selected sprites or current sprite to bytes block (64 bytes per sprite)
                 let origin = app_state.origin as usize;
                 let padding = (64 - (origin % 64)) % 64;
-                let sprite_offset_in_data = padding + ui_state.sprites_cursor_index * 64;
 
-                // Calculate the byte offset range within raw_data
-                let start_offset = sprite_offset_in_data;
-                let end_offset =
-                    (start_offset + 63).min(app_state.raw_data.len().saturating_sub(1));
+                // Determine sprite range based on selection
+                let (start_sprite, end_sprite) =
+                    if let Some(sel_start) = ui_state.sprites_selection_start {
+                        if sel_start < ui_state.sprites_cursor_index {
+                            (sel_start, ui_state.sprites_cursor_index)
+                        } else {
+                            (ui_state.sprites_cursor_index, sel_start)
+                        }
+                    } else {
+                        (ui_state.sprites_cursor_index, ui_state.sprites_cursor_index)
+                    };
+
+                let start_offset = padding + start_sprite * 64;
+                let end_offset = (padding + (end_sprite + 1) * 64 - 1)
+                    .min(app_state.raw_data.len().saturating_sub(1));
+
+                // Clear selection after action
+                ui_state.sprites_selection_start = None;
+                ui_state.is_visual_mode = false;
 
                 if start_offset < app_state.raw_data.len() {
                     WidgetResult::Action(MenuAction::SetBytesBlockByOffset {

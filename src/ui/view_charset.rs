@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui_state::{ActivePane, MenuAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -29,6 +29,13 @@ impl Navigable for CharsetView {
     }
 
     fn move_down(&self, app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        if ui_state.is_visual_mode {
+            if ui_state.charset_selection_start.is_none() {
+                ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
+            }
+        } else {
+            ui_state.charset_selection_start = None;
+        }
         let max_char_index = self.len(app_state);
         // Move Down by 8 (one visual row)
         // Note: amount is usually 1 for 'j' or keys mapped to move_down(1).
@@ -40,6 +47,13 @@ impl Navigable for CharsetView {
     }
 
     fn move_up(&self, _app_state: &AppState, ui_state: &mut UIState, amount: usize) {
+        if ui_state.is_visual_mode {
+            if ui_state.charset_selection_start.is_none() {
+                ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
+            }
+        } else {
+            ui_state.charset_selection_start = None;
+        }
         // Move Up by 8 (one visual row)
         ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(amount * 8);
     }
@@ -198,7 +212,16 @@ impl Widget for CharsetView {
                 let x_pos = inner_area.x + (col_idx * item_width) as u16 + 1; // +1 margin
                 let y_pos = inner_area.y + y_offset as u16;
 
-                let is_selected = char_idx == ui_state.charset_cursor_index;
+                let is_selected = if let Some(sel_start) = ui_state.charset_selection_start {
+                    let (start, end) = if sel_start < ui_state.charset_cursor_index {
+                        (sel_start, ui_state.charset_cursor_index)
+                    } else {
+                        (ui_state.charset_cursor_index, sel_start)
+                    };
+                    char_idx >= start && char_idx <= end
+                } else {
+                    char_idx == ui_state.charset_cursor_index
+                };
 
                 // Draw 4 lines of half-blocks
                 for line in 0..4 {
@@ -323,10 +346,100 @@ impl Widget for CharsetView {
         // So I can call self.len(app_state).
 
         match key.code {
+            // Escape cancels visual mode / selection
+            KeyCode::Esc => {
+                if ui_state.charset_selection_start.is_some() || ui_state.is_visual_mode {
+                    ui_state.charset_selection_start = None;
+                    ui_state.is_visual_mode = false;
+                    ui_state.set_status_message("");
+                    WidgetResult::Handled
+                } else {
+                    WidgetResult::Ignored
+                }
+            }
+            // Visual mode toggle
+            KeyCode::Char('V') if key.modifiers == KeyModifiers::SHIFT => {
+                if !app_state.raw_data.is_empty() {
+                    ui_state.is_visual_mode = !ui_state.is_visual_mode;
+                    if ui_state.is_visual_mode {
+                        ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
+                        ui_state.set_status_message("Visual Mode");
+                    } else {
+                        ui_state.charset_selection_start = None;
+                        ui_state.set_status_message("");
+                    }
+                }
+                WidgetResult::Handled
+            }
+            // Shift+Down for selection
+            KeyCode::Down if key.modifiers == KeyModifiers::SHIFT => {
+                let saved_selection = ui_state.charset_selection_start;
+                if saved_selection.is_none() {
+                    ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
+                }
+                let selection_to_keep = ui_state.charset_selection_start;
+                // Move cursor down by 8 (one visual row)
+                let max_char_index = self.len(app_state);
+                if ui_state.charset_cursor_index + 8 < max_char_index {
+                    ui_state.charset_cursor_index += 8;
+                } else {
+                    ui_state.charset_cursor_index = max_char_index.saturating_sub(1);
+                }
+                // Restore selection for shift+arrow mode
+                ui_state.charset_selection_start = selection_to_keep;
+                WidgetResult::Handled
+            }
+            // Shift+Up for selection
+            KeyCode::Up if key.modifiers == KeyModifiers::SHIFT => {
+                let saved_selection = ui_state.charset_selection_start;
+                if saved_selection.is_none() {
+                    ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
+                }
+                let selection_to_keep = ui_state.charset_selection_start;
+                // Move cursor up by 8 (one visual row)
+                ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(8);
+                // Restore selection for shift+arrow mode
+                ui_state.charset_selection_start = selection_to_keep;
+                WidgetResult::Handled
+            }
+            // Shift+Left for selection
+            KeyCode::Left if key.modifiers == KeyModifiers::SHIFT => {
+                let saved_selection = ui_state.charset_selection_start;
+                if saved_selection.is_none() {
+                    ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
+                }
+                let selection_to_keep = ui_state.charset_selection_start;
+                if ui_state.charset_cursor_index > 0 {
+                    ui_state.charset_cursor_index -= 1;
+                }
+                ui_state.charset_selection_start = selection_to_keep;
+                WidgetResult::Handled
+            }
+            // Shift+Right for selection
+            KeyCode::Right if key.modifiers == KeyModifiers::SHIFT => {
+                let saved_selection = ui_state.charset_selection_start;
+                if saved_selection.is_none() {
+                    ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
+                }
+                let selection_to_keep = ui_state.charset_selection_start;
+                let max_char_index = self.len(app_state);
+                if ui_state.charset_cursor_index < max_char_index.saturating_sub(1) {
+                    ui_state.charset_cursor_index += 1;
+                }
+                ui_state.charset_selection_start = selection_to_keep;
+                WidgetResult::Handled
+            }
             KeyCode::Left | KeyCode::Char('h')
                 if key.modifiers.is_empty() || key.code == KeyCode::Left =>
             {
                 ui_state.input_buffer.clear();
+                if ui_state.is_visual_mode {
+                    if ui_state.charset_selection_start.is_none() {
+                        ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
+                    }
+                } else {
+                    ui_state.charset_selection_start = None;
+                }
                 if ui_state.charset_cursor_index > 0 {
                     ui_state.charset_cursor_index -= 1;
                 }
@@ -336,6 +449,13 @@ impl Widget for CharsetView {
                 if key.modifiers.is_empty() || key.code == KeyCode::Right =>
             {
                 ui_state.input_buffer.clear();
+                if ui_state.is_visual_mode {
+                    if ui_state.charset_selection_start.is_none() {
+                        ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
+                    }
+                } else {
+                    ui_state.charset_selection_start = None;
+                }
                 let max_char_index = self.len(app_state);
                 if ui_state.charset_cursor_index < max_char_index.saturating_sub(1) {
                     ui_state.charset_cursor_index += 1;
@@ -346,16 +466,34 @@ impl Widget for CharsetView {
                 WidgetResult::Action(MenuAction::ToggleCharsetMulticolor)
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
-                // Convert current character to bytes block (8 bytes per character)
+                // Convert selected characters or current character to bytes block (8 bytes per character)
                 let origin = app_state.origin as usize;
                 let base_alignment = 0x400;
                 let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                let char_offset = ui_state.charset_cursor_index * 8;
-                let char_addr = aligned_start_addr + char_offset;
+
+                // Determine character range based on selection
+                let (start_char, end_char) =
+                    if let Some(sel_start) = ui_state.charset_selection_start {
+                        if sel_start < ui_state.charset_cursor_index {
+                            (sel_start, ui_state.charset_cursor_index)
+                        } else {
+                            (ui_state.charset_cursor_index, sel_start)
+                        }
+                    } else {
+                        (ui_state.charset_cursor_index, ui_state.charset_cursor_index)
+                    };
+
+                let start_char_addr = aligned_start_addr + (start_char * 8);
+                let end_char_addr = aligned_start_addr + ((end_char + 1) * 8) - 1;
 
                 // Calculate the byte offset range within raw_data
-                let start_offset = char_addr.saturating_sub(origin);
-                let end_offset = (start_offset + 7).min(app_state.raw_data.len().saturating_sub(1));
+                let start_offset = start_char_addr.saturating_sub(origin);
+                let end_offset = (end_char_addr.saturating_sub(origin))
+                    .min(app_state.raw_data.len().saturating_sub(1));
+
+                // Clear selection after action
+                ui_state.charset_selection_start = None;
+                ui_state.is_visual_mode = false;
 
                 if start_offset < app_state.raw_data.len() {
                     WidgetResult::Action(MenuAction::SetBytesBlockByOffset {

@@ -48,8 +48,11 @@ pub struct UIState {
 
     // Hex View State
     pub hex_cursor_index: usize,
+    pub hex_selection_start: Option<usize>,
     pub sprites_cursor_index: usize,
+    pub sprites_selection_start: Option<usize>,
     pub charset_cursor_index: usize,
+    pub charset_selection_start: Option<usize>,
     pub bitmap_cursor_index: usize,
 
     pub blocks_list_state: ListState,
@@ -95,8 +98,11 @@ impl UIState {
             sub_cursor_index: 0,
             scroll_index: 0,
             hex_cursor_index: 0,
+            hex_selection_start: None,
             sprites_cursor_index: 0,
+            sprites_selection_start: None,
             charset_cursor_index: 0,
+            charset_selection_start: None,
             bitmap_cursor_index: 0,
             blocks_list_state: ListState::default(),
             hex_scroll_index: 0,
