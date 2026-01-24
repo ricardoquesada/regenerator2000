@@ -19,6 +19,20 @@ impl SettingsDialog {
     pub fn new() -> Self {
         Self::default()
     }
+
+    pub fn next(&mut self) {
+        let max_items = 8;
+        self.selected_index = (self.selected_index + 1) % max_items;
+    }
+
+    pub fn previous(&mut self) {
+        let max_items = 8;
+        if self.selected_index == 0 {
+            self.selected_index = max_items - 1;
+        } else {
+            self.selected_index -= 1;
+        }
+    }
 }
 
 impl Widget for SettingsDialog {
@@ -171,7 +185,7 @@ impl Widget for SettingsDialog {
                     app_state.system_config.theme = new_theme.clone();
                     ui_state.theme = crate::theme::Theme::from_name(&new_theme);
                 } else {
-                    self.selected_index = self.selected_index.saturating_sub(1);
+                    self.previous();
                 }
                 WidgetResult::Handled
             }
@@ -186,10 +200,7 @@ impl Widget for SettingsDialog {
                     app_state.system_config.theme = new_theme.clone();
                     ui_state.theme = crate::theme::Theme::from_name(&new_theme);
                 } else {
-                    // Limit to 7 (8 items)
-                    if self.selected_index < 7 {
-                        self.selected_index += 1;
-                    }
+                    self.next();
                 }
                 WidgetResult::Handled
             }
