@@ -133,18 +133,6 @@ pub fn run_app<B: Backend>(
             }
         }
 
-        // Sync Disassembly view with HexDump when active on HexDump
-        if ui_state.active_pane == ActivePane::HexDump && app_state.system_config.sync_hex_dump {
-            let origin = app_state.origin as usize;
-            let alignment_padding = origin % 16;
-            let aligned_origin = origin - alignment_padding;
-            let hex_addr = aligned_origin + ui_state.hex_cursor_index * 16;
-
-            if let Some(idx) = app_state.get_line_index_containing_address(hex_addr as u16) {
-                ui_state.cursor_index = idx;
-            }
-        }
-
         terminal
             .draw(|f| ui(f, &app_state, &mut ui_state))
             .map_err(|e| io::Error::other(e.to_string()))?;
