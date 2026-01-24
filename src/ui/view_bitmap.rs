@@ -39,17 +39,11 @@ impl Navigable for BitmapView {
     fn len(&self, app_state: &AppState) -> usize {
         // Bitmaps must be aligned to 8192-byte ($2000) boundaries
         let origin = app_state.origin as usize;
-        let data_len = app_state.raw_data.len();
+        let aligned_origin = (origin / 8192) * 8192;
+        let end_address = origin + app_state.raw_data.len();
 
-        let first_bitmap_offset =
-            ((origin / 8192) * 8192 + if origin.is_multiple_of(8192) { 0 } else { 8192 }) - origin;
-
-        if first_bitmap_offset >= data_len {
-            return 1;
-        }
-
-        let remaining = data_len - first_bitmap_offset;
-        (remaining / 8192).max(1)
+        let total_bytes = end_address.saturating_sub(aligned_origin);
+        (total_bytes as f64 / 8192.0).ceil() as usize
     }
 
     fn current_index(&self, _app_state: &AppState, ui_state: &UIState) -> usize {
@@ -135,22 +129,16 @@ impl Widget for BitmapView {
         }
 
         let origin = app_state.origin as usize;
-        let first_aligned_addr =
-            ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
-        let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
-        let bitmap_offset = bitmap_addr - origin;
+        let aligned_origin = (origin / 8192) * 8192;
+        let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
 
-        if bitmap_offset >= app_state.raw_data.len() {
+        let buffer_end_address = origin + app_state.raw_data.len();
+        if bitmap_addr >= buffer_end_address {
             return;
         }
 
-        let available_bytes = app_state.raw_data.len() - bitmap_offset;
+        let available_bytes = buffer_end_address.saturating_sub(bitmap_addr);
         let bitmap_size = 8000.min(available_bytes);
-        let screen_ram_size = if available_bytes > 8000 {
-            1000.min(available_bytes - 8000)
-        } else {
-            0
-        };
 
         f.render_widget(
             Paragraph::new(format!(
@@ -178,9 +166,9 @@ impl Widget for BitmapView {
         if !ui_state.bitmap_cache.contains_key(&cache_key) {
             // Generate and cache the image
             let img = convert_to_dynamic_image(
-                &app_state.raw_data[bitmap_offset..],
-                bitmap_size,
-                screen_ram_size,
+                &app_state.raw_data,
+                origin,
+                bitmap_addr,
                 ui_state.bitmap_multicolor_mode,
             );
             ui_state.bitmap_cache.insert(cache_key, img);
@@ -218,17 +206,22 @@ impl Widget for BitmapView {
             KeyCode::Char('b') if key.modifiers.is_empty() => {
                 // Convert current bitmap to bytes block (8000 bytes per bitmap)
                 let origin = app_state.origin as usize;
-                let first_aligned_addr =
-                    ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
-                let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
-                let bitmap_offset = bitmap_addr.saturating_sub(origin);
+                let aligned_origin = (origin / 8192) * 8192;
+                let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
+                let end_address = origin + app_state.raw_data.len();
 
                 // Calculate the byte offset range within raw_data (8000 bytes for bitmap data)
-                let start_offset = bitmap_offset;
-                let end_offset =
-                    (start_offset + 7999).min(app_state.raw_data.len().saturating_sub(1));
+                let start_addr = bitmap_addr;
+                let end_addr = bitmap_addr + 7999;
 
-                if start_offset < app_state.raw_data.len() {
+                let start_offset = start_addr.saturating_sub(origin);
+                let end_offset = if end_addr < origin {
+                    0
+                } else {
+                    end_addr.min(end_address.saturating_sub(1)) - origin
+                };
+
+                if start_offset < app_state.raw_data.len() && start_offset <= end_offset {
                     WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
                         start: start_offset,
                         end: end_offset,
@@ -239,9 +232,8 @@ impl Widget for BitmapView {
             }
             KeyCode::Enter => {
                 let origin = app_state.origin as usize;
-                let first_aligned_addr =
-                    ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
-                let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
+                let aligned_origin = (origin / 8192) * 8192;
+                let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
                 let target_addr = bitmap_addr as u16;
                 crate::ui::navigable::jump_to_disassembly_at_address(
                     app_state,
@@ -255,20 +247,28 @@ impl Widget for BitmapView {
 }
 
 fn convert_to_dynamic_image(
-    data: &[u8],
-    bitmap_size: usize,
-    screen_ram_size: usize,
+    raw_data: &[u8],
+    origin: usize,
+    bitmap_addr: usize,
     multicolor: bool,
 ) -> DynamicImage {
     // C64 resolution 320x200 scaled 2x to 640x400
     let mut rgb_img = RgbImage::new(640, 400);
 
-    let bitmap_data = &data[..bitmap_size];
-    let screen_ram = if screen_ram_size > 0 {
-        Some(&data[8000..8000 + screen_ram_size])
-    } else {
-        None
+    let end_address = origin + raw_data.len();
+
+    // Helper to get byte at absolute address
+    let get_byte = |addr: usize| -> u8 {
+        if addr >= origin && addr < end_address {
+            raw_data[addr - origin]
+        } else {
+            0
+        }
     };
+
+    // Check if we have screen RAM logically following the bitmap
+    // Screen RAM is usually 8000 bytes after bitmap
+    let screen_ram_addr = bitmap_addr + 8000;
 
     if multicolor {
         // Multicolor Mode: 160x200 fat pixels
@@ -277,29 +277,23 @@ fn convert_to_dynamic_image(
             for cell_x in 0..40 {
                 let cell_idx = cell_y * 40 + cell_x;
 
-                let (c1, c2, bg) = if let Some(screen) = screen_ram {
-                    if cell_idx < screen.len() {
-                        let val = screen[cell_idx];
-                        (
-                            VIC_II_RGB[(val >> 4) as usize],
-                            VIC_II_RGB[(val & 0x0F) as usize],
-                            VIC_II_RGB[0],
-                        )
-                    } else {
-                        (VIC_II_RGB[1], VIC_II_RGB[3], VIC_II_RGB[0])
-                    }
-                } else {
-                    (VIC_II_RGB[1], VIC_II_RGB[3], VIC_II_RGB[0])
-                };
+                // Fetch colors from Screen RAM
+                // Logical address of screen ram byte
+                let current_screen_addr = screen_ram_addr + cell_idx;
+                // If Screen RAM is "valid" (within observed range or just virtual 0s)
+                let val = get_byte(current_screen_addr);
+
+                let (c1, c2, bg) = (
+                    VIC_II_RGB[(val >> 4) as usize],
+                    VIC_II_RGB[(val & 0x0F) as usize],
+                    VIC_II_RGB[0],
+                );
                 let c3 = VIC_II_RGB[1];
 
                 for row in 0..8 {
                     let offset = (cell_y * 320) + (cell_x * 8) + row;
-                    let byte = if offset < bitmap_data.len() {
-                        bitmap_data[offset]
-                    } else {
-                        0
-                    };
+                    let current_bitmap_addr = bitmap_addr + offset;
+                    let byte = get_byte(current_bitmap_addr);
 
                     for fat_pix in 0..4 {
                         let shift = (3 - fat_pix) * 2;
@@ -336,27 +330,18 @@ fn convert_to_dynamic_image(
             for cell_x in 0..40 {
                 let cell_idx = cell_y * 40 + cell_x;
 
-                let (fg, bg) = if let Some(screen) = screen_ram {
-                    if cell_idx < screen.len() {
-                        let val = screen[cell_idx];
-                        (
-                            VIC_II_RGB[(val >> 4) as usize],
-                            VIC_II_RGB[(val & 0x0F) as usize],
-                        )
-                    } else {
-                        (VIC_II_RGB[1], VIC_II_RGB[0])
-                    }
-                } else {
-                    (VIC_II_RGB[1], VIC_II_RGB[0])
-                };
+                let current_screen_addr = screen_ram_addr + cell_idx;
+                let val = get_byte(current_screen_addr);
+
+                let (fg, bg) = (
+                    VIC_II_RGB[(val >> 4) as usize],
+                    VIC_II_RGB[(val & 0x0F) as usize],
+                );
 
                 for row in 0..8 {
                     let offset = (cell_y * 320) + (cell_x * 8) + row;
-                    let byte = if offset < bitmap_data.len() {
-                        bitmap_data[offset]
-                    } else {
-                        0
-                    };
+                    let current_bitmap_addr = bitmap_addr + offset;
+                    let byte = get_byte(current_bitmap_addr);
 
                     for bit in 0..8 {
                         let shift = 7 - bit;

@@ -18,9 +18,10 @@ pub struct SpritesView;
 impl Navigable for SpritesView {
     fn len(&self, app_state: &AppState) -> usize {
         let origin = app_state.origin as usize;
-        let padding = (64 - (origin % 64)) % 64;
-        let usable_len = app_state.raw_data.len().saturating_sub(padding);
-        usable_len.div_ceil(64)
+        let aligned_origin = (origin / 64) * 64;
+        let end_address = origin + app_state.raw_data.len();
+        let total_bytes = end_address.saturating_sub(aligned_origin);
+        total_bytes.div_ceil(64)
     }
 
     fn current_index(&self, _app_state: &AppState, ui_state: &UIState) -> usize {
@@ -114,14 +115,10 @@ impl Widget for SpritesView {
         }
 
         let origin = app_state.origin as usize;
-        let padding = (64 - (origin % 64)) % 64;
-
-        if app_state.raw_data.len() <= padding {
-            return;
-        }
-
-        let usable_len = app_state.raw_data.len() - padding;
-        let total_sprites = usable_len.div_ceil(64);
+        let aligned_origin = (origin / 64) * 64;
+        let end_address = origin + app_state.raw_data.len();
+        let total_bytes = end_address.saturating_sub(aligned_origin);
+        let total_sprites = total_bytes.div_ceil(64);
 
         let sprite_height = 22; // 21 lines + 1 separator
         let visible_rows = inner_area.height as usize;
@@ -143,10 +140,10 @@ impl Widget for SpritesView {
                 break;
             }
 
-            let sprite_offset_in_data = padding + i * 64;
-            let sprite_address = origin + sprite_offset_in_data;
+            let sprite_addr_start = aligned_origin + i * 64;
+            let sprite_address = sprite_addr_start;
 
-            if sprite_offset_in_data >= app_state.raw_data.len() {
+            if sprite_addr_start >= end_address {
                 break;
             }
 
@@ -195,10 +192,19 @@ impl Widget for SpritesView {
                     break;
                 }
 
-                let row_offset = sprite_offset_in_data + row * 3;
-                // 3 bytes per row = 24 bits
-                if row_offset + 2 < app_state.raw_data.len() {
-                    let bytes = &app_state.raw_data[row_offset..row_offset + 3];
+                let row_addr_start = sprite_addr_start + row * 3;
+
+                // Fetch 3 bytes for the row, handling alignment/padding
+                let mut bytes = [0u8; 3];
+                for (b_idx, b) in bytes.iter_mut().enumerate() {
+                    let addr = row_addr_start + b_idx;
+                    if addr >= origin && addr < end_address {
+                        *b = app_state.raw_data[addr - origin];
+                    }
+                }
+
+                if row_addr_start < end_address {
+                    let bytes = &bytes;
 
                     if ui_state.sprite_multicolor_mode {
                         // Multicolor Mode: 12 pixels per row, 2 bits per pixel
@@ -330,7 +336,8 @@ impl Widget for SpritesView {
             KeyCode::Char('b') if key.modifiers.is_empty() => {
                 // Convert selected sprites or current sprite to bytes block (64 bytes per sprite)
                 let origin = app_state.origin as usize;
-                let padding = (64 - (origin % 64)) % 64;
+                let aligned_origin = (origin / 64) * 64;
+                let end_address = origin + app_state.raw_data.len();
 
                 // Determine sprite range based on selection
                 let (start_sprite, end_sprite) =
@@ -344,15 +351,20 @@ impl Widget for SpritesView {
                         (ui_state.sprites_cursor_index, ui_state.sprites_cursor_index)
                     };
 
-                let start_offset = padding + start_sprite * 64;
-                let end_offset = (padding + (end_sprite + 1) * 64 - 1)
-                    .min(app_state.raw_data.len().saturating_sub(1));
+                let start_addr = aligned_origin + start_sprite * 64;
+                let end_addr = aligned_origin + (end_sprite + 1) * 64 - 1;
+
+                // Clamp to actual data range
+                let start_offset = start_addr.saturating_sub(origin);
+
+                let end_offset_abs = end_addr.min(end_address.saturating_sub(1));
+                let end_offset = end_offset_abs.saturating_sub(origin);
 
                 // Clear selection after action
                 ui_state.sprites_selection_start = None;
                 ui_state.is_visual_mode = false;
 
-                if start_offset < app_state.raw_data.len() {
+                if start_offset < app_state.raw_data.len() && start_offset <= end_offset {
                     WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
                         start: start_offset,
                         end: end_offset,
@@ -363,9 +375,9 @@ impl Widget for SpritesView {
             }
             KeyCode::Enter => {
                 let origin = app_state.origin as usize;
-                let padding = (64 - (origin % 64)) % 64;
-                let sprite_offset = padding + ui_state.sprites_cursor_index * 64;
-                let target_addr = (origin + sprite_offset) as u16;
+                let aligned_origin = (origin / 64) * 64;
+                let sprite_offset = ui_state.sprites_cursor_index * 64;
+                let target_addr = (aligned_origin + sprite_offset) as u16;
                 crate::ui::navigable::jump_to_disassembly_at_address(
                     app_state,
                     ui_state,
