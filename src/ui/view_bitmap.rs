@@ -188,7 +188,7 @@ impl Widget for BitmapView {
         let image_area = Rect::new(inner_area.x, inner_area.y + 2, image_width, image_height);
 
         f.render_widget(
-            Paragraph::new("WARNING: This view make the application less responsive.\nDisable it once done using it.")
+            Paragraph::new("WARNING: This view make the application less responsive.\nHide it once done using it.")
                 .style(Style::default().fg(ui_state.theme.error_fg)),
             Rect::new(inner_area.x, inner_area.bottom().saturating_sub(2), inner_area.width, 2),
         );
