@@ -152,10 +152,16 @@ impl Widget for BitmapView {
         // Calculate width based on image aspect ratio (320:200 = 8:5) and terminal cell ratio (~1:2)
         // For H rows displaying 200 logical pixels, we need W columns displaying 320 logical pixels
         // Terminal cells are roughly 1:2 (width:height), so W = H * (320/200) * 2 = H * 3.2
-        let image_height = inner_area.height.saturating_sub(2);
+        let image_height = inner_area.height.saturating_sub(3);
         let image_width = ((image_height as f32) * 3.2) as u16;
         let image_width = image_width.min(inner_area.width);
         let image_area = Rect::new(inner_area.x, inner_area.y + 2, image_width, image_height);
+
+        f.render_widget(
+            Paragraph::new("WARNING: This view make the application less responsive.\nDisable it once done using it.")
+                .style(Style::default().fg(ui_state.theme.error_fg)),
+            Rect::new(inner_area.x, inner_area.bottom().saturating_sub(2), inner_area.width, 2),
+        );
 
         // --- ratatui-image integration with caching ---
 
