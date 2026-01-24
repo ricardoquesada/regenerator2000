@@ -14,7 +14,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             ui_state.menu.select_first_enabled_item();
             ui_state.set_status_message("Menu Active");
         }
-        KeyCode::F(7) if key.modifiers == KeyModifiers::SHIFT => {
+        KeyCode::Char('x') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(
                 app_state,
                 ui_state,

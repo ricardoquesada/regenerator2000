@@ -268,7 +268,7 @@ impl MenuState {
                         ),
                         MenuItem::new(
                             "Find References",
-                            Some("Shift+F7"),
+                            Some("Ctrl+x"),
                             Some(MenuAction::FindReferences),
                         ),
                     ],
