@@ -18,7 +18,7 @@
       "start": 83,
       "end": 2046,
       "type_": "DataByte",
-      "collapsed": true
+      "collapsed": false
     },
     {
       "start": 2047,
@@ -203,7 +203,7 @@
     {
       "start": 6121,
       "end": 6142,
-      "type_": "DataByte",
+      "type_": "Screencode",
       "collapsed": false
     },
     {
@@ -532,6 +532,20 @@
         "label_type": "UserDefined",
         "kind": "User"
       }
+    ],
+    "8183": [
+      {
+        "name": "game_over_text",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "17936": [
+      {
+        "name": "set_game_over",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
     ]
   },
   "user_side_comments": {
@@ -541,13 +555,15 @@
     "4167": "Charset at address $2000",
     "4172": "Pointed sprite at $3000",
     "6155": "$A000-$BFFF is RAM. BASIC ROM disabled",
-    "6164": "$A000-$BFFF is BASIC ROM again"
+    "6164": "$A000-$BFFF is BASIC ROM again",
+    "17959": "delay"
   },
   "user_line_comments": {
     "2049": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSYS 2083",
     "2083": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nboot strap",
     "8192": "Charset",
     "12288": "sprites",
+    "17936": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\ngame over",
     "22272": "IRQ handler"
   },
   "settings": {
@@ -578,16 +594,16 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 4096,
-  "hex_dump_cursor_address": 4096,
-  "sprites_cursor_address": 12288,
+  "cursor_address": 8183,
+  "hex_dump_cursor_address": 8176,
+  "sprites_cursor_address": 12352,
   "charset_cursor_address": 8192,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
   "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
-  "hexdump_view_mode": "ScreencodeUnshifted",
+  "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
   "blocks_view_cursor": 19
 }
