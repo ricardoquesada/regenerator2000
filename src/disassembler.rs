@@ -776,23 +776,8 @@ impl Disassembler {
         }
 
         if let Some(refs) = cross_refs.get(&address) {
-            let mut all_refs = refs.clone();
-            if !all_refs.is_empty() && settings.max_xref_count > 0 {
-                all_refs.sort_unstable();
-                all_refs.dedup();
-
-                let refs_str: Vec<String> = all_refs
-                    .iter()
-                    .take(settings.max_xref_count)
-                    .map(|r| format!("${:04x}", r)) // Use lowercase hex for refs in comments too
-                    .collect();
-
-                let suffix = if all_refs.len() > settings.max_xref_count {
-                    ", ..."
-                } else {
-                    ""
-                };
-                comment_parts.push(format!("x-ref: {}{}", refs_str.join(", "), suffix));
+            if !refs.is_empty() && settings.max_xref_count > 0 {
+                comment_parts.push(format_cross_references(refs, settings.max_xref_count));
             }
         }
 
@@ -1775,38 +1760,48 @@ impl Disassembler {
     }
 }
 
+pub fn format_cross_references(refs: &[u16], max_count: usize) -> String {
+    if refs.is_empty() || max_count == 0 {
+        return String::new();
+    }
+
+    let mut all_refs = refs.to_vec();
+    all_refs.sort_unstable();
+    all_refs.dedup();
+
+    let refs_str: Vec<String> = all_refs
+        .iter()
+        .take(max_count)
+        .map(|r| format!("${:04x}", r))
+        .collect();
+
+    let suffix = if all_refs.len() > max_count {
+        ", ..."
+    } else {
+        ""
+    };
+
+    format!("x-ref: {}{}", refs_str.join(", "), suffix)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::DocumentSettings;
 
     #[test]
-    fn test_xref_truncation() {
-        let disassembler = Disassembler::default();
-        let mut settings = DocumentSettings::default();
-        settings.max_xref_count = 2;
+    fn test_format_cross_references() {
+        // Test truncation
+        let refs = vec![0x2000, 0x3000, 0x4000];
+        let output = format_cross_references(&refs, 2);
+        assert_eq!(output, "x-ref: $2000, $3000, ...");
 
-        let mut cross_refs = BTreeMap::new();
-        cross_refs.insert(0x1000, vec![0x2000, 0x3000, 0x4000]);
+        // Test no truncation
+        let output_full = format_cross_references(&refs, 5);
+        assert_eq!(output_full, "x-ref: $2000, $3000, $4000");
 
-        let labels = BTreeMap::new();
-        let system_comments = BTreeMap::new();
-        let user_side_comments = BTreeMap::new();
-
-        let comment = disassembler.get_side_comment(
-            0x1000,
-            &labels,
-            &settings,
-            &system_comments,
-            &user_side_comments,
-            &cross_refs,
-            ";",
-        );
-
-        assert!(
-            comment.contains("x-ref: $2000, $3000, ..."),
-            "Comment should be truncated: {}",
-            comment
-        );
+        // Test deduplication
+        let refs_dup = vec![0x2000, 0x2000];
+        let output_dup = format_cross_references(&refs_dup, 2);
+        assert_eq!(output_dup, "x-ref: $2000");
     }
 }

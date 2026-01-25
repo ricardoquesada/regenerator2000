@@ -783,28 +783,14 @@ impl Widget for DisassemblyView {
                         let mid_addr = line.address.wrapping_add(offset as u16);
                         if let Some(labels) = app_state.labels.get(&mid_addr) {
                             let xref_str = if let Some(refs) = app_state.cross_refs.get(&mid_addr) {
-                                let mut all_refs = refs.clone();
-                                if !all_refs.is_empty() && app_state.settings.max_xref_count > 0 {
-                                    all_refs.sort_unstable();
-                                    all_refs.dedup();
-                                    let refs_str_list: Vec<String> = all_refs
-                                        .iter()
-                                        .take(app_state.settings.max_xref_count)
-                                        .map(|r| format!("${:04x}", r))
-                                        .collect();
-
-                                    let suffix =
-                                        if all_refs.len() > app_state.settings.max_xref_count {
-                                            ", ..."
-                                        } else {
-                                            ""
-                                        };
-
+                                if !refs.is_empty() && app_state.settings.max_xref_count > 0 {
                                     format!(
-                                        "{} x-ref: {}{}",
+                                        "{} {}",
                                         formatter.comment_prefix(),
-                                        refs_str_list.join(", "),
-                                        suffix
+                                        crate::disassembler::format_cross_references(
+                                            refs,
+                                            app_state.settings.max_xref_count,
+                                        )
                                     )
                                 } else {
                                     String::new()
