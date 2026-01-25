@@ -145,6 +145,46 @@ impl DisassemblyView {
         }
         None
     }
+
+    pub fn get_sub_index_for_address(
+        line: &crate::disassembler::DisassemblyLine,
+        app_state: &AppState,
+        target_addr: u16,
+    ) -> usize {
+        // Calculate visual index for target_addr within this line.
+        // Order:
+        // 1. Labels [offset 1..N]
+        // 2. Comments (not addressable by jump usually, but occupy sub-indices)
+        // 3. Instruction (Base address)
+
+        let mut sub_index = 0;
+
+        // 1. Labels inside multi-byte instructions
+        if line.bytes.len() > 1 {
+            for offset in 1..line.bytes.len() {
+                let mid_addr = line.address.wrapping_add(offset as u16);
+                if let Some(l) = app_state.labels.get(&mid_addr) {
+                    if mid_addr == target_addr {
+                        return sub_index;
+                    }
+                    sub_index += l.len();
+                }
+            }
+        }
+
+        // 2. Line comment
+        if let Some(comment) = &line.line_comment {
+            sub_index += comment.lines().count();
+        }
+
+        // 3. Instruction
+        // If we didn't return early, checking labels, and the target IS the line address,
+        // we return the instruction index (current valid sub_index).
+        // If the target matched a mid-address with NO label, we default here too?
+        // Wait, if mid-address has NO label, it's not visually distinct (no sub-line).
+        // So we just return the instruction sub-index.
+        sub_index
+    }
 }
 
 impl Navigable for DisassemblyView {
@@ -1212,4 +1252,52 @@ fn hex_bytes(bytes: &[u8]) -> String {
         .map(|b| format!("{:02X}", b))
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::disassembler::DisassemblyLine;
+    use crate::state::{AppState, Label, LabelKind, LabelType};
+
+    #[test]
+    fn test_get_sub_index_for_address() {
+        let mut app_state = AppState::default();
+
+        // Add label at $C001
+        let label = Label {
+            name: "test_label".to_string(),
+            label_type: LabelType::UserDefined,
+            kind: LabelKind::User,
+        };
+        app_state.labels.insert(0xC001, vec![label]);
+
+        // Create line at $C000 with 2 bytes
+        let line = DisassemblyLine {
+            address: 0xC000,
+            bytes: vec![0xA9, 0x00],
+            mnemonic: "LDA".to_string(),
+            operand: "#$00".to_string(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            comment_address: None,
+            is_collapsed: false,
+        };
+
+        // Case 1: Target $C000 (instruction)
+        let idx_main = DisassemblyView::get_sub_index_for_address(&line, &app_state, 0xC000);
+        // Should point to instruction (index 1) because there is 1 label line before it
+        assert_eq!(
+            idx_main, 1,
+            "Should point to instruction (index 1) because there is 1 label line before it"
+        );
+
+        // Case 2: Target $C001 (label)
+        let idx_label = DisassemblyView::get_sub_index_for_address(&line, &app_state, 0xC001);
+        assert_eq!(idx_label, 0, "Should point to label (index 0)");
+    }
 }

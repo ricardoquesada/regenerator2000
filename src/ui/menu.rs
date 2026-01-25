@@ -790,6 +790,19 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                             .navigation_history
                             .push((ActivePane::Disassembly, ui_state.cursor_index));
                         ui_state.cursor_index = idx;
+
+                        // Smart Jump: Select relevant sub-line if applicable
+                        if let Some(line) = app_state.disassembly.get(idx) {
+                            ui_state.sub_cursor_index =
+                                crate::ui::view_disassembly::DisassemblyView::get_sub_index_for_address(
+                                    line,
+                                    app_state,
+                                    target_addr,
+                                );
+                        } else {
+                            ui_state.sub_cursor_index = 0;
+                        }
+
                         ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
                     } else if !app_state.disassembly.is_empty() {
                         // Fallback to closest or valid range?
