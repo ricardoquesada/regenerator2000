@@ -792,10 +792,19 @@ impl Widget for DisassemblyView {
                                         .take(app_state.settings.max_xref_count)
                                         .map(|r| format!("${:04x}", r))
                                         .collect();
+
+                                    let suffix =
+                                        if all_refs.len() > app_state.settings.max_xref_count {
+                                            ", ..."
+                                        } else {
+                                            ""
+                                        };
+
                                     format!(
-                                        "{} x-ref: {}",
+                                        "{} x-ref: {}{}",
                                         formatter.comment_prefix(),
-                                        refs_str_list.join(", ")
+                                        refs_str_list.join(", "),
+                                        suffix
                                     )
                                 } else {
                                     String::new()

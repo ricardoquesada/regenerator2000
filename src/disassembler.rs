@@ -786,7 +786,13 @@ impl Disassembler {
                     .take(settings.max_xref_count)
                     .map(|r| format!("${:04x}", r)) // Use lowercase hex for refs in comments too
                     .collect();
-                comment_parts.push(format!("x-ref: {}", refs_str.join(", ")));
+
+                let suffix = if all_refs.len() > settings.max_xref_count {
+                    ", ..."
+                } else {
+                    ""
+                };
+                comment_parts.push(format!("x-ref: {}{}", refs_str.join(", "), suffix));
             }
         }
 
@@ -1766,5 +1772,41 @@ impl Disassembler {
                 is_collapsed: false,
             }],
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::DocumentSettings;
+
+    #[test]
+    fn test_xref_truncation() {
+        let disassembler = Disassembler::default();
+        let mut settings = DocumentSettings::default();
+        settings.max_xref_count = 2;
+
+        let mut cross_refs = BTreeMap::new();
+        cross_refs.insert(0x1000, vec![0x2000, 0x3000, 0x4000]);
+
+        let labels = BTreeMap::new();
+        let system_comments = BTreeMap::new();
+        let user_side_comments = BTreeMap::new();
+
+        let comment = disassembler.get_side_comment(
+            0x1000,
+            &labels,
+            &settings,
+            &system_comments,
+            &user_side_comments,
+            &cross_refs,
+            ";",
+        );
+
+        assert!(
+            comment.contains("x-ref: $2000, $3000, ..."),
+            "Comment should be truncated: {}",
+            comment
+        );
     }
 }
