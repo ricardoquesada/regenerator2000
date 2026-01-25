@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-??-??
+
+- Fix: Jump to address works correctly when address has associated lines
+- Refactor: reduced duplicate code between disassembler.rs and view_disassembly.rs
+
 ## [0.5.0] - 2026-01-24
 
 - Feature: Find Reference dialog (Ctrl+x)
