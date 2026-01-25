@@ -220,8 +220,11 @@ fn get_line_matches(
         for offset in 1..line.bytes.len() {
             let mid_addr = line.address.wrapping_add(offset as u16);
             if let Some(labels) = app_state.labels.get(&mid_addr) {
-                for label in labels {
-                    if label.name.to_lowercase().contains(query_lower) {
+                for _ in labels {
+                    if labels
+                        .iter()
+                        .any(|l| l.name.to_lowercase().contains(query_lower))
+                    {
                         matches.push(current_sub);
                     }
                     current_sub += 1;
@@ -232,10 +235,12 @@ fn get_line_matches(
 
     // 2. Line Comment
     if let Some(lc) = &line.line_comment {
-        if lc.to_lowercase().contains(query_lower) {
-            matches.push(current_sub);
+        for comment_line in lc.lines() {
+            if comment_line.to_lowercase().contains(query_lower) {
+                matches.push(current_sub);
+            }
+            current_sub += 1;
         }
-        current_sub += 1;
     }
 
     // 3. Instruction Content
@@ -390,6 +395,62 @@ mod tests {
 
         // "8d02" is in "8d0208" starting at index 0 -> Should PASS
         assert!(match_instruction_content(&line, "8d02"));
+    }
+
+    #[test]
+    fn test_get_line_matches_sub_indices() {
+        use crate::state::Label;
+        let mut app_state = AppState::new();
+        // Mid-address label at 0x1001
+        app_state.labels.insert(
+            0x1001,
+            vec![Label {
+                name: "mid_label".to_string(),
+                label_type: crate::state::LabelType::AbsoluteAddress,
+                kind: crate::state::LabelKind::User,
+            }],
+        );
+
+        let line = DisassemblyLine {
+            address: 0x1000,
+            bytes: vec![0xA9, 0x00], // LDA #$00
+            mnemonic: "LDA".to_string(),
+            operand: "#$00".to_string(),
+            comment: "side comment".to_string(),
+            line_comment: Some("line 1\nline 2\nline 3".to_string()),
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            comment_address: None,
+            is_collapsed: false,
+        };
+
+        // Sub-indices mapping:
+        // 0: label at 0x1001
+        // 1: line comment "line 1"
+        // 2: line comment "line 2"
+        // 3: line comment "line 3"
+        // 4: Instruction (LDA #$00 ; side comment)
+
+        // Test label match
+        let matches = get_line_matches(&line, &app_state, "mid_label", None);
+        assert_eq!(matches, vec![0]);
+
+        // Test line comment matches
+        assert_eq!(get_line_matches(&line, &app_state, "line 1", None), vec![1]);
+        assert_eq!(get_line_matches(&line, &app_state, "line 2", None), vec![2]);
+        assert_eq!(get_line_matches(&line, &app_state, "line 3", None), vec![3]);
+
+        // Test instruction matches
+        assert_eq!(get_line_matches(&line, &app_state, "lda", None), vec![4]);
+        assert_eq!(get_line_matches(&line, &app_state, "side", None), vec![4]);
+
+        // Test multiple matches (e.g. "line" matches all comment lines)
+        assert_eq!(
+            get_line_matches(&line, &app_state, "line", None),
+            vec![1, 2, 3]
+        );
     }
 }
 
