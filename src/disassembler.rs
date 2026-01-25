@@ -752,10 +752,11 @@ impl Disassembler {
             comment_parts.push(sys_comment.clone());
         }
 
-        if let Some(refs) = cross_refs.get(&address) {
-            if !refs.is_empty() && settings.max_xref_count > 0 {
-                comment_parts.push(format_cross_references(refs, settings.max_xref_count));
-            }
+        if let Some(refs) = cross_refs.get(&address)
+            && !refs.is_empty()
+            && settings.max_xref_count > 0
+        {
+            comment_parts.push(format_cross_references(refs, settings.max_xref_count));
         }
 
         let separator = format!(" {} ", comment_prefix); // e.g. " ; " or " // "
