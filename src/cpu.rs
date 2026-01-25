@@ -64,6 +64,35 @@ impl Opcode {
             illegal: true,
         }
     }
+
+    /// Returns true if this opcode is a flow control instruction that targets a specific address
+    /// which should be visually indicated (e.g. with an arrow).
+    ///
+    /// Includes:
+    /// - JMP Absolute
+    /// - JSR Absolute
+    /// - Branches (Relative)
+    ///
+    /// Excludes:
+    /// - JMP Indirect (JMP ($xxxx)) - usually dynamic/computed, harder to draw simple arrows to static target
+    /// - RTS, RTI, BRK - no specific target address in instruction
+    pub fn is_flow_control_with_target(&self) -> bool {
+        // JMP and JSR
+        if self.mnemonic == "JMP" || self.mnemonic == "JSR" {
+            match self.mode {
+                AddressingMode::Absolute => true,
+                _ => false, // Indirect JMP, etc.
+            }
+        }
+        // Branches
+        else if matches!(self.mode, AddressingMode::Relative) {
+            true
+        }
+        // Everything else
+        else {
+            false
+        }
+    }
 }
 
 pub fn get_opcodes() -> [Option<Opcode>; 256] {

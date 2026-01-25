@@ -326,13 +326,14 @@ impl Widget for DisassemblyView {
 
         for (src_idx, line) in app_state.disassembly.iter().enumerate() {
             if let Some(target_addr) = line.target_address {
+                // If we have an opcode, use shared logic to decide if we should draw arrow
                 if let Some(opcode) = &line.opcode {
-                    if opcode.mnemonic == "JMP"
-                        && opcode.mode == crate::cpu::AddressingMode::Indirect
-                    {
+                    if !opcode.is_flow_control_with_target() {
                         continue;
                     }
                 } else if line.mnemonic.eq_ignore_ascii_case("JMP") && line.operand.contains('(') {
+                    // Fallback check if opcode struct is missing but mnemonic is textual
+                    // (Though line.opcode should usually be present for documented ops)
                     continue;
                 }
 
