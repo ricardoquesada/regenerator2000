@@ -53,10 +53,19 @@ l0:
 	stx $fc
 	sty $fd
 
+	stx @w $fc
+	sty @w $fd
+
 	lda #$00
 	sta $fa
 	lda #$d0
 	sta $fb
+
+	lda #$00
+	sta @w $fa
+	lda #$d0
+	sta @w $fb
+
 
 *=$1100
 	; should auto hi/lo
