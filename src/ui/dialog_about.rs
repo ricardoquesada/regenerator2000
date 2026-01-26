@@ -35,6 +35,7 @@ impl Widget for AboutDialog {
             let y = (area.height - popup_height) / 2;
 
             let popup_area = Rect::new(x, y, popup_width, popup_height);
+            ui_state.active_dialog_area = popup_area;
 
             f.render_widget(Clear, popup_area);
 

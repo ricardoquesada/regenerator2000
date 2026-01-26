@@ -57,6 +57,7 @@ impl Widget for SearchDialog {
             ])
             .split(layout[2])[1];
 
+        ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 
         let input = Paragraph::new(self.input.clone()).block(block).style(

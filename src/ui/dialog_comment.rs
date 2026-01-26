@@ -88,6 +88,7 @@ impl Widget for CommentDialog {
                 Constraint::Percentage(15),
             ])
             .split(layout[1])[1];
+        ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 
         let mut textarea = self.textarea.clone();

@@ -245,6 +245,27 @@ pub fn run_app<B: Backend>(
 
                 // Handle Active Dialog (Modal) - Capture all mouse events
                 if let Some(mut dialog) = ui_state.active_dialog.take() {
+                    // Check for Close Button Click (Top-Right [x])
+                    // The [x] is at the top right of the dialog frame.
+                    // We assume the [x] is roughly in the last 4 columns of the title bar row.
+                    let area = ui_state.active_dialog_area;
+                    let is_close_click = if mouse.kind
+                        == event::MouseEventKind::Down(crossterm::event::MouseButton::Left)
+                    {
+                        mouse.row == area.y
+                            && mouse.column >= area.right().saturating_sub(4)
+                            && mouse.column < area.right()
+                    } else {
+                        false
+                    };
+
+                    if is_close_click {
+                        // Dialog close requested via [x]
+                        // We simply drop the dialog (don't put it back in ui_state)
+                        // and continue to next event
+                        continue;
+                    }
+
                     let result = dialog.handle_mouse(mouse, &mut app_state, &mut ui_state);
                     match result {
                         crate::ui::widget::WidgetResult::Ignored

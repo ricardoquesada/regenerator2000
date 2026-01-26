@@ -86,6 +86,7 @@ impl Widget for FindReferencesDialog {
         let block = crate::ui::widget::create_dialog_block(&title, theme);
 
         let area = crate::utils::centered_rect(60, 50, area);
+        ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 
         let items: Vec<ListItem> = self

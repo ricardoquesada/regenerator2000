@@ -45,6 +45,7 @@ impl Widget for ShortcutsDialog {
     ) {
         let theme = &ui_state.theme;
         let area = centered_rect(60, 60, area);
+        ui_state.active_dialog_area = area;
         f.render_widget(Clear, area); // Clear background
 
         let block = crate::ui::widget::create_dialog_block(" Keyboard Shortcuts ", theme);

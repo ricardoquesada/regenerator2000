@@ -35,6 +35,7 @@ impl Widget for ConfirmationDialog {
         let block = crate::ui::widget::create_dialog_block(&title, theme);
 
         let area = centered_rect(50, 7, area);
+        ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
         f.render_widget(block.clone(), area);
 

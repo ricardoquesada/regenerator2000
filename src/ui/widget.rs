@@ -40,9 +40,13 @@ pub fn create_dialog_block<'a>(
     use ratatui::style::Style;
     use ratatui::widgets::{Block, Borders};
 
+    use ratatui::layout::Alignment;
+    use ratatui::text::Line;
+
     Block::default()
         .borders(Borders::ALL)
         .title(title)
+        .title_top(Line::from("[x]").alignment(Alignment::Right))
         .border_style(Style::default().fg(theme.dialog_border))
         .style(Style::default().bg(theme.dialog_bg).fg(theme.dialog_fg))
 }

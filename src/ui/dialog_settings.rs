@@ -41,6 +41,7 @@ impl Widget for SettingsDialog {
         let block = crate::ui::widget::create_dialog_block(" Settings ", theme);
 
         let area = centered_rect(50, 40, area); // Increased height for popup space
+        ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
 

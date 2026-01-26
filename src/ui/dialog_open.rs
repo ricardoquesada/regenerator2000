@@ -71,6 +71,7 @@ impl Widget for OpenDialog {
         );
 
         let area = crate::utils::centered_rect(60, 50, area);
+        ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area); // Clear background
 
         let items: Vec<ListItem> = self
