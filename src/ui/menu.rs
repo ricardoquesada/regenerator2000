@@ -107,10 +107,8 @@ impl Widget for Menu {
                 let width = (category.name.len() + 2) as u16; // " name "
                 if col >= current_x && col < current_x + width {
                     menu_state.selected_category = i;
-                    if !menu_state.active {
-                        menu_state.active = true;
-                        menu_state.selected_item = None;
-                    }
+                    menu_state.active = true;
+                    menu_state.selected_item = None;
                     return WidgetResult::Handled;
                 }
                 current_x += width;

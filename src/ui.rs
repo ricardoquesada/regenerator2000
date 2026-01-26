@@ -53,7 +53,8 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
     statusbar::StatusBar.render(f, chunks[2], app_state, ui_state);
 
     // Menu Popup is now handled here to ensure it's on top
-    if ui_state.menu.active && ui_state.menu.selected_item.is_some() {
+    // Menu Popup is now handled here to ensure it's on top
+    if ui_state.menu.active {
         menu::render_menu_popup(f, chunks[0], &ui_state.menu, &ui_state.theme);
     }
 
