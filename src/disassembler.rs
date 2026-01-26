@@ -337,9 +337,55 @@ impl Disassembler {
                     line_comment,
                 ),
             };
-
             lines.extend(new_lines);
             pc += bytes_consumed;
+        }
+
+        if ctx.settings.all_labels {
+            let start = ctx.origin;
+            let len = ctx.data.len();
+
+            let is_contained = |addr: u16| {
+                if len == 0 {
+                    return false;
+                }
+                if len >= 65536 {
+                    return true;
+                }
+                let len_u16 = len as u16;
+                let end = start.wrapping_add(len_u16);
+
+                if start < end {
+                    addr >= start && addr < end
+                } else {
+                    // wraps
+                    addr >= start || addr < end
+                }
+            };
+
+            for (&addr, labels) in ctx.labels.iter() {
+                if !is_contained(addr) {
+                    if let Some(first_label) = labels.first() {
+                        let label_name = formatter.format_label(&first_label.name);
+                        lines.push(DisassemblyLine {
+                            address: addr,
+                            bytes: vec![],
+                            mnemonic: String::new(),
+                            operand: String::new(),
+                            comment: String::new(),
+                            line_comment: None,
+                            label: Some(label_name),
+                            opcode: None,
+                            show_bytes: false,
+                            target_address: None,
+                            comment_address: None,
+                            is_collapsed: false,
+                        });
+                    }
+                }
+            }
+
+            lines.sort_by_key(|l| l.address);
         }
 
         lines

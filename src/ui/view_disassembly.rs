@@ -894,7 +894,8 @@ impl Widget for DisassemblyView {
                     Style::default()
                 };
 
-                let show_address = !line.bytes.is_empty() || line.is_collapsed;
+                let show_address =
+                    !line.bytes.is_empty() || line.is_collapsed || line.label.is_some();
                 let address_str = if show_address {
                     format!(
                         "${:04X}{} ",
