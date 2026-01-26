@@ -208,7 +208,10 @@ pub fn analyze(
 
             for l_type in types_to_generate {
                 // Check if we already have this type in addr_labels (User defined)
-                if addr_labels.iter().any(|l| l.label_type == l_type) {
+                if addr_labels
+                    .iter()
+                    .any(|l| l.label_type == l_type || l.label_type == LabelType::UserDefined)
+                {
                     continue;
                 }
 
