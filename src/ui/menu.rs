@@ -770,7 +770,11 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         }
         MenuAction::FindReferences => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                let addr = line.address;
+                let addr = if line.address == 0 && line.bytes.is_empty() {
+                    line.comment_address.unwrap_or(0)
+                } else {
+                    line.address
+                };
                 ui_state.active_dialog = Some(Box::new(
                     crate::ui::dialog_find_references::FindReferencesDialog::new(app_state, addr),
                 ));
@@ -930,7 +934,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                                 _ => None,
                             }
                         } else {
-                            None
+                            line.comment_address
                         }
                     } else {
                         None
@@ -981,7 +985,10 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
 
             if let Some(addr) = target_addr {
                 // Perform Jump
-                if let Some(idx) = app_state.get_line_index_containing_address(addr) {
+                if let Some(idx) = app_state
+                    .get_line_index_containing_address(addr)
+                    .or_else(|| app_state.get_line_index_for_address(addr))
+                {
                     ui_state
                         .navigation_history
                         .push((ActivePane::Disassembly, ui_state.cursor_index));

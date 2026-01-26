@@ -49,6 +49,7 @@ impl DisassemblyView {
                     if !next_line.bytes.is_empty()
                         || next_line.is_collapsed
                         || next_line.label.is_some()
+                        || !next_line.mnemonic.is_empty()
                     {
                         break;
                     }
@@ -81,6 +82,7 @@ impl DisassemblyView {
                     if !prev_line.bytes.is_empty()
                         || prev_line.is_collapsed
                         || prev_line.label.is_some()
+                        || !prev_line.mnemonic.is_empty()
                     {
                         break;
                     }
@@ -92,6 +94,7 @@ impl DisassemblyView {
                 if !prev_line.bytes.is_empty()
                     || prev_line.is_collapsed
                     || prev_line.label.is_some()
+                    || !prev_line.mnemonic.is_empty()
                 {
                     ui_state.cursor_index = prev_idx;
                     let prev_counts = Self::get_visual_line_counts(prev_line, app_state);

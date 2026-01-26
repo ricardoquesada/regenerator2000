@@ -1008,6 +1008,15 @@ impl AppState {
         {
             return Some(idx);
         }
+
+        // Check for external label definitions (comment_address matches target)
+        if let Some(idx) = self
+            .disassembly
+            .iter()
+            .position(|line| line.comment_address == Some(address))
+        {
+            return Some(idx);
+        }
         // Third pass: find first address >= target
         self.disassembly
             .iter()
