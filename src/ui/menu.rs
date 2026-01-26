@@ -1087,7 +1087,9 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             }
         }
         MenuAction::About => {
-            ui_state.active_dialog = Some(Box::new(crate::ui::dialog_about::AboutDialog::new()));
+            ui_state.active_dialog = Some(Box::new(crate::ui::dialog_about::AboutDialog::new(
+                ui_state,
+            )));
             ui_state.set_status_message("About Regenerator 2000");
         }
         MenuAction::HexdumpViewModeNext => {

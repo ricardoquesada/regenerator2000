@@ -6,25 +6,31 @@ use ratatui::Frame;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::widgets::{Block, Clear, Paragraph};
 use ratatui_image::StatefulImage;
+use std::cell::RefCell;
 
-pub struct AboutDialog;
-
-impl Default for AboutDialog {
-    fn default() -> Self {
-        Self::new()
-    }
+pub struct AboutDialog {
+    protocol: RefCell<Option<ratatui_image::protocol::StatefulProtocol>>,
 }
 
 impl AboutDialog {
-    pub fn new() -> Self {
-        Self
+    pub fn new(ui_state: &mut UIState) -> Self {
+        let protocol = if let Some(logo) = &ui_state.logo
+            && let Some(picker) = &ui_state.picker
+        {
+            Some(picker.new_resize_protocol(logo.clone()))
+        } else {
+            None
+        };
+        Self {
+            protocol: RefCell::new(protocol),
+        }
     }
 }
 
 impl Widget for AboutDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         if let Some(logo) = &ui_state.logo
-            && let Some(picker) = &ui_state.picker
+            && let Some(_picker) = &ui_state.picker
         {
             // Center popup
             let percent_x = 60;
@@ -79,9 +85,10 @@ impl Widget for AboutDialog {
             let centered_area = Rect::new(x, y, render_width, render_height);
 
             // Use the original logo and let the library handle the downsampling into the target rect
-            let mut protocol = picker.new_resize_protocol(logo.clone());
-            let widget = StatefulImage::new();
-            f.render_stateful_widget(widget, centered_area, &mut protocol);
+            if let Some(protocol) = self.protocol.borrow_mut().as_mut() {
+                let widget = StatefulImage::new();
+                f.render_stateful_widget(widget, centered_area, protocol);
+            }
 
             // 2. Render Text
             let text_area = chunks[1];
