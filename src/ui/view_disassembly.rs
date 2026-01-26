@@ -46,7 +46,10 @@ impl DisassemblyView {
                 let mut next_idx = ui_state.cursor_index + 1;
                 while next_idx < app_state.disassembly.len() {
                     let next_line = &app_state.disassembly[next_idx];
-                    if !next_line.bytes.is_empty() || next_line.is_collapsed {
+                    if !next_line.bytes.is_empty()
+                        || next_line.is_collapsed
+                        || next_line.label.is_some()
+                    {
                         break;
                     }
                     next_idx += 1;
@@ -75,7 +78,10 @@ impl DisassemblyView {
                 let mut prev_idx = ui_state.cursor_index - 1;
                 while prev_idx > 0 {
                     let prev_line = &app_state.disassembly[prev_idx];
-                    if !prev_line.bytes.is_empty() || prev_line.is_collapsed {
+                    if !prev_line.bytes.is_empty()
+                        || prev_line.is_collapsed
+                        || prev_line.label.is_some()
+                    {
                         break;
                     }
                     prev_idx -= 1;
@@ -83,7 +89,10 @@ impl DisassemblyView {
 
                 // Check if the found prev_idx is valid (it might be 0 and valid, or 0 and invalid if file starts with metadata)
                 let prev_line = &app_state.disassembly[prev_idx];
-                if !prev_line.bytes.is_empty() || prev_line.is_collapsed {
+                if !prev_line.bytes.is_empty()
+                    || prev_line.is_collapsed
+                    || prev_line.label.is_some()
+                {
                     ui_state.cursor_index = prev_idx;
                     let prev_counts = Self::get_visual_line_counts(prev_line, app_state);
                     ui_state.sub_cursor_index = prev_counts.labels + prev_counts.comments;
