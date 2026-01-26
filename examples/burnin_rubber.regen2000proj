@@ -340,6 +340,18 @@
     },
     {
       "start": 16287,
+      "end": 16379,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 16380,
+      "end": 16382,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 16383,
       "end": 16605,
       "type_": "Code",
       "collapsed": false
@@ -533,6 +545,13 @@
         "kind": "User"
       }
     ],
+    "7005": [
+      {
+        "name": "the_game_is_over",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "8183": [
       {
         "name": "game_over_text",
@@ -540,9 +559,23 @@
         "kind": "User"
       }
     ],
+    "16075": [
+      {
+        "name": "play_crash_sound",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "17936": [
       {
         "name": "set_game_over",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18656": [
+      {
+        "name": "do_delay",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -556,7 +589,12 @@
     "4172": "Pointed sprite at $3000",
     "6155": "$A000-$BFFF is RAM. BASIC ROM disabled",
     "6164": "$A000-$BFFF is BASIC ROM again",
-    "17959": "delay"
+    "17959": "delay",
+    "18468": "sprite frame: crash #0",
+    "18476": "sprite frame: crash #1",
+    "18484": "sprite frame: crash #2",
+    "18508": "sprite frame: crash #3",
+    "18516": "sprite frame: crash #4"
   },
   "user_line_comments": {
     "2049": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSYS 2083",
@@ -597,14 +635,14 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 6656,
-  "hex_dump_cursor_address": 6656,
-  "sprites_cursor_address": 12544,
+  "cursor_address": 18544,
+  "hex_dump_cursor_address": 18496,
+  "sprites_cursor_address": 14272,
   "charset_cursor_address": 8192,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "Sprites",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
