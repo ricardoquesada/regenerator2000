@@ -22,6 +22,15 @@ pub trait Widget {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult;
+
+    fn handle_mouse(
+        &mut self,
+        _mouse: crossterm::event::MouseEvent,
+        _app_state: &mut AppState,
+        _ui_state: &mut UIState,
+    ) -> WidgetResult {
+        WidgetResult::Ignored
+    }
 }
 
 pub fn create_dialog_block<'a>(

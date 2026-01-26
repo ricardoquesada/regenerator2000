@@ -84,6 +84,13 @@ pub struct UIState {
 
     // Bitmap cache: key is (address, multicolor_mode)
     pub bitmap_cache: HashMap<(usize, bool), DynamicImage>,
+
+    // Layout Areas for Mouse Interaction
+    pub menu_area: ratatui::layout::Rect,
+    pub main_area: ratatui::layout::Rect,
+    pub status_bar_area: ratatui::layout::Rect,
+    pub disassembly_area: ratatui::layout::Rect,
+    pub right_pane_area: ratatui::layout::Rect,
 }
 
 impl UIState {
@@ -126,6 +133,12 @@ impl UIState {
             last_search_query: String::new(),
             bitmap_cache: HashMap::new(),
             theme,
+
+            menu_area: ratatui::layout::Rect::default(),
+            main_area: ratatui::layout::Rect::default(),
+            status_bar_area: ratatui::layout::Rect::default(),
+            disassembly_area: ratatui::layout::Rect::default(),
+            right_pane_area: ratatui::layout::Rect::default(),
         }
     }
 

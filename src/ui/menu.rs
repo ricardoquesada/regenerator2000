@@ -1,7 +1,7 @@
 use crate::state::AppState;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::{ActivePane, UIState};
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -83,6 +83,91 @@ pub struct Menu;
 impl Widget for Menu {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         render_menu(f, area, &ui_state.menu, &ui_state.theme);
+    }
+
+    fn handle_mouse(
+        &mut self,
+        mouse: MouseEvent,
+        _app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> WidgetResult {
+        if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
+            return WidgetResult::Ignored;
+        }
+
+        let menu_state = &mut ui_state.menu;
+        let area = ui_state.menu_area;
+        let col = mouse.column;
+        let row = mouse.row;
+
+        // 1. Check Menu Bar
+        if row == area.y && col >= area.x && col < area.x + area.width {
+            let mut current_x = area.x;
+            for (i, category) in menu_state.categories.iter().enumerate() {
+                let width = (category.name.len() + 2) as u16; // " name "
+                if col >= current_x && col < current_x + width {
+                    menu_state.selected_category = i;
+                    if !menu_state.active {
+                        menu_state.active = true;
+                        menu_state.selected_item = None;
+                    }
+                    return WidgetResult::Handled;
+                }
+                current_x += width;
+            }
+        }
+
+        // 2. Check Popup if active
+        if menu_state.active {
+            // Replicate popup geometry calculation
+            let mut x_offset = 0;
+            for i in 0..menu_state.selected_category {
+                x_offset += menu_state.categories[i].name.len() as u16 + 2;
+            }
+
+            let category = &menu_state.categories[menu_state.selected_category];
+            let mut max_name_len = 0;
+            let mut max_shortcut_len = 0;
+            for item in &category.items {
+                max_name_len = max_name_len.max(item.name.len());
+                max_shortcut_len =
+                    max_shortcut_len.max(item.shortcut.as_ref().map(|s| s.len()).unwrap_or(0));
+            }
+            let content_width = max_name_len + 2 + max_shortcut_len;
+            let width = (content_width as u16 + 2).max(20);
+            let height = category.items.len() as u16 + 2;
+
+            let popup_x = area.x + x_offset;
+            let popup_y = area.y + 1;
+
+            // Check if click is inside popup
+            if col >= popup_x && col < popup_x + width && row >= popup_y && row < popup_y + height {
+                // Clicked inside popup
+                let rel_y = row - popup_y;
+                if rel_y > 0 && rel_y < height - 1 {
+                    // Inside borders
+                    let item_idx = (rel_y - 1) as usize;
+                    if item_idx < category.items.len() {
+                        let item = &category.items[item_idx];
+                        if item.is_separator {
+                            return WidgetResult::Handled;
+                        }
+                        if item.disabled {
+                            return WidgetResult::Handled;
+                        }
+                        // Execute action
+                        if let Some(action) = &item.action {
+                            menu_state.active = false;
+                            menu_state.selected_item = None;
+                            return WidgetResult::Action(action.clone());
+                        }
+                    }
+                }
+                return WidgetResult::Handled;
+            }
+        }
+
+        WidgetResult::Ignored
     }
 
     fn handle_input(

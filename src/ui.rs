@@ -44,6 +44,10 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         ])
         .split(f.area());
 
+    ui_state.menu_area = chunks[0];
+    ui_state.main_area = chunks[1];
+    ui_state.status_bar_area = chunks[2];
+
     menu::Menu.render(f, chunks[0], app_state, ui_state);
     render_main_view(f, chunks[1], app_state, ui_state);
     statusbar::StatusBar.render(f, chunks[2], app_state, ui_state);
@@ -79,6 +83,9 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
             Constraint::Length(right_pane_width),
         ])
         .split(area);
+
+    ui_state.disassembly_area = layout[0];
+    ui_state.right_pane_area = layout[1];
 
     view_disassembly::DisassemblyView.render(f, layout[0], app_state, ui_state);
 

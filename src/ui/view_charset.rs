@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui_state::{ActivePane, MenuAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -91,6 +91,41 @@ impl Navigable for CharsetView {
 }
 
 impl Widget for CharsetView {
+    fn handle_mouse(
+        &mut self,
+        mouse: MouseEvent,
+        app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> WidgetResult {
+        let area = ui_state.right_pane_area;
+        let inner_area = Rect {
+            x: area.x + 1,
+            y: area.y + 1,
+            width: area.width.saturating_sub(2),
+            height: area.height.saturating_sub(2),
+        };
+
+        if mouse.column < inner_area.x
+            || mouse.column >= inner_area.x + inner_area.width
+            || mouse.row < inner_area.y
+            || mouse.row >= inner_area.y + inner_area.height
+        {
+            return WidgetResult::Ignored;
+        }
+
+        match mouse.kind {
+            MouseEventKind::ScrollDown => {
+                self.move_down(app_state, ui_state, 3);
+                WidgetResult::Handled
+            }
+            MouseEventKind::ScrollUp => {
+                self.move_up(app_state, ui_state, 3);
+                WidgetResult::Handled
+            }
+            _ => WidgetResult::Ignored,
+        }
+    }
+
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let is_active = ui_state.active_pane == ActivePane::Charset;
         let border_style = if is_active {

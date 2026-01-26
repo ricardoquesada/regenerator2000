@@ -1,6 +1,6 @@
 use crate::state::{AppState, HexdumpViewMode};
 use crate::ui_state::{ActivePane, MenuAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -82,6 +82,66 @@ impl Navigable for HexDumpView {
 }
 
 impl Widget for HexDumpView {
+    fn handle_mouse(
+        &mut self,
+        mouse: MouseEvent,
+        app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> WidgetResult {
+        match mouse.kind {
+            MouseEventKind::ScrollDown => {
+                self.move_down(app_state, ui_state, 3);
+                return WidgetResult::Handled;
+            }
+            MouseEventKind::ScrollUp => {
+                self.move_up(app_state, ui_state, 3);
+                return WidgetResult::Handled;
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                // Proceed with click handling
+            }
+            _ => return WidgetResult::Ignored,
+        }
+
+        let area = ui_state.right_pane_area;
+        let inner_area = Rect {
+            x: area.x + 1,
+            y: area.y + 1,
+            width: area.width.saturating_sub(2),
+            height: area.height.saturating_sub(2),
+        };
+
+        if mouse.column < inner_area.x
+            || mouse.column >= inner_area.x + inner_area.width
+            || mouse.row < inner_area.y
+            || mouse.row >= inner_area.y + inner_area.height
+        {
+            return WidgetResult::Ignored;
+        }
+
+        let click_row = (mouse.row - inner_area.y) as usize;
+        let visible_height = inner_area.height as usize;
+        let context_lines = visible_height / 2;
+        let offset = ui_state.hex_cursor_index.saturating_sub(context_lines);
+
+        let row_index = offset + click_row;
+        let total_rows = self.len(app_state);
+
+        if row_index < total_rows {
+            ui_state.hex_cursor_index = row_index;
+            if ui_state.is_visual_mode {
+                if ui_state.hex_selection_start.is_none() {
+                    ui_state.hex_selection_start = Some(ui_state.hex_cursor_index);
+                }
+            } else {
+                ui_state.hex_selection_start = None;
+            }
+            return WidgetResult::Handled;
+        }
+
+        WidgetResult::Ignored
+    }
+
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let is_active = ui_state.active_pane == ActivePane::HexDump;
         let border_style = if is_active {
