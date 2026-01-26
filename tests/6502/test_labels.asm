@@ -12,6 +12,18 @@
 	sta $d021
 	jmp $d020
 
+	lda #$00
+	sta $07f8
+	sta $07f9
+	sta $07fa
+	sta $07fb
+
+	ldx #$07
+l0:
+	sta $07f8,x
+	dex
+	bpl l0
+
 	sta $f000
 	sta $f001
 
