@@ -364,24 +364,24 @@ impl Disassembler {
             };
 
             for (&addr, labels) in ctx.labels.iter() {
-                if !is_contained(addr) {
-                    if let Some(first_label) = labels.first() {
-                        let label_name = formatter.format_label(&first_label.name);
-                        lines.push(DisassemblyLine {
-                            address: addr,
-                            bytes: vec![],
-                            mnemonic: String::new(),
-                            operand: String::new(),
-                            comment: String::new(),
-                            line_comment: None,
-                            label: Some(label_name),
-                            opcode: None,
-                            show_bytes: false,
-                            target_address: None,
-                            comment_address: None,
-                            is_collapsed: false,
-                        });
-                    }
+                if !is_contained(addr)
+                    && let Some(first_label) = labels.first()
+                {
+                    let label_name = formatter.format_label(&first_label.name);
+                    lines.push(DisassemblyLine {
+                        address: addr,
+                        bytes: vec![],
+                        mnemonic: String::new(),
+                        operand: String::new(),
+                        comment: String::new(),
+                        line_comment: None,
+                        label: Some(label_name),
+                        opcode: None,
+                        show_bytes: false,
+                        target_address: None,
+                        comment_address: None,
+                        is_collapsed: false,
+                    });
                 }
             }
 
