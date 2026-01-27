@@ -5,10 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-??-??
+## [0.5.1] - 2026-01-26
 
-- Fix: Jump to address works correctly when address has associated lines
-- Refactor: reduced duplicate code between disassembler.rs and view_disassembly.rs
+### Features
+- Feature: Mouse support
+  - Click on menu expands submenu
+  - Close dialogs with mouse
+  - File -> Exit works with mouse
+  - Navigation with scroll wheel / touchpad two-fingers
+- Feature: External labels support
+  - Rename labels from external addresses
+  - Navigate in external label references
+- Feature: Menu -> Edit -> Set Label added
+- Feature: Better navigation in Keyboard Shortcut dialog (Page Up, Page Down, Ctrl+D, Ctrl+U)
+
+### Fixes
+- Fix: Jump to address works correctly when address has associated lines and subindex
+- Fix: Search lands in correct subline
+- Fix: Crash when setting block type on empty range
+- Fix: Don't allow setting labels in external labels that start with comment
+- Fix: Close About dialog faster with mouse
+
+### Refactor
+- Refactor: Renamed `comment_address` to `external_label_address`
+- Refactor: Reduced duplicate code between disassembler.rs and view_disassembly.rs
+- Refactor: Move logic whether opcode should have arrows to cpu.rs
+- Refactor: Cross-reference function factored out
+- UI: X-ref with more than supported displayed as "..."
 
 ## [0.5.0] - 2026-01-24
 

@@ -2,7 +2,7 @@
 authors = ["Ricardo Quesada <ricardoquesada@gmail.com>"]
 description = "An interactive disassembler for the CPU 6502, focused mostly on Commodore 8-bit computers."
 name = "regenerator2000"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/ricardoquesada/regenerator2000"
