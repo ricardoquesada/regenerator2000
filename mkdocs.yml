@@ -4,6 +4,12 @@ site_author: Ricardo Quesada
 repo_url: https://github.com/ricardoquesada/regenerator2000
 edit_uri: edit/main/docs/
 
+copyright: Copyright &copy; 2026 Ricardo Quesada & contributors
+
+watch:
+  - README.md
+  - CHANGELOG.md
+
 theme:
   name: material
   palette:
@@ -29,6 +35,7 @@ nav:
   - User Guide: user_guide.md
   - Architecture: architecture.md
   - Requirements: requirements.md
+  - Keyboard Shortcuts: keyboard_shortcuts.md
 
 markdown_extensions:
   - admonition
@@ -36,3 +43,12 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.highlight:
       anchor_linenums: true
+
+plugins:
+  - include-markdown
+  - search
+
+extra:
+  analytics:
+    provider: google
+    property: G-K9JX0F7781
