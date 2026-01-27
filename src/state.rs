@@ -745,11 +745,27 @@ impl AppState {
                 (cursor_index, selection_start)
             };
 
-            if let (Some(start_line), Some(end_line)) =
-                (self.disassembly.get(s), self.disassembly.get(e))
-            {
+            // Find first and last lines with bytes in the selected range to determine the byte region
+            let first_with_bytes = (s..=e).find(|&i| {
+                self.disassembly
+                    .get(i)
+                    .map_or(false, |l| !l.bytes.is_empty())
+            });
+            let last_with_bytes = (s..=e).rev().find(|&i| {
+                self.disassembly
+                    .get(i)
+                    .map_or(false, |l| !l.bytes.is_empty())
+            });
+
+            if let (Some(fs), Some(fe)) = (first_with_bytes, last_with_bytes) {
+                let start_line = &self.disassembly[fs];
+                let end_line = &self.disassembly[fe];
+
                 let start_addr = start_line.address;
-                let end_addr_inclusive = end_line.address + end_line.bytes.len() as u16 - 1;
+                let end_addr_inclusive = end_line
+                    .address
+                    .wrapping_add(end_line.bytes.len() as u16)
+                    .wrapping_sub(1);
 
                 let start_idx = (start_addr.wrapping_sub(self.origin)) as usize;
                 let end_idx = (end_addr_inclusive.wrapping_sub(self.origin)) as usize;
@@ -761,12 +777,19 @@ impl AppState {
         } else {
             // Single line action
             if let Some(line) = self.disassembly.get(cursor_index) {
-                let start_addr = line.address;
-                let end_addr_inclusive = line.address + line.bytes.len() as u16 - 1;
+                if line.bytes.is_empty() {
+                    None
+                } else {
+                    let start_addr = line.address;
+                    let end_addr_inclusive = line
+                        .address
+                        .wrapping_add(line.bytes.len() as u16)
+                        .wrapping_sub(1);
 
-                let start_idx = (start_addr.wrapping_sub(self.origin)) as usize;
-                let end_idx = (end_addr_inclusive.wrapping_sub(self.origin)) as usize;
-                Some((start_idx, end_idx))
+                    let start_idx = (start_addr.wrapping_sub(self.origin)) as usize;
+                    let end_idx = (end_addr_inclusive.wrapping_sub(self.origin)) as usize;
+                    Some((start_idx, end_idx))
+                }
             } else {
                 None
             }
