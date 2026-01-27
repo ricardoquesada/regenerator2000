@@ -5,7 +5,7 @@
 ### Pre-compiled binaries
 
 Get pre-compiled binaries for Linux, macOS and Windows form
-here: https://github.com/ricardoquesada/regenerator2000/releases/latest
+here: <https://github.com/ricardoquesada/regenerator2000/releases/latest>
 
 ### From Crates.io
 
