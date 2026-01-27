@@ -26,10 +26,10 @@ cargo install --path .
 Start the application with an optional file to load:
 
 ```bash
-regenerator2000 [path/to/file.prg]
+regenerator2000 [OPTIONS] [FILE]
 ```
 
-Supported file formats:
+### Supported file formats
 
 * `.prg`: the common Commodore 8-bit program, where the first two bytes indicates the start address.
 * `.crt`: Commodore 64 cartridge files. It parses the CHIP packets and maps them into memory.
@@ -37,6 +37,11 @@ Supported file formats:
 * `.vsf`: VICE snapshot files. It extracts the 64KB RAM and uses the Program Counter (PC) as the start address.
 * `.bin` and `.raw`: pure binary files. Requires that the user sets the origin manually. Menu -> Edit -> Change Origin
 * `.regen2000proj`: Regenerator 2000 project file
+
+### Supported options
+
+* `--help`: Displays the help message listing all available options and supported file types.
+* `--version`: Displays the current version of Regenerator 2000.
 
 ### Recommended Terminals
 

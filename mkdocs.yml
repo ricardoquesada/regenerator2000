@@ -33,10 +33,11 @@ theme:
 nav:
   - Home: index.md
   - Installation: install.md
-  - User Guide: user_guide.md
-  - Architecture: architecture.md
+  - Blocks: blocks.md
   - Views: views.md
+  - Settings: settings.md
   - Keyboard Shortcuts: keyboard_shortcuts.md
+  - Architecture: architecture.md
   - FAQ: faq.md
 
 markdown_extensions:
