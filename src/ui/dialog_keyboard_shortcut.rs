@@ -24,37 +24,8 @@ impl ShortcutsDialog {
         Self { scroll_offset: 0 }
     }
 
-    pub fn scroll_down(&mut self) {
-        self.scroll_offset += 1;
-    }
-
-    pub fn scroll_up(&mut self) {
-        if self.scroll_offset > 0 {
-            self.scroll_offset -= 1;
-        }
-    }
-}
-
-impl Widget for ShortcutsDialog {
-    fn render(
-        &self,
-        f: &mut Frame,
-        area: Rect,
-        _app_state: &crate::state::AppState,
-        ui_state: &mut UIState,
-    ) {
-        let theme = &ui_state.theme;
-        let area = centered_rect(60, 60, area);
-        ui_state.active_dialog_area = area;
-        f.render_widget(Clear, area); // Clear background
-
-        let block = crate::ui::widget::create_dialog_block(" Keyboard Shortcuts ", theme);
-
-        f.render_widget(block.clone(), area);
-
-        let inner = block.inner(area);
-
-        let shortcuts = vec![
+    fn get_shortcuts() -> Vec<(&'static str, &'static str)> {
+        vec![
             ("General", ""),
             ("F10", "Activate Menu"),
             ("Ctrl+q", "Quit"),
@@ -117,7 +88,43 @@ impl Widget for ShortcutsDialog {
             ("b", "Byte"),
             ("m", "Toggle Multicolor (Sprites/Charset,Bitmap)"),
             ("m / M", "Next / Prev Text mode (Hex Dump)"),
-        ];
+        ]
+    }
+
+    pub fn scroll_down(&mut self) {
+        let max_offset = Self::get_shortcuts().len().saturating_sub(1);
+        if self.scroll_offset < max_offset {
+            self.scroll_offset += 1;
+        }
+    }
+
+    pub fn scroll_up(&mut self) {
+        if self.scroll_offset > 0 {
+            self.scroll_offset -= 1;
+        }
+    }
+}
+
+impl Widget for ShortcutsDialog {
+    fn render(
+        &self,
+        f: &mut Frame,
+        area: Rect,
+        _app_state: &crate::state::AppState,
+        ui_state: &mut UIState,
+    ) {
+        let theme = &ui_state.theme;
+        let area = centered_rect(60, 60, area);
+        ui_state.active_dialog_area = area;
+        f.render_widget(Clear, area); // Clear background
+
+        let block = crate::ui::widget::create_dialog_block(" Keyboard Shortcuts ", theme);
+
+        f.render_widget(block.clone(), area);
+
+        let inner = block.inner(area);
+
+        let shortcuts = Self::get_shortcuts();
 
         let items: Vec<ListItem> = shortcuts
             .into_iter()
@@ -158,17 +165,50 @@ impl Widget for ShortcutsDialog {
         _app_state: &mut crate::state::AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
+        let max_offset = Self::get_shortcuts().len().saturating_sub(1);
         match key.code {
             KeyCode::Esc | KeyCode::Enter => {
                 ui_state.set_status_message("Ready");
                 WidgetResult::Close
             }
-            KeyCode::Down => {
+            KeyCode::Down | KeyCode::Char('j') => {
                 self.scroll_down();
                 WidgetResult::Handled
             }
-            KeyCode::Up => {
+            KeyCode::Up | KeyCode::Char('k') => {
                 self.scroll_up();
+                WidgetResult::Handled
+            }
+            KeyCode::PageDown => {
+                self.scroll_offset = (self.scroll_offset + 10).min(max_offset);
+                WidgetResult::Handled
+            }
+            KeyCode::PageUp => {
+                self.scroll_offset = self.scroll_offset.saturating_sub(10);
+                WidgetResult::Handled
+            }
+            KeyCode::Char('d')
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
+                self.scroll_offset = (self.scroll_offset + 10).min(max_offset);
+                WidgetResult::Handled
+            }
+            KeyCode::Char('u')
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
+                self.scroll_offset = self.scroll_offset.saturating_sub(10);
+                WidgetResult::Handled
+            }
+            KeyCode::Home => {
+                self.scroll_offset = 0;
+                WidgetResult::Handled
+            }
+            KeyCode::End => {
+                self.scroll_offset = max_offset;
                 WidgetResult::Handled
             }
             _ => WidgetResult::Handled,
