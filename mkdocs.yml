@@ -39,6 +39,7 @@ nav:
   - User Reference:
     - Keyboard Shortcuts: keyboard_shortcuts.md
     - Settings: settings.md
+    - Assemblers: assemblers.md
     - FAQ: faq.md
   - Development & Internals:
     - Architecture: architecture.md
