@@ -1,0 +1,38 @@
+site_name: Regenerator 2000
+site_description: Documentation for Regenerator 2000, a modern 6502 disassembler.
+site_author: Ricardo Quesada
+repo_url: https://github.com/ricardoquesada/regenerator2000
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - User Guide: user_guide.md
+  - Architecture: architecture.md
+  - Requirements: requirements.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
