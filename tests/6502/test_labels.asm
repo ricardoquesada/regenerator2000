@@ -14,15 +14,21 @@
 
 	lda #$00
 	sta $07f8
-	sta $07f9
-	sta $07fa
-	sta $07fb
 
 	ldx #$07
 l0:
 	sta $07f8,x
 	dex
 	bpl l0
+
+	sta $07f9,y
+	lda $07f9
+
+	lda $c0
+	sta $c0,x
+
+	sta ($c1,x)
+	lda $c1
 
 	sta $f000
 	sta $f001
