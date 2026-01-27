@@ -207,6 +207,30 @@ impl Widget for Menu {
                 }
                 WidgetResult::Handled
             }
+            KeyCode::Char('j') if key.modifiers == KeyModifiers::ALT => {
+                if let Some(pos) = ui_state
+                    .menu
+                    .categories
+                    .iter()
+                    .position(|c| c.name == "Jump")
+                {
+                    ui_state.menu.selected_category = pos;
+                    ui_state.menu.select_first_enabled_item();
+                }
+                WidgetResult::Handled
+            }
+            KeyCode::Char('v') if key.modifiers == KeyModifiers::ALT => {
+                if let Some(pos) = ui_state
+                    .menu
+                    .categories
+                    .iter()
+                    .position(|c| c.name == "View")
+                {
+                    ui_state.menu.selected_category = pos;
+                    ui_state.menu.select_first_enabled_item();
+                }
+                WidgetResult::Handled
+            }
             KeyCode::Down => {
                 ui_state.menu.next_item();
                 WidgetResult::Handled
@@ -626,6 +650,14 @@ pub fn render_menu(f: &mut Frame, area: Rect, menu_state: &MenuState, theme: &cr
             spans.push(Span::styled(" ", style));
             spans.push(Span::styled("H", style.add_modifier(Modifier::UNDERLINED)));
             spans.push(Span::styled("elp ", style));
+        } else if category.name == "Jump" {
+            spans.push(Span::styled(" ", style));
+            spans.push(Span::styled("J", style.add_modifier(Modifier::UNDERLINED)));
+            spans.push(Span::styled("ump ", style));
+        } else if category.name == "View" {
+            spans.push(Span::styled(" ", style));
+            spans.push(Span::styled("V", style.add_modifier(Modifier::UNDERLINED)));
+            spans.push(Span::styled("iew ", style));
         } else {
             spans.push(Span::styled(format!(" {} ", category.name), style));
         }
