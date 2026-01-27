@@ -558,7 +558,7 @@ impl MenuState {
                             MenuAction::ToggleCharsetMulticolor => {
                                 item.disabled = active_pane != ActivePane::Charset;
                             }
-                            MenuAction::SetLabel => {
+                            MenuAction::SetLabel | MenuAction::FindReferences => {
                                 item.disabled = active_pane != ActivePane::Disassembly;
                             }
                             _ => item.disabled = false,
@@ -729,6 +729,13 @@ pub fn render_menu_popup(
 pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: MenuAction) {
     if action.requires_document() && app_state.raw_data.is_empty() {
         ui_state.set_status_message("No open document");
+        return;
+    }
+
+    // Context-specific checks for actions that didn't fit in update_availability
+    // or need enforcement even via shortcuts
+    if action == MenuAction::FindReferences && ui_state.active_pane != ActivePane::Disassembly {
+        ui_state.set_status_message("Action only available in Disassembly View");
         return;
     }
 
