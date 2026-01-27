@@ -195,6 +195,18 @@ impl Widget for Menu {
                 ui_state.menu.select_first_enabled_item();
                 WidgetResult::Handled
             }
+            KeyCode::Char('h') if key.modifiers == KeyModifiers::ALT => {
+                if let Some(pos) = ui_state
+                    .menu
+                    .categories
+                    .iter()
+                    .position(|c| c.name == "Help")
+                {
+                    ui_state.menu.selected_category = pos;
+                    ui_state.menu.select_first_enabled_item();
+                }
+                WidgetResult::Handled
+            }
             KeyCode::Down => {
                 ui_state.menu.next_item();
                 WidgetResult::Handled
@@ -610,6 +622,10 @@ pub fn render_menu(f: &mut Frame, area: Rect, menu_state: &MenuState, theme: &cr
             spans.push(Span::styled(" ", style));
             spans.push(Span::styled("F", style.add_modifier(Modifier::UNDERLINED)));
             spans.push(Span::styled("ile ", style));
+        } else if category.name == "Help" {
+            spans.push(Span::styled(" ", style));
+            spans.push(Span::styled("H", style.add_modifier(Modifier::UNDERLINED)));
+            spans.push(Span::styled("elp ", style));
         } else {
             spans.push(Span::styled(format!(" {} ", category.name), style));
         }
