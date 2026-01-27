@@ -35,7 +35,9 @@ nav:
   - Installation: install.md
   - User Guide: user_guide.md
   - Architecture: architecture.md
+  - Views: views.md
   - Keyboard Shortcuts: keyboard_shortcuts.md
+  - FAQ: faq.md
 
 markdown_extensions:
   - admonition
