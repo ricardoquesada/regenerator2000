@@ -746,16 +746,11 @@ impl AppState {
             };
 
             // Find first and last lines with bytes in the selected range to determine the byte region
-            let first_with_bytes = (s..=e).find(|&i| {
-                self.disassembly
-                    .get(i)
-                    .map_or(false, |l| !l.bytes.is_empty())
-            });
-            let last_with_bytes = (s..=e).rev().find(|&i| {
-                self.disassembly
-                    .get(i)
-                    .map_or(false, |l| !l.bytes.is_empty())
-            });
+            let first_with_bytes =
+                (s..=e).find(|&i| self.disassembly.get(i).is_some_and(|l| !l.bytes.is_empty()));
+            let last_with_bytes = (s..=e)
+                .rev()
+                .find(|&i| self.disassembly.get(i).is_some_and(|l| !l.bytes.is_empty()));
 
             if let (Some(fs), Some(fe)) = (first_with_bytes, last_with_bytes) {
                 let start_line = &self.disassembly[fs];
