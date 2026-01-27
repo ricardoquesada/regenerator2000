@@ -32,13 +32,17 @@ theme:
 
 nav:
   - Home: index.md
-  - Installation: install.md
-  - Blocks: blocks.md
-  - Views: views.md
-  - Settings: settings.md
-  - Keyboard Shortcuts: keyboard_shortcuts.md
-  - Architecture: architecture.md
-  - FAQ: faq.md
+  - Getting Started:
+    - Installation & Usage: install.md
+    - Views: views.md
+    - Blocks: blocks.md
+  - User Reference:
+    - Keyboard Shortcuts: keyboard_shortcuts.md
+    - Settings: settings.md
+    - FAQ: faq.md
+  - Development & Internals:
+    - Architecture: architecture.md
+    - Requirements: requirements.md
 
 markdown_extensions:
   - admonition

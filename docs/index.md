@@ -4,7 +4,7 @@ Welcome to the **Regenerator 2000** documentation.
 
 ![logo](regenerator2000_logo.png)
 
-Regenerator 2000 is a modern 6502 disassembler with a Turbo Assembler / Turbo Debugger look and feel, enhanced with features from modern tools like IDA Pro.
+Regenerator 2000 is a modern 6502 disassembler, TUI-based, with a Turbo Debugger look and feel, enhanced with features from modern tools like IDA Pro.
 
 ## Features
 
@@ -17,12 +17,20 @@ Regenerator 2000 is a modern 6502 disassembler with a Turbo Assembler / Turbo De
 - **Shortcuts**: Keyboard shortcuts for common actions.
 - **Settings**: System settings and document settings.
 
-## Documentation Sections
-
-- [User Guide](user_guide.md): Learn how to use Regenerator 2000.
-- [Keyboard Shortcuts](keyboard_shortcuts.md): Learn all the keyboard shortcuts.
-- [Architecture](architecture.md): Understand the internal design and components.
 
 ## Getting Started
 
-Check out the [README](https://github.com/ricardoquesada/regenerator2000) for installation instructions.
+- [Installation & Usage](install.md): Learn how to install and use Regenerator 2000.
+- [Views](views.md): Overview of the different views available in the interface.
+- [Blocks](blocks.md): Understand the core concept of code and data blocks.
+
+## User Reference
+
+- [Keyboard Shortcuts](keyboard_shortcuts.md): Comprehensive list of all keyboard shortcuts.
+- [Settings](settings.md): How to configure the application.
+- [FAQ](faq.md): Frequently Asked Questions.
+
+## Development & Internals
+
+- [Architecture](architecture.md): Deep dive into the internal design and components.
+- [Requirements](requirements.md): The project's design goals and manifesto.
