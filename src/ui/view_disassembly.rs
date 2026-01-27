@@ -1236,8 +1236,13 @@ impl Widget for DisassemblyView {
                     let mut current_sub_index = 0;
                     let mut found = false;
 
-                    if let Some(addr) = line.comment_address {
-                        target_addr = addr;
+                    if line.bytes.is_empty() {
+                        if let Some(addr) = line.comment_address {
+                            target_addr = addr;
+                        } else {
+                            // Header or empty line in external section -> Ignore 'l'
+                            return WidgetResult::Ignored;
+                        }
                     } else if line.bytes.len() > 1 {
                         for offset in 1..line.bytes.len() {
                             let mid_addr = line.address.wrapping_add(offset as u16);
