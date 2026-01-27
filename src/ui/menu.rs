@@ -1,7 +1,7 @@
 use crate::state::AppState;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::{ActivePane, UIState};
-use crossterm::event::{KeyCode, KeyEvent, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -188,6 +188,11 @@ impl Widget for Menu {
             }
             KeyCode::Left => {
                 ui_state.menu.previous_category();
+                WidgetResult::Handled
+            }
+            KeyCode::Char('f') if key.modifiers == KeyModifiers::ALT => {
+                ui_state.menu.selected_category = 0;
+                ui_state.menu.select_first_enabled_item();
                 WidgetResult::Handled
             }
             KeyCode::Down => {
@@ -601,7 +606,13 @@ pub fn render_menu(f: &mut Frame, area: Rect, menu_state: &MenuState, theme: &cr
             Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
         };
 
-        spans.push(Span::styled(format!(" {} ", category.name), style));
+        if category.name == "File" {
+            spans.push(Span::styled(" ", style));
+            spans.push(Span::styled("F", style.add_modifier(Modifier::UNDERLINED)));
+            spans.push(Span::styled("ile ", style));
+        } else {
+            spans.push(Span::styled(format!(" {} ", category.name), style));
+        }
     }
 
     // Fill the rest of the line

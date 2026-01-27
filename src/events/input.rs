@@ -14,6 +14,12 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             ui_state.menu.select_first_enabled_item();
             ui_state.set_status_message("Menu Active");
         }
+        KeyCode::Char('f') if key.modifiers == KeyModifiers::ALT => {
+            ui_state.menu.selected_category = 0; // File is index 0
+            ui_state.menu.active = true;
+            ui_state.menu.select_first_enabled_item();
+            ui_state.set_status_message("Menu Active");
+        }
         KeyCode::Char('x') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(
                 app_state,
