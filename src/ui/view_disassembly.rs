@@ -1236,7 +1236,9 @@ impl Widget for DisassemblyView {
                     let mut current_sub_index = 0;
                     let mut found = false;
 
-                    if line.bytes.len() > 1 {
+                    if let Some(addr) = line.comment_address {
+                        target_addr = addr;
+                    } else if line.bytes.len() > 1 {
                         for offset in 1..line.bytes.len() {
                             let mid_addr = line.address.wrapping_add(offset as u16);
                             if let Some(labels) = app_state.labels.get(&mid_addr) {
