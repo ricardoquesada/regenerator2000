@@ -34,7 +34,6 @@ nav:
   - Home: index.md
   - User Guide: user_guide.md
   - Architecture: architecture.md
-  - Requirements: requirements.md
   - Keyboard Shortcuts: keyboard_shortcuts.md
 
 markdown_extensions:
