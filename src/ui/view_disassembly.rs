@@ -1295,7 +1295,7 @@ pub fn action_set_label(app_state: &AppState, ui_state: &mut UIState) -> WidgetR
         let mut found = false;
 
         if line.bytes.is_empty() {
-            if let Some(addr) = line.comment_address {
+            if let Some(addr) = line.external_label_address {
                 target_addr = addr;
             } else {
                 // Header or empty line in external section -> Ignore 'l'
@@ -1374,7 +1374,7 @@ mod tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
-            comment_address: None,
+            external_label_address: None,
             is_collapsed: false,
         };
 

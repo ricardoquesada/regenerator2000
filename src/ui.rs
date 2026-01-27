@@ -124,7 +124,7 @@ mod tests {
             opcode,
             show_bytes: false,
             target_address: target,
-            comment_address: None,
+            external_label_address: None,
             is_collapsed: false,
         }
     }

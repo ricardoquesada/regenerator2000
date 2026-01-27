@@ -122,7 +122,7 @@ impl Widget for CommentDialog {
                     }
                     WidgetResult::Handled
                 } else if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                    let address = line.comment_address.unwrap_or(line.address);
+                    let address = line.external_label_address.unwrap_or(line.address);
 
                     let lines = self.textarea.lines();
                     // Join with newline for Line comments, space for Side comments

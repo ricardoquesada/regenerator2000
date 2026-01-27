@@ -76,7 +76,7 @@ pub struct DisassemblyLine {
     pub opcode: Option<Opcode>,
     pub show_bytes: bool,
     pub target_address: Option<u16>,
-    pub comment_address: Option<u16>,
+    pub external_label_address: Option<u16>,
     pub is_collapsed: bool,
 }
 
@@ -173,7 +173,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: false,
                     target_address: None,
-                    comment_address: None,
+                    external_label_address: None,
                     is_collapsed: true,
                 });
 
@@ -449,7 +449,7 @@ impl Disassembler {
                 opcode: None,
                 show_bytes: false,
                 target_address: None,
-                comment_address: None,
+                external_label_address: None,
                 is_collapsed: false,
             });
 
@@ -486,7 +486,7 @@ impl Disassembler {
                 opcode: None,
                 show_bytes: false,
                 target_address: None,
-                comment_address: None,
+                external_label_address: None,
                 is_collapsed: false,
             });
 
@@ -597,7 +597,7 @@ impl Disassembler {
                 opcode: None,
                 show_bytes: false,
                 target_address: None,
-                comment_address: None,
+                external_label_address: None,
                 is_collapsed: false,
             });
 
@@ -633,7 +633,7 @@ impl Disassembler {
                 opcode: None,
                 show_bytes: false,
                 target_address: None,
-                comment_address: None,
+                external_label_address: None,
                 is_collapsed: false,
             });
 
@@ -815,7 +815,7 @@ impl Disassembler {
                                     opcode: Some(opcode.clone()),
                                     show_bytes: true,
                                     target_address: None,
-                                    comment_address: None,
+                                    external_label_address: None,
                                     is_collapsed: false,
                                 },
                                 DisassemblyLine {
@@ -833,7 +833,7 @@ impl Disassembler {
                                     opcode: None,
                                     show_bytes: true,
                                     target_address: None,
-                                    comment_address: None,
+                                    external_label_address: None,
                                     is_collapsed: false,
                                 },
                             ],
@@ -856,7 +856,7 @@ impl Disassembler {
                                 opcode: Some(opcode.clone()),
                                 show_bytes: true,
                                 target_address: None,
-                                comment_address: None,
+                                external_label_address: None,
                                 is_collapsed: false,
                             }],
                         );
@@ -989,7 +989,7 @@ impl Disassembler {
                             opcode: Some(opcode.clone()),
                             show_bytes: true,
                             target_address,
-                            comment_address: None,
+                            external_label_address: None,
                             is_collapsed: false,
                         }],
                     );
@@ -1015,7 +1015,7 @@ impl Disassembler {
                 opcode: None,
                 show_bytes: true,
                 target_address: None,
-                comment_address: None,
+                external_label_address: None,
                 is_collapsed: false,
             }],
         )
@@ -1079,7 +1079,7 @@ impl Disassembler {
                 opcode: None,
                 show_bytes: false,
                 target_address: None,
-                comment_address: None,
+                external_label_address: None,
                 is_collapsed: false,
             }],
         )
@@ -1156,7 +1156,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: false,
                     target_address: None,
-                    comment_address: None,
+                    external_label_address: None,
                     is_collapsed: false,
                 }],
             )
@@ -1233,7 +1233,7 @@ impl Disassembler {
                 opcode: None,
                 show_bytes: false,
                 target_address: None,
-                comment_address: None,
+                external_label_address: None,
                 is_collapsed: false,
             }],
         )
@@ -1324,7 +1324,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: false,
                     target_address: None,
-                    comment_address: None,
+                    external_label_address: None,
                     is_collapsed: false,
                 }],
             )
@@ -1455,7 +1455,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: false,
                     target_address: None,
-                    comment_address: None,
+                    external_label_address: None,
                     is_collapsed: false,
                 });
             }
@@ -1628,7 +1628,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: false,
                     target_address: None,
-                    comment_address: None,
+                    external_label_address: None,
                     is_collapsed: false,
                 });
             }
@@ -1679,7 +1679,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: true,
                     target_address: None,
-                    comment_address: None,
+                    external_label_address: None,
                     is_collapsed: false,
                 }],
             )
@@ -1698,7 +1698,7 @@ impl Disassembler {
                     opcode: None,
                     show_bytes: true,
                     target_address: None,
-                    comment_address: None,
+                    external_label_address: None,
                     is_collapsed: false,
                 }],
             )
@@ -1730,7 +1730,7 @@ impl Disassembler {
                 opcode: None,
                 show_bytes: true,
                 target_address: None,
-                comment_address: None,
+                external_label_address: None,
                 is_collapsed: false,
             }],
         )

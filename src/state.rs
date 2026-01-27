@@ -920,7 +920,7 @@ impl AppState {
                     opcode: None,
                     show_bytes: true,
                     target_address: None,
-                    comment_address: None,
+                    external_label_address: None,
                     is_collapsed: false,
                 });
 
@@ -944,7 +944,7 @@ impl AppState {
                         opcode: None,
                         show_bytes: true,
                         target_address: None,
-                        comment_address: Some(addr),
+                        external_label_address: Some(addr),
                         is_collapsed: false,
                     });
                 }
@@ -960,7 +960,7 @@ impl AppState {
                     opcode: None,
                     show_bytes: true,
                     target_address: None,
-                    comment_address: None,
+                    external_label_address: None,
                     is_collapsed: false,
                 });
             }
@@ -1027,11 +1027,11 @@ impl AppState {
             return Some(idx);
         }
 
-        // Check for external label definitions (comment_address matches target)
+        // Check for external label definitions (external_label_address matches target)
         if let Some(idx) = self
             .disassembly
             .iter()
-            .position(|line| line.comment_address == Some(address))
+            .position(|line| line.external_label_address == Some(address))
         {
             return Some(idx);
         }
@@ -1668,7 +1668,7 @@ mod cursor_tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
-            comment_address: None,
+            external_label_address: None,
             is_collapsed: false,
         });
 
@@ -1684,7 +1684,7 @@ mod cursor_tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
-            comment_address: None,
+            external_label_address: None,
             is_collapsed: false,
         });
 
@@ -1707,7 +1707,7 @@ mod cursor_tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
-            comment_address: None,
+            external_label_address: None,
             is_collapsed: false,
         });
 
@@ -1723,7 +1723,7 @@ mod cursor_tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
-            comment_address: None,
+            external_label_address: None,
             is_collapsed: false,
         });
 

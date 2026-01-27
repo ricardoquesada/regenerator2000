@@ -387,7 +387,7 @@ mod tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
-            comment_address: None,
+            external_label_address: None,
             is_collapsed: false,
         };
 
@@ -423,7 +423,7 @@ mod tests {
             opcode: None,
             show_bytes: true,
             target_address: None,
-            comment_address: None,
+            external_label_address: None,
             is_collapsed: false,
         };
 
@@ -650,7 +650,7 @@ mod tests_string {
             opcode: None,
             show_bytes: true,
             target_address: None,
-            comment_address: None,
+            external_label_address: None,
             is_collapsed: false,
         };
 

@@ -862,7 +862,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         MenuAction::FindReferences => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                 let addr = if line.address == 0 && line.bytes.is_empty() {
-                    line.comment_address.unwrap_or(0)
+                    line.external_label_address.unwrap_or(0)
                 } else {
                     line.address
                 };
@@ -1025,7 +1025,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                                 _ => None,
                             }
                         } else {
-                            line.comment_address
+                            line.external_label_address
                         }
                     } else {
                         None
