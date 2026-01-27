@@ -208,13 +208,14 @@ pub fn analyze(
                 if !addr_labels
                     .iter()
                     .any(|l| l.label_type == l_type || l.label_type == LabelType::UserDefined)
-                    && !state.excluded_addresses.contains(&addr) {
-                        addr_labels.push(crate::state::Label {
-                            name: l_type.format_label(addr),
-                            label_type: l_type,
-                            kind: crate::state::LabelKind::Auto,
-                        });
-                    }
+                    && !state.excluded_addresses.contains(&addr)
+                {
+                    addr_labels.push(crate::state::Label {
+                        name: l_type.format_label(addr),
+                        label_type: l_type,
+                        kind: crate::state::LabelKind::Auto,
+                    });
+                }
             }
         } else {
             // Internal: Single canonical label (first_type or best?)
