@@ -62,6 +62,7 @@ pub enum MenuAction {
     FindReferences,
     NavigateToAddress(u16),
     SetBytesBlockByOffset { start: usize, end: usize },
+    SetLabel,
 }
 
 impl MenuAction {
@@ -305,6 +306,7 @@ impl MenuState {
                             Some("Shift+;"),
                             Some(MenuAction::LineComment),
                         ),
+                        MenuItem::new("Set Label", Some("l"), Some(MenuAction::SetLabel)),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Toggle Collapsed Block",
@@ -538,6 +540,9 @@ impl MenuState {
                             }
                             MenuAction::ToggleCharsetMulticolor => {
                                 item.disabled = active_pane != ActivePane::Charset;
+                            }
+                            MenuAction::SetLabel => {
+                                item.disabled = active_pane != ActivePane::Disassembly;
                             }
                             _ => item.disabled = false,
                         }
@@ -799,6 +804,9 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     ui_state.cursor_index = idx;
                 }
             }
+        }
+        MenuAction::SetLabel => {
+            crate::ui::view_disassembly::action_set_label(app_state, ui_state);
         }
         MenuAction::Undo => {
             ui_state.set_status_message(app_state.undo_last_command());

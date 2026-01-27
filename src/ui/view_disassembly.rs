@@ -1228,54 +1228,7 @@ impl Widget for DisassemblyView {
                 WidgetResult::Handled
             }
 
-            KeyCode::Char('l') if key.modifiers.is_empty() => {
-                if !app_state.raw_data.is_empty()
-                    && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
-                {
-                    let mut target_addr = line.address;
-                    let mut current_sub_index = 0;
-                    let mut found = false;
-
-                    if line.bytes.is_empty() {
-                        if let Some(addr) = line.comment_address {
-                            target_addr = addr;
-                        } else {
-                            // Header or empty line in external section -> Ignore 'l'
-                            return WidgetResult::Ignored;
-                        }
-                    } else if line.bytes.len() > 1 {
-                        for offset in 1..line.bytes.len() {
-                            let mid_addr = line.address.wrapping_add(offset as u16);
-                            if let Some(labels) = app_state.labels.get(&mid_addr) {
-                                for _label in labels {
-                                    if current_sub_index == ui_state.sub_cursor_index {
-                                        target_addr = mid_addr;
-                                        found = true;
-                                        break;
-                                    }
-                                    current_sub_index += 1;
-                                }
-                            }
-                            if found {
-                                break;
-                            }
-                        }
-                    }
-
-                    let text = app_state
-                        .labels
-                        .get(&target_addr)
-                        .and_then(|v| v.first())
-                        .map(|l| l.name.as_str());
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_label::LabelDialog::new(text, target_addr),
-                    ));
-                    ui_state.set_status_message("Enter Label");
-                    WidgetResult::Handled
-                } else {
-                    WidgetResult::Ignored
-                }
-            }
+            KeyCode::Char('l') if key.modifiers.is_empty() => action_set_label(app_state, ui_state),
             KeyCode::Char('c') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::Code)
             }
@@ -1330,6 +1283,56 @@ impl Widget for DisassemblyView {
             }
             _ => WidgetResult::Ignored,
         }
+    }
+}
+
+pub fn action_set_label(app_state: &AppState, ui_state: &mut UIState) -> WidgetResult {
+    if !app_state.raw_data.is_empty()
+        && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+    {
+        let mut target_addr = line.address;
+        let mut current_sub_index = 0;
+        let mut found = false;
+
+        if line.bytes.is_empty() {
+            if let Some(addr) = line.comment_address {
+                target_addr = addr;
+            } else {
+                // Header or empty line in external section -> Ignore 'l'
+                return WidgetResult::Ignored;
+            }
+        } else if line.bytes.len() > 1 {
+            for offset in 1..line.bytes.len() {
+                let mid_addr = line.address.wrapping_add(offset as u16);
+                if let Some(labels) = app_state.labels.get(&mid_addr) {
+                    for _label in labels {
+                        if current_sub_index == ui_state.sub_cursor_index {
+                            target_addr = mid_addr;
+                            found = true;
+                            break;
+                        }
+                        current_sub_index += 1;
+                    }
+                }
+                if found {
+                    break;
+                }
+            }
+        }
+
+        let text = app_state
+            .labels
+            .get(&target_addr)
+            .and_then(|v| v.first())
+            .map(|l| l.name.as_str());
+        ui_state.active_dialog = Some(Box::new(crate::ui::dialog_label::LabelDialog::new(
+            text,
+            target_addr,
+        )));
+        ui_state.set_status_message("Enter Label");
+        WidgetResult::Handled
+    } else {
+        WidgetResult::Ignored
     }
 }
 
