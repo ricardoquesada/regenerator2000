@@ -375,6 +375,10 @@ pub fn run_app<B: Backend>(
                 if let crate::ui::widget::WidgetResult::Action(action) = widget_result {
                     crate::ui::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
                 }
+
+                if ui_state.should_quit {
+                    return Ok(());
+                }
             }
             _ => {}
         }
