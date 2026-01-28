@@ -60,6 +60,7 @@ impl ShortcutsDialog {
             ("n / N", "Next / Prev Match"),
             ("Ctrl+f", "Search Dialog"),
             ("F3 / Shift+F3", "Find Next / Previous"),
+            ("Ctrl+p", "Go to symbol"),
             ("Ctrl+x", "Find Cross References"),
             ("", ""),
             ("Editing (Disassembly)", ""),

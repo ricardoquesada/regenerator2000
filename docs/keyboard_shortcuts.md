@@ -31,6 +31,7 @@ across Windows, macOS, and Linux, and different terminal emulators.
 |                                                 | **Next / Previous Match**                             | `n` / `Shift + n`                       |
 |                                                 | **Search Dialog**                                     | `Ctrl + f`                              |
 |                                                 | **Find Next / Previous**                              | `F3` / `Shift + F3`                     |
+|                                                 | **Go to symbol**                                      | `Ctrl + p`                              |
 |                                                 | **Find Cross References**                             | `Ctrl + x`                              |
 | **Selection**                                   | **Toggle Visual Mode**                                | `V`                                     |
 |                                                 | **Select Text**                                       | `Shift + Up/Down` / Visual Mode + `j/k` |
