@@ -1284,22 +1284,34 @@ impl Widget for DisassemblyView {
             KeyCode::Char('s') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::Screencode)
             }
-            KeyCode::Char('?') if key.modifiers.is_empty() => {
+            KeyCode::Char('?')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 WidgetResult::Action(MenuAction::Undefined)
             }
-            KeyCode::Char('<') if key.modifiers.is_empty() => {
+            KeyCode::Char('<')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 WidgetResult::Action(MenuAction::SetLoHi)
             }
-            KeyCode::Char('>') if key.modifiers.is_empty() => {
+            KeyCode::Char('>')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 WidgetResult::Action(MenuAction::SetHiLo)
             }
-            KeyCode::Char('|') if key.modifiers.is_empty() => {
+            KeyCode::Char('|')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 WidgetResult::Action(MenuAction::ToggleSplitter)
             }
-            KeyCode::Char(';') if key.modifiers.is_empty() => {
+            KeyCode::Char(';')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 WidgetResult::Action(MenuAction::SideComment)
             }
-            KeyCode::Char(':') if key.modifiers.is_empty() => {
+            KeyCode::Char(':')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 WidgetResult::Action(MenuAction::LineComment)
             }
             KeyCode::Char('e') if key.modifiers.is_empty() => {
@@ -1426,5 +1438,44 @@ mod tests {
         // Case 2: Target $C001 (label)
         let idx_label = DisassemblyView::get_sub_index_for_address(&line, &app_state, 0xC001);
         assert_eq!(idx_label, 0, "Should point to label (index 0)");
+    }
+
+    #[test]
+    fn test_handle_input_shifted_keys() {
+        let mut app_state = AppState::default();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let mut view = DisassemblyView;
+
+        let keys = vec!['?', '<', '>', '|', ';', ':'];
+        let actions = vec![
+            MenuAction::Undefined,
+            MenuAction::SetLoHi,
+            MenuAction::SetHiLo,
+            MenuAction::ToggleSplitter,
+            MenuAction::SideComment,
+            MenuAction::LineComment,
+        ];
+
+        for (c, expected_action) in keys.into_iter().zip(actions.into_iter()) {
+            // Test without SHIFT
+            let key_no_shift = KeyEvent {
+                code: KeyCode::Char(c),
+                modifiers: KeyModifiers::empty(),
+                kind: crossterm::event::KeyEventKind::Press,
+                state: crossterm::event::KeyEventState::empty(),
+            };
+            let result = view.handle_input(key_no_shift, &mut app_state, &mut ui_state);
+            assert_eq!(result, WidgetResult::Action(expected_action.clone()));
+
+            // Test with SHIFT (Windows behavior)
+            let key_with_shift = KeyEvent {
+                code: KeyCode::Char(c),
+                modifiers: KeyModifiers::SHIFT,
+                kind: crossterm::event::KeyEventKind::Press,
+                state: crossterm::event::KeyEventState::empty(),
+            };
+            let result = view.handle_input(key_with_shift, &mut app_state, &mut ui_state);
+            assert_eq!(result, WidgetResult::Action(expected_action));
+        }
     }
 }
