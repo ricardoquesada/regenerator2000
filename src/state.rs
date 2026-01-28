@@ -467,12 +467,28 @@ impl AppState {
         let mut end = index;
 
         // Search backward
-        while start > 0 && self.block_types[start - 1] == target_type {
+        // A block starts at 'start' if:
+        // 1. It's the beginning of the buffer (start == 0)
+        // 2. The previous byte has a different type
+        // 3. There is a splitter AT 'start' (splitters[addr] means a new block starts at addr)
+        while start > 0
+            && self.block_types[start - 1] == target_type
+            && !self.splitters.contains(&origin.wrapping_add(start as u16))
+        {
             start -= 1;
         }
 
         // Search forward
-        while end < self.block_types.len() - 1 && self.block_types[end + 1] == target_type {
+        // A block ends at 'end' if:
+        // 1. It's the end of the buffer
+        // 2. The next byte has a different type
+        // 3. The next byte (end + 1) is a splitter
+        while end < self.block_types.len() - 1
+            && self.block_types[end + 1] == target_type
+            && !self
+                .splitters
+                .contains(&origin.wrapping_add((end + 1) as u16))
+        {
             end += 1;
         }
 
@@ -1873,5 +1889,35 @@ mod analysis_tests {
         // Test finding normal lines
         assert_eq!(state.get_line_index_containing_address(0x1000), Some(0));
         assert_eq!(state.get_line_index_containing_address(0x1002), Some(2));
+    }
+
+    #[test]
+    fn test_get_block_range_respects_splitters() {
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        state.raw_data = vec![0xEA; 10]; // 10 bytes of NOP
+        state.block_types = vec![BlockType::Code; 10];
+
+        // Without splitters, range should be everything
+        let range = state.get_block_range(0x1005).unwrap();
+        assert_eq!(range, (0x1000, 0x1009));
+
+        // Add a splitter at 0x1005
+        state.splitters.insert(0x1005);
+
+        // Range for 0x1004 should stop at 0x1004
+        let range1 = state.get_block_range(0x1004).unwrap();
+        assert_eq!(range1, (0x1000, 0x1004));
+
+        // Range for 0x1005 should start at 0x1005
+        let range2 = state.get_block_range(0x1005).unwrap();
+        assert_eq!(range2, (0x1005, 0x1009));
+
+        // Add another splitter at 0x1008
+        state.splitters.insert(0x1008);
+
+        // Range for 0x1006 should be 0x1005 to 0x1007
+        let range3 = state.get_block_range(0x1006).unwrap();
+        assert_eq!(range3, (0x1005, 0x1007));
     }
 }
