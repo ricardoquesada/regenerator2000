@@ -65,3 +65,37 @@ cl65 -t c64 -C c64-asm.cfg -o output.prg input.asm
 - `-t c64`: Set the target system to Commodore 64 (sets up default memory configuration).
 - `-C c64-asm.cfg`: Uses the default configuration file for C64 assembly.
 - `-o`: Specify the output filename.
+
+As long as the origin is `$0801`, the generated assembler will work Ok.
+
+This is because, the config file [c64-asm.cfg][c64-asm.cfg] assumes that the start address is at `$0801`:
+
+```text
+FEATURES {
+    STARTADDRESS: default = $0801;
+}
+SYMBOLS {
+    __LOADADDR__: type = import;
+}
+MEMORY {
+    ZP:       file = "", start = $0002,  size = $00FE,      define = yes;
+    LOADADDR: file = %O, start = %S - 2, size = $0002;
+    MAIN:     file = %O, start = %S,     size = $D000 - %S;
+}
+SEGMENTS {
+    ZEROPAGE: load = ZP,       type = zp,  optional = yes;
+    LOADADDR: load = LOADADDR, type = ro;
+    EXEHDR:   load = MAIN,     type = ro,  optional = yes;
+    CODE:     load = MAIN,     type = rw;
+    RODATA:   load = MAIN,     type = ro,  optional = yes;
+    DATA:     load = MAIN,     type = rw,  optional = yes;
+    BSS:      load = MAIN,     type = bss, optional = yes, define = yes;
+}
+```
+
+If you are disassembling a file that has another origin, you will need to create your own config file.
+Just copy-paste the `c64-asm.cfg`, and make the needed changes. See ld65 "Configuration Files" section
+ in the [cc65 documentation][cc65-docs].
+
+[c64-asm.cfg]: https://github.com/cc65/cc65/blob/master/cfg/c64-asm.cfg
+[cc65-docs]: https://cc65.github.io/doc/ld65.html#s5
