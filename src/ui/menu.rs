@@ -231,6 +231,30 @@ impl Widget for Menu {
                 }
                 WidgetResult::Handled
             }
+            KeyCode::Char('r') if key.modifiers == KeyModifiers::ALT => {
+                if let Some(pos) = ui_state
+                    .menu
+                    .categories
+                    .iter()
+                    .position(|c| c.name == "Search")
+                {
+                    ui_state.menu.selected_category = pos;
+                    ui_state.menu.select_first_enabled_item();
+                }
+                WidgetResult::Handled
+            }
+            KeyCode::Char('t') if key.modifiers == KeyModifiers::ALT => {
+                if let Some(pos) = ui_state
+                    .menu
+                    .categories
+                    .iter()
+                    .position(|c| c.name == "Edit")
+                {
+                    ui_state.menu.selected_category = pos;
+                    ui_state.menu.select_first_enabled_item();
+                }
+                WidgetResult::Handled
+            }
             KeyCode::Down => {
                 ui_state.menu.next_item();
                 WidgetResult::Handled
@@ -646,6 +670,11 @@ pub fn render_menu(f: &mut Frame, area: Rect, menu_state: &MenuState, theme: &cr
             spans.push(Span::styled(" ", style));
             spans.push(Span::styled("F", style.add_modifier(Modifier::UNDERLINED)));
             spans.push(Span::styled("ile ", style));
+        } else if category.name == "Edit" {
+            spans.push(Span::styled(" ", style));
+            spans.push(Span::styled("Edi", style));
+            spans.push(Span::styled("t", style.add_modifier(Modifier::UNDERLINED)));
+            spans.push(Span::styled(" ", style));
         } else if category.name == "Help" {
             spans.push(Span::styled(" ", style));
             spans.push(Span::styled("H", style.add_modifier(Modifier::UNDERLINED)));
@@ -658,6 +687,11 @@ pub fn render_menu(f: &mut Frame, area: Rect, menu_state: &MenuState, theme: &cr
             spans.push(Span::styled(" ", style));
             spans.push(Span::styled("V", style.add_modifier(Modifier::UNDERLINED)));
             spans.push(Span::styled("iew ", style));
+        } else if category.name == "Search" {
+            spans.push(Span::styled(" ", style));
+            spans.push(Span::styled("Sea", style));
+            spans.push(Span::styled("r", style.add_modifier(Modifier::UNDERLINED)));
+            spans.push(Span::styled("ch ", style));
         } else {
             spans.push(Span::styled(format!(" {} ", category.name), style));
         }
