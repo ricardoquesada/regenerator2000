@@ -7,19 +7,19 @@ Regenerator 2000 has two types of settings (like most modern editors):
 
 ## Settings
 
-The Settings dialog allows you to configure global preferences for the application. It can be accessed via `File -> Settings` or using the shortcut `Alt + O`.
+The Settings dialog allows you to configure global preferences for the application. It can be accessed via `File -> Settings` or using the shortcut `Alt + O` or `Ctrl + ,`.
 
 ```text
 ┌ Settings ----------------------------------------┐
 │                                                  │
 │  [X] Open the latest file on startup             │
-│  [ ] Auto-analyze on load                        │
-│  [ ] Sync Hex Dump View                          │
+│  [X] Auto-analyze on load                        │
+│  [X] Sync Hex Dump View                          │
 │  [ ] Sync Charset View                           │
 │  [ ] Sync Sprites View                           │
 │  [ ] Sync Bitmap View                            │
-│  [ ] Sync Blocks View                            │
-│  Theme: < Default >                              │
+│  [X] Sync Blocks View                            │
+│  Theme: < Solarized Dark >                       │
 │                                                  │
 └──────────────────────────────────────────────────┘
 ```
@@ -27,13 +27,13 @@ The Settings dialog allows you to configure global preferences for the applicati
 ### Options
 
 1. **Open the latest file on startup**
-    - **Description**: When enabled, the application will automatically open the last project or file you were working on when it starts up. This allows you to quickly resume your work.
+    - **Description**: When enabled, the application will automatically open the last project you were working on when it starts up. This allows you to quickly resume your work.
 
 2. **Auto-analyze on load**
-    - **Description**: If checked, the application will automatically perform a code analysis when a file is loaded. This can save time but might delay the initial display for very large files.
+    - **Description**: If checked, the application will automatically perform a code analysis when a file is loaded. Analysis includes creating labels, cross-references, and other analysis data.
 
 3. **Sync View Options**
-    - **Description**: The following options control whether different views automatically synchronize their cursor or focus with the main Disassembly View. When enabled, navigating in one view will update the others to show the corresponding memory location.
+    - **Description**: The following options control whether different views automatically synchronize their cursor with the main Disassembly View. When enabled, navigating in the Disassembly View will update the others to show the corresponding memory location.
     - **Sync Hex Dump View**: Synchronizes the Hex Dump view.
     - **Sync Charset View**: Synchronizes the Charset view.
     - **Sync Sprites View**: Synchronizes the Sprites view.
@@ -41,7 +41,7 @@ The Settings dialog allows you to configure global preferences for the applicati
     - **Sync Blocks View**: Synchronizes the Blocks view.
 
 4. **Theme**
-    - **Description**: Allows you to choose the visual theme of the application. Press `Enter` on this option to open a sub-menu where you can select from available themes (e.g., `Default`, `Blue`, `Light`, etc.).
+    - **Description**: Allows you to choose the visual theme of the application. Press `Enter` on this option to open a sub-menu where you can select from available themes (e.g., `Solarized Dark`, `Solarized Light`, etc.).
 
 ## Document Settings
 

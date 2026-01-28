@@ -14,16 +14,20 @@ pub struct SystemConfig {
     pub auto_analyze: bool,
     #[serde(default = "default_true")]
     pub sync_hex_dump: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_false")]
     pub sync_charset_view: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_false")]
     pub sync_sprites_view: bool,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_false")]
     pub sync_bitmap_view: bool,
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn default_false() -> bool {
+    false
 }
 
 fn default_theme() -> String {
@@ -39,9 +43,9 @@ impl Default for SystemConfig {
             sync_blocks_view: true,
             auto_analyze: true,
             sync_hex_dump: true,
-            sync_charset_view: true,
-            sync_sprites_view: true,
-            sync_bitmap_view: true,
+            sync_charset_view: false,
+            sync_sprites_view: false,
+            sync_bitmap_view: false,
         }
     }
 }
