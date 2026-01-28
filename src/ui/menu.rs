@@ -63,6 +63,7 @@ pub enum MenuAction {
     NavigateToAddress(u16),
     SetBytesBlockByOffset { start: usize, end: usize },
     SetLabel,
+    GoToSymbol,
 }
 
 impl MenuAction {
@@ -415,6 +416,11 @@ impl MenuState {
                             "Find Previous",
                             Some("Shift+F3"),
                             Some(MenuAction::FindPrevious),
+                        ),
+                        MenuItem::new(
+                            "Go to symbol...",
+                            Some("Ctrl+P"),
+                            Some(MenuAction::GoToSymbol),
                         ),
                         MenuItem::new(
                             "Find References",
@@ -952,6 +958,12 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.last_search_query.clone(),
             )));
             ui_state.set_status_message("Search...");
+        }
+        MenuAction::GoToSymbol => {
+            ui_state.active_dialog = Some(Box::new(
+                crate::ui::dialog_go_to_symbol::GoToSymbolDialog::new(app_state),
+            ));
+            ui_state.set_status_message("Go to Symbol...");
         }
         MenuAction::FindNext => {
             crate::ui::dialog_search::perform_search(app_state, ui_state, true);

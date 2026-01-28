@@ -566,13 +566,6 @@
         "kind": "User"
       }
     ],
-    "2560": [
-      {
-        "name": "f0A00",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
     "4096": [
       {
         "name": "setup_vic",
@@ -714,14 +707,14 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 4172,
+  "cursor_address": 2132,
   "hex_dump_cursor_address": 5600,
-  "sprites_cursor_address": 12352,
+  "sprites_cursor_address": 12480,
   "charset_cursor_address": 8192,
   "right_pane_visible": "Sprites",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 40960,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
