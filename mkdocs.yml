@@ -1,10 +1,14 @@
 site_name: Regenerator 2000
-site_description: Documentation for Regenerator 2000, a modern 6502 disassembler.
 site_author: Ricardo Quesada
+site_description: >-
+ Documentation for Regenerator 2000, a modern 6502 disassembler.
+
 repo_url: https://github.com/ricardoquesada/regenerator2000
-edit_uri: edit/main/docs/
+repo_name: ricardoquesada/regenerator2000
 
 copyright: Copyright &copy; 2026 Ricardo Quesada & contributors
+
+edit_uri: edit/main/docs/
 
 watch:
   - README.md
@@ -12,6 +16,8 @@ watch:
 
 theme:
   name: material
+  logo: regenerator2000_logo_noname.png
+  favicon: regenerator2000_logo_favicon.png
   palette:
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
