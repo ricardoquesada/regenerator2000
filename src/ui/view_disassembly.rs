@@ -757,9 +757,46 @@ impl Widget for DisassemblyView {
                 let is_relative_target_elsewhere =
                     arrow.target_addr.is_some() && arrow.end == current_line;
 
-                let mut passes_through = (current_line > low && current_line < high)
+                let is_down = arrow.start < arrow.end;
+                let mut passes_through = (current_line > low
+                    && current_line < high
+                    && arrow.start_visible
+                    && arrow.end_visible)
                     || (current_line == arrow.start && arrow.end < arrow.start)
                     || (current_line == arrow.end && arrow.start < arrow.end);
+
+                // Add tip logic for partial arrows to match get_arrow_str
+                if !passes_through {
+                    if arrow.start_visible && !arrow.end_visible {
+                        if is_down
+                            && (current_line == arrow.start
+                                || current_line == arrow.start.saturating_add(1))
+                        {
+                            // If we are at start, comments are ABOVE, so no line.
+                            // If we are at start+1, comments are ABOVE (between start and start+1), so draw line to connect with ▼
+                            if current_line == arrow.start.saturating_add(1) {
+                                passes_through = true;
+                            }
+                        } else if !is_down && current_line == arrow.start {
+                            // Comments of start line for upward jump are ABOVE, so draw line
+                            passes_through = true;
+                        }
+                    } else if !arrow.start_visible && arrow.end_visible {
+                        if is_down && current_line == arrow.end {
+                            // Comments of end line for downward jump are ABOVE, so draw line
+                            passes_through = true;
+                        } else if !is_down
+                            && (current_line == arrow.end
+                                || current_line == arrow.end.saturating_add(1))
+                        {
+                            // If we are at end, comments are ABOVE, so no line.
+                            // If we are at end+1, comments are ABOVE (between end and end+1), so draw line to connect with │
+                            if current_line == arrow.end.saturating_add(1) {
+                                passes_through = true;
+                            }
+                        }
+                    }
+                }
 
                 if is_relative_target_elsewhere {
                     if arrow.start < arrow.end {
