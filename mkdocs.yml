@@ -1,7 +1,10 @@
 site_name: Regenerator 2000
 site_author: Ricardo Quesada
 site_description: >-
- Documentation for Regenerator 2000, a modern 6502 disassembler.
+ Documentation for Regenerator 2000, a modern interactive disassembler
+ for the CPU 6502, focused mostly on Commodore 8-bit computers.
+ Features a TUI with modern features like x-ref, undo/redo, arrows,
+ keyboard-driven and more!
 
 repo_url: https://github.com/ricardoquesada/regenerator2000
 repo_name: ricardoquesada/regenerator2000
