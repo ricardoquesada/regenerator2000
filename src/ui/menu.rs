@@ -901,13 +901,17 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 }
             } else {
                 ui_state.active_dialog =
-                    Some(Box::new(crate::ui::dialog_export_as::ExportAsDialog::new()));
+                    Some(Box::new(crate::ui::dialog_export_as::ExportAsDialog::new(
+                        app_state.last_export_asm_filename.clone(),
+                    )));
                 ui_state.set_status_message("Enter .asm filename");
             }
         }
         MenuAction::ExportProjectAs => {
             ui_state.active_dialog =
-                Some(Box::new(crate::ui::dialog_export_as::ExportAsDialog::new()));
+                Some(Box::new(crate::ui::dialog_export_as::ExportAsDialog::new(
+                    app_state.last_export_asm_filename.clone(),
+                )));
             ui_state.set_status_message("Enter .asm filename");
         }
         MenuAction::DocumentSettings => {

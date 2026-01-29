@@ -390,6 +390,7 @@ pub struct AppState {
     pub last_import_labels_path: Option<PathBuf>,
     pub last_export_labels_filename: Option<String>,
     pub last_save_as_filename: Option<String>,
+    pub last_export_asm_filename: Option<String>,
 }
 
 impl Default for AppState {
@@ -425,6 +426,7 @@ impl AppState {
             last_import_labels_path: None,
             last_export_labels_filename: None,
             last_save_as_filename: None,
+            last_export_asm_filename: None,
         }
     }
 
@@ -516,6 +518,7 @@ impl AppState {
         self.last_import_labels_path = None;
         self.last_export_labels_filename = None;
         self.last_save_as_filename = None;
+        self.last_export_asm_filename = None;
 
         let mut cursor_start = None;
         let hex_cursor_start = None;
@@ -638,6 +641,7 @@ impl AppState {
         self.last_import_labels_path = None;
         self.last_export_labels_filename = None;
         self.last_save_as_filename = None;
+        self.last_export_asm_filename = None;
 
         self.load_system_assets();
 

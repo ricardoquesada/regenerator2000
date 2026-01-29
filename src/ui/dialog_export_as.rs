@@ -17,14 +17,14 @@ pub struct ExportAsDialog {
 
 impl Default for ExportAsDialog {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
 impl ExportAsDialog {
-    pub fn new() -> Self {
+    pub fn new(initial_filename: Option<String>) -> Self {
         Self {
-            input: String::new(),
+            input: initial_filename.unwrap_or_default(),
         }
     }
 }
@@ -76,7 +76,7 @@ impl Widget for ExportAsDialog {
             KeyCode::Enter => {
                 let filename = self.input.clone();
                 if !filename.is_empty() {
-                    let mut path = ui_state.file_dialog_current_dir.join(filename);
+                    let mut path = ui_state.file_dialog_current_dir.join(&filename);
                     if path.extension().is_none() {
                         path.set_extension("asm");
                     }
@@ -85,6 +85,7 @@ impl Widget for ExportAsDialog {
                         ui_state.set_status_message(format!("Error exporting: {}", e));
                         WidgetResult::Handled
                     } else {
+                        app_state.last_export_asm_filename = Some(filename.clone());
                         ui_state.set_status_message("Project Exported");
                         WidgetResult::Close
                     }
