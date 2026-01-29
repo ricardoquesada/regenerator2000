@@ -542,7 +542,7 @@ impl AppState {
                 self.origin = origin;
                 self.raw_data = raw_data;
             } else if ext.eq_ignore_ascii_case("vsf") {
-                let vsf_data = crate::parser::vsf::parse_vsf(&data)
+                let vsf_data = crate::parser::vice_vsf::parse_vsf(&data)
                     .map_err(|e| anyhow::anyhow!("Failed to parse VSF: {}", e))?;
                 self.origin = 0;
                 self.raw_data = vsf_data.memory;
@@ -750,7 +750,7 @@ impl AppState {
 
     pub fn import_vice_labels(&mut self, path: PathBuf) -> anyhow::Result<String> {
         let content = std::fs::read_to_string(path)?;
-        let parsed = crate::parser::vice::parse_vice_labels(&content)
+        let parsed = crate::parser::vice_lbl::parse_vice_labels(&content)
             .map_err(|e| anyhow::anyhow!("{}", e))?;
 
         let mut new_labels_vec = Vec::new();
