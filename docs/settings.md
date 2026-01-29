@@ -7,7 +7,7 @@ Regenerator 2000 has two types of settings (like most modern editors):
 
 ## Settings
 
-The Settings dialog allows you to configure global preferences for the application. It can be accessed via `File -> Settings` or using the shortcut `Alt + O` or `Ctrl + ,`.
+The Settings dialog allows you to configure global preferences for the application. It can be accessed via `File -> Settings` or using the shortcut ++alt+o++ or ++ctrl+comma++.
 
 ```text
 ┌ Settings ----------------------------------------┐
@@ -46,7 +46,7 @@ The Settings dialog allows you to configure global preferences for the applicati
 ## Document Settings
 
 You can customize how Regenerator 2000 analyzes the binary and exports the code by accessing the **Document Settings**
-dialog (Shortcut: `Alt + d`, or `Ctrl + Shift + d`).
+dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
 
 ```text
 ┌ Document Settings ----------------------───────────────────────────────┐

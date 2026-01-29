@@ -11,10 +11,10 @@ Regenerator 2000 supports `.prg`, `.crt`, `.t64`, `.vsf`, and raw binary files (
 ## Disassembly
 
 ### How do I change the type of a block?
-Use the keyboard shortcuts defined in the user guide (e.g., `c` for Code, `b` for Byte, `s` for Screen Code) or use the context menu.
+Use the keyboard shortcuts defined in the user guide (e.g., ++c++ for Code, ++b++ for Byte, ++s++ for Screen Code) or use the context menu.
 
 ### Can I rename labels?
-Yes, simply place the cursor on a label and press `n` (or the configured shortcut) to rename it globally.
+Yes, simply place the cursor on a label and press ++l++ (or the configured shortcut) to rename it globally.
 
 ## Exporting
 

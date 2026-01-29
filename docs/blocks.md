@@ -8,7 +8,7 @@ The available Block Types are:
 
 ## 1. Code
 
-- **Shortcut**: `c`
+- **Shortcut**: ++c++
 - **Description**: Interprets the bytes as MOS 6502/6510 instructions.
 - **Use Case**: Use this for all executable machine code.
 
@@ -22,7 +22,7 @@ Example:
 
 ## 2. Data Byte
 
-- **Shortcut**: `b`
+- **Shortcut**: ++b++
 - **Description**: Represents data as single 8-bit values.
 - **Use Case**: sprite data, distinct variables, tables, memory regions where the data format is
   unknown, etc.
@@ -36,7 +36,7 @@ Example:
 
 ## 3. Data Word
 
-- **Shortcut**: `w`
+- **Shortcut**: ++w++
 - **Description**: Represents data as 16-bit Little-Endian values.
 - **Use Case**: Use for 16-bit counters, pointers (that shouldn't be analyzed as code references), or math constants.
 
@@ -49,7 +49,7 @@ Example:
 
 ## 4. Address
 
-- **Shortcut**: `a`
+- **Shortcut**: ++a++
 - **Description**: Represents data as 16-bit addresses. Unlike "Data Word", this type explicitly tells the analyzer that
   the value points to a location in memory.
 - **Use Case**: Essential for **Jump Tables**. When you mark a table as "Address", Regenerator 2000 will create
@@ -64,7 +64,7 @@ Example:
 
 ## 5. PETSCII Text
 
-- **Shortcut**: `t`
+- **Shortcut**: ++t++
 - **Description**: Interprets bytes as PETSCII text sequences.
 - **Use Case**: Use for game messages, high score names, or print routines. The disassembler will try to group
   contiguous characters into a single string.
@@ -80,7 +80,7 @@ Example:
 
 ## 6. Screencode Text
 
-- **Shortcut**: `s`
+- **Shortcut**: ++s++
 - **Description**: Interprets bytes as Commodore Screen Codes (Matrix codes) text.
 - **Use Case**: Use for data that is directly copied to Screen RAM ($0400). These values differ from standard PETSCII
   (e.g., 'A' is 1, not 65).
@@ -96,7 +96,7 @@ Example:
 
 ## 7. Lo/Hi Address
 
-- **Shortcut**: `<` (Shift + ,)
+- **Shortcut**: ++less-than++
 - **Description**: Marks the selected bytes as the **Low / High** address table. Must have an even number of bytes.
   The first half will be the lo addresses, the second half will be the hi addresses.
 - **Use Case**: C64 games often split address tables into two arrays (one for Low bytes, one for High bytes) for faster
@@ -114,7 +114,7 @@ Example:
 
 ## 8. Hi/Lo Address
 
-- **Shortcut**: `>` (Shift + .)
+- **Shortcut**: ++greater-than++
 - **Description**: Marks the selected bytes as the **High / Low** address table. Must have an even number of bytes.
   The first half will be the hi addresses, the second half will be the lo addresses.
 - **Use Case**: C64 games often split address tables into two arrays (one for Low bytes, one for High bytes) for faster
@@ -132,7 +132,7 @@ Example:
 
 ## 9. External File
 
-- **Shortcut**: `e`
+- **Shortcut**: ++e++
 - **Description**: Treats the selected region as external binary data.
 - **Use Case**: Use for large chunks of included binary data (like music SID files, raw bitmaps, or character sets) that
   you don't want to clutter the main source file. These will be exported as `.binary "filename.bin"` includes.
@@ -149,7 +149,7 @@ Example:
 
 ## 10. Undefined
 
-- **Shortcut**: `?`
+- **Shortcut**: ++question-mark++
 - **Description**: Resets the block to an "Unknown" state.
 - **Use Case**: Use this if you made a mistake and want the Auto-Analyzer to take a fresh look at the usage of this
   region.
@@ -169,14 +169,14 @@ Beyond data types, you can organize your view using Splitters and Collapsing:
 
 ## Splitters
 
-- **Shortcut**: `|` (Pipe)
+- **Shortcut**: ++pipe++
 - **Description**: Inserts a visual separator (newline) in the disassembly view without affecting the binary.
 - **Use Case**: Use this to visually separate logic blocks, subroutines, or data tables that are contiguous in memory
   but logically distinct.
 
 ## Collapsing Blocks
 
-- **Collapse/Uncollapse**: `Ctrl + k`
+- **Collapse/Uncollapse**: ++ctrl+k++
 - **Description**: Hides or shows the content of a block, showing only a summary line (e.g., "; ... 256 bytes ...").
 - **Use Case**: Use this to hide large tables, long text strings, or finished subroutines to keep your workspace clean
   and focus on the code you are currently analyzing.
