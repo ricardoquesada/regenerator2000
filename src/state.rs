@@ -764,8 +764,8 @@ impl AppState {
             };
             new_labels_vec.push((addr, label));
 
-            if !old_labels_map.contains_key(&addr) {
-                old_labels_map.insert(addr, self.labels.get(&addr).cloned().unwrap_or_default());
+            if let std::collections::btree_map::Entry::Vacant(e) = old_labels_map.entry(addr) {
+                e.insert(self.labels.get(&addr).cloned().unwrap_or_default());
             }
         }
 
