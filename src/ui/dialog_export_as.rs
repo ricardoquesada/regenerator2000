@@ -46,20 +46,39 @@ impl Widget for ExportAsDialog {
         let area = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(25),
-                Constraint::Percentage(50),
-                Constraint::Percentage(25),
+                Constraint::Percentage(35),
+                Constraint::Percentage(30),
+                Constraint::Percentage(35),
             ])
             .split(layout[1])[1];
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 
-        let input = Paragraph::new(self.input.clone()).block(block).style(
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        );
-        f.render_widget(input, area);
+        f.render_widget(block.clone(), area);
+        let inner = block.inner(area);
+
+        let input_layout = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Fill(1),
+                Constraint::Length(5), // ".asm" + 1 padding
+            ])
+            .split(inner);
+
+        let input = Paragraph::new(self.input.clone())
+            .block(
+                ratatui::widgets::Block::default()
+                    .style(Style::default().bg(theme.menu_selected_bg)),
+            )
+            .style(
+                Style::default()
+                    .fg(theme.menu_selected_fg)
+                    .add_modifier(Modifier::BOLD),
+            );
+        f.render_widget(input, input_layout[0]);
+
+        let extension = Paragraph::new(".asm").style(Style::default().fg(Color::Gray));
+        f.render_widget(extension, input_layout[1]);
     }
 
     fn handle_input(
