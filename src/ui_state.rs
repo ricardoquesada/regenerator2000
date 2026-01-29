@@ -168,6 +168,17 @@ impl UIState {
             self.cursor_index = idx;
         }
 
+        // Update file dialog directory to the project/file location
+        if let Some(path) = &app_state.project_path {
+            if let Some(parent) = path.parent() {
+                self.file_dialog_current_dir = parent.to_path_buf();
+            }
+        } else if let Some(path) = &app_state.file_path
+            && let Some(parent) = path.parent()
+        {
+            self.file_dialog_current_dir = parent.to_path_buf();
+        }
+
         // Also restore hex cursor if present
         if let Some(hex_addr) = loaded_hex_cursor
             && !app_state.raw_data.is_empty()

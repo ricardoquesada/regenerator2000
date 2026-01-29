@@ -880,12 +880,16 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 }
             } else {
                 ui_state.active_dialog =
-                    Some(Box::new(crate::ui::dialog_save_as::SaveAsDialog::new()));
+                    Some(Box::new(crate::ui::dialog_save_as::SaveAsDialog::new(
+                        app_state.last_save_as_filename.clone(),
+                    )));
                 ui_state.set_status_message("Enter Project filename");
             }
         }
         MenuAction::SaveAs => {
-            ui_state.active_dialog = Some(Box::new(crate::ui::dialog_save_as::SaveAsDialog::new()));
+            ui_state.active_dialog = Some(Box::new(crate::ui::dialog_save_as::SaveAsDialog::new(
+                app_state.last_save_as_filename.clone(),
+            )));
             ui_state.set_status_message("Enter Project filename");
         }
         MenuAction::ExportProject => {

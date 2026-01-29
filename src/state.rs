@@ -389,6 +389,7 @@ pub struct AppState {
     pub splitters: BTreeSet<u16>,
     pub last_import_labels_path: Option<PathBuf>,
     pub last_export_labels_filename: Option<String>,
+    pub last_save_as_filename: Option<String>,
 }
 
 impl Default for AppState {
@@ -423,6 +424,7 @@ impl AppState {
             splitters: BTreeSet::new(),
             last_import_labels_path: None,
             last_export_labels_filename: None,
+            last_save_as_filename: None,
         }
     }
 
@@ -513,6 +515,7 @@ impl AppState {
         self.immediate_value_formats.clear();
         self.last_import_labels_path = None;
         self.last_export_labels_filename = None;
+        self.last_save_as_filename = None;
 
         let mut cursor_start = None;
         let hex_cursor_start = None;
@@ -634,6 +637,7 @@ impl AppState {
         self.splitters = project.splitters;
         self.last_import_labels_path = None;
         self.last_export_labels_filename = None;
+        self.last_save_as_filename = None;
 
         self.load_system_assets();
 

@@ -17,14 +17,14 @@ pub struct SaveAsDialog {
 
 impl Default for SaveAsDialog {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
 impl SaveAsDialog {
-    pub fn new() -> Self {
+    pub fn new(initial_filename: Option<String>) -> Self {
         Self {
-            input: String::new(),
+            input: initial_filename.unwrap_or_default(),
         }
     }
 }
@@ -77,7 +77,7 @@ impl Widget for SaveAsDialog {
                 let filename = self.input.clone();
                 if !filename.is_empty() {
                     // Determine path relative to open dialog's current directory
-                    let mut path = ui_state.file_dialog_current_dir.join(filename);
+                    let mut path = ui_state.file_dialog_current_dir.join(&filename);
                     if path.extension().is_none() {
                         path.set_extension("regen2000proj");
                     }
@@ -155,6 +155,7 @@ impl Widget for SaveAsDialog {
                         ui_state.set_status_message(format!("Error saving: {}", e));
                         WidgetResult::Handled
                     } else {
+                        app_state.last_save_as_filename = Some(filename.clone());
                         ui_state.set_status_message("Project saved");
                         WidgetResult::Close
                     }
