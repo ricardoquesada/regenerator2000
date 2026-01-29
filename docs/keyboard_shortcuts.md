@@ -5,9 +5,9 @@ across Windows, macOS, and Linux, and different terminal emulators.
 
 | Context                                         | Action                                                | Shortcut                                |
 | :---------------------------------------------- | :---------------------------------------------------- | :-------------------------------------- |
-| **Global**                                      | **Activate Menu**                                     | `F10`                                   |
-|                                                 | **Exit**                                              | `Ctrl + q`                              |
-|                                                 | **Open File**                                         | `Ctrl + o`                              |
+| **Global**                                      | **Activate Menu**                                     | ++f10++                                 |
+|                                                 | **Exit**                                              | ++ctrl+q++                              |
+|                                                 | **Open File**                                         | ++ctrl+o++                              |
 |                                                 | **Save Project**                                      | `Ctrl + s`                              |
 |                                                 | **Save Project As**                                   | `Alt + s`, `Ctrl + Shift + s`           |
 |                                                 | **Export Project (ASM)**                              | `Ctrl + e`                              |
