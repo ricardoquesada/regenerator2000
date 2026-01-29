@@ -1,0 +1,105 @@
+use crate::state::AppState;
+use crate::ui_state::UIState;
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::{
+    Frame,
+    layout::{Constraint, Direction, Layout, Rect},
+    style::{Color, Modifier, Style},
+    widgets::Paragraph,
+};
+
+use crate::ui::widget::{Widget, WidgetResult};
+
+pub struct ExportLabelsDialog {
+    pub input: String,
+}
+
+impl Default for ExportLabelsDialog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ExportLabelsDialog {
+    pub fn new() -> Self {
+        Self {
+            input: String::new(),
+        }
+    }
+}
+
+impl Widget for ExportLabelsDialog {
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
+        let theme = &ui_state.theme;
+        let block = crate::ui::widget::create_dialog_block(" Export Labels As... ", theme);
+
+        let layout = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Fill(1),
+                Constraint::Length(3),
+                Constraint::Fill(1),
+            ])
+            .split(area);
+
+        let area = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([
+                Constraint::Percentage(25),
+                Constraint::Percentage(50),
+                Constraint::Percentage(25),
+            ])
+            .split(layout[1])[1];
+        ui_state.active_dialog_area = area;
+        f.render_widget(ratatui::widgets::Clear, area);
+
+        let input = Paragraph::new(self.input.clone()).block(block).style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        );
+        f.render_widget(input, area);
+    }
+
+    fn handle_input(
+        &mut self,
+        key: KeyEvent,
+        app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> WidgetResult {
+        match key.code {
+            KeyCode::Esc => {
+                ui_state.set_status_message("Ready");
+                WidgetResult::Close
+            }
+            KeyCode::Enter => {
+                let filename = self.input.clone();
+                if !filename.is_empty() {
+                    let mut path = ui_state.file_dialog_current_dir.join(filename);
+                    if path.extension().is_none() {
+                        path.set_extension("lbl");
+                    }
+                    // We don't save the path to app_state.export_path for labels
+                    if let Err(e) = app_state.export_vice_labels(path) {
+                        ui_state.set_status_message(format!("Error exporting labels: {}", e));
+                        WidgetResult::Handled
+                    } else {
+                        ui_state.set_status_message("Labels Exported");
+                        WidgetResult::Close
+                    }
+                } else {
+                    WidgetResult::Handled
+                }
+            }
+            KeyCode::Backspace => {
+                self.input.pop();
+                WidgetResult::Handled
+            }
+            KeyCode::Char(c) => {
+                self.input.push(c);
+                WidgetResult::Handled
+            }
+            _ => WidgetResult::Handled,
+        }
+    }
+}

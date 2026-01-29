@@ -28,6 +28,15 @@ pub fn parse_vice_labels(content: &str) -> Result<Vec<(u16, String)>, String> {
     Ok(labels)
 }
 
+pub fn generate_vice_labels(labels: &[(u16, String)]) -> String {
+    let mut content = String::new();
+    for (addr, name) in labels {
+        // format: al C:address .label
+        content.push_str(&format!("al C:{:04x} .{}\n", addr, name));
+    }
+    content
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -46,5 +55,13 @@ al $3000 no_dot_label
         assert_eq!(labels[1], (0x1003, "loop".to_string()));
         assert_eq!(labels[2], (0x2000, "data_start".to_string()));
         assert_eq!(labels[3], (0x3000, "no_dot_label".to_string()));
+    }
+
+    #[test]
+    fn test_generate_vice_labels() {
+        let labels = vec![(0x1000, "start".to_string()), (0x2000, "loop".to_string())];
+        let content = generate_vice_labels(&labels);
+        assert!(content.contains("al C:1000 .start"));
+        assert!(content.contains("al C:2000 .loop"));
     }
 }

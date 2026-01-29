@@ -65,6 +65,7 @@ pub enum MenuAction {
     SetLabel,
     GoToSymbol,
     ImportViceLabels,
+    ExportViceLabels,
 }
 
 impl MenuAction {
@@ -328,6 +329,11 @@ impl MenuState {
                             "Import VICE Labels...",
                             None,
                             Some(MenuAction::ImportViceLabels),
+                        ),
+                        MenuItem::new(
+                            "Export VICE Labels...",
+                            None,
+                            Some(MenuAction::ExportViceLabels),
                         ),
                         MenuItem::separator(),
                         MenuItem::new("Settings", Some("Alt+O"), Some(MenuAction::SystemSettings)),
@@ -854,6 +860,12 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ),
             ));
             ui_state.set_status_message("Select a VICE label file to import");
+        }
+        MenuAction::ExportViceLabels => {
+            ui_state.active_dialog = Some(Box::new(
+                crate::ui::dialog_export_labels::ExportLabelsDialog::new(),
+            ));
+            ui_state.set_status_message("Enter VICE label filename");
         }
         MenuAction::Save => {
             if app_state.project_path.is_some() {

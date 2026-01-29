@@ -784,6 +784,21 @@ impl AppState {
         Ok("Labels Imported".to_string())
     }
 
+    pub fn export_vice_labels(&self, path: PathBuf) -> anyhow::Result<String> {
+        let mut export_list = Vec::new();
+        // Sort by address is automatic due to BTreeMap
+        for (addr, labels) in &self.labels {
+            for label in labels {
+                if label.kind == LabelKind::User {
+                    export_list.push((*addr, label.name.clone()));
+                }
+            }
+        }
+        let content = crate::parser::vice_lbl::generate_vice_labels(&export_list);
+        std::fs::write(path, content)?;
+        Ok("Labels Exported".to_string())
+    }
+
     pub fn set_block_type_region(
         &mut self,
         new_type: BlockType,
@@ -1955,5 +1970,54 @@ mod analysis_tests {
         // Range for 0x1006 should be 0x1005 to 0x1007
         let range3 = state.get_block_range(0x1006).unwrap();
         assert_eq!(range3, (0x1005, 0x1007));
+    }
+    #[test]
+    fn test_export_vice_labels() {
+        use std::path::PathBuf;
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        state.labels.insert(
+            0x1000,
+            vec![Label {
+                name: "start".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        state.labels.insert(
+            0x2000,
+            vec![Label {
+                name: "loop".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            }],
+        );
+        // System label should be ignored
+        state.labels.insert(
+            0xFFD2,
+            vec![Label {
+                name: "CHROUT".to_string(),
+                kind: LabelKind::System,
+                label_type: LabelType::Predefined,
+            }],
+        );
+
+        let path = PathBuf::from("test_export_vice.lbl");
+        // Ensure cleanup if exists
+        #[allow(unused_must_use)]
+        {
+            std::fs::remove_file(&path);
+        }
+
+        let res = state.export_vice_labels(path.clone());
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        // Check content
+        assert!(content.contains("al C:1000 .start"));
+        assert!(content.contains("al C:2000 .loop"));
+        assert!(!content.contains("CHROUT"));
+
+        let _ = std::fs::remove_file(path);
     }
 }
