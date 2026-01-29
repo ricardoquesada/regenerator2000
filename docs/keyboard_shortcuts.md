@@ -1,4 +1,4 @@
-# Regenerator 2000 Keyboard Shortcuts
+# Keyboard Shortcuts
 
 Some actions can be triggered with more than one keyboard combination. This is intentional to ensure compatibility
 across Windows, macOS, and Linux, and different terminal emulators.
