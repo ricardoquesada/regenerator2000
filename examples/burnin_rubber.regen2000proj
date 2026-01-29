@@ -22,6 +22,30 @@
     },
     {
       "start": 2047,
+      "end": 2502,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2503,
+      "end": 2504,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 2505,
+      "end": 2540,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2541,
+      "end": 2542,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 2543,
       "end": 2549,
       "type_": "Code",
       "collapsed": false
@@ -196,6 +220,30 @@
     },
     {
       "start": 4863,
+      "end": 5854,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5855,
+      "end": 5875,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 5876,
+      "end": 6040,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6041,
+      "end": 6041,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 6042,
       "end": 6120,
       "type_": "Code",
       "collapsed": false
@@ -232,6 +280,30 @@
     },
     {
       "start": 12671,
+      "end": 13017,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 13018,
+      "end": 13022,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 13023,
+      "end": 13045,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 13046,
+      "end": 13054,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 13055,
       "end": 13488,
       "type_": "Code",
       "collapsed": false
@@ -328,6 +400,18 @@
     },
     {
       "start": 15359,
+      "end": 15868,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 15869,
+      "end": 15870,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 15871,
       "end": 16254,
       "type_": "Code",
       "collapsed": false
@@ -352,14 +436,14 @@
     },
     {
       "start": 16383,
-      "end": 16605,
+      "end": 16604,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 16606,
+      "start": 16605,
       "end": 16606,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -388,6 +472,18 @@
     },
     {
       "start": 16895,
+      "end": 16970,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 16971,
+      "end": 16971,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 16972,
       "end": 17184,
       "type_": "Code",
       "collapsed": false
@@ -400,6 +496,42 @@
     },
     {
       "start": 17407,
+      "end": 17465,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 17466,
+      "end": 17470,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 17471,
+      "end": 17497,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 17498,
+      "end": 17500,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 17501,
+      "end": 18349,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 18350,
+      "end": 18350,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 18351,
       "end": 18362,
       "type_": "Code",
       "collapsed": false
@@ -412,6 +544,60 @@
     },
     {
       "start": 18431,
+      "end": 18669,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 18670,
+      "end": 18670,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 18671,
+      "end": 18678,
+      "type_": "Screencode",
+      "collapsed": false
+    },
+    {
+      "start": 18679,
+      "end": 18679,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 18680,
+      "end": 18686,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 18687,
+      "end": 18941,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 18942,
+      "end": 18942,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 18943,
+      "end": 19022,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 19023,
+      "end": 19054,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 19055,
       "end": 19061,
       "type_": "Code",
       "collapsed": false
@@ -448,6 +634,18 @@
     },
     {
       "start": 19455,
+      "end": 19493,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 19494,
+      "end": 19502,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 19503,
       "end": 19650,
       "type_": "Code",
       "collapsed": false
@@ -456,7 +654,7 @@
       "start": 19651,
       "end": 20158,
       "type_": "DataByte",
-      "collapsed": false
+      "collapsed": true
     },
     {
       "start": 20159,
@@ -490,15 +688,9 @@
     },
     {
       "start": 20389,
-      "end": 20478,
-      "type_": "DataByte",
-      "collapsed": true
-    },
-    {
-      "start": 20479,
       "end": 36870,
       "type_": "DataByte",
-      "collapsed": false
+      "collapsed": true
     }
   ],
   "labels": {
@@ -648,6 +840,20 @@
         "label_type": "UserDefined",
         "kind": "User"
       }
+    ],
+    "21072": [
+      {
+        "name": "sid_tbl_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21088": [
+      {
+        "name": "sid_tbl_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
     ]
   },
   "user_side_comments": {
@@ -683,7 +889,7 @@
     "8192": "Charset",
     "12288": "sprites",
     "17936": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\ngame over",
-    "22272": "IRQ handler"
+    "22272": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ Handler"
   },
   "settings": {
     "all_labels": true,
@@ -713,18 +919,18 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 22568,
+  "cursor_address": 20729,
   "hex_dump_cursor_address": 5600,
-  "sprites_cursor_address": 12736,
+  "sprites_cursor_address": 12800,
   "charset_cursor_address": 8192,
   "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 57344,
+  "bitmap_cursor_address": 0,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
     22528
   ],
-  "blocks_view_cursor": 83
+  "blocks_view_cursor": 94
 }
