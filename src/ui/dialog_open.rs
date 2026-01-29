@@ -197,9 +197,15 @@ impl Widget for OpenDialog {
                                         ));
                                         WidgetResult::Handled
                                     }
-                                    Ok(msg) => {
+                                    Ok(_) => {
+                                        let filename = selected_path
+                                            .file_name()
+                                            .unwrap_or_default()
+                                            .to_string_lossy()
+                                            .to_string();
                                         app_state.last_import_labels_path = Some(selected_path);
-                                        ui_state.set_status_message(msg);
+                                        ui_state
+                                            .set_status_message(format!("Imported: {}", filename));
                                         WidgetResult::Close
                                     }
                                 }
@@ -214,10 +220,12 @@ impl Widget for OpenDialog {
                                         WidgetResult::Handled // Or close? User might want to retry
                                     }
                                     Ok(loaded_data) => {
-                                        ui_state.set_status_message(format!(
-                                            "Loaded: {:?}",
-                                            selected_path
-                                        ));
+                                        let filename = selected_path
+                                            .file_name()
+                                            .unwrap_or_default()
+                                            .to_string_lossy();
+                                        ui_state
+                                            .set_status_message(format!("Loaded: {}", filename));
 
                                         let loaded_cursor = loaded_data.cursor_address;
                                         let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;

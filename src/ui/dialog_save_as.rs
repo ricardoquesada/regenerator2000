@@ -100,6 +100,11 @@ impl Widget for SaveAsDialog {
                     if path.extension().is_none() {
                         path.set_extension("regen2000proj");
                     }
+                    let saved_filename = path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
                     app_state.project_path = Some(path);
 
                     // Collect context for saving
@@ -175,7 +180,7 @@ impl Widget for SaveAsDialog {
                         WidgetResult::Handled
                     } else {
                         app_state.last_save_as_filename = Some(filename.clone());
-                        ui_state.set_status_message("Project saved");
+                        ui_state.set_status_message(format!("Project saved: {}", saved_filename));
                         WidgetResult::Close
                     }
                 } else {

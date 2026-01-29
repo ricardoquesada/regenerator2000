@@ -105,7 +105,8 @@ impl Widget for ExportAsDialog {
                         WidgetResult::Handled
                     } else {
                         app_state.last_export_asm_filename = Some(filename.clone());
-                        ui_state.set_status_message("Project Exported");
+                        let saved_filename = path.file_name().unwrap_or_default().to_string_lossy();
+                        ui_state.set_status_message(format!("Exported: {}", saved_filename));
                         WidgetResult::Close
                     }
                 } else {

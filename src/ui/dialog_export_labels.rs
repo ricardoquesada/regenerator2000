@@ -98,12 +98,17 @@ impl Widget for ExportLabelsDialog {
                     if path.extension().is_none() {
                         path.set_extension("lbl");
                     }
+                    let saved_filename = path
+                        .file_name()
+                        .unwrap_or_default()
+                        .to_string_lossy()
+                        .to_string();
                     app_state.last_export_labels_filename = Some(filename.clone());
                     if let Err(e) = app_state.export_vice_labels(path) {
                         ui_state.set_status_message(format!("Error exporting labels: {}", e));
                         WidgetResult::Handled
                     } else {
-                        ui_state.set_status_message("Labels Exported");
+                        ui_state.set_status_message(format!("Labels Exported: {}", saved_filename));
                         WidgetResult::Close
                     }
                 } else {

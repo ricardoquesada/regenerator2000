@@ -876,7 +876,13 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 if let Err(e) = app_state.save_project(context, true) {
                     ui_state.set_status_message(format!("Error saving: {}", e));
                 } else {
-                    ui_state.set_status_message("Project saved");
+                    let filename = app_state
+                        .project_path
+                        .as_ref()
+                        .and_then(|p| p.file_name())
+                        .unwrap_or_default()
+                        .to_string_lossy();
+                    ui_state.set_status_message(format!("Saved: {}", filename));
                 }
             } else {
                 ui_state.active_dialog =
@@ -897,7 +903,8 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 if let Err(e) = crate::exporter::export_asm(app_state, path) {
                     ui_state.set_status_message(format!("Error exporting: {}", e));
                 } else {
-                    ui_state.set_status_message("Project Exported");
+                    let filename = path.file_name().unwrap_or_default().to_string_lossy();
+                    ui_state.set_status_message(format!("Exported: {}", filename));
                 }
             } else {
                 ui_state.active_dialog =
