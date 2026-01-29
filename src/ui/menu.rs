@@ -64,6 +64,7 @@ pub enum MenuAction {
     SetBytesBlockByOffset { start: usize, end: usize },
     SetLabel,
     GoToSymbol,
+    ImportViceLabels,
 }
 
 impl MenuAction {
@@ -321,6 +322,12 @@ impl MenuState {
                             "Export Project As...",
                             Some("Alt+E"),
                             Some(MenuAction::ExportProjectAs),
+                        ),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Import VICE Labels...",
+                            None,
+                            Some(MenuAction::ImportViceLabels),
                         ),
                         MenuItem::separator(),
                         MenuItem::new("Settings", Some("Alt+O"), Some(MenuAction::SystemSettings)),
@@ -839,6 +846,14 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.file_dialog_current_dir.clone(),
             )));
             ui_state.set_status_message("Select a file to open");
+        }
+        MenuAction::ImportViceLabels => {
+            ui_state.active_dialog = Some(Box::new(
+                crate::ui::dialog_open::OpenDialog::new_import_vice_labels(
+                    ui_state.file_dialog_current_dir.clone(),
+                ),
+            ));
+            ui_state.set_status_message("Select a VICE label file to import");
         }
         MenuAction::Save => {
             if app_state.project_path.is_some() {

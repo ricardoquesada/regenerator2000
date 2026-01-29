@@ -591,10 +591,10 @@ impl AppState {
 
     pub fn resolve_initial_load(
         &mut self,
-        args: &[String],
+        file_to_load: Option<&str>,
     ) -> Option<anyhow::Result<(LoadedProjectData, PathBuf)>> {
-        if args.len() > 1 {
-            let path = PathBuf::from(&args[1]);
+        if let Some(path_str) = file_to_load {
+            let path = PathBuf::from(path_str);
             Some(self.load_file(path.clone()).map(|d| (d, path)))
         } else if self.system_config.open_last_project
             && let Some(last_path) = self.system_config.last_project_path.clone()
@@ -746,6 +746,42 @@ impl AppState {
         self.push_command(command);
         self.disassemble();
         "Analysis Complete".to_string()
+    }
+
+    pub fn import_vice_labels(&mut self, path: PathBuf) -> anyhow::Result<String> {
+        let content = std::fs::read_to_string(path)?;
+        let parsed = crate::parser::vice::parse_vice_labels(&content)
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
+
+        let mut new_labels_vec = Vec::new();
+        let mut old_labels_map = BTreeMap::new();
+
+        for (addr, name) in parsed {
+            let label = Label {
+                name,
+                kind: LabelKind::User,
+                label_type: LabelType::UserDefined,
+            };
+            new_labels_vec.push((addr, label));
+
+            if !old_labels_map.contains_key(&addr) {
+                old_labels_map.insert(addr, self.labels.get(&addr).cloned().unwrap_or_default());
+            }
+        }
+
+        let command = crate::commands::Command::ImportLabels {
+            new_labels: new_labels_vec,
+            old_labels: old_labels_map,
+        };
+        command.apply(self);
+        self.push_command(command);
+        self.disassemble();
+
+        if self.system_config.auto_analyze {
+            self.perform_analysis();
+        }
+
+        Ok("Labels Imported".to_string())
     }
 
     pub fn set_block_type_region(

@@ -10,11 +10,18 @@ use ratatui::{
 };
 use std::path::PathBuf;
 
+#[derive(PartialEq, Eq)]
+pub enum OpenMode {
+    ProjectOrFile,
+    ViceLabels,
+}
+
 pub struct OpenDialog {
     pub current_dir: PathBuf,
     pub files: Vec<PathBuf>,
     pub selected_index: usize,
     pub filter_extensions: Vec<String>,
+    pub mode: OpenMode,
 }
 
 impl OpenDialog {
@@ -32,6 +39,19 @@ impl OpenDialog {
                 "raw".to_string(),
                 "regen2000proj".to_string(),
             ],
+            mode: OpenMode::ProjectOrFile,
+        };
+        dialog.refresh_files();
+        dialog
+    }
+
+    pub fn new_import_vice_labels(current_dir: PathBuf) -> Self {
+        let mut dialog = Self {
+            current_dir,
+            files: Vec::new(),
+            selected_index: 0,
+            filter_extensions: vec!["lbl".to_string()],
+            mode: OpenMode::ViceLabels,
         };
         dialog.refresh_files();
         dialog
@@ -65,10 +85,15 @@ impl OpenDialog {
 impl Widget for OpenDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(
-            " Open File (Space to Open, Backspace to Go Back, Esc to Cancel) ",
-            theme,
-        );
+        let title = match self.mode {
+            OpenMode::ProjectOrFile => {
+                " Open File (Space to Open, Backspace to Go Back, Esc to Cancel) "
+            }
+            OpenMode::ViceLabels => {
+                " Import VICE Labels (Space to Import, Backspace to Go Back, Esc to Cancel) "
+            }
+        };
+        let block = crate::ui::widget::create_dialog_block(title, theme);
 
         let area = crate::utils::centered_rect(60, 50, area);
         ui_state.active_dialog_area = area;
@@ -146,148 +171,178 @@ impl Widget for OpenDialog {
                         ui_state.file_dialog_current_dir = self.current_dir.clone();
                         WidgetResult::Handled
                     } else {
-                        match app_state.load_file(selected_path.clone()) {
-                            Err(e) => {
-                                ui_state.set_status_message(format!("Error loading file: {}", e));
-                                WidgetResult::Handled // Or close? User might want to retry
+                        match self.mode {
+                            OpenMode::ViceLabels => {
+                                match app_state.import_vice_labels(selected_path.clone()) {
+                                    Err(e) => {
+                                        ui_state.set_status_message(format!(
+                                            "Error importing labels: {}",
+                                            e
+                                        ));
+                                        WidgetResult::Handled
+                                    }
+                                    Ok(msg) => {
+                                        ui_state.set_status_message(msg);
+                                        WidgetResult::Close
+                                    }
+                                }
                             }
-                            Ok(loaded_data) => {
-                                ui_state.set_status_message(format!("Loaded: {:?}", selected_path));
-
-                                let loaded_cursor = loaded_data.cursor_address;
-                                let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;
-                                let loaded_sprites_cursor = loaded_data.sprites_cursor_address;
-                                let loaded_right_pane = loaded_data.right_pane_visible;
-                                let loaded_charset_cursor = loaded_data.charset_cursor_address;
-
-                                // Load new modes
-                                ui_state.sprite_multicolor_mode =
-                                    loaded_data.sprite_multicolor_mode;
-                                ui_state.charset_multicolor_mode =
-                                    loaded_data.charset_multicolor_mode;
-                                ui_state.hexdump_view_mode = loaded_data.hexdump_view_mode;
-
-                                if let Some(idx) = loaded_data.blocks_view_cursor {
-                                    ui_state.blocks_list_state.select(Some(idx));
-                                }
-
-                                // Auto-analyze if it's a binary file (not json)
-                                let is_project = selected_path
-                                    .extension()
-                                    .and_then(|e| e.to_str())
-                                    .map(|e| e.eq_ignore_ascii_case("regen2000proj"))
-                                    .unwrap_or(false);
-
-                                if !is_project {
-                                    app_state.perform_analysis();
-                                }
-
-                                // Move cursor
-                                if let Some(cursor_addr) = loaded_cursor {
-                                    if let Some(idx) =
-                                        app_state.get_line_index_for_address(cursor_addr)
-                                    {
-                                        ui_state.cursor_index = idx;
+                            OpenMode::ProjectOrFile => {
+                                match app_state.load_file(selected_path.clone()) {
+                                    Err(e) => {
+                                        ui_state.set_status_message(format!(
+                                            "Error loading file: {}",
+                                            e
+                                        ));
+                                        WidgetResult::Handled // Or close? User might want to retry
                                     }
-                                } else {
-                                    // Default to origin
-                                    if let Some(idx) =
-                                        app_state.get_line_index_for_address(app_state.origin)
-                                    {
-                                        ui_state.cursor_index = idx;
-                                    }
-                                }
+                                    Ok(loaded_data) => {
+                                        ui_state.set_status_message(format!(
+                                            "Loaded: {:?}",
+                                            selected_path
+                                        ));
 
-                                if let Some(sprites_addr) = loaded_sprites_cursor {
-                                    // Calculate index from address
-                                    // Index = (addr - origin - padding) / 64
-                                    let origin = app_state.origin as usize;
-                                    let padding = (64 - (origin % 64)) % 64;
-                                    let addr = sprites_addr as usize;
-                                    if addr >= origin + padding {
-                                        let offset = addr - (origin + padding);
-                                        ui_state.sprites_cursor_index = offset / 64;
-                                    } else {
-                                        ui_state.sprites_cursor_index = 0;
-                                    }
-                                } else {
-                                    ui_state.sprites_cursor_index = 0;
-                                }
+                                        let loaded_cursor = loaded_data.cursor_address;
+                                        let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;
+                                        let loaded_sprites_cursor =
+                                            loaded_data.sprites_cursor_address;
+                                        let loaded_right_pane = loaded_data.right_pane_visible;
+                                        let loaded_charset_cursor =
+                                            loaded_data.charset_cursor_address;
 
-                                if let Some(charset_addr) = loaded_charset_cursor {
-                                    let origin = app_state.origin as usize;
-                                    let base_alignment = 0x400;
-                                    let aligned_start_addr =
-                                        (origin / base_alignment) * base_alignment;
-                                    let addr = charset_addr as usize;
-                                    if addr >= aligned_start_addr {
-                                        let offset = addr - aligned_start_addr;
-                                        ui_state.charset_cursor_index = offset / 8;
-                                    } else {
-                                        ui_state.charset_cursor_index = 0;
-                                    }
-                                } else {
-                                    ui_state.charset_cursor_index = 0;
-                                }
+                                        // Load new modes
+                                        ui_state.sprite_multicolor_mode =
+                                            loaded_data.sprite_multicolor_mode;
+                                        ui_state.charset_multicolor_mode =
+                                            loaded_data.charset_multicolor_mode;
+                                        ui_state.hexdump_view_mode = loaded_data.hexdump_view_mode;
 
-                                if let Some(pane_str) = loaded_right_pane {
-                                    match pane_str.as_str() {
-                                        "HexDump" => {
-                                            ui_state.right_pane =
-                                                crate::ui_state::RightPane::HexDump
+                                        if let Some(idx) = loaded_data.blocks_view_cursor {
+                                            ui_state.blocks_list_state.select(Some(idx));
                                         }
-                                        "Sprites" => {
-                                            ui_state.right_pane =
-                                                crate::ui_state::RightPane::Sprites
+
+                                        // Auto-analyze if it's a binary file (not json)
+                                        let is_project = selected_path
+                                            .extension()
+                                            .and_then(|e| e.to_str())
+                                            .map(|e| e.eq_ignore_ascii_case("regen2000proj"))
+                                            .unwrap_or(false);
+
+                                        if !is_project {
+                                            app_state.perform_analysis();
                                         }
-                                        "Charset" => {
-                                            ui_state.right_pane =
-                                                crate::ui_state::RightPane::Charset
+
+                                        // Move cursor
+                                        if let Some(cursor_addr) = loaded_cursor {
+                                            if let Some(idx) =
+                                                app_state.get_line_index_for_address(cursor_addr)
+                                            {
+                                                ui_state.cursor_index = idx;
+                                            }
+                                        } else {
+                                            // Default to origin
+                                            if let Some(idx) = app_state
+                                                .get_line_index_for_address(app_state.origin)
+                                            {
+                                                ui_state.cursor_index = idx;
+                                            }
                                         }
-                                        "Blocks" => {
-                                            ui_state.right_pane = crate::ui_state::RightPane::Blocks
+
+                                        if let Some(sprites_addr) = loaded_sprites_cursor {
+                                            // Calculate index from address
+                                            // Index = (addr - origin - padding) / 64
+                                            let origin = app_state.origin as usize;
+                                            let padding = (64 - (origin % 64)) % 64;
+                                            let addr = sprites_addr as usize;
+                                            if addr >= origin + padding {
+                                                let offset = addr - (origin + padding);
+                                                ui_state.sprites_cursor_index = offset / 64;
+                                            } else {
+                                                ui_state.sprites_cursor_index = 0;
+                                            }
+                                        } else {
+                                            ui_state.sprites_cursor_index = 0;
                                         }
-                                        "None" => {
-                                            ui_state.right_pane = crate::ui_state::RightPane::None
+
+                                        if let Some(charset_addr) = loaded_charset_cursor {
+                                            let origin = app_state.origin as usize;
+                                            let base_alignment = 0x400;
+                                            let aligned_start_addr =
+                                                (origin / base_alignment) * base_alignment;
+                                            let addr = charset_addr as usize;
+                                            if addr >= aligned_start_addr {
+                                                let offset = addr - aligned_start_addr;
+                                                ui_state.charset_cursor_index = offset / 8;
+                                            } else {
+                                                ui_state.charset_cursor_index = 0;
+                                            }
+                                        } else {
+                                            ui_state.charset_cursor_index = 0;
                                         }
-                                        _ => {}
+
+                                        if let Some(pane_str) = loaded_right_pane {
+                                            match pane_str.as_str() {
+                                                "HexDump" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::HexDump
+                                                }
+                                                "Sprites" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::Sprites
+                                                }
+                                                "Charset" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::Charset
+                                                }
+                                                "Blocks" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::Blocks
+                                                }
+                                                "None" => {
+                                                    ui_state.right_pane =
+                                                        crate::ui_state::RightPane::None
+                                                }
+                                                _ => {}
+                                            }
+                                        }
+
+                                        // Restore Hex Cursor
+                                        if let Some(hex_addr) = loaded_hex_cursor
+                                            && !app_state.raw_data.is_empty()
+                                        {
+                                            let origin = app_state.origin as usize;
+                                            let alignment_padding = origin % 16;
+                                            let aligned_origin = origin - alignment_padding;
+                                            let target = hex_addr as usize;
+
+                                            if target >= aligned_origin {
+                                                let offset = target - aligned_origin;
+                                                let row = offset / 16;
+                                                ui_state.hex_cursor_index = row;
+                                            } else {
+                                                ui_state.hex_cursor_index = 0;
+                                            }
+                                        } else {
+                                            ui_state.hex_cursor_index = 0;
+                                        }
+
+                                        // Validate Hex Cursor Bounds
+                                        if !app_state.raw_data.is_empty() {
+                                            let origin = app_state.origin as usize;
+                                            let alignment_padding = origin % 16;
+                                            let total_len =
+                                                app_state.raw_data.len() + alignment_padding;
+                                            let max_rows = total_len.div_ceil(16);
+                                            if ui_state.hex_cursor_index >= max_rows {
+                                                ui_state.hex_cursor_index = 0;
+                                            }
+                                        } else {
+                                            ui_state.hex_cursor_index = 0;
+                                        }
+
+                                        WidgetResult::Close
                                     }
                                 }
-
-                                // Restore Hex Cursor
-                                if let Some(hex_addr) = loaded_hex_cursor
-                                    && !app_state.raw_data.is_empty()
-                                {
-                                    let origin = app_state.origin as usize;
-                                    let alignment_padding = origin % 16;
-                                    let aligned_origin = origin - alignment_padding;
-                                    let target = hex_addr as usize;
-
-                                    if target >= aligned_origin {
-                                        let offset = target - aligned_origin;
-                                        let row = offset / 16;
-                                        ui_state.hex_cursor_index = row;
-                                    } else {
-                                        ui_state.hex_cursor_index = 0;
-                                    }
-                                } else {
-                                    ui_state.hex_cursor_index = 0;
-                                }
-
-                                // Validate Hex Cursor Bounds
-                                if !app_state.raw_data.is_empty() {
-                                    let origin = app_state.origin as usize;
-                                    let alignment_padding = origin % 16;
-                                    let total_len = app_state.raw_data.len() + alignment_padding;
-                                    let max_rows = total_len.div_ceil(16);
-                                    if ui_state.hex_cursor_index >= max_rows {
-                                        ui_state.hex_cursor_index = 0;
-                                    }
-                                } else {
-                                    ui_state.hex_cursor_index = 0;
-                                }
-
-                                WidgetResult::Close
                             }
                         }
                     }

@@ -48,6 +48,10 @@ pub enum Command {
     ToggleSplitter {
         address: u16,
     },
+    ImportLabels {
+        new_labels: Vec<(u16, crate::state::Label)>,
+        old_labels: BTreeMap<u16, Vec<crate::state::Label>>,
+    },
 }
 
 impl Command {
@@ -145,6 +149,20 @@ impl Command {
             Command::ToggleSplitter { address } => {
                 state.toggle_splitter(*address);
             }
+            Command::ImportLabels {
+                new_labels,
+                old_labels: _,
+            } => {
+                for (addr, label) in new_labels {
+                    let labels = state.labels.entry(*addr).or_default();
+                    if !labels
+                        .iter()
+                        .any(|l| l.name == label.name && l.kind == label.kind)
+                    {
+                        labels.push(label.clone());
+                    }
+                }
+            }
         }
     }
 
@@ -238,6 +256,20 @@ impl Command {
             }
             Command::ToggleSplitter { address } => {
                 state.toggle_splitter(*address);
+            }
+            Command::ImportLabels {
+                new_labels,
+                old_labels,
+            } => {
+                let affected_addrs: std::collections::HashSet<u16> =
+                    new_labels.iter().map(|(a, _)| *a).collect();
+                for addr in affected_addrs {
+                    if let Some(labels) = old_labels.get(&addr) {
+                        state.labels.insert(addr, labels.clone());
+                    } else {
+                        state.labels.remove(&addr);
+                    }
+                }
             }
         }
     }
@@ -499,5 +531,97 @@ mod tests {
         app_state.undo_stack = stack;
 
         assert_eq!(app_state.user_line_comments.get(&address), Some(&comment));
+    }
+
+    #[test]
+    fn test_import_labels_undo_redo() {
+        let mut app_state = AppState::new();
+        // Setup initial state: Label at 0x1000
+        let address = 0x1000;
+        let initial_label = crate::state::Label {
+            name: "Initial".to_string(),
+            kind: crate::state::LabelKind::User,
+            label_type: crate::state::LabelType::UserDefined,
+        };
+        app_state
+            .labels
+            .insert(address, vec![initial_label.clone()]);
+
+        // Action: Import Labels
+        // 1. New label at 0x1000 (should merge if name different)
+        // 2. New label at 0x2000
+        let new_label1 = crate::state::Label {
+            name: "New1".to_string(),
+            kind: crate::state::LabelKind::User,
+            label_type: crate::state::LabelType::UserDefined,
+        };
+        let new_label2 = crate::state::Label {
+            name: "New2".to_string(),
+            kind: crate::state::LabelKind::User,
+            label_type: crate::state::LabelType::UserDefined,
+        };
+
+        let mut new_labels = Vec::new();
+        new_labels.push((0x1000, new_label1.clone()));
+        new_labels.push((0x2000, new_label2.clone()));
+
+        // Capture old state manually (as done in state.rs)
+        let mut old_labels = BTreeMap::new();
+        old_labels.insert(0x1000, vec![initial_label.clone()]);
+        // 0x2000 has no old labels, so do we insert empty vec or nothing?
+        // Logic in state.rs: if !old_labels_map.contains_key, insert current (empty).
+        old_labels.insert(0x2000, Vec::new());
+
+        let command = Command::ImportLabels {
+            new_labels,
+            old_labels,
+        };
+
+        command.apply(&mut app_state);
+        app_state.undo_stack.push(command);
+
+        // Verify application
+        // 0x1000 should have 2 labels
+        let labels_1000 = app_state.labels.get(&0x1000).unwrap();
+        assert_eq!(labels_1000.len(), 2);
+        assert!(labels_1000.iter().any(|l| l.name == "Initial"));
+        assert!(labels_1000.iter().any(|l| l.name == "New1"));
+
+        // 0x2000 should have 1 label
+        let labels_2000 = app_state.labels.get(&0x2000).unwrap();
+        assert_eq!(labels_2000.len(), 1);
+        assert_eq!(labels_2000[0].name, "New2");
+
+        // Undo
+        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        stack.undo(&mut app_state);
+        app_state.undo_stack = stack;
+
+        // Verify Undo
+        // 0x1000 should have 1 label (Initial)
+        let labels_1000 = app_state.labels.get(&0x1000).unwrap();
+        assert_eq!(labels_1000.len(), 1);
+        assert_eq!(labels_1000[0].name, "Initial");
+
+        // 0x2000 should be empty/removed
+        // Note: our logic in undo inserts `Vec::new()` which means key exists but is empty.
+        // OR we can check isEmpty.
+        if let Some(l) = app_state.labels.get(&0x2000) {
+            assert!(l.is_empty());
+        } else {
+            // also fine
+        }
+
+        // Redo
+        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        stack.redo(&mut app_state);
+        app_state.undo_stack = stack;
+
+        // Verify Redo
+        let labels_1000 = app_state.labels.get(&0x1000).unwrap();
+        assert_eq!(labels_1000.len(), 2);
+
+        let labels_2000 = app_state.labels.get(&0x2000).unwrap();
+        assert_eq!(labels_2000.len(), 1);
     }
 }
