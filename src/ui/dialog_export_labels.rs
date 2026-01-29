@@ -16,14 +16,14 @@ pub struct ExportLabelsDialog {
 
 impl Default for ExportLabelsDialog {
     fn default() -> Self {
-        Self::new()
+        Self::new(None)
     }
 }
 
 impl ExportLabelsDialog {
-    pub fn new() -> Self {
+    pub fn new(initial_filename: Option<String>) -> Self {
         Self {
-            input: String::new(),
+            input: initial_filename.unwrap_or_default(),
         }
     }
 }
@@ -75,11 +75,11 @@ impl Widget for ExportLabelsDialog {
             KeyCode::Enter => {
                 let filename = self.input.clone();
                 if !filename.is_empty() {
-                    let mut path = ui_state.file_dialog_current_dir.join(filename);
+                    let mut path = ui_state.file_dialog_current_dir.join(&filename);
                     if path.extension().is_none() {
                         path.set_extension("lbl");
                     }
-                    // We don't save the path to app_state.export_path for labels
+                    app_state.last_export_labels_filename = Some(filename.clone());
                     if let Err(e) = app_state.export_vice_labels(path) {
                         ui_state.set_status_message(format!("Error exporting labels: {}", e));
                         WidgetResult::Handled

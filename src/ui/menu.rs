@@ -857,13 +857,16 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ui_state.active_dialog = Some(Box::new(
                 crate::ui::dialog_open::OpenDialog::new_import_vice_labels(
                     ui_state.file_dialog_current_dir.clone(),
+                    app_state.last_import_labels_path.clone(),
                 ),
             ));
             ui_state.set_status_message("Select a VICE label file to import");
         }
         MenuAction::ExportViceLabels => {
             ui_state.active_dialog = Some(Box::new(
-                crate::ui::dialog_export_labels::ExportLabelsDialog::new(),
+                crate::ui::dialog_export_labels::ExportLabelsDialog::new(
+                    app_state.last_export_labels_filename.clone(),
+                ),
             ));
             ui_state.set_status_message("Enter VICE label filename");
         }

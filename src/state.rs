@@ -387,6 +387,8 @@ pub struct AppState {
     pub excluded_addresses: std::collections::HashSet<u16>,
     pub collapsed_blocks: Vec<(usize, usize)>,
     pub splitters: BTreeSet<u16>,
+    pub last_import_labels_path: Option<PathBuf>,
+    pub last_export_labels_filename: Option<String>,
 }
 
 impl Default for AppState {
@@ -419,6 +421,8 @@ impl AppState {
             excluded_addresses: std::collections::HashSet::new(),
             collapsed_blocks: Vec::new(),
             splitters: BTreeSet::new(),
+            last_import_labels_path: None,
+            last_export_labels_filename: None,
         }
     }
 
@@ -507,6 +511,8 @@ impl AppState {
         self.user_side_comments.clear();
         self.user_line_comments.clear();
         self.immediate_value_formats.clear();
+        self.last_import_labels_path = None;
+        self.last_export_labels_filename = None;
 
         let mut cursor_start = None;
         let hex_cursor_start = None;
@@ -626,6 +632,8 @@ impl AppState {
         self.immediate_value_formats = project.immediate_value_formats;
         self.settings = project.settings;
         self.splitters = project.splitters;
+        self.last_import_labels_path = None;
+        self.last_export_labels_filename = None;
 
         self.load_system_assets();
 

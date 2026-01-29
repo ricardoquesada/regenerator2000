@@ -45,15 +45,31 @@ impl OpenDialog {
         dialog
     }
 
-    pub fn new_import_vice_labels(current_dir: PathBuf) -> Self {
+    pub fn new_import_vice_labels(current_dir: PathBuf, last_path: Option<PathBuf>) -> Self {
         let mut dialog = Self {
-            current_dir,
+            current_dir: if let Some(path) = &last_path {
+                path.parent()
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or(current_dir)
+            } else {
+                current_dir
+            },
             files: Vec::new(),
             selected_index: 0,
             filter_extensions: vec!["lbl".to_string()],
             mode: OpenMode::ViceLabels,
         };
         dialog.refresh_files();
+
+        if let Some(path) = last_path
+            && let Some(filename) = path.file_name()
+            && let Some(pos) = dialog
+                .files
+                .iter()
+                .position(|f| f.file_name() == Some(filename))
+        {
+            dialog.selected_index = pos;
+        }
         dialog
     }
 
@@ -182,6 +198,7 @@ impl Widget for OpenDialog {
                                         WidgetResult::Handled
                                     }
                                     Ok(msg) => {
+                                        app_state.last_import_labels_path = Some(selected_path);
                                         ui_state.set_status_message(msg);
                                         WidgetResult::Close
                                     }
