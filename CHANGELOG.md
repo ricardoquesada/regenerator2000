@@ -5,16 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-??-??
+## [0.6.0] - 2026-01-30
+
+### Features
+
+- Feature: Support for LoHi and HiLo word block type. Keyboard shortcuts 'T' and 'Shift+T'.
+- Feature: Export VICE labels to `.lbl` format (File -> Export -> Export VICE Labels)
+- Feature: Import VICE labels from `.lbl` files (--import_lbl command line option)
+- Feature: Go to Symbol dialog (Ctrl+P) - navigate to labels by name
+- Feature: File dialogs remember last used paths
+  - Export As remembers last used filename
+  - Save/Export/Import remember last used folders
+- Feature: Status bar shows filename for Save, Export, Import, and Open operations
+- Feature: File dialogs include file extensions in the dialog
+- Feature: Alt+F keyboard shortcut to open File menu
+- Feature: Alt+H keyboard shortcut to open Help menu
+- Feature: Keyboard shortcuts for Edit Menu and Search Menu
+
+### Changes
+
+- The keyboard shortcut for PETSCII Text changed from 'T' to 'P'.
+
+### Fixes
+
+- Fix: Splitter and collapsed blocks work correctly together
+- Fix: Arrow visualization improvements - fixed passthrough arrows, eliminated "ghost" arrows
+- Fix: Keyboard shortcuts requiring Shift key now work correctly on Windows
+- Fix: Find References dialog only enabled when focus is on Disassembly view
+
+### Documentation
+
+- Docs: Initial MkDocs integration with ReadTheDocs hosting
+- Docs: Architecture documentation updated with all current components
+- Docs: Architecture diagram converted to Mermaid format
+- Docs: Improved ca65 assembler documentation
+- Docs: Added Settings dialog documentation
+- Docs: Keyboard shortcuts now use pymdownx.keys extensions for better formatting
+- Docs: Added FAQ and Views documentation
+- Docs: Added logo and favicon for documentation site
+
+### Settings
+
+- Settings: Changed default for sync views (disabled by default)
+
+### Examples
+
+- Examples: Updated example projects with improved annotations
 
 ## [0.5.2] - 2026-01-26
 
 ### Fixes
+
 - Fix: cargo fmt fixes
 
 ## [0.5.1] - 2026-01-26
 
 ### Features
+
 - Feature: Mouse support
   - Click on menu expands submenu
   - Close dialogs with mouse
@@ -27,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Feature: Better navigation in Keyboard Shortcut dialog (Page Up, Page Down, Ctrl+D, Ctrl+U)
 
 ### Fixes
+
 - Fix: Jump to address works correctly when address has associated lines and subindex
 - Fix: Search lands in correct subline
 - Fix: Crash when setting block type on empty range
@@ -34,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix: Close About dialog faster with mouse
 
 ### Refactor
+
 - Refactor: Renamed `comment_address` to `external_label_address`
 - Refactor: Reduced duplicate code between disassembler.rs and view_disassembly.rs
 - Refactor: Move logic whether opcode should have arrows to cpu.rs
