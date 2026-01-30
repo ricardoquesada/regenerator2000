@@ -355,14 +355,14 @@ impl MenuState {
                         MenuItem::new("Address", Some("A"), Some(MenuAction::Address)),
                         MenuItem::new("Lo/Hi Address", Some("<"), Some(MenuAction::SetLoHiAddress)),
                         MenuItem::new("Hi/Lo Address", Some(">"), Some(MenuAction::SetHiLoAddress)),
-                        MenuItem::new("Lo/Hi Word", Some("t"), Some(MenuAction::SetLoHiWord)),
-                        MenuItem::new("Hi/Lo Word", Some("T"), Some(MenuAction::SetHiLoWord)),
+                        MenuItem::new("Lo/Hi Word", Some("T"), Some(MenuAction::SetLoHiWord)),
+                        MenuItem::new("Hi/Lo Word", Some("Shift+T"), Some(MenuAction::SetHiLoWord)),
                         MenuItem::new(
                             "External File",
-                            Some("e"),
+                            Some("E"),
                             Some(MenuAction::SetExternalFile),
                         ),
-                        MenuItem::new("PETSCII Text", Some("p"), Some(MenuAction::PetsciiText)),
+                        MenuItem::new("PETSCII Text", Some("P"), Some(MenuAction::PetsciiText)),
                         MenuItem::new(
                             "Screencode Text",
                             Some("S"),
@@ -372,7 +372,7 @@ impl MenuState {
                         MenuItem::separator(),
                         MenuItem::new(
                             "Next Imm. Mode Format",
-                            Some("d"),
+                            Some("D"),
                             Some(MenuAction::NextImmediateFormat),
                         ),
                         MenuItem::new(
@@ -393,7 +393,7 @@ impl MenuState {
                             Some("Shift+;"),
                             Some(MenuAction::LineComment),
                         ),
-                        MenuItem::new("Set Label", Some("l"), Some(MenuAction::SetLabel)),
+                        MenuItem::new("Set Label", Some("L"), Some(MenuAction::SetLabel)),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Toggle Collapsed Block",
@@ -455,7 +455,7 @@ impl MenuState {
                     items: vec![
                         MenuItem::new(
                             "Next Hex Dump Mode",
-                            Some("m"),
+                            Some("M"),
                             Some(MenuAction::HexdumpViewModeNext),
                         ),
                         MenuItem::new(
@@ -465,17 +465,17 @@ impl MenuState {
                         ),
                         MenuItem::new(
                             "Toggle Multicolor Sprites",
-                            Some("m"),
+                            Some("M"),
                             Some(MenuAction::ToggleSpriteMulticolor),
                         ),
                         MenuItem::new(
                             "Toggle Multicolor Bitmap",
-                            Some("m"),
+                            Some("M"),
                             Some(MenuAction::ToggleBitmapMulticolor),
                         ),
                         MenuItem::new(
                             "Toggle Multicolor Charset",
-                            Some("m"),
+                            Some("M"),
                             Some(MenuAction::ToggleCharsetMulticolor),
                         ),
                         MenuItem::separator(),
@@ -632,6 +632,9 @@ impl MenuState {
                             }
                             MenuAction::ToggleCharsetMulticolor => {
                                 item.disabled = active_pane != ActivePane::Charset;
+                            }
+                            MenuAction::ToggleBitmapMulticolor => {
+                                item.disabled = active_pane != ActivePane::Bitmap;
                             }
                             MenuAction::SetLabel | MenuAction::FindReferences => {
                                 item.disabled = active_pane != ActivePane::Disassembly;
