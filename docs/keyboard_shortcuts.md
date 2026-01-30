@@ -4,7 +4,7 @@ Some actions can be triggered with more than one keyboard combination. This is i
 across Windows, macOS, and Linux, and different terminal emulators.
 
 | Context                                         | Action                                                | Shortcut                                                      |
-|:------------------------------------------------|:------------------------------------------------------|:--------------------------------------------------------------|
+| :---------------------------------------------- | :---------------------------------------------------- | :------------------------------------------------------------ |
 | **Global**                                      | **Activate Menu**                                     | ++f10++                                                       |
 |                                                 | **Exit**                                              | ++ctrl+q++                                                    |
 |                                                 | **Open File**                                         | ++ctrl+o++                                                    |

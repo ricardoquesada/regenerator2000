@@ -17,7 +17,6 @@ Regenerator 2000 is a modern 6502 disassembler, TUI-based, with a Turbo Debugger
 - **Shortcuts**: Keyboard shortcuts for common actions.
 - **Settings**: System settings and document settings.
 
-
 ## Getting Started
 
 - [Installation & Usage](install.md): Learn how to install and use Regenerator 2000.

@@ -10,6 +10,7 @@ This page lists the supported assemblers and the typical commands used to assemb
 - **Website**: [https://sourceforge.net/projects/tass64/](https://sourceforge.net/projects/tass64/)
 
 ### Command Line
+
 To assemble a file generated for 64tass:
 
 ```bash
@@ -25,6 +26,7 @@ To assemble a file generated for 64tass:
 - **Website**: [https://sourceforge.net/projects/acme-crossass/](https://sourceforge.net/projects/acme-crossass/)
 
 ### Command Line
+
 To assemble a file generated for ACME:
 
 ```bash
@@ -41,6 +43,7 @@ acme -f cbm -o output.prg input.asm
 - **Website**: [http://www.kickassembler.com/](http://www.kickassembler.com/)
 
 ### Command Line
+
 To assemble a file generated for KickAssembler:
 
 ```bash
@@ -56,6 +59,7 @@ KickAssembler automatically produces a `.prg` file by default.
 - **Website**: [https://cc65.github.io/](https://cc65.github.io/)
 
 ### Command Line
+
 Regenerator 2000 generates a single assembly file that can be assembled and linked in one step using the `cl65` utility (included with cc65).
 
 ```bash
@@ -95,7 +99,7 @@ SEGMENTS {
 
 If you are disassembling a file that has another origin, you will need to create your own config file.
 Just copy-paste the `c64-asm.cfg`, and make the needed changes. See ld65 "Configuration Files" section
- in the [cc65 documentation][cc65-docs].
+in the [cc65 documentation][cc65-docs].
 
 [c64-asm.cfg]: https://github.com/cc65/cc65/blob/master/cfg/c64-asm.cfg
 [cc65-docs]: https://cc65.github.io/doc/ld65.html#s5

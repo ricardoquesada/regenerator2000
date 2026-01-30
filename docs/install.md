@@ -31,25 +31,27 @@ regenerator2000 [OPTIONS] [FILE]
 
 ### Supported file formats
 
-* `.prg`: the common Commodore 8-bit program, where the first two bytes indicates the start address.
-* `.crt`: Commodore 64 cartridge files. It parses the CHIP packets and maps them into memory.
-* `.t64`: Commodore 64 tape image files. It extracts the first program found in the container.
-* `.vsf`: VICE snapshot files. It extracts the 64KB RAM and uses the Program Counter (PC) as the start address.
-* `.bin` and `.raw`: pure binary files. Requires that the user sets the origin manually. Menu -> Edit -> Change Origin
-* `.regen2000proj`: Regenerator 2000 project file
+- `.prg`: the common Commodore 8-bit program, where the first two bytes indicates the start address.
+- `.crt`: Commodore 64 cartridge files. It parses the CHIP packets and maps them into memory.
+- `.t64`: Commodore 64 tape image files. It extracts the first program found in the container.
+- `.vsf`: VICE snapshot files. It extracts the 64KB RAM and uses the Program Counter (PC) as the start address.
+- `.bin` and `.raw`: pure binary files. Requires that the user sets the origin manually. Menu -> Edit -> Change Origin
+- `.regen2000proj`: Regenerator 2000 project file
 
 ### Supported options
 
-* `--help`: Displays the help message listing all available options and supported file types.
-* `--version`: Displays the current version of Regenerator 2000.
+- `--help`: Displays the help message listing all available options and supported file types.
+- `--version`: Displays the current version of Regenerator 2000.
 
 ### Recommended Terminals
 
-To ensure the best experience, especially regarding keyboard shortcuts and rendering, we recommend using a modern
-terminal.
+!!! Note
+
+    To ensure the best experience, especially regarding keyboard shortcuts and rendering, we recommend using a modern
+    terminal.
 
 | Platform    | Recommended Terminals                                                                                                                |
-|:------------|:-------------------------------------------------------------------------------------------------------------------------------------|
+| :---------- | :----------------------------------------------------------------------------------------------------------------------------------- |
 | **Windows** | [Windows Terminal][windows_terminal_url], [Alacritty][alacritty_url], [WezTerm][wezterm_url]                                         |
 | **macOS**   | [iTerm2][iterm2_url], [Ghostty][ghostty_url], [Alacritty][alacritty_url], [kitty][kitty_url], [WezTerm][wezterm_url]                 |
 | **Linux**   | [Ghostty][ghostty_url], [Alacritty][alacritty_url], [kitty][kitty_url], [WezTerm][wezterm_url], [GNOME Terminal][gnome_terminal_url] |
@@ -61,4 +63,3 @@ terminal.
 [kitty_url]: https://sw.kovidgoyal.net/kitty/
 [wezterm_url]: https://wezfurlong.org/wezterm/
 [windows_terminal_url]: https://github.com/microsoft/terminal
-

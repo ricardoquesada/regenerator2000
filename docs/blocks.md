@@ -12,13 +12,13 @@ The available Block Types are:
 - **Description**: Interprets the bytes as MOS 6502/6510 instructions.
 - **Use Case**: Use this for all executable machine code.
 
-Example:
+!!! example
 
-```asm
+    ```asm
     ; Code blocks are represented as code
     lda #$00
     sta aD020
-```
+    ```
 
 ## 2. Data Byte
 
@@ -27,12 +27,12 @@ Example:
 - **Use Case**: sprite data, distinct variables, tables, memory regions where the data format is
   unknown, etc.
 
-Example:
+!!! example
 
-```asm
+    ```asm
     ; Byte blocks are represented as bytes
     .byte $80, $40, $a2, $ff
-```
+    ```
 
 ## 3. Data Word
 
@@ -40,12 +40,12 @@ Example:
 - **Description**: Represents data as 16-bit Little-Endian values.
 - **Use Case**: Use for 16-bit counters, pointers (that shouldn't be analyzed as code references), or math constants.
 
-Example:
+!!! example
 
-```asm
+    ```asm
     ; Word blocks are represented as words
     .word $1234, $ffaa, $5678, $0000, $abcd
-```
+    ```
 
 ## 4. Address
 
@@ -55,12 +55,12 @@ Example:
 - **Use Case**: Essential for **Jump Tables**. When you mark a table as "Address", Regenerator 2000 will create
   Cross-References (X-Refs) to the target locations, allowing you to see where indirect jumps land.
 
-Example:
+!!! example
 
-```asm
-  ; Addresss blocks represented as words, that generates an address reference
-  .word a1234, aFFAA, a5678, a0000, aABCD
-```
+    ```asm
+    ; Addresss blocks represented as words, that generates an address reference
+    .word a1234, aFFAA, a5678, a0000, aABCD
+    ```
 
 ## 5. PETSCII Text
 
@@ -69,14 +69,14 @@ Example:
 - **Use Case**: Use for game messages, high score names, or print routines. The disassembler will try to group
   contiguous characters into a single string.
 
-Example:
+!!! example
 
-```asm
-  .encode
-  .enc "none"
-  .text "hello world"
-  .endencode
-```
+    ```asm
+    .encode
+    .enc "none"
+    .text "hello world"
+    .endencode
+    ```
 
 ## 6. Screencode Text
 
@@ -85,14 +85,14 @@ Example:
 - **Use Case**: Use for data that is directly copied to Screen RAM ($0400). These values differ from standard PETSCII
   (e.g., 'A' is 1, not 65).
 
-Example:
+!!! example
 
-```asm
-  .encode
-  .enc "screen"
-  .text "hello world"
-  .endencode
-```
+    ```asm
+    .encode
+    .enc "screen"
+    .text "hello world"
+    .endencode
+    ```
 
 ## 7. Lo/Hi Address
 
@@ -102,15 +102,15 @@ Example:
 - **Use Case**: C64 games often split address tables into two arrays (one for Low bytes, one for High bytes) for faster
   indexing with `LDA $xxxx,X`. Mark the Low byte table with this type.
 
-  Example:
+!!! example
 
-```asm
-  ; Assume that you have these bytes:
-  ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
-  ; They will be represented as:
-  .byte <aC000, <aD101, <aE202, <aF303
-  .byte >aC000, >aD101, >aE202, >aF303
-```
+    ```asm
+    ; Assume that you have these bytes:
+    ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+    ; They will be represented as:
+    .byte <aC000, <aD101, <aE202, <aF303
+    .byte >aC000, >aD101, >aE202, >aF303
+    ```
 
 ## 8. Hi/Lo Address
 
@@ -120,15 +120,15 @@ Example:
 - **Use Case**: C64 games often split address tables into two arrays (one for Low bytes, one for High bytes) for faster
   indexing with `LDA $xxxx,X`. Mark the Low byte table with this type.
 
-  Example:
+!!! example
 
-```asm
-  ; Assume that you have these bytes:
-  ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
-  ; They will be represented as:
-  .byte >a00C0, >a01D1, >a02E2, >a03F3
-  .byte <a00C0, <a01D1, <a02E2, <a03F3
-```
+    ```asm
+    ; Assume that you have these bytes:
+    ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+    ; They will be represented as:
+    .byte >a00C0, >a01D1, >a02E2, >a03F3
+    .byte <a00C0, <a01D1, <a02E2, <a03F3
+    ```
 
 ## 9. External File
 
@@ -137,15 +137,15 @@ Example:
 - **Use Case**: Use for large chunks of included binary data (like music SID files, raw bitmaps, or character sets) that
   you don't want to clutter the main source file. These will be exported as `.binary "filename.bin"` includes.
 
-Example:
+!!! example
 
-```asm
-  ; Assume that you have these bytes at address $1000
-  ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
-  ; A binary file called "export-$1000-$1007.bin" will be generated
-  ; And this code will be generated
-  .binary "export-$1000-$1007.bin"
-```
+    ```asm
+    ; Assume that you have these bytes at address $1000
+    ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+    ; A binary file called "export-$1000-$1007.bin" will be generated
+    ; And this code will be generated
+    .binary "export-$1000-$1007.bin"
+    ```
 
 ## 10. Undefined
 
@@ -154,14 +154,14 @@ Example:
 - **Use Case**: Use this if you made a mistake and want the Auto-Analyzer to take a fresh look at the usage of this
   region.
 
-Example:
+!!! example
 
-```asm
-  ; Undefined blocks are represented as single bytes, one byte per line.
-  .byte $00
-  .byte $ca
-  .byte $ff
-```
+    ```asm
+    ; Undefined blocks are represented as single bytes, one byte per line.
+    .byte $00
+    .byte $ca
+    .byte $ff
+    ```
 
 # Organization Tools
 
@@ -180,4 +180,3 @@ Beyond data types, you can organize your view using Splitters and Collapsing:
 - **Description**: Hides or shows the content of a block, showing only a summary line (e.g., "; ... 256 bytes ...").
 - **Use Case**: Use this to hide large tables, long text strings, or finished subroutines to keep your workspace clean
   and focus on the code you are currently analyzing.
-
