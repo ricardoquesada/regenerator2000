@@ -4,51 +4,31 @@ Regenerator 2000 is an interactive disassembler for the Commodore 64, written in
 
 ## High-Level Overview
 
-```text
-      +------------+
-      | User Input |
-      +-----+------+
-            | Keys/Mouse
-            v
-      +-----+------+
-      | Event Loop |
-      +-----+------+
-            | Dispatch to Widget
-            v
-    +-------+--------+
-    | Active Widget  |
-    | (View/Dialog)  |
-    +-------+--------+
-            | Results in Action/Command
-            v
-    +-------+--------+
-    | Command System |
-    +-------+--------+
-            | Apply/Undo
-            v
-    +-------+--------+ <..................................
-    |   Application  |                                   :
-    |      State     | -------------------+              :
-    +-------+--------+       Triggers     |              :
-            |                             |              :
-            | Requests                    v              :
-            |                     +-------+-------+      :
-            v                     | Code Analyzer |      :
-    +-------+--------+            +-------+-------+      :
-    |  Disassembly   |                    | Updates      :
-    |     Engine     |                    v              :
-    +-------+--------+            +-------+-------+      :
-            | Generates           |  Auto Labels  | .....:
-            v                     +---------------+
-    +-------+--------+
-    |  Disassembly   |
-    |     Lines      |
-    +-------+--------+
-            | Render
-            v
-    +-------+--------+      +-------+--------+
-    |  TUI Renderer  | <--- |    UI State    |
-    +----------------+      +----------------+
+```mermaid
+flowchart TD
+    Input[User Input<br/>Keys/Mouse]
+    EventLoop[Event Loop]
+    Widget[Active Widget<br/>View/Dialog]
+    CommandSys[Command System]
+    AppState[Application State]
+    Analyzer[Code Analyzer]
+    Labels[Auto Labels]
+    DisasmEngine[Disassembly Engine]
+    DisasmLines[Disassembly Lines]
+    Renderer[TUI Renderer]
+    UIState[UI State]
+
+    Input -->|Dispatch to Widget| EventLoop
+    EventLoop --> Widget
+    Widget -->|Results in Action/Command| CommandSys
+    CommandSys -->|Apply/Undo| AppState
+    AppState -->|Requests| DisasmEngine
+    AppState -->|Triggers| Analyzer
+    Analyzer -->|Updates| Labels
+    Labels -.->|Modifies| AppState
+    DisasmEngine -->|Generates| DisasmLines
+    DisasmLines -->|Render| Renderer
+    UIState -->|Provides State| Renderer
 ```
 
 ## Core Components
