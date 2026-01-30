@@ -110,13 +110,12 @@ Supported file formats: `.prg`, `.crt`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.re
 
 ## Keyboard Shortcuts
 
-All the keyboad shortcuts are documented here: [keyboard_shorcuts.md](docs/keyboard_shortcuts.md)
+All the keyboad shortcuts are documented here: [keyboard_shorcuts](https://regenerator2000.readthedocs.io/en/latest/keyboard_shortcuts/)
 
 
 ## Support and Documentation
 
-- [User Guide](docs/user_guide.md)
-- [Architecture](docs/architecture.md)
+- [Documentation](http://regenerator2000.readthedocs.io/)
 - [Support in Discord][discord] (join the #regenerator2000 channel, under "Misc Projects")
 
 [discord]: https://discord.gg/r5aMn6Cw5q

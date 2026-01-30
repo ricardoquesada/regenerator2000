@@ -17,6 +17,36 @@ across Windows, macOS, and Linux, and different terminal emulators.
 |                                                 | **Undo**                                              | ++u++                                                         |
 |                                                 | **Redo**                                              | ++ctrl+r++                                                    |
 |                                                 | **Switch Pane (betweeen Disasm and right pane)**      | ++tab++                                                       |
+| **Editing (Disassembly)**                       | **Convert to Code**                                   | ++c++                                                         |
+|                                                 | **Convert to Byte**                                   | ++b++                                                         |
+|                                                 | **Convert to Word**                                   | ++w++                                                         |
+|                                                 | **Convert to Address**                                | ++a++                                                         |
+|                                                 | **Set Lo/Hi Word Table**                              | ++t++                                                         |
+|                                                 | **Set Hi/Lo Word Table**                              | ++shift+t++                                                   |
+|                                                 | **Set Lo/Hi Address Table**                           | ++less-than++                                                 |
+|                                                 | **Set Hi/Lo Address Table**                           | ++greater-than++                                              |
+|                                                 | **Convert to PETSCII Text**                           | ++p++                                                         |
+|                                                 | **Convert to Screencode Text**                        | ++s++                                                         |
+|                                                 | **Convert to Undefined**                              | ++question-mark++                                             |
+|                                                 | **Next/Prev Immediate Mode Format**                   | ++d++ / ++shift+d++                                           |
+|                                                 | **Set Label**                                         | ++l++                                                         |
+|                                                 | **Add Side Comment**                                  | ++semicolon++                                                 |
+|                                                 | **Add Line Comment**                                  | ++colon++                                                     |
+|                                                 | **Toggle Collapsed Block**                            | ++ctrl+k++                                                    |
+|                                                 | **Toggle Splitter**                                   | ++pipe++                                                      |
+|                                                 | **Analyze**                                           | ++ctrl+a++                                                    |
+| **Editing (HexDump, Sprites, Charset, Bitmap)** | **Convert to Byte**                                   | ++b++                                                         |
+| **View**                                        | **Next / Prev Hex Text Mode** (only in Hex Dump View) | ++m++ / ++shift+m++                                           |
+|                                                 | **Toggle Multicolor Sprites** (only in Sprites View)  | ++m++                                                         |
+|                                                 | **Toggle Multicolor Charset** (only in Charset View)  | ++m++                                                         |
+|                                                 | **Toggle Bitmap Charset** (only in Bitmap View)       | ++m++                                                         |
+|                                                 | **Toggle Hex Dump View**                              | ++alt+2++ or ++ctrl+2++                                       |
+|                                                 | **Toggle Sprites View**                               | ++alt+3++ or ++ctrl+3++                                       |
+|                                                 | **Toggle Charset View**                               | ++alt+4++ or ++ctrl+4++                                       |
+|                                                 | **Toggle Blocks View**                                | ++alt+5++ or ++ctrl+5++                                       |
+| **Menus**                                       | **Navigate Menu**                                     | ++arrow-up++, ++arrow-down++, ++arrow-left++, ++arrow-right++ |
+|                                                 | **Select Item**                                       | ++enter++                                                     |
+|                                                 | **Close Menu**                                        | ++escape++                                                    |
 | **Navigation**                                  | **Move Cursor**                                       | ++up++ / ++down++ / ++j++ / ++k++                             |
 |                                                 | **Page Up/Down**                                      | ++page-up++ / ++page-down++                                   |
 |                                                 | **Home/End**                                          | ++home++ / ++end++                                            |
@@ -36,31 +66,3 @@ across Windows, macOS, and Linux, and different terminal emulators.
 | **Selection**                                   | **Toggle Visual Mode**                                | ++shift+v++                                                   |
 |                                                 | **Select Text**                                       | ++shift+up++ / ++down++ / Visual Mode + ++j++ / ++k++         |
 |                                                 | **Clear Selection**                                   | ++escape++                                                    |
-| **Editing (Disassembly)**                       | **Set Label**                                         | ++l++                                                         |
-|                                                 | **Add Side Comment**                                  | ++semicolon++                                                 |
-|                                                 | **Add Line Comment**                                  | ++colon++                                                     |
-|                                                 | **Convert to Code**                                   | ++c++                                                         |
-|                                                 | **Convert to Byte**                                   | ++b++                                                         |
-|                                                 | **Convert to Word**                                   | ++w++                                                         |
-|                                                 | **Convert to Address**                                | ++a++                                                         |
-|                                                 | **Convert to PETSCII Text**                           | ++t++                                                         |
-|                                                 | **Convert to Screencode Text**                        | ++s++                                                         |
-|                                                 | **Convert to Undefined**                              | ++question-mark++                                             |
-|                                                 | **Next/Prev Immediate Mode Format**                   | ++d++ / ++shift+d++                                           |
-|                                                 | **Set Lo/Hi Address**                                 | ++less-than++                                                 |
-|                                                 | **Set Hi/Lo Address**                                 | ++greater-than++                                              |
-|                                                 | **Toggle Collapsed Block**                            | ++ctrl+k++                                                    |
-|                                                 | **Toggle Splitter**                                   | ++pipe++                                                      |
-|                                                 | **Analyze**                                           | ++ctrl+a++                                                    |
-| **Editing (HexDump, Sprites, Charset, Bitmap)** | **Convert to Byte**                                   | ++b++                                                         |
-| **View**                                        | **Next / Prev Hex Text Mode** (only in Hex Dump View) | ++m++ / ++shift+m++                                           |
-|                                                 | **Toggle Multicolor Sprites** (only in Sprites View)  | ++m++                                                         |
-|                                                 | **Toggle Multicolor Charset** (only in Charset View)  | ++m++                                                         |
-|                                                 | **Toggle Bitmap Charset** (only in Bitmap View)       | ++m++                                                         |
-|                                                 | **Toggle Hex Dump View**                              | ++alt+2++ or ++ctrl+2++                                       |
-|                                                 | **Toggle Sprites View**                               | ++alt+3++ or ++ctrl+3++                                       |
-|                                                 | **Toggle Charset View**                               | ++alt+4++ or ++ctrl+4++                                       |
-|                                                 | **Toggle Blocks View**                                | ++alt+5++ or ++ctrl+5++                                       |
-| **Menus**                                       | **Navigate Menu**                                     | ++arrow-up++, ++arrow-down++, ++arrow-left++, ++arrow-right++ |
-|                                                 | **Select Item**                                       | ++enter++                                                     |
-|                                                 | **Close Menu**                                        | ++escape++                                                    |
