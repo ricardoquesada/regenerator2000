@@ -160,11 +160,17 @@ pub enum BlockType {
     Code,
     DataByte,
     DataWord,
-    Address, // Reference to an address
-    Text,
-    Screencode,
-    LoHi,
-    HiLo,
+    Address,
+    #[serde(alias = "Text")]
+    PetsciiText,
+    #[serde(alias = "Screencode")]
+    ScreencodeText,
+    #[serde(alias = "LoHi")]
+    LoHiAddress,
+    #[serde(alias = "HiLo")]
+    HiLoAddress,
+    LoHiWord,
+    HiLoWord,
     ExternalFile,
     Undefined,
 }
@@ -176,10 +182,12 @@ impl std::fmt::Display for BlockType {
             BlockType::DataByte => write!(f, "Byte"),
             BlockType::DataWord => write!(f, "Word"),
             BlockType::Address => write!(f, "Address"),
-            BlockType::Text => write!(f, "Text"),
-            BlockType::Screencode => write!(f, "Screencode"),
-            BlockType::LoHi => write!(f, "Lo/Hi"),
-            BlockType::HiLo => write!(f, "Hi/Lo"),
+            BlockType::PetsciiText => write!(f, "PETSCII Text"),
+            BlockType::ScreencodeText => write!(f, "Screencode Text"),
+            BlockType::LoHiAddress => write!(f, "Lo/Hi Address"),
+            BlockType::HiLoAddress => write!(f, "Hi/Lo Address"),
+            BlockType::LoHiWord => write!(f, "Lo/Hi Word"),
+            BlockType::HiLoWord => write!(f, "Hi/Lo Word"),
             BlockType::ExternalFile => write!(f, "External File"),
             BlockType::Undefined => write!(f, "Undefined"),
         }
@@ -1917,7 +1925,7 @@ mod analysis_tests {
         // Selection is indices of DISASSEMBLY LINES.
         // DataByte grouping put all 4 bytes on ONE line (line 0).
         // So we select line 0 to 0.
-        app_state.set_block_type_region(BlockType::LoHi, Some(0), 0);
+        app_state.set_block_type_region(BlockType::LoHiAddress, Some(0), 0);
 
         // Verify Label $0000 (Internal)
         let l1 = app_state.labels.get(&0x0000);

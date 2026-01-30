@@ -143,7 +143,7 @@
     {
       "start": 3583,
       "end": 3743,
-      "type_": "Screencode",
+      "type_": "ScreencodeText",
       "collapsed": false
     },
     {
@@ -251,7 +251,7 @@
     {
       "start": 6121,
       "end": 6142,
-      "type_": "Screencode",
+      "type_": "ScreencodeText",
       "collapsed": false
     },
     {
@@ -263,7 +263,7 @@
     {
       "start": 7167,
       "end": 10224,
-      "type_": "Screencode",
+      "type_": "ScreencodeText",
       "collapsed": false
     },
     {
@@ -557,7 +557,7 @@
     {
       "start": 18671,
       "end": 18678,
-      "type_": "Screencode",
+      "type_": "ScreencodeText",
       "collapsed": false
     },
     {
@@ -593,7 +593,7 @@
     {
       "start": 19023,
       "end": 19054,
-      "type_": "DataByte",
+      "type_": "LoHiWord",
       "collapsed": false
     },
     {
@@ -683,7 +683,7 @@
     {
       "start": 20335,
       "end": 20388,
-      "type_": "Screencode",
+      "type_": "ScreencodeText",
       "collapsed": false
     },
     {
@@ -920,18 +920,18 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 6144,
+  "cursor_address": 21098,
   "hex_dump_cursor_address": 5600,
-  "sprites_cursor_address": 13120,
+  "sprites_cursor_address": 13248,
   "charset_cursor_address": 8192,
   "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
     22528
   ],
-  "blocks_view_cursor": 32
+  "blocks_view_cursor": 98
 }

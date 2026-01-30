@@ -64,7 +64,7 @@ The available Block Types are:
 
 ## 5. PETSCII Text
 
-- **Shortcut**: ++t++
+- **Shortcut**: ++x++
 - **Description**: Interprets bytes as PETSCII text sequences.
 - **Use Case**: Use for game messages, high score names, or print routines. The disassembler will try to group
   contiguous characters into a single string.
@@ -94,13 +94,12 @@ The available Block Types are:
     .endencode
     ```
 
-## 7. Lo/Hi Address
+## 7. Lo/Hi Address Table
 
 - **Shortcut**: ++less-than++
 - **Description**: Marks the selected bytes as the **Low / High** address table. Must have an even number of bytes.
   The first half will be the lo addresses, the second half will be the hi addresses.
-- **Use Case**: C64 games often split address tables into two arrays (one for Low bytes, one for High bytes) for faster
-  indexing with `LDA $xxxx,X`. Mark the Low byte table with this type.
+- **Use Case**: C64 games often split address tables into two arrays (one for Low bytes, one for High bytes).
 
 !!! example
 
@@ -112,13 +111,12 @@ The available Block Types are:
     .byte >aC000, >aD101, >aE202, >aF303
     ```
 
-## 8. Hi/Lo Address
+## 8. Hi/Lo Address Table
 
 - **Shortcut**: ++greater-than++
 - **Description**: Marks the selected bytes as the **High / Low** address table. Must have an even number of bytes.
   The first half will be the hi addresses, the second half will be the lo addresses.
-- **Use Case**: C64 games often split address tables into two arrays (one for Low bytes, one for High bytes) for faster
-  indexing with `LDA $xxxx,X`. Mark the Low byte table with this type.
+- **Use Case**: C64 games often split address tables into two arrays (one for Low bytes, one for High bytes).
 
 !!! example
 
@@ -130,7 +128,41 @@ The available Block Types are:
     .byte <a00C0, <a01D1, <a02E2, <a03F3
     ```
 
-## 9. External File
+## 9. Lo/Hi Word Table
+
+- **Shortcut**: ++t++
+- **Description**: Marks the selected bytes as the **Low / High** word table. Must have a size divisible by 4.
+  The first half will be the lo words, the second half will be the hi words.
+- **Use Case**: The C64 SID frequency table.
+
+!!! example
+
+    ```asm
+    ; Assume that you have these bytes:
+    ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+    ; They will be represented as:
+    .byte <$C000, <$D101, <$E202, <$F303
+    .byte >$C000, >$D101, >$E202, >$F303
+    ```
+
+## 10. Hi/Lo Word Table
+
+- **Shortcut**: ++shift+t++
+- **Description**: Marks the selected bytes as the **High / Low** word table. Must have a size divisible by 4.
+  The first half will be the hi words, the second half will be the lo words.
+- **Use Case**: The C64 SID frequency table.
+
+!!! example
+
+    ```asm
+    ; Assume that you have these bytes:
+    ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+    ; They will be represented as:
+    .byte >$00C0, >$01D1, >$02E2, >$03F3
+    .byte <$00C0, <$01D1, <$02E2, <$03F3
+    ```
+
+## 11. External File
 
 - **Shortcut**: ++e++
 - **Description**: Treats the selected region as external binary data.
@@ -147,7 +179,7 @@ The available Block Types are:
     .binary "export-$1000-$1007.bin"
     ```
 
-## 10. Undefined
+## 12. Undefined
 
 - **Shortcut**: ++question-mark++
 - **Description**: Resets the block to an "Unknown" state.
@@ -163,18 +195,18 @@ The available Block Types are:
     .byte $ff
     ```
 
-# Organization Tools
+## Organization Tools
 
 Beyond data types, you can organize your view using Splitters and Collapsing:
 
-## Splitters
+### Splitters
 
 - **Shortcut**: ++pipe++
 - **Description**: Inserts a visual separator (newline) in the disassembly view without affecting the binary.
 - **Use Case**: Use this to visually separate logic blocks, subroutines, or data tables that are contiguous in memory
   but logically distinct.
 
-## Collapsing Blocks
+### Collapsing Blocks
 
 - **Collapse/Uncollapse**: ++ctrl+k++
 - **Description**: Hides or shows the content of a block, showing only a summary line (e.g., "; ... 256 bytes ...").

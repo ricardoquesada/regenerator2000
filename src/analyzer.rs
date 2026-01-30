@@ -94,11 +94,11 @@ pub fn analyze(
                 }
             } else if current_type == BlockType::DataWord {
                 pc += 2;
-            } else if current_type == BlockType::LoHi {
+            } else if current_type == BlockType::LoHiAddress {
                 // Determine the full length of this LoHi block
                 let mut count = 0;
                 while pc + count < data_len
-                    && state.block_types.get(pc + count) == Some(&BlockType::LoHi)
+                    && state.block_types.get(pc + count) == Some(&BlockType::LoHiAddress)
                 {
                     count += 1;
                 }
@@ -121,11 +121,11 @@ pub fn analyze(
                     }
                 }
                 pc += count;
-            } else if current_type == BlockType::HiLo {
+            } else if current_type == BlockType::HiLoAddress {
                 // Determine the full length of this HiLo block
                 let mut count = 0;
                 while pc + count < data_len
-                    && state.block_types.get(pc + count) == Some(&BlockType::HiLo)
+                    && state.block_types.get(pc + count) == Some(&BlockType::HiLoAddress)
                 {
                     count += 1;
                 }
@@ -1026,7 +1026,7 @@ mod tests {
         // Addresses: $C000, $D001 (External)
         let data = vec![0xC0, 0xD0, 0x00, 0x01];
         state.raw_data = data;
-        state.block_types = vec![BlockType::HiLo; 4];
+        state.block_types = vec![BlockType::HiLoAddress; 4];
 
         let (labels, _) = analyze(&state);
 

@@ -26,7 +26,7 @@ fn test_tass_label_placement_on_text() {
 
     // "ABC"
     let code = vec![0x41, 0x42, 0x43];
-    let block_types = vec![BlockType::Text; 3];
+    let block_types = vec![BlockType::PetsciiText; 3];
 
     let lines = disassembler.disassemble(
         &code,
@@ -97,7 +97,7 @@ fn test_tass_label_placement_on_screencode() {
 
     // "ABC" (sc 1,2,3)
     let code = vec![1, 2, 3];
-    let block_types = vec![BlockType::Screencode; 3];
+    let block_types = vec![BlockType::ScreencodeText; 3];
 
     let lines = disassembler.disassemble(
         &code,

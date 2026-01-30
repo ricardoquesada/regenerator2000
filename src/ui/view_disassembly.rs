@@ -1278,11 +1278,11 @@ impl Widget for DisassemblyView {
             KeyCode::Char('a') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::Address)
             }
-            KeyCode::Char('t') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::Text)
+            KeyCode::Char('p') if key.modifiers.is_empty() => {
+                WidgetResult::Action(MenuAction::PetsciiText)
             }
             KeyCode::Char('s') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::Screencode)
+                WidgetResult::Action(MenuAction::ScreencodeText)
             }
             KeyCode::Char('?')
                 if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
@@ -1292,12 +1292,20 @@ impl Widget for DisassemblyView {
             KeyCode::Char('<')
                 if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
             {
-                WidgetResult::Action(MenuAction::SetLoHi)
+                WidgetResult::Action(MenuAction::SetLoHiAddress)
             }
             KeyCode::Char('>')
                 if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
             {
-                WidgetResult::Action(MenuAction::SetHiLo)
+                WidgetResult::Action(MenuAction::SetHiLoAddress)
+            }
+            KeyCode::Char('t') if key.modifiers.is_empty() => {
+                WidgetResult::Action(MenuAction::SetLoHiWord)
+            }
+            KeyCode::Char('T')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
+                WidgetResult::Action(MenuAction::SetHiLoWord)
             }
             KeyCode::Char('|')
                 if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
@@ -1449,8 +1457,8 @@ mod tests {
         let keys = vec!['?', '<', '>', '|', ';', ':'];
         let actions = vec![
             MenuAction::Undefined,
-            MenuAction::SetLoHi,
-            MenuAction::SetHiLo,
+            MenuAction::SetLoHiAddress,
+            MenuAction::SetHiLoAddress,
             MenuAction::ToggleSplitter,
             MenuAction::SideComment,
             MenuAction::LineComment,

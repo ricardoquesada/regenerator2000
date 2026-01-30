@@ -118,7 +118,7 @@ fn test_text_char_limit_configurable() {
 
     // "Hello World This Is Long" is 24 chars
     let data = b"Hello World This Is Long".to_vec();
-    let block_types = vec![BlockType::Text; data.len()];
+    let block_types = vec![BlockType::PetsciiText; data.len()];
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -164,7 +164,7 @@ fn test_screencode_limit_configurable() {
     for i in 1..=20 {
         data.push(i as u8);
     }
-    let block_types = vec![BlockType::Screencode; data.len()];
+    let block_types = vec![BlockType::ScreencodeText; data.len()];
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
@@ -610,7 +610,11 @@ fn test_text_and_screencode_disassembly() {
 
     // "ABC"
     let code = vec![0x41, 0x42, 0x43];
-    let block_types = vec![BlockType::Text, BlockType::Text, BlockType::Text];
+    let block_types = vec![
+        BlockType::PetsciiText,
+        BlockType::PetsciiText,
+        BlockType::PetsciiText,
+    ];
     let lines = disassembler.disassemble(
         &code,
         &block_types,
@@ -655,9 +659,9 @@ fn test_text_and_screencode_disassembly() {
     // 3. Test Screencode (using "ABC" screen codes 1, 2, 3)
     let code_scr = vec![0x01, 0x02, 0x03]; // A, B, C in Screen Code (0x01=A, 0x02=B, 0x03=C)
     let block_types_scr = vec![
-        BlockType::Screencode,
-        BlockType::Screencode,
-        BlockType::Screencode,
+        BlockType::ScreencodeText,
+        BlockType::ScreencodeText,
+        BlockType::ScreencodeText,
     ];
 
     // Acme Screencode
@@ -683,7 +687,7 @@ fn test_text_and_screencode_disassembly() {
 
     // 4. Test fallback for invalid text
     let code_bad = vec![0xFF];
-    let block_types_bad = vec![BlockType::Text];
+    let block_types_bad = vec![BlockType::PetsciiText];
     let lines = disassembler.disassemble(
         &code_bad,
         &block_types_bad,
@@ -726,11 +730,11 @@ fn test_text_mixed_content() {
     // $00, $01, "A", "B", $00
     let code = vec![0x00, 0x01, 0x41, 0x42, 0x00];
     let block_types = vec![
-        BlockType::Text,
-        BlockType::Text,
-        BlockType::Text,
-        BlockType::Text,
-        BlockType::Text,
+        BlockType::PetsciiText,
+        BlockType::PetsciiText,
+        BlockType::PetsciiText,
+        BlockType::PetsciiText,
+        BlockType::PetsciiText,
     ];
 
     let lines = disassembler.disassemble(
@@ -772,7 +776,7 @@ fn test_text_escaping() {
         0x51, 0x75, 0x6F, 0x74, 0x65, 0x20, 0x22, 0x20, 0x42, 0x61, 0x63, 0x6B, 0x73, 0x6C, 0x61,
         0x73, 0x68, 0x20, 0x5C,
     ];
-    let block_types = vec![BlockType::Text; code.len()];
+    let block_types = vec![BlockType::PetsciiText; code.len()];
 
     // 1. Test ACME: "Quote \" Backslash \\"
     settings.assembler = Assembler::Acme;
@@ -848,7 +852,7 @@ fn test_screencode_mixed() {
 
     // So let's test: 0x22 ("), 0xFF (invalid), 0x22 (")
     let code = vec![0x22, 0xFF, 0x22];
-    let block_types = vec![BlockType::Screencode; code.len()];
+    let block_types = vec![BlockType::ScreencodeText; code.len()];
 
     // 1. ACME
     settings.assembler = Assembler::Acme;
@@ -917,9 +921,9 @@ fn test_tass_screencode_enc_wrapping() {
     // "ABC" in screencode (0x01, 0x02, 0x03)
     let code = vec![0x01, 0x02, 0x03];
     let block_types = vec![
-        BlockType::Screencode,
-        BlockType::Screencode,
-        BlockType::Screencode,
+        BlockType::ScreencodeText,
+        BlockType::ScreencodeText,
+        BlockType::ScreencodeText,
     ];
 
     let lines = disassembler.disassemble(
@@ -967,7 +971,7 @@ fn test_tass_screencode_multiline_wrapping() {
     // 40 bytes of screencode (exceeds 32 byte limit per line)
     // 0x01 * 40
     let code = vec![0x01; 40];
-    let block_types = vec![BlockType::Screencode; 40];
+    let block_types = vec![BlockType::ScreencodeText; 40];
 
     let lines = disassembler.disassemble(
         &code,
@@ -1023,7 +1027,11 @@ fn test_text_show_bytes_is_false() {
     let origin = 0x1000;
 
     let code = vec![0x41, 0x42, 0x43]; // "ABC"
-    let block_types = vec![BlockType::Text, BlockType::Text, BlockType::Text];
+    let block_types = vec![
+        BlockType::PetsciiText,
+        BlockType::PetsciiText,
+        BlockType::PetsciiText,
+    ];
 
     let lines = disassembler.disassemble(
         &code,
@@ -1058,9 +1066,9 @@ fn test_screencode_show_bytes_is_false() {
 
     let code = vec![0x01, 0x02, 0x03]; // "ABC" in screencode
     let block_types = vec![
-        BlockType::Screencode,
-        BlockType::Screencode,
-        BlockType::Screencode,
+        BlockType::ScreencodeText,
+        BlockType::ScreencodeText,
+        BlockType::ScreencodeText,
     ];
 
     let lines = disassembler.disassemble(
@@ -1204,9 +1212,9 @@ fn test_tass_block_separation() {
     // SC (1 byte), Code (1 byte), SC (1 byte)
     let code = vec![0x01, 0xEA, 0x02];
     let block_types = vec![
-        BlockType::Screencode,
+        BlockType::ScreencodeText,
         BlockType::Code,
-        BlockType::Screencode,
+        BlockType::ScreencodeText,
     ];
 
     let lines = disassembler.disassemble(
@@ -1266,7 +1274,7 @@ fn test_tass_label_interruption() {
 
     // SC (2 bytes)
     let code = vec![0x01, 0x02];
-    let block_types = vec![BlockType::Screencode, BlockType::Screencode];
+    let block_types = vec![BlockType::ScreencodeText, BlockType::ScreencodeText];
 
     let lines = disassembler.disassemble(
         &code,
@@ -1328,7 +1336,7 @@ fn test_tass_screencode_single_byte_special() {
 
     // Single byte $4F
     let code = vec![0x4F];
-    let block_types = vec![BlockType::Screencode];
+    let block_types = vec![BlockType::ScreencodeText];
 
     let lines = disassembler.disassemble(
         &code,
@@ -1375,7 +1383,7 @@ fn test_tass_screencode_case_mapping() {
     let bytes_a = vec![
         0x30, 0x2d, 0x39, 0x2c, 0x20, 0x08, 0x0F, 0x0C, 0x01, 0x20, 0x03, 0x0F, 0x0D, 0x0F,
     ];
-    let block_types_a = vec![BlockType::Screencode; bytes_a.len()];
+    let block_types_a = vec![BlockType::ScreencodeText; bytes_a.len()];
 
     let lines_a = disassembler.disassemble(
         &bytes_a,
@@ -1403,7 +1411,7 @@ fn test_tass_screencode_case_mapping() {
     let bytes_b = vec![
         0x30, 0x2d, 0x39, 0x2c, 0x20, 0x48, 0x4F, 0x4C, 0x41, 0x20, 0x43, 0x4F, 0x4D, 0x4F,
     ];
-    let block_types_b = vec![BlockType::Screencode; bytes_b.len()];
+    let block_types_b = vec![BlockType::ScreencodeText; bytes_b.len()];
 
     let lines_b = disassembler.disassemble(
         &bytes_b,
@@ -1440,7 +1448,7 @@ fn test_screencode_limit_0x5f() {
     // 0x5F (95) -> >= 0x5f. Byte.
     // 0x60 (96) -> >= 0x5f. Byte.
     let code = vec![0x5E, 0x5F, 0x60];
-    let block_types = vec![BlockType::Screencode; 3];
+    let block_types = vec![BlockType::ScreencodeText; 3];
 
     let lines = disassembler.disassemble(
         &code,
@@ -1489,7 +1497,7 @@ fn test_acme_screencode_case_inversion() {
         0x1B, 0x1E, // [^
         0x5B, 0x5E, // {~ -> $5b $5e
     ];
-    let block_types = vec![BlockType::Screencode; code.len()];
+    let block_types = vec![BlockType::ScreencodeText; code.len()];
 
     let lines = disassembler.disassemble(
         &code,
@@ -1764,7 +1772,7 @@ fn test_lohi_block() {
     // Addr 0: 00 paired with C0 -> $C000
     // Addr 1: 01 paired with D0 -> $D001
     let code = vec![0x00, 0x01, 0xC0, 0xD0];
-    let block_types = vec![BlockType::LoHi; 4];
+    let block_types = vec![BlockType::LoHiAddress; 4];
 
     // Case 1: No labels
     let lines = disassembler.disassemble(
@@ -1843,7 +1851,7 @@ fn test_lohi_internal_label_regression() {
     // The correct behavior is to ignore the label and process all 4 bytes (pair count 2).
 
     let code = vec![0x00, 0x01, 0xC0, 0xD0];
-    let block_types = vec![BlockType::LoHi; 4];
+    let block_types = vec![BlockType::LoHiAddress; 4];
 
     labels.insert(
         0x1002, // Midpoint
@@ -1897,7 +1905,7 @@ fn test_hilo_block() {
     // Addr 0: C0 paired with 00 -> $C000
     // Addr 1: D0 paired with 01 -> $D001
     let code = vec![0xC0, 0xD0, 0x00, 0x01];
-    let block_types = vec![BlockType::HiLo; 4];
+    let block_types = vec![BlockType::HiLoAddress; 4];
 
     // Case 1: No labels
     let lines = disassembler.disassemble(
@@ -2088,7 +2096,7 @@ fn test_addresses_per_line() {
     // Byte 3 (Lo): 03. Byte 7 (Hi): 13. Addr: .
 
     let data = vec![0x00, 0x01, 0x02, 0x03, 0x10, 0x11, 0x12, 0x13];
-    let block_types = vec![BlockType::LoHi; 8];
+    let block_types = vec![BlockType::LoHiAddress; 8];
 
     // Standard formatter (Tass64) uses < and > for low/high bytes of address.
     // If no label, it formats as < etc.

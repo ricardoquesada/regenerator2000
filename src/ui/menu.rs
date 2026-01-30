@@ -24,16 +24,18 @@ pub enum MenuAction {
     Byte,
     Word,
     Address,
-    Text,
-    Screencode,
+    PetsciiText,
+    ScreencodeText,
     Analyze,
     DocumentSettings,
     JumpToAddress,
     JumpToLine,
     JumpToOperand,
 
-    SetLoHi,
-    SetHiLo,
+    SetLoHiAddress,
+    SetHiLoAddress,
+    SetLoHiWord,
+    SetHiLoWord,
     SetExternalFile,
     SideComment,
     LineComment,
@@ -351,15 +353,21 @@ impl MenuState {
                         MenuItem::new("Byte", Some("B"), Some(MenuAction::Byte)),
                         MenuItem::new("Word", Some("W"), Some(MenuAction::Word)),
                         MenuItem::new("Address", Some("A"), Some(MenuAction::Address)),
-                        MenuItem::new("Lo/Hi Address", Some("<"), Some(MenuAction::SetLoHi)),
-                        MenuItem::new("Hi/Lo Address", Some(">"), Some(MenuAction::SetHiLo)),
+                        MenuItem::new("Lo/Hi Address", Some("<"), Some(MenuAction::SetLoHiAddress)),
+                        MenuItem::new("Hi/Lo Address", Some(">"), Some(MenuAction::SetHiLoAddress)),
+                        MenuItem::new("Lo/Hi Word", Some("t"), Some(MenuAction::SetLoHiWord)),
+                        MenuItem::new("Hi/Lo Word", Some("T"), Some(MenuAction::SetHiLoWord)),
                         MenuItem::new(
                             "External File",
                             Some("e"),
                             Some(MenuAction::SetExternalFile),
                         ),
-                        MenuItem::new("PETSCII Text", Some("T"), Some(MenuAction::Text)),
-                        MenuItem::new("Screencode Text", Some("S"), Some(MenuAction::Screencode)),
+                        MenuItem::new("PETSCII Text", Some("p"), Some(MenuAction::PetsciiText)),
+                        MenuItem::new(
+                            "Screencode Text",
+                            Some("S"),
+                            Some(MenuAction::ScreencodeText),
+                        ),
                         MenuItem::new("Undefined", Some("?"), Some(MenuAction::Undefined)),
                         MenuItem::separator(),
                         MenuItem::new(
@@ -979,9 +987,11 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         MenuAction::Address => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::Address)
         }
-        MenuAction::Text => apply_block_type(app_state, ui_state, crate::state::BlockType::Text),
-        MenuAction::Screencode => {
-            apply_block_type(app_state, ui_state, crate::state::BlockType::Screencode)
+        MenuAction::PetsciiText => {
+            apply_block_type(app_state, ui_state, crate::state::BlockType::PetsciiText)
+        }
+        MenuAction::ScreencodeText => {
+            apply_block_type(app_state, ui_state, crate::state::BlockType::ScreencodeText)
         }
         MenuAction::Undefined => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::Undefined)
@@ -1336,8 +1346,18 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Charset: Single Color Mode");
             }
         }
-        MenuAction::SetLoHi => apply_block_type(app_state, ui_state, crate::state::BlockType::LoHi),
-        MenuAction::SetHiLo => apply_block_type(app_state, ui_state, crate::state::BlockType::HiLo),
+        MenuAction::SetLoHiAddress => {
+            apply_block_type(app_state, ui_state, crate::state::BlockType::LoHiAddress)
+        }
+        MenuAction::SetHiLoAddress => {
+            apply_block_type(app_state, ui_state, crate::state::BlockType::HiLoAddress)
+        }
+        MenuAction::SetLoHiWord => {
+            apply_block_type(app_state, ui_state, crate::state::BlockType::LoHiWord)
+        }
+        MenuAction::SetHiLoWord => {
+            apply_block_type(app_state, ui_state, crate::state::BlockType::HiLoWord)
+        }
         MenuAction::SideComment => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                 let address = line.address;
@@ -1718,7 +1738,10 @@ fn apply_block_type(
 ) {
     let needs_even = matches!(
         block_type,
-        crate::state::BlockType::LoHi | crate::state::BlockType::HiLo
+        crate::state::BlockType::LoHiAddress
+            | crate::state::BlockType::HiLoAddress
+            | crate::state::BlockType::LoHiWord
+            | crate::state::BlockType::HiLoWord
     );
 
     if ui_state.active_pane == ActivePane::Blocks {
