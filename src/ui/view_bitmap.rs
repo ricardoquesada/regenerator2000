@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::ui_state::{ActivePane, MenuAction, UIState};
+use crate::ui_state::{ActivePane, MenuAction, ScreenRamMode, UIState};
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use image::{DynamicImage, Rgb, RgbImage};
 use ratatui::{
@@ -34,6 +34,19 @@ const VIC_II_RGB: [[u8; 3]; 16] = [
     [0, 136, 255],   // 14: Light Blue
     [187, 187, 187], // 15: Light Grey
 ];
+
+/// Calculate screen RAM address based on mode and bitmap address
+fn calculate_screen_ram_addr(bitmap_addr: usize, mode: ScreenRamMode) -> usize {
+    match mode {
+        ScreenRamMode::AfterBitmap => bitmap_addr + 8000,
+        ScreenRamMode::BankOffset(offset) => {
+            // Determine VIC bank (0x0000, 0x4000, 0x8000, 0xC000)
+            let vic_bank = (bitmap_addr / 0x4000) * 0x4000;
+            // Add offset (0x0000, 0x0400, 0x0800, ..., 0x3C00)
+            vic_bank + (offset as usize * 0x0400)
+        }
+    }
+}
 
 impl Navigable for BitmapView {
     fn len(&self, app_state: &AppState) -> usize {
@@ -191,7 +204,8 @@ impl Widget for BitmapView {
         let actual_bytes = data_end_in_bitmap.saturating_sub(data_start_in_bitmap);
         let total_bytes = padding_bytes + actual_bytes;
 
-        let screen_ram_addr = bitmap_addr + 8000;
+        let screen_ram_addr =
+            calculate_screen_ram_addr(bitmap_addr, ui_state.bitmap_screen_ram_mode);
         let sub_header = if padding_bytes > 0 {
             format!(
                 "Bitmap @ ${:04X} (aligned ${:04X}, {} bytes: {} padded + {} data), Screen RAM @ ${:04X}",
@@ -217,33 +231,107 @@ impl Widget for BitmapView {
         // Calculate width based on image aspect ratio (320:200 = 8:5) and terminal cell ratio (~1:2)
         // For H rows displaying 200 logical pixels, we need W columns displaying 320 logical pixels
         // Terminal cells are roughly 1:2 (width:height), so W = H * (320/200) * 2 = H * 3.2
-        let image_height = inner_area.height.saturating_sub(3);
+        let image_height = inner_area.height.saturating_sub(6);
         let image_width = ((image_height as f32) * 3.2) as u16;
         let image_width = image_width.min(inner_area.width);
         let image_area = Rect::new(inner_area.x, inner_area.y + 2, image_width, image_height);
 
+        // Screen RAM selector
+        let vic_bank = (bitmap_addr / 0x4000) * 0x4000;
+        let selector_text = match ui_state.bitmap_screen_ram_mode {
+            ScreenRamMode::AfterBitmap => {
+                format!("Screen RAM: ◄ After Bitmap (${:04X}) ►", screen_ram_addr)
+            }
+            ScreenRamMode::BankOffset(offset) => {
+                let offset_hex = offset as usize * 0x0400;
+                format!(
+                    "Screen RAM: ◄ ${:04X} (Bank ${:04X}+${:04X}) ►",
+                    screen_ram_addr, vic_bank, offset_hex
+                )
+            }
+        };
+
         f.render_widget(
-            Paragraph::new("WARNING: This view make the application less responsive.\nHide it once done using it.")
+            Paragraph::new(selector_text).style(Style::default().fg(ui_state.theme.foreground)),
+            Rect::new(
+                inner_area.x,
+                inner_area.bottom().saturating_sub(3),
+                inner_area.width,
+                1,
+            ),
+        );
+
+        f.render_widget(
+            Paragraph::new("[s] next • [S] prev • [x] after bitmap • [0-9,a-f] direct")
+                .style(Style::default().fg(ui_state.theme.comment)),
+            Rect::new(
+                inner_area.x,
+                inner_area.bottom().saturating_sub(2),
+                inner_area.width,
+                1,
+            ),
+        );
+
+        f.render_widget(
+            Paragraph::new("WARNING: This view makes the application less responsive.")
                 .style(Style::default().fg(ui_state.theme.error_fg)),
-            Rect::new(inner_area.x, inner_area.bottom().saturating_sub(2), inner_area.width, 2),
+            Rect::new(
+                inner_area.x,
+                inner_area.bottom().saturating_sub(1),
+                inner_area.width,
+                1,
+            ),
         );
 
         // --- ratatui-image integration with caching ---
 
-        // Create cache key from bitmap address and multicolor mode
-        let cache_key = (bitmap_addr, ui_state.bitmap_multicolor_mode);
+        // Pre-cache all 17 possible screen RAM configurations for instant switching
+        // (16 bank offsets + 1 after bitmap)
+        for offset in 0..16 {
+            let test_screen_ram =
+                calculate_screen_ram_addr(bitmap_addr, ScreenRamMode::BankOffset(offset));
+            let test_key = (
+                bitmap_addr,
+                ui_state.bitmap_multicolor_mode,
+                test_screen_ram,
+            );
+            if !ui_state.bitmap_cache.contains_key(&test_key) {
+                let img = convert_to_dynamic_image(
+                    &app_state.raw_data,
+                    origin,
+                    bitmap_addr,
+                    test_screen_ram,
+                    ui_state.bitmap_multicolor_mode,
+                );
+                ui_state.bitmap_cache.insert(test_key, img);
+            }
+        }
 
-        // Check if we need to generate a new image or can use cached version
-        if !ui_state.bitmap_cache.contains_key(&cache_key) {
-            // Generate and cache the image
+        // Also pre-cache "after bitmap" mode
+        let after_bitmap_screen_ram =
+            calculate_screen_ram_addr(bitmap_addr, ScreenRamMode::AfterBitmap);
+        let after_bitmap_key = (
+            bitmap_addr,
+            ui_state.bitmap_multicolor_mode,
+            after_bitmap_screen_ram,
+        );
+        if !ui_state.bitmap_cache.contains_key(&after_bitmap_key) {
             let img = convert_to_dynamic_image(
                 &app_state.raw_data,
                 origin,
                 bitmap_addr,
+                after_bitmap_screen_ram,
                 ui_state.bitmap_multicolor_mode,
             );
-            ui_state.bitmap_cache.insert(cache_key, img);
+            ui_state.bitmap_cache.insert(after_bitmap_key, img);
         }
+
+        // Create cache key from bitmap address, multicolor mode, and screen RAM address
+        let cache_key = (
+            bitmap_addr,
+            ui_state.bitmap_multicolor_mode,
+            screen_ram_addr,
+        );
 
         // Get the cached image (guaranteed to exist now)
         if let Some(img) = ui_state.bitmap_cache.get(&cache_key) {
@@ -271,36 +359,97 @@ impl Widget for BitmapView {
         }
 
         match key.code {
-            KeyCode::Char('m') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::ToggleBitmapMulticolor)
-            }
-            KeyCode::Char('b') if key.modifiers.is_empty() => {
-                // Convert current bitmap to bytes block (8000 bytes per bitmap)
-                let origin = app_state.origin as usize;
-                // Align to floor boundary to support partial bitmaps
-                let aligned_origin = (origin / 8192) * 8192;
-                let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
-                let end_address = origin + app_state.raw_data.len();
-
-                // Calculate the byte offset range within raw_data (8000 bytes for bitmap data)
-                let start_addr = bitmap_addr;
-                let end_addr = bitmap_addr + 7999;
-
-                let start_offset = start_addr.saturating_sub(origin);
-                let end_offset = if end_addr < origin {
-                    0
-                } else {
-                    end_addr.min(end_address.saturating_sub(1)) - origin
+            KeyCode::Char('s') => {
+                // Cycle forward through the 16 bank offsets
+                ui_state.bitmap_screen_ram_mode = match ui_state.bitmap_screen_ram_mode {
+                    ScreenRamMode::AfterBitmap => ScreenRamMode::BankOffset(0),
+                    ScreenRamMode::BankOffset(offset) => {
+                        ScreenRamMode::BankOffset((offset + 1) % 16)
+                    }
                 };
+                WidgetResult::Handled
+            }
+            KeyCode::Char('S') => {
+                // Cycle backward through the 16 bank offsets
+                ui_state.bitmap_screen_ram_mode = match ui_state.bitmap_screen_ram_mode {
+                    ScreenRamMode::AfterBitmap => ScreenRamMode::BankOffset(15),
+                    ScreenRamMode::BankOffset(offset) => {
+                        if offset == 0 {
+                            ScreenRamMode::BankOffset(15)
+                        } else {
+                            ScreenRamMode::BankOffset(offset - 1)
+                        }
+                    }
+                };
+                WidgetResult::Handled
+            }
+            KeyCode::Char('x') => {
+                // Set to "After Bitmap" mode
+                ui_state.bitmap_screen_ram_mode = ScreenRamMode::AfterBitmap;
+                WidgetResult::Handled
+            }
+            KeyCode::Char(ch) => {
+                // Handle special keys first
+                match ch {
+                    'm' => return WidgetResult::Action(MenuAction::ToggleBitmapMulticolor),
+                    'B' => {
+                        // Convert current bitmap to bytes block (8000 bytes per bitmap)
+                        let origin = app_state.origin as usize;
+                        // Align to floor boundary to support partial bitmaps
+                        let aligned_origin = (origin / 8192) * 8192;
+                        let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
+                        let end_address = origin + app_state.raw_data.len();
 
-                if start_offset < app_state.raw_data.len() && start_offset <= end_offset {
-                    WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
-                        start: start_offset,
-                        end: end_offset,
-                    })
-                } else {
-                    WidgetResult::Ignored
+                        // Calculate the byte offset range within raw_data (8000 bytes for bitmap data)
+                        let start_addr = bitmap_addr;
+                        let end_addr = bitmap_addr + 7999;
+
+                        let start_offset = start_addr.saturating_sub(origin);
+                        let end_offset = if end_addr < origin {
+                            0
+                        } else {
+                            end_addr.min(end_address.saturating_sub(1)) - origin
+                        };
+
+                        return if start_offset < app_state.raw_data.len()
+                            && start_offset <= end_offset
+                        {
+                            WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
+                                start: start_offset,
+                                end: end_offset,
+                            })
+                        } else {
+                            WidgetResult::Ignored
+                        };
+                    }
+                    _ => {}
                 }
+
+                // Handle hex digits 0-9, a-f for direct screen RAM offset selection
+                if let Some(offset) = match ch {
+                    '0' => Some(0),
+                    '1' => Some(1),
+                    '2' => Some(2),
+                    '3' => Some(3),
+                    '4' => Some(4),
+                    '5' => Some(5),
+                    '6' => Some(6),
+                    '7' => Some(7),
+                    '8' => Some(8),
+                    '9' => Some(9),
+                    'a' => Some(10),
+                    'b' => Some(11),
+                    'c' => Some(12),
+                    'd' => Some(13),
+                    'e' => Some(14),
+                    'f' => Some(15),
+                    _ => None,
+                } {
+                    ui_state.bitmap_screen_ram_mode = ScreenRamMode::BankOffset(offset);
+                    return WidgetResult::Handled;
+                }
+
+                WidgetResult::Ignored
             }
             KeyCode::Enter => {
                 let origin = app_state.origin as usize;
@@ -335,6 +484,7 @@ fn convert_to_dynamic_image(
     raw_data: &[u8],
     origin: usize,
     bitmap_addr: usize,
+    screen_ram_addr: usize,
     multicolor: bool,
 ) -> DynamicImage {
     // C64 resolution 320x200 scaled 2x to 640x400
@@ -350,10 +500,6 @@ fn convert_to_dynamic_image(
             0
         }
     };
-
-    // Check if we have screen RAM logically following the bitmap
-    // Screen RAM is usually 8000 bytes after bitmap
-    let screen_ram_addr = bitmap_addr + 8000;
 
     if multicolor {
         // Multicolor Mode: 160x200 fat pixels

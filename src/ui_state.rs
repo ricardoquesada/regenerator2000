@@ -28,6 +28,12 @@ pub enum RightPane {
     Blocks,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScreenRamMode {
+    AfterBitmap,
+    BankOffset(u8), // 0-15
+}
+
 use crate::state::HexdumpViewMode;
 
 pub struct UIState {
@@ -63,6 +69,7 @@ pub struct UIState {
     pub sprite_multicolor_mode: bool,
     pub charset_multicolor_mode: bool,
     pub bitmap_multicolor_mode: bool,
+    pub bitmap_screen_ram_mode: ScreenRamMode,
     pub hexdump_view_mode: HexdumpViewMode,
 
     pub active_pane: ActivePane,
@@ -82,8 +89,8 @@ pub struct UIState {
     pub vim_search_input: String,
     pub last_search_query: String,
 
-    // Bitmap cache: key is (address, multicolor_mode)
-    pub bitmap_cache: HashMap<(usize, bool), DynamicImage>,
+    // Bitmap cache: key is (bitmap_address, multicolor_mode, screen_ram_address)
+    pub bitmap_cache: HashMap<(usize, bool, usize), DynamicImage>,
 
     // Layout Areas for Mouse Interaction
     pub menu_area: ratatui::layout::Rect,
@@ -120,6 +127,7 @@ impl UIState {
             sprite_multicolor_mode: false,
             charset_multicolor_mode: false,
             bitmap_multicolor_mode: false,
+            bitmap_screen_ram_mode: ScreenRamMode::AfterBitmap,
             hexdump_view_mode: HexdumpViewMode::ScreencodeUnshifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,
