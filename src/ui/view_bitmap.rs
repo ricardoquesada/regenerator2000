@@ -262,7 +262,7 @@ impl Widget for BitmapView {
         );
 
         f.render_widget(
-            Paragraph::new("[s] next • [S] prev • [x] after bitmap • [0-9,a-f] direct")
+            Paragraph::new("[s] next • [S] prev • [x] after bitmap")
                 .style(Style::default().fg(ui_state.theme.comment)),
             Rect::new(
                 inner_area.x,
@@ -388,68 +388,34 @@ impl Widget for BitmapView {
                 ui_state.bitmap_screen_ram_mode = ScreenRamMode::AfterBitmap;
                 WidgetResult::Handled
             }
-            KeyCode::Char(ch) => {
-                // Handle special keys first
-                match ch {
-                    'm' => return WidgetResult::Action(MenuAction::ToggleBitmapMulticolor),
-                    'B' => {
-                        // Convert current bitmap to bytes block (8000 bytes per bitmap)
-                        let origin = app_state.origin as usize;
-                        // Align to floor boundary to support partial bitmaps
-                        let aligned_origin = (origin / 8192) * 8192;
-                        let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
-                        let end_address = origin + app_state.raw_data.len();
+            KeyCode::Char('m') => WidgetResult::Action(MenuAction::ToggleBitmapMulticolor),
+            KeyCode::Char('B') => {
+                // Convert current bitmap to bytes block (8000 bytes per bitmap)
+                let origin = app_state.origin as usize;
+                // Align to floor boundary to support partial bitmaps
+                let aligned_origin = (origin / 8192) * 8192;
+                let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
+                let end_address = origin + app_state.raw_data.len();
 
-                        // Calculate the byte offset range within raw_data (8000 bytes for bitmap data)
-                        let start_addr = bitmap_addr;
-                        let end_addr = bitmap_addr + 7999;
+                // Calculate the byte offset range within raw_data (8000 bytes for bitmap data)
+                let start_addr = bitmap_addr;
+                let end_addr = bitmap_addr + 7999;
 
-                        let start_offset = start_addr.saturating_sub(origin);
-                        let end_offset = if end_addr < origin {
-                            0
-                        } else {
-                            end_addr.min(end_address.saturating_sub(1)) - origin
-                        };
+                let start_offset = start_addr.saturating_sub(origin);
+                let end_offset = if end_addr < origin {
+                    0
+                } else {
+                    end_addr.min(end_address.saturating_sub(1)) - origin
+                };
 
-                        return if start_offset < app_state.raw_data.len()
-                            && start_offset <= end_offset
-                        {
-                            WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
-                                start: start_offset,
-                                end: end_offset,
-                            })
-                        } else {
-                            WidgetResult::Ignored
-                        };
-                    }
-                    _ => {}
+                if start_offset < app_state.raw_data.len() && start_offset <= end_offset {
+                    WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
+                        start: start_offset,
+                        end: end_offset,
+                    })
+                } else {
+                    WidgetResult::Ignored
                 }
-
-                // Handle hex digits 0-9, a-f for direct screen RAM offset selection
-                if let Some(offset) = match ch {
-                    '0' => Some(0),
-                    '1' => Some(1),
-                    '2' => Some(2),
-                    '3' => Some(3),
-                    '4' => Some(4),
-                    '5' => Some(5),
-                    '6' => Some(6),
-                    '7' => Some(7),
-                    '8' => Some(8),
-                    '9' => Some(9),
-                    'a' => Some(10),
-                    'b' => Some(11),
-                    'c' => Some(12),
-                    'd' => Some(13),
-                    'e' => Some(14),
-                    'f' => Some(15),
-                    _ => None,
-                } {
-                    ui_state.bitmap_screen_ram_mode = ScreenRamMode::BankOffset(offset);
-                    return WidgetResult::Handled;
-                }
-
-                WidgetResult::Ignored
             }
             KeyCode::Enter => {
                 let origin = app_state.origin as usize;
