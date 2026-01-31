@@ -428,10 +428,14 @@ impl MenuState {
                     items: vec![
                         MenuItem::new(
                             "Jump to address",
-                            Some("G"),
+                            Some("Alt+G"),
                             Some(MenuAction::JumpToAddress),
                         ),
-                        MenuItem::new("Jump to line", Some("Alt+G"), Some(MenuAction::JumpToLine)),
+                        MenuItem::new(
+                            "Jump to line",
+                            Some("Alt+Shift+G"),
+                            Some(MenuAction::JumpToLine),
+                        ),
                         MenuItem::new(
                             "Jump to operand",
                             Some("Enter"),

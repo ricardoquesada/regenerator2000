@@ -42,8 +42,8 @@ across Windows, macOS, and Linux, and different terminal emulators.
 | **View: Disassembly** (navigation) | **Move Cursor**                                                                         | ++up++ / ++down++ / ++j++ / ++k++                             |
 |                                    | **Page Up/Down**                                                                        | ++page-up++ / ++page-down++                                   |
 |                                    | **Home/End**                                                                            | ++home++ / ++end++                                            |
-|                                    | **Jump to Address (Dialog)**                                                            | ++g++                                                         |
-|                                    | **Jump to Line (Dialog)**                                                               | ++alt+g++, ++ctrl+shift+g++                                   |
+|                                    | **Jump to Address**                                                                     | ++ctrl+g++ or ++alt+g++                                       |
+|                                    | **Jump to Line**                                                                        | ++ctrl+shift+g++ or ++alt+shift+g++                           |
 |                                    | **Jump to Line / End of File**                                                          | number + ++shift+g++                                          |
 |                                    | **Jump to Operand**                                                                     | ++enter++                                                     |
 |                                    | **Jump Back (History)**                                                                 | ++backspace++                                                 |

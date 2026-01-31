@@ -1211,9 +1211,6 @@ impl Widget for DisassemblyView {
             KeyCode::Char('f') if key.modifiers == KeyModifiers::CONTROL => {
                 WidgetResult::Action(crate::ui_state::MenuAction::Search)
             }
-            KeyCode::Char('g') if key.modifiers.is_empty() => {
-                WidgetResult::Action(crate::ui_state::MenuAction::JumpToAddress)
-            }
             KeyCode::Char(c)
                 if c.is_ascii_digit()
                     && !key.modifiers.intersects(

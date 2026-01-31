@@ -207,8 +207,17 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             );
         }
         KeyCode::Char('g')
+            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
+        {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::JumpToAddress,
+            );
+        }
+        KeyCode::Char('g')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
-                || key.modifiers == KeyModifiers::ALT =>
+                || key.modifiers == (KeyModifiers::ALT | KeyModifiers::SHIFT) =>
         {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::JumpToLine);
         }
