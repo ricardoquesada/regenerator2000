@@ -522,16 +522,79 @@ The available Block Types are:
 
 Beyond data types, you can organize your view using Splitters and Collapsing:
 
-### Splitters
-
+### Splitters and Auto-Merging
+ 
 - **Shortcut**: ++pipe++
-- **Description**: Inserts a visual separator (newline) in the disassembly view without affecting the binary.
-- **Use Case**: Use this to visually separate logic blocks, subroutines, or data tables that are contiguous in memory
-  but logically distinct.
+ 
+In Regenerator 2000, adjacent blocks of the same type are **automatically merged** into a single contiguous block. This feature keeps the disassembly clean (e.g., combining adjacent Byte blocks into single Byte block).
+
+!!! note
+
+    Only **adjacent** blocks of the **same type** are auto-merged.
+
+```mermaid
+graph LR
+    A[Byte Block A <br/> $1000-$1FFF] -->|Auto-Merge| M[Merged Byte Block <br/> $1000-$2FFF]
+    B[Byte Block B <br/> $2000-$2FFF] --> M
+```
+ 
+**Splitters** are used to prevent this behavior when needed. They serve two purposes:
+ 
+1.  **Visual Separation**: Inserts a visual separator (newline) in the disassembly view.
+2.  **Logical Separation**: Acts as a barrier that **stops the auto-merger**.
+ 
+**Example**:
+Imagine you have a Lo/Hi table right after another. Without a splitter, they become one. With a splitter, they remain separate.
+ 
+```mermaid
+graph TD
+    subgraph Without Splitter
+    A1[Lo/Hi Table 1 <br/> $C000-$C0FF] --- B1[Lo/Hi Table 2 <br/> $C100-$C1FF] --> C1[Merged Lo/Hi Table <br/> $C000-$C1FF]
+    end
+```
+
+```mermaid
+graph TD
+    subgraph With Splitter
+    A2[Lo/Hi Table 1 <br/> $C000-$C0FF] --- S[Splitter] --- B2[Lo/Hi Table 2 <br/> $C100-$C1FF] --> A3[Lo/Hi Table 1 <br/> $C000-$C0FF]
+    B2 --> B3[Lo/Hi Table 2 <br/> $C100-$C1FF]
+    end
+```
+
+!!! important
+    Splitters are especially critical for **Lo/Hi** and **Hi/Lo Address/Word Table** blocks. Because these blocks calculate the split point between the Low and High parts based on the total length of the block, merging two independent tables would result in an incorrect calculation of addresses.
 
 ### Collapsing Blocks
 
 - **Collapse/Uncollapse**: ++ctrl+k++
-- **Description**: Hides or shows the content of a block, showing only a summary line (e.g., "; ... 256 bytes ...").
-- **Use Case**: Use this to hide large tables, long text strings, or finished subroutines to keep your workspace clean
-  and focus on the code you are currently analyzing.
+- **Description**: Hides or shows the content of a block, showing only a summary line.
+
+!!! example
+
+    Valid for the **Disassembly view**.
+
+    **Expanded View:**
+    ```asm
+    a1000   .byte $01, $02, $03, $04, $05, $06, $07, $08
+            .byte $09, $0a, $0b, $0c, $0d, $0e, $0f, $10
+    ```
+
+    **Collapsed View:**
+    ```asm
+    a1000  ; Collapsed Byte block from $1000-$100F
+    ```
+
+!!! example
+
+    Valid for the **Block view**: collapsed blocks are tagged with a ++plus++.
+
+    ```text
+      $0900-$09FF [Code]
+    + $1000-$100F [Byte]
+      $1010-$11FF [Code]
+    ```
+
+- **Use Case**: Use this to hide large tables, long text strings, or finished subroutines to keep your workspace clean and focus on the code you are currently analyzing.
+- **Scope**: This is a **visual-only** feature for the Disassembly View. It does **not** affect:
+    -   The exported assembly code (all code is always exported).
+    -   Other views (e.g., Hex Dump, Character Set).
