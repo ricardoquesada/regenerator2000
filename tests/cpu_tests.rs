@@ -238,7 +238,7 @@ fn test_official_opcode_count() {
     let opcodes = get_opcodes();
     let official_count = opcodes
         .iter()
-        .filter(|op| op.as_ref().map_or(false, |o| !o.illegal))
+        .filter(|op| op.as_ref().is_some_and(|o| !o.illegal))
         .count();
 
     // 6502 has 151 documented opcodes
@@ -290,21 +290,21 @@ fn test_all_branches_are_relative() {
     let branch_mnemonics = ["BCC", "BCS", "BEQ", "BMI", "BNE", "BPL", "BVC", "BVS"];
 
     for (i, op) in opcodes.iter().enumerate() {
-        if let Some(opcode) = op {
-            if branch_mnemonics.contains(&opcode.mnemonic) {
-                assert_eq!(
-                    opcode.mode,
-                    AddressingMode::Relative,
-                    "Branch instruction ${:02X} ({}) should use Relative addressing",
-                    i,
-                    opcode.mnemonic
-                );
-                assert_eq!(
-                    opcode.size, 2,
-                    "Branch instruction ${:02X} ({}) should be 2 bytes",
-                    i, opcode.mnemonic
-                );
-            }
+        if let Some(opcode) = op
+            && branch_mnemonics.contains(&opcode.mnemonic)
+        {
+            assert_eq!(
+                opcode.mode,
+                AddressingMode::Relative,
+                "Branch instruction ${:02X} ({}) should use Relative addressing",
+                i,
+                opcode.mnemonic
+            );
+            assert_eq!(
+                opcode.size, 2,
+                "Branch instruction ${:02X} ({}) should be 2 bytes",
+                i, opcode.mnemonic
+            );
         }
     }
 }
@@ -314,14 +314,14 @@ fn test_all_implied_instructions_are_size_1() {
     let opcodes = get_opcodes();
 
     for (i, op) in opcodes.iter().enumerate() {
-        if let Some(opcode) = op {
-            if opcode.mode == AddressingMode::Implied {
-                assert_eq!(
-                    opcode.size, 1,
-                    "Implied mode instruction ${:02X} ({}) should be 1 byte",
-                    i, opcode.mnemonic
-                );
-            }
+        if let Some(opcode) = op
+            && opcode.mode == AddressingMode::Implied
+        {
+            assert_eq!(
+                opcode.size, 1,
+                "Implied mode instruction ${:02X} ({}) should be 1 byte",
+                i, opcode.mnemonic
+            );
         }
     }
 }
@@ -331,14 +331,14 @@ fn test_all_accumulator_instructions_are_size_1() {
     let opcodes = get_opcodes();
 
     for (i, op) in opcodes.iter().enumerate() {
-        if let Some(opcode) = op {
-            if opcode.mode == AddressingMode::Accumulator {
-                assert_eq!(
-                    opcode.size, 1,
-                    "Accumulator mode instruction ${:02X} ({}) should be 1 byte",
-                    i, opcode.mnemonic
-                );
-            }
+        if let Some(opcode) = op
+            && opcode.mode == AddressingMode::Accumulator
+        {
+            assert_eq!(
+                opcode.size, 1,
+                "Accumulator mode instruction ${:02X} ({}) should be 1 byte",
+                i, opcode.mnemonic
+            );
         }
     }
 }
@@ -522,7 +522,7 @@ fn test_illegal_opcode_count() {
     let opcodes = get_opcodes();
     let illegal_count = opcodes
         .iter()
-        .filter(|op| op.as_ref().map_or(false, |o| o.illegal))
+        .filter(|op| op.as_ref().is_some_and(|o| o.illegal))
         .count();
 
     // The module defines several illegal opcodes

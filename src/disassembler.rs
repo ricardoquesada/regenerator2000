@@ -2,11 +2,13 @@ use crate::cpu::{Opcode, get_opcodes};
 use crate::state::{Assembler, BlockType, DocumentSettings, Label};
 use std::collections::{BTreeMap, BTreeSet};
 
+pub mod context;
 pub mod formatter;
 pub mod formatter_64tass;
 pub mod formatter_acme;
 pub mod formatter_ca65;
 pub mod formatter_kickasm;
+pub mod handlers;
 
 use formatter::Formatter;
 use formatter_64tass::TassFormatter;
@@ -14,54 +16,7 @@ use formatter_acme::AcmeFormatter;
 use formatter_ca65::Ca65Formatter;
 use formatter_kickasm::KickAsmFormatter;
 
-/// Context containing all the data needed for disassembly.
-pub struct DisassemblyContext<'a> {
-    pub data: &'a [u8],
-    pub block_types: &'a [BlockType],
-    pub labels: &'a BTreeMap<u16, Vec<Label>>,
-    pub origin: u16,
-    pub settings: &'a DocumentSettings,
-    pub system_comments: &'a BTreeMap<u16, String>,
-    pub user_side_comments: &'a BTreeMap<u16, String>,
-    pub user_line_comments: &'a BTreeMap<u16, String>,
-    pub immediate_value_formats: &'a BTreeMap<u16, crate::state::ImmediateFormat>,
-    pub cross_refs: &'a BTreeMap<u16, Vec<u16>>,
-    pub collapsed_blocks: &'a [(usize, usize)],
-    pub splitters: &'a BTreeSet<u16>,
-}
-
-impl<'a> DisassemblyContext<'a> {
-    #[allow(clippy::too_many_arguments)]
-    pub fn minimal(
-        data: &'a [u8],
-        block_types: &'a [BlockType],
-        labels: &'a BTreeMap<u16, Vec<Label>>,
-        origin: u16,
-        settings: &'a DocumentSettings,
-        system_comments: &'a BTreeMap<u16, String>,
-        user_side_comments: &'a BTreeMap<u16, String>,
-        user_line_comments: &'a BTreeMap<u16, String>,
-        immediate_value_formats: &'a BTreeMap<u16, crate::state::ImmediateFormat>,
-        cross_refs: &'a BTreeMap<u16, Vec<u16>>,
-        collapsed_blocks: &'a [(usize, usize)],
-        splitters: &'a BTreeSet<u16>,
-    ) -> Self {
-        Self {
-            data,
-            block_types,
-            labels,
-            origin,
-            settings,
-            system_comments,
-            user_side_comments,
-            user_line_comments,
-            immediate_value_formats,
-            cross_refs,
-            collapsed_blocks,
-            splitters,
-        }
-    }
-}
+pub use context::DisassemblyContext;
 
 #[derive(Debug, Clone)]
 pub struct DisassemblyLine {
@@ -285,61 +240,41 @@ impl Disassembler {
                     line_comment,
                     ctx.splitters,
                 ),
-                BlockType::LoHiAddress => self.handle_lohi_address(
+                BlockType::LoHiAddress => handlers::handle_lohi_address(
+                    ctx,
                     pc,
-                    ctx.data,
-                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    ctx.labels,
-                    ctx.origin,
                     label_name,
                     side_comment,
                     line_comment,
-                    ctx.splitters,
-                    ctx.settings,
                 ),
-                BlockType::HiLoAddress => self.handle_hilo_address(
+                BlockType::HiLoAddress => handlers::handle_hilo_address(
+                    ctx,
                     pc,
-                    ctx.data,
-                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    ctx.labels,
-                    ctx.origin,
                     label_name,
                     side_comment,
                     line_comment,
-                    ctx.splitters,
-                    ctx.settings,
                 ),
-                BlockType::LoHiWord => self.handle_lohi_word(
+                BlockType::LoHiWord => handlers::handle_lohi_word(
+                    ctx,
                     pc,
-                    ctx.data,
-                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    ctx.labels,
-                    ctx.origin,
                     label_name,
                     side_comment,
                     line_comment,
-                    ctx.splitters,
-                    ctx.settings,
                 ),
-                BlockType::HiLoWord => self.handle_hilo_word(
+                BlockType::HiLoWord => handlers::handle_hilo_word(
+                    ctx,
                     pc,
-                    ctx.data,
-                    ctx.block_types,
                     address,
                     formatter.as_ref(),
-                    ctx.labels,
-                    ctx.origin,
                     label_name,
                     side_comment,
                     line_comment,
-                    ctx.splitters,
-                    ctx.settings,
                 ),
                 BlockType::ExternalFile => self.handle_external_file(
                     pc,
@@ -355,9 +290,9 @@ impl Disassembler {
                     ctx.splitters,
                     ctx.settings,
                 ),
-                BlockType::Undefined => self.handle_undefined_byte(
-                    pc,
+                BlockType::Undefined => handlers::handle_undefined_byte(
                     ctx.data,
+                    pc,
                     address,
                     formatter.as_ref(),
                     label_name,
@@ -370,299 +305,6 @@ impl Disassembler {
         }
 
         lines
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn handle_lohi_address(
-        &self,
-        pc: usize,
-        data: &[u8],
-        block_types: &[BlockType],
-        address: u16,
-        formatter: &dyn Formatter,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        origin: u16,
-        label_name: Option<String>,
-        side_comment: String,
-        line_comment: Option<String>,
-        splitters: &BTreeSet<u16>,
-        settings: &DocumentSettings,
-    ) -> (usize, Vec<DisassemblyLine>) {
-        self.handle_split_byte_table(
-            pc,
-            data,
-            block_types,
-            BlockType::LoHiAddress,
-            false,
-            address,
-            formatter,
-            labels,
-            origin,
-            label_name,
-            side_comment,
-            line_comment,
-            splitters,
-            settings,
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn handle_hilo_address(
-        &self,
-        pc: usize,
-        data: &[u8],
-        block_types: &[BlockType],
-        address: u16,
-        formatter: &dyn Formatter,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        origin: u16,
-        label_name: Option<String>,
-        side_comment: String,
-        line_comment: Option<String>,
-        splitters: &BTreeSet<u16>,
-        settings: &DocumentSettings,
-    ) -> (usize, Vec<DisassemblyLine>) {
-        self.handle_split_byte_table(
-            pc,
-            data,
-            block_types,
-            BlockType::HiLoAddress,
-            true,
-            address,
-            formatter,
-            labels,
-            origin,
-            label_name,
-            side_comment,
-            line_comment,
-            splitters,
-            settings,
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn handle_lohi_word(
-        &self,
-        pc: usize,
-        data: &[u8],
-        block_types: &[BlockType],
-        address: u16,
-        formatter: &dyn Formatter,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        origin: u16,
-        label_name: Option<String>,
-        side_comment: String,
-        line_comment: Option<String>,
-        splitters: &BTreeSet<u16>,
-        settings: &DocumentSettings,
-    ) -> (usize, Vec<DisassemblyLine>) {
-        self.handle_split_byte_table(
-            pc,
-            data,
-            block_types,
-            BlockType::LoHiWord,
-            false,
-            address,
-            formatter,
-            labels,
-            origin,
-            label_name,
-            side_comment,
-            line_comment,
-            splitters,
-            settings,
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn handle_hilo_word(
-        &self,
-        pc: usize,
-        data: &[u8],
-        block_types: &[BlockType],
-        address: u16,
-        formatter: &dyn Formatter,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        origin: u16,
-        label_name: Option<String>,
-        side_comment: String,
-        line_comment: Option<String>,
-        splitters: &BTreeSet<u16>,
-        settings: &DocumentSettings,
-    ) -> (usize, Vec<DisassemblyLine>) {
-        self.handle_split_byte_table(
-            pc,
-            data,
-            block_types,
-            BlockType::HiLoWord,
-            true,
-            address,
-            formatter,
-            labels,
-            origin,
-            label_name,
-            side_comment,
-            line_comment,
-            splitters,
-            settings,
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn handle_split_byte_table(
-        &self,
-        pc: usize,
-        data: &[u8],
-        block_types: &[BlockType],
-        target_type: BlockType,
-        hi_first: bool,
-        address: u16,
-        formatter: &dyn Formatter,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        origin: u16,
-        label_name: Option<String>,
-        side_comment: String,
-        line_comment: Option<String>,
-        splitters: &BTreeSet<u16>,
-        settings: &DocumentSettings,
-    ) -> (usize, Vec<DisassemblyLine>) {
-        let mut count = 0;
-        // Find extent of block
-        while pc + count < data.len() {
-            let current_pc = pc + count;
-
-            if count > 0 {
-                let current_addr = origin.wrapping_add(current_pc as u16);
-                if splitters.contains(&current_addr) {
-                    break;
-                }
-            }
-
-            if block_types.get(current_pc) != Some(&target_type) {
-                break;
-            }
-            count += 1;
-        }
-
-        let pair_count = count / 2;
-        if pair_count == 0 {
-            return self.handle_undefined_byte(
-                pc,
-                data,
-                address,
-                formatter,
-                label_name,
-                side_comment,
-                line_comment,
-            );
-        }
-
-        let total_bytes = pair_count * 2;
-        let split_offset = pair_count;
-
-        let mut lines = Vec::new();
-
-        // Helper to generate operand string
-        let get_operand = |idx: usize, is_lo: bool| -> String {
-            let val = if hi_first {
-                let hi = data[pc + idx];
-                let lo = data[pc + split_offset + idx];
-                (hi as u16) << 8 | (lo as u16)
-            } else {
-                let lo = data[pc + idx];
-                let hi = data[pc + split_offset + idx];
-                (hi as u16) << 8 | (lo as u16)
-            };
-
-            // Try to resolve label.
-            let label_part = if let Some(label_vec) = labels.get(&val) {
-                formatter.format_label(&label_vec[0].name)
-            } else {
-                formatter.format_address(val)
-            };
-
-            if is_lo {
-                format!("<{}", label_part)
-            } else {
-                format!(">{}", label_part)
-            }
-        };
-
-        // Output First Chunk lines
-        let mut i = 0;
-        while i < pair_count {
-            let chunk_size = (pair_count - i).min(settings.addresses_per_line);
-            let mut bytes = Vec::new();
-            let mut operands = Vec::new();
-
-            for k in 0..chunk_size {
-                bytes.push(data[pc + i + k]);
-                // If hi_first is true, inputs are Hi bytes, so we output > format (is_lo=false)
-                // If hi_first is false, inputs are Lo bytes, so we output < format (is_lo=true)
-                operands.push(get_operand(i + k, !hi_first));
-            }
-
-            lines.push(DisassemblyLine {
-                address: origin.wrapping_add((pc + i) as u16),
-                bytes,
-                mnemonic: formatter.byte_directive().to_string(),
-                operand: operands.join(", "),
-                comment: if i == 0 {
-                    side_comment.clone()
-                } else {
-                    String::new()
-                },
-                line_comment: if i == 0 { line_comment.clone() } else { None },
-                label: if i == 0 { label_name.clone() } else { None },
-                opcode: None,
-                show_bytes: false,
-                target_address: None,
-                external_label_address: None,
-                is_collapsed: false,
-            });
-
-            i += chunk_size;
-        }
-
-        // Output Second Chunk lines
-        let mut i = 0;
-        while i < pair_count {
-            let chunk_size = (pair_count - i).min(settings.addresses_per_line);
-            let mut bytes = Vec::new();
-            let mut operands = Vec::new();
-
-            for k in 0..chunk_size {
-                bytes.push(data[pc + split_offset + i + k]);
-                // If hi_first is true, second chunk is Lo bytes, so output < (is_lo=true)
-                // If hi_first is false, second chunk is Hi bytes, so output > (is_lo=false)
-                operands.push(get_operand(i + k, hi_first));
-            }
-
-            let current_chunk_addr = origin.wrapping_add((pc + split_offset + i) as u16);
-            let chunk_label = labels
-                .get(&current_chunk_addr)
-                .and_then(|v| v.first())
-                .map(|l| l.name.clone());
-
-            lines.push(DisassemblyLine {
-                address: current_chunk_addr,
-                bytes,
-                mnemonic: formatter.byte_directive().to_string(),
-                operand: operands.join(", "),
-                comment: String::new(),
-                line_comment: None,
-                label: chunk_label,
-                opcode: None,
-                show_bytes: false,
-                target_address: None,
-                external_label_address: None,
-                is_collapsed: false,
-            });
-
-            i += chunk_size;
-        }
-
-        (total_bytes, lines)
     }
 
     fn get_arrow_target_address(&self, opcode: &Opcode, bytes: &[u8], address: u16) -> Option<u16> {
@@ -1726,37 +1368,6 @@ impl Disassembler {
                 }],
             )
         }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn handle_undefined_byte(
-        &self,
-        pc: usize,
-        data: &[u8],
-        address: u16,
-        formatter: &dyn Formatter,
-        label_name: Option<String>,
-        side_comment: String,
-        line_comment: Option<String>,
-    ) -> (usize, Vec<DisassemblyLine>) {
-        let b = data[pc];
-        (
-            1,
-            vec![DisassemblyLine {
-                address,
-                bytes: vec![b],
-                mnemonic: formatter.byte_directive().to_string(),
-                operand: formatter.format_byte(b),
-                comment: side_comment,
-                line_comment,
-                label: label_name,
-                opcode: None,
-                show_bytes: true,
-                target_address: None,
-                external_label_address: None,
-                is_collapsed: false,
-            }],
-        )
     }
 }
 
