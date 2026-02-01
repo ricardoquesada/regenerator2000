@@ -1,4 +1,4 @@
-use regenerator2000::cpu::{get_opcodes, AddressingMode, Opcode};
+use regenerator2000::cpu::{AddressingMode, Opcode, get_opcodes};
 use std::collections::{HashMap, HashSet};
 
 // =============================================================================
@@ -8,7 +8,11 @@ use std::collections::{HashMap, HashSet};
 #[test]
 fn test_opcode_table_has_256_entries() {
     let opcodes = get_opcodes();
-    assert_eq!(opcodes.len(), 256, "Opcode table must have exactly 256 entries");
+    assert_eq!(
+        opcodes.len(),
+        256,
+        "Opcode table must have exactly 256 entries"
+    );
 }
 
 #[test]
@@ -204,9 +208,12 @@ fn test_all_official_opcodes_are_defined() {
     ];
 
     for (opcode, expected_mnemonic, expected_mode) in official_opcodes {
-        let op = opcodes[opcode as usize]
-            .as_ref()
-            .unwrap_or_else(|| panic!("Official opcode ${:02X} ({}) is not defined", opcode, expected_mnemonic));
+        let op = opcodes[opcode as usize].as_ref().unwrap_or_else(|| {
+            panic!(
+                "Official opcode ${:02X} ({}) is not defined",
+                opcode, expected_mnemonic
+            )
+        });
 
         assert_eq!(
             op.mnemonic, expected_mnemonic,
@@ -490,9 +497,12 @@ fn test_illegal_opcodes_are_marked() {
     ];
 
     for (opcode, expected_mnemonic) in illegal_opcodes {
-        let op = opcodes[opcode as usize]
-            .as_ref()
-            .unwrap_or_else(|| panic!("Illegal opcode ${:02X} ({}) should be defined", opcode, expected_mnemonic));
+        let op = opcodes[opcode as usize].as_ref().unwrap_or_else(|| {
+            panic!(
+                "Illegal opcode ${:02X} ({}) should be defined",
+                opcode, expected_mnemonic
+            )
+        });
 
         assert_eq!(
             op.mnemonic, expected_mnemonic,
@@ -528,10 +538,11 @@ fn test_illegal_opcode_count() {
 fn test_illegal_mnemonics_present() {
     let opcodes = get_opcodes();
 
-    let illegal_mnemonics: HashSet<&str> =
-        ["SLO", "RLA", "SRE", "RRA", "SAX", "LAX", "DCP", "ISC", "ANC", "ASR", "ARR", "SBX"]
-            .into_iter()
-            .collect();
+    let illegal_mnemonics: HashSet<&str> = [
+        "SLO", "RLA", "SRE", "RRA", "SAX", "LAX", "DCP", "ISC", "ANC", "ASR", "ARR", "SBX",
+    ]
+    .into_iter()
+    .collect();
 
     let found_illegal_mnemonics: HashSet<&str> = opcodes
         .iter()
@@ -697,15 +708,15 @@ fn test_specific_cycle_counts() {
 
     // Test some well-known cycle counts
     let expected_cycles: Vec<(u8, u8, &str)> = vec![
-        (0xEA, 2, "NOP"),       // NOP takes 2 cycles
-        (0x00, 7, "BRK"),       // BRK takes 7 cycles
-        (0x20, 6, "JSR"),       // JSR takes 6 cycles
-        (0x60, 6, "RTS"),       // RTS takes 6 cycles
-        (0x40, 6, "RTI"),       // RTI takes 6 cycles
-        (0xA9, 2, "LDA #imm"),  // LDA immediate takes 2 cycles
-        (0xAD, 4, "LDA abs"),   // LDA absolute takes 4 cycles
-        (0x4C, 3, "JMP abs"),   // JMP absolute takes 3 cycles
-        (0x6C, 5, "JMP ind"),   // JMP indirect takes 5 cycles
+        (0xEA, 2, "NOP"),      // NOP takes 2 cycles
+        (0x00, 7, "BRK"),      // BRK takes 7 cycles
+        (0x20, 6, "JSR"),      // JSR takes 6 cycles
+        (0x60, 6, "RTS"),      // RTS takes 6 cycles
+        (0x40, 6, "RTI"),      // RTI takes 6 cycles
+        (0xA9, 2, "LDA #imm"), // LDA immediate takes 2 cycles
+        (0xAD, 4, "LDA abs"),  // LDA absolute takes 4 cycles
+        (0x4C, 3, "JMP abs"),  // JMP absolute takes 3 cycles
+        (0x6C, 5, "JMP ind"),  // JMP indirect takes 5 cycles
     ];
 
     for (opcode, expected, name) in expected_cycles {
@@ -800,14 +811,18 @@ fn test_all_addressing_modes_used() {
 #[test]
 fn test_brk_is_first_opcode() {
     let opcodes = get_opcodes();
-    let brk = opcodes[0x00].as_ref().expect("BRK should be defined at $00");
+    let brk = opcodes[0x00]
+        .as_ref()
+        .expect("BRK should be defined at $00");
     assert_eq!(brk.mnemonic, "BRK");
 }
 
 #[test]
 fn test_nop_opcode() {
     let opcodes = get_opcodes();
-    let nop = opcodes[0xEA].as_ref().expect("NOP should be defined at $EA");
+    let nop = opcodes[0xEA]
+        .as_ref()
+        .expect("NOP should be defined at $EA");
     assert_eq!(nop.mnemonic, "NOP");
     assert_eq!(nop.mode, AddressingMode::Implied);
     assert_eq!(nop.size, 1);
