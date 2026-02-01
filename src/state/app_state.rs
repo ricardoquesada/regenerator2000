@@ -1,372 +1,23 @@
+use super::project::{
+    Block, Label, LoadedProjectData, ProjectSaveContext, ProjectState, compress_block_types,
+    decode_raw_data_from_base64, encode_raw_data_to_base64, expand_blocks,
+};
+use super::settings::DocumentSettings;
+use super::types::{BlockType, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType};
 use crate::config::SystemConfig;
 use crate::disassembler::{Disassembler, DisassemblyLine};
-use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum Platform {
-    Commodore128,
-    Commodore1541,
-    #[default]
-    Commodore64,
-    CommodorePET20,
-    CommodorePET40,
-    CommodorePlus4,
-    CommodoreVIC20,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum HexdumpViewMode {
-    #[default]
-    ScreencodeShifted,
-    ScreencodeUnshifted,
-    PETSCIIShifted,
-    PETSCIIUnshifted,
-}
-
-impl std::fmt::Display for Platform {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Platform::Commodore128 => write!(f, "Commodore 128"),
-            Platform::Commodore1541 => write!(f, "Commodore 1541"),
-            Platform::Commodore64 => write!(f, "Commodore 64"),
-            Platform::CommodorePET20 => write!(f, "Commodore PET 2.0"),
-            Platform::CommodorePET40 => write!(f, "Commodore PET 4.0"),
-            Platform::CommodorePlus4 => write!(f, "Commodore Plus/4"),
-            Platform::CommodoreVIC20 => write!(f, "Commodore VIC 20"),
-        }
-    }
-}
-
-impl Platform {
-    pub fn all() -> &'static [Platform] {
-        &[
-            Platform::Commodore128,
-            Platform::Commodore1541,
-            Platform::Commodore64,
-            Platform::CommodorePET20,
-            Platform::CommodorePET40,
-            Platform::CommodorePlus4,
-            Platform::CommodoreVIC20,
-        ]
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum Assembler {
-    #[default]
-    Tass64,
-    Acme,
-    Ca65,
-    Kick,
-}
-
-impl std::fmt::Display for Assembler {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Assembler::Tass64 => write!(f, "64tass"),
-            Assembler::Acme => write!(f, "ACME"),
-            Assembler::Ca65 => write!(f, "ca65"),
-            Assembler::Kick => write!(f, "KickAssembler"),
-        }
-    }
-}
-
-impl Assembler {
-    pub fn all() -> &'static [Assembler] {
-        &[
-            Assembler::Tass64,
-            Assembler::Acme,
-            Assembler::Ca65,
-            Assembler::Kick,
-        ]
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct DocumentSettings {
-    #[serde(default)]
-    pub all_labels: bool, // default false
-    #[serde(default = "default_true")]
-    pub preserve_long_bytes: bool, // default true
-    #[serde(default)]
-    pub brk_single_byte: bool, // default false
-    #[serde(default = "default_true")]
-    pub patch_brk: bool, // default true
-    #[serde(default)]
-    pub platform: Platform, // default C64
-    #[serde(default)]
-    pub assembler: Assembler, // default Tass64
-    #[serde(default = "default_max_xref")]
-    pub max_xref_count: usize, // default 5
-    #[serde(default = "default_max_arrow_columns")]
-    pub max_arrow_columns: usize, // default 6
-    #[serde(default)]
-    pub use_illegal_opcodes: bool, // default false
-    #[serde(default = "default_text_char_limit")]
-    pub text_char_limit: usize, // default 40
-    #[serde(default = "default_addresses_per_line")]
-    pub addresses_per_line: usize, // default 5
-    #[serde(default = "default_bytes_per_line")]
-    pub bytes_per_line: usize, // default 8
-}
-
-fn default_text_char_limit() -> usize {
-    40
-}
-
-fn default_addresses_per_line() -> usize {
-    5
-}
-
-fn default_bytes_per_line() -> usize {
-    8
-}
-
-fn default_true() -> bool {
-    true
-}
-
-fn default_max_xref() -> usize {
-    5
-}
-
-fn default_max_arrow_columns() -> usize {
-    6
-}
-
-impl Default for DocumentSettings {
-    fn default() -> Self {
-        Self {
-            all_labels: false,
-            preserve_long_bytes: true,
-            brk_single_byte: false,
-            patch_brk: true,
-            platform: Platform::default(),
-            assembler: Assembler::default(),
-            max_xref_count: 5,
-            max_arrow_columns: 6,
-            use_illegal_opcodes: false,
-            text_char_limit: 40,
-            addresses_per_line: 5,
-            bytes_per_line: 8,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BlockType {
-    Code,
-    DataByte,
-    DataWord,
-    Address,
-    #[serde(alias = "Text")]
-    PetsciiText,
-    #[serde(alias = "Screencode")]
-    ScreencodeText,
-    #[serde(alias = "LoHi")]
-    LoHiAddress,
-    #[serde(alias = "HiLo")]
-    HiLoAddress,
-    LoHiWord,
-    HiLoWord,
-    ExternalFile,
-    Undefined,
-}
-
-impl std::fmt::Display for BlockType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            BlockType::Code => write!(f, "Code"),
-            BlockType::DataByte => write!(f, "Byte"),
-            BlockType::DataWord => write!(f, "Word"),
-            BlockType::Address => write!(f, "Address"),
-            BlockType::PetsciiText => write!(f, "PETSCII Text"),
-            BlockType::ScreencodeText => write!(f, "Screencode Text"),
-            BlockType::LoHiAddress => write!(f, "Lo/Hi Address"),
-            BlockType::HiLoAddress => write!(f, "Hi/Lo Address"),
-            BlockType::LoHiWord => write!(f, "Lo/Hi Word"),
-            BlockType::HiLoWord => write!(f, "Hi/Lo Word"),
-            BlockType::ExternalFile => write!(f, "External File"),
-            BlockType::Undefined => write!(f, "Undefined"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum LabelKind {
-    User,
-    Auto,
-    System,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum LabelType {
-    ZeroPageField = 0,
-    Field = 1,
-    ZeroPageAbsoluteAddress = 2,
-    AbsoluteAddress = 3,
-    Pointer = 4,
-    ZeroPagePointer = 5,
-    Branch = 6,
-    Jump = 7,
-    Subroutine = 8,
-    ExternalJump = 9,
-    Predefined = 10,
-    UserDefined = 11,
-}
-
-impl LabelType {
-    pub fn prefix(&self) -> char {
-        match self {
-            LabelType::ZeroPageField => 'f',
-            LabelType::Field => 'f',
-            LabelType::ZeroPageAbsoluteAddress => 'a',
-            LabelType::AbsoluteAddress => 'a',
-            LabelType::Pointer => 'p',
-            LabelType::ZeroPagePointer => 'p',
-            LabelType::ExternalJump => 'e',
-            LabelType::Jump => 'j',
-            LabelType::Subroutine => 's',
-            LabelType::Branch => 'b',
-            LabelType::Predefined => 'L',
-            LabelType::UserDefined => 'L',
-        }
-    }
-
-    /// Formats a label name for the given address and label type.
-    ///
-    /// For zero-page addresses (0x00-0xFF):
-    /// - ExternalJump, AbsoluteAddress, Field, Pointer use 4 hex digits (e.g., "a00FF")
-    /// - Other types use 2 hex digits (e.g., "aFF")
-    ///
-    /// For non-zero-page addresses (0x100+):
-    /// - All types use 4 hex digits (e.g., "a1234")
-    pub fn format_label(&self, addr: u16) -> String {
-        let prefix = self.prefix();
-
-        if addr <= 0xFF {
-            // Zero page address
-            match self {
-                LabelType::ExternalJump
-                | LabelType::AbsoluteAddress
-                | LabelType::Field
-                | LabelType::Pointer => {
-                    // Force 4 digits for these types even in zero page
-                    format!("{}{:04X}", prefix, addr)
-                }
-                _ => {
-                    // Use 2 digits for zero page types
-                    format!("{}{:02X}", prefix, addr)
-                }
-            }
-        } else {
-            // Non-zero page: always use 4 digits
-            format!("{}{:04X}", prefix, addr)
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Label {
-    pub name: String,
-    pub label_type: LabelType,
-    pub kind: LabelKind,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Block {
-    pub start: usize,
-    pub end: usize,
-    pub type_: BlockType,
-    #[serde(default)]
-    pub collapsed: bool,
-}
-
-// Note: We use BTreeMap instead of HashMap for all address-keyed collections
-// to ensure deterministic serialization order. This guarantees that the
-// project file content remains stable across save/load cycles.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ProjectState {
-    pub origin: u16,
-    #[serde(rename = "raw_data_base64")]
-    pub raw_data: String,
-    pub blocks: Vec<Block>,
-    #[serde(default)]
-    pub labels: BTreeMap<u16, Vec<Label>>,
-    #[serde(default, alias = "user_comments")]
-    pub user_side_comments: BTreeMap<u16, String>,
-    #[serde(default)]
-    pub user_line_comments: BTreeMap<u16, String>,
-    #[serde(default)]
-    pub settings: DocumentSettings,
-    #[serde(default)]
-    pub immediate_value_formats: BTreeMap<u16, ImmediateFormat>,
-    #[serde(default)]
-    pub cursor_address: Option<u16>,
-    #[serde(default)]
-    pub hex_dump_cursor_address: Option<u16>,
-    #[serde(default)]
-    pub sprites_cursor_address: Option<u16>,
-    #[serde(default)]
-    pub charset_cursor_address: Option<u16>,
-    #[serde(default)]
-    pub right_pane_visible: Option<String>,
-    #[serde(default)]
-    pub sprite_multicolor_mode: bool,
-    #[serde(default)]
-    pub charset_multicolor_mode: bool,
-    #[serde(default)]
-    pub bitmap_cursor_address: Option<u16>,
-    #[serde(default)]
-    pub bitmap_multicolor_mode: bool,
-    #[serde(default)]
-    pub hexdump_view_mode: HexdumpViewMode,
-    #[serde(default)]
-    pub splitters: BTreeSet<u16>,
-    #[serde(default)]
-    pub blocks_view_cursor: Option<usize>,
-}
-
-pub struct LoadedProjectData {
-    pub cursor_address: Option<u16>,
-    pub hex_dump_cursor_address: Option<u16>,
-    pub sprites_cursor_address: Option<u16>,
-    pub right_pane_visible: Option<String>,
-    pub charset_cursor_address: Option<u16>,
-    pub bitmap_cursor_address: Option<u16>,
-    pub sprite_multicolor_mode: bool,
-    pub charset_multicolor_mode: bool,
-    pub bitmap_multicolor_mode: Option<bool>,
-    pub hexdump_view_mode: HexdumpViewMode,
-    pub blocks_view_cursor: Option<usize>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ImmediateFormat {
-    Hex,
-    InvertedHex,
-    Decimal,
-    NegativeDecimal,
-    Binary,
-    InvertedBinary,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProjectSaveContext {
-    pub cursor_address: Option<u16>,
-    pub hex_dump_cursor_address: Option<u16>,
-    pub sprites_cursor_address: Option<u16>,
-    pub right_pane_visible: Option<String>,
-    pub charset_cursor_address: Option<u16>,
-    pub bitmap_cursor_address: Option<u16>,
-    pub sprite_multicolor_mode: bool,
-    pub charset_multicolor_mode: bool,
-    pub bitmap_multicolor_mode: bool,
-    pub hexdump_view_mode: HexdumpViewMode,
-    pub splitters: BTreeSet<u16>,
-    pub blocks_view_cursor: Option<usize>,
+#[derive(Debug, Clone, PartialEq)]
+pub enum BlockItem {
+    Block {
+        start: u16,
+        end: u16,
+        type_: BlockType,
+        collapsed: bool,
+    },
+    Splitter(u16),
 }
 
 pub struct AppState {
@@ -483,10 +134,6 @@ impl AppState {
         let mut end = index;
 
         // Search backward
-        // A block starts at 'start' if:
-        // 1. It's the beginning of the buffer (start == 0)
-        // 2. The previous byte has a different type
-        // 3. There is a splitter AT 'start' (splitters[addr] means a new block starts at addr)
         while start > 0
             && self.block_types[start - 1] == target_type
             && !self.splitters.contains(&origin.wrapping_add(start as u16))
@@ -495,10 +142,6 @@ impl AppState {
         }
 
         // Search forward
-        // A block ends at 'end' if:
-        // 1. It's the end of the buffer
-        // 2. The next byte has a different type
-        // 3. The next byte (end + 1) is a splitter
         while end < self.block_types.len() - 1
             && self.block_types[end + 1] == target_type
             && !self
@@ -547,12 +190,6 @@ impl AppState {
                 return res;
             }
 
-            // ... existing code ...
-
-            // This is a file, not a project, so maybe we don't save it as last_project?
-            // User request says "try to load the latest regen2000 project that was used".
-            // So I only track projects.
-
             if ext.eq_ignore_ascii_case("prg") && data.len() >= 2 {
                 self.origin = (data[1] as u16) << 8 | (data[0] as u16);
                 self.raw_data = data[2..].to_vec();
@@ -573,7 +210,7 @@ impl AppState {
                 self.origin = load_address;
                 self.raw_data = raw_data;
             } else {
-                self.origin = 0; // Default for .bin, or user can change later
+                self.origin = 0; // Default for .bin
                 self.raw_data = data;
             }
         } else {
@@ -636,7 +273,6 @@ impl AppState {
         // Decode raw data
         self.raw_data = decode_raw_data_from_base64(&project.raw_data)?;
 
-        // Expand address types
         // Expand address types and collapsed blocks
         let (block_types, collapsed_ranges) = expand_blocks(&project.blocks, self.raw_data.len());
         self.block_types = block_types;
@@ -658,20 +294,9 @@ impl AppState {
             let (analyzed_labels, cross_refs) = crate::analyzer::analyze(self);
             self.labels = analyzed_labels;
             self.cross_refs = cross_refs;
-        } else {
-            // Need to populate self.labels from project.labels if not analyzing?
-            // self.labels is already assigned `self.labels = project.labels;` above lines 560
-            // But we need to make sure cross_refs are populated if possible?
-            // analyzing also generates cross_refs.
-            // If we don't analyze, we might barely have cross_refs if they are not saved in project?
-            // ProjectState doesn't seem to save cross_refs.
-            // Let's check ProjectState definition.
-            // It has labels, blocks, etc. No cross_refs.
-            // So if we don't analyze, we have no cross_refs.
-            // That's acceptable if the user explicitly disables auto-analyze.
         }
-        self.collapsed_blocks = collapsed_ranges;
 
+        self.collapsed_blocks = collapsed_ranges;
         self.undo_stack = crate::commands::UndoStack::new();
         self.last_saved_pointer = 0;
 
@@ -1194,79 +819,7 @@ impl AppState {
         }
         self.undo_stack.push(command);
     }
-}
 
-pub fn compress_block_types(
-    types: &[BlockType],
-    collapsed_ranges: &[(usize, usize)],
-) -> Vec<Block> {
-    if types.is_empty() {
-        return Vec::new();
-    }
-
-    let is_collapsed =
-        |idx: usize| -> bool { collapsed_ranges.iter().any(|(s, e)| idx >= *s && idx <= *e) };
-
-    let mut ranges = Vec::new();
-    let mut start = 0;
-    let mut current_type = types[0];
-    let mut current_collapsed = is_collapsed(0);
-
-    for (i, t) in types.iter().enumerate().skip(1) {
-        let collapsed = is_collapsed(i);
-        if *t != current_type || collapsed != current_collapsed {
-            ranges.push(Block {
-                start,
-                end: i - 1,
-                type_: current_type,
-                collapsed: current_collapsed,
-            });
-            start = i;
-            current_type = *t;
-            current_collapsed = collapsed;
-        }
-    }
-
-    // Last range
-    ranges.push(Block {
-        start,
-        end: types.len() - 1,
-        type_: current_type,
-        collapsed: current_collapsed,
-    });
-
-    ranges
-}
-
-fn expand_blocks(ranges: &[Block], len: usize) -> (Vec<BlockType>, Vec<(usize, usize)>) {
-    let mut types = vec![BlockType::Code; len];
-    let mut collapsed_ranges = Vec::new();
-
-    for range in ranges {
-        let end = range.end.min(len - 1);
-        if range.start <= end {
-            if range.collapsed {
-                collapsed_ranges.push((range.start, end));
-            }
-            types[range.start..=end].fill(range.type_);
-        }
-    }
-
-    (types, collapsed_ranges)
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum BlockItem {
-    Block {
-        start: u16,
-        end: u16,
-        type_: BlockType,
-        collapsed: bool,
-    },
-    Splitter(u16),
-}
-
-impl AppState {
     pub fn get_blocks_view_items(&self) -> Vec<BlockItem> {
         let compressed_blocks = self.get_compressed_blocks();
         let mut items = Vec::new();
@@ -1276,80 +829,20 @@ impl AppState {
             let block_start = self.origin.wrapping_add(block.start as u16);
             let block_end = self.origin.wrapping_add(block.end as u16);
 
-            // Collect splitters that fall strictly WITHIN this block (exclusive of start, inclusive of end?)
-            // Logic: Splitter at START of block doesn't split it (it's just a boundary).
-            // Splitter at END of block... well, blocks are [start, end].
-            // If we have a block $1000-$1010.
-            // Splitter at $1005.
-            // Result: Block $1000-$1004, Splitter $1005, Block $1005-$1010 ?
-            // No, Splitter is a point. It divides.
-            // Wait, existing behavior: Splitter at $1005 means code at $1005 starts a new instruction/data sequence?
-            // In `disassembler.rs`, splitter breaks the flow.
-            // If we have a solid block of DataByte from $1000 to $1010.
-            // And we add a splitter at $1005.
-            // The `compressed_block_types` calculation *should* already reflect this if the types are different?
-            // No, splitters don't change the *type*. They just force a disassembly/analysis break.
-            // BUT, if the type is the SAME on both sides, `compress_block_types` merges them.
-            // WE want to visually show the splitter.
-
-            // So we iterate through the splitters.
-            // Find splitters that are in (block_start..=block_end).
-            // Actually, if a splitter is at block_start, it visually separates from PREVIOUS block.
-            // But here we are processing THIS block.
-            // If splitter is at $1000 (start), do we show it BEFORE the block?
-            // If we show it before, it might duplicate if the previous block ended at $0FFF.
-            // Let's decide: Splitter at X belongs to the block starting at X or ending at X?
-            // A splitter is an address.
-            // Any splitter >= block_start && splitter <= block_end is relevant.
-
-            // However, `get_compressed_blocks` returns blocks based on `block_types` array indices.
-            // We need to map `block.start`/`end` (indices) to addresses.
-
             let current_end_idx = block.end;
 
             // Filter splitters relevant to this block range
-            // Relevant: splitter_addr >= block_start_addr AND splitter_addr <= block_end_addr
-            // Note: Indices are relative to 0 (start of memory buffer). Address = origin + index.
-
             let relevant_splitters: Vec<u16> = self
                 .splitters
                 .range(block_start..=block_end)
                 .copied()
                 .collect();
 
-            // If splitter is exactly at block_start, do we split?
-            // If we split, we get Empty Block, Splitter, Block.
-            // We probably just want Splitter, Block.
-            // But we should filter out splitters that are at the very beginning if we handled them in the previous block?
-            // No, we process blocks sequentially.
-
-            // Wait, if we have Block1 ($1000-$1004) and Block2 ($1005-$1010).
-            // And Splitter is at $1005.
-            // Block1 ends at $1004. Splitter ($1005) is NOT in Block1.
-            // Block2 starts at $1005. Splitter ($1005) IS in Block2.
-            // So it will appear at the start of Block2.
-            // What if Splitter is at $1011? It would be after Block2.
-
-            // SPECIAL CASE: multiple blocks of SAME type are merged by `compress_block_types`.
-            // So if $1000-$1010 is all Code, we get ONE `Block`.
-            // If we have a splitter at $1005.
-            // We want: Block ($1000-$1004), Splitter ($1005), Block ($1005-$1010).
-            // Addresses:
-            // Block 1: start=$1000, end=$1004 (len 5)
-            // Splitter: $1005
-            // Block 2: start=$1005, end=$1010 (len 6)
-
-            // Implementation:
-            // Iterate range of indices in this block.
-            // If index corresponds to a splitter address -> Split.
-
             let origin = self.origin;
             let mut sub_block_start = block.start;
 
             for splitter_addr in relevant_splitters {
                 // Convert splitter address to index
-                // We need to handle wrapping if any (though usually origin + len fits in u16 space or distinct).
-                // index = splitter_addr - origin.
                 let splitter_idx = (splitter_addr.wrapping_sub(origin)) as usize;
 
                 // If splitter is outside current bounds (shouldn't happen due to range filter), skip.
@@ -1369,17 +862,6 @@ impl AppState {
 
                 // Emit Splitter
                 items.push(BlockItem::Splitter(splitter_addr));
-
-                // The rest of the block including splitter starts at splitter_idx.
-                // Wait, does the splitter consume a byte? No.
-                // A splitter is a designated point.
-                // But visually we want to break the block.
-                // If Block is Code $1000-$1010.
-                // Splitter at $1005.
-                // We want Block $1000-$1004.
-                // Splitter $1005 item.
-                // Block $1005-$1010.
-                // So next sub_block starts at splitter_idx.
 
                 sub_block_start = splitter_idx;
             }
@@ -1417,172 +899,6 @@ impl AppState {
     }
 }
 
-use base64::{Engine as _, engine::general_purpose};
-use flate2::Compression;
-use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
-use std::io::Read;
-use std::io::Write;
-
-pub fn encode_raw_data_to_base64(data: &[u8]) -> anyhow::Result<String> {
-    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(data)?;
-    let compressed_data = encoder.finish()?;
-    Ok(general_purpose::STANDARD.encode(compressed_data))
-}
-
-pub fn decode_raw_data_from_base64(data: &str) -> anyhow::Result<Vec<u8>> {
-    let decoded_compressed = general_purpose::STANDARD.decode(data)?;
-    let mut decoder = GzDecoder::new(&decoded_compressed[..]);
-    let mut raw_data = Vec::new();
-    decoder.read_to_end(&mut raw_data)?;
-    Ok(raw_data)
-}
-
-#[cfg(test)]
-mod serialization_tests {
-    use super::*;
-
-    #[test]
-    fn test_compress_block_types() {
-        let types = vec![
-            BlockType::Code,
-            BlockType::Code,
-            BlockType::DataByte,
-            BlockType::DataByte,
-            BlockType::Code,
-        ];
-        let empty_collapsed: Vec<(usize, usize)> = Vec::new();
-        let ranges = compress_block_types(&types, &empty_collapsed);
-        assert_eq!(ranges.len(), 3);
-        assert_eq!(ranges[0].start, 0);
-        assert_eq!(ranges[0].end, 1);
-        assert_eq!(ranges[0].type_, BlockType::Code);
-        assert!(!ranges[0].collapsed);
-
-        assert_eq!(ranges[1].start, 2);
-        assert_eq!(ranges[1].end, 3);
-        assert_eq!(ranges[1].type_, BlockType::DataByte);
-
-        assert_eq!(ranges[2].start, 4);
-        assert_eq!(ranges[2].end, 4);
-        assert_eq!(ranges[2].type_, BlockType::Code);
-    }
-
-    #[test]
-    fn test_expand_blocks() {
-        let ranges = vec![
-            Block {
-                start: 0,
-                end: 1,
-                type_: BlockType::Code,
-                collapsed: false,
-            },
-            Block {
-                start: 2,
-                end: 3,
-                type_: BlockType::DataByte,
-                collapsed: true,
-            },
-            Block {
-                start: 4,
-                end: 4,
-                type_: BlockType::Code,
-                collapsed: false,
-            },
-        ];
-        let (types, collapsed) = expand_blocks(&ranges, 5);
-        assert_eq!(types.len(), 5);
-        assert_eq!(types[0], BlockType::Code);
-        assert_eq!(types[1], BlockType::Code);
-        assert_eq!(types[2], BlockType::DataByte);
-        assert_eq!(types[3], BlockType::DataByte);
-        assert_eq!(types[4], BlockType::Code);
-
-        assert_eq!(collapsed.len(), 1);
-        assert_eq!(collapsed[0], (2, 3));
-    }
-
-    #[test]
-    fn test_encode_decode_raw_data() {
-        let data: Vec<u8> = (0..100).collect();
-        let encoded = encode_raw_data_to_base64(&data).unwrap();
-        // Base64 string should not contain spaces
-        assert!(!encoded.contains(' '));
-
-        let decoded = decode_raw_data_from_base64(&encoded).unwrap();
-        assert_eq!(data, decoded);
-    }
-
-    #[test]
-    fn test_label_type_format_label() {
-        // Test zero page addresses with types that should use 4 digits
-        assert_eq!(
-            LabelType::ExternalJump.format_label(0xFF),
-            "e00FF",
-            "ExternalJump in ZP should use 4 digits"
-        );
-        assert_eq!(
-            LabelType::AbsoluteAddress.format_label(0xA0),
-            "a00A0",
-            "AbsoluteAddress in ZP should use 4 digits"
-        );
-        assert_eq!(
-            LabelType::Field.format_label(0x10),
-            "f0010",
-            "Field in ZP should use 4 digits"
-        );
-        assert_eq!(
-            LabelType::Pointer.format_label(0xFB),
-            "p00FB",
-            "Pointer in ZP should use 4 digits"
-        );
-
-        // Test zero page addresses with types that should use 2 digits
-        assert_eq!(
-            LabelType::ZeroPageField.format_label(0xFF),
-            "fFF",
-            "ZeroPageField in ZP should use 2 digits"
-        );
-        assert_eq!(
-            LabelType::ZeroPagePointer.format_label(0xFB),
-            "pFB",
-            "ZeroPagePointer in ZP should use 2 digits"
-        );
-        assert_eq!(
-            LabelType::Jump.format_label(0x10),
-            "j10",
-            "Jump in ZP should use 2 digits"
-        );
-        assert_eq!(
-            LabelType::Subroutine.format_label(0x20),
-            "s20",
-            "Subroutine in ZP should use 2 digits"
-        );
-
-        // Test non-zero page addresses (all should use 4 digits)
-        assert_eq!(
-            LabelType::Jump.format_label(0x1000),
-            "j1000",
-            "Jump outside ZP should use 4 digits"
-        );
-        assert_eq!(
-            LabelType::Subroutine.format_label(0xC000),
-            "sC000",
-            "Subroutine outside ZP should use 4 digits"
-        );
-        assert_eq!(
-            LabelType::Field.format_label(0x1234),
-            "f1234",
-            "Field outside ZP should use 4 digits"
-        );
-        assert_eq!(
-            LabelType::Pointer.format_label(0xD020),
-            "pD020",
-            "Pointer outside ZP should use 4 digits"
-        );
-    }
-}
 #[cfg(test)]
 mod load_file_tests {
     use super::*;
@@ -1716,17 +1032,6 @@ mod save_project_tests {
             .expect("User label should be saved");
         assert_eq!(user_label.first().unwrap().name, "UserLabel");
         assert_eq!(user_label.first().unwrap().kind, LabelKind::User);
-
-        // 7. Verify `names` map is EMPTY (skipped)
-        // When deserialized, because it was skipped, it should get the default value (empty Map)
-        // NOTE: We need to make sure `Label` implements `Default` for `names` or serde handles missing field as default.
-        // `HashMap` default is empty. `#[serde(skip)]` means it won't be in JSON.
-        // When reading back, if the field is missing in JSON, we need `#[serde(default)]` on the struct field
-        // OR rely on the fact that we are deserializing into a struct where we removed `skip`?
-        // NO. `Label` definition HAS `#[serde(skip)]`. So `serde` will NOT write it.
-        // But when reading `ProjectState`, it uses the SAME `Label` definition.
-        // Serde `skip` on a field means it is NOT serialized AND NOT deserialized (it takes default).
-        // So `user_label.names` should be empty.
 
         assert_eq!(
             user_label.first().unwrap().label_type,
