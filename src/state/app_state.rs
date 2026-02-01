@@ -444,8 +444,8 @@ impl AppState {
             }
         }
         let content = crate::parser::vice_lbl::generate_vice_labels(&export_list);
-        std::fs::write(path, content)?;
-        Ok("Labels Exported".to_string())
+        std::fs::write(&path, content)?;
+        Ok(format!("Labels exported to {:?}", path))
     }
 
     pub fn set_block_type_region(
