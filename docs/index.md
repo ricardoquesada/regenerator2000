@@ -19,10 +19,10 @@ Regenerator 2000 is a modern 6502 disassembler, TUI-based, with a Turbo Debugger
 
 ## Getting Started
 
-- [Installation & Usage](install.md): Learn how to install and use Regenerator 2000.
-- [Views](views.md): Overview of the different views available in the interface.
-- [Blocks](blocks.md): Understand the core concept of code and data blocks.
-- [Tutorial](#tutorial): A step-by-step walkthrough of a sample session.
+- **[Installation & Usage](install.md)** - Learn how to install and start using Regenerator 2000.
+- **[Views](views.md)** - Discover the different views available in the interface and how to use them.
+- **[Blocks](blocks.md)** - Understand the core concept of code and data blocks.
+- **[Tutorial](#tutorial)** - Follow a step-by-step walkthrough of a sample reverse-engineering session.
 
 ## Tutorial
 

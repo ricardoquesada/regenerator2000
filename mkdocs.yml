@@ -6,6 +6,7 @@ site_description: >-
   Features a TUI with modern features like x-ref, undo/redo, arrows,
   keyboard-driven and more!
 
+site_url: http://regenerator2000.readthedocs.io/
 repo_url: https://github.com/ricardoquesada/regenerator2000
 repo_name: ricardoquesada/regenerator2000
 
@@ -25,6 +26,8 @@ theme:
     # Palette toggle for light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
+      primary: indigo
+      accent: deep purple
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
@@ -32,12 +35,19 @@ theme:
     # Palette toggle for dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
+      primary: indigo
+      accent: deep purple
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
   features:
     - navigation.tabs
     - content.code.copy
+    - navigation.top
+    - navigation.tracking
 
 nav:
   - Home: index.md
@@ -52,6 +62,7 @@ nav:
       - FAQ: faq.md
   - Development & Internals:
       - Architecture: architecture.md
+      - Graphics Module: graphics_module.md
       - Requirements: requirements.md
 
 markdown_extensions:
