@@ -14,11 +14,37 @@ The available Block Types are:
 
 !!! example
 
-    ```asm
-    ; Code blocks are represented as code
-    lda #$00
-    sta aD020
-    ```
+    === "64tass"
+
+        ```asm
+        ; Code blocks are represented as code
+        lda #$00
+        sta aD020
+        ```
+
+    === "ACME"
+
+        ```asm
+        ; Code blocks are represented as code
+        lda #$00
+        sta aD020
+        ```
+
+    === "KickAssembler"
+
+        ```asm
+        // Code blocks are represented as code
+        lda #$00
+        sta aD020
+        ```
+
+    === "ca65"
+
+        ```asm
+        ; Code blocks are represented as code
+        lda #$00
+        sta aD020
+        ```
 
 ## 2. Data Byte
 
@@ -29,10 +55,33 @@ The available Block Types are:
 
 !!! example
 
-    ```asm
-    ; Byte blocks are represented as bytes
-    .byte $80, $40, $a2, $ff
-    ```
+    === "64tass"
+
+        ```asm
+        ; Byte blocks are represented as bytes
+        .byte $80, $40, $a2, $ff
+        ```
+
+    === "ACME"
+
+        ```asm
+        ; Byte blocks are represented as bytes
+        !byte $80, $40, $a2, $ff
+        ```
+
+    === "KickAssembler"
+
+        ```asm
+        // Byte blocks are represented as bytes
+        .byte $80, $40, $a2, $ff
+        ```
+
+    === "ca65"
+
+        ```asm
+        ; Byte blocks are represented as bytes
+        .byte $80, $40, $a2, $ff
+        ```
 
 ## 3. Data Word
 
@@ -42,10 +91,33 @@ The available Block Types are:
 
 !!! example
 
-    ```asm
-    ; Word blocks are represented as words
-    .word $1234, $ffaa, $5678, $0000, $abcd
-    ```
+    === "64tass"
+
+        ```asm
+        ; Word blocks are represented as words
+        .word $1234, $ffaa, $5678, $0000, $abcd
+        ```
+
+    === "ACME"
+
+        ```asm
+        ; Word blocks are represented as words
+        !word $1234, $ffaa, $5678, $0000, $abcd
+        ```
+
+    === "KickAssembler"
+
+        ```asm
+        // Word blocks are represented as words
+        .word $1234, $ffaa, $5678, $0000, $abcd
+        ```
+
+    === "ca65"
+
+        ```asm
+        ; Word blocks are represented as words
+        .word $1234, $ffaa, $5678, $0000, $abcd
+        ```
 
 ## 4. Address
 
@@ -57,26 +129,68 @@ The available Block Types are:
 
 !!! example
 
-    ```asm
-    ; Addresss blocks represented as words, that generates an address reference
-    .word a1234, aFFAA, a5678, a0000, aABCD
-    ```
+    === "64tass"
+
+        ```asm
+        ; Address blocks are represented as words, that generates an address reference
+        .word a1234, aFFAA, a5678, a0000, aABCD
+        ```
+
+    === "ACME"
+
+        ```asm
+        ; Address blocks are represented as words, that generates an address reference
+        !word a1234, aFFAA, a5678, a0000, aABCD
+        ```
+
+    === "KickAssembler"
+
+        ```asm
+        // Address blocks are represented as words, that generates an address reference
+        .word a1234, aFFAA, a5678, a0000, aABCD
+        ```
+
+    === "ca65"
+
+        ```asm
+        ; Address blocks are represented as words, that generates an address reference
+        .word a1234, aFFAA, a5678, a0000, aABCD
+        ```
 
 ## 5. PETSCII Text
 
-- **Shortcut**: ++x++
+- **Shortcut**: ++p++
 - **Description**: Interprets bytes as PETSCII text sequences.
 - **Use Case**: Use for game messages, high score names, or print routines. The disassembler will try to group
   contiguous characters into a single string.
 
 !!! example
 
-    ```asm
-    .encode
-    .enc "none"
-    .text "hello world"
-    .endencode
-    ```
+    === "64tass"
+
+        ```asm
+        .encode "none"
+        .text "hello world"
+        ```
+
+    === "ACME"
+
+        ```asm
+        !text "hello world"
+        ```
+
+    === "KickAssembler"
+
+        ```asm
+        .encoding "petscii_upper"
+        .text "hello world"
+        ```
+
+    === "ca65"
+
+        ```asm
+        .byte "hello world"
+        ```
 
 ## 6. Screencode Text
 
@@ -87,12 +201,32 @@ The available Block Types are:
 
 !!! example
 
-    ```asm
-    .encode
-    .enc "screen"
-    .text "hello world"
-    .endencode
-    ```
+    === "64tass"
+
+        ```asm
+        .encode "screen"
+        .text "hello world"
+        ```
+
+    === "ACME"
+
+        ```asm
+        !scr "hello world"
+        ```
+
+    === "KickAssembler"
+
+        ```asm
+        .encoding "screencode_mixed"
+        .text "hello world"
+        ```
+
+    === "ca65"
+
+        ```asm
+        ; Requires .macpack cbm
+        scrcode "hello world"
+        ```
 
 ## 7. Lo/Hi Address Table
 
@@ -103,13 +237,45 @@ The available Block Types are:
 
 !!! example
 
-    ```asm
-    ; Assume that you have these bytes:
-    ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
-    ; They will be represented as:
-    .byte <aC000, <aD101, <aE202, <aF303
-    .byte >aC000, >aD101, >aE202, >aF303
-    ```
+    === "64tass"
+
+        ```asm
+        ; Assume that you have these bytes:
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; They will be represented as:
+        .byte <aC000, <aD101, <aE202, <aF303
+        .byte >aC000, >aD101, >aE202, >aF303
+        ```
+
+    === "ACME"
+
+        ```asm
+        ; Assume that you have these bytes:
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; They will be represented as:
+        !byte <aC000, <aD101, <aE202, <aF303
+        !byte >aC000, >aD101, >aE202, >aF303
+        ```
+
+    === "KickAssembler"
+
+        ```asm
+        // Assume that you have these bytes:
+        // $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        // They will be represented as:
+        .byte <aC000, <aD101, <aE202, <aF303
+        .byte >aC000, >aD101, >aE202, >aF303
+        ```
+
+    === "ca65"
+
+        ```asm
+        ; Assume that you have these bytes:
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; They will be represented as:
+        .byte <aC000, <aD101, <aE202, <aF303
+        .byte >aC000, >aD101, >aE202, >aF303
+        ```
 
 ## 8. Hi/Lo Address Table
 
@@ -120,13 +286,45 @@ The available Block Types are:
 
 !!! example
 
-    ```asm
-    ; Assume that you have these bytes:
-    ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
-    ; They will be represented as:
-    .byte >a00C0, >a01D1, >a02E2, >a03F3
-    .byte <a00C0, <a01D1, <a02E2, <a03F3
-    ```
+    === "64tass"
+
+        ```asm
+        ; Assume that you have these bytes:
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; They will be represented as:
+        .byte >a00C0, >a01D1, >a02E2, >a03F3
+        .byte <a00C0, <a01D1, <a02E2, <a03F3
+        ```
+
+    === "ACME"
+
+        ```asm
+        ; Assume that you have these bytes:
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; They will be represented as:
+        !byte >a00C0, >a01D1, >a02E2, >a03F3
+        !byte <a00C0, <a01D1, <a02E2, <a03F3
+        ```
+
+    === "KickAssembler"
+
+        ```asm
+        // Assume that you have these bytes:
+        // $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        // They will be represented as:
+        .byte >a00C0, >a01D1, >a02E2, >a03F3
+        .byte <a00C0, <a01D1, <a02E2, <a03F3
+        ```
+
+    === "ca65"
+
+        ```asm
+        ; Assume that you have these bytes:
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; They will be represented as:
+        .byte >a00C0, >a01D1, >a02E2, >a03F3
+        .byte <a00C0, <a01D1, <a02E2, <a03F3
+        ```
 
 ## 9. Lo/Hi Word Table
 
@@ -137,13 +335,45 @@ The available Block Types are:
 
 !!! example
 
-    ```asm
-    ; Assume that you have these bytes:
-    ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
-    ; They will be represented as:
-    .byte <$C000, <$D101, <$E202, <$F303
-    .byte >$C000, >$D101, >$E202, >$F303
-    ```
+    === "64tass"
+
+        ```asm
+        ; Assume that you have these bytes:
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; They will be represented as:
+        .byte <$C000, <$D101, <$E202, <$F303
+        .byte >$C000, >$D101, >$E202, >$F303
+        ```
+
+    === "ACME"
+
+        ```asm
+        ; Assume that you have these bytes:
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; They will be represented as:
+        !byte <$C000, <$D101, <$E202, <$F303
+        !byte >$C000, >$D101, >$E202, >$F303
+        ```
+
+    === "KickAssembler"
+
+        ```asm
+        // Assume that you have these bytes:
+        // $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        // They will be represented as:
+        .byte <$C000, <$D101, <$E202, <$F303
+        .byte >$C000, >$D101, >$E202, >$F303
+        ```
+
+    === "ca65"
+
+        ```asm
+        ; Assume that you have these bytes:
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; They will be represented as:
+        .byte <$C000, <$D101, <$E202, <$F303
+        .byte >$C000, >$D101, >$E202, >$F303
+        ```
 
 ## 10. Hi/Lo Word Table
 
@@ -154,13 +384,45 @@ The available Block Types are:
 
 !!! example
 
-    ```asm
-    ; Assume that you have these bytes:
-    ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
-    ; They will be represented as:
-    .byte >$00C0, >$01D1, >$02E2, >$03F3
-    .byte <$00C0, <$01D1, <$02E2, <$03F3
-    ```
+    === "64tass"
+
+        ```asm
+        ; Assume that you have these bytes:
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; They will be represented as:
+        .byte >$00C0, >$01D1, >$02E2, >$03F3
+        .byte <$00C0, <$01D1, <$02E2, <$03F3
+        ```
+
+    === "ACME"
+
+        ```asm
+        ; Assume that you have these bytes:
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; They will be represented as:
+        !byte >$00C0, >$01D1, >$02E2, >$03F3
+        !byte <$00C0, <$01D1, <$02E2, <$03F3
+        ```
+
+    === "KickAssembler"
+
+        ```asm
+        // Assume that you have these bytes:
+        // $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        // They will be represented as:
+        .byte >$00C0, >$01D1, >$02E2, >$03F3
+        .byte <$00C0, <$01D1, <$02E2, <$03F3
+        ```
+
+    === "ca65"
+
+        ```asm
+        ; Assume that you have these bytes:
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; They will be represented as:
+        .byte >$00C0, >$01D1, >$02E2, >$03F3
+        .byte <$00C0, <$01D1, <$02E2, <$03F3
+        ```
 
 ## 11. External File
 
@@ -171,13 +433,45 @@ The available Block Types are:
 
 !!! example
 
-    ```asm
-    ; Assume that you have these bytes at address $1000
-    ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
-    ; A binary file called "export-$1000-$1007.bin" will be generated
-    ; And this code will be generated
-    .binary "export-$1000-$1007.bin"
-    ```
+    === "64tass"
+
+        ```asm
+        ; Assume that you have these bytes at address $1000
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; A binary file called "export-$1000-$1007.bin" will be generated
+        ; And this code will be generated
+        .binary "export-$1000-$1007.bin"
+        ```
+
+    === "ACME"
+
+        ```asm
+        ; Assume that you have these bytes at address $1000
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; A binary file called "export-$1000-$1007.bin" will be generated
+        ; And this code will be generated
+        !binary "export-$1000-$1007.bin"
+        ```
+
+    === "KickAssembler"
+
+        ```asm
+        // Assume that you have these bytes at address $1000
+        // $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        // A binary file called "export-$1000-$1007.bin" will be generated
+        // And this code will be generated
+        .import binary "export-$1000-$1007.bin"
+        ```
+
+    === "ca65"
+
+        ```asm
+        ; Assume that you have these bytes at address $1000
+        ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
+        ; A binary file called "export-$1000-$1007.bin" will be generated
+        ; And this code will be generated
+        .incbin "export-$1000-$1007.bin"
+        ```
 
 ## 12. Undefined
 
@@ -188,12 +482,41 @@ The available Block Types are:
 
 !!! example
 
-    ```asm
-    ; Undefined blocks are represented as single bytes, one byte per line.
-    .byte $00
-    .byte $ca
-    .byte $ff
-    ```
+    === "64tass"
+
+        ```asm
+        ; Undefined blocks are represented as single bytes, one byte per line.
+        .byte $00
+        .byte $ca
+        .byte $ff
+        ```
+
+    === "ACME"
+
+        ```asm
+        ; Undefined blocks are represented as single bytes, one byte per line.
+        !byte $00
+        !byte $ca
+        !byte $ff
+        ```
+
+    === "KickAssembler"
+
+        ```asm
+        // Undefined blocks are represented as single bytes, one byte per line.
+        .byte $00
+        .byte $ca
+        .byte $ff
+        ```
+
+    === "ca65"
+
+        ```asm
+        ; Undefined blocks are represented as single bytes, one byte per line.
+        .byte $00
+        .byte $ca
+        .byte $ff
+        ```
 
 ## Organization Tools
 
