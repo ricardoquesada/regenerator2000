@@ -112,6 +112,7 @@ regenerator2000 [OPTIONS] [path/to/file.prg]
 -   `--version`: Print version information
 -   `--import_lbl <PATH>`: Import VICE labels from the specified file
 -   `--export_lbl <PATH>`: Export labels to the specified file (after analysis/import)
+-   `--export_asm <PATH>`: Export assembly to the specified file (after analysis/import)
 -   `--headless`: Run in headless mode (no TUI), useful for batch processing
 
 Supported file formats: `.prg`, `.crt`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.regen2000proj`.

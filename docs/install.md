@@ -44,6 +44,7 @@ regenerator2000 [OPTIONS] [FILE]
 - `--version`: Displays the current version of Regenerator 2000.
 - `--import_lbl <PATH>`: Import VICE labels from the specified file.
 - `--export_lbl <PATH>`: Export labels to the specified file (after analysis/import).
+- `--export_asm <PATH>`: Export assembly to the specified file (after analysis/import).
 - `--headless`: Run in headless mode (no TUI), useful for batch processing.
 
 ### Recommended Terminals

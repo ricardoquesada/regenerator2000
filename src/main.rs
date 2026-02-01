@@ -23,6 +23,7 @@ fn main() -> Result<()> {
 
     let mut headless = false;
     let mut export_lbl_path = None;
+    let mut export_asm_path = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -48,6 +49,9 @@ fn main() -> Result<()> {
                     "    --export_lbl <PATH>       Export labels to the specified file (after analysis/import)"
                 );
                 println!(
+                    "    --export_asm <PATH>       Export assembly to the specified file (after analysis/import)"
+                );
+                println!(
                     "    --headless                Run in headless mode (no TUI), useful for batch processing"
                 );
                 return Ok(());
@@ -67,6 +71,15 @@ fn main() -> Result<()> {
                     i += 2;
                 } else {
                     eprintln!("Error: --export_lbl requires a file path");
+                    std::process::exit(1);
+                }
+            }
+            "--export_asm" => {
+                if i + 1 < args.len() {
+                    export_asm_path = Some(args[i + 1].clone());
+                    i += 2;
+                } else {
+                    eprintln!("Error: --export_asm requires a file path");
                     std::process::exit(1);
                 }
             }
@@ -137,6 +150,24 @@ fn main() -> Result<()> {
             }
             Err(e) => {
                 eprintln!("Error exporting labels: {}", e);
+                if headless {
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
+
+    // 4. Export Assembly
+    if let Some(path_str) = export_asm_path {
+        let path = std::path::PathBuf::from(path_str);
+        match regenerator2000::exporter::export_asm(&mut app_state, &path) {
+            Ok(_) => {
+                if headless {
+                    println!("Assembly exported to {:?}", path);
+                }
+            }
+            Err(e) => {
+                eprintln!("Error exporting assembly: {}", e);
                 if headless {
                     std::process::exit(1);
                 }
