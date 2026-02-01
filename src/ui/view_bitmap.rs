@@ -1,4 +1,5 @@
 use crate::state::AppState;
+use crate::ui::graphics_common::VIC_II_RGB;
 use crate::ui_state::{ActivePane, MenuAction, ScreenRamMode, UIState};
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use image::{DynamicImage, Rgb, RgbImage};
@@ -14,26 +15,6 @@ use crate::ui::navigable::{Navigable, handle_nav_input};
 use crate::ui::widget::{Widget, WidgetResult};
 
 pub struct BitmapView;
-
-// VIC-II RGB Palette for image generation
-const VIC_II_RGB: [[u8; 3]; 16] = [
-    [0, 0, 0],       // 0: Black
-    [255, 255, 255], // 1: White
-    [136, 0, 0],     // 2: Red
-    [170, 255, 238], // 3: Cyan
-    [204, 68, 204],  // 4: Purple
-    [0, 204, 85],    // 5: Green
-    [0, 0, 170],     // 6: Blue
-    [238, 238, 119], // 7: Yellow
-    [221, 136, 85],  // 8: Orange
-    [102, 68, 0],    // 9: Brown
-    [255, 119, 119], // 10: Light Red
-    [51, 51, 51],    // 11: Dark Grey
-    [119, 119, 119], // 12: Grey
-    [170, 255, 102], // 13: Light Green
-    [0, 136, 255],   // 14: Light Blue
-    [187, 187, 187], // 15: Light Grey
-];
 
 /// Calculate screen RAM address based on mode and bitmap address
 fn calculate_screen_ram_addr(bitmap_addr: usize, mode: ScreenRamMode) -> usize {

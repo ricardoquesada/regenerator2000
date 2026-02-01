@@ -561,9 +561,7 @@ mod tests {
             label_type: crate::state::LabelType::UserDefined,
         };
 
-        let mut new_labels = Vec::new();
-        new_labels.push((0x1000, new_label1.clone()));
-        new_labels.push((0x2000, new_label2.clone()));
+        let new_labels = vec![(0x1000, new_label1.clone()), (0x2000, new_label2.clone())];
 
         // Capture old state manually (as done in state.rs)
         let mut old_labels = BTreeMap::new();
