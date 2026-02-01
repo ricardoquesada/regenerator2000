@@ -3,6 +3,7 @@
 Cargo.lock
 
 tests/test*.prg
+test_output.asm
 tmp/
 a.out
 
