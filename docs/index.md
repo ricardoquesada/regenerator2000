@@ -26,7 +26,21 @@ Regenerator 2000 is a modern 6502 disassembler, TUI-based, with a Turbo Debugger
 
 ## Tutorial
 
-This short guide walks you through a typical reverse-engineering session with Regenerator 2000.
+A typical Regenerator 2000 workflow looks like the following:
+
+```mermaid
+flowchart TD
+    S1[1. Load File] --> S2[2. Explore]
+    S2 --> S3[3-6. Define Code, Data, Labels, Comments, etc.]
+    S3 --> S7[7. Save Project]
+    S3 --> S2
+    S7 --> Q{Debug?}
+    Q -- No --> S10[10. Export Project]
+    Q -- Yes --> S8[8. Export VICE Labels]
+    S8 --> S9[9. Debug in VICE]
+    S9 --> S2
+    S10 --> Done[Assemble it, patch it, etc.]
+```
 
 1.  **Load a file**: Start by loading a program:
     ```bash
@@ -45,7 +59,12 @@ This short guide walks you through a typical reverse-engineering session with Re
     Or press ++colon++ to add a line comment.
 7.  **Save Project**: Press ++ctrl+s++ to save your work. This creates a project file
     that preserves all your labels, comments, and formatting.
-8.  **Export Project**: Finally, where you are done disassembling, you can export the project
+8.  **Export VICE Labels** (Optional): If you want to debug the program in VICE using your new labels,
+    use the "Export VICE labels..." menu option. This generates a label file.
+9.  **Debug it with VICE with the new labels** (Optional): Load your program and the generated label file in the VICE emulator
+    to see your variable names and subroutine names in the VICE monitor. Use this insight to understand the code better,
+    then go back to **Step 2** to refine your disassembly.
+10. **Export Project**: Finally, where you are done disassembling, you can export the project
     to a file that can be used by an assembler. Press ++ctrl+e++ to export the project.
 
 ## User Reference
