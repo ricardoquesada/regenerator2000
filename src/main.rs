@@ -160,7 +160,7 @@ fn main() -> Result<()> {
     // 4. Export Assembly
     if let Some(path_str) = export_asm_path {
         let path = std::path::PathBuf::from(path_str);
-        match regenerator2000::exporter::export_asm(&mut app_state, &path) {
+        match regenerator2000::exporter::export_asm(&app_state, &path) {
             Ok(_) => {
                 if headless {
                     println!("Assembly exported to {:?}", path);
