@@ -8,7 +8,7 @@ You can open a file via the "File -> Open" menu or by passing the filename as an
 
 ### What file formats are supported?
 
-Regenerator 2000 supports `.prg`, `.crt`, `.t64`, `.vsf`, and raw binary files (`.bin`).
+Regenerator 2000 supports `.prg`, `.crt`, `.d64`, `.t64`, `.vsf`, and raw binary files (`.bin`).
 
 ## Disassembly
 

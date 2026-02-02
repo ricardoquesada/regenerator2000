@@ -32,7 +32,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 - **Blocks**:
   - Side-by-side view with disassembly.
 - **Platforms**: Supports Commodore 8-bit machines like C64, C128, Plus/4, etc.
-- **Import**: Load `.prg`, `.crt`, `.t64`, `.vsf`, `.bin`, `.raw`, and
+- **Import**: Load `.prg`, `.crt`, `.d64`, `.t64`, `.vsf`, `.bin`, `.raw`, and
   `.regen2000proj` files.
 - **Export**: Generate compatible assembly source code for:
   - **64tass**
@@ -115,7 +115,7 @@ regenerator2000 [OPTIONS] [path/to/file.prg]
 -   `--export_asm <PATH>`: Export assembly to the specified file (after analysis/import)
 -   `--headless`: Run in headless mode (no TUI), useful for batch processing
 
-Supported file formats: `.prg`, `.crt`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.regen2000proj`.
+Supported file formats: `.prg`, `.crt`, `.d64`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.regen2000proj`.
 
 ## Keyboard Shortcuts
 

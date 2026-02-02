@@ -33,6 +33,7 @@ regenerator2000 [OPTIONS] [FILE]
 
 - `.prg`: the common Commodore 8-bit program, where the first two bytes indicates the start address.
 - `.crt`: Commodore 64 cartridge files. It parses the CHIP packets and maps them into memory.
+- `.d64`: Commodore 64 disk image files. It allows the user to pick a `.prg` file from the disk container.
 - `.t64`: Commodore 64 tape image files. It extracts the first program found in the container.
 - `.vsf`: VICE snapshot files. It extracts the 64KB RAM and uses the Program Counter (PC) as the start address.
 - `.bin` and `.raw`: pure binary files. Requires that the user sets the origin manually. Menu -> Edit -> Change Origin
