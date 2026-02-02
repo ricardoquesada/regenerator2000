@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-02-01
+
+### Features
+
+- Feature: Support for .d64 disk images. Supports picking a .prg file from within the disk image.
+- Feature: CLI: Added `--export_asm` and `--export_lbl` command line options.
+- Feature: Bitmap view: Screen RAM address is now configurable.
+
+### Changes
+
+- Settings: "BRK single byte" is now enabled by default.
+- UI: Hexdump default view mode is now "Screencode shifted".
+
+### Documentation
+
+- Docs: Added comprehensive "Mini Tutorial" walkthrough.
+- Docs: Added graphics and updated tutorials section.
+- Docs: Blocks documentation updated with tabs for each supported assembler.
+- Docs: Updated keyboard shortcuts documentation.
+
+### Fixes
+
+- Fix: Splitter and collapsed blocks improvements.
+
+### Refactor / Internal
+
+- Refactor: `state.rs` split into multiple submodules (types, settings, project, app_state).
+- Refactor: Large methods in `disassembler.rs` moved to separate modules.
+- Refactor: Graphics code moved to its own file.
+- Testing: Added comprehensive CPU module tests.
+
 ## [0.6.0] - 2026-01-30
 
 ### Features
