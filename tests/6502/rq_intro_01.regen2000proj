@@ -100,12 +100,6 @@
     },
     {
       "start": 812,
-      "end": 824,
-      "type_": "Undefined",
-      "collapsed": false
-    },
-    {
-      "start": 825,
       "end": 1663,
       "type_": "DataByte",
       "collapsed": false
@@ -115,7 +109,8 @@
   "user_side_comments": {},
   "user_line_comments": {
     "2175": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ handler #1",
-    "2304": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ handler #2"
+    "2304": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ handler #2",
+    "3072": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSprites: RICADOQUESD"
   },
   "settings": {
     "all_labels": false,
@@ -132,16 +127,18 @@
     "bytes_per_line": 8
   },
   "immediate_value_formats": {},
-  "cursor_address": 2871,
-  "hex_dump_cursor_address": 2864,
-  "sprites_cursor_address": 2048,
+  "cursor_address": 2446,
+  "hex_dump_cursor_address": 2432,
+  "sprites_cursor_address": 3584,
   "charset_cursor_address": 2048,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
-  "hexdump_view_mode": "ScreencodeUnshifted",
-  "splitters": [],
+  "hexdump_view_mode": "ScreencodeShifted",
+  "splitters": [
+    3072
+  ],
   "blocks_view_cursor": null
 }
