@@ -108,14 +108,22 @@ impl Widget for D64FilePickerDialog {
                 WidgetResult::Close
             }
             KeyCode::Up | KeyCode::Char('k') => {
-                if self.selected_index > 0 {
-                    self.selected_index -= 1;
+                if !self.files.is_empty() {
+                    if self.selected_index > 0 {
+                        self.selected_index -= 1;
+                    } else {
+                        self.selected_index = self.files.len() - 1;
+                    }
                 }
                 WidgetResult::Handled
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                if self.selected_index < self.files.len().saturating_sub(1) {
-                    self.selected_index += 1;
+                if !self.files.is_empty() {
+                    if self.selected_index < self.files.len() - 1 {
+                        self.selected_index += 1;
+                    } else {
+                        self.selected_index = 0;
+                    }
                 }
                 WidgetResult::Handled
             }
