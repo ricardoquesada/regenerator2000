@@ -74,7 +74,7 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
     // Calculate required width for Right Pane
     let right_pane_width = match ui_state.right_pane {
         RightPane::None => 0,
-        RightPane::HexDump => 75,
+        RightPane::HexDump => 77,
         RightPane::Sprites => 36, // 24 chars + border + padding
         RightPane::Charset => 76, // Grid view: 8 cols * (8+1) width + padding
         RightPane::Bitmap => 80,  // Compact view, ratatui-image scales to fit

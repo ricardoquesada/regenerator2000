@@ -244,6 +244,31 @@ impl Widget for HexDumpView {
                     Style::default()
                 };
 
+                let row_end_addr = row_start_addr + bytes_per_row;
+                // Determine the intersection of the current row and the valid data range
+                let intersect_start = row_start_addr.max(origin);
+                let intersect_end = row_end_addr.min(origin + app_state.raw_data.len());
+
+                let entropy_val = if intersect_start < intersect_end {
+                    let start_idx = intersect_start - origin;
+                    let end_idx = intersect_end - origin;
+                    crate::utils::calculate_entropy(&app_state.raw_data[start_idx..end_idx])
+                } else {
+                    0.0
+                };
+
+                let (entropy_char, entropy_color) = if entropy_val < 2.0 {
+                    (' ', ui_state.theme.comment)
+                } else if entropy_val < 4.0 {
+                    ('░', ui_state.theme.mnemonic)
+                } else if entropy_val < 6.0 {
+                    ('▒', ui_state.theme.label)
+                } else if entropy_val < 7.5 {
+                    ('▓', ui_state.theme.sprite_multicolor_1)
+                } else {
+                    ('█', ui_state.theme.error_fg)
+                };
+
                 let line = Line::from(vec![
                     Span::styled(
                         format!("{:04X}  ", row_start_addr),
@@ -257,6 +282,8 @@ impl Widget for HexDumpView {
                         format!("| {}", ascii_part),
                         Style::default().fg(ui_state.theme.hex_ascii),
                     ),
+                    Span::styled(" ", Style::default()),
+                    Span::styled(entropy_char.to_string(), Style::default().fg(entropy_color)),
                 ]);
 
                 ListItem::new(line).style(style)
