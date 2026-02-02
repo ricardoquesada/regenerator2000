@@ -22,6 +22,18 @@ impl WarningDialog {
             message: message.into(),
         }
     }
+
+    pub fn show_if_needed(entropy: Option<f32>, ui_state: &mut UIState) {
+        if let Some(entropy_val) = entropy {
+            ui_state.active_dialog = Some(Box::new(Self::new(
+                "High Entropy Detected",
+                format!(
+                    "The loaded file has high entropy ({:.2}).\nIt is likely compressed.\n\nRegenerator 2000 is designed for uncompressed binaries.",
+                    entropy_val
+                ),
+            )));
+        }
+    }
 }
 
 impl Widget for WarningDialog {

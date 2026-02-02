@@ -424,17 +424,10 @@ impl Widget for OpenDialog {
                                         }
 
                                         // Check for entropy
-                                        if let Some(entropy) = loaded_data.entropy_warning {
-                                            ui_state.active_dialog = Some(Box::new(
-                                                crate::ui::dialog_warning::WarningDialog::new(
-                                                    "High Entropy Detected",
-                                                    format!(
-                                                        "The loaded file has high entropy ({:.2}).\nIt is likely compressed.\n\nRegenerator 2000 is designed for uncompressed binaries.",
-                                                        entropy
-                                                    ),
-                                                ),
-                                            ));
-                                        }
+                                        crate::ui::dialog_warning::WarningDialog::show_if_needed(
+                                            loaded_data.entropy_warning,
+                                            ui_state,
+                                        );
 
                                         WidgetResult::Close
                                     }
