@@ -19,6 +19,7 @@ pub mod dialog_origin;
 pub mod dialog_save_as;
 pub mod dialog_search;
 pub mod dialog_settings;
+pub mod dialog_warning;
 pub mod graphics_common;
 pub mod menu;
 pub mod navigable;

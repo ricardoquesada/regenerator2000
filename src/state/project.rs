@@ -81,6 +81,7 @@ pub struct LoadedProjectData {
     pub bitmap_multicolor_mode: Option<bool>,
     pub hexdump_view_mode: HexdumpViewMode,
     pub blocks_view_cursor: Option<usize>,
+    pub entropy_warning: Option<f32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

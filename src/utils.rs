@@ -57,6 +57,29 @@ pub fn list_files(dir: &Path, extensions: &[String]) -> Vec<PathBuf> {
     files
 }
 
+pub fn calculate_entropy(data: &[u8]) -> f32 {
+    if data.is_empty() {
+        return 0.0;
+    }
+
+    let mut counts = [0usize; 256];
+    for &byte in data {
+        counts[byte as usize] += 1;
+    }
+
+    let len = data.len() as f32;
+    let mut entropy = 0.0;
+
+    for count in counts {
+        if count > 0 {
+            let p = count as f32 / len;
+            entropy -= p * p.log2();
+        }
+    }
+
+    entropy
+}
+
 pub fn load_logo() -> Option<DynamicImage> {
     let logo_bytes = include_bytes!("../docs/regenerator2000_logo.png");
     if let Ok(img) = image::load_from_memory(logo_bytes) {
@@ -473,5 +496,27 @@ mod tests {
         // 0xFF: π / ▒
         assert_eq!(petscii_to_unicode(0xFF, false), 'π');
         assert_eq!(petscii_to_unicode(0xFF, true), '▒');
+    }
+
+    #[test]
+    fn test_calculate_entropy() {
+        // Empty
+        assert_eq!(calculate_entropy(&[]), 0.0);
+
+        // Zero entropy (all same bytes)
+        let data = vec![0; 100];
+        assert_eq!(calculate_entropy(&data), 0.0);
+
+        // Max entropy (uniform distribution)
+        // For 256 bytes, max entropy is 8.0
+        let mut data = Vec::with_capacity(256);
+        for i in 0..=255 {
+            data.push(i as u8);
+        }
+        assert!((calculate_entropy(&data) - 8.0).abs() < 0.001);
+
+        // 2 distinct values, equal probability -> 1 bit
+        let data = vec![0, 0, 1, 1];
+        assert!((calculate_entropy(&data) - 1.0).abs() < 0.001);
     }
 }

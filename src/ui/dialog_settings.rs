@@ -21,12 +21,12 @@ impl SettingsDialog {
     }
 
     pub fn next(&mut self) {
-        let max_items = 8;
+        let max_items = 9;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 8;
+        let max_items = 9;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {
@@ -103,6 +103,10 @@ impl Widget for SettingsDialog {
                 } else {
                     "[ ]"
                 }
+            ),
+            format!(
+                "Entropy Warning Threshold: < {:.1} >",
+                app_state.system_config.entropy_threshold
             ),
             format!("Theme: < {} >", app_state.system_config.theme),
         ];
@@ -205,6 +209,28 @@ impl Widget for SettingsDialog {
                 }
                 WidgetResult::Handled
             }
+            KeyCode::Left => {
+                if !self.is_selecting_theme && self.selected_index == 7 {
+                    // Decrease entropy threshold
+                    app_state.system_config.entropy_threshold =
+                        (app_state.system_config.entropy_threshold - 0.1).max(0.0);
+                    let _ = app_state.system_config.save();
+                    WidgetResult::Handled
+                } else {
+                    WidgetResult::Handled
+                }
+            }
+            KeyCode::Right => {
+                if !self.is_selecting_theme && self.selected_index == 7 {
+                    // Increase entropy threshold
+                    app_state.system_config.entropy_threshold =
+                        (app_state.system_config.entropy_threshold + 0.1).min(8.0);
+                    let _ = app_state.system_config.save();
+                    WidgetResult::Handled
+                } else {
+                    WidgetResult::Handled
+                }
+            }
             KeyCode::Enter | KeyCode::Char(' ') => {
                 if self.is_selecting_theme {
                     self.is_selecting_theme = false;
@@ -235,7 +261,7 @@ impl Widget for SettingsDialog {
                     app_state.system_config.sync_blocks_view =
                         !app_state.system_config.sync_blocks_view;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 7 {
+                } else if self.selected_index == 8 {
                     self.is_selecting_theme = true;
                 }
                 WidgetResult::Handled

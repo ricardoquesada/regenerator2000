@@ -20,6 +20,8 @@ pub struct SystemConfig {
     pub sync_sprites_view: bool,
     #[serde(default = "default_false")]
     pub sync_bitmap_view: bool,
+    #[serde(default = "default_entropy_threshold")]
+    pub entropy_threshold: f32,
 }
 
 fn default_true() -> bool {
@@ -34,6 +36,10 @@ fn default_theme() -> String {
     "Solarized Dark".to_string()
 }
 
+fn default_entropy_threshold() -> f32 {
+    7.5
+}
+
 impl Default for SystemConfig {
     fn default() -> Self {
         Self {
@@ -46,6 +52,7 @@ impl Default for SystemConfig {
             sync_charset_view: false,
             sync_sprites_view: false,
             sync_bitmap_view: false,
+            entropy_threshold: 7.5,
         }
     }
 }

@@ -3,7 +3,6 @@
 
 use crate::parser::d64::{D64FileEntry, FileType};
 use crate::state::AppState;
-use crate::state::types::BlockType;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
 use ratatui::{
@@ -152,29 +151,30 @@ impl Widget for D64FilePickerDialog {
                     Ok((load_address, program_data)) => {
                         // Set origin and raw data
                         app_state.origin = load_address;
-                        app_state.raw_data = program_data;
+                        // Let's redo.
+                        match app_state.load_binary(load_address, program_data) {
+                            Ok(loaded_data) => {
+                                // Apply loaded UI state if needed (like cursor pos), though load_binary defaults them.
+                                if let Some(entropy) = loaded_data.entropy_warning {
+                                    ui_state.active_dialog = Some(Box::new(
+                                        crate::ui::dialog_warning::WarningDialog::new(
+                                            "High Entropy Detected",
+                                            format!(
+                                                "The loaded file has high entropy ({:.2}).\nIt is likely compressed.\n\nRegenerator 2000 is designed for uncompressed binaries.",
+                                                entropy
+                                            ),
+                                        ),
+                                    ));
+                                }
 
-                        // Initialize block types
-                        app_state.block_types = vec![BlockType::Code; app_state.raw_data.len()];
-
-                        // Load system assets (charset, kernal, basic)
-                        app_state.load_system_assets();
-
-                        // Perform initial disassembly and analysis
-                        app_state.perform_analysis();
-
-                        // Update status message
-                        ui_state.set_status_message(format!(
-                            "Loaded {} (${:04X}, {} bytes)",
-                            selected_entry.filename,
-                            load_address,
-                            app_state.raw_data.len()
-                        ));
-
-                        // Update file path
-                        app_state.file_path = Some(self.disk_path.clone());
-
-                        WidgetResult::Close
+                                app_state.file_path = Some(self.disk_path.clone());
+                                WidgetResult::Close
+                            }
+                            Err(e) => {
+                                ui_state.set_status_message(format!("Error loading file: {}", e));
+                                WidgetResult::Handled
+                            }
+                        }
                     }
                     Err(e) => {
                         ui_state.set_status_message(format!("Error loading file: {}", e));

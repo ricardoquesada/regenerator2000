@@ -243,7 +243,60 @@ impl AppState {
             bitmap_multicolor_mode: None,
             hexdump_view_mode: HexdumpViewMode::default(),
             blocks_view_cursor: None,
+            entropy_warning: self.check_entropy(),
         })
+    }
+
+    pub fn load_binary(&mut self, origin: u16, data: Vec<u8>) -> anyhow::Result<LoadedProjectData> {
+        self.origin = origin;
+        self.raw_data = data;
+        self.block_types = vec![BlockType::Code; self.raw_data.len()];
+        self.undo_stack = crate::commands::UndoStack::new();
+        self.last_saved_pointer = 0;
+        self.project_path = None;
+        self.file_path = None;
+        self.labels.clear();
+        self.settings = DocumentSettings::default();
+        self.user_side_comments.clear();
+        self.user_line_comments.clear();
+        self.immediate_value_formats.clear();
+        self.last_import_labels_path = None;
+        self.last_export_labels_filename = None;
+        self.last_save_as_filename = None;
+        self.last_export_asm_filename = None;
+
+        self.load_system_assets();
+        self.disassemble();
+        self.load_system_assets();
+        self.disassemble();
+
+        if self.system_config.auto_analyze {
+            self.perform_analysis();
+        }
+
+        Ok(LoadedProjectData {
+            cursor_address: Some(origin),
+            hex_dump_cursor_address: None,
+            sprites_cursor_address: None,
+            right_pane_visible: None,
+            charset_cursor_address: None,
+            bitmap_cursor_address: None,
+            charset_multicolor_mode: false,
+            sprite_multicolor_mode: false,
+            bitmap_multicolor_mode: None,
+            hexdump_view_mode: HexdumpViewMode::default(),
+            blocks_view_cursor: None,
+            entropy_warning: self.check_entropy(),
+        })
+    }
+
+    fn check_entropy(&self) -> Option<f32> {
+        let entropy = crate::utils::calculate_entropy(&self.raw_data);
+        if entropy > self.system_config.entropy_threshold {
+            Some(entropy)
+        } else {
+            None
+        }
     }
 
     pub fn resolve_initial_load(
@@ -313,6 +366,7 @@ impl AppState {
             bitmap_multicolor_mode: Some(project.bitmap_multicolor_mode),
             hexdump_view_mode: project.hexdump_view_mode,
             blocks_view_cursor: project.blocks_view_cursor,
+            entropy_warning: None,
         })
     }
 
