@@ -4,54 +4,130 @@ Regenerator 2000 offers several specialized views to efficiently analyze and rev
 
 ## Disassembly View
 
-The Disassembly View is the central workspace of Regenerator 2000. It shows the disassembled code, data, and text. Here you can:
+The Disassembly View is the central workspace of Regenerator 2000. It shows the disassembled code, data, and text, offering a comprehensive interface for reverse engineering.
 
-- Navigate through the memory.
-- Define block types (Code, Byte, Word, etc.).
-- Add comments and rename labels.
-- Follow code execution with jump/branch arrows.
+In this view, you can:
+
+- **Navigate Memory**: Move through the address space, jump to specific addresses or labels, and follow code execution flows.
+- **Define Block Types**: Classify memory regions as Code, Byte data, Word data, or various Text formats to make sense of the binary.
+- **Annotate**: Add comments to lines or specific instructions and rename labels to something meaningful.
+- **Analyze Flow**: Visual indicators show jump and branch targets, helping you understand the program's logic.
+
+### Keyboard Shortcuts
+
+| Action | Shortcut |
+| :--- | :--- |
+| **Convert to Code** | ++c++ |
+| **Convert to Byte** | ++b++ |
+| **Convert to Word** | ++w++ |
+| **Convert to Address** | ++a++ |
+| **Convert to PETSCII Text** | ++p++ |
+| **Convert to Screencode Text** | ++s++ |
+| **Convert to Undefined** | ++question-mark++ |
+| **Set Label** | ++l++ |
+| **Add Side Comment** | ++semicolon++ |
+| **Add Line Comment** | ++colon++ |
+| **Jump to Address** | ++ctrl+g++ or ++alt+g++ |
+| **Jump to Operand** | ++enter++ |
+| **Jump Back (History)** | ++backspace++ |
+
 
 ## Hexdump View
 
-The Hexdump View provides a raw hexadecimal representation of the memory. It is useful for inspecting data that hasn't been formatted yet or for verifying the exact byte values in a region.
+The Hexdump View provides a raw hexadecimal representation of the memory, side-by-side with an ASCII representation. It is useful for inspecting data that hasn't been formatted yet or for verifying the exact byte values in a region.
+
+This view supports different text decoding modes to help you spot strings in standard C64 formats.
+
 
 ![Hexdump View](regenerator2000_hexdump_screenshot.png)
 
-## Blocks View
+### Keyboard Shortcuts
 
-The Blocks View visualizes the memory layout of your project. It helps you quickly identify:
-
-- **Code regions** (Blue)
-- **Data regions** (Green/Yellow)
-- **Undefined/Unknown regions** (Grey)
-
-This bird's-eye view is essential for understanding the overall structure of the binary and spotting large chunks of unanalyzed data.
-
-![Blocks View](regenerator2000_blocks_screenshot.png)
+| Action | Shortcut |
+| :--- | :--- |
+| **Convert to Byte** | ++b++ |
+| **Next Text Mode** (Screencode/PETSCII) | ++m++ |
+| **Previous Text Mode** | ++shift+m++ |
+| **Jump to Disassembly** | ++enter++ |
 
 ## Charset View
 
 The Charset View allows you to inspect memory as if it were a C64 character set (font). This is crucial for verifying if a memory region contains custom fonts.
 
-- Supports Standard (Multi-color) and Hi-Res modes.
-- Useful for spotting graphical data masquerading as code.
+- **Standard & Multicolor**: Toggle between standard hi-res characters and multicolor mode to see if the data makes sense as graphics.
+- **Pattern Recognition**: Useful for spotting graphical data masquerading as code or raw bytes.
+
 
 ![Charset View](regenerator2000_charset_screenshot.png)
 
+### Keyboard Shortcuts
+
+| Action | Shortcut |
+| :--- | :--- |
+| **Convert to Byte** | ++b++ |
+| **Toggle Multicolor** | ++m++ |
+| **Jump to Disassembly** | ++enter++ |
+
+
 ## Sprites View
 
-The Sprites View helps you find and analyze sprite data.
+The Sprites View helps you find and analyze sprite data (hardware sprites).
 
-- Displays memory in 64-byte chunks formatted as C64 sprites (24x21 pixels).
-- Helps identifying player characters, enemies, and other game objects.
+- **64-byte Chunks**: Displays memory formatted as C64 sprites (24x21 pixels).
+- **Multicolor Support**: Toggle multicolor mode to correctly view game characters and objects.
+- **Identification**: Helps identifying player characters, enemies, and other game objects hidden in the binary.
+
 
 ![Sprites View](regenerator2000_sprites_screenshot.png)
 
+### Keyboard Shortcuts
+
+| Action | Shortcut |
+| :--- | :--- |
+| **Convert to Byte** | ++b++ |
+| **Toggle Multicolor** | ++m++ |
+| **Jump to Disassembly** | ++enter++ |
+
+
 ## Bitmap View
 
-The Bitmap View renders memory as a bitmap image.
+The Bitmap View renders memory as a bitmap image, allowing you to visualize large areas of memory as graphics.
 
-- Useful for finding splash screens, background graphics, or other large graphical assets.
-- Can help identify the format of unknown large data blocks.
+- **Asset Discovery**: Useful for finding splash screens, background graphics, or loading screens.
+- **Format Identification**: Can help identify the format of unknown large data blocks by visualizing patterns.
+- **Screen RAM Overlay**: You can cycle through different Screen RAM addresses to see how colors apply to the bitmap data.
+
 
 ![Bitmap View](regenerator2000_bitmap_screenshot.png)
+
+### Keyboard Shortcuts
+
+| Action | Shortcut |
+| :--- | :--- |
+| **Convert to Byte** | ++b++ |
+| **Toggle Multicolor** | ++m++ |
+| **Next Screen RAM** | ++s++ |
+| **Previous Screen RAM** | ++shift+s++ |
+| **Screen RAM after Bitmap** | ++x++ |
+| **Jump to Disassembly** | ++enter++ |
+
+
+## Blocks View
+
+The Blocks View visualizes the memory layout of your project as a contiguous map. It helps you quickly identify:
+
+- **Code regions** (Blue)
+- **Data regions** (Green/Yellow)
+- **Undefined/Unknown regions** (Grey)
+
+This bird's-eye view is essential for understanding the overall structure of the binary, finding gaps, and spotting large chunks of unanalyzed data. You can click on any block to jump to that location in the Disassembly View.
+
+![Blocks View](regenerator2000_blocks_screenshot.png)
+
+### Keyboard Shortcuts
+
+| Action | Shortcut |
+| :--- | :--- |
+| **Toggle Collapsed Block** | ++ctrl+k++ |
+| **Jump to Disassembly** | ++enter++ |
+
