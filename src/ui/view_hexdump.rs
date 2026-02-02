@@ -244,29 +244,33 @@ impl Widget for HexDumpView {
                     Style::default()
                 };
 
-                let row_end_addr = row_start_addr + bytes_per_row;
-                // Determine the intersection of the current row and the valid data range
-                let intersect_start = row_start_addr.max(origin);
-                let intersect_end = row_end_addr.min(origin + app_state.raw_data.len());
+                // Calculate entropy using a larger window (512 bytes before + 512 bytes after)
+                // providing a more reliable value than just the current 16 bytes.
+                let window_size = 512;
+                let entropy_start_addr = row_start_addr.saturating_sub(window_size);
+                let entropy_end_addr = row_start_addr + window_size;
 
-                let entropy_val = if intersect_start < intersect_end {
-                    let start_idx = intersect_start - origin;
-                    let end_idx = intersect_end - origin;
+                let effective_start = entropy_start_addr.max(origin);
+                let effective_end = entropy_end_addr.min(origin + app_state.raw_data.len());
+
+                let entropy_val = if effective_start < effective_end {
+                    let start_idx = effective_start - origin;
+                    let end_idx = effective_end - origin;
                     crate::utils::calculate_entropy(&app_state.raw_data[start_idx..end_idx])
                 } else {
                     0.0
                 };
 
-                let (entropy_char, entropy_color) = if entropy_val < 2.0 {
-                    (' ', ui_state.theme.comment)
+                let entropy_char = if entropy_val < 2.0 {
+                    ' '
                 } else if entropy_val < 4.0 {
-                    ('░', ui_state.theme.mnemonic)
+                    '░'
                 } else if entropy_val < 6.0 {
-                    ('▒', ui_state.theme.label)
+                    '▒'
                 } else if entropy_val < 7.5 {
-                    ('▓', ui_state.theme.sprite_multicolor_1)
+                    '▓'
                 } else {
-                    ('█', ui_state.theme.error_fg)
+                    '█'
                 };
 
                 let line = Line::from(vec![
@@ -283,7 +287,10 @@ impl Widget for HexDumpView {
                         Style::default().fg(ui_state.theme.hex_ascii),
                     ),
                     Span::styled(" ", Style::default()),
-                    Span::styled(entropy_char.to_string(), Style::default().fg(entropy_color)),
+                    Span::styled(
+                        entropy_char.to_string(),
+                        Style::default().fg(ui_state.theme.hex_ascii),
+                    ),
                 ]);
 
                 ListItem::new(line).style(style)
