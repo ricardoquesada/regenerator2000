@@ -36,6 +36,7 @@ impl OpenDialog {
                 "crt".to_string(),
                 "vsf".to_string(),
                 "t64".to_string(),
+                "d64".to_string(),
                 "raw".to_string(),
                 "regen2000proj".to_string(),
             ],
@@ -211,6 +212,63 @@ impl Widget for OpenDialog {
                                 }
                             }
                             OpenMode::ProjectOrFile => {
+                                // Check if this is a D64 file - if so, show file picker
+                                if selected_path
+                                    .extension()
+                                    .and_then(|e| e.to_str())
+                                    .map(|e| e.eq_ignore_ascii_case("d64"))
+                                    .unwrap_or(false)
+                                {
+                                    match std::fs::read(&selected_path) {
+                                        Ok(disk_data) => {
+                                            match crate::parser::d64::parse_d64_directory(
+                                                &disk_data,
+                                            ) {
+                                                Ok(files) => {
+                                                    let prg_files: Vec<_> = files
+                                                        .into_iter()
+                                                        .filter(|f| {
+                                                            f.file_type
+                                                                == crate::parser::d64::FileType::PRG
+                                                        })
+                                                        .collect();
+
+                                                    if prg_files.is_empty() {
+                                                        ui_state.set_status_message(
+                                                            "No PRG files in disk image",
+                                                        );
+                                                        return WidgetResult::Handled;
+                                                    }
+
+                                                    // Show D64 picker dialog
+                                                    ui_state.active_dialog = Some(Box::new(
+                                                        crate::ui::dialog_d64_picker::D64FilePickerDialog::new(
+                                                            prg_files,
+                                                            disk_data,
+                                                            selected_path,
+                                                        ),
+                                                    ));
+                                                    return WidgetResult::Close;
+                                                }
+                                                Err(e) => {
+                                                    ui_state.set_status_message(format!(
+                                                        "Error parsing D64: {}",
+                                                        e
+                                                    ));
+                                                    return WidgetResult::Handled;
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            ui_state.set_status_message(format!(
+                                                "Error reading file: {}",
+                                                e
+                                            ));
+                                            return WidgetResult::Handled;
+                                        }
+                                    }
+                                }
+
                                 match app_state.load_file(selected_path.clone()) {
                                     Err(e) => {
                                         ui_state.set_status_message(format!(

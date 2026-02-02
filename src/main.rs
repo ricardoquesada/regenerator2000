@@ -36,7 +36,7 @@ fn main() -> Result<()> {
                 println!("Usage: {} [OPTIONS] [FILE]", env!("CARGO_PKG_NAME"));
                 println!();
                 println!(
-                    "Supported file types: .prg, .crt, .t64, .vsf, .bin, .raw, .regen2000proj"
+                    "Supported file types: .prg, .crt, .t64, .d64, .vsf, .bin, .raw, .regen2000proj"
                 );
                 println!();
                 println!("Options:");
@@ -51,9 +51,8 @@ fn main() -> Result<()> {
                 println!(
                     "    --export_asm <PATH>       Export assembly to the specified file (after analysis/import)"
                 );
-                println!(
-                    "    --headless                Run in headless mode (no TUI), useful for batch processing"
-                );
+                println!("    --headless                Run in headless mode (no TUI)");
+                println!("                              Only .regen2000proj files supported");
                 return Ok(());
             }
             "--import_lbl" => {
@@ -98,25 +97,79 @@ fn main() -> Result<()> {
         }
     }
 
+    // Validate headless mode restrictions
+    if headless && let Some(file_str) = &file_to_load {
+        let path = std::path::Path::new(file_str);
+        if let Some(ext) = path.extension().and_then(|e| e.to_str())
+            && !ext.eq_ignore_ascii_case("regen2000proj")
+        {
+            eprintln!("Error: Headless mode only supports .regen2000proj files");
+            eprintln!("File provided: {}", file_str);
+            eprintln!("Reason: Other formats require interactive UI for configuration");
+            eprintln!("Solution: Load file in UI mode, configure, then save as .regen2000proj");
+            std::process::exit(1);
+        }
+    }
+
     // Create AppState first (needed for logic before UI)
     let mut app_state = AppState::new();
 
     // 1. Load File / Project
-    // We capture the result to use it later for UI initialization if needed
-    let initial_load_result = app_state.resolve_initial_load(file_to_load.as_deref());
+    let mut initial_load_result = None;
+    let mut d64_data = None;
+    let mut is_d64 = false;
 
-    if let Some(result) = &initial_load_result {
-        match result {
-            Ok((_, path)) => {
-                if headless {
-                    println!("Loaded: {:?}", path);
+    if let Some(file_str) = &file_to_load {
+        let path = std::path::Path::new(file_str);
+        if path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("d64"))
+        {
+            is_d64 = true;
+        }
+    }
+
+    if is_d64 {
+        if let Some(file_str) = &file_to_load {
+            let path = std::path::PathBuf::from(file_str);
+            match std::fs::read(&path) {
+                Ok(data) => match regenerator2000::parser::d64::parse_d64_directory(&data) {
+                    Ok(files) => {
+                        d64_data = Some((files, data, path));
+                    }
+                    Err(e) => {
+                        eprintln!("Error parsing D64 file: {}", e);
+                        if headless {
+                            std::process::exit(1);
+                        }
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Error reading file: {}", e);
+                    if headless {
+                        std::process::exit(1);
+                    }
                 }
             }
-            Err(e) => {
-                eprintln!("Error loading file: {}", e);
-                // In headless mode we should exit on error
-                if headless {
-                    std::process::exit(1);
+        }
+    } else {
+        // We capture the result to use it later for UI initialization if needed
+        initial_load_result = app_state.resolve_initial_load(file_to_load.as_deref());
+
+        if let Some(result) = &initial_load_result {
+            match result {
+                Ok((_, path)) => {
+                    if headless {
+                        println!("Loaded: {:?}", path);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error loading file: {}", e);
+                    // In headless mode we should exit on error
+                    if headless {
+                        std::process::exit(1);
+                    }
                 }
             }
         }
@@ -197,6 +250,13 @@ fn main() -> Result<()> {
 
     let theme = regenerator2000::theme::Theme::from_name(&app_state.system_config.theme);
     let mut ui_state = UIState::new(theme);
+
+    if let Some((files, disk_data, disk_path)) = d64_data {
+        let dialog = regenerator2000::ui::dialog_d64_picker::D64FilePickerDialog::new(
+            files, disk_data, disk_path,
+        );
+        ui_state.active_dialog = Some(Box::new(dialog));
+    }
 
     // Report keyboard enhancement error if any
     if let Err(ref e) = keyboard_enhancement_result {
