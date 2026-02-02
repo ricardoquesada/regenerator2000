@@ -1209,9 +1209,13 @@ mod analysis_tests {
     fn test_default_settings() {
         let settings = DocumentSettings::default();
         assert_eq!(settings.max_arrow_columns, 6);
+        assert!(settings.brk_single_byte);
+        assert!(!settings.patch_brk);
 
         let app_state = AppState::new();
         assert_eq!(app_state.settings.max_arrow_columns, 6);
+        assert!(app_state.settings.brk_single_byte);
+        assert!(!app_state.settings.patch_brk);
     }
     #[test]
     fn test_set_block_type_lohi_creates_labels() {

@@ -128,7 +128,7 @@ impl UIState {
             charset_multicolor_mode: false,
             bitmap_multicolor_mode: false,
             bitmap_screen_ram_mode: ScreenRamMode::AfterBitmap,
-            hexdump_view_mode: HexdumpViewMode::ScreencodeUnshifted,
+            hexdump_view_mode: HexdumpViewMode::ScreencodeShifted,
             active_pane: ActivePane::Disassembly,
             should_quit: false,
             status_bar: crate::ui::statusbar::StatusBarState::new(),

@@ -53,8 +53,8 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
 │                                                                        │
 │  [ ] All Labels                                                        │
 │  [x] Preserve long bytes (@w, +2, .abs, etc)                           │
-│  [ ] BRK single byte                                                   │
-│  [x] Patch BRK                                                         │
+│  [x] BRK single byte                                                   │
+│  [ ] Patch BRK                                                         │
 │  [ ] Use Illegal Opcodes                                               │
 │                                                                        │
 │  Max X-Refs: < 5 >                                                     │
@@ -89,9 +89,10 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
      contains absolute addresses.
 
 3. **BRK single byte**
-   - **Description**: Treats the `BRK` instruction as a 1-byte instruction. By default, the 6502 treats `BRK` as a
-     2-byte instruction (the instruction itself followed by a padding/signature byte). Enable this if your code uses
-     `BRK` as a 1-byte breakpoint.
+   - **Description**: Treats the `BRK` instruction as a 1-byte instruction. By default, this is enabled as most C64
+     code historically used `BRK` as a 1-byte instruction in practice, even though the 6502 architecture technically
+     treats it as a 2-byte instruction (the instruction itself followed by a padding/signature byte). Disable this
+     if your code specifically relies on the 2nd byte after a `BRK`.
 
    When "BRK single byte" is enabled, it gets represented as:
 
@@ -106,7 +107,7 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
    ```
 
 4. **Patch BRK**
-   - **Description**: If `BRK single byte` is disabled (standard behavior), this option ensures that the exported
+   - **Description**: If `BRK single byte` is disabled, this option ensures that the exported
      assembly code correctly includes the padding byte after `BRK`, preserving the original program structure on
      assemblers that might otherwise treat `BRK` as a single byte.
    - Notice that not all assemblers support the "Patch BRK" disabled.

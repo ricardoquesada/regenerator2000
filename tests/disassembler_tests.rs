@@ -1575,6 +1575,7 @@ fn test_target_address_population() {
 #[test]
 fn test_target_address_specific_instructions() {
     let settings = DocumentSettings {
+        brk_single_byte: false,
         patch_brk: false,
         ..Default::default()
     };

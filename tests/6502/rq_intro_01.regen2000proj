@@ -1,0 +1,147 @@
+{
+  "origin": 2048,
+  "raw_data_base64": "H4sIAAAAAAAA/82TPWhTURTHT9ok7zWtTSttbUWS20GkW9JqbbS2BnUIZKhVQXB5u7g5ZKsOQZeDxcUpEqIR7lAouBUCAaUgLgeJLi2aSUIdDEjl1bzkeW4+2qQkjeLizZ+Ee8/H//fOfYEBHeC5mA6EZgFgpLaEEMuRK+Hlb+L6rWs3wlfDIhgKBTjeAzEJOLidAnknAc4EuBLgThTcBfouV3CkV+o42rs2TFMncJgkxEtSi1vSgSfpdnTJU9+vOT1TFXR6+MgnB/A4cYIgnCRuMUryJToIewldhBphH2E/4TFCL8l7CCqnh+RTdJJ8gW6Sr1En+RY9JD/hAEnCQfbFIRLg4V8m6lNEE4QTFA3ugN36eabLVQXQ0wxgdAS4rwAeKYBVBZBUAOsKIKsAPrQCPOhrGkkDYOvw4kk6EmeokNfppwygqaGlySDuaXIaf2lyBkuaPItlTZ7DiqYma7pKPNuvpXRpSouXjK1/XOwP+/6z7C/PK/M5ZR5S5jMMxNZViJq/xf6bVtpif8sw2vWDXCE/zv28OJ7jC3CpL3eOQ5PozGUu6+jIZcI6Qk6se9Lv380XQ1JwpECfo3c93PGIp5IiXk7aj6m8WU6XadeI8cszuM0T40nv8KRlUb1s4qGdggz0JyBbyAdoNwrZj3Z0SF+K3BSRiBAH/QwQq7Z0vNpI2mLDlu7U6WRWZGwJKUjqolo05quVTfIfAN4MGWO+ieApYwygde9vG9/6T9dc6MLF+UsLi3YebBNsC+wKmH4wvQ35wbbVoQqZsJdvLzCbBK3bPxF4K7BYgZWqKgDWkdkc5ZxaMldxLfiLsGIpMaq1AKbvQAq+Sc2hfYFdrD88K+aHmLeb/I2OlqoFbxEWrToSz6zo7SLOqfNbqvYv6n88gb0v9Uq/CY4sAM+/q2EXf3XJDR2adqdQ83kH/lpe9Wr4njR1T5zazv83pS8BDYAGAAA=",
+  "blocks": [
+    {
+      "start": 0,
+      "end": 47,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 48,
+      "end": 237,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 238,
+      "end": 255,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 256,
+      "end": 366,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 367,
+      "end": 383,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 384,
+      "end": 447,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 448,
+      "end": 511,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 512,
+      "end": 576,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 577,
+      "end": 591,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 592,
+      "end": 658,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 659,
+      "end": 687,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 688,
+      "end": 744,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 745,
+      "end": 767,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 768,
+      "end": 802,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 803,
+      "end": 804,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 805,
+      "end": 811,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 812,
+      "end": 824,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 825,
+      "end": 1663,
+      "type_": "DataByte",
+      "collapsed": false
+    }
+  ],
+  "labels": {},
+  "user_side_comments": {},
+  "user_line_comments": {
+    "2175": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ handler #1",
+    "2304": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ handler #2"
+  },
+  "settings": {
+    "all_labels": false,
+    "preserve_long_bytes": true,
+    "brk_single_byte": true,
+    "patch_brk": false,
+    "platform": "Commodore64",
+    "assembler": "Tass64",
+    "max_xref_count": 5,
+    "max_arrow_columns": 6,
+    "use_illegal_opcodes": false,
+    "text_char_limit": 40,
+    "addresses_per_line": 5,
+    "bytes_per_line": 8
+  },
+  "immediate_value_formats": {},
+  "cursor_address": 2871,
+  "hex_dump_cursor_address": 2864,
+  "sprites_cursor_address": 2048,
+  "charset_cursor_address": 2048,
+  "right_pane_visible": "HexDump",
+  "sprite_multicolor_mode": false,
+  "charset_multicolor_mode": false,
+  "bitmap_cursor_address": 8192,
+  "bitmap_multicolor_mode": false,
+  "hexdump_view_mode": "ScreencodeUnshifted",
+  "splitters": [],
+  "blocks_view_cursor": null
+}
