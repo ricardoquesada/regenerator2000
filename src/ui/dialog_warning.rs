@@ -28,7 +28,7 @@ impl WarningDialog {
             ui_state.active_dialog = Some(Box::new(Self::new(
                 "High Entropy Detected",
                 format!(
-                    "The loaded file has high entropy ({:.2}).\nIt is likely compressed.\n\nRegenerator 2000 is designed for uncompressed binaries.",
+                    "The loaded file has high entropy ({:.2}).\nIt is likely compressed.\n\nUncompress it with tools like Unp64.",
                     entropy_val
                 ),
             )));

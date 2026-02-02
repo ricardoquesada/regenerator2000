@@ -7,10 +7,10 @@ use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
 use ratatui::{
     Frame,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{List, ListItem, ListState},
 };
 use std::path::PathBuf;
 
@@ -33,37 +33,25 @@ impl D64FilePickerDialog {
 }
 
 impl Widget for D64FilePickerDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, _ui_state: &mut UIState) {
-        let area = crate::utils::centered_rect(60, 60, area);
-
-        // Split area into title, file list, and help
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3), // Title
-                Constraint::Min(10),   // File list
-                Constraint::Length(3), // Help
-            ])
-            .split(area);
-
-        // Render title
+    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
+        let theme = &ui_state.theme;
         let disk_name = self
             .disk_path
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("Unknown");
-        let title = Paragraph::new(format!("Select PRG file from: {}", disk_name))
-            .style(Style::default().fg(Color::Cyan))
-            .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL));
-        f.render_widget(title, chunks[0]);
 
-        // Render file list
+        let title = format!(" Select PRG from {} (Enter: Load, Esc: Cancel) ", disk_name);
+        let block = crate::ui::widget::create_dialog_block(&title, theme);
+
+        let area = crate::utils::centered_rect(60, 60, area);
+        ui_state.active_dialog_area = area;
+        f.render_widget(ratatui::widgets::Clear, area); // Clear background
+
         let items: Vec<ListItem> = self
             .files
             .iter()
-            .enumerate()
-            .map(|(i, entry)| {
+            .map(|entry| {
                 let filename = if entry.filename.len() > 40 {
                     format!("{}...", &entry.filename[..37])
                 } else {
@@ -78,36 +66,32 @@ impl Widget for D64FilePickerDialog {
                 );
 
                 let is_prg = entry.file_type == FileType::PRG;
-                let is_selected = i == self.selected_index;
 
-                let style = match (is_selected, is_prg) {
-                    (true, true) => Style::default()
-                        .fg(Color::Black)
-                        .bg(Color::White)
-                        .add_modifier(Modifier::BOLD),
-                    (true, false) => Style::default().fg(Color::DarkGray).bg(Color::Gray),
-                    (false, true) => Style::default().fg(Color::White),
-                    (false, false) => Style::default().fg(Color::DarkGray),
+                // Dim non-PRG files when not selected (selection style handles the rest)
+                let style = if !is_prg {
+                    Style::default().fg(Color::DarkGray)
+                } else {
+                    Style::default()
                 };
 
                 ListItem::new(Line::from(Span::styled(content, style)))
             })
             .collect();
 
-        let list = List::new(items).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(format!(" {} files ", self.files.len())),
-        );
+        let list = List::new(items)
+            .block(block)
+            .highlight_style(
+                Style::default()
+                    .bg(theme.menu_selected_bg)
+                    .fg(theme.menu_selected_fg)
+                    .add_modifier(Modifier::BOLD),
+            )
+            .highlight_symbol(">> ");
 
-        f.render_widget(list, chunks[1]);
+        let mut state = ListState::default();
+        state.select(Some(self.selected_index));
 
-        // Render help
-        let help = Paragraph::new("↑/↓: Navigate  Enter: Load  Esc: Cancel")
-            .style(Style::default().fg(Color::Gray))
-            .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL));
-        f.render_widget(help, chunks[2]);
+        f.render_stateful_widget(list, area, &mut state);
     }
 
     fn handle_input(
