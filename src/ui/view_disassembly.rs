@@ -1328,6 +1328,12 @@ impl Widget for DisassemblyView {
             KeyCode::Char('d') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::NextImmediateFormat)
             }
+            KeyCode::Char('[') if key.modifiers.is_empty() => {
+                WidgetResult::Action(MenuAction::PackLoHiAddress)
+            }
+            KeyCode::Char(']') if key.modifiers.is_empty() => {
+                WidgetResult::Action(MenuAction::PackHiLoAddress)
+            }
             KeyCode::Char('D') if key.modifiers == KeyModifiers::SHIFT => {
                 WidgetResult::Action(MenuAction::PreviousImmediateFormat)
             }

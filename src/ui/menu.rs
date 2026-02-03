@@ -32,6 +32,9 @@ pub enum MenuAction {
     JumpToLine,
     JumpToOperand,
 
+    PackLoHiAddress,
+    PackHiLoAddress,
+
     SetLoHiAddress,
     SetHiLoAddress,
     SetLoHiWord,
@@ -1062,10 +1065,20 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         MenuAction::NavigateToAddress(target_addr) => {
             match ui_state.active_pane {
                 ActivePane::Disassembly => {
-                    if let Some(idx) = app_state
+                    if let Some(mut idx) = app_state
                         .get_line_index_containing_address(target_addr)
                         .or_else(|| app_state.get_line_index_for_address(target_addr))
                     {
+                        // Optimization: If we landed on a header/comment line (0 bytes)
+                        // but the next line is the actual code at the same address, advance to it.
+                        while idx + 1 < app_state.disassembly.len()
+                            && app_state.disassembly[idx].address == target_addr
+                            && app_state.disassembly[idx].bytes.is_empty()
+                            && app_state.disassembly[idx + 1].address == target_addr
+                        {
+                            idx += 1;
+                        }
+
                         ui_state
                             .navigation_history
                             .push((ActivePane::Disassembly, ui_state.cursor_index));
@@ -1166,6 +1179,23 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                         if let Some(opcode) = &line.opcode {
                             use crate::cpu::AddressingMode;
                             match opcode.mode {
+                                AddressingMode::Immediate => {
+                                    if let Some(fmt) =
+                                        app_state.immediate_value_formats.get(&line.address)
+                                    {
+                                        match fmt {
+                                            crate::state::ImmediateFormat::LowByte(target) => {
+                                                Some(*target)
+                                            }
+                                            crate::state::ImmediateFormat::HighByte(target) => {
+                                                Some(*target)
+                                            }
+                                            _ => None,
+                                        }
+                                    } else {
+                                        None
+                                    }
+                                }
                                 AddressingMode::Absolute
                                 | AddressingMode::AbsoluteX
                                 | AddressingMode::AbsoluteY => {
@@ -1364,6 +1394,12 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Charset: Single Color Mode");
             }
         }
+        MenuAction::PackLoHiAddress => {
+            apply_lo_hi_packing(app_state, ui_state, true);
+        }
+        MenuAction::PackHiLoAddress => {
+            apply_lo_hi_packing(app_state, ui_state, false);
+        }
         MenuAction::SetLoHiAddress => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::LoHiAddress)
         }
@@ -1535,6 +1571,10 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                         crate::state::ImmediateFormat::InvertedBinary => {
                             crate::state::ImmediateFormat::Hex
                         }
+                        crate::state::ImmediateFormat::LowByte(_)
+                        | crate::state::ImmediateFormat::HighByte(_) => {
+                            crate::state::ImmediateFormat::Hex
+                        }
                     };
 
                     let command = crate::commands::Command::SetImmediateFormat {
@@ -1585,6 +1625,10 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                             crate::state::ImmediateFormat::InvertedHex
                         }
                         crate::state::ImmediateFormat::InvertedHex => {
+                            crate::state::ImmediateFormat::Hex
+                        }
+                        crate::state::ImmediateFormat::LowByte(_)
+                        | crate::state::ImmediateFormat::HighByte(_) => {
                             crate::state::ImmediateFormat::Hex
                         }
                     };
@@ -1746,6 +1790,131 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 }
             }
         }
+    }
+}
+
+fn apply_lo_hi_packing(app_state: &mut AppState, ui_state: &mut UIState, lo_first: bool) {
+    let mut indices = Vec::new();
+    if let Some(start) = ui_state.selection_start {
+        let end = ui_state.cursor_index;
+        let (low, high) = if start < end {
+            (start, end)
+        } else {
+            (end, start)
+        };
+        for i in low..=high {
+            indices.push(i);
+        }
+    } else {
+        indices.push(ui_state.cursor_index);
+    }
+
+    // If single line selected, try to include next line to allow single-line cursor packing
+    if indices.len() == 1 {
+        let idx = indices[0];
+        if idx + 1 < app_state.disassembly.len() {
+            indices.push(idx + 1);
+        }
+    }
+
+    let mut i = 0;
+    let mut batch_commands = Vec::new();
+
+    let get_imm = |app_state: &AppState, idx: usize| -> Option<u8> {
+        if let Some(line) = app_state.disassembly.get(idx)
+            && let Some(opcode) = &line.opcode
+            && opcode.mode == crate::cpu::AddressingMode::Immediate
+            && matches!(opcode.mnemonic, "LDA" | "LDX" | "LDY")
+        {
+            line.bytes.get(1).copied()
+        } else {
+            None
+        }
+    };
+
+    while i < indices.len() {
+        let idx1 = indices[i];
+        let val1_opt = get_imm(app_state, idx1);
+
+        if let Some(val1) = val1_opt {
+            // Found start of pair, look for next match
+            let mut j = i + 1;
+            let mut found_match = None;
+            while j < indices.len() {
+                let idx2 = indices[j];
+                let val2_opt = get_imm(app_state, idx2);
+                if let Some(val2) = val2_opt {
+                    found_match = Some((j, idx2, val2));
+                    break;
+                }
+                j += 1;
+            }
+
+            if let Some((match_idx, idx2, val2)) = found_match {
+                let (lo, hi) = if lo_first { (val1, val2) } else { (val2, val1) };
+                let target = ((hi as u16) << 8) | (lo as u16);
+
+                // Create label if needed (removed explicit label creation, relying on analyzer)
+                // BUT user earlier asked for Analyzer to do it.
+                // However, analyzer runs on load/analysis.
+                // If we want immediate feedback, we might need to TRIGGER analysis?
+                // Or just wait for refresh?
+                // For now, removing SetLabel command as agreed.
+
+                let fmt1 = if lo_first {
+                    crate::state::ImmediateFormat::LowByte(target)
+                } else {
+                    crate::state::ImmediateFormat::HighByte(target)
+                };
+                let fmt2 = if lo_first {
+                    crate::state::ImmediateFormat::HighByte(target)
+                } else {
+                    crate::state::ImmediateFormat::LowByte(target)
+                };
+
+                let addr1 = app_state.disassembly[idx1].address;
+                let addr2 = app_state.disassembly[idx2].address;
+
+                let old_fmt1 = app_state.immediate_value_formats.get(&addr1).copied();
+                let old_fmt2 = app_state.immediate_value_formats.get(&addr2).copied();
+
+                batch_commands.push(crate::commands::Command::SetImmediateFormat {
+                    address: addr1,
+                    new_format: Some(fmt1),
+                    old_format: old_fmt1,
+                });
+
+                batch_commands.push(crate::commands::Command::SetImmediateFormat {
+                    address: addr2,
+                    new_format: Some(fmt2),
+                    old_format: old_fmt2,
+                });
+
+                ui_state.set_status_message(format!("Packed Lo/Hi address for ${:04X}", target));
+
+                // Advance past the pair
+                i = match_idx + 1;
+            } else {
+                // No pair found for this instruction
+                i += 1;
+            }
+        } else {
+            // Not a candidate start
+            i += 1;
+        }
+    }
+
+    if !batch_commands.is_empty() {
+        let batch_cmd = crate::commands::Command::Batch(batch_commands);
+        batch_cmd.apply(app_state);
+        app_state.push_command(batch_cmd);
+
+        // Re-analyze to generate new auto-labels for Lo/Hi addresses
+        let (new_labels, new_cross_refs) = crate::analyzer::analyze(app_state);
+        app_state.labels = new_labels;
+        app_state.cross_refs = new_cross_refs;
+
+        app_state.disassemble();
     }
 }
 

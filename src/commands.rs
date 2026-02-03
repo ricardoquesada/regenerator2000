@@ -52,6 +52,7 @@ pub enum Command {
         new_labels: Vec<(u16, crate::state::Label)>,
         old_labels: BTreeMap<u16, Vec<crate::state::Label>>,
     },
+    Batch(Vec<Command>),
 }
 
 impl Command {
@@ -163,6 +164,11 @@ impl Command {
                     }
                 }
             }
+            Command::Batch(commands) => {
+                for command in commands {
+                    command.apply(state);
+                }
+            }
         }
     }
 
@@ -269,6 +275,11 @@ impl Command {
                     } else {
                         state.labels.remove(&addr);
                     }
+                }
+            }
+            Command::Batch(commands) => {
+                for command in commands.iter().rev() {
+                    command.undo(state);
                 }
             }
         }

@@ -72,6 +72,28 @@ impl Formatter for KickAsmFormatter {
                     Some(crate::state::ImmediateFormat::InvertedBinary) => {
                         format!("#~%{:08b}", !val)
                     }
+                    Some(crate::state::ImmediateFormat::LowByte(target)) => {
+                        let name =
+                            get_label(*target, LabelType::AbsoluteAddress).unwrap_or_else(|| {
+                                if *target <= 0xFF {
+                                    format!("${:02x}", target)
+                                } else {
+                                    format!("${:04x}", target)
+                                }
+                            });
+                        format!("#<{}", name)
+                    }
+                    Some(crate::state::ImmediateFormat::HighByte(target)) => {
+                        let name =
+                            get_label(*target, LabelType::AbsoluteAddress).unwrap_or_else(|| {
+                                if *target <= 0xFF {
+                                    format!("${:02x}", target)
+                                } else {
+                                    format!("${:04x}", target)
+                                }
+                            });
+                        format!("#>{}", name)
+                    }
                     _ => format!("#${:02x}", val),
                 }
             }

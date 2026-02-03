@@ -201,4 +201,6 @@ pub enum ImmediateFormat {
     NegativeDecimal,
     Binary,
     InvertedBinary,
+    LowByte(u16),
+    HighByte(u16),
 }

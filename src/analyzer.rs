@@ -158,6 +158,20 @@ pub fn analyze(
     let mut labels: BTreeMap<u16, Vec<crate::state::Label>> = BTreeMap::new();
     let mut cross_refs: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
 
+    // 0. Pre-populate labels from immediate_value_formats (LoHi/HiLo)
+    for (addr, fmt) in &state.immediate_value_formats {
+        let target = match fmt {
+            crate::state::ImmediateFormat::LowByte(val) => Some(*val),
+            crate::state::ImmediateFormat::HighByte(val) => Some(*val),
+            _ => None,
+        };
+
+        if let Some(target_addr) = target {
+            // Add to usage map to ensure it's tracked
+            update_usage(&mut usage_map, target_addr, LabelType::Pointer, *addr);
+        }
+    }
+
     // 1. Process all used addresses
     for (addr, (_types_map, refs, first_type, first_zp, first_abs)) in usage_map {
         let mut addr_labels = Vec::new();

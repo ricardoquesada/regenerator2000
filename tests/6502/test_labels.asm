@@ -33,11 +33,18 @@ l0:
 	sta $f000
 	sta $f001
 
+	ldx #$80
+	ldy #$c0
 	stx $0314
 	sty $0315
 
 	stx $0320
 	sty $0321
+
+	lda #$40
+	sta $fffe
+	lda #$10
+	sta $ffff
 
 	stx $1000
 	sty $1001
@@ -105,8 +112,8 @@ l0:
 	sta $0315
 
 	; should auto hi/lo
-	ldx #$00
-	ldy #$c0
+	ldx #<(irq_handler)
+	ldy #>(irq_handler)
 	stx $fffe
 	sty $ffff
 
@@ -115,7 +122,8 @@ l0:
 	sty $fffa
 	stx $fffb
 
-
+irq_handler:
+	rti
 
 *=$1200
 	lda #00
