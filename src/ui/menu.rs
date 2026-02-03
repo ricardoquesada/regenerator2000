@@ -1290,23 +1290,9 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             };
 
             if let Some(addr) = target_addr {
-                // Perform Jump
-                if let Some(idx) = app_state
-                    .get_line_index_containing_address(addr)
-                    .or_else(|| app_state.get_line_index_for_address(addr))
-                {
-                    ui_state
-                        .navigation_history
-                        .push((ActivePane::Disassembly, ui_state.cursor_index));
-                    ui_state.cursor_index = idx;
-                    ui_state.active_pane = ActivePane::Disassembly;
-                    ui_state.sub_cursor_index = 0; // Reset sub-line selection
-                    ui_state.set_status_message(format!("Jumped to ${:04X}", addr));
-                } else {
-                    ui_state.set_status_message(format!("Address ${:04X} not found", addr));
-                }
-            } else if ui_state.active_pane == ActivePane::Disassembly {
-                ui_state.set_status_message("No target address");
+                execute_menu_action(app_state, ui_state, MenuAction::NavigateToAddress(addr));
+            } else {
+                ui_state.set_status_message("No valid operand to jump to");
             }
         }
         MenuAction::About => {
