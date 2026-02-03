@@ -42,6 +42,26 @@ This view supports different text decoding modes to help you spot strings in sta
 
 ![Hexdump View](regenerator2000_hexdump_screenshot.png)
 
+The Hex Dump view has 4 columns:
+
+* **a**: The address
+* **b**: 16 byes of hex dump
+* **c**: The text representation, that can be any of: "Screencode shifted", "Screencode unshifted", "PETSCII shifted", "PETSCII unshifted".
+* **d**: The entropy of the data. The higher the value, the more randon it is. 
+
+![Hexdump Only](regenerator2000_hexdump_only.png)
+
+The entropy is represented by these characters:
+
+* ` ` (Empty) for Low Entropy (< 2.0)
+* `░` (Light shade) for Moderate Entropy (< 4.0)
+* `▒` (Medium shade) for Mixed Entropy (< 6.0)
+* `▓` (Dark shade) for High Entropy (< 7.5)
+* `█` (Full block) for Very High Entropy (> 7.5)
+
+And entropy is calculated in 1024-bytes blocks. So the character shown is the entropy of the previous 512 bytes starting at the address of the row, plus the following 512 bytes.
+
+
 ### Keyboard Shortcuts
 
 | Action | Shortcut |
