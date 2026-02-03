@@ -1065,49 +1065,21 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         MenuAction::NavigateToAddress(target_addr) => {
             match ui_state.active_pane {
                 ActivePane::Disassembly => {
-                    if let Some(mut idx) = app_state
-                        .get_line_index_containing_address(target_addr)
-                        .or_else(|| app_state.get_line_index_for_address(target_addr))
-                    {
-                        // Optimization: If we landed on a header/comment line (0 bytes)
-                        // but the next line is the actual code at the same address, advance to it.
-                        while idx + 1 < app_state.disassembly.len()
-                            && app_state.disassembly[idx].address == target_addr
-                            && app_state.disassembly[idx].bytes.is_empty()
-                            && app_state.disassembly[idx + 1].address == target_addr
-                        {
-                            idx += 1;
-                        }
-
-                        ui_state
-                            .navigation_history
-                            .push((ActivePane::Disassembly, ui_state.cursor_index));
-                        ui_state.cursor_index = idx;
-
-                        // Smart Jump: Select relevant sub-line if applicable
-                        if let Some(line) = app_state.disassembly.get(idx) {
-                            ui_state.sub_cursor_index =
-                                crate::ui::view_disassembly::DisassemblyView::get_sub_index_for_address(
-                                    line,
-                                    app_state,
-                                    target_addr,
-                                );
-                        } else {
-                            ui_state.sub_cursor_index = 0;
-                        }
-
-                        ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
-                    } else if !app_state.disassembly.is_empty() {
-                        // Fallback to closest or valid range?
-                        // Existing logic was "Jumped to end" if not found?
-                        // Let's stick to "not found" or strict check unless requested otherwise.
-                        // But wait, the dialog logic had a fallback:
-                        // } else if !app_state.disassembly.is_empty() { ... jump to end ... }
-                        // We can keep that if desired, but "Address not found" is usually better.
-                        // Let's stick to strict behavior for now, or maybe just log it.
-                        ui_state
-                            .set_status_message(format!("Address ${:04X} not found", target_addr));
+                    use crate::ui_state::NavigationTarget;
+                    // Push CURRENT state to history before moving
+                    if let Some(current_line) = app_state.disassembly.get(ui_state.cursor_index) {
+                        ui_state.navigation_history.push((
+                            ActivePane::Disassembly,
+                            NavigationTarget::Address(current_line.address),
+                        ));
+                    } else {
+                        ui_state.navigation_history.push((
+                            ActivePane::Disassembly,
+                            NavigationTarget::Index(ui_state.cursor_index),
+                        ));
                     }
+
+                    perform_jump_to_address_no_history(app_state, ui_state, target_addr);
                 }
                 ActivePane::HexDump => {
                     let origin = app_state.origin as usize;
@@ -2060,6 +2032,45 @@ fn update_hexdump_status(ui_state: &mut UIState, mode: crate::state::HexdumpView
         crate::state::HexdumpViewMode::ScreencodeUnshifted => "Unshifted (Screencode)",
     };
     ui_state.set_status_message(format!("Hex Dump: {}", status));
+}
+
+pub fn perform_jump_to_address_no_history(
+    app_state: &AppState,
+    ui_state: &mut UIState,
+    target_addr: u16,
+) {
+    if let Some(mut idx) = app_state
+        .get_line_index_containing_address(target_addr)
+        .or_else(|| app_state.get_line_index_for_address(target_addr))
+    {
+        // Optimization: If we landed on a header/comment line (0 bytes)
+        // but the next line is the actual code at the same address, advance to it.
+        while idx + 1 < app_state.disassembly.len()
+            && app_state.disassembly[idx].address == target_addr
+            && app_state.disassembly[idx].bytes.is_empty()
+            && app_state.disassembly[idx + 1].address == target_addr
+        {
+            idx += 1;
+        }
+
+        ui_state.cursor_index = idx;
+
+        // Smart Jump: Select relevant sub-line if applicable
+        if let Some(line) = app_state.disassembly.get(idx) {
+            ui_state.sub_cursor_index =
+                crate::ui::view_disassembly::DisassemblyView::get_sub_index_for_address(
+                    line,
+                    app_state,
+                    target_addr,
+                );
+        } else {
+            ui_state.sub_cursor_index = 0;
+        }
+
+        ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
+    } else if !app_state.disassembly.is_empty() {
+        ui_state.set_status_message(format!("Address ${:04X} not found", target_addr));
+    }
 }
 
 #[cfg(test)]

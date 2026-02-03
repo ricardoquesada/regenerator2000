@@ -137,9 +137,10 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
         };
 
         if let Some(sub) = candidate {
-            ui_state
-                .navigation_history
-                .push((ActivePane::Disassembly, ui_state.cursor_index));
+            ui_state.navigation_history.push((
+                ActivePane::Disassembly,
+                crate::ui_state::NavigationTarget::Index(ui_state.cursor_index),
+            ));
             ui_state.sub_cursor_index = sub;
             ui_state.set_status_message(format!("Found '{}'", query));
             return;
@@ -196,9 +197,10 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
     }
 
     if let Some(idx) = found_idx {
-        ui_state
-            .navigation_history
-            .push((ActivePane::Disassembly, ui_state.cursor_index));
+        ui_state.navigation_history.push((
+            ActivePane::Disassembly,
+            crate::ui_state::NavigationTarget::Index(ui_state.cursor_index),
+        ));
         ui_state.cursor_index = idx;
         ui_state.sub_cursor_index = found_sub_idx;
         ui_state.set_status_message(format!("Found '{}'", query));

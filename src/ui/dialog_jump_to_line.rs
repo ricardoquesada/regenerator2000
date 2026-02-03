@@ -1,6 +1,6 @@
 use crate::state::AppState;
 // Theme import removed
-use crate::ui_state::{ActivePane, UIState};
+use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
@@ -76,15 +76,16 @@ impl Widget for JumpToLineDialog {
             KeyCode::Enter => {
                 let input = self.input.clone();
                 if let Ok(line_num) = input.parse::<usize>() {
-                    if let Some(index) =
+                    if let Some(target_idx) =
                         crate::ui::view_disassembly::DisassemblyView::get_index_for_visual_line(
                             app_state, line_num,
                         )
                     {
-                        ui_state
-                            .navigation_history
-                            .push((ActivePane::Disassembly, ui_state.cursor_index));
-                        ui_state.cursor_index = index;
+                        ui_state.navigation_history.push((
+                            crate::ui_state::ActivePane::Disassembly,
+                            crate::ui_state::NavigationTarget::Index(ui_state.cursor_index),
+                        ));
+                        ui_state.cursor_index = target_idx;
                         ui_state.set_status_message(format!("Jumped to visual line {}", line_num));
                     } else {
                         ui_state.set_status_message("Line number out of range");

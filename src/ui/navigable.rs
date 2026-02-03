@@ -96,7 +96,10 @@ pub fn handle_nav_input<T: Navigable>(
             ui_state.input_buffer.clear();
 
             // Push history before jumping
-            ui_state.navigation_history.push((active_pane, current_idx));
+            ui_state.navigation_history.push((
+                active_pane,
+                crate::ui_state::NavigationTarget::Index(current_idx),
+            ));
 
             if is_buffer_empty {
                 let len = target.len(app_state);
@@ -125,7 +128,7 @@ pub fn jump_to_disassembly_at_address(
     if let Some(line_idx) = app_state.get_line_index_containing_address(target_addr) {
         ui_state.navigation_history.push((
             crate::ui_state::ActivePane::Disassembly,
-            ui_state.cursor_index,
+            crate::ui_state::NavigationTarget::Index(ui_state.cursor_index),
         ));
         ui_state.cursor_index = line_idx;
         ui_state.active_pane = crate::ui_state::ActivePane::Disassembly;

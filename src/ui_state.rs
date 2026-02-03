@@ -17,6 +17,12 @@ pub enum ActivePane {
     Blocks,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NavigationTarget {
+    Index(usize),
+    Address(u16),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum RightPane {
     None,
@@ -42,7 +48,7 @@ pub struct UIState {
 
     pub menu: MenuState,
 
-    pub navigation_history: Vec<(ActivePane, usize)>,
+    pub navigation_history: Vec<(ActivePane, NavigationTarget)>,
     #[allow(dead_code)]
     pub disassembly_state: ListState,
 
