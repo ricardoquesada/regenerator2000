@@ -13,6 +13,8 @@ In this view, you can:
 - **Annotate**: Add comments to lines or specific instructions and rename labels to something meaningful.
 - **Analyze Flow**: Visual indicators show jump and branch targets, helping you understand the program's logic.
 
+![Disassembly View](regenerator2000_disassembly_screenshot.png)
+
 ### Keyboard Shortcuts
 
 | Action | Shortcut |
@@ -34,10 +36,9 @@ In this view, you can:
 
 ## Hexdump View
 
-The Hexdump View provides a raw hexadecimal representation of the memory, side-by-side with an ASCII representation. It is useful for inspecting data that hasn't been formatted yet or for verifying the exact byte values in a region.
+The Hexdump View provides a raw hexadecimal representation of the memory, side-by-side with an text representation. It is useful for inspecting data that hasn't been formatted yet or for verifying the exact byte values in a region.
 
-This view supports different text decoding modes to help you spot strings in standard C64 formats.
-
+This view supports different text decoding modes to help you spot strings in standard C64 formats. It also shows the entropy of the data, which can help you identify regions that are likely to contain compressed data.
 
 ![Hexdump View](regenerator2000_hexdump_screenshot.png)
 
