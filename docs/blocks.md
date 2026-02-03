@@ -518,6 +518,24 @@ The available Block Types are:
         .byte $ff
         ```
 
+## 13. Helper Shortcuts
+
+### Cycle Data Types for immediate mode instructions
+
+- **Shortcut**: ++d++ / ++shift+d++
+- **Description**: Cycles the current immediate mode instruction through the available representations (Hex, Decimal, Binary):
+    - **++d++**: Cycles forward.
+    - **++shift+d++**: Cycles backward.
+- **Use Case**: Sometimes a decimal, or binary representation makes more sense than an hexadecimal one.
+
+### Pack Low/High Bytes for immediate mode LDA/LDX/LDY instructions
+
+- **Shortcut**: ++bracket-left++ / ++bracket-right++
+- **Description**: Quickly assigns "Split Address Table" types to the selection.
+    - **++bracket-left++**: Packs as **Lo/Hi Address Table** (Type 7). Useful for "LowByte" tables.
+    - **++bracket-right++**: Packs as **Hi/Lo Address Table** (Type 8). Useful for "HighByte" tables.
+- **Use Case**: These are ergonomically placed aliases for Types 7 and 8, allowing you to quickly define **LowByte** and **HighByte** tables.
+
 ## Organization Tools
 
 Beyond data types, you can organize your view using Splitters and Collapsing:
