@@ -61,8 +61,8 @@ impl SystemConfig {
     pub fn load() -> Self {
         if let Some(proj_dirs) = ProjectDirs::from("", "", "regenerator2000") {
             let config_path = proj_dirs.config_dir().join("config.json");
-            if config_path.exists() {
-                if let Ok(data) = std::fs::read_to_string(&config_path) {
+            if config_path.exists()
+                && let Ok(data) = std::fs::read_to_string(&config_path) {
                     match serde_json::from_str::<Self>(&data) {
                         Ok(config) => return config,
                         Err(e) => {
@@ -81,7 +81,6 @@ impl SystemConfig {
                         }
                     }
                 }
-            }
         }
         Self::default()
     }
