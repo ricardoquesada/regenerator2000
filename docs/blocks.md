@@ -518,7 +518,7 @@ The available Block Types are:
         .byte $ff
         ```
 
-## 13. Helper Shortcuts
+## 13. Helpers for Immediate Mode instructions
 
 ### Cycle Data Types for immediate mode instructions
 
@@ -528,13 +528,56 @@ The available Block Types are:
     - **++shift+d++**: Cycles backward.
 - **Use Case**: Sometimes a decimal, or binary representation makes more sense than an hexadecimal one.
 
-### Pack Low/High Bytes for immediate mode LDA/LDX/LDY instructions
+| Representation    | Name                |
+| :---------------- | :------------------ |
+| `lda #$d2`        | Hexadecimal         |
+| `lda #~$2d`       | Inverse Hexadecimal |
+| `lda #210`        | Decimal             |
+| `lda #-46`        | Inverse Decimal     |
+| `lda #%11010010`  | Binary              |
+| `lda #~%00101101` | Inverse Binary      |
+
+### Convert LDA/LDX/LDY vector instructions to lo/hi, or hi/lo addresses
 
 - **Shortcut**: ++bracket-left++ / ++bracket-right++
-- **Description**: Quickly assigns "Split Address Table" types to the selection.
-    - **++bracket-left++**: Packs as **Lo/Hi Address Table** (Type 7). Useful for "LowByte" tables.
-    - **++bracket-right++**: Packs as **Hi/Lo Address Table** (Type 8). Useful for "HighByte" tables.
-- **Use Case**: These are ergonomically placed aliases for Types 7 and 8, allowing you to quickly define **LowByte** and **HighByte** tables.
+- **Description**: Quickly assigns a "lo/hi" or "hi/lo" address to the selection.
+    - **++bracket-left++**: For **Lo/Hi Address**.
+    - **++bracket-right++**: For **Hi/Lo Address**.
+- **Use Case**: When manually setting 16-bit pointers. See exmaple.
+
+Example:
+
+It is clear that `$0314` / `$0315` contains a vector.
+Select the first 3 lines in the Dissasembly view, and press ++open-bracket++.
+
+```asm hl_lines="1-3"
+    lda #$80        ; $80 is the low part of $1480
+    sta $0314
+    lda #$14        ; $14 is the high part of $1480
+    sta $0315
+
+; IRQ handler in address $1480
+    rti
+```
+
+And it will be converted to a "lo/hi" address, and it will look like:
+
+```asm
+    ; And the LDA #immediate_mode will be converted to an lo/hi address
+    lda #<p1480
+    sta $0314
+    lda #>p1480
+    sta $0315
+
+; IRQ handler in address $1480
+p1480
+    rti
+```
+
+You can also revert the change by pressing:
+
+* ++u++ to undo
+* or press ++d++ to remove the hi/lo or lo/hi address, and represent it as hexadecimal again.
 
 ## Organization Tools
 
