@@ -335,4 +335,49 @@ mod tests {
         let data = vec![0u8; 1000];
         assert!(parse_d64_directory(&data).is_err());
     }
+
+    #[test]
+    fn test_parse_and_extract() {
+        let mut data = vec![0u8; D64_STANDARD_SIZE];
+
+        // Setup Track 18, Sector 1 (Directory)
+        let dir_offset = calculate_offset(18, 1).unwrap();
+        data[dir_offset] = 0; // Next track
+        data[dir_offset + 1] = 255; // Next sector
+
+        // Setup Entry 1 (PRG, Track 1, Sector 0, name "TEST", 1 sector)
+        let entry_offset = dir_offset + 2;
+        data[entry_offset] = 0x82; // PRG
+        data[entry_offset + 1] = 1; // Track
+        data[entry_offset + 2] = 0; // Sector
+        data[entry_offset + 3..entry_offset + 7].copy_from_slice(b"TEST");
+        for i in 7..19 {
+            data[entry_offset + i] = 0xA0; // Padding
+        }
+        data[entry_offset + 28] = 1; // Size low
+        data[entry_offset + 29] = 0; // Size high
+
+        // Setup File Data (Track 1, Sector 0)
+        let file_offset = calculate_offset(1, 0).unwrap();
+        data[file_offset] = 0; // Next track (last sector)
+        data[file_offset + 1] = 6; // Next sector value (bytes used + 1 = 5 + 1 = 6)
+        data[file_offset + 2] = 0x01; // Load address low
+        data[file_offset + 3] = 0x08; // Load address high
+        data[file_offset + 4] = 0xEA; // NOP
+        data[file_offset + 5] = 0xEA; // NOP
+        data[file_offset + 6] = 0x60; // RTS
+
+        // Parse
+        let files = parse_d64_directory(&data).unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].filename, "TEST");
+        assert_eq!(files[0].file_type, FileType::PRG);
+        assert_eq!(files[0].track, 1);
+        assert_eq!(files[0].sector, 0);
+
+        // Extract
+        let (load_addr, extracted_data) = extract_file(&data, &files[0]).unwrap();
+        assert_eq!(load_addr, 0x0801);
+        assert_eq!(extracted_data, vec![0xEA, 0xEA, 0x60]);
+    }
 }

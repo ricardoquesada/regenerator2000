@@ -72,6 +72,7 @@ impl ShortcutsDialog {
             ("a", "Address"),
             ("p", "Petscii Text"),
             ("s", "Screencode Text"),
+            ("e", "External File"),
             ("?", "Undefined"),
             ("d / D", "Next/Prev Immediate Mode Format"),
             ("[", "Pack Lo/Hi Address (Immediate Mode)"),
