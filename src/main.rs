@@ -14,7 +14,20 @@ use crossterm::{
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
 
+use simplelog::*;
+use std::fs::File;
+use std::panic;
+
 fn main() -> Result<()> {
+    // 1. Initialize Logging
+    let log_path = std::env::temp_dir().join("regenerator2000.log");
+    let _ = WriteLogger::init(
+        LevelFilter::Info,
+        Config::default(),
+        File::create(&log_path).unwrap_or_else(|_| File::create("regenerator2000.log").unwrap()),
+    );
+    log::info!("Regenerator 2000 started");
+
     // Check args and load initial project/file
     let args: Vec<String> = std::env::args().collect();
 
@@ -235,6 +248,22 @@ fn main() -> Result<()> {
     // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
+
+    // Critical: Set Panic Hook to restore terminal
+    let default_hook = panic::take_hook();
+    panic::set_hook(Box::new(move |info| {
+        let _ = disable_raw_mode();
+        let _ = execute!(io::stdout(), LeaveAlternateScreen, DisableMouseCapture);
+        let _ = execute!(io::stdout(), PopKeyboardEnhancementFlags);
+
+        // Log the panic
+        log::error!("Panic: {:?}", info);
+
+        // Print to stderr
+        eprintln!("Panic: {:?}", info);
+
+        default_hook(info);
+    }));
 
     // Critical setup: Alternate Screen & Mouse
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture,)?;

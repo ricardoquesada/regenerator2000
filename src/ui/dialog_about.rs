@@ -34,7 +34,7 @@ impl Widget for AboutDialog {
         {
             // Center popup
             let percent_x = 60;
-            let percent_y = 60;
+            let percent_y = 75;
             let popup_width = area.width * percent_x / 100;
             let popup_height = area.height * percent_y / 100;
             let x = (area.width - popup_width) / 2;
@@ -53,7 +53,7 @@ impl Widget for AboutDialog {
             // Split inner area: Top (Image), Bottom (Text)
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
+                .constraints([Constraint::Min(0), Constraint::Length(6)])
                 .split(inner);
 
             // 1. Render Logo
@@ -93,15 +93,17 @@ impl Widget for AboutDialog {
             // 2. Render Text
             let text_area = chunks[1];
             let text = format!(
-                "Regenerator 2000 v{}\n(c) Ricardo Quesada 2026\nriq / L.I.A\nInspired by Regenerator, by Tom-Cat / Nostalgia",
-                env!("CARGO_PKG_VERSION")
+                "Regenerator 2000 v{}\nCommit: {} ({})\n(c) Ricardo Quesada 2026\nriq / L.I.A\nInspired by Regenerator, by Tom-Cat / Nostalgia",
+                env!("CARGO_PKG_VERSION"),
+                option_env!("VERGEN_GIT_SHA").unwrap_or("unknown"),
+                option_env!("VERGEN_GIT_COMMIT_DATE").unwrap_or("unknown")
             );
             let paragraph = Paragraph::new(text)
                 .alignment(ratatui::layout::Alignment::Center)
                 .block(Block::default());
 
             // Vertically center text in text_area
-            let text_height = 4;
+            let text_height = 5;
             let text_y = text_area.y + (text_area.height.saturating_sub(text_height)) / 2;
             let centered_text_area = Rect::new(text_area.x, text_y, text_area.width, text_height);
 
