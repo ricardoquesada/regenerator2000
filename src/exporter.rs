@@ -460,28 +460,35 @@ mod tests {
         let res = export_asm(&state, &path);
         assert!(res.is_ok(), "Export failed: {:?}", res.err());
 
-        // 3. Run 64tass
+        // 3. Run 64tass (if available)
         // Command: 64tass test_output.asm
-        let output = Command::new("64tass").arg(file_name).output();
+        let result = Command::new("64tass").arg(file_name).output();
 
-        // 4. Assert success
-        let output = output.expect(
-            "Failed to execute 64tass. \
-             Make sure 64tass is installed and available in PATH. \
-             You may need to skip this test if 64tass is not available.",
-        );
+        match result {
+            Ok(output) => {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                println!("stdout: {}", stdout);
+                println!("stderr: {}", stderr);
 
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        println!("stdout: {}", stdout);
-        println!("stderr: {}", stderr);
-
-        assert!(
-            output.status.success(),
-            "64tass compilation failed. \nStdout: {}\nStderr: {}",
-            stdout,
-            stderr
-        );
+                assert!(
+                    output.status.success(),
+                    "64tass compilation failed. \nStdout: {}\nStderr: {}",
+                    stdout,
+                    stderr
+                );
+            }
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    println!("Skipping test: 64tass not found");
+                    // Cleanup and return success
+                    let _ = std::fs::remove_file(&path);
+                    return;
+                } else {
+                    panic!("Failed to execute 64tass: {}", e);
+                }
+            }
+        }
 
         // 5. Cleanup
         let _ = std::fs::remove_file(&path);
