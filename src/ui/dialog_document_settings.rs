@@ -476,27 +476,59 @@ impl Widget for DocumentSettingsDialog {
                     && !self.is_editing_bytes_per_line
                 {
                     match self.selected_index {
-                        6 => {
+                        5 => {
                             app_state.settings.max_xref_count =
                                 app_state.settings.max_xref_count.saturating_sub(1);
                         }
-                        7 => {
+                        6 => {
                             app_state.settings.max_arrow_columns =
                                 app_state.settings.max_arrow_columns.saturating_sub(1);
                         }
-                        8 => {
+                        7 => {
                             app_state.settings.text_char_limit =
                                 app_state.settings.text_char_limit.saturating_sub(1);
                         }
-                        9 => {
+                        8 => {
                             if app_state.settings.addresses_per_line > 1 {
                                 app_state.settings.addresses_per_line -= 1;
                             }
                         }
-                        10 => {
+                        9 => {
                             if app_state.settings.bytes_per_line > 1 {
                                 app_state.settings.bytes_per_line -= 1;
                             }
+                        }
+                        10 => {
+                            let assemblers = crate::state::Assembler::all();
+                            let current_idx = assemblers
+                                .iter()
+                                .position(|a| *a == app_state.settings.assembler)
+                                .unwrap_or(0);
+                            let new_idx = if current_idx == 0 {
+                                assemblers.len() - 1
+                            } else {
+                                current_idx - 1
+                            };
+                            app_state.settings.assembler = assemblers[new_idx];
+                            if (app_state.settings.assembler == crate::state::Assembler::Kick
+                                || app_state.settings.assembler == crate::state::Assembler::Ca65)
+                                && !app_state.settings.brk_single_byte
+                            {
+                                app_state.settings.patch_brk = true;
+                            }
+                        }
+                        11 => {
+                            let platforms = crate::state::Platform::all();
+                            let current_idx = platforms
+                                .iter()
+                                .position(|p| *p == app_state.settings.platform)
+                                .unwrap_or(0);
+                            let new_idx = if current_idx == 0 {
+                                platforms.len() - 1
+                            } else {
+                                current_idx - 1
+                            };
+                            app_state.settings.platform = platforms[new_idx];
                         }
                         _ => {}
                     }
@@ -510,27 +542,51 @@ impl Widget for DocumentSettingsDialog {
                     && !self.is_editing_bytes_per_line
                 {
                     match self.selected_index {
-                        6 => {
+                        5 => {
                             app_state.settings.max_xref_count =
                                 app_state.settings.max_xref_count.saturating_add(1);
                         }
-                        7 => {
+                        6 => {
                             app_state.settings.max_arrow_columns =
                                 app_state.settings.max_arrow_columns.saturating_add(1);
                         }
-                        8 => {
+                        7 => {
                             app_state.settings.text_char_limit =
                                 app_state.settings.text_char_limit.saturating_add(1);
                         }
-                        9 => {
+                        8 => {
                             if app_state.settings.addresses_per_line < 8 {
                                 app_state.settings.addresses_per_line += 1;
                             }
                         }
-                        10 => {
+                        9 => {
                             if app_state.settings.bytes_per_line < 40 {
                                 app_state.settings.bytes_per_line += 1;
                             }
+                        }
+                        10 => {
+                            let assemblers = crate::state::Assembler::all();
+                            let current_idx = assemblers
+                                .iter()
+                                .position(|a| *a == app_state.settings.assembler)
+                                .unwrap_or(0);
+                            let new_idx = (current_idx + 1) % assemblers.len();
+                            app_state.settings.assembler = assemblers[new_idx];
+                            if (app_state.settings.assembler == crate::state::Assembler::Kick
+                                || app_state.settings.assembler == crate::state::Assembler::Ca65)
+                                && !app_state.settings.brk_single_byte
+                            {
+                                app_state.settings.patch_brk = true;
+                            }
+                        }
+                        11 => {
+                            let platforms = crate::state::Platform::all();
+                            let current_idx = platforms
+                                .iter()
+                                .position(|p| *p == app_state.settings.platform)
+                                .unwrap_or(0);
+                            let new_idx = (current_idx + 1) % platforms.len();
+                            app_state.settings.platform = platforms[new_idx];
                         }
                         _ => {}
                     }
