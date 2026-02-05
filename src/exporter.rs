@@ -210,13 +210,14 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         if line.bytes.len() > 1 {
             for j in 1..line.bytes.len() {
                 let mid_addr = line.address.wrapping_add(j as u16);
-                if let Some(label_vec) = state.labels.get(&mid_addr) {
-                    for label in label_vec {
-                        output.push_str(&format!(
-                            "{}\n",
-                            formatter.format_relative_label(&label.name, j)
-                        ));
-                    }
+                if let Some(label_vec) = state.labels.get(&mid_addr)
+                    && let Some(label) =
+                        crate::disassembler::resolve_label(label_vec, mid_addr, &state.settings)
+                {
+                    output.push_str(&format!(
+                        "{}\n",
+                        formatter.format_relative_label(&label.name, j)
+                    ));
                 }
             }
         }

@@ -29,30 +29,13 @@ impl Formatter for AcmeFormatter {
         let opcode = ctx.opcode;
         let operands = ctx.operands;
         let address = ctx.address;
-        let target_context = ctx.target_context;
-        let labels = ctx.labels;
+        let _target_context = ctx.target_context;
+        let _labels = ctx.labels;
         let _settings = ctx.settings;
         let immediate_value_formats = ctx.immediate_value_formats;
 
-        let get_label = |addr: u16, l_type: LabelType| -> Option<String> {
-            if let Some(label_vec) = labels.get(&addr) {
-                // 1. Try to match target_context if provided
-                if let Some(target) = target_context
-                    && let Some(l) = label_vec.iter().find(|l| l.label_type == target)
-                {
-                    return Some(l.name.clone());
-                }
-                // 2. Try to match l_type (the type implied by addressing mode)
-                if let Some(l) = label_vec.iter().find(|l| l.label_type == l_type) {
-                    return Some(l.name.clone());
-                }
-
-                // 3. Fallback to first label
-                if let Some(l) = label_vec.first() {
-                    return Some(l.name.clone());
-                }
-            }
-            None
+        let get_label = |addr: u16, _l_type: LabelType| -> Option<String> {
+            ctx.resolve_label(addr).map(|l| l.name.clone())
         };
 
         match opcode.mode {

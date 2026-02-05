@@ -624,7 +624,11 @@ impl AppState {
 
         for (addr, labels) in &self.labels {
             if self.is_external(*addr) {
-                for label in labels {
+                // Only include if setting enabled
+
+                if let Some(label) =
+                    crate::disassembler::resolve_label(labels, *addr, &self.settings)
+                {
                     candidates.push((*addr, label.label_type, &label.name));
                 }
             }

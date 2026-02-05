@@ -10,11 +10,62 @@ pub mod formatter_ca65;
 pub mod formatter_kickasm;
 pub mod handlers;
 
+use crate::state::LabelKind;
 use formatter::Formatter;
 use formatter_64tass::TassFormatter;
 use formatter_acme::AcmeFormatter;
 use formatter_ca65::Ca65Formatter;
 use formatter_kickasm::KickAsmFormatter;
+
+pub fn resolve_label<'a>(
+    labels: &'a [Label],
+    _address: u16,
+    _settings: &DocumentSettings,
+) -> Option<&'a Label> {
+    if labels.is_empty() {
+        return None;
+    }
+
+    // Filter and Sort
+    // We want to pick ONE label.
+    // Precedence:
+    // 1. User
+    // 2. System
+    // 3. Auto
+
+    // Priority Score (Higher is better)
+    let get_priority = |k: &LabelKind| -> u8 {
+        match k {
+            LabelKind::User => 100,
+            LabelKind::System => 50,
+            LabelKind::Auto => 0,
+        }
+    };
+
+    let mut best_label: Option<&Label> = None;
+
+    for label in labels {
+        if best_label.is_none() {
+            best_label = Some(label);
+            continue;
+        }
+
+        let curr = best_label.unwrap();
+        let p_curr = get_priority(&curr.kind);
+        let p_label = get_priority(&label.kind);
+
+        if p_label > p_curr {
+            best_label = Some(label);
+        } else if p_label == p_curr {
+            // Tie-break with name (stability)
+            // We prefer alphabetically smaller names to be deterministic
+            if label.name < curr.name {
+                best_label = Some(label);
+            }
+        }
+    }
+    best_label
+}
 
 pub use context::DisassemblyContext;
 
@@ -138,7 +189,8 @@ impl Disassembler {
 
             let address = ctx.origin.wrapping_add(pc as u16);
 
-            let label_name = self.get_label_name(address, ctx.labels, formatter.as_ref());
+            let label_name =
+                self.get_label_name(address, ctx.labels, formatter.as_ref(), ctx.settings);
             let side_comment = self.get_side_comment(
                 address,
                 ctx.labels,
@@ -161,6 +213,7 @@ impl Disassembler {
                     formatter.as_ref(),
                     ctx.labels,
                     ctx.settings,
+                    ctx.origin,
                     label_name,
                     side_comment,
                     line_comment,
@@ -388,11 +441,11 @@ impl Disassembler {
         address: u16,
         labels: &BTreeMap<u16, Vec<Label>>,
         formatter: &dyn Formatter,
+        settings: &DocumentSettings,
     ) -> Option<String> {
-        labels
-            .get(&address)
-            .and_then(|v| v.first())
-            .map(|l| formatter.format_label(&l.name))
+        labels.get(&address).and_then(|v| {
+            resolve_label(v, address, settings).map(|l| formatter.format_label(&l.name))
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -436,6 +489,7 @@ impl Disassembler {
         formatter: &dyn Formatter,
         labels: &BTreeMap<u16, Vec<Label>>,
         settings: &DocumentSettings,
+        _origin: u16, // Add origin
         label_name: Option<String>,
         mut side_comment: String,
         line_comment: Option<String>,
@@ -493,6 +547,7 @@ impl Disassembler {
                                         address.wrapping_add(1),
                                         labels,
                                         formatter,
+                                        settings,
                                     ),
                                     opcode: None,
                                     show_bytes: true,
@@ -961,11 +1016,10 @@ impl Disassembler {
             bytes.push(low);
             bytes.push(high);
 
-            let operand = if let Some(label_vec) = labels.get(&val) {
-                label_vec
-                    .first()
-                    .map(|l| l.name.clone())
-                    .unwrap_or(formatter.format_address(val))
+            let operand = if let Some(label_vec) = labels.get(&val)
+                && let Some(label) = resolve_label(label_vec, val, settings)
+            {
+                formatter.format_label(&label.name)
             } else {
                 formatter.format_address(val)
             };

@@ -17,6 +17,16 @@ pub struct FormatContext<'a> {
     pub immediate_value_formats: &'a BTreeMap<u16, crate::state::ImmediateFormat>,
 }
 
+impl<'a> FormatContext<'a> {
+    pub fn resolve_label(&self, address: u16) -> Option<&'a Label> {
+        if let Some(v) = self.labels.get(&address) {
+            crate::disassembler::resolve_label(v, address, self.settings)
+        } else {
+            None
+        }
+    }
+}
+
 pub trait Formatter {
     fn comment_prefix(&self) -> &'static str;
     fn byte_directive(&self) -> &'static str;

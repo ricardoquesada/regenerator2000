@@ -152,8 +152,10 @@ fn handle_split_byte_table(
         };
 
         // Try to resolve label.
-        let label_part = if let Some(label_vec) = ctx.labels.get(&val) {
-            formatter.format_label(&label_vec[0].name)
+        let label_part = if let Some(label_vec) = ctx.labels.get(&val)
+            && let Some(label) = crate::disassembler::resolve_label(label_vec, val, ctx.settings)
+        {
+            formatter.format_label(&label.name)
         } else {
             formatter.format_address(val)
         };
