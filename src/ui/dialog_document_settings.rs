@@ -489,8 +489,8 @@ impl Widget for DocumentSettingsDialog {
                     app_state.disassemble();
 
                     // Restore cursor position
-                    if let Some(addr) = restore_addr {
-                        if let Some(new_idx) = app_state.get_line_index_for_address(addr) {
+                    if let Some(addr) = restore_addr
+                        && let Some(new_idx) = app_state.get_line_index_for_address(addr) {
                             ui_state.cursor_index = new_idx;
                             // Attempt to preserve sub-cursor (e.g. comments/labels) if valid
                             if let Some(line) = app_state.disassembly.get(new_idx) {
@@ -504,7 +504,6 @@ impl Widget for DocumentSettingsDialog {
                                 }
                             }
                         }
-                    }
 
                     return WidgetResult::Close;
                 }
