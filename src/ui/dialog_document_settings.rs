@@ -476,9 +476,36 @@ impl Widget for DocumentSettingsDialog {
                     self.bytes_per_line_input.clear();
                 } else {
                     ui_state.set_status_message("Ready");
+
+                    // Capture current address to preserve cursor position
+                    let restore_addr = app_state
+                        .disassembly
+                        .get(ui_state.cursor_index)
+                        .map(|l| l.address);
+                    let old_sub_cursor = ui_state.sub_cursor_index;
+
                     app_state.load_system_assets();
                     app_state.perform_analysis();
                     app_state.disassemble();
+
+                    // Restore cursor position
+                    if let Some(addr) = restore_addr {
+                        if let Some(new_idx) = app_state.get_line_index_for_address(addr) {
+                            ui_state.cursor_index = new_idx;
+                            // Attempt to preserve sub-cursor (e.g. comments/labels) if valid
+                            if let Some(line) = app_state.disassembly.get(new_idx) {
+                                let counts = crate::ui::view_disassembly::DisassemblyView::get_visual_line_counts(
+                                    line, app_state,
+                                );
+                                if old_sub_cursor < counts.total() {
+                                    ui_state.sub_cursor_index = old_sub_cursor;
+                                } else {
+                                    ui_state.sub_cursor_index = 0;
+                                }
+                            }
+                        }
+                    }
+
                     return WidgetResult::Close;
                 }
             }
