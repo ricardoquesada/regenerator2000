@@ -1,7 +1,7 @@
 use super::types::{Assembler, Platform};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DocumentSettings {
     #[serde(default)]
     pub all_labels: bool, // default false
@@ -27,6 +27,8 @@ pub struct DocumentSettings {
     pub addresses_per_line: usize, // default 5
     #[serde(default = "default_bytes_per_line")]
     pub bytes_per_line: usize, // default 8
+    #[serde(default)]
+    pub enabled_features: std::collections::HashMap<String, bool>,
 }
 
 fn default_text_char_limit() -> usize {
@@ -68,6 +70,7 @@ impl Default for DocumentSettings {
             text_char_limit: 40,
             addresses_per_line: 5,
             bytes_per_line: 8,
+            enabled_features: std::collections::HashMap::new(),
         }
     }
 }

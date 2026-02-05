@@ -94,7 +94,7 @@ fn test_forced_absolute() {
     );
 
     // False functionality: should NOT output a: prefix
-    let mut settings_false = settings;
+    let mut settings_false = settings.clone();
     settings_false.preserve_long_bytes = false;
     let ctx_false = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),

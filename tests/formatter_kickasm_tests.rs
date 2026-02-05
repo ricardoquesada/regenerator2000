@@ -117,7 +117,7 @@ fn test_forced_absolute() {
     // But the request is to control the .abs suffix.
     // If we omit .abs, KickAssembler will likely assemble it as ZP ($A5).
     // This matches the behavior of "not preserving" the long form.
-    let mut settings_false = settings;
+    let mut settings_false = settings.clone();
     settings_false.preserve_long_bytes = false;
     let ctx_false = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),

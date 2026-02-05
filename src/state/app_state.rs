@@ -105,7 +105,10 @@ impl AppState {
         self.system_comments = crate::assets::load_comments(self.settings.platform);
 
         // Load labels
-        let system_labels = crate::assets::load_labels(self.settings.platform);
+        let system_labels = crate::assets::load_labels(
+            self.settings.platform,
+            Some(&self.settings.enabled_features),
+        );
         for (addr, label) in system_labels {
             self.labels.entry(addr).or_default().push(label);
         }
@@ -397,7 +400,7 @@ impl AppState {
                 user_side_comments: self.user_side_comments.clone(),
                 user_line_comments: self.user_line_comments.clone(),
                 immediate_value_formats: self.immediate_value_formats.clone(),
-                settings: self.settings,
+                settings: self.settings.clone(),
                 cursor_address: ctx.cursor_address,
                 hex_dump_cursor_address: ctx.hex_dump_cursor_address,
                 sprites_cursor_address: ctx.sprites_cursor_address,

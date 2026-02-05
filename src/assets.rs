@@ -1,6 +1,21 @@
 use crate::state::{Label, LabelKind, LabelType, Platform};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::path::PathBuf;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LabelOption {
+    pub id: String,
+    pub name: String,
+    pub file: String,
+    pub default: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SystemConfig {
+    pub features: Vec<LabelOption>,
+}
 
 pub fn get_assets_path(platform: Platform) -> PathBuf {
     let mut path = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
@@ -8,6 +23,23 @@ pub fn get_assets_path(platform: Platform) -> PathBuf {
     path.push("systems");
     path.push(platform.to_string());
     path
+}
+
+pub fn load_system_config(platform: Platform) -> SystemConfig {
+    if platform == Platform::Commodore64 {
+        let json_str = include_str!("../assets/systems/Commodore 64/config.json");
+        serde_json::from_str(json_str).unwrap_or_default()
+    } else {
+        // For other platforms, try to load from file system for now, or default empty.
+        // We will stick to the plan of enabling this mostly for C64 first.
+        let mut path = get_assets_path(platform);
+        path.push("config.json");
+        if let Ok(content) = std::fs::read_to_string(path) {
+            serde_json::from_str(&content).unwrap_or_default()
+        } else {
+            SystemConfig::default()
+        }
+    }
 }
 
 pub fn load_comments(platform: Platform) -> BTreeMap<u16, String> {
@@ -62,55 +94,93 @@ pub fn load_comments(platform: Platform) -> BTreeMap<u16, String> {
     comments
 }
 
-pub fn load_labels(platform: Platform) -> Vec<(u16, Label)> {
+pub fn load_labels(
+    platform: Platform,
+    enabled_features: Option<&HashMap<String, bool>>,
+) -> Vec<(u16, Label)> {
     let mut labels = Vec::new();
 
-    macro_rules! bundled_labels {
-        ($($variant:ident => $path:expr),* $(,)?) => {
-            match platform {
-                $(Platform::$variant => Some(include_str!(concat!("../assets/systems/", $path, "/labels.txt")).to_string()),)*
-                _ => {
-                    let mut path = get_assets_path(platform);
-                    path.push("labels.txt");
-                    std::fs::read_to_string(path).ok()
-                }
-            }
-        };
-    }
-
-    let content = bundled_labels!(
-        Commodore64 => "Commodore 64",
-        Commodore128 => "Commodore 128",
-        CommodorePlus4 => "Commodore Plus4",
-        CommodoreVIC20 => "Commodore VIC-20",
-        CommodorePET20 => "Commodore PET 2.0",
-        CommodorePET40 => "Commodore PET 4.0"
-    );
-
-    if let Some(content) = content {
+    // Helper to process content string
+    let process_content = |content: &str, labels_vec: &mut Vec<(u16, Label)>| {
         for line in content.lines() {
             let line = line.trim();
             if line.is_empty() {
                 continue;
             }
-
-            // Format:
-            // FF81 ROM_CINT
-
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() >= 2
-                && let Ok(addr) = u16::from_str_radix(parts[0], 16)
-            {
-                let name = parts[1].to_string();
-                labels.push((
-                    addr,
-                    Label {
-                        name,
-                        label_type: LabelType::Predefined,
-                        kind: LabelKind::System,
-                    },
-                ));
+                && let Ok(addr) = u16::from_str_radix(parts[0], 16) {
+                    let name = parts[1].to_string();
+                    labels_vec.push((
+                        addr,
+                        Label {
+                            name,
+                            label_type: LabelType::Predefined,
+                            kind: LabelKind::System,
+                        },
+                    ));
+                }
+        }
+    };
+
+    if platform == Platform::Commodore64 {
+        let config = load_system_config(platform);
+
+        // Load files based on config and enabled_features
+        for feature in config.features {
+            let is_enabled = if let Some(features) = enabled_features {
+                *features.get(&feature.id).unwrap_or(&feature.default)
+            } else {
+                feature.default
+            };
+
+            if is_enabled {
+                // Manually map file names to included str for C64 to ensure bundling
+                let content = match feature.file.as_str() {
+                    "labels-kernal.txt" => Some(include_str!(
+                        "../assets/systems/Commodore 64/labels-kernal.txt"
+                    )),
+                    "labels-basic.txt" => Some(include_str!(
+                        "../assets/systems/Commodore 64/labels-basic.txt"
+                    )),
+                    "labels-lowerpage.txt" => Some(include_str!(
+                        "../assets/systems/Commodore 64/labels-lowerpage.txt"
+                    )),
+                    _ => None,
+                };
+
+                if let Some(c) = content {
+                    process_content(c, &mut labels);
+                }
             }
+        }
+        // If config is empty or we are falling back (shouldn't happen for C64 with new config), handle legacy logic if needed.
+        // But since we provided config.json, we expect it to drive the logic.
+    } else {
+        // Legacy behavior for other platforms
+        macro_rules! bundled_labels {
+            ($($variant:ident => $path:expr),* $(,)?) => {
+                match platform {
+                    $(Platform::$variant => Some(include_str!(concat!("../assets/systems/", $path, "/labels.txt")).to_string()),)*
+                    _ => {
+                        let mut path = get_assets_path(platform);
+                        path.push("labels.txt");
+                        std::fs::read_to_string(path).ok()
+                    }
+                }
+            };
+        }
+
+        let content = bundled_labels!(
+            Commodore128 => "Commodore 128",
+            CommodorePlus4 => "Commodore Plus4",
+            CommodoreVIC20 => "Commodore VIC-20",
+            CommodorePET20 => "Commodore PET 2.0",
+            CommodorePET40 => "Commodore PET 4.0"
+        );
+
+        if let Some(content) = content {
+            process_content(&content, &mut labels);
         }
     }
     labels

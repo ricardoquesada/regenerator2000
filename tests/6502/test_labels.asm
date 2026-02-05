@@ -122,6 +122,14 @@ l0:
 	sty $fffa
 	stx $fffb
 
+	jmp $a000
+	jmp $a65e
+	jmp $ff81
+	jsr $ffb4
+	lda $01
+	and #%11111101
+	sta $01
+
 irq_handler:
 	rti
 
