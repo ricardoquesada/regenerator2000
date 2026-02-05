@@ -490,20 +490,21 @@ impl Widget for DocumentSettingsDialog {
 
                     // Restore cursor position
                     if let Some(addr) = restore_addr
-                        && let Some(new_idx) = app_state.get_line_index_for_address(addr) {
-                            ui_state.cursor_index = new_idx;
-                            // Attempt to preserve sub-cursor (e.g. comments/labels) if valid
-                            if let Some(line) = app_state.disassembly.get(new_idx) {
-                                let counts = crate::ui::view_disassembly::DisassemblyView::get_visual_line_counts(
+                        && let Some(new_idx) = app_state.get_line_index_for_address(addr)
+                    {
+                        ui_state.cursor_index = new_idx;
+                        // Attempt to preserve sub-cursor (e.g. comments/labels) if valid
+                        if let Some(line) = app_state.disassembly.get(new_idx) {
+                            let counts = crate::ui::view_disassembly::DisassemblyView::get_visual_line_counts(
                                     line, app_state,
                                 );
-                                if old_sub_cursor < counts.total() {
-                                    ui_state.sub_cursor_index = old_sub_cursor;
-                                } else {
-                                    ui_state.sub_cursor_index = 0;
-                                }
+                            if old_sub_cursor < counts.total() {
+                                ui_state.sub_cursor_index = old_sub_cursor;
+                            } else {
+                                ui_state.sub_cursor_index = 0;
                             }
                         }
+                    }
 
                     return WidgetResult::Close;
                 }
