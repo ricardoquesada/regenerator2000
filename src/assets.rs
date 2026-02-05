@@ -109,17 +109,18 @@ pub fn load_labels(
             }
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() >= 2
-                && let Ok(addr) = u16::from_str_radix(parts[0], 16) {
-                    let name = parts[1].to_string();
-                    labels_vec.push((
-                        addr,
-                        Label {
-                            name,
-                            label_type: LabelType::Predefined,
-                            kind: LabelKind::System,
-                        },
-                    ));
-                }
+                && let Ok(addr) = u16::from_str_radix(parts[0], 16)
+            {
+                let name = parts[1].to_string();
+                labels_vec.push((
+                    addr,
+                    Label {
+                        name,
+                        label_type: LabelType::Predefined,
+                        kind: LabelKind::System,
+                    },
+                ));
+            }
         }
     };
 

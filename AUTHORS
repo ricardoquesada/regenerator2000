@@ -4,6 +4,12 @@ Ricardo Quesada <ricardoquesada@gmail.com>
 Based on Regenerator by Tom-Cat/Nostalgia <https://csdb.dk/release/?id=247992>
 
 Contributors:
+
 Tomas <tkald@seznam.cz>
+ * Sync HexDump view with Disassembly view
+
 BrutalSoloH <https://github.com/BrutalSoloH>
+ * Document Settings navigation fix
+
 Maarten Spoek
+ * BASIC, and Lower page label files
