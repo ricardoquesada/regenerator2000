@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2026-02-05
+
+### Features
+
+- Feature: **Entropy View**: Added entropy visualization column in HexDump view to help identify compressed/encrypted data.
+- Feature: **Labels**: Added standard C64 labels for KERNAL, BASIC, and Zero Page (including NMI, RESET, IRQ vectors).
+- Feature: **Config**: Automatic configuration backup if loading fails.
+- Feature: **UI**: Circular navigation in D64 file picker.
+- Feature: **Analysis**: If the file has high entropy, displays a warning that it might be compressed.
+
+### Fixes
+
+- Fix: **Labels**: Resolved issues with label duplication and priority.
+- Fix: **External Labels**: Fixed display issues for external labels.
+- Fix: **Stability**: Added terminal restoration handler in case of crash.
+- Fix: **Navigation**: Improved "Jump to Address" (Enter key) behavior.
+
+### Documentation
+
+- Docs: Updated documentation for Blocks ("e" type), Settings, and Views.
+- Docs: Added information about Immediate mode representations (lo/hi byte).
+
+
+
 ## [0.6.1] - 2026-02-01
 
 ### Features
