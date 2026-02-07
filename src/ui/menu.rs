@@ -1752,6 +1752,13 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
 }
 
 fn apply_lo_hi_packing(app_state: &mut AppState, ui_state: &mut UIState, lo_first: bool) {
+    let is_single_selection = ui_state.selection_start.is_none();
+    let single_cursor_index = if is_single_selection {
+        Some(ui_state.cursor_index)
+    } else {
+        None
+    };
+
     let mut indices = Vec::new();
     if let Some(start) = ui_state.selection_start {
         let end = ui_state.cursor_index;
@@ -1873,6 +1880,28 @@ fn apply_lo_hi_packing(app_state: &mut AppState, ui_state: &mut UIState, lo_firs
         app_state.cross_refs = new_cross_refs;
 
         app_state.disassemble();
+    } else if let Some(cursor_idx) = single_cursor_index {
+        // No pairs found, but if this is a single selection with an immediate instruction,
+        // show dialog to complete the address
+        let get_imm = |app_state: &AppState, idx: usize| -> Option<u8> {
+            if let Some(line) = app_state.disassembly.get(idx)
+                && let Some(opcode) = &line.opcode
+                && opcode.mode == crate::cpu::AddressingMode::Immediate
+                && matches!(opcode.mnemonic, "LDA" | "LDX" | "LDY")
+            {
+                line.bytes.get(1).copied()
+            } else {
+                None
+            }
+        };
+
+        if let Some(known_byte) = get_imm(app_state, cursor_idx) {
+            let address = app_state.disassembly[cursor_idx].address;
+            let dialog = crate::ui::dialog_complete_address::CompleteAddressDialog::new(
+                known_byte, lo_first, address,
+            );
+            ui_state.active_dialog = Some(Box::new(dialog));
+        }
     }
 }
 

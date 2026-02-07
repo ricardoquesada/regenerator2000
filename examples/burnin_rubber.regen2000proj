@@ -907,8 +907,8 @@
     "addresses_per_line": 5,
     "bytes_per_line": 8,
     "enabled_features": {
-      "Lower Page": false,
       "KERNAL": true,
+      "Lower Page": false,
       "BASIC": false
     }
   },
@@ -922,6 +922,9 @@
     "2091": "Hex",
     "2111": "Hex",
     "2115": "Binary",
+    "2120": {
+      "LowByte": 22272
+    },
     "4116": "Binary",
     "4157": "Binary",
     "4165": "Binary",
@@ -931,18 +934,18 @@
     "6164": "Binary",
     "22310": "Hex"
   },
-  "cursor_address": 22259,
+  "cursor_address": 2120,
   "hex_dump_cursor_address": 21072,
-  "sprites_cursor_address": 13888,
+  "sprites_cursor_address": 14080,
   "charset_cursor_address": 8192,
   "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
     22528
   ],
-  "blocks_view_cursor": 110
+  "blocks_view_cursor": 1
 }
