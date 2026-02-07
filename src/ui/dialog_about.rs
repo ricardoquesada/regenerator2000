@@ -93,7 +93,7 @@ impl Widget for AboutDialog {
             // 2. Render Text
             let text_area = chunks[1];
             let text = format!(
-                "Regenerator 2000 v{}\nCommit: {} ({})\n(c) Ricardo Quesada 2026\nriq / L.I.A\nInspired by Regenerator, by Tom-Cat / Nostalgia",
+                "Regenerator 2000 v{}\nCommit: {} ({})\n(c) Ricardo Quesada 2026\nriq / L.I.A\nA tribute to the original Regenerator, by Tom-Cat / Nostalgia",
                 env!("CARGO_PKG_VERSION"),
                 option_env!("VERGEN_GIT_SHA").unwrap_or("unknown"),
                 option_env!("VERGEN_GIT_COMMIT_DATE").unwrap_or("unknown")
