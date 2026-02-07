@@ -41,7 +41,24 @@ pub fn get_assets_path() -> PathBuf {
 
 fn get_system_file_path(platform: &str) -> PathBuf {
     let mut path = get_assets_path();
-    path.push(format!("system-{}.json", platform));
+    let filename = format!("system-{}.json", platform);
+    path.push(&filename);
+
+    if path.exists() {
+        return path;
+    }
+
+    // Fallback: Try normalized filename (lowercase, spaces to underscores)
+    // This handles cases where "Commodore 64" becomes "commodore_64" in the filename
+    let normalized = platform.to_lowercase().replace(' ', "_");
+    if normalized != platform {
+        let mut normalized_path = get_assets_path();
+        normalized_path.push(format!("system-{}.json", normalized));
+        if normalized_path.exists() {
+            return normalized_path;
+        }
+    }
+
     path
 }
 
@@ -204,5 +221,38 @@ mod tests {
         println!("Platforms: {:?}", platforms);
         // Only asserts if we expect assets to exist during test
         // assert!(!platforms.is_empty());
+    }
+
+    #[test]
+    fn test_get_system_file_path() {
+        // Test simple case (identity or lowercase)
+        let path_nes = get_system_file_path("NES");
+        // On case-insensitive FS (macOS), system-NES.json "exists", so it might return that.
+        // On Linux, it would fall back to system-nes.json.
+        // Both match "system-nes.json" if we lowercase the result.
+        let path_str = path_nes.to_string_lossy().to_lowercase();
+        assert!(path_str.ends_with("system-nes.json"));
+        assert!(path_nes.exists(), "NES config file should exist");
+
+        // Test normalization case (Spaces -> Underscores, Case insensitive)
+        let path_c64 = get_system_file_path("Commodore 64");
+        // Should resolve to system-commodore_64.json
+        // This MUST be the normalized version because "Commodore 64" (with space) shouldn't exist
+        // even on case-insensitive FS because of the space.
+        assert!(
+            path_c64
+                .to_string_lossy()
+                .ends_with("system-commodore_64.json")
+        );
+        assert!(path_c64.exists(), "Commodore 64 config file should exist");
+
+        // Test another normalization case (Atari 8bit -> system-atari_8bit.json)
+        let path_atari = get_system_file_path("Atari 8bit");
+        assert!(
+            path_atari
+                .to_string_lossy()
+                .ends_with("system-atari_8bit.json")
+        );
+        assert!(path_atari.exists(), "Atari 8bit config file should exist");
     }
 }
