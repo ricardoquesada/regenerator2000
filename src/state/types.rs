@@ -170,3 +170,10 @@ pub enum ImmediateFormat {
     LowByte(u16),
     HighByte(u16),
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CachedArrow {
+    pub start: usize,
+    pub end: usize,
+    pub target_addr: Option<u16>,
+}

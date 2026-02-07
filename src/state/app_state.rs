@@ -3,7 +3,9 @@ use super::project::{
     decode_raw_data_from_base64, encode_raw_data_to_base64, expand_blocks,
 };
 use super::settings::DocumentSettings;
-use super::types::{BlockType, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType};
+use super::types::{
+    BlockType, CachedArrow, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType,
+};
 use crate::config::SystemConfig;
 use crate::disassembler::{Disassembler, DisassemblyLine};
 use std::collections::{BTreeMap, BTreeSet};
@@ -26,6 +28,7 @@ pub struct AppState {
     pub export_path: Option<PathBuf>,
     pub raw_data: Vec<u8>,
     pub disassembly: Vec<DisassemblyLine>,
+    pub cached_arrows: Vec<CachedArrow>,
     pub disassembler: Disassembler,
     pub origin: u16,
 
@@ -66,6 +69,7 @@ impl AppState {
             export_path: None,
             raw_data: Vec::new(),
             disassembly: Vec::new(),
+            cached_arrows: Vec::new(),
             disassembler: Disassembler::new(),
             origin: 0,
             block_types: Vec::new(),
@@ -796,7 +800,70 @@ impl AppState {
         }
 
         self.disassembly = lines;
+        self.compute_cached_arrows();
     }
+
+    pub fn compute_cached_arrows(&mut self) {
+        let mut arrows = Vec::new();
+
+        for (src_idx, line) in self.disassembly.iter().enumerate() {
+            if let Some(target_addr) = line.target_address {
+                // Determine if we should draw an arrow
+                let should_draw = if let Some(opcode) = &line.opcode {
+                    opcode.is_flow_control_with_target()
+                } else {
+                    // Fallback for JMP without opcode struct (legacy or special case)
+                    line.mnemonic.eq_ignore_ascii_case("JMP") && line.operand.contains('(')
+                };
+
+                if should_draw {
+                    // Find target index using binary search
+                    let dst_idx_opt = self
+                        .disassembly
+                        .binary_search_by_key(&target_addr, |l| l.address)
+                        .ok()
+                        .or_else(|| {
+                            // If exact match not found (maybe inside a multi-byte instruction?)
+                            // Try finding the partition point
+                            let idx = self
+                                .disassembly
+                                .partition_point(|l| l.address < target_addr);
+                            if idx > 0 {
+                                let prev = &self.disassembly[idx - 1];
+                                let len = prev.bytes.len() as u16;
+                                if target_addr >= prev.address
+                                    && target_addr < prev.address.wrapping_add(len)
+                                {
+                                    return Some(idx - 1);
+                                }
+                            }
+                            None
+                        });
+
+                    if let Some(mut dst_idx) = dst_idx_opt {
+                        // Refine destination: if multiple lines have same address, pick the first one?
+                        // Or match view_disassembly logic:
+                        // "while refined_dst > 0 && app_state.disassembly[refined_dst - 1].address == target_addr"
+                        while dst_idx > 0 && self.disassembly[dst_idx - 1].address == target_addr {
+                            dst_idx -= 1;
+                        }
+
+                        arrows.push(CachedArrow {
+                            start: src_idx,
+                            end: dst_idx,
+                            target_addr: Some(target_addr),
+                        });
+                    }
+                    // Note: view_disassembly also handles "relative target but not in disassembly" for filtering,
+                    // but for caching we usually only care if we found a valid end line.
+                    // If target is outside known memory, we can't draw a connected arrow anyway.
+                    // (The partial arrow logic in render needs to know if end is *visible* or *exists*)
+                }
+            }
+        }
+        self.cached_arrows = arrows;
+    }
+
     pub fn get_line_index_for_address(&self, address: u16) -> Option<usize> {
         // First pass: try to find exact match with content (bytes not empty)
         // This avoids matching external label headers that might be at the same address (e.g. 0)

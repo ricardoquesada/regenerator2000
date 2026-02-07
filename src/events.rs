@@ -18,6 +18,8 @@ pub fn run_app<B: Backend>(
         .draw(|f| ui(f, &app_state, &mut ui_state))
         .map_err(|e| io::Error::other(e.to_string()))?;
 
+    let mut should_render = false;
+
     loop {
         // Wait for event FIRST (blocking - no CPU usage when idle)
         let event = event::read()?;
@@ -27,21 +29,30 @@ pub fn run_app<B: Backend>(
                 if key.kind != event::KeyEventKind::Press {
                     continue;
                 }
-                ui_state.dismiss_logo = true;
+
+                if !ui_state.dismiss_logo {
+                    ui_state.dismiss_logo = true;
+                }
+                should_render = true;
 
                 // Handle Active Dialog (Generic)
                 if let Some(mut dialog) = ui_state.active_dialog.take() {
                     let result = dialog.handle_input(key, &mut app_state, &mut ui_state);
                     match result {
-                        crate::ui::widget::WidgetResult::Ignored
-                        | crate::ui::widget::WidgetResult::Handled => {
+                        crate::ui::widget::WidgetResult::Ignored => {
                             ui_state.active_dialog = Some(dialog)
+                        }
+                        crate::ui::widget::WidgetResult::Handled => {
+                            ui_state.active_dialog = Some(dialog);
+                            should_render = true;
                         }
                         crate::ui::widget::WidgetResult::Close => {
                             // Dialog closed.
+                            should_render = true;
                         }
                         crate::ui::widget::WidgetResult::Action(action) => {
                             ui_state.active_dialog = Some(dialog);
+                            should_render = true;
                             crate::ui::menu::handle_menu_action(
                                 &mut app_state,
                                 &mut ui_state,
@@ -127,7 +138,10 @@ pub fn run_app<B: Backend>(
                 }
             }
             Event::Mouse(mouse) => {
-                ui_state.dismiss_logo = true;
+                if !ui_state.dismiss_logo {
+                    ui_state.dismiss_logo = true;
+                    should_render = true;
+                }
 
                 // Handle Active Dialog (Modal) - Capture all mouse events
                 if let Some(mut dialog) = ui_state.active_dialog.take() {
@@ -149,18 +163,24 @@ pub fn run_app<B: Backend>(
                         // Dialog close requested via [x]
                         // We simply drop the dialog (don't put it back in ui_state)
                         // Fall through to render
+                        should_render = true;
                     } else {
                         let result = dialog.handle_mouse(mouse, &mut app_state, &mut ui_state);
                         match result {
-                            crate::ui::widget::WidgetResult::Ignored
-                            | crate::ui::widget::WidgetResult::Handled => {
+                            crate::ui::widget::WidgetResult::Ignored => {
                                 ui_state.active_dialog = Some(dialog)
+                            }
+                            crate::ui::widget::WidgetResult::Handled => {
+                                ui_state.active_dialog = Some(dialog);
+                                should_render = true;
                             }
                             crate::ui::widget::WidgetResult::Close => {
                                 // Dialog closed.
+                                should_render = true;
                             }
                             crate::ui::widget::WidgetResult::Action(action) => {
                                 ui_state.active_dialog = Some(dialog);
+                                should_render = true;
                                 crate::ui::menu::handle_menu_action(
                                     &mut app_state,
                                     &mut ui_state,
@@ -215,6 +235,8 @@ pub fn run_app<B: Backend>(
                         }
                     }
 
+                    let prev_active_pane = ui_state.active_pane;
+
                     if widget_result == crate::ui::widget::WidgetResult::Ignored {
                         if is_inside(ui_state.disassembly_area, col, row) {
                             ui_state.active_pane = ActivePane::Disassembly;
@@ -261,6 +283,18 @@ pub fn run_app<B: Backend>(
                         }
                     }
 
+                    if ui_state.active_pane != prev_active_pane {
+                        should_render = true;
+                    }
+
+                    if matches!(
+                        widget_result,
+                        crate::ui::widget::WidgetResult::Handled
+                            | crate::ui::widget::WidgetResult::Action(_)
+                    ) {
+                        should_render = true;
+                    }
+
                     if let crate::ui::widget::WidgetResult::Action(action) = widget_result {
                         crate::ui::menu::handle_menu_action(&mut app_state, &mut ui_state, action);
                     }
@@ -273,128 +307,132 @@ pub fn run_app<B: Backend>(
             _ => {}
         }
 
-        // Update sync state AFTER event processing (before render)
-        // Update menu availability based on current state
-        ui_state.menu.update_availability(
-            &app_state,
-            ui_state.cursor_index,
-            ui_state.last_search_query.is_empty(),
-            ui_state.active_pane,
-        );
-
-        if ui_state.active_pane == ActivePane::Disassembly
-            && ui_state.right_pane == crate::ui_state::RightPane::Blocks
-            && app_state.system_config.sync_blocks_view
-            && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
-            && let Some(idx) = app_state.get_block_index_for_address(line.address)
-        {
-            ui_state.blocks_list_state.select(Some(idx));
-        }
-
-        // Sync HexDump view with Disassembly when active on Disassembly
-        if ui_state.active_pane == ActivePane::Disassembly
-            && ui_state.right_pane == crate::ui_state::RightPane::HexDump
-            && app_state.system_config.sync_hex_dump
-            && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
-        {
-            let origin = app_state.origin as usize;
-            let alignment_padding = origin % 16;
-            let aligned_origin = origin - alignment_padding;
-            let target_addr = line.address as usize;
-
-            if target_addr >= aligned_origin {
-                let offset = target_addr - aligned_origin;
-                let row = offset / 16;
-                let bytes_per_row = 16;
-                let total_len = app_state.raw_data.len() + alignment_padding;
-                let max_rows = total_len.div_ceil(bytes_per_row);
-                if row < max_rows {
-                    ui_state.hex_cursor_index = row;
-                }
-            }
-        }
-
-        // Sync Charset view with Disassembly when active on Disassembly
-        if ui_state.active_pane == ActivePane::Disassembly
-            && ui_state.right_pane == crate::ui_state::RightPane::Charset
-            && app_state.system_config.sync_charset_view
-            && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
-        {
-            let origin = app_state.origin as usize;
-            let base_alignment = 0x400;
-            // Use floor alignment to match view indexing
-            let aligned_start_addr = (origin / base_alignment) * base_alignment;
-            let target_addr = line.address as usize;
-
-            if target_addr >= aligned_start_addr {
-                let char_offset = target_addr - aligned_start_addr;
-                let idx = char_offset / 8;
-
-                let end_addr = origin + app_state.raw_data.len();
-                let total_chars = (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
-
-                if idx < total_chars {
-                    ui_state.charset_cursor_index = idx;
-                }
-            }
-        }
-
-        // Sync Sprites view with Disassembly when active on Disassembly
-        if ui_state.active_pane == ActivePane::Disassembly
-            && ui_state.right_pane == crate::ui_state::RightPane::Sprites
-            && app_state.system_config.sync_sprites_view
-            && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
-        {
-            let origin = app_state.origin as usize;
-            // Use floor alignment to match view indexing
-            let aligned_origin = (origin / 64) * 64;
-            let target_addr = line.address as usize;
-
-            if target_addr >= aligned_origin {
-                let offset = target_addr - aligned_origin;
-                let idx = offset / 64;
-
-                let data_len = app_state.raw_data.len();
-                let end_addr = origin + data_len;
-                let total_sprites = (end_addr.saturating_sub(aligned_origin)).div_ceil(64);
-
-                if idx < total_sprites {
-                    ui_state.sprites_cursor_index = idx;
-                }
-            }
-        }
-
-        // Sync Bitmap view with Disassembly when active on Disassembly
-        if ui_state.active_pane == ActivePane::Disassembly
-            && ui_state.right_pane == crate::ui_state::RightPane::Bitmap
-            && app_state.system_config.sync_bitmap_view
-            && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
-        {
-            let origin = app_state.origin as usize;
-            let target_addr = line.address as usize;
-
-            // Bitmaps must be aligned to 8192-byte ($2000) boundaries
-            // Use floor alignment to match view indexing
-            let first_aligned_addr = (origin / 8192) * 8192;
-
-            if target_addr >= first_aligned_addr {
-                let offset = target_addr - first_aligned_addr;
-                let idx = offset / 8192;
-
-                // Calculate total number of bitmaps available
-                let data_len = app_state.raw_data.len();
-                let end_addr = origin + data_len;
-                let total_bitmaps = (end_addr.saturating_sub(first_aligned_addr)).div_ceil(8192);
-
-                if idx < total_bitmaps {
-                    ui_state.bitmap_cursor_index = idx;
-                }
-            }
-        }
-
         // Render AFTER event processing (only when something changed)
-        terminal
-            .draw(|f| ui(f, &app_state, &mut ui_state))
-            .map_err(|e| io::Error::other(e.to_string()))?;
+        if should_render {
+            // Update sync state
+            ui_state.menu.update_availability(
+                &app_state,
+                ui_state.cursor_index,
+                ui_state.last_search_query.is_empty(),
+                ui_state.active_pane,
+            );
+
+            if ui_state.active_pane == ActivePane::Disassembly
+                && ui_state.right_pane == crate::ui_state::RightPane::Blocks
+                && app_state.system_config.sync_blocks_view
+                && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+                && let Some(idx) = app_state.get_block_index_for_address(line.address)
+            {
+                ui_state.blocks_list_state.select(Some(idx));
+            }
+
+            // Sync HexDump view with Disassembly when active on Disassembly
+            if ui_state.active_pane == ActivePane::Disassembly
+                && ui_state.right_pane == crate::ui_state::RightPane::HexDump
+                && app_state.system_config.sync_hex_dump
+                && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+            {
+                let origin = app_state.origin as usize;
+                let alignment_padding = origin % 16;
+                let aligned_origin = origin - alignment_padding;
+                let target_addr = line.address as usize;
+
+                if target_addr >= aligned_origin {
+                    let offset = target_addr - aligned_origin;
+                    let row = offset / 16;
+                    let bytes_per_row = 16;
+                    let total_len = app_state.raw_data.len() + alignment_padding;
+                    let max_rows = total_len.div_ceil(bytes_per_row);
+                    if row < max_rows {
+                        ui_state.hex_cursor_index = row;
+                    }
+                }
+            }
+
+            // Sync Charset view with Disassembly when active on Disassembly
+            if ui_state.active_pane == ActivePane::Disassembly
+                && ui_state.right_pane == crate::ui_state::RightPane::Charset
+                && app_state.system_config.sync_charset_view
+                && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+            {
+                let origin = app_state.origin as usize;
+                let base_alignment = 0x400;
+                // Use floor alignment to match view indexing
+                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                let target_addr = line.address as usize;
+
+                if target_addr >= aligned_start_addr {
+                    let char_offset = target_addr - aligned_start_addr;
+                    let idx = char_offset / 8;
+
+                    let end_addr = origin + app_state.raw_data.len();
+                    let total_chars = (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+
+                    if idx < total_chars {
+                        ui_state.charset_cursor_index = idx;
+                    }
+                }
+            }
+
+            // Sync Sprites view with Disassembly when active on Disassembly
+            if ui_state.active_pane == ActivePane::Disassembly
+                && ui_state.right_pane == crate::ui_state::RightPane::Sprites
+                && app_state.system_config.sync_sprites_view
+                && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+            {
+                let origin = app_state.origin as usize;
+                // Use floor alignment to match view indexing
+                let aligned_origin = (origin / 64) * 64;
+                let target_addr = line.address as usize;
+
+                if target_addr >= aligned_origin {
+                    let offset = target_addr - aligned_origin;
+                    let idx = offset / 64;
+
+                    let data_len = app_state.raw_data.len();
+                    let end_addr = origin + data_len;
+                    let total_sprites = (end_addr.saturating_sub(aligned_origin)).div_ceil(64);
+
+                    if idx < total_sprites {
+                        ui_state.sprites_cursor_index = idx;
+                    }
+                }
+            }
+
+            // Sync Bitmap view with Disassembly when active on Disassembly
+            if ui_state.active_pane == ActivePane::Disassembly
+                && ui_state.right_pane == crate::ui_state::RightPane::Bitmap
+                && app_state.system_config.sync_bitmap_view
+                && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+            {
+                let origin = app_state.origin as usize;
+                let target_addr = line.address as usize;
+
+                // Bitmaps must be aligned to 8192-byte ($2000) boundaries
+                // Use floor alignment to match view indexing
+                let first_aligned_addr = (origin / 8192) * 8192;
+
+                if target_addr >= first_aligned_addr {
+                    let offset = target_addr - first_aligned_addr;
+                    let idx = offset / 8192;
+
+                    // Calculate total number of bitmaps available
+                    let data_len = app_state.raw_data.len();
+                    let end_addr = origin + data_len;
+                    let total_bitmaps =
+                        (end_addr.saturating_sub(first_aligned_addr)).div_ceil(8192);
+
+                    if idx < total_bitmaps {
+                        ui_state.bitmap_cursor_index = idx;
+                    }
+                }
+            }
+
+            terminal
+                .draw(|f| ui(f, &app_state, &mut ui_state))
+                .map_err(|e| io::Error::other(e.to_string()))?;
+
+            should_render = false;
+        }
     }
 }

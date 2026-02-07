@@ -394,91 +394,43 @@ impl Widget for DisassemblyView {
 
         let end_view = offset + visible_height;
 
-        // Optimization: Pre-calculate map for address -> index for relevant targets
-        // Instead of full map, we just iterate.
-        let mut relevant_arrows: Vec<ArrowInfo> = Vec::new();
+        // Optimization: Use cached arrows from AppState to avoid O(N) search per frame
+        let mut relevant_arrows: Vec<ArrowInfo> = Vec::with_capacity(app_state.cached_arrows.len());
 
-        // Helper to find index
-        let find_index = |addr: u16| -> Option<usize> {
-            app_state
-                .disassembly
-                .binary_search_by_key(&addr, |l| l.address)
-                .ok()
-                .or_else(|| {
-                    let idx = app_state.disassembly.partition_point(|l| l.address < addr);
-                    if idx > 0 {
-                        let prev = &app_state.disassembly[idx - 1];
-                        let len = prev.bytes.len() as u16;
-                        if addr >= prev.address && addr < prev.address.wrapping_add(len) {
-                            return Some(idx - 1);
-                        }
-                    }
+        for arrow in &app_state.cached_arrows {
+            let src_idx = arrow.start;
+            let dst_idx = arrow.end;
+
+            let low = std::cmp::min(src_idx, dst_idx);
+            let high = std::cmp::max(src_idx, dst_idx);
+
+            // Check if arrow overlaps with visible area
+            if low < end_view && high >= offset {
+                let target_addr_val = arrow.target_addr.unwrap_or(0);
+
+                // Check if it is an exact match to the line address
+                // If exact match, we don't treat it as "relative target" (no special tip)
+                // If it's midway (e.g. branch to +1), relative_target is Some(addr).
+                let exact_match = if let Some(line) = app_state.disassembly.get(dst_idx) {
+                    line.address == target_addr_val
+                } else {
+                    false
+                };
+
+                let relative_target = if !exact_match {
+                    arrow.target_addr
+                } else {
                     None
-                })
-        };
+                };
 
-        for (src_idx, line) in app_state.disassembly.iter().enumerate() {
-            if let Some(target_addr) = line.target_address {
-                // If we have an opcode, use shared logic to decide if we should draw arrow
-                if let Some(opcode) = &line.opcode {
-                    if !opcode.is_flow_control_with_target() {
-                        continue;
-                    }
-                } else if line.mnemonic.eq_ignore_ascii_case("JMP") && line.operand.contains('(') {
-                    // Fallback check if opcode struct is missing but mnemonic is textual
-                    // (Though line.opcode should usually be present for documented ops)
-                    continue;
-                }
-
-                let dst_idx_opt = find_index(target_addr);
-
-                // Logic to refine dst_idx and determine visibility
-                // (Copied from ui.rs logic)
-                if let Some(dst_idx) = dst_idx_opt {
-                    let mut refined_dst = dst_idx;
-                    if app_state
-                        .disassembly
-                        .binary_search_by_key(&target_addr, |l| l.address)
-                        .is_ok()
-                    {
-                        // If multiple lines have same address (unlikely, but safe check)
-                        while refined_dst > 0
-                            && app_state.disassembly[refined_dst - 1].address == target_addr
-                        {
-                            refined_dst -= 1;
-                        }
-                    }
-
-                    let low = std::cmp::min(src_idx, refined_dst);
-                    let high = std::cmp::max(src_idx, refined_dst);
-
-                    let is_visible = low < end_view && high >= offset;
-
-                    if is_visible {
-                        let relative_target = if dst_idx_opt == Some(refined_dst) {
-                            if app_state
-                                .disassembly
-                                .binary_search_by_key(&target_addr, |l| l.address)
-                                .is_err()
-                            {
-                                Some(target_addr)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        };
-
-                        relevant_arrows.push(ArrowInfo {
-                            start: src_idx,
-                            end: refined_dst,
-                            col: 0,
-                            target_addr: relative_target,
-                            start_visible: src_idx >= offset && src_idx < end_view,
-                            end_visible: refined_dst >= offset && refined_dst < end_view,
-                        });
-                    }
-                }
+                relevant_arrows.push(ArrowInfo {
+                    start: src_idx,
+                    end: dst_idx,
+                    col: 0,
+                    target_addr: relative_target,
+                    start_visible: src_idx >= offset && src_idx < end_view,
+                    end_visible: dst_idx >= offset && dst_idx < end_view,
+                });
             }
         }
 
