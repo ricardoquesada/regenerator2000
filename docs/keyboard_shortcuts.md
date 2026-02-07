@@ -81,7 +81,7 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Search Dialog**                                                                       | ++ctrl+f++                                                    |
 |                                    | **Find Next / Previous**                                                                | ++f3++ / ++shift+f3++                                         |
 |                                    | **Go to symbol**                                                                        | ++ctrl+p++                                                    |
-|                                    | **Find Cross References**                                                               | ++ctrl+x++                                                    |
+|                                    | **Go to Cross References**                                                              | ++ctrl+x++                                                    |
 | **Selection**                      | **Toggle Visual Mode**                                                                  | ++shift+v++                                                   |
 |                                    | **Select Text**                                                                         | ++shift+up++ / ++down++ / Visual Mode + ++j++ / ++k++         |
 |                                    | **Clear Selection**                                                                     | ++escape++                                                    |
