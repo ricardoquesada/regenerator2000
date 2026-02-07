@@ -138,7 +138,9 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
 - **Dialogs** (`ui/dialog_*.rs`):
   - **`dialog_about.rs`**: About/help dialog.
   - **`dialog_comment.rs`**: Add/edit comments.
+  - **`dialog_complete_address.rs`**: Complete missing byte for Hi/Lo or Lo/Hi address packing when only one immediate value is available.
   - **`dialog_confirmation.rs`**: Generic confirmation dialog.
+  - **`dialog_d64_picker.rs`**: D64 disk image file picker for loading programs from disk images.
   - **`dialog_document_settings.rs`**: Project-level settings editor.
   - **`dialog_export_as.rs`**: Export source code dialog.
   - **`dialog_export_labels.rs`**: Export labels to VICE format.
@@ -153,6 +155,7 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   - **`dialog_save_as.rs`**: Save project dialog.
   - **`dialog_search.rs`**: Search for bytes or text.
   - **`dialog_settings.rs`**: Application-level settings.
+  - **`dialog_warning.rs`**: Generic warning dialog for displaying important messages to the user.
 
 - **UI State Management (`ui_state.rs`)**:
   Tracks transient interface state:
