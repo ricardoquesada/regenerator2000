@@ -898,7 +898,7 @@
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
-    "platform": "Commodore64",
+    "platform": "Commodore 64",
     "assembler": "Tass64",
     "max_xref_count": 5,
     "max_arrow_columns": 6,
@@ -906,7 +906,11 @@
     "text_char_limit": 40,
     "addresses_per_line": 5,
     "bytes_per_line": 8,
-    "enabled_features": {}
+    "enabled_features": {
+      "Lower Page": false,
+      "KERNAL": true,
+      "BASIC": false
+    }
   },
   "immediate_value_formats": {
     "2083": {
@@ -929,12 +933,12 @@
   },
   "cursor_address": 22259,
   "hex_dump_cursor_address": 21072,
-  "sprites_cursor_address": 13696,
+  "sprites_cursor_address": 13888,
   "charset_cursor_address": 8192,
   "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 32768,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
