@@ -102,11 +102,11 @@ impl AppState {
         self.labels.retain(|_, v| !v.is_empty());
 
         // Load comments
-        self.system_comments = crate::assets::load_comments(self.settings.platform);
+        self.system_comments = crate::assets::load_comments(&self.settings.platform);
 
         // Load labels
         let system_labels = crate::assets::load_labels(
-            self.settings.platform,
+            &self.settings.platform,
             Some(&self.settings.enabled_features),
         );
         for (addr, label) in system_labels {
@@ -114,7 +114,7 @@ impl AppState {
         }
 
         // Load excludes
-        let excludes = crate::assets::load_excludes(self.settings.platform);
+        let excludes = crate::assets::load_excludes(&self.settings.platform);
         self.excluded_addresses = excludes.into_iter().collect();
     }
 
@@ -337,6 +337,19 @@ impl AppState {
         self.user_line_comments = project.user_line_comments;
         self.immediate_value_formats = project.immediate_value_formats;
         self.settings = project.settings;
+
+        // Migration for legacy platform names
+        match self.settings.platform.as_str() {
+            "Commodore64" => self.settings.platform = "Commodore 64".to_string(),
+            "Commodore128" => self.settings.platform = "Commodore 128".to_string(),
+            "Commodore1541" => self.settings.platform = "Commodore 1541".to_string(),
+            "CommodorePET20" => self.settings.platform = "Commodore PET 2.0".to_string(),
+            "CommodorePET40" => self.settings.platform = "Commodore PET 4.0".to_string(),
+            "CommodorePlus4" => self.settings.platform = "Commodore Plus4".to_string(),
+            "CommodoreVIC20" => self.settings.platform = "Commodore VIC-20".to_string(),
+            _ => {}
+        }
+
         self.splitters = project.splitters;
         self.last_import_labels_path = None;
         self.last_export_labels_filename = None;

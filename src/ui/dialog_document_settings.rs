@@ -140,7 +140,7 @@ impl Widget for DocumentSettingsDialog {
         ];
 
         // Dynamic System Config Options
-        let system_config = crate::assets::load_system_config(settings.platform);
+        let system_config = crate::assets::load_system_config(&settings.platform);
         let dynamic_start_idx = items.len();
 
         for (i, feature) in system_config.features.iter().enumerate() {
@@ -151,7 +151,7 @@ impl Widget for DocumentSettingsDialog {
                 .copied()
                 .unwrap_or(feature.default);
             items.push(checkbox(
-                &feature.name,
+                &format!("  {}", feature.name),
                 is_enabled,
                 self.selected_index == idx,
                 false,
@@ -171,7 +171,7 @@ impl Widget for DocumentSettingsDialog {
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(items.len() as u16 + 1), // Checkboxes + padding
+                Constraint::Length(items.len() as u16 + 2), // Checkboxes + padding + header
                 Constraint::Length(2),                      // Max X-Refs
                 Constraint::Length(2),                      // Arrow Columns
                 Constraint::Length(2),                      // Text Line Limit
@@ -183,11 +183,29 @@ impl Widget for DocumentSettingsDialog {
             .split(inner);
 
         for (i, item) in items.into_iter().enumerate() {
+            let mut y_offset = i as u16;
+            if i >= dynamic_start_idx {
+                if i == dynamic_start_idx {
+                    f.render_widget(
+                        Paragraph::new(Span::styled(
+                            "System Labels:",
+                            Style::default().add_modifier(Modifier::BOLD),
+                        )),
+                        Rect::new(
+                            layout[0].x + 2,
+                            layout[0].y + 1 + y_offset,
+                            layout[0].width - 4,
+                            1,
+                        ),
+                    );
+                }
+                y_offset += 1;
+            }
             f.render_widget(
                 Paragraph::new(item),
                 Rect::new(
                     layout[0].x + 2,
-                    layout[0].y + 1 + i as u16,
+                    layout[0].y + 1 + y_offset,
                     layout[0].width - 4,
                     1,
                 ),
@@ -329,7 +347,7 @@ impl Widget for DocumentSettingsDialog {
             Rect::new(layout[7].x + 2, layout[7].y, layout[7].width - 4, 1),
         );
 
-        let platforms = crate::state::Platform::all();
+        let platforms = crate::assets::get_available_platforms();
 
         // Check if platform is selected
         let platform_selected = self.selected_index == idx_platform;
@@ -427,7 +445,7 @@ impl Widget for DocumentSettingsDialog {
         ui_state: &mut UIState,
     ) -> WidgetResult {
         // Calculate dynamic max items for navigation
-        let system_config = crate::assets::load_system_config(app_state.settings.platform);
+        let system_config = crate::assets::load_system_config(&app_state.settings.platform);
         let dynamic_items_count = system_config.features.len();
         let base_items_count = 5; // AllLabels, PreserveLongBytes, BrkSingle, PatchBrk, IllegalOpcodes
         let checkboxes_count = base_items_count + dynamic_items_count;
@@ -511,17 +529,21 @@ impl Widget for DocumentSettingsDialog {
             }
             KeyCode::Up => {
                 if self.is_selecting_platform {
-                    let platforms = crate::state::Platform::all();
-                    let current_idx = platforms
-                        .iter()
-                        .position(|p| *p == app_state.settings.platform)
-                        .unwrap_or(0);
-                    let new_idx = if current_idx == 0 {
-                        platforms.len() - 1
-                    } else {
-                        current_idx - 1
-                    };
-                    app_state.settings.platform = platforms[new_idx];
+                    let platforms = crate::assets::get_available_platforms();
+                    if !platforms.is_empty() {
+                        let current_idx = platforms
+                            .iter()
+                            .position(|p| *p == app_state.settings.platform)
+                            .unwrap_or(0);
+                        let new_idx = if current_idx == 0 {
+                            platforms.len() - 1
+                        } else {
+                            current_idx - 1
+                        };
+                        app_state.settings.platform = platforms[new_idx].clone();
+                        // Reset features when changing platform
+                        app_state.settings.enabled_features.clear();
+                    }
                 } else if self.is_selecting_assembler {
                     let assemblers = crate::state::Assembler::all();
                     let current_idx = assemblers
@@ -592,17 +614,21 @@ impl Widget for DocumentSettingsDialog {
                             app_state.settings.patch_brk = true;
                         }
                     } else if self.selected_index == idx_platform {
-                        let platforms = crate::state::Platform::all();
-                        let current_idx = platforms
-                            .iter()
-                            .position(|p| *p == app_state.settings.platform)
-                            .unwrap_or(0);
-                        let new_idx = if current_idx == 0 {
-                            platforms.len() - 1
-                        } else {
-                            current_idx - 1
-                        };
-                        app_state.settings.platform = platforms[new_idx];
+                        let platforms = crate::assets::get_available_platforms();
+                        if !platforms.is_empty() {
+                            let current_idx = platforms
+                                .iter()
+                                .position(|p| *p == app_state.settings.platform)
+                                .unwrap_or(0);
+                            let new_idx = if current_idx == 0 {
+                                platforms.len() - 1
+                            } else {
+                                current_idx - 1
+                            };
+                            app_state.settings.platform = platforms[new_idx].clone();
+                            // Reset features when changing platform
+                            app_state.settings.enabled_features.clear();
+                        }
                     }
                 }
             }
@@ -645,25 +671,33 @@ impl Widget for DocumentSettingsDialog {
                             app_state.settings.patch_brk = true;
                         }
                     } else if self.selected_index == idx_platform {
-                        let platforms = crate::state::Platform::all();
-                        let current_idx = platforms
-                            .iter()
-                            .position(|p| *p == app_state.settings.platform)
-                            .unwrap_or(0);
-                        let new_idx = (current_idx + 1) % platforms.len();
-                        app_state.settings.platform = platforms[new_idx];
+                        let platforms = crate::assets::get_available_platforms();
+                        if !platforms.is_empty() {
+                            let current_idx = platforms
+                                .iter()
+                                .position(|p| *p == app_state.settings.platform)
+                                .unwrap_or(0);
+                            let new_idx = (current_idx + 1) % platforms.len();
+                            app_state.settings.platform = platforms[new_idx].clone();
+                            // Reset features when changing platform
+                            app_state.settings.enabled_features.clear();
+                        }
                     }
                 }
             }
             KeyCode::Down => {
                 if self.is_selecting_platform {
-                    let platforms = crate::state::Platform::all();
-                    let current_idx = platforms
-                        .iter()
-                        .position(|p| *p == app_state.settings.platform)
-                        .unwrap_or(0);
-                    let new_idx = (current_idx + 1) % platforms.len();
-                    app_state.settings.platform = platforms[new_idx];
+                    let platforms = crate::assets::get_available_platforms();
+                    if !platforms.is_empty() {
+                        let current_idx = platforms
+                            .iter()
+                            .position(|p| *p == app_state.settings.platform)
+                            .unwrap_or(0);
+                        let new_idx = (current_idx + 1) % platforms.len();
+                        app_state.settings.platform = platforms[new_idx].clone();
+                        // Reset features when changing platform
+                        app_state.settings.enabled_features.clear();
+                    }
                 } else if self.is_selecting_assembler {
                     let assemblers = crate::state::Assembler::all();
                     let current_idx = assemblers
@@ -762,7 +796,7 @@ impl Widget for DocumentSettingsDialog {
                         idx if idx >= base_items_count && idx < fixed_start => {
                             // Dynamic items
                             let system_config =
-                                crate::assets::load_system_config(app_state.settings.platform);
+                                crate::assets::load_system_config(&app_state.settings.platform);
                             let config_idx = idx - base_items_count;
                             if let Some(feature) = system_config.features.get(config_idx) {
                                 let current_val = app_state

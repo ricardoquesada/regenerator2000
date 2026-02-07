@@ -1,15 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum Platform {
-    Commodore128,
-    Commodore1541,
-    #[default]
-    Commodore64,
-    CommodorePET20,
-    CommodorePET40,
-    CommodorePlus4,
-    CommodoreVIC20,
+pub type Platform = String;
+
+pub fn default_platform() -> Platform {
+    "Commodore 64".to_string()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -19,34 +13,6 @@ pub enum HexdumpViewMode {
     ScreencodeUnshifted,
     PETSCIIShifted,
     PETSCIIUnshifted,
-}
-
-impl std::fmt::Display for Platform {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Platform::Commodore128 => write!(f, "Commodore 128"),
-            Platform::Commodore1541 => write!(f, "Commodore 1541"),
-            Platform::Commodore64 => write!(f, "Commodore 64"),
-            Platform::CommodorePET20 => write!(f, "Commodore PET 2.0"),
-            Platform::CommodorePET40 => write!(f, "Commodore PET 4.0"),
-            Platform::CommodorePlus4 => write!(f, "Commodore Plus/4"),
-            Platform::CommodoreVIC20 => write!(f, "Commodore VIC 20"),
-        }
-    }
-}
-
-impl Platform {
-    pub fn all() -> &'static [Platform] {
-        &[
-            Platform::Commodore128,
-            Platform::Commodore1541,
-            Platform::Commodore64,
-            Platform::CommodorePET20,
-            Platform::CommodorePET40,
-            Platform::CommodorePlus4,
-            Platform::CommodoreVIC20,
-        ]
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
