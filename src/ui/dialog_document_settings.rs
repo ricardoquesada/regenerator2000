@@ -172,6 +172,7 @@ impl Widget for DocumentSettingsDialog {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(items.len() as u16 + 2), // Checkboxes + padding + header
+                Constraint::Length(1),                      // Spacer
                 Constraint::Length(2),                      // Max X-Refs
                 Constraint::Length(2),                      // Arrow Columns
                 Constraint::Length(2),                      // Text Line Limit
@@ -212,7 +213,7 @@ impl Widget for DocumentSettingsDialog {
             );
         }
 
-        // X-Refs uses layout[1]
+        // X-Refs uses layout[2] (layout[1] is spacer)
         let xref_selected = self.selected_index == idx_xref;
         let xref_value_str = if self.is_editing_xref_count {
             self.xref_count_input.clone()
@@ -231,7 +232,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             xref_widget,
-            Rect::new(layout[1].x + 2, layout[1].y, layout[1].width - 4, 1),
+            Rect::new(layout[2].x + 2, layout[2].y, layout[2].width - 4, 1),
         );
 
         // Arrow Columns
@@ -253,7 +254,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             arrow_widget,
-            Rect::new(layout[2].x + 2, layout[2].y, layout[2].width - 4, 1),
+            Rect::new(layout[3].x + 2, layout[3].y, layout[3].width - 4, 1),
         );
 
         // Text Line Limit
@@ -275,7 +276,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             text_limit_widget,
-            Rect::new(layout[3].x + 2, layout[3].y, layout[3].width - 4, 1),
+            Rect::new(layout[4].x + 2, layout[4].y, layout[4].width - 4, 1),
         );
 
         // Addresses Per Line
@@ -297,7 +298,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             addr_limit_widget,
-            Rect::new(layout[4].x + 2, layout[4].y, layout[4].width - 4, 1),
+            Rect::new(layout[5].x + 2, layout[5].y, layout[5].width - 4, 1),
         );
 
         // Bytes Per Line
@@ -319,7 +320,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             bytes_limit_widget,
-            Rect::new(layout[5].x + 2, layout[5].y, layout[5].width - 4, 1),
+            Rect::new(layout[6].x + 2, layout[6].y, layout[6].width - 4, 1),
         );
 
         // Assembler Section
@@ -334,17 +335,17 @@ impl Widget for DocumentSettingsDialog {
             Style::default().fg(theme.dialog_fg)
         });
 
-        // Assembler uses layout[6]
+        // Assembler uses layout[7]
         f.render_widget(
             assembler_widget,
-            Rect::new(layout[6].x + 2, layout[6].y, layout[6].width - 4, 1),
+            Rect::new(layout[7].x + 2, layout[7].y, layout[7].width - 4, 1),
         );
 
         // Platform Section (Moved to end)
         let platform_label = Span::raw("Platform:");
         f.render_widget(
             Paragraph::new(platform_label),
-            Rect::new(layout[7].x + 2, layout[7].y, layout[7].width - 4, 1),
+            Rect::new(layout[8].x + 2, layout[8].y, layout[8].width - 4, 1),
         );
 
         let platforms = crate::assets::get_available_platforms();
@@ -363,7 +364,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             platform_widget,
-            Rect::new(layout[7].x + 2, layout[7].y, layout[7].width - 4, 1),
+            Rect::new(layout[8].x + 2, layout[8].y, layout[8].width - 4, 1),
         );
 
         // Platform Popup
@@ -543,6 +544,12 @@ impl Widget for DocumentSettingsDialog {
                         app_state.settings.platform = platforms[new_idx].clone();
                         // Reset features when changing platform
                         app_state.settings.enabled_features.clear();
+                        // Recalculate idx_platform after platform change
+                        let new_system_config =
+                            crate::assets::load_system_config(&app_state.settings.platform);
+                        let new_dynamic_items_count = new_system_config.features.len();
+                        let new_idx_platform = base_items_count + new_dynamic_items_count + 6;
+                        self.selected_index = new_idx_platform;
                     }
                 } else if self.is_selecting_assembler {
                     let assemblers = crate::state::Assembler::all();
@@ -628,6 +635,12 @@ impl Widget for DocumentSettingsDialog {
                             app_state.settings.platform = platforms[new_idx].clone();
                             // Reset features when changing platform
                             app_state.settings.enabled_features.clear();
+                            // Recalculate idx_platform after platform change
+                            let new_system_config =
+                                crate::assets::load_system_config(&app_state.settings.platform);
+                            let new_dynamic_items_count = new_system_config.features.len();
+                            let new_idx_platform = base_items_count + new_dynamic_items_count + 6;
+                            self.selected_index = new_idx_platform;
                         }
                     }
                 }
@@ -681,6 +694,12 @@ impl Widget for DocumentSettingsDialog {
                             app_state.settings.platform = platforms[new_idx].clone();
                             // Reset features when changing platform
                             app_state.settings.enabled_features.clear();
+                            // Recalculate idx_platform after platform change
+                            let new_system_config =
+                                crate::assets::load_system_config(&app_state.settings.platform);
+                            let new_dynamic_items_count = new_system_config.features.len();
+                            let new_idx_platform = base_items_count + new_dynamic_items_count + 6;
+                            self.selected_index = new_idx_platform;
                         }
                     }
                 }
@@ -697,6 +716,12 @@ impl Widget for DocumentSettingsDialog {
                         app_state.settings.platform = platforms[new_idx].clone();
                         // Reset features when changing platform
                         app_state.settings.enabled_features.clear();
+                        // Recalculate idx_platform after platform change
+                        let new_system_config =
+                            crate::assets::load_system_config(&app_state.settings.platform);
+                        let new_dynamic_items_count = new_system_config.features.len();
+                        let new_idx_platform = base_items_count + new_dynamic_items_count + 6;
+                        self.selected_index = new_idx_platform;
                     }
                 } else if self.is_selecting_assembler {
                     let assemblers = crate::state::Assembler::all();
