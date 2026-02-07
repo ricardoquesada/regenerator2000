@@ -1,4 +1,4 @@
-# Graphics Module (`ui/graphics_common.rs`)
+# Graphics Module ([`ui/graphics_common.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/graphics_common.rs))
 
 ## Overview
 
@@ -84,11 +84,11 @@ Tests cover:
 ## Code Organization
 
 Before refactoring:
-- `view_bitmap.rs`: 457 lines (including VIC-II palette definition)
+- [`view_bitmap.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/view_bitmap.rs): 457 lines (including VIC-II palette definition)
 
 After refactoring:
-- `view_bitmap.rs`: 437 lines (uses shared palette)
-- `graphics_common.rs`: 342 lines (shared utilities + tests)
+- [`view_bitmap.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/view_bitmap.rs): 437 lines (uses shared palette)
+- [`graphics_common.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/graphics_common.rs): 342 lines (shared utilities + tests)
 - **Net benefit**: Reusable code for sprites/charset + foundation for PNG export
 
 ## Future Enhancements
