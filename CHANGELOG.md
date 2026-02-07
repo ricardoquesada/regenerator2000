@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2026-02-07
+
+### Features
+
+- Feature: **Complete Address Dialog**: Added dialog to complete missing Hi/Lo or Lo/Hi byte when only one line is selected (Edit menu).
+
+### Performance
+
+- Performance: **Rendering Loop**: Optimized screen rendering to occur only once per event, eliminating unnecessary redraws.
+
+### Fixes
+
+- Fix: **Settings Dialog**: Improved navigation in Document Settings dialog.
+
+### Documentation
+
+- Docs: Added source code links in architecture documentation.
+- Docs: Added missing dialogs to architecture documentation.
+- Docs: Improved keyboard shortcuts documentation formatting.
+
+### Refactor / Internal
+
+- Refactor: Consolidated system configuration files - merged separate `.txt` files (comments, excludes, labels) into unified `.json` files for each platform.
+- Refactor: Updated asset loading to support consolidated `.json` configuration files.
+
+
 ## [0.6.2] - 2026-02-05
 
 ### Features
