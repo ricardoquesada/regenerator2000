@@ -99,6 +99,18 @@ impl OpenDialog {
             }
         }
     }
+
+    pub fn page_up(&mut self) {
+        // Move back by 10 items
+        self.selected_index = self.selected_index.saturating_sub(10);
+    }
+
+    pub fn page_down(&mut self) {
+        if !self.files.is_empty() {
+            // Advance by 10 items, but don't go past the last item
+            self.selected_index = (self.selected_index + 10).min(self.files.len() - 1);
+        }
+    }
 }
 
 impl Widget for OpenDialog {
@@ -155,6 +167,8 @@ impl Widget for OpenDialog {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
+        use crossterm::event::KeyModifiers;
+
         match key.code {
             KeyCode::Esc => {
                 ui_state.set_status_message("Ready");
@@ -166,6 +180,22 @@ impl Widget for OpenDialog {
             }
             KeyCode::Up => {
                 self.previous();
+                WidgetResult::Handled
+            }
+            KeyCode::PageUp => {
+                self.page_up();
+                WidgetResult::Handled
+            }
+            KeyCode::PageDown => {
+                self.page_down();
+                WidgetResult::Handled
+            }
+            KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
+                self.page_up();
+                WidgetResult::Handled
+            }
+            KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
+                self.page_down();
                 WidgetResult::Handled
             }
             KeyCode::Backspace => {
