@@ -26,6 +26,7 @@ tui-textarea = "0.7.0"
 regex = "1.12.2"
 log = "0.4.29"
 simplelog = "0.12.2"
+include_dir = "0.7"
 
 [build-dependencies]
 anyhow = "1.0"
