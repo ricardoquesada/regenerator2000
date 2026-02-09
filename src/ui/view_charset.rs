@@ -60,12 +60,14 @@ impl Navigable for CharsetView {
 
     fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
         let max_char_index = self.len(app_state);
+        // Advance by 10 lines (10 rows × 8 columns = 80 characters)
         ui_state.charset_cursor_index =
-            (ui_state.charset_cursor_index + 10).min(max_char_index.saturating_sub(1));
+            (ui_state.charset_cursor_index + 80).min(max_char_index.saturating_sub(1));
     }
 
     fn page_up(&self, _app_state: &AppState, ui_state: &mut UIState) {
-        ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(10);
+        // Move back by 10 lines (10 rows × 8 columns = 80 characters)
+        ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(80);
     }
 
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
