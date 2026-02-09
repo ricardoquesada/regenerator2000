@@ -2089,6 +2089,7 @@ fn test_bytes_per_line() {
         None,
         &BTreeSet::new(),
         &settings,
+        &BTreeMap::new(),
     );
 
     assert_eq!(consumed, 3);
