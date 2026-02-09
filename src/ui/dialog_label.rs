@@ -87,7 +87,21 @@ impl Widget for LabelDialog {
                     app_state.push_command(command);
 
                     ui_state.set_status_message("Label removed");
+
+                    let cursor_addr = app_state
+                        .disassembly
+                        .get(ui_state.cursor_index)
+                        .map(|l| l.address);
+
                     app_state.disassemble();
+
+                    if let Some(addr) = cursor_addr {
+                        if let Some(idx) = app_state.get_line_index_containing_address(addr) {
+                            ui_state.cursor_index = idx;
+                        } else if let Some(idx) = app_state.get_line_index_for_address(addr) {
+                            ui_state.cursor_index = idx;
+                        }
+                    }
                     WidgetResult::Close
                 } else {
                     // Check for duplicates (exclude current address in case of rename/edit)
@@ -130,7 +144,21 @@ impl Widget for LabelDialog {
                         app_state.push_command(command);
 
                         ui_state.set_status_message("Label set");
+
+                        let cursor_addr = app_state
+                            .disassembly
+                            .get(ui_state.cursor_index)
+                            .map(|l| l.address);
+
                         app_state.disassemble();
+
+                        if let Some(addr) = cursor_addr {
+                            if let Some(idx) = app_state.get_line_index_containing_address(addr) {
+                                ui_state.cursor_index = idx;
+                            } else if let Some(idx) = app_state.get_line_index_for_address(addr) {
+                                ui_state.cursor_index = idx;
+                            }
+                        }
                         WidgetResult::Close
                     }
                 }

@@ -1974,12 +1974,26 @@ fn apply_block_type(
             ));
             return;
         }
+
+        let current_addr = app_state
+            .disassembly
+            .get(ui_state.cursor_index)
+            .map(|l| l.address);
+
         app_state.set_block_type_region(
             block_type,
             ui_state.selection_start,
             ui_state.cursor_index,
         );
         ui_state.set_status_message(format!("Set block type to {}", block_type));
+
+        if let Some(addr) = current_addr {
+            if let Some(idx) = app_state.get_line_index_containing_address(addr) {
+                ui_state.cursor_index = idx;
+            } else if let Some(idx) = app_state.get_line_index_for_address(addr) {
+                ui_state.cursor_index = idx;
+            }
+        }
     }
 }
 
@@ -2137,5 +2151,26 @@ mod tests {
         });
 
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_apply_block_type_single_line_cursor_preservation() {
+        let mut app_state = AppState::default();
+        app_state.origin = 0xC000;
+        // 3 bytes: A9 00 EA (LDA #$00; NOP)
+        app_state.raw_data = vec![0xA9, 0x00, 0xEA];
+        app_state.block_types = vec![crate::state::BlockType::DataByte; 3];
+        app_state.disassemble();
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.cursor_index = 2; // Pointing to $C002 (EA)
+        ui_state.selection_start = None;
+        ui_state.active_pane = crate::ui_state::ActivePane::Disassembly;
+
+        // Change C002 to Code.
+        super::apply_block_type(&mut app_state, &mut ui_state, crate::state::BlockType::Code);
+
+        // Should still be at index 2 ($C002)
+        assert_eq!(ui_state.cursor_index, 2);
     }
 }
