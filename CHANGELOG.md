@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.4] - 2026-02-08
+
+### Features
+
+- Feature: **D71 Support**: Added support for D71 disk images (70 tracks, double-sided).
+- Feature: **D81 Support**: Added support for D81 disk images (80 tracks, 40 sectors per track).
+- Feature: **40-Track D64**: Added support for 40-track D64 disk images.
+
+### Changes
+
+- UI: **Document Settings Dialog**: Reorganized settings dialog with dynamic options at the bottom.
+
+### Fixes
+
+- Fix: Settings: **Default Platform**: Default platform is "Commodore 64", was broken in previous version.
+
+### Performance
+
+- Performance: **Event Handling**: Further optimizations to event handling and rendering pipeline.
+
+### Refactor / Internal
+
+- Refactor: **Embedded Config Files**: System configuration files are now embedded in the binary for easier distribution.
+- Refactor: **Disk Parser**: Unified D64/D71/D81 parsing logic with `DiskType` enum.
+
+### Examples
+
+- Examples: Renamed `burnin_rubber` example to `c64_burnin_rubber` for clarity.
+
 ## [0.6.3] - 2026-02-07
 
 ### Features
@@ -30,7 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor: Consolidated system configuration files - merged separate `.txt` files (comments, excludes, labels) into unified `.json` files for each platform.
 - Refactor: Updated asset loading to support consolidated `.json` configuration files.
 
-
 ## [0.6.2] - 2026-02-05
 
 ### Features
@@ -52,8 +80,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Docs: Updated documentation for Blocks ("e" type), Settings, and Views.
 - Docs: Added information about Immediate mode representations (lo/hi byte).
-
-
 
 ## [0.6.1] - 2026-02-01
 
