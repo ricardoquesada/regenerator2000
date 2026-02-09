@@ -37,6 +37,7 @@ impl OpenDialog {
                 "vsf".to_string(),
                 "t64".to_string(),
                 "d64".to_string(),
+                "d71".to_string(),
                 "raw".to_string(),
                 "regen2000proj".to_string(),
             ],
@@ -216,7 +217,10 @@ impl Widget for OpenDialog {
                                 if selected_path
                                     .extension()
                                     .and_then(|e| e.to_str())
-                                    .map(|e| e.eq_ignore_ascii_case("d64"))
+                                    .map(|e| {
+                                        e.eq_ignore_ascii_case("d64")
+                                            || e.eq_ignore_ascii_case("d71")
+                                    })
                                     .unwrap_or(false)
                                 {
                                     match std::fs::read(&selected_path) {
@@ -240,7 +244,7 @@ impl Widget for OpenDialog {
                                                         return WidgetResult::Handled;
                                                     }
 
-                                                    // Show D64 picker dialog
+                                                    // Show D64/D71 picker dialog
                                                     ui_state.active_dialog = Some(Box::new(
                                                         crate::ui::dialog_d64_picker::D64FilePickerDialog::new(
                                                             prg_files,
@@ -252,7 +256,7 @@ impl Widget for OpenDialog {
                                                 }
                                                 Err(e) => {
                                                     ui_state.set_status_message(format!(
-                                                        "Error parsing D64: {}",
+                                                        "Error parsing D64/D71: {}",
                                                         e
                                                     ));
                                                     return WidgetResult::Handled;

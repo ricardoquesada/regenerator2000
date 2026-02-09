@@ -129,30 +129,30 @@ fn main() -> Result<()> {
 
     // 1. Load File / Project
     let mut initial_load_result = None;
-    let mut d64_data = None;
-    let mut is_d64 = false;
+    let mut disk_image_data = None;
+    let mut is_disk_image = false;
 
     if let Some(file_str) = &file_to_load {
         let path = std::path::Path::new(file_str);
         if path
             .extension()
             .and_then(|e| e.to_str())
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("d64"))
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("d64") || ext.eq_ignore_ascii_case("d71"))
         {
-            is_d64 = true;
+            is_disk_image = true;
         }
     }
 
-    if is_d64 {
+    if is_disk_image {
         if let Some(file_str) = &file_to_load {
             let path = std::path::PathBuf::from(file_str);
             match std::fs::read(&path) {
                 Ok(data) => match regenerator2000::parser::d64::parse_d64_directory(&data) {
                     Ok(files) => {
-                        d64_data = Some((files, data, path));
+                        disk_image_data = Some((files, data, path));
                     }
                     Err(e) => {
-                        eprintln!("Error parsing D64 file: {}", e);
+                        eprintln!("Error parsing D64/D71 file: {}", e);
                         if headless {
                             std::process::exit(1);
                         }
@@ -280,7 +280,7 @@ fn main() -> Result<()> {
     let theme = regenerator2000::theme::Theme::from_name(&app_state.system_config.theme);
     let mut ui_state = UIState::new(theme);
 
-    if let Some((files, disk_data, disk_path)) = d64_data {
+    if let Some((files, disk_data, disk_path)) = disk_image_data {
         let dialog = regenerator2000::ui::dialog_d64_picker::D64FilePickerDialog::new(
             files, disk_data, disk_path,
         );
