@@ -461,7 +461,7 @@ mod tests {
 
         // Track 36, Sector 0 (First sector of Side 2)
         // Should be at D64_STANDARD_SIZE + offset of Track 1, Sector 0
-        let expected = D64_STANDARD_SIZE + 0;
+        let expected = D64_STANDARD_SIZE;
         assert_eq!(calculate_offset(36, 0, DiskType::D71).unwrap(), expected);
 
         // Track 36, Sector 1

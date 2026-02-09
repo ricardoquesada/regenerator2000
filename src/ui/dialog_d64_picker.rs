@@ -30,6 +30,18 @@ impl D64FilePickerDialog {
             disk_path,
         }
     }
+
+    fn page_up(&mut self) {
+        // Move back by 10 items
+        self.selected_index = self.selected_index.saturating_sub(10);
+    }
+
+    fn page_down(&mut self) {
+        if !self.files.is_empty() {
+            // Advance by 10 items, but don't go past the last item
+            self.selected_index = (self.selected_index + 10).min(self.files.len() - 1);
+        }
+    }
 }
 
 impl Widget for D64FilePickerDialog {
@@ -100,7 +112,7 @@ impl Widget for D64FilePickerDialog {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        use crossterm::event::KeyCode;
+        use crossterm::event::{KeyCode, KeyModifiers};
 
         match key.code {
             KeyCode::Esc => {
@@ -125,6 +137,22 @@ impl Widget for D64FilePickerDialog {
                         self.selected_index = 0;
                     }
                 }
+                WidgetResult::Handled
+            }
+            KeyCode::PageUp => {
+                self.page_up();
+                WidgetResult::Handled
+            }
+            KeyCode::PageDown => {
+                self.page_down();
+                WidgetResult::Handled
+            }
+            KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
+                self.page_up();
+                WidgetResult::Handled
+            }
+            KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
+                self.page_down();
                 WidgetResult::Handled
             }
             KeyCode::Enter => {

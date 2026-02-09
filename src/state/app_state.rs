@@ -168,11 +168,14 @@ impl AppState {
         let data = std::fs::read(&path)?;
         self.file_path = Some(path.clone());
         self.project_path = None; // clear project path
+        self.export_path = None; // clear export path
         self.labels.clear(); // clear existing labels
         self.settings = DocumentSettings::default(); // reset settings
         self.user_side_comments.clear();
         self.user_line_comments.clear();
         self.immediate_value_formats.clear();
+        self.collapsed_blocks.clear(); // clear collapsed blocks
+        self.splitters.clear(); // clear splitters
         self.last_import_labels_path = None;
         self.last_export_labels_filename = None;
         self.last_save_as_filename = None;
@@ -262,11 +265,14 @@ impl AppState {
         self.last_saved_pointer = 0;
         self.project_path = None;
         self.file_path = None;
+        self.export_path = None;
         self.labels.clear();
         self.settings = DocumentSettings::default();
         self.user_side_comments.clear();
         self.user_line_comments.clear();
         self.immediate_value_formats.clear();
+        self.collapsed_blocks.clear();
+        self.splitters.clear();
         self.last_import_labels_path = None;
         self.last_export_labels_filename = None;
         self.last_save_as_filename = None;
@@ -1059,6 +1065,11 @@ mod load_file_tests {
             }],
         );
         app_state.project_path = Some(PathBuf::from("fake_project.regen2000proj"));
+        app_state.export_path = Some(PathBuf::from("fake_export.asm"));
+        app_state.collapsed_blocks.push((0, 10));
+        app_state.collapsed_blocks.push((20, 30));
+        app_state.splitters.insert(0x1000);
+        app_state.splitters.insert(0x2000);
 
         // 2. Create a dummy binary file
         let mut path = std::env::temp_dir();
@@ -1092,6 +1103,18 @@ mod load_file_tests {
         assert!(
             app_state.project_path.is_none(),
             "Project path should be None"
+        );
+        assert!(
+            app_state.collapsed_blocks.is_empty(),
+            "Collapsed blocks should be cleared"
+        );
+        assert!(
+            app_state.splitters.is_empty(),
+            "Splitters should be cleared"
+        );
+        assert!(
+            app_state.export_path.is_none(),
+            "Export path should be None"
         );
 
         // Cleanup
