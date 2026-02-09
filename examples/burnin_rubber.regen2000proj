@@ -906,11 +906,7 @@
     "text_char_limit": 40,
     "addresses_per_line": 5,
     "bytes_per_line": 8,
-    "enabled_features": {
-      "KERNAL": true,
-      "Lower Page": false,
-      "BASIC": false
-    }
+    "enabled_features": {}
   },
   "immediate_value_formats": {
     "2083": {
@@ -936,12 +932,12 @@
   },
   "cursor_address": 2120,
   "hex_dump_cursor_address": 21072,
-  "sprites_cursor_address": 14080,
+  "sprites_cursor_address": 14144,
   "charset_cursor_address": 8192,
   "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 57344,
+  "bitmap_cursor_address": 0,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
