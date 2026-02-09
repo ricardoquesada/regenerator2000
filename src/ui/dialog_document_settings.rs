@@ -69,7 +69,7 @@ impl Widget for DocumentSettingsDialog {
         let theme = &ui_state.theme;
         let block = crate::ui::widget::create_dialog_block(" Document Settings ", theme);
 
-        let area = crate::utils::centered_rect(60, 60, area);
+        let area = crate::utils::centered_rect_adaptive(60, 60, 60, 20, area);
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
@@ -379,7 +379,7 @@ impl Widget for DocumentSettingsDialog {
 
         // Platform Popup
         if self.is_selecting_platform {
-            let popup_area = crate::utils::centered_rect(40, 50, area);
+            let popup_area = crate::utils::centered_rect_adaptive(40, 50, 50, 10, area);
             f.render_widget(Clear, popup_area);
             let block = crate::ui::widget::create_dialog_block(" Select Platform ", theme);
 
@@ -414,7 +414,7 @@ impl Widget for DocumentSettingsDialog {
 
         // Assembler Popup
         if self.is_selecting_assembler {
-            let popup_area = crate::utils::centered_rect(40, 30, area); // Smaller height for fewer items
+            let popup_area = crate::utils::centered_rect_adaptive(40, 30, 30, 8, area); // Smaller height for fewer items
             f.render_widget(Clear, popup_area);
             let block = crate::ui::widget::create_dialog_block(" Select Assembler ", theme);
 

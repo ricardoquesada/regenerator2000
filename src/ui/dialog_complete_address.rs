@@ -3,7 +3,7 @@ use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Color, Modifier, Style},
     widgets::Paragraph,
 };
@@ -92,23 +92,16 @@ impl Widget for CompleteAddressDialog {
         };
         let block = crate::ui::widget::create_dialog_block(title, theme);
 
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Fill(1),
-                Constraint::Length(3),
-                Constraint::Fill(1),
-            ])
-            .split(area);
+        // let layout = Layout::default()
+        //     .direction(Direction::Vertical)
+        //     .constraints([
+        //         Constraint::Fill(1),
+        //         Constraint::Length(3),
+        //         Constraint::Fill(1),
+        //     ])
+        //     .split(area);
 
-        let area = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(25),
-                Constraint::Percentage(50),
-                Constraint::Percentage(25),
-            ])
-            .split(layout[1])[1];
+        let area = crate::utils::centered_rect_adaptive(50, 40, 40, 5, area);
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 

@@ -1,5 +1,5 @@
 use crate::ui_state::UIState;
-use crate::utils::centered_rect;
+// use crate::utils::centered_rect;
 use crossterm::event::KeyCode;
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -120,7 +120,7 @@ impl Widget for ShortcutsDialog {
         ui_state: &mut UIState,
     ) {
         let theme = &ui_state.theme;
-        let area = centered_rect(60, 60, area);
+        let area = crate::utils::centered_rect_adaptive(60, 60, 60, 20, area);
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area); // Clear background
 

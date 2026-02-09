@@ -1,7 +1,6 @@
 use crate::state::AppState;
 use crate::ui::menu::{MenuAction, execute_menu_action};
 use crate::ui_state::UIState;
-use crate::utils::centered_rect;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
@@ -34,7 +33,7 @@ impl Widget for ConfirmationDialog {
         let title = format!(" {} ", self.title);
         let block = crate::ui::widget::create_dialog_block(&title, theme);
 
-        let area = centered_rect(50, 7, area);
+        let area = crate::utils::centered_rect_adaptive(50, 40, 40, 5, area);
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
         f.render_widget(block.clone(), area);

@@ -65,46 +65,27 @@ impl Widget for GoToSymbolDialog {
         let block = crate::ui::widget::create_dialog_block(" Go to Symbol ", theme);
 
         // Dialog layout:
-        // - Search Box (3 lines)
-        // - Results List (flexible)
+        // Use adaptive centered rect for the main container
+        let area = crate::utils::centered_rect_adaptive(60, 60, 60, 10, area);
+        ui_state.active_dialog_area = area;
+
+        f.render_widget(ratatui::widgets::Clear, area);
+
+        // Split into Search (top) and Results (bottom)
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Fill(1),
                 Constraint::Length(3), // Search box
-                Constraint::Min(5),    // Results
-                Constraint::Fill(1),
+                Constraint::Min(1),    // Results
             ])
             .split(area);
-
-        let center_v = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(20),
-                Constraint::Percentage(60),
-                Constraint::Percentage(20),
-            ])
-            .split(layout[1])[1];
-
-        let results_area = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(20),
-                Constraint::Percentage(60),
-                Constraint::Percentage(20),
-            ])
-            .split(layout[2])[1];
-
-        ui_state.active_dialog_area = center_v.union(results_area);
-
-        f.render_widget(ratatui::widgets::Clear, ui_state.active_dialog_area);
 
         let input_widget = Paragraph::new(self.input.clone()).block(block).style(
             Style::default()
                 .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD),
         );
-        f.render_widget(input_widget, center_v);
+        f.render_widget(input_widget, layout[0]);
 
         let items: Vec<ListItem> = self
             .filtered_symbols
@@ -127,7 +108,7 @@ impl Widget for GoToSymbolDialog {
                 .borders(ratatui::widgets::Borders::ALL)
                 .border_style(Style::default().fg(theme.dialog_border)),
         );
-        f.render_widget(list, results_area);
+        f.render_widget(list, layout[1]);
     }
 
     fn handle_input(

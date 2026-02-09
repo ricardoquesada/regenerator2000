@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui_state::UIState;
-use crate::utils::centered_rect;
+// use crate::utils::centered_rect;
 use crossterm::event::KeyCode;
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -40,7 +40,7 @@ impl Widget for SettingsDialog {
         let theme = &ui_state.theme;
         let block = crate::ui::widget::create_dialog_block(" Settings ", theme);
 
-        let area = centered_rect(50, 40, area); // Increased height for popup space
+        let area = crate::utils::centered_rect_adaptive(50, 40, 40, 14, area); // Increased height for popup space
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
@@ -128,7 +128,7 @@ impl Widget for SettingsDialog {
 
         // Theme Selection Popup
         if self.is_selecting_theme {
-            let popup_area = centered_rect(40, 30, area);
+            let popup_area = crate::utils::centered_rect_adaptive(40, 30, 30, 10, area);
             f.render_widget(Clear, popup_area);
             let block = crate::ui::widget::create_dialog_block(" Select Theme ", theme);
 

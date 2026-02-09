@@ -126,7 +126,7 @@ impl Widget for OpenDialog {
         };
         let block = crate::ui::widget::create_dialog_block(title, theme);
 
-        let area = crate::utils::centered_rect(60, 50, area);
+        let area = crate::utils::centered_rect_adaptive(60, 40, 50, 14, area);
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area); // Clear background
 

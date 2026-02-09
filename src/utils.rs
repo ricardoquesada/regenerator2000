@@ -24,6 +24,22 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+pub fn centered_rect_adaptive(
+    percent_x: u16,
+    width_min: u16,
+    percent_y: u16,
+    height_min: u16,
+    r: Rect,
+) -> Rect {
+    let width = (r.width * percent_x / 100).max(width_min).min(r.width);
+    let height = (r.height * percent_y / 100).max(height_min).min(r.height);
+
+    let x = (r.width - width) / 2;
+    let y = (r.height - height) / 2;
+
+    Rect::new(r.x + x, r.y + y, width, height)
+}
+
 pub fn list_files(dir: &Path, extensions: &[String]) -> Vec<PathBuf> {
     let mut files = Vec::new();
 

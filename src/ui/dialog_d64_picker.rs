@@ -56,7 +56,7 @@ impl Widget for D64FilePickerDialog {
         let title = format!(" Select PRG from {} (Enter: Load, Esc: Cancel) ", disk_name);
         let block = crate::ui::widget::create_dialog_block(&title, theme);
 
-        let area = crate::utils::centered_rect(60, 60, area);
+        let area = crate::utils::centered_rect_adaptive(60, 60, 60, 14, area);
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area); // Clear background
 

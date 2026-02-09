@@ -1,7 +1,7 @@
 use crate::state::AppState;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
-use crate::utils::centered_rect;
+// use crate::utils::centered_rect;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
@@ -47,7 +47,7 @@ impl Widget for WarningDialog {
             .title_alignment(Alignment::Center)
             .style(Style::default().fg(theme.dialog_fg).bg(theme.dialog_bg));
 
-        let area = centered_rect(50, 20, area);
+        let area = crate::utils::centered_rect_adaptive(50, 40, 20, 6, area);
         ui_state.active_dialog_area = area;
 
         f.render_widget(Clear, area);
