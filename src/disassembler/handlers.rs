@@ -113,6 +113,9 @@ fn handle_split_byte_table(
             if ctx.splitters.contains(&current_addr) {
                 break;
             }
+            if ctx.user_line_comments.contains_key(&current_addr) {
+                break;
+            }
         }
 
         if ctx.block_types.get(current_pc) != Some(&target_type) {

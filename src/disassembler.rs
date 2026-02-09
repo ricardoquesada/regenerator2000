@@ -233,6 +233,7 @@ impl Disassembler {
                     line_comment,
                     ctx.splitters,
                     ctx.settings,
+                    ctx.user_line_comments,
                 ),
                 BlockType::DataWord => self.handle_data_word(
                     pc,
@@ -247,6 +248,7 @@ impl Disassembler {
                     line_comment,
                     ctx.splitters,
                     ctx.settings,
+                    ctx.user_line_comments,
                 ),
                 BlockType::Address => self.handle_address(
                     pc,
@@ -263,6 +265,7 @@ impl Disassembler {
                     ctx.user_side_comments,
                     ctx.splitters,
                     ctx.settings,
+                    ctx.user_line_comments,
                 ),
                 BlockType::PetsciiText => self.handle_petscii_text(
                     pc,
@@ -277,6 +280,7 @@ impl Disassembler {
                     side_comment,
                     line_comment,
                     ctx.splitters,
+                    ctx.user_line_comments,
                 ),
                 BlockType::ScreencodeText => self.handle_screencode_text(
                     pc,
@@ -291,6 +295,7 @@ impl Disassembler {
                     side_comment,
                     line_comment,
                     ctx.splitters,
+                    ctx.user_line_comments,
                 ),
                 BlockType::LoHiAddress => handlers::handle_lohi_address(
                     ctx,
@@ -341,6 +346,7 @@ impl Disassembler {
                     line_comment,
                     ctx.splitters,
                     ctx.settings,
+                    ctx.user_line_comments,
                 ),
                 BlockType::Undefined => handlers::handle_undefined_byte(
                     ctx.data,
@@ -754,6 +760,7 @@ impl Disassembler {
         line_comment: Option<String>,
         splitters: &BTreeSet<u16>,
         settings: &DocumentSettings,
+        user_line_comments: &BTreeMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -775,6 +782,11 @@ impl Disassembler {
 
             // Stop if label exists (except for the first byte)
             if count > 0 && labels.contains_key(&current_address) {
+                break;
+            }
+
+            // Stop if line comment exists (except start)
+            if count > 0 && user_line_comments.contains_key(&current_address) {
                 break;
             }
 
@@ -818,6 +830,7 @@ impl Disassembler {
         line_comment: Option<String>,
         splitters: &BTreeSet<u16>,
         settings: &DocumentSettings,
+        user_line_comments: &BTreeMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -847,6 +860,12 @@ impl Disassembler {
             }
 
             if count > 0 && labels.contains_key(&current_address) {
+                break;
+            }
+
+            // Stop if line comment exists (except start)
+            // Note: DataWord is 2 bytes. We check if comment is at the start of the word.
+            if count > 0 && user_line_comments.contains_key(&current_address) {
                 break;
             }
 
@@ -908,6 +927,7 @@ impl Disassembler {
         line_comment: Option<String>,
         splitters: &BTreeSet<u16>,
         settings: &DocumentSettings,
+        user_line_comments: &BTreeMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -929,6 +949,10 @@ impl Disassembler {
 
             // Stop if label exists (except for the first byte)
             if count > 0 && labels.contains_key(&current_address) {
+                break;
+            }
+
+            if count > 0 && user_line_comments.contains_key(&current_address) {
                 break;
             }
 
@@ -974,6 +998,7 @@ impl Disassembler {
         user_side_comments: &BTreeMap<u16, String>,
         _splitters: &BTreeSet<u16>,
         settings: &DocumentSettings,
+        user_line_comments: &BTreeMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
@@ -990,6 +1015,10 @@ impl Disassembler {
             }
 
             if count > 0 && labels.contains_key(&current_address) {
+                break;
+            }
+
+            if count > 0 && user_line_comments.contains_key(&current_address) {
                 break;
             }
 
@@ -1074,6 +1103,7 @@ impl Disassembler {
         side_comment: String,
         line_comment: Option<String>,
         splitters: &BTreeSet<u16>,
+        user_line_comments: &BTreeMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         use crate::disassembler::formatter::TextFragment;
 
@@ -1094,6 +1124,10 @@ impl Disassembler {
             }
 
             if count > 0 && labels.contains_key(&current_address) {
+                break;
+            }
+
+            if count > 0 && user_line_comments.contains_key(&current_address) {
                 break;
             }
 
@@ -1209,6 +1243,7 @@ impl Disassembler {
         side_comment: String,
         line_comment: Option<String>,
         splitters: &BTreeSet<u16>,
+        user_line_comments: &BTreeMap<u16, String>,
     ) -> (usize, Vec<DisassemblyLine>) {
         use crate::disassembler::formatter::TextFragment;
 
@@ -1229,6 +1264,10 @@ impl Disassembler {
             }
 
             if count > 0 && labels.contains_key(&current_address) {
+                break;
+            }
+
+            if count > 0 && user_line_comments.contains_key(&current_address) {
                 break;
             }
 
