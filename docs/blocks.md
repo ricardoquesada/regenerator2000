@@ -581,7 +581,20 @@ You can also revert the change by pressing:
 
 ## Organization Tools
 
-Beyond data types, you can organize your view using Splitters and Collapsing:
+Beyond data types, you can organize your view using Comments, Splitters, and Collapsing:
+
+### Comments
+
+- **Side Comment**: ++semicolon++
+- **Line Comment**: ++colon++
+
+You can add comments to any line to annotate your disassembly.
+
+- **Side Comments**: Displayed on the same line as the instruction or data, to the right.
+- **Line Comments**: Displayed on a separate line above the instruction or data.
+
+!!! note
+    **Line Comments** also function as **Splitters**. Inserting a line comment into a grouped block (like a sequence of bytes) will split the block at that point, preventing the auto-merger from combining them.
 
 ### Splitters and Auto-Merging
  
@@ -599,7 +612,7 @@ graph LR
     B[Byte Block B <br/> $2000-$2FFF] --> M
 ```
  
-**Splitters** are used to prevent this behavior when needed. They serve two purposes:
+**Splitters** (and **Line Comments**) are used to prevent this behavior when needed. They serve two purposes:
  
 1.  **Visual Separation**: Inserts a visual separator (newline) in the disassembly view.
 2.  **Logical Separation**: Acts as a barrier that **stops the auto-merger**.
