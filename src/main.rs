@@ -24,7 +24,7 @@ fn main() -> Result<()> {
     let _ = WriteLogger::init(
         LevelFilter::Info,
         Config::default(),
-        File::create(&log_path).unwrap_or_else(|_| File::create("regenerator2000.log").unwrap()),
+        File::create(&log_path).or_else(|_| File::create("regenerator2000.log"))?,
     );
     log::info!("Regenerator 2000 started");
 

@@ -45,23 +45,22 @@ pub fn resolve_label<'a>(
     let mut best_label: Option<&Label> = None;
 
     for label in labels {
-        if best_label.is_none() {
-            best_label = Some(label);
-            continue;
-        }
+        if let Some(curr) = best_label {
+            // Priority Check
+            let curr_prio = get_priority(&curr.kind);
+            let new_prio = get_priority(&label.kind);
 
-        let curr = best_label.unwrap();
-        let p_curr = get_priority(&curr.kind);
-        let p_label = get_priority(&label.kind);
-
-        if p_label > p_curr {
-            best_label = Some(label);
-        } else if p_label == p_curr {
-            // Tie-break with name (stability)
-            // We prefer alphabetically smaller names to be deterministic
-            if label.name < curr.name {
+            if new_prio > curr_prio {
                 best_label = Some(label);
+            } else if new_prio == curr_prio {
+                // Tie-break with name (stability)
+                // We prefer alphabetically smaller names to be deterministic
+                if label.name < curr.name {
+                    best_label = Some(label);
+                }
             }
+        } else {
+            best_label = Some(label);
         }
     }
     best_label
