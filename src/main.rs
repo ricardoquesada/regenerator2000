@@ -49,7 +49,7 @@ fn main() -> Result<()> {
                 println!("Usage: {} [OPTIONS] [FILE]", env!("CARGO_PKG_NAME"));
                 println!();
                 println!(
-                    "Supported file types: .prg, .crt, .t64, .d64, .vsf, .bin, .raw, .regen2000proj"
+                    "Supported file types: .prg, .crt, .t64, .d64, .d71, .d81, .vsf, .bin, .raw, .regen2000proj"
                 );
                 println!();
                 println!("Options:");
@@ -137,7 +137,11 @@ fn main() -> Result<()> {
         if path
             .extension()
             .and_then(|e| e.to_str())
-            .is_some_and(|ext| ext.eq_ignore_ascii_case("d64") || ext.eq_ignore_ascii_case("d71"))
+            .is_some_and(|ext| {
+                ext.eq_ignore_ascii_case("d64")
+                    || ext.eq_ignore_ascii_case("d71")
+                    || ext.eq_ignore_ascii_case("d81")
+            })
         {
             is_disk_image = true;
         }
@@ -152,7 +156,7 @@ fn main() -> Result<()> {
                         disk_image_data = Some((files, data, path));
                     }
                     Err(e) => {
-                        eprintln!("Error parsing D64/D71 file: {}", e);
+                        eprintln!("Error parsing D64/D71/D81 file: {}", e);
                         if headless {
                             std::process::exit(1);
                         }

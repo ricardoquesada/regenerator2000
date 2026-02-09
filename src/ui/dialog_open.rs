@@ -38,6 +38,7 @@ impl OpenDialog {
                 "t64".to_string(),
                 "d64".to_string(),
                 "d71".to_string(),
+                "d81".to_string(),
                 "raw".to_string(),
                 "regen2000proj".to_string(),
             ],
@@ -220,6 +221,7 @@ impl Widget for OpenDialog {
                                     .map(|e| {
                                         e.eq_ignore_ascii_case("d64")
                                             || e.eq_ignore_ascii_case("d71")
+                                            || e.eq_ignore_ascii_case("d81")
                                     })
                                     .unwrap_or(false)
                                 {
