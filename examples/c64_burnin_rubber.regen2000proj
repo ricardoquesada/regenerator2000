@@ -813,6 +813,13 @@
         "kind": "User"
       }
     ],
+    "6054": [
+      {
+        "name": "hero_joy_up_down",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "6144": [
       {
         "name": "setup",
@@ -830,6 +837,41 @@
     "7005": [
       {
         "name": "the_game_is_over",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7660": [
+      {
+        "name": "joy2_up",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7663": [
+      {
+        "name": "joy2_down",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7666": [
+      {
+        "name": "joy2_left",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7669": [
+      {
+        "name": "joy2_right",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7672": [
+      {
+        "name": "joy2_fire",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -911,10 +953,15 @@
     "4236": "white",
     "4247": "purple",
     "4428": "yellow",
+    "4564": "Joy#2 fire",
+    "4578": "Joy#2 fire",
     "5610": "Hero car #0",
     "5968": "hero car #0",
+    "6057": "Joy#2 left",
+    "6064": "Joy #2 right",
     "6155": "$A000-$BFFF is RAM. BASIC ROM disabled",
     "6164": "$A000-$BFFF is BASIC ROM again",
+    "6659": "Joy #2 Fire",
     "6698": "hero car jumping #2",
     "6789": "hero car jumping #1",
     "6804": "hero car jumping #0",
@@ -922,12 +969,23 @@
     "6841": "hero car jumping #1",
     "6856": "hero car jumping #2",
     "6898": "hero car jumping #0",
+    "7558": "Joy #2 up/down/left/right mask",
+    "7560": "up ?",
+    "7564": "down ?",
+    "7568": "left ?",
+    "7572": "right ?",
+    "7576": "Fire active",
+    "17427": "joy2 left/right/up/down mask",
+    "17429": "joy2 up",
     "17959": "delay",
     "18468": "sprite frame: crash #0",
     "18476": "sprite frame: crash #1",
     "18484": "sprite frame: crash #2",
     "18508": "sprite frame: crash #3",
-    "18516": "sprite frame: crash #4"
+    "18516": "sprite frame: crash #4",
+    "18928": "down active?",
+    "19803": "Next row",
+    "20973": "joy#2 up ?"
   },
   "user_line_comments": {
     "2049": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSYS 2083",
@@ -974,12 +1032,40 @@
     "4165": "Binary",
     "4167": "Binary",
     "4530": "Decimal",
+    "6057": "Binary",
+    "6064": "Binary",
     "6155": "Binary",
     "6164": "Binary",
+    "7560": "Binary",
+    "7564": "Binary",
+    "7568": "Binary",
+    "7572": "Binary",
+    "7576": "Binary",
+    "17427": "Binary",
+    "17429": "Binary",
+    "18928": "Binary",
+    "19098": {
+      "HighByte": 1907
+    },
+    "19102": {
+      "LowByte": 1907
+    },
+    "19109": {
+      "HighByte": 1104
+    },
+    "19113": {
+      "LowByte": 1104
+    },
+    "19791": {
+      "LowByte": 1024
+    },
+    "19795": {
+      "HighByte": 1024
+    },
     "22310": "Hex"
   },
-  "cursor_address": 9216,
-  "hex_dump_cursor_address": 9216,
+  "cursor_address": 6656,
+  "hex_dump_cursor_address": 6656,
   "sprites_cursor_address": 13376,
   "charset_cursor_address": 8192,
   "right_pane_visible": "HexDump",
