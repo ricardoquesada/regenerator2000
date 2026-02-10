@@ -43,7 +43,7 @@ impl Widget for JumpToAddressDialog {
         //     ])
         //     .split(area);
 
-        let area = crate::utils::centered_rect_adaptive(30, 40, 40, 5, area);
+        let area = crate::utils::centered_rect_adaptive(30, 40, 0, 3, area);
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 

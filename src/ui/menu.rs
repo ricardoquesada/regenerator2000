@@ -315,7 +315,7 @@ impl MenuState {
                 MenuCategory {
                     name: "File".to_string(),
                     items: vec![
-                        MenuItem::new("Open", Some("Ctrl+O"), Some(MenuAction::Open)),
+                        MenuItem::new("Open...", Some("Ctrl+O"), Some(MenuAction::Open)),
                         MenuItem::new("Save", Some("Ctrl+S"), Some(MenuAction::Save)),
                         MenuItem::new("Save As...", Some("Alt+S"), Some(MenuAction::SaveAs)),
                         MenuItem::separator(),
@@ -430,12 +430,12 @@ impl MenuState {
                     name: "Jump".to_string(),
                     items: vec![
                         MenuItem::new(
-                            "Jump to address",
+                            "Jump to address...",
                             Some("Alt+G"),
                             Some(MenuAction::JumpToAddress),
                         ),
                         MenuItem::new(
-                            "Jump to line",
+                            "Jump to line...",
                             Some("Alt+Shift+G"),
                             Some(MenuAction::JumpToLine),
                         ),
@@ -462,7 +462,7 @@ impl MenuState {
                             Some(MenuAction::GoToSymbol),
                         ),
                         MenuItem::new(
-                            "Find References",
+                            "Find References...",
                             Some("Ctrl+x"),
                             Some(MenuAction::FindReferences),
                         ),
