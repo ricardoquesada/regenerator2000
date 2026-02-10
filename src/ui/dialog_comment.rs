@@ -3,7 +3,8 @@ use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Rect},
+    // layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Modifier, Style},
 };
 use tui_textarea::{CursorMove, TextArea};
@@ -71,23 +72,10 @@ impl Widget for CommentDialog {
         let block = crate::ui::widget::create_dialog_block(title, theme);
 
         // Fixed height of 10 for multi-line
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Fill(1),
-                Constraint::Length(10),
-                Constraint::Fill(1),
-            ])
-            .split(area);
-
-        let area = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(15),
-                Constraint::Percentage(70),
-                Constraint::Percentage(15),
-            ])
-            .split(layout[1])[1];
+        let area = match self.comment_type {
+            CommentType::Side => crate::utils::centered_rect_adaptive(70, 40, 0, 3, area),
+            CommentType::Line => crate::utils::centered_rect_adaptive(70, 40, 40, 10, area),
+        };
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 
