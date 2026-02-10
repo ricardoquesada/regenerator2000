@@ -909,7 +909,7 @@ impl Widget for DisassemblyView {
                                         ),
                                         line_style.fg(ui_state.theme.arrow),
                                     ),
-                                    Span::styled("                   ".to_string(), line_style),
+                                    Span::styled("                 ".to_string(), line_style),
                                     Span::styled(
                                         format!("{:<36}", label_def),
                                         line_style.fg(ui_state.theme.label_def),
@@ -954,7 +954,7 @@ impl Widget for DisassemblyView {
                                 format!("{:width$} ", comment_arrow_padding, width = arrow_width),
                                 line_style.fg(ui_state.theme.arrow),
                             ),
-                            Span::styled("                   ".to_string(), line_style),
+                            Span::styled("                 ".to_string(), line_style),
                             Span::styled(
                                 format!("{} {}", formatter.comment_prefix(), comment_part),
                                 line_style.fg(ui_state.theme.comment),
@@ -1020,7 +1020,7 @@ impl Widget for DisassemblyView {
                     ),
                     Span::styled(
                         format!(
-                            "{: <12}",
+                            "{: <10}",
                             if line.show_bytes {
                                 hex_bytes(&line.bytes)
                             } else {
@@ -1040,7 +1040,7 @@ impl Widget for DisassemblyView {
                     ));
                 } else {
                     spans.push(Span::styled(
-                        format!("{: <16}", label_text),
+                        format!("{: <18}", label_text),
                         line_style
                             .fg(ui_state.theme.label_def)
                             .add_modifier(Modifier::BOLD),
