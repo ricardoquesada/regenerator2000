@@ -1040,7 +1040,7 @@ impl Widget for DisassemblyView {
                     ));
                 } else {
                     spans.push(Span::styled(
-                        format!("{: <18}", label_text),
+                        format!("{: <20}", label_text),
                         line_style
                             .fg(ui_state.theme.label_def)
                             .add_modifier(Modifier::BOLD),

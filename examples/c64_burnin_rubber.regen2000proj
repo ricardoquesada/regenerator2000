@@ -1064,14 +1064,14 @@
     },
     "22310": "Hex"
   },
-  "cursor_address": 7028,
-  "hex_dump_cursor_address": 7024,
-  "sprites_cursor_address": 13440,
+  "cursor_address": 8183,
+  "hex_dump_cursor_address": 8176,
+  "sprites_cursor_address": 13504,
   "charset_cursor_address": 8192,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
