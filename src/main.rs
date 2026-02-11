@@ -35,6 +35,7 @@ fn main() -> Result<()> {
     let mut labels_to_import = None;
 
     let mut headless = false;
+    let mut mcp_server = false;
     let mut export_lbl_path = None;
     let mut export_asm_path = None;
 
@@ -66,7 +67,12 @@ fn main() -> Result<()> {
                 );
                 println!("    --headless                Run in headless mode (no TUI)");
                 println!("                              Only .regen2000proj files supported");
+                println!("    --mcp-server              Run MCP server (port 3000)");
                 return Ok(());
+            }
+            "--mcp-server" => {
+                mcp_server = true;
+                i += 1;
             }
             "--import_lbl" => {
                 if i + 1 < args.len() {
@@ -317,8 +323,46 @@ fn main() -> Result<()> {
         }
     }
 
+    // Unified Event Channel
+    let (event_tx, event_rx) = std::sync::mpsc::channel::<events::AppEvent>();
+
+    // Spawn TUI Input Thread
+    let tui_tx = event_tx.clone();
+    std::thread::spawn(move || {
+        // Loop until explicitly exited
+        while let Ok(event) = crossterm::event::read() {
+            if tui_tx.send(events::AppEvent::Crossterm(event)).is_err() {
+                break;
+            }
+        }
+    });
+
+    // Start MCP Server if requested
+    if mcp_server {
+        let (mcp_req_tx, mut mcp_req_rx) = tokio::sync::mpsc::channel(100);
+        let mcp_bridge_tx = event_tx.clone();
+
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                // Spawn the actual server
+                let server_tx = mcp_req_tx.clone();
+                tokio::spawn(async move {
+                    regenerator2000::mcp::server::run_server(3000, server_tx).await;
+                });
+
+                // Bridge MCP requests to Main Thread
+                while let Some(req) = mcp_req_rx.recv().await {
+                    if mcp_bridge_tx.send(events::AppEvent::Mcp(req)).is_err() {
+                        break;
+                    }
+                }
+            });
+        });
+    }
+
     // Run app
-    let res = events::run_app(&mut terminal, app_state, ui_state);
+    let res = events::run_app(&mut terminal, app_state, ui_state, event_rx);
 
     // Restore terminal
     disable_raw_mode()?;

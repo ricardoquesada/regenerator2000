@@ -27,6 +27,9 @@ regex = "1.12.2"
 log = "0.4.29"
 simplelog = "0.12.2"
 include_dir = "0.7"
+tokio = { version = "1.49.0", features = ["full"] }
+axum = "0.8.8"
+tower-http = { version = "0.6.8", features = ["cors"] }
 
 [build-dependencies]
 anyhow = "1.0"

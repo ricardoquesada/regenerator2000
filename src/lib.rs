@@ -14,3 +14,5 @@ pub mod ui_state;
 pub mod config;
 pub mod theme;
 pub mod utils;
+
+pub mod mcp;
