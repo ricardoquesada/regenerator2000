@@ -55,10 +55,58 @@ jobs:
           # Build for Apple Silicon
           cargo build --release --target aarch64-apple-darwin
 
+
           # Combine them using lipo
           lipo -create -output ${{ matrix.artifact_name }} \
             target/x86_64-apple-darwin/release/${{ matrix.artifact_name }} \
             target/aarch64-apple-darwin/release/${{ matrix.artifact_name }}
+
+      - name: Code Sign and Notarize (macOS)
+        if: matrix.os == 'macos-latest'
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Create and configure keychain
+          security create-keychain -p "$KEYCHAIN_PWD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PWD" build.keychain
+
+          # Decode and import certificate
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PWD" build.keychain
+
+          # Get the identity (Developer ID Application)
+          IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | awk -F '"' '{print $2}')
+
+          if [ -z "$IDENTITY" ]; then
+            echo "No Developer ID Application identity found. Listing all identities:"
+            security find-identity -v -p codesigning
+            exit 1
+          fi
+
+          echo "Signing with identity: $IDENTITY"
+
+          # Code Sign
+          /usr/bin/codesign --force --options runtime --timestamp --sign "$IDENTITY" ${{ matrix.artifact_name }} -v
+
+          # Create zip for notarization
+          zip -r notarize.zip ${{ matrix.artifact_name }}
+
+          # Notarize
+          xcrun notarytool submit notarize.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+          # Cleanup
+          rm certificate.p12 notarize.zip
 
       # 5. Package (Linux)
       - name: Package (Linux)
