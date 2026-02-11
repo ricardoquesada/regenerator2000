@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.5] - 2026-02-10
+
+### Features
+
+- Feature: **Line Comments**: Line comments now also function as splitters, breaking code blocks.
+- Feature: **Navigation**: Added Page Up/Down support in Open File dialog.
+- Feature: **Charset View**: Page Up/Down now advances 10 lines instead of 10 characters for faster navigation.
+
+### Changes
+
+- UI: **Disassembly View**: Adjusted label and opcode spacing to provide more room for labels.
+- UI: **Dialogs**: Improved sizing for single-row input dialogs.
+- Shortcuts: **LoHi/HiLo**: Changed keyboard shortcuts for LoHi/HiLo word tables to `,` and `.` (was `t` and `T`).
+
+### Fixes
+
+- Fix: **State**: Clearing all state when opening a new file from an existing session.
+- Fix: **Disassembly**: Correct cursor behavior when converting blocks involving addresses.
+
+### Examples
+
+- Examples: More detailed comments in example projects (joystick reading).
+
 ## [0.6.4] - 2026-02-08
 
 ### Features
