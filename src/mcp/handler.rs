@@ -92,28 +92,74 @@ fn list_tools() -> Result<Value, McpError> {
             },
             {
                 "name": "convert_region_to_code",
-                "description": "Marks a memory region as executable code. This forces the disassembler to interpret bytes as instructions.",
+                "description": "Marks a memory region as executable code. This forces the disassembler to interpret bytes as MOS 6502 instructions. Use this for all executable machine code.",
                 "inputSchema": region_schema()
             },
             {
                 "name": "convert_region_to_bytes",
-                "description": "Marks a memory region as raw byte data (e.g., tables, sprites). Forces the disassembler to show .byte directives.",
+                "description": "Marks a memory region as raw Data Byte (8-bit values). Use this for sprite data, distinct variables, tables, or memory regions where the data format is unknown.",
                 "inputSchema": region_schema()
             },
             {
                 "name": "convert_region_to_words",
-                "description": "Marks a memory region as 16-bit word data (e.g., jump tables, pointers). Forces the disassembler to show .word directives.",
+                "description": "Marks a memory region as Data Word (16-bit Little-Endian values). Use this for 16-bit counters, pointers (that shouldn't be analyzed as code references), or math constants.",
+                "inputSchema": region_schema()
+            },
+            {
+                "name": "convert_region_to_address",
+                "description": "Marks a memory region as Address (16-bit pointers). Unlike 'Data Word', this type explicitly tells the analyzer that the value points to a location in memory, creating Cross-References (X-Refs). Essential for Jump Tables.",
                 "inputSchema": region_schema()
             },
             {
                 "name": "convert_region_to_petscii",
-                "description": "Marks a memory region as PETSCII encoded text.",
+                "description": "Marks a memory region as PETSCII encoded text. Use for game messages, high score names, or print routines.",
+                "inputSchema": region_schema()
+            },
+            {
+                "name": "convert_region_to_screencode",
+                "description": "Marks a memory region as Commodore Screen Code encoded text (Matrix codes). Use for data directly copied to Screen RAM ($0400).",
+                "inputSchema": region_schema()
+            },
+            {
+                "name": "convert_region_to_lo_hi_address",
+                "description": "Marks a memory region as a Lo/Hi Address Table. Must have an even number of bytes. The first half determines the low bytes, the second half the high bytes. Common in C64 games.",
+                "inputSchema": region_schema()
+            },
+            {
+                "name": "convert_region_to_hi_lo_address",
+                "description": "Marks a memory region as a Hi/Lo Address Table. Must have an even number of bytes. The first half determines the high bytes, the second half the low bytes. Common in C64 games.",
+                "inputSchema": region_schema()
+            },
+            {
+                "name": "convert_region_to_lo_hi_word",
+                "description": "Marks a memory region as a Lo/Hi Word Table. Must have a size divisible by 4. The first half containts the low words, the second half the high words. Use case: SID frequency tables.",
+                "inputSchema": region_schema()
+            },
+            {
+                "name": "convert_region_to_hi_lo_word",
+                "description": "Marks a memory region as a Hi/Lo Word Table. Must have a size divisible by 4. The first half containts the high words, the second half the low words. Use case: SID frequency tables.",
+                "inputSchema": region_schema()
+            },
+            {
+                "name": "convert_region_to_external_file",
+                "description": "Marks a memory region as External File (binary data). Use for large chunks of included binary data (like music SID files, raw bitmaps, or character sets) that should be exported as included binary files.",
+                "inputSchema": region_schema()
+            },
+            {
+                "name": "convert_region_to_undefined",
+                "description": "Resets the block to an 'Unknown' / 'Undefined' state. Use this if you made a mistake and want the Auto-Analyzer to take a fresh look at the usage of this region.",
                 "inputSchema": region_schema()
             },
              {
-                "name": "convert_region_to_screencode",
-                "description": "Marks a memory region as Commodore Screen Code encoded text.",
-                "inputSchema": region_schema()
+                "name": "toggle_splitter",
+                "description": "Toggles a Splitter at a specific address. Splitters prevent the auto-merger from combining adjacent blocks of the same type. Crucial for separating adjacent Lo/Hi tables.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "address": { "type": "integer", "description": "The memory address where the splitter should be toggled" }
+                    },
+                    "required": ["address"]
+                }
             }
         ]
     }))
@@ -242,9 +288,33 @@ fn handle_tool_call(params: &Value, app_state: &mut AppState) -> Result<Value, M
         "convert_region_to_code" => convert_region(app_state, &args, BlockType::Code),
         "convert_region_to_bytes" => convert_region(app_state, &args, BlockType::DataByte),
         "convert_region_to_words" => convert_region(app_state, &args, BlockType::DataWord),
+        "convert_region_to_address" => convert_region(app_state, &args, BlockType::Address),
         "convert_region_to_petscii" => convert_region(app_state, &args, BlockType::PetsciiText),
         "convert_region_to_screencode" => {
             convert_region(app_state, &args, BlockType::ScreencodeText)
+        }
+        "convert_region_to_lo_hi_address" => {
+            convert_region(app_state, &args, BlockType::LoHiAddress)
+        }
+        "convert_region_to_hi_lo_address" => {
+            convert_region(app_state, &args, BlockType::HiLoAddress)
+        }
+        "convert_region_to_lo_hi_word" => convert_region(app_state, &args, BlockType::LoHiWord),
+        "convert_region_to_hi_lo_word" => convert_region(app_state, &args, BlockType::HiLoWord),
+        "convert_region_to_external_file" => {
+            convert_region(app_state, &args, BlockType::ExternalFile)
+        }
+        "convert_region_to_undefined" => convert_region(app_state, &args, BlockType::Undefined),
+
+        "toggle_splitter" => {
+            let address = get_address(&args, "address")?;
+            let command = crate::commands::Command::ToggleSplitter { address };
+            command.apply(app_state);
+            app_state.push_command(command);
+            app_state.disassemble();
+            Ok(
+                json!({ "content": [{ "type": "text", "text": format!("Splitter toggled at ${:04X}", address) }] }),
+            )
         }
 
         _ => Err(McpError {

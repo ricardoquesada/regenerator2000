@@ -148,6 +148,23 @@ def test_read_selected_resources():
     else:
         print(f"FAIL (Hexdump): {res}")
 
+def test_convert_lo_hi_address():
+    print("\nTesting convert_region_to_lo_hi_address...")
+    # Using a dummy range, assuming it won't crash even if data is random
+    res = rpc("tools/call", {
+        "name": "convert_region_to_lo_hi_address",
+        "arguments": {
+            "start_address": 0x1000,
+            "end_address": 0x1003
+        }
+    })
+    if res and "result" in res:
+        print("Success (Lo/Hi Addr):")
+        print(json.dumps(res["result"], indent=2))
+        print("PASS (Lo/Hi Addr)")
+    else:
+        print(f"FAIL (Lo/Hi Addr): {res}")
+
 if __name__ == "__main__":
     print(f"Connecting to {URL}")
     test_list_tools()
@@ -156,3 +173,4 @@ if __name__ == "__main__":
     test_complex_scenario()
     test_read_resource()
     test_read_selected_resources()
+    test_convert_lo_hi_address()
