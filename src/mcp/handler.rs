@@ -54,63 +54,63 @@ fn list_tools() -> Result<Value, McpError> {
         "tools": [
             {
                 "name": "set_label_name",
-                "description": "Set a label at a specific address",
+                "description": "Sets a user-defined label at a specific address. Use this to name functions, variables, or jump targets to make the disassembly more readable.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "address": { "type": "integer" },
-                        "name": { "type": "string" }
+                        "address": { "type": "integer", "description": "The memory address where the label should be set (e.g., 4096 or 0x1000)" },
+                        "name": { "type": "string", "description": "The name of the label (e.g., 'init_screen', 'loop_start')" }
                     },
                     "required": ["address", "name"]
                 }
             },
             {
                 "name": "set_side_comment",
-                "description": "Set a side comment at a specific address",
+                "description": "Adds a side comment to a specific address. Side comments appear on the same line as the instruction.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "address": { "type": "integer" },
-                        "comment": { "type": "string" }
+                        "address": { "type": "integer", "description": "The memory address for the comment" },
+                        "comment": { "type": "string", "description": "The comment text" }
                     },
                     "required": ["address", "comment"]
                 }
             },
              {
                 "name": "set_line_comment",
-                "description": "Set a line comment at a specific address",
+                "description": "Adds a line comment at a specific address. Line comments appear on their own line before the instruction and can act as visual separators.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "address": { "type": "integer" },
-                        "comment": { "type": "string" }
+                        "address": { "type": "integer", "description": "The memory address for the comment" },
+                        "comment": { "type": "string", "description": "The comment text" }
                     },
                     "required": ["address", "comment"]
                 }
             },
             {
                 "name": "convert_region_to_code",
-                "description": "Mark a region as code",
+                "description": "Marks a memory region as executable code. This forces the disassembler to interpret bytes as instructions.",
                 "inputSchema": region_schema()
             },
             {
                 "name": "convert_region_to_bytes",
-                "description": "Mark a region as data bytes",
+                "description": "Marks a memory region as raw byte data (e.g., tables, sprites). Forces the disassembler to show .byte directives.",
                 "inputSchema": region_schema()
             },
             {
                 "name": "convert_region_to_words",
-                "description": "Mark a region as data words",
+                "description": "Marks a memory region as 16-bit word data (e.g., jump tables, pointers). Forces the disassembler to show .word directives.",
                 "inputSchema": region_schema()
             },
             {
                 "name": "convert_region_to_petscii",
-                "description": "Mark a region as PETSCII text",
+                "description": "Marks a memory region as PETSCII encoded text.",
                 "inputSchema": region_schema()
             },
              {
                 "name": "convert_region_to_screencode",
-                "description": "Mark a region as screencode text",
+                "description": "Marks a memory region as Commodore Screen Code encoded text.",
                 "inputSchema": region_schema()
             }
         ]
@@ -133,28 +133,33 @@ fn list_resources() -> Result<Value, McpError> {
         "resources": [
             {
                 "uri": "disasm://main",
-                "name": "Full Disassembly",
-                "mimeType": "text/plain"
+                "name": "Full Disassembly Info",
+                "mimeType": "text/plain",
+                "description": "Information about accessing the full disassembly. Direct reading is not supported; use region resources instead."
             },
             {
                 "uri": "disasm://region/{start_address}/{end_address}",
                 "name": "Disassembly Region",
-                "mimeType": "text/plain"
+                "mimeType": "text/plain",
+                "description": "Get disassembly text for a specific memory range (e.g., disasm://region/4096/4100)."
             },
             {
                 "uri": "hexdump://region/{start_address}/{end_address}",
                 "name": "Hexdump Region",
-                "mimeType": "text/plain"
+                "mimeType": "text/plain",
+                "description": "Get hexdump view for a specific memory range (e.g., hexdump://region/4096/4100)."
             },
             {
                 "uri": "disasm://selected",
                 "name": "Selected Disassembly",
-                "mimeType": "text/plain"
+                "mimeType": "text/plain",
+                "description": "Get the disassembly text for the range currently selected by the user in the UI."
             },
             {
                 "uri": "hexdump://selected",
                 "name": "Selected Hexdump",
-                "mimeType": "text/plain"
+                "mimeType": "text/plain",
+                "description": "Get the hexdump view for the range currently selected by the user in the UI."
             }
         ]
     }))
