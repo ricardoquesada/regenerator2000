@@ -1270,12 +1270,10 @@ impl Widget for DisassemblyView {
             {
                 WidgetResult::Action(MenuAction::SetHiLoAddress)
             }
-            KeyCode::Char('t') if key.modifiers.is_empty() => {
+            KeyCode::Char(',') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::SetLoHiWord)
             }
-            KeyCode::Char('T')
-                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
-            {
+            KeyCode::Char('.') if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::SetHiLoWord)
             }
             KeyCode::Char('|')

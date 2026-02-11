@@ -36,8 +36,8 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Next/Prev Immediate Mode Format** (Hex, Decimal, Binary)                              | ++d++ / ++shift+d++                                           |
 |                                    | **Pack Lo/Hi Address (Immediate Mode)**                                                 | ++open-bracket++                                              |
 |                                    | **Pack Hi/Lo Address (Immediate Mode)**                                                 | ++close-bracket++                                             |
-|                                    | **Set Lo/Hi Word Table**                                                                | ++t++                                                         |
-|                                    | **Set Hi/Lo Word Table**                                                                | ++shift+t++                                                   |
+|                                    | **Set Lo/Hi Word Table**                                                                | ++comma++                                                     |
+|                                    | **Set Hi/Lo Word Table**                                                                | ++period++                                                    |
 |                                    | **Set Lo/Hi Address Table**                                                             | ++less-than++                                                 |
 |                                    | **Set Hi/Lo Address Table**                                                             | ++greater-than++                                              |
 |                                    | **Convert to External File**                                                            | ++e++                                                         |
