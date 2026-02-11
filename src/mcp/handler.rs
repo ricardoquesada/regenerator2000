@@ -3,7 +3,13 @@ use crate::state::AppState;
 use crate::state::types::BlockType;
 use serde_json::{Value, json};
 
-pub fn handle_request(req: &McpRequest, app_state: &mut AppState) -> McpResponse {
+use crate::ui_state::UIState;
+
+pub fn handle_request(
+    req: &McpRequest,
+    app_state: &mut AppState,
+    ui_state: &UIState,
+) -> McpResponse {
     let result = match req.method.as_str() {
         "initialize" => Ok(json!({
             "protocolVersion": "2024-11-05",
@@ -22,7 +28,7 @@ pub fn handle_request(req: &McpRequest, app_state: &mut AppState) -> McpResponse
         // Tools
         "tools/call" => handle_tool_call(&req.params, app_state),
         // Resources
-        "resources/read" => handle_resource_read(&req.params, app_state),
+        "resources/read" => handle_resource_read(&req.params, app_state, ui_state),
 
         _ => Err(McpError {
             code: -32601,
@@ -135,9 +141,19 @@ fn list_resources() -> Result<Value, McpError> {
                 "name": "Disassembly Region",
                 "mimeType": "text/plain"
             },
-             {
+            {
                 "uri": "hexdump://region/{start_address}/{end_address}",
                 "name": "Hexdump Region",
+                "mimeType": "text/plain"
+            },
+            {
+                "uri": "disasm://selected",
+                "name": "Selected Disassembly",
+                "mimeType": "text/plain"
+            },
+            {
+                "uri": "hexdump://selected",
+                "name": "Selected Hexdump",
                 "mimeType": "text/plain"
             }
         ]
@@ -304,7 +320,11 @@ fn get_address(args: &Value, key: &str) -> Result<u16, McpError> {
         .map(|v| v as u16)
 }
 
-fn handle_resource_read(params: &Value, app_state: &mut AppState) -> Result<Value, McpError> {
+fn handle_resource_read(
+    params: &Value,
+    app_state: &mut AppState,
+    ui_state: &UIState,
+) -> Result<Value, McpError> {
     let uri = params
         .get("uri")
         .and_then(|v| v.as_str())
@@ -320,6 +340,43 @@ fn handle_resource_read(params: &Value, app_state: &mut AppState) -> Result<Valu
                 "uri": uri,
                 "mimeType": "text/plain",
                 "text": "Full disassembly not supported via simple resource read, use regions."
+            }]
+        }))
+    } else if uri == "disasm://selected" {
+        let (start, end) = get_selection_range_disasm(app_state, ui_state)?;
+        let text = get_disassembly_text(app_state, start, end);
+        Ok(json!({
+             "contents": [{
+                "uri": uri,
+                "mimeType": "text/plain",
+                "text": text
+            }]
+        }))
+    } else if uri == "hexdump://selected" {
+        let (start, end) = get_selection_range_hexdump(app_state, ui_state)?;
+        // Reuse hexdump logic - extract to function? Or just copy/paste for now for simplicity
+        let mut output = String::new();
+        let origin = app_state.origin;
+        for addr in start..=end {
+            if addr < origin || addr >= origin.wrapping_add(app_state.raw_data.len() as u16) {
+                continue;
+            }
+            let idx = (addr - origin) as usize;
+            let byte = app_state.raw_data[idx];
+            if (addr - start) % 16 == 0 {
+                if addr != start {
+                    output.push('\n');
+                }
+                output.push_str(&format!("{:04X}: ", addr));
+            }
+            output.push_str(&format!("{:02X} ", byte));
+        }
+
+        Ok(json!({
+             "contents": [{
+                "uri": uri,
+                "mimeType": "text/plain",
+                "text": output
             }]
         }))
     } else if uri.starts_with("disasm://region/") {
@@ -446,4 +503,101 @@ fn bytes_to_str(bytes: &[u8]) -> String {
         .map(|b| format!("{:02X}", b))
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+fn get_selection_range_disasm(
+    app_state: &AppState,
+    ui_state: &UIState,
+) -> Result<(u16, u16), McpError> {
+    let cursor_idx = ui_state.cursor_index;
+    let selection_idx = ui_state.selection_start;
+
+    let (start_idx, end_idx) = if let Some(sel_start) = selection_idx {
+        if sel_start < cursor_idx {
+            (sel_start, cursor_idx)
+        } else {
+            (cursor_idx, sel_start)
+        }
+    } else {
+        (cursor_idx, cursor_idx)
+    };
+
+    let start_line = app_state.disassembly.get(start_idx).ok_or(McpError {
+        code: -32602,
+        message: "Invalid start index".to_string(),
+        data: None,
+    })?;
+
+    let end_line = app_state.disassembly.get(end_idx).ok_or(McpError {
+        code: -32602,
+        message: "Invalid end index".to_string(),
+        data: None,
+    })?;
+
+    let start_addr = start_line.address;
+    // For end address, we want the last byte of the last line.
+    // However, logic usually treats end address as inclusive or exclusive?
+    // In `handle_resource_read` for `disasm://region`, it takes start and end address.
+    // And `get_disassembly_text` checks `line.address >= start && line.address <= end`.
+    // So we just need the address of the last line, we don't need to cover its bytes necessarily?
+    // Wait, `get_disassembly_text` filters by LINE address.
+    // So returning `end_line.address` is sufficient to include that line.
+    let end_addr = end_line.address;
+
+    Ok((start_addr, end_addr))
+}
+
+fn get_selection_range_hexdump(
+    app_state: &AppState,
+    ui_state: &UIState,
+) -> Result<(u16, u16), McpError> {
+    let cursor_row = ui_state.hex_cursor_index;
+    let selection_row = ui_state.hex_selection_start;
+
+    let (start_row, end_row) = if let Some(sel_start) = selection_row {
+        if sel_start < cursor_row {
+            (sel_start, cursor_row)
+        } else {
+            (cursor_row, sel_start)
+        }
+    } else {
+        (cursor_row, cursor_row)
+    };
+
+    let origin = app_state.origin;
+    let bytes_per_row = 16;
+
+    // We need to handle potential alignment if origin is not 16-byte aligned,
+    // but usually hexdump rows are aligned relative to something?
+    // In `restore_session`, it does `origin % 16` padding.
+    // Let's assume standard row logic for now: origin + row * 16.
+    // But `restore_session` does complex math.
+    // Let's check `view_hexdump.rs` logic?
+    // Actually, keeping it simple: row 0 starts at (origin & !0xF)? Or just origin?
+    // `restore_session` hints: `let aligned_origin = origin - (origin % 16);`
+    // And `let row = (target - aligned_origin) / 16;`
+    // So `target = row * 16 + aligned_origin`.
+
+    let alignment_padding = (origin % 16) as usize;
+    let aligned_origin = (origin as usize) - alignment_padding;
+
+    let start_addr = (aligned_origin + start_row * bytes_per_row) as u16;
+    let end_addr = (aligned_origin + (end_row + 1) * bytes_per_row - 1) as u16;
+
+    // Clamp to valid range
+    let max_len = app_state.raw_data.len() as u16;
+    let end_limit = origin.wrapping_add(max_len).wrapping_sub(1);
+
+    let final_start = if start_addr < origin {
+        origin
+    } else {
+        start_addr
+    };
+    let final_end = if end_addr > end_limit {
+        end_limit
+    } else {
+        end_addr
+    };
+
+    Ok((final_start, final_end))
 }

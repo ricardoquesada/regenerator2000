@@ -36,7 +36,7 @@ pub fn run_app<B: Backend>(
 
         match event {
             AppEvent::Mcp(req) => {
-                let response = crate::mcp::handler::handle_request(&req, &mut app_state);
+                let response = crate::mcp::handler::handle_request(&req, &mut app_state, &ui_state);
                 let _ = req.response_sender.send(response);
                 should_render = true;
             }

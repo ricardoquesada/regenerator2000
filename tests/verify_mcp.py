@@ -129,6 +129,25 @@ def test_read_resource():
     else:
         print(f"FAIL: {res}")
 
+def test_read_selected_resources():
+    print("\nTesting read_resource disasm://selected...")
+    res = rpc("resources/read", {"uri": "disasm://selected"})
+    if res and "result" in res:
+        print("Success (Disasm):")
+        print(json.dumps(res["result"], indent=2))
+        print("PASS (Disasm) - Verify content manually")
+    else:
+        print(f"FAIL (Disasm): {res}")
+
+    print("\nTesting read_resource hexdump://selected...")
+    res = rpc("resources/read", {"uri": "hexdump://selected"})
+    if res and "result" in res:
+        print("Success (Hexdump):")
+        print(json.dumps(res["result"], indent=2))
+        print("PASS (Hexdump) - Verify content manually")
+    else:
+        print(f"FAIL (Hexdump): {res}")
+
 if __name__ == "__main__":
     print(f"Connecting to {URL}")
     test_list_tools()
@@ -136,3 +155,4 @@ if __name__ == "__main__":
     # test_convert_region() # Replaced by complex scenario
     test_complex_scenario()
     test_read_resource()
+    test_read_selected_resources()
