@@ -15,8 +15,10 @@ pub fn handle_request(
             "protocolVersion": "2024-11-05",
             "serverInfo": {
                 "name": "regenerator2000-mcp",
-                "version": env!("CARGO_PKG_VERSION")
+                "version": env!("CARGO_PKG_VERSION"),
+                "description": "An interactive disassembler for Commodore 64 / MOS 6502 assembly."
             },
+            "instructions": "You are an expert Commodore 64 and MOS 6502 assembly programmer. Always assume the code is 6502 assembly unless stated otherwise.",
             "capabilities": {
                 "tools": {},
                 "resources": {}
@@ -54,7 +56,7 @@ fn list_tools() -> Result<Value, McpError> {
         "tools": [
             {
                 "name": "set_label_name",
-                "description": "Sets a user-defined label at a specific address. Use this to name functions, variables, or jump targets to make the disassembly more readable.",
+                "description": "Sets a user-defined label at a specific MOS 6502 memory address. Use this to name functions, variables, or jump targets to make the C64 disassembly more readable.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -141,19 +143,19 @@ fn list_resources() -> Result<Value, McpError> {
                 "uri": "disasm://region/{start_address}/{end_address}",
                 "name": "Disassembly Region",
                 "mimeType": "text/plain",
-                "description": "Get disassembly text for a specific memory range (e.g., disasm://region/4096/4100)."
+                "description": "Get MOS 6502 disassembly text for a specific memory range (e.g., disasm://region/4096/4100)."
             },
             {
                 "uri": "hexdump://region/{start_address}/{end_address}",
                 "name": "Hexdump Region",
                 "mimeType": "text/plain",
-                "description": "Get hexdump view for a specific memory range (e.g., hexdump://region/4096/4100)."
+                "description": "Get raw hexdump view for a specific C64 memory range (e.g., hexdump://region/4096/4100)."
             },
             {
                 "uri": "disasm://selected",
                 "name": "Selected Disassembly",
                 "mimeType": "text/plain",
-                "description": "Get the disassembly text for the range currently selected by the user in the UI."
+                "description": "Get the MOS 6502 disassembly text for the range currently selected by the user in the UI."
             },
             {
                 "uri": "hexdump://selected",
