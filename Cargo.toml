@@ -28,8 +28,6 @@ log = "0.4.29"
 simplelog = "0.12.2"
 include_dir = "0.7"
 tokio = { version = "1.49.0", features = ["full"] }
-axum = "0.8.8"
-tower-http = { version = "0.6.8", features = ["cors"] }
 uuid = { version = "1.20.0", features = ["v4", "fast-rng"] }
 tokio-stream = { version = "0.1.18", features = ["sync"] }
 futures-util = "0.3.31"

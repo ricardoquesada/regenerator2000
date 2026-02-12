@@ -286,7 +286,7 @@ fn main() -> Result<()> {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
                 tokio::spawn(async move {
-                    regenerator2000::mcp::rmcp_server::run_server(3000, mcp_req_tx).await;
+                    regenerator2000::mcp::http::run_server(3000, mcp_req_tx).await;
                 });
 
                 while let Some(req) = mcp_req_rx.recv().await {
@@ -395,7 +395,7 @@ fn main() -> Result<()> {
                 // Spawn the actual server
                 let server_tx = mcp_req_tx.clone();
                 tokio::spawn(async move {
-                    regenerator2000::mcp::rmcp_server::run_server(3000, server_tx).await;
+                    regenerator2000::mcp::http::run_server(3000, server_tx).await;
                 });
 
                 // Bridge MCP requests to Main Thread

@@ -10,6 +10,7 @@ pub fn handle_request(
     app_state: &mut AppState,
     ui_state: &UIState,
 ) -> McpResponse {
+    println!("DEBUG: Handling request: {}", req.method);
     let result = match req.method.as_str() {
         "initialize" => Ok(json!({
             "protocolVersion": "2024-11-05",
