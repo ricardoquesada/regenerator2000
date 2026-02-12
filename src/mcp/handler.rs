@@ -440,11 +440,10 @@ fn get_address(args: &Value, key: &str) -> Result<u16, McpError> {
         return Ok(n as u16);
     }
 
-    if let Some(s) = val.as_str() {
-        if let Some(addr) = parse_address_string(s) {
+    if let Some(s) = val.as_str()
+        && let Some(addr) = parse_address_string(s) {
             return Ok(addr);
         }
-    }
 
     Err(McpError {
         code: -32602,
@@ -652,7 +651,7 @@ fn get_hexdump_text(app_state: &AppState, start_addr: u16, end_addr: u16) -> Str
         }
         let idx = (addr - origin) as usize;
         let byte = app_state.raw_data[idx];
-        if (addr - start_addr) % 16 == 0 {
+        if (addr - start_addr).is_multiple_of(16) {
             if addr != start_addr {
                 output.push('\n');
             }
