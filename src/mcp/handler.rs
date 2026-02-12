@@ -557,29 +557,26 @@ fn handle_resource_read(
 
 fn get_disassembly_text(app_state: &AppState, start: u16, end: u16) -> String {
     let mut output = String::new();
+    output.push_str(&format!("* = ${:04X}\n", start));
+
     for line in &app_state.disassembly {
         if line.address >= start && line.address <= end {
-            // Reconstruct line text roughly
-            if !line.label.as_ref().is_none_or(|l| l.is_empty()) {
-                output.push_str(&format!("{}:\n", line.label.as_ref().unwrap()));
+            if let Some(label) = &line.label
+                && !label.is_empty()
+            {
+                output.push_str(&format!("{}:\n", label));
             }
-            output.push_str(&format!(
-                "  ${:04X}  {:20}  {}\n",
-                line.address,
-                bytes_to_str(&line.bytes),
-                line.mnemonic
-            ));
+
+            let instruction = if line.operand.is_empty() {
+                line.mnemonic.clone()
+            } else {
+                format!("{} {}", line.mnemonic, line.operand)
+            };
+
+            output.push_str(&format!("${:04X} {}\n", line.address, instruction));
         }
     }
     output
-}
-
-fn bytes_to_str(bytes: &[u8]) -> String {
-    bytes
-        .iter()
-        .map(|b| format!("{:02X}", b))
-        .collect::<Vec<_>>()
-        .join(" ")
 }
 
 fn get_selection_range_disasm(
