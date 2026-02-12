@@ -178,7 +178,17 @@ fn list_tools() -> Result<Value, McpError> {
                     "properties": {},
                     "required": []
                 }
-            }
+            },
+            {
+                "name": "read_disasm_region",
+                "description": "Get MOS 6502 disassembly text for a specific memory range. Supports decimal (4096), hex (0x1000) and 6502 hex ($1000).",
+                "inputSchema": region_schema()
+            },
+            {
+                "name": "read_hexdump_region",
+                "description": "Get raw hexdump view for a specific C64 memory range. Supports decimal (4096), hex (0x1000) and 6502 hex ($1000).",
+                "inputSchema": region_schema()
+            },
         ]
     }))
 }
@@ -203,18 +213,7 @@ fn list_resources() -> Result<Value, McpError> {
                 "mimeType": "text/plain",
                 "description": "Information about accessing the full disassembly. Direct reading is not supported; use region resources instead."
             },
-            {
-                "uri": "disasm://region/{start_address}/{end_address}",
-                "name": "Disassembly Region",
-                "mimeType": "text/plain",
-                "description": "Get MOS 6502 disassembly text for a specific memory range. Supports decimal (4096), hex (0x1000) and 6502 hex ($1000). (e.g., disasm://region/$1000/$1010)."
-            },
-            {
-                "uri": "hexdump://region/{start_address}/{end_address}",
-                "name": "Hexdump Region",
-                "mimeType": "text/plain",
-                "description": "Get raw hexdump view for a specific C64 memory range. Supports decimal (4096), hex (0x1000) and 6502 hex ($1000). (e.g., hexdump://region/$1000/$1010)."
-            },
+
             {
                 "uri": "disasm://selected",
                 "name": "Active Selection (Disassembly)",
@@ -339,6 +338,20 @@ fn handle_tool_call(params: &Value, app_state: &mut AppState) -> Result<Value, M
             let msg = app_state.undo_last_command();
             app_state.disassemble();
             Ok(json!({ "content": [{ "type": "text", "text": msg }] }))
+        }
+
+        "read_disasm_region" => {
+            let start_addr = get_address(&args, "start_address")?;
+            let end_addr = get_address(&args, "end_address")?;
+            let text = get_disassembly_text(app_state, start_addr, end_addr);
+            Ok(json!({ "content": [{ "type": "text", "text": text }] }))
+        }
+
+        "read_hexdump_region" => {
+            let start_addr = get_address(&args, "start_address")?;
+            let end_addr = get_address(&args, "end_address")?;
+            let text = get_hexdump_text(app_state, start_addr, end_addr);
+            Ok(json!({ "content": [{ "type": "text", "text": text }] }))
         }
 
         "redo" => {
@@ -491,101 +504,11 @@ fn handle_resource_read(
         }))
     } else if uri == "hexdump://selected" {
         let (start, end) = get_selection_range_hexdump(app_state, ui_state)?;
-        // Reuse hexdump logic - extract to function? Or just copy/paste for now for simplicity
-        let mut output = String::new();
-        let origin = app_state.origin;
-        for addr in start..=end {
-            if addr < origin || addr >= origin.wrapping_add(app_state.raw_data.len() as u16) {
-                continue;
-            }
-            let idx = (addr - origin) as usize;
-            let byte = app_state.raw_data[idx];
-            if (addr - start) % 16 == 0 {
-                if addr != start {
-                    output.push('\n');
-                }
-                output.push_str(&format!("${:04X}: ", addr));
-            }
-            output.push_str(&format!("{:02X} ", byte));
-        }
+        let output = get_hexdump_text(app_state, start, end);
 
         Ok(json!({
              "contents": [{
                 "uri": format!("hexdump://region/{}/{}", start, end),
-                "mimeType": "text/plain",
-                "text": output
-            }]
-        }))
-    } else if uri.starts_with("disasm://region/") {
-        let parts: Vec<&str> = uri.split('/').collect();
-        // disasm://region/START/END
-        if parts.len() < 5 {
-            return Err(McpError {
-                code: -32602,
-                message: "Invalid URI format".to_string(),
-                data: None,
-            });
-        }
-        let start_addr = parse_address_string(parts[3]).ok_or(McpError {
-            code: -32602,
-            message: "Invalid start address".to_string(),
-            data: None,
-        })?;
-        let end_addr = parse_address_string(parts[4]).ok_or(McpError {
-            code: -32602,
-            message: "Invalid end address".to_string(),
-            data: None,
-        })?;
-
-        let text = get_disassembly_text(app_state, start_addr, end_addr);
-        Ok(json!({
-             "contents": [{
-                "uri": uri,
-                "mimeType": "text/plain",
-                "text": text
-            }]
-        }))
-    } else if uri.starts_with("hexdump://region/") {
-        let parts: Vec<&str> = uri.split('/').collect();
-        if parts.len() < 5 {
-            return Err(McpError {
-                code: -32602,
-                message: "Invalid URI format".to_string(),
-                data: None,
-            });
-        }
-        let start_addr = parse_address_string(parts[3]).ok_or(McpError {
-            code: -32602,
-            message: "Invalid start address".to_string(),
-            data: None,
-        })?;
-        let end_addr = parse_address_string(parts[4]).ok_or(McpError {
-            code: -32602,
-            message: "Invalid end address".to_string(),
-            data: None,
-        })?;
-
-        // Simple hexdump
-        let mut output = String::new();
-        let origin = app_state.origin;
-        for addr in start_addr..=end_addr {
-            if addr < origin || addr >= origin.wrapping_add(app_state.raw_data.len() as u16) {
-                continue;
-            }
-            let idx = (addr - origin) as usize;
-            let byte = app_state.raw_data[idx];
-            if (addr - start_addr) % 16 == 0 {
-                if addr != start_addr {
-                    output.push('\n');
-                }
-                output.push_str(&format!("${:04X}: ", addr));
-            }
-            output.push_str(&format!("{:02X} ", byte));
-        }
-
-        Ok(json!({
-             "contents": [{
-                "uri": uri,
                 "mimeType": "text/plain",
                 "text": output
             }]
@@ -718,4 +641,24 @@ fn get_selection_range_hexdump(
     };
 
     Ok((final_start, final_end))
+}
+
+fn get_hexdump_text(app_state: &AppState, start_addr: u16, end_addr: u16) -> String {
+    let mut output = String::new();
+    let origin = app_state.origin;
+    for addr in start_addr..=end_addr {
+        if addr < origin || addr >= origin.wrapping_add(app_state.raw_data.len() as u16) {
+            continue;
+        }
+        let idx = (addr - origin) as usize;
+        let byte = app_state.raw_data[idx];
+        if (addr - start_addr) % 16 == 0 {
+            if addr != start_addr {
+                output.push('\n');
+            }
+            output.push_str(&format!("${:04X}: ", addr));
+        }
+        output.push_str(&format!("{:02X} ", byte));
+    }
+    output
 }
