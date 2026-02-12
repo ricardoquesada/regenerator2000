@@ -132,12 +132,12 @@ fn list_tools() -> Result<Value, McpError> {
             },
             {
                 "name": "convert_region_to_lo_hi_word",
-                "description": "Marks a memory region as a Lo/Hi Word Table. Must have a size divisible by 4. The first half containts the low words, the second half the high words. Use case: SID frequency tables.",
+                "description": "Marks a memory region as a Lo/Hi Word Table. Must have a size divisible by 4. The first half contains the low words, the second half the high words. Use case: SID frequency tables.",
                 "inputSchema": region_schema()
             },
             {
                 "name": "convert_region_to_hi_lo_word",
-                "description": "Marks a memory region as a Hi/Lo Word Table. Must have a size divisible by 4. The first half containts the high words, the second half the low words. Use case: SID frequency tables.",
+                "description": "Marks a memory region as a Hi/Lo Word Table. Must have a size divisible by 4. The first half contains the high words, the second half the low words. Use case: SID frequency tables.",
                 "inputSchema": region_schema()
             },
             {
@@ -159,6 +159,24 @@ fn list_tools() -> Result<Value, McpError> {
                         "address": { "type": "integer", "description": "The memory address where the splitter should be toggled" }
                     },
                     "required": ["address"]
+                }
+            },
+            {
+                "name": "undo",
+                "description": "Undoes the latest operation. Use this command to revert changes if you made a mistake or want to go back to a previous state.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "redo",
+                "description": "Redoes the latest undone operation. Use this command to re-apply changes that were previously undone.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
                 }
             }
         ]
@@ -199,15 +217,15 @@ fn list_resources() -> Result<Value, McpError> {
             },
             {
                 "uri": "disasm://selected",
-                "name": "Selected Disassembly",
+                "name": "Active Selection (Disassembly)",
                 "mimeType": "text/plain",
-                "description": "Get the MOS 6502 disassembly text for the range currently selected by the user in the UI."
+                "description": "The 6502 disassembly text for the range currently selected by the user in the UI. READ THIS to understand the code the user is referencing."
             },
             {
                 "uri": "hexdump://selected",
-                "name": "Selected Hexdump",
+                "name": "Active Selection (Hexdump)",
                 "mimeType": "text/plain",
-                "description": "Get the hexdump view for the range currently selected by the user in the UI."
+                "description": "The hexdump view for the range currently selected by the user in the UI. READ THIS to understand the raw data the user is referencing."
             }
         ]
     }))
@@ -315,6 +333,18 @@ fn handle_tool_call(params: &Value, app_state: &mut AppState) -> Result<Value, M
             Ok(
                 json!({ "content": [{ "type": "text", "text": format!("Splitter toggled at ${:04X}", address) }] }),
             )
+        }
+
+        "undo" => {
+            let msg = app_state.undo_last_command();
+            app_state.disassemble();
+            Ok(json!({ "content": [{ "type": "text", "text": msg }] }))
+        }
+
+        "redo" => {
+            let msg = app_state.redo_last_command();
+            app_state.disassemble();
+            Ok(json!({ "content": [{ "type": "text", "text": msg }] }))
         }
 
         _ => Err(McpError {
