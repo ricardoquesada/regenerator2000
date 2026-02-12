@@ -1065,13 +1065,13 @@
     "22310": "Hex"
   },
   "cursor_address": 4110,
-  "hex_dump_cursor_address": 8160,
-  "sprites_cursor_address": 13888,
+  "hex_dump_cursor_address": 4096,
+  "sprites_cursor_address": 14016,
   "charset_cursor_address": 8192,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [

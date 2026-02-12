@@ -275,7 +275,7 @@ impl Widget for HexDumpView {
 
                 let line = Line::from(vec![
                     Span::styled(
-                        format!("{:04X}  ", row_start_addr),
+                        format!("${:04X}  ", row_start_addr),
                         Style::default().fg(ui_state.theme.address),
                     ),
                     Span::styled(

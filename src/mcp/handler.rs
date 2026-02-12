@@ -444,7 +444,7 @@ fn handle_resource_read(
                 if addr != start {
                     output.push('\n');
                 }
-                output.push_str(&format!("{:04X}: ", addr));
+                output.push_str(&format!("${:04X}: ", addr));
             }
             output.push_str(&format!("{:02X} ", byte));
         }
@@ -534,7 +534,7 @@ fn handle_resource_read(
                 if addr != start_addr {
                     output.push('\n');
                 }
-                output.push_str(&format!("{:04X}: ", addr));
+                output.push_str(&format!("${:04X}: ", addr));
             }
             output.push_str(&format!("{:02X} ", byte));
         }
@@ -564,7 +564,7 @@ fn get_disassembly_text(app_state: &AppState, start: u16, end: u16) -> String {
                 output.push_str(&format!("{}:\n", line.label.as_ref().unwrap()));
             }
             output.push_str(&format!(
-                "  {:04X}  {:20}  {}\n",
+                "  ${:04X}  {:20}  {}\n",
                 line.address,
                 bytes_to_str(&line.bytes),
                 line.mnemonic

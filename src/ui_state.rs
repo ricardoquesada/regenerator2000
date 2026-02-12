@@ -218,6 +218,7 @@ impl UIState {
         if let Some(pane_str) = loaded_right_pane {
             match pane_str.as_str() {
                 "HexDump" => self.right_pane = RightPane::HexDump,
+                "None" => self.right_pane = RightPane::None,
                 "Sprites" => self.right_pane = RightPane::Sprites,
                 "Charset" => self.right_pane = RightPane::Charset,
                 "Bitmap" => self.right_pane = RightPane::Bitmap,
