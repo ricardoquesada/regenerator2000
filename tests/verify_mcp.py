@@ -4,7 +4,7 @@ import sys
 import time
 import threading
 
-BASE_URL = "http://localhost:3000"
+BASE_URL = "http://localhost:3000/mcp"
 
 
 class MCPClient:
@@ -116,9 +116,9 @@ class MCPClient:
                     "Accept": "text/event-stream",
                     "mcp-session-id": self.session_id
                 }
-                print(f"Reconnecting to {BASE_URL}/mcp with session {self.session_id}")
+                print(f"Reconnecting to {BASE_URL} with session {self.session_id}")
                 response = requests.get(
-                    f"{BASE_URL}/mcp", 
+                    BASE_URL, 
                     headers=headers,
                     stream=True,
                     timeout=None # Keep open indefinitely
@@ -179,7 +179,7 @@ class MCPClient:
             # Send request on the /message endpoint, using the Session ID
             # Note: rmcp/mcp spec suggests using the 'Link' header to find this, 
             # but standard practice is often /message or similar.
-            cmd_url = f"{BASE_URL}/message"
+            cmd_url = BASE_URL
             # print(f"DEBUG: Sending {method} to {cmd_url} with headers: {headers}")
             response = requests.post(cmd_url, json=payload, headers=headers, timeout=5)
             # print(f"DEBUG: Response status: {response.status_code}")
