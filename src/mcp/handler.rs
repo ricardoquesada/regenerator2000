@@ -358,7 +358,7 @@ fn convert_region(
 
     let start_idx = (start_addr - origin) as usize;
     let end_idx = (end_addr - origin) as usize;
-    let _range = start_idx..end_idx + 1; // inclusive end for Command logic if needed? 
+    let _range = start_idx..end_idx + 1; // inclusive end for Command logic if needed?
     // Command::SetBlockType range is usually typical Rust range (start..end means end exclusive)
     // But let's check Command definition.
     // Viewed previously: range: std::ops::Range<usize>
@@ -424,7 +424,7 @@ fn handle_resource_read(
         let text = get_disassembly_text(app_state, start, end);
         Ok(json!({
              "contents": [{
-                "uri": uri,
+                "uri": format!("disasm://region/{}/{}", start, end),
                 "mimeType": "text/plain",
                 "text": text
             }]
@@ -451,7 +451,7 @@ fn handle_resource_read(
 
         Ok(json!({
              "contents": [{
-                "uri": uri,
+                "uri": format!("hexdump://region/{}/{}", start, end),
                 "mimeType": "text/plain",
                 "text": output
             }]
