@@ -67,12 +67,20 @@ fn main() -> Result<()> {
                 );
                 println!("    --headless                Run in headless mode (no TUI)");
                 println!("                              Only .regen2000proj files supported");
-                println!("    --mcp-server              Run MCP server (port 3000)");
+                println!("    --mcp-server              Run MCP server (HTTP port 3000)");
+                println!("    --mcp-server-stdio        Run MCP server (stdio)");
                 return Ok(());
             }
             "--mcp-server" => {
                 mcp_server = true;
                 i += 1;
+            }
+            "--mcp-server-stdio" => {
+                mcp_server = true;
+                headless = true; // stdio MCP is always headless
+                i += 1;
+                // We'll need a special mode for this
+                // Let's use a local flag
             }
             "--import_lbl" => {
                 if i + 1 < args.len() {
@@ -183,7 +191,7 @@ fn main() -> Result<()> {
         if let Some(result) = &initial_load_result {
             match result {
                 Ok((_, path)) => {
-                    if headless {
+                    if headless && !mcp_server {
                         println!("Loaded: {:?}", path);
                     }
                 }
@@ -202,7 +210,7 @@ fn main() -> Result<()> {
     if let Some(lbl_path) = labels_to_import {
         match app_state.import_vice_labels(std::path::PathBuf::from(lbl_path)) {
             Ok(msg) => {
-                if headless {
+                if headless && !mcp_server {
                     println!("{}", msg);
                 }
             }
@@ -220,7 +228,7 @@ fn main() -> Result<()> {
         let path = std::path::PathBuf::from(path_str);
         match app_state.export_vice_labels(path) {
             Ok(msg) => {
-                if headless {
+                if headless && !mcp_server {
                     println!("{}", msg);
                 }
             }
@@ -238,7 +246,7 @@ fn main() -> Result<()> {
         let path = std::path::PathBuf::from(path_str);
         match regenerator2000::exporter::export_asm(&app_state, &path) {
             Ok(_) => {
-                if headless {
+                if headless && !mcp_server {
                     println!("Assembly exported to {:?}", path);
                 }
             }
@@ -251,8 +259,47 @@ fn main() -> Result<()> {
         }
     }
 
-    if headless {
+    if headless && !mcp_server {
         return Ok(());
+    }
+
+    if headless && mcp_server {
+        // Run as standalone MCP server (stdio or HTTP without TUI)
+        // Check if stdout is being redirected or if we want stdio mode
+        let args: Vec<String> = std::env::args().collect();
+        let use_stdio = args.iter().any(|a| a == "--mcp-server-stdio");
+
+        if use_stdio {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let theme = regenerator2000::theme::Theme::from_name(&app_state.system_config.theme);
+            let ui_state = UIState::new(theme);
+            rt.block_on(async {
+                regenerator2000::mcp::stdio::run_headless_stdio_loop(app_state, ui_state).await;
+            });
+            return Ok(());
+        } else {
+            // Headless HTTP server
+            let theme = regenerator2000::theme::Theme::from_name(&app_state.system_config.theme);
+            let ui_state = UIState::new(theme);
+            let (mcp_req_tx, mut mcp_req_rx) = tokio::sync::mpsc::channel(100);
+
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                tokio::spawn(async move {
+                    regenerator2000::mcp::server::run_server(3000, mcp_req_tx).await;
+                });
+
+                while let Some(req) = mcp_req_rx.recv().await {
+                    let response = regenerator2000::mcp::handler::handle_request(
+                        &req,
+                        &mut app_state,
+                        &ui_state,
+                    );
+                    let _ = req.response_sender.send(response);
+                }
+            });
+            return Ok(());
+        }
     }
 
     // Setup terminal
