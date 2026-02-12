@@ -138,7 +138,7 @@ impl ServerHandler for RegeneratorOps {
     }
 }
 
-pub async fn run_server(port: u16, sender: Sender<McpRequest>) {
+pub async fn run_server(port: u16, sender: Sender<McpRequest>) -> std::io::Result<()> {
     let handler = RegeneratorOps::new(sender);
     let handler_clone = handler.clone();
 
@@ -157,11 +157,17 @@ pub async fn run_server(port: u16, sender: Sender<McpRequest>) {
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
     log::info!("RMCP Streamable HTTP Server listening on http://{}", addr);
 
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(addr).await?;
 
     // Use hyper to serve the tower service
     loop {
-        let (stream, _) = listener.accept().await.unwrap();
+        let (stream, _) = match listener.accept().await {
+            Ok(s) => s,
+            Err(e) => {
+                log::error!("Error accepting connection: {}", e);
+                continue;
+            }
+        };
         let io = hyper_util::rt::TokioIo::new(stream);
         let service = service.clone();
 

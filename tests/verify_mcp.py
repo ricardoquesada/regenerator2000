@@ -90,7 +90,7 @@ class MCPClient:
                             data = decoded_line[5:].strip()
                             if not data:
                                 continue
-                            print(f"DEBUG: SSE Data received: {data[:100]}...")
+                            # print(f"DEBUG: SSE Data received: {data[:100]}...")
                             try:
                                 msg = json.loads(data)
                                 self._handle_message(msg)
@@ -114,9 +114,9 @@ class MCPClient:
                     "Accept": "text/event-stream",
                     "mcp-session-id": self.session_id
                 }
-                print(f"Reconnecting to {BASE_URL} with session {self.session_id}")
+                print(f"Reconnecting to {BASE_URL}/sse with session {self.session_id}")
                 response = requests.get(
-                    BASE_URL, 
+                    f"{BASE_URL}/sse", 
                     headers=headers,
                     stream=True,
                     timeout=None # Keep open indefinitely
@@ -167,22 +167,31 @@ class MCPClient:
         }
         
         try:
-            # Send request on the same endpoint, using the Session ID
-            print(f"DEBUG: Sending {method} with headers: {headers}")
-            response = requests.post(BASE_URL, json=payload, headers=headers, timeout=5)
-            print(f"DEBUG: Response status: {response.status_code}")
-            response.raise_for_status()
+            # Send request on the /message endpoint, using the Session ID
+            # Note: rmcp/mcp spec suggests using the 'Link' header to find this, 
+            # but standard practice is often /message or similar.
+            cmd_url = f"{BASE_URL}/message"
+            # print(f"DEBUG: Sending {method} to {cmd_url} with headers: {headers}")
+            response = requests.post(cmd_url, json=payload, headers=headers, timeout=5)
+            # print(f"DEBUG: Response status: {response.status_code}")
             
+            if response.status_code == 202:
+                # print("DEBUG: Request Accepted (202)")
+                pass
+            elif response.status_code != 200:
+                 print(f"Request failed with status {response.status_code}: {response.text}")
+                 response.raise_for_status()
+
             # The response usually comes via the SSE stream (the initial connection)
             # But technically for "Accepted" requests it might just be 202. 
             # We wait for the JSON-RPC response in the stream.
             
+            if is_notification:
+                return None
+
             res = self._wait_for_response(current_id)
             if res:
                 return res
-            
-            if method.startswith("notifications/"):
-                 return None
 
             print(f"Timeout waiting for response to {method}")
             return None
@@ -240,7 +249,10 @@ def test_complex_scenario(client):
             "end_address": 0x100F
         }
     })
-    print(res.get("result", res))
+    if res:
+        print(res.get("result", res))
+    else:
+        print("FAIL: No response")
 
     # 2. Set $1010-$101f to BYTES
     print("- Converting $1010-$101F to BYTES")
@@ -251,7 +263,10 @@ def test_complex_scenario(client):
             "end_address": 0x101F
         }
     })
-    print(res.get("result", res))
+    if res:
+        print(res.get("result", res))
+    else:
+        print("FAIL: No response")
 
     # 3. Set $1020-$102f to WORDS
     print("- Converting $1020-$102F to WORDS")
@@ -262,7 +277,10 @@ def test_complex_scenario(client):
             "end_address": 0x102F
         }
     })
-    print(res.get("result", res))
+    if res:
+         print(res.get("result", res))
+    else:
+         print("FAIL: No response")
 
     # 4. Set Line Comment at $1000
     print("- Setting line comment at $1000")
@@ -273,7 +291,10 @@ def test_complex_scenario(client):
             "comment": "added by MCP"
         }
     })
-    print(res.get("result", res))
+    if res:
+        print(res.get("result", res))
+    else:
+        print("FAIL: No response")
 
 def test_read_resource(client):
     print("\nTesting read_resource disasm://4096-4097...")

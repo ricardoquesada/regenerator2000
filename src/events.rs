@@ -11,6 +11,7 @@ use std::io;
 pub enum AppEvent {
     Crossterm(Event),
     Mcp(crate::mcp::types::McpRequest),
+    McpError(String),
     Tick,
 }
 
@@ -38,6 +39,10 @@ pub fn run_app<B: Backend>(
             AppEvent::Mcp(req) => {
                 let response = crate::mcp::handler::handle_request(&req, &mut app_state, &ui_state);
                 let _ = req.response_sender.send(response);
+                should_render = true;
+            }
+            AppEvent::McpError(err_msg) => {
+                ui_state.set_status_message(format!("MCP Error: {}", err_msg));
                 should_render = true;
             }
             AppEvent::Tick => {

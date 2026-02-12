@@ -286,7 +286,10 @@ fn main() -> Result<()> {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(async {
                 tokio::spawn(async move {
-                    regenerator2000::mcp::http::run_server(3000, mcp_req_tx).await;
+                    if let Err(e) = regenerator2000::mcp::http::run_server(3000, mcp_req_tx).await {
+                        eprintln!("Failed to start MCP server: {}", e);
+                        std::process::exit(1);
+                    }
                 });
 
                 while let Some(req) = mcp_req_rx.recv().await {
@@ -394,8 +397,11 @@ fn main() -> Result<()> {
             rt.block_on(async {
                 // Spawn the actual server
                 let server_tx = mcp_req_tx.clone();
+                let error_tx = mcp_bridge_tx.clone();
                 tokio::spawn(async move {
-                    regenerator2000::mcp::http::run_server(3000, server_tx).await;
+                    if let Err(e) = regenerator2000::mcp::http::run_server(3000, server_tx).await {
+                        let _ = error_tx.send(events::AppEvent::McpError(e.to_string()));
+                    }
                 });
 
                 // Bridge MCP requests to Main Thread

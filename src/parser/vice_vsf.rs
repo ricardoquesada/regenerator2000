@@ -39,10 +39,6 @@ pub fn parse_vsf(data: &[u8]) -> Result<VsfData> {
         // Module Header: Name (16), Major (1), Minor (1), Size (4) = 22 bytes
         // But need to check if we have at least 22 bytes.
         if current_offset + 22 > data.len() {
-            println!(
-                "DEBUG: Reached end of data or truncated header at offset {:x}",
-                current_offset
-            );
             break;
         }
 
