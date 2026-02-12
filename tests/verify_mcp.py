@@ -79,6 +79,7 @@ class MCPClient:
         response = initial_response
         
         while True:
+            self.connected.set()
             try:
                 for line in response.iter_lines():
                     if line:
@@ -99,6 +100,7 @@ class MCPClient:
             except Exception as e:
                 print(f"SSE stream error: {e}")
             finally:
+                self.connected.clear()
                 if response:
                     response.close()
             
@@ -114,15 +116,16 @@ class MCPClient:
                     "Accept": "text/event-stream",
                     "mcp-session-id": self.session_id
                 }
-                print(f"Reconnecting to {BASE_URL}/sse with session {self.session_id}")
+                print(f"Reconnecting to {BASE_URL}/mcp with session {self.session_id}")
                 response = requests.get(
-                    f"{BASE_URL}/sse", 
+                    f"{BASE_URL}/mcp", 
                     headers=headers,
                     stream=True,
                     timeout=None # Keep open indefinitely
                 )
                 response.raise_for_status()
                 print("Reconnected.")
+                self.connected.set()
             except Exception as e:
                 print(f"Reconnection failed: {e}")
                 time.sleep(2)
@@ -146,6 +149,12 @@ class MCPClient:
         return None
 
     def rpc(self, method, params={}):
+        if not self.connected.is_set():
+            print("Waiting for connection...")
+            if not self.connected.wait(timeout=10):
+                print("Timeout waiting for connection")
+                return None
+
         is_notification = method.startswith("notifications/")
         
         payload = {
@@ -175,10 +184,18 @@ class MCPClient:
             response = requests.post(cmd_url, json=payload, headers=headers, timeout=5)
             # print(f"DEBUG: Response status: {response.status_code}")
             
-            if response.status_code == 202:
+            if response.status_code == 200:
+                try:
+                    json_resp = response.json()
+                    if "result" in json_resp or "error" in json_resp:
+                        # Optimization: if the server returns the result directly, use it
+                        return json_resp
+                except:
+                    pass
+            elif response.status_code == 202:
                 # print("DEBUG: Request Accepted (202)")
                 pass
-            elif response.status_code != 200:
+            else:
                  print(f"Request failed with status {response.status_code}: {response.text}")
                  response.raise_for_status()
 
@@ -230,7 +247,16 @@ def test_set_label(client):
     })
     if res and "result" in res:
         print("Success:", res["result"])
-        print("PASS")
+        # Verify content regarding "text"
+        if "content" in res["result"] and len(res["result"]["content"]) > 0:
+             text_content = res["result"]["content"][0].get("text", "")
+             print(f"Tool output: {text_content}")
+             if "Label set at" in text_content:
+                 print("PASS: Tool response confirms action")
+             else:
+                 print("FAIL: Tool response missing confirmation text")
+        else:
+             print("FAIL: Tool response missing 'content' field")
     elif res and "error" in res:
         # It might fail if address is out of bounds, but let's see
         print("Error:", res["error"])
@@ -305,7 +331,20 @@ def test_read_resource(client):
     if res and "result" in res:
         print("Success:")
         print(json.dumps(res["result"], indent=2))
-        print("PASS")
+        
+        # Verify resource content
+        if "contents" in res["result"] and len(res["result"]["contents"]) > 0:
+            resource = res["result"]["contents"][0]
+            if "text" in resource and len(resource["text"]) > 0:
+                 print("PASS: Resource has content")
+                 # Check if the content looks like disassembly (assuming 4096 is start)
+                 # Note: exact content depends on what's at 4096, but it shouldn't be empty
+                 print(f"Content snippet: {resource['text'][:50]}...")
+            else:
+                 print("FAIL: Resource 'text' is empty")
+        else:
+             print("FAIL: Resource response missing 'contents'")
+
     else:
         print(f"FAIL: {res}")
 
@@ -345,6 +384,29 @@ def test_convert_lo_hi_address(client):
     else:
         print(f"FAIL (Lo/Hi Addr): {res}")
 
+def test_tool_response_content(client):
+    print("\nTesting tool response content (set_line_comment)...")
+    res = client.rpc("tools/call", {
+        "name": "set_line_comment",
+        "arguments": {
+            "address": 0x1000,
+            "comment": "test comment"
+        }
+    })
+    
+    if res and "result" in res:
+        content = res["result"].get("content", [])
+        if content and content[0].get("text"):
+            print(f"Response text: {content[0]['text']}")
+            if "Comment set at" in content[0]['text']:
+                print("PASS: Tool returned 'applied' confirmation")
+            else:
+                print("FAIL: Tool did not return expected confirmation text")
+        else:
+            print("FAIL: Empty or invalid content in tool response")
+    else:
+        print(f"FAIL: Tool call failed {res}")
+
 if __name__ == "__main__":
     client = MCPClient()
     client.start()
@@ -354,4 +416,7 @@ if __name__ == "__main__":
     test_complex_scenario(client)
     test_read_resource(client)
     test_read_selected_resources(client)
+    test_read_resource(client)
+    test_read_selected_resources(client)
     test_convert_lo_hi_address(client)
+    test_tool_response_content(client)

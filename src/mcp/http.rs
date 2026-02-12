@@ -6,6 +6,7 @@ use rmcp::{
 };
 use serde_json::Value;
 
+use axum;
 use std::sync::Arc;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::oneshot;
@@ -154,31 +155,14 @@ pub async fn run_server(port: u16, sender: Sender<McpRequest>) -> std::io::Resul
         StreamableHttpServerConfig::default(),
     );
 
+    // Nest the MCP service into an Axum router
+    let app = axum::Router::new().nest_service("/mcp", service);
+
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
-    log::info!("RMCP Streamable HTTP Server listening on http://{}", addr);
-
     let listener = tokio::net::TcpListener::bind(addr).await?;
+    log::info!("MCP Live Server active on http://127.0.0.1:{}/mcp", port);
 
-    // Use hyper to serve the tower service
-    loop {
-        let (stream, _) = match listener.accept().await {
-            Ok(s) => s,
-            Err(e) => {
-                log::error!("Error accepting connection: {}", e);
-                continue;
-            }
-        };
-        let io = hyper_util::rt::TokioIo::new(stream);
-        let service = service.clone();
+    axum::serve(listener, app).await?;
 
-        tokio::task::spawn(async move {
-            let hyper_service = hyper_util::service::TowerToHyperService::new(service);
-            if let Err(err) = hyper::server::conn::http1::Builder::new()
-                .serve_connection(io, hyper_service)
-                .await
-            {
-                log::error!("Error serving connection: {:?}", err);
-            }
-        });
-    }
+    Ok(())
 }

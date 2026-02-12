@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     // 1. Initialize Logging
     let log_path = std::env::temp_dir().join("regenerator2000.log");
     let _ = WriteLogger::init(
-        LevelFilter::Info,
+        LevelFilter::Debug,
         Config::default(),
         File::create(&log_path).or_else(|_| File::create("regenerator2000.log"))?,
     );
