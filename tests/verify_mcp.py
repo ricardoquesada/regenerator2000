@@ -19,7 +19,7 @@ class MCPClient:
     def start(self):
         print(f"Connecting to MCP Server at {BASE_URL}...")
         
-        # 1. Initialize via POST (Capture Session ID and Start SSE Listener)
+        # 1. Initialize via POST (Capture Session ID)
         init_payload = {
             "jsonrpc": "2.0",
             "method": "initialize",
@@ -35,7 +35,7 @@ class MCPClient:
         }
 
         try:
-             # Initial POST request to establish session and get the stream
+             # Initial POST request to establish session and get initialization response
             response = requests.post(
                 BASE_URL, 
                 json=init_payload, 
@@ -56,24 +56,59 @@ class MCPClient:
                 
             print(f"Connected. Session ID: {self.session_id}")
             
-            # Start listening to the stream from THIS response
-            self.read_thread = threading.Thread(target=self._listen_sse, args=(response,), daemon=True)
+            # Read the initialization response from the POST stream
+            init_response = None
+            for line in response.iter_lines():
+                if line:
+                    decoded_line = line.decode('utf-8')
+                    if decoded_line.startswith("data:"):
+                        data = decoded_line[5:].strip()
+                        if data and data != '':
+                            try:
+                                msg = json.loads(data)
+                                if msg.get("id") == 1:  # Our initialization response
+                                    init_response = msg
+                                    break
+                            except json.JSONDecodeError:
+                                continue
+            
+            # Close the POST response stream
+            response.close()
+            
+            if not init_response or "result" not in init_response:
+                print("Failed to get initialization response")
+                sys.exit(1)
+            
+            print("Initialized successfully.")
+            
+            # 2. Open a dedicated GET stream for ongoing communication
+            get_response = requests.get(
+                BASE_URL,
+                headers={
+                    "Accept": "text/event-stream",
+                    "mcp-session-id": self.session_id
+                },
+                stream=True,
+                timeout=None
+            )
+            get_response.raise_for_status()
+            
+            # Start listening to the GET stream
+            self.read_thread = threading.Thread(target=self._listen_sse, args=(get_response,), daemon=True)
             self.read_thread.start()
             
-            # Wait for initialization response
-            # Since we sent the initialize request in the POST, the response will come via the SSE stream
-            # We need to wait for it.
-            if self._wait_for_response(1):
-                 print("Initialized successfully.")
-                 # Send initialized notification (using the now-established session)
-                 self.rpc("notifications/initialized", {}) 
-            else:
-                 print("Timeout waiting for initialization response")
-                 sys.exit(1)
+            # Wait for connection to be established
+            if not self.connected.wait(timeout=5):
+                print("Timeout waiting for GET stream connection")
+                sys.exit(1)
+            
+            # Send initialized notification
+            self.rpc("notifications/initialized", {}) 
 
         except Exception as e:
             print(f"Connection failed: {e}")
             sys.exit(1)
+
 
     def _listen_sse(self, initial_response):
         response = initial_response
@@ -177,47 +212,62 @@ class MCPClient:
         
         try:
             # Send request on the /message endpoint, using the Session ID
-            # Note: rmcp/mcp spec suggests using the 'Link' header to find this, 
-            # but standard practice is often /message or similar.
             cmd_url = BASE_URL
             # print(f"DEBUG: Sending {method} to {cmd_url} with headers: {headers}")
-            response = requests.post(cmd_url, json=payload, headers=headers, timeout=5)
-            # print(f"DEBUG: Response status: {response.status_code}")
+            response = requests.post(cmd_url, json=payload, headers=headers, stream=True, timeout=10)
             
             if response.status_code == 200:
-                try:
-                    json_resp = response.json()
-                    if "result" in json_resp or "error" in json_resp:
-                        # Optimization: if the server returns the result directly, use it
-                        return json_resp
-                except:
-                    pass
+                # If it's a stream, we should read it
+                if "text/event-stream" in response.headers.get("Content-Type", ""):
+                    for line in response.iter_lines():
+                        if line:
+                            decoded_line = line.decode('utf-8')
+                            if decoded_line.startswith("data:"):
+                                data = decoded_line[5:].strip()
+                                if data:
+                                    try:
+                                        msg = json.loads(data)
+                                        if msg.get("id") == current_id:
+                                            # Found our response
+                                            response.close()
+                                            return msg
+                                        else:
+                                            # Might be a notification or something else, handle it
+                                            self._handle_message(msg)
+                                    except json.JSONDecodeError:
+                                        continue
+                else:
+                    try:
+                        json_resp = response.json()
+                        if "result" in json_resp or "error" in json_resp:
+                            return json_resp
+                    except:
+                        pass
             elif response.status_code == 202:
-                # print("DEBUG: Request Accepted (202)")
+                # 202 Accepted means the response WILL come via the SSE stream
                 pass
             else:
                  print(f"Request failed with status {response.status_code}: {response.text}")
                  response.raise_for_status()
 
-            # The response usually comes via the SSE stream (the initial connection)
-            # But technically for "Accepted" requests it might just be 202. 
-            # We wait for the JSON-RPC response in the stream.
-            
             if is_notification:
+                response.close()
                 return None
 
+            # Fallback: wait for the response in the shared stream if not found in POST stream
             res = self._wait_for_response(current_id)
             if res:
+                response.close()
                 return res
 
             print(f"Timeout waiting for response to {method}")
+            response.close()
             return None
             
         except Exception as e:
             print(f"Request failed: {e}")
-            if hasattr(e, 'response') and e.response is not None:
-                 print(f"Response content: {e.response.text}")
             return None
+
 
 def test_list_tools(client):
     print("\nTesting tools/list...")

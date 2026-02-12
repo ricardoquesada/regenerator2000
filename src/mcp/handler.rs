@@ -60,7 +60,7 @@ fn list_tools() -> Result<Value, McpError> {
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "address": { "type": "integer", "description": "The memory address where the label should be set (e.g., 4096 or 0x1000)" },
+                        "address": { "type": ["integer", "string"], "description": "The memory address where the label should be set (e.g., 4096, 0x1000 or $1000)" },
                         "name": { "type": "string", "description": "The name of the label (e.g., 'init_screen', 'loop_start')" }
                     },
                     "required": ["address", "name"]
@@ -72,7 +72,7 @@ fn list_tools() -> Result<Value, McpError> {
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "address": { "type": "integer", "description": "The memory address for the comment" },
+                        "address": { "type": ["integer", "string"], "description": "The memory address for the comment (e.g., 4096, 0x1000 or $1000)" },
                         "comment": { "type": "string", "description": "The comment text" }
                     },
                     "required": ["address", "comment"]
@@ -84,7 +84,7 @@ fn list_tools() -> Result<Value, McpError> {
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "address": { "type": "integer", "description": "The memory address for the comment" },
+                        "address": { "type": ["integer", "string"], "description": "The memory address for the comment (e.g., 4096, 0x1000 or $1000)" },
                         "comment": { "type": "string", "description": "The comment text" }
                     },
                     "required": ["address", "comment"]
@@ -156,7 +156,7 @@ fn list_tools() -> Result<Value, McpError> {
                 "inputSchema": {
                     "type": "object",
                     "properties": {
-                        "address": { "type": "integer", "description": "The memory address where the splitter should be toggled" }
+                        "address": { "type": ["integer", "string"], "description": "The memory address where the splitter should be toggled (e.g., 4096, 0x1000 or $1000)" }
                     },
                     "required": ["address"]
                 }
@@ -187,8 +187,8 @@ fn region_schema() -> Value {
     json!({
         "type": "object",
         "properties": {
-            "start_address": { "type": "integer" },
-            "end_address": { "type": "integer" }
+            "start_address": { "type": ["integer", "string"] },
+            "end_address": { "type": ["integer", "string"] }
         },
         "required": ["start_address", "end_address"]
     })
@@ -207,13 +207,13 @@ fn list_resources() -> Result<Value, McpError> {
                 "uri": "disasm://region/{start_address}/{end_address}",
                 "name": "Disassembly Region",
                 "mimeType": "text/plain",
-                "description": "Get MOS 6502 disassembly text for a specific memory range (e.g., disasm://region/4096/4100)."
+                "description": "Get MOS 6502 disassembly text for a specific memory range. Supports decimal (4096), hex (0x1000) and 6502 hex ($1000). (e.g., disasm://region/$1000/$1010)."
             },
             {
                 "uri": "hexdump://region/{start_address}/{end_address}",
                 "name": "Hexdump Region",
                 "mimeType": "text/plain",
-                "description": "Get raw hexdump view for a specific C64 memory range (e.g., hexdump://region/4096/4100)."
+                "description": "Get raw hexdump view for a specific C64 memory range. Supports decimal (4096), hex (0x1000) and 6502 hex ($1000). (e.g., hexdump://region/$1000/$1010)."
             },
             {
                 "uri": "disasm://selected",
@@ -417,14 +417,44 @@ fn convert_region(
 }
 
 fn get_address(args: &Value, key: &str) -> Result<u16, McpError> {
-    args.get(key)
-        .and_then(|v| v.as_u64())
-        .ok_or_else(|| McpError {
-            code: -32602,
-            message: format!("Missing or invalid '{}'", key),
-            data: None,
-        })
-        .map(|v| v as u16)
+    let val = args.get(key).ok_or_else(|| McpError {
+        code: -32602,
+        message: format!("Missing '{}'", key),
+        data: None,
+    })?;
+
+    if let Some(n) = val.as_u64() {
+        return Ok(n as u16);
+    }
+
+    if let Some(s) = val.as_str() {
+        if let Some(addr) = parse_address_string(s) {
+            return Ok(addr);
+        }
+    }
+
+    Err(McpError {
+        code: -32602,
+        message: format!("Invalid address format for '{}'", key),
+        data: None,
+    })
+}
+
+fn parse_address_string(s: &str) -> Option<u16> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+
+    if let Some(hex_part) = s.strip_prefix('$') {
+        return u16::from_str_radix(hex_part, 16).ok();
+    }
+
+    if let Some(hex_part) = s.strip_prefix("0x").or_else(|| s.strip_prefix("0X")) {
+        return u16::from_str_radix(hex_part, 16).ok();
+    }
+
+    s.parse::<u16>().ok()
 }
 
 fn handle_resource_read(
@@ -496,24 +526,16 @@ fn handle_resource_read(
                 data: None,
             });
         }
-        let start_addr = parts[3]
-            .parse::<u16>()
-            .ok()
-            .or_else(|| u16::from_str_radix(parts[3].trim_start_matches("0x"), 16).ok())
-            .ok_or(McpError {
-                code: -32602,
-                message: "Invalid start address".to_string(),
-                data: None,
-            })?;
-        let end_addr = parts[4]
-            .parse::<u16>()
-            .ok()
-            .or_else(|| u16::from_str_radix(parts[4].trim_start_matches("0x"), 16).ok())
-            .ok_or(McpError {
-                code: -32602,
-                message: "Invalid end address".to_string(),
-                data: None,
-            })?;
+        let start_addr = parse_address_string(parts[3]).ok_or(McpError {
+            code: -32602,
+            message: "Invalid start address".to_string(),
+            data: None,
+        })?;
+        let end_addr = parse_address_string(parts[4]).ok_or(McpError {
+            code: -32602,
+            message: "Invalid end address".to_string(),
+            data: None,
+        })?;
 
         let text = get_disassembly_text(app_state, start_addr, end_addr);
         Ok(json!({
@@ -532,24 +554,16 @@ fn handle_resource_read(
                 data: None,
             });
         }
-        let start_addr = parts[3]
-            .parse::<u16>()
-            .ok()
-            .or_else(|| u16::from_str_radix(parts[3].trim_start_matches("0x"), 16).ok())
-            .ok_or(McpError {
-                code: -32602,
-                message: "Invalid start address".to_string(),
-                data: None,
-            })?;
-        let end_addr = parts[4]
-            .parse::<u16>()
-            .ok()
-            .or_else(|| u16::from_str_radix(parts[4].trim_start_matches("0x"), 16).ok())
-            .ok_or(McpError {
-                code: -32602,
-                message: "Invalid end address".to_string(),
-                data: None,
-            })?;
+        let start_addr = parse_address_string(parts[3]).ok_or(McpError {
+            code: -32602,
+            message: "Invalid start address".to_string(),
+            data: None,
+        })?;
+        let end_addr = parse_address_string(parts[4]).ok_or(McpError {
+            code: -32602,
+            message: "Invalid end address".to_string(),
+            data: None,
+        })?;
 
         // Simple hexdump
         let mut output = String::new();
