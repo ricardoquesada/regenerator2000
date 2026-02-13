@@ -372,50 +372,7 @@ def test_complex_scenario(client):
     else:
         print("FAIL: No response")
 
-def test_read_resource(client):
-    print("\nTesting read_resource disasm://4096-4097...")
-    # Read resource
-    res = client.rpc("resources/read", {
-        "uri": "disasm://region/4096/4097"
-    })
-    if res and "result" in res:
-        print("Success:")
-        print(json.dumps(res["result"], indent=2))
-        
-        # Verify resource content
-        if "contents" in res["result"] and len(res["result"]["contents"]) > 0:
-            resource = res["result"]["contents"][0]
-            if "text" in resource and len(resource["text"]) > 0:
-                 print("PASS: Resource has content")
-                 # Check if the content looks like disassembly (assuming 4096 is start)
-                 # Note: exact content depends on what's at 4096, but it shouldn't be empty
-                 print(f"Content snippet: {resource['text'][:50]}...")
-            else:
-                 print("FAIL: Resource 'text' is empty")
-        else:
-             print("FAIL: Resource response missing 'contents'")
 
-    else:
-        print(f"FAIL: {res}")
-
-def test_read_selected_resources(client):
-    print("\nTesting read_resource disasm://selected...")
-    res = client.rpc("resources/read", {"uri": "disasm://selected"})
-    if res and "result" in res:
-        print("Success (Disasm):")
-        print(json.dumps(res["result"], indent=2))
-        print("PASS (Disasm) - Verify content manually")
-    else:
-        print(f"FAIL (Disasm): {res}")
-
-    print("\nTesting read_resource hexdump://selected...")
-    res = client.rpc("resources/read", {"uri": "hexdump://selected"})
-    if res and "result" in res:
-        print("Success (Hexdump):")
-        print(json.dumps(res["result"], indent=2))
-        print("PASS (Hexdump) - Verify content manually")
-    else:
-        print(f"FAIL (Hexdump): {res}")
 
 def test_convert_lo_hi_address(client):
     print("\nTesting convert_region_to_lo_hi_address...")
@@ -457,16 +414,186 @@ def test_tool_response_content(client):
     else:
         print(f"FAIL: Tool call failed {res}")
 
+def test_read_disasm_region(client):
+    print("\nTesting read_disasm_region (formerly a resource)...")
+    res = client.rpc("tools/call", {
+        "name": "read_disasm_region",
+        "arguments": {
+            "start_address": 4096,
+            "end_address": 4097
+        }
+    })
+    if res and "result" in res:
+        print("Success:")
+        print(json.dumps(res["result"], indent=2))
+        
+        # Verify content
+        if "content" in res["result"] and len(res["result"]["content"]) > 0:
+            content = res["result"]["content"][0]
+            if "text" in content and len(content["text"]) > 0:
+                 print("PASS: Tool returned content")
+                 print(f"Content snippet: {content['text'][:50]}...")
+            else:
+                 print("FAIL: Tool content 'text' is empty")
+        else:
+             print("FAIL: Tool response missing 'content'")
+
+    else:
+        print(f"FAIL: {res}")
+
+def test_read_hexdump_region(client):
+    print("\nTesting read_hexdump_region...")
+    res = client.rpc("tools/call", {
+        "name": "read_hexdump_region",
+        "arguments": {
+            "start_address": 4096,
+            "end_address": 4097
+        }
+    })
+    if res and "result" in res:
+        # print("Success:")
+        # print(json.dumps(res["result"], indent=2))
+        if "content" in res["result"] and len(res["result"]["content"]) > 0:
+             print("PASS: read_hexdump_region returned content")
+        else:
+             print("FAIL: read_hexdump_region response missing content")
+    else:
+        print(f"FAIL: {res}")
+
+def test_read_selected_tools(client):
+    print("\nTesting read_selected_disasm...")
+    res = client.rpc("tools/call", {
+        "name": "read_selected_disasm", 
+        "arguments": {}
+    })
+    if res and "result" in res:
+        print("Success (Disasm):")
+        print(json.dumps(res["result"], indent=2))
+        print("PASS (Disasm) - Verify content manually")
+    else:
+        print(f"FAIL (Disasm): {res}")
+
+    print("\nTesting read_selected_hexdump...")
+    res = client.rpc("tools/call", {
+        "name": "read_selected_hexdump",
+        "arguments": {}
+    })
+    if res and "result" in res:
+        print("Success (Hexdump):")
+        print(json.dumps(res["result"], indent=2))
+        print("PASS (Hexdump) - Verify content manually")
+    else:
+        print(f"FAIL (Hexdump): {res}")
+
+def test_new_tools(client):
+    print("\nTesting new tools (search, xrefs, symbols, comments)...")
+
+    # Search Memory
+    print("- search_memory")
+    res = client.rpc("tools/call", {
+        "name": "search_memory",
+        "arguments": {
+            "query": "A9 00" # lda #$00
+        }
+    })
+    if res and "result" in res:
+         print("PASS: search_memory returned result")
+    else:
+         print(f"FAIL: search_memory {res}")
+
+    # Get Cross References
+    print("- get_cross_references")
+    res = client.rpc("tools/call", {
+        "name": "get_cross_references",
+        "arguments": {
+            "address": 0x1000
+        }
+    })
+    if res and "result" in res:
+         print("PASS: get_cross_references returned result")
+    else:
+         print(f"FAIL: get_cross_references {res}")
+
+    # Get Symbol Table
+    print("- get_symbol_table")
+    res = client.rpc("tools/call", {
+        "name": "get_symbol_table",
+        "arguments": {}
+    })
+    if res and "result" in res:
+         print("PASS: get_symbol_table returned result")
+    else:
+         print(f"FAIL: get_symbol_table {res}")
+
+    # Get All Comments
+    print("- get_all_comments")
+    res = client.rpc("tools/call", {
+        "name": "get_all_comments",
+        "arguments": {}
+    })
+    if res and "result" in res:
+         print("PASS: get_all_comments returned result")
+    else:
+         print(f"FAIL: get_all_comments {res}")
+
+    # Set Operand Format
+    print("- set_operand_format")
+    res = client.rpc("tools/call", {
+        "name": "set_operand_format",
+        "arguments": {
+            "address": 0x1000,
+            "format": "binary"
+        }
+    })
+    if res and "result" in res:
+         print("PASS: set_operand_format returned result")
+    else:
+         print(f"FAIL: set_operand_format {res}")
+
+    # Save Project
+    print("- save_project")
+    res = client.rpc("tools/call", {
+        "name": "save_project",
+        "arguments": {}
+    })
+    # We expect an error because no project is loaded, but that confirms the tool is reachable
+    if res and "error" in res:
+         print(f"PASS: save_project returned expected error (no project loaded): {res['error']['message']}")
+    elif res and "result" in res:
+         print("PASS: save_project returned result (unexpected but valid)")
+    else:
+         print(f"FAIL: save_project {res}")
+
+
+def test_list_resources(client):
+    print("\nTesting resources/list...")
+    res = client.rpc("resources/list")
+    if res and "result" in res:
+        resources = res["result"]["resources"]
+        print(f"Found {len(resources)} resources.")
+        uris = [r["uri"] for r in resources]
+        print(f"Resources: {uris}")
+        if "disasm://main" in uris and "binary://main" in uris:
+             print("PASS")
+        else:
+             print("FAIL: Missing expected resources")
+    else:
+        print(f"FAIL: {res}")
+
+
 if __name__ == "__main__":
     client = MCPClient()
     client.start()
     
     test_list_tools(client)
+    test_list_resources(client)
     test_set_label(client)
     test_complex_scenario(client)
-    test_read_resource(client)
-    test_read_selected_resources(client)
-    test_read_resource(client)
-    test_read_selected_resources(client)
+    test_read_disasm_region(client)
+    test_read_hexdump_region(client)
+    test_read_selected_tools(client)
     test_convert_lo_hi_address(client)
     test_tool_response_content(client)
+    test_new_tools(client)
+
+
