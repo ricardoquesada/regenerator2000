@@ -81,6 +81,14 @@ gemini-cli connect http://127.0.0.1:3000/mcp
 
 Once connected, you can prompt the AI to perform complex tasks.
 
+### Analysis
+
+> "Analyze the loaded binary, and add a line comment on top of every function describing what it does."
+
+> "Find all 'JSR $FFD2' calls (CHROUT) and document what is being printed before each call."
+
+> "Analyze the function at $C000. It seems to be checking sprite collisions. Rename variables accordingly."
+
 ### Exploration
 
 > "List available tools to see what you can do."
@@ -97,12 +105,6 @@ Once connected, you can prompt the AI to perform complex tasks.
 
 > "Mark the range $2000-$2100 as a byte table."
 
-### Analysis
-
-> "Find all 'JSR $FFD2' calls (CHROUT) and document what is being printed before each call."
-
-> "Analyze the function at $C000. It seems to be checking sprite collisions. Rename variables accordingly."
-
 ## Use Cases
 
 ### 1. The AI Copilot (HTTP Mode)
@@ -115,5 +117,5 @@ The AI's changes (renaming labels, adding comments) appear instantly in your TUI
 
 ### 2. Automated Deep Dive (Stdio Mode)
 Configure Claude Desktop with a specific project file.
-*   **Prompt**: "Analyze `adventure.d64`. Find the high score table location and the routine that updates it."
+*   **Prompt**: "Analyze `adventure.prg`. Find the high score table location and the routine that updates it."
 *   **Response**: The AI loads the context, uses search tools, reads memory, and produces a report without you needing to open the interface.

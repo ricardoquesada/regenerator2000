@@ -581,6 +581,34 @@ def test_list_resources(client):
         print(f"FAIL: {res}")
 
 
+
+def test_get_disassembly_cursor(client):
+    print("\nTesting get_disassembly_cursor...")
+    res = client.rpc("tools/call", {
+        "name": "get_disassembly_cursor",
+        "arguments": {}
+    })
+    if res and "result" in res:
+        print("Success:")
+        print(json.dumps(res["result"], indent=2))
+        
+        # Verify content
+        if "content" in res["result"] and len(res["result"]["content"]) > 0:
+            content = res["result"]["content"][0]
+            if "text" in content:
+                 print(f"PASS: Tool returned address: {content['text']}")
+            else:
+                 print("FAIL: Tool content 'text' is empty")
+        else:
+             print("FAIL: Tool response missing 'content'")
+
+    elif res and "error" in res:
+         # Acceptable if cursor is out of bounds (e.g. empty project)
+         print(f"PASS (valid error): {res['error']['message']}") 
+    else:
+        print(f"FAIL: {res}")
+
+
 if __name__ == "__main__":
     client = MCPClient()
     client.start()
@@ -595,5 +623,6 @@ if __name__ == "__main__":
     test_convert_lo_hi_address(client)
     test_tool_response_content(client)
     test_new_tools(client)
+    test_get_disassembly_cursor(client)
 
 

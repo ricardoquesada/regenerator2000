@@ -232,6 +232,15 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
+                "name": "get_disassembly_cursor",
+                "description": "Returns the memory address of the current cursor position in the disassembly view.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
                 "name": "search_memory",
                 "description": "Search for a sequence of bytes or a text string in the memory. Returns a list of addresses where the sequence is found.",
                 "inputSchema": {
@@ -507,6 +516,24 @@ fn handle_tool_call(
             let (start, end) = get_selection_range_hexdump(app_state, ui_state)?;
             let text = get_hexdump_text(app_state, start, end);
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
+        }
+
+        "get_disassembly_cursor" => {
+            let idx = ui_state.cursor_index;
+            if let Some(line) = app_state.disassembly.get(idx) {
+                Ok(json!({
+                    "content": [{
+                        "type": "text",
+                        "text": format!("${:04X}", line.address)
+                    }]
+                }))
+            } else {
+                Err(McpError {
+                    code: -32602,
+                    message: "Cursor out of bounds".to_string(),
+                    data: None,
+                })
+            }
         }
 
         "search_memory" => {
