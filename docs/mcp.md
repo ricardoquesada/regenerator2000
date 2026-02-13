@@ -4,11 +4,12 @@ Regenerator 2000 supports the **Model Context Protocol (MCP)**, allowing AI agen
 
 Through the MCP server, an AI assistant can:
 
--   **Read** disassembly, memory dump, and project state.
--   **Modify** comments, labels, and block types.
--   **Analyze** code structure and control flow.
+- **Read** disassembly, memory dump, and project state.
+- **Modify** comments, labels, and block types.
+- **Analyze** code structure and control flow.
 
 !!! note "What is MCP?"
+
     The Model Context Protocol (MCP) is an open standard that enables AI models to interact with local applications and contexts. Learn more at [modelcontextprotocol.io](https://modelcontextprotocol.io).
 
 ## Modes of Operation
@@ -16,29 +17,28 @@ Through the MCP server, an AI assistant can:
 Regenerator 2000 supports two MCP transport modes:
 
 1.  **HTTP Mode (Streamable/SSE)**:
-    -   Runs the MCP server over HTTP using Server-Sent Events (SSE).
-    -   Allows concurrent TUI usage (User + AI working together).
-    -   **Flag**: `--mcp-server` (starts TUI + Server on port 3000)
-    -   **Flag**: `--mcp-server --headless` (starts Headless Server on port 3000)
-    -   **Endpoint**: `http://127.0.0.1:3000/mcp`
-    -   Recommended option!
+    - Runs the MCP server over HTTP using Server-Sent Events (SSE).
+    - Allows concurrent TUI usage (User + AI working together).
+    - **Flag**: `--mcp-server` (starts TUI + Server on port 3000)
+    - **Flag**: `--mcp-server --headless` (starts Headless Server on port 3000)
+    - **Endpoint**: `http://127.0.0.1:3000/mcp`
+    - Recommended option!
 
 2.  **Stdio Mode (Headless)**:
-    -   Starts a headless instance of Regenerator 2000.
-    -   Ideal for local assistants (e.g., Claude Desktop, Claude Code) that spawn the server as a subprocess.
-    -   **Flag**: `--mcp-server-stdio`
-    -   Experimental mode, mostly used for testing.
-
+    - Starts a headless instance of Regenerator 2000.
+    - Ideal for local assistants (e.g., Claude Desktop, Claude Code) that spawn the server as a subprocess.
+    - **Flag**: `--mcp-server-stdio`, implies `--headless`.
+    - Experimental mode, mostly used for testing.
 
 ## Configuration
 
 ### 1. Start the Server
 
-Before connecting any client, you must start Regenerator 2000 in **Server Mode**. This opens the TUI and starts the HTTP server, allowing you to use the interface while the AI interacts with it.
+Before connecting any client, you must start Regenerator 2000 with **MCP Server** enabled. This opens the TUI and starts the HTTP server, allowing you to use the interface while the AI interacts with it.
 
 ```bash
 # Open your project with the server enabled
-regenerator2000 --mcp-server your_project.d64
+regenerator2000 --mcp-server your_project.regen2000proj
 ```
 
 The server will listen on `http://127.0.0.1:3000/mcp` by default.
@@ -50,15 +50,16 @@ The server will listen on `http://127.0.0.1:3000/mcp` by default.
 To use Regenerator 2000 with Claude, add the configuration to your `claude_desktop_config.json` or `config.json`.
 
 **Location:**
--   **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
--   **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
 **Configuration:**
 
 ```json
 {
   "mcpServers": {
-    "regenerator": {
+    "regenerator2000": {
       "url": "http://127.0.0.1:3000/mcp"
     }
   }
@@ -66,6 +67,7 @@ To use Regenerator 2000 with Claude, add the configuration to your `claude_deskt
 ```
 
 !!! tip
+
     Ensure the `regenerator2000` application is running with `--mcp-server` **before** you start Claude Desktop or Claude Code, as they will attempt to connect on startup.
 
 #### Gemini CLI
@@ -74,7 +76,19 @@ To use Gemini CLI with the running server, simply provide the URL to the connect
 
 ```bash
 # Example connection command
-gemini-cli connect http://127.0.0.1:3000/mcp
+gemini connect http://127.0.0.1:3000/mcp
+```
+
+or, update the file `~/.gemini/settigns.json` with:
+
+```json
+{
+  "mcpServers": {
+    "regenerator2000": {
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
 ```
 
 ## Usage Examples
@@ -99,23 +113,22 @@ Once connected, you can prompt the AI to perform complex tasks.
 
 ### Modification
 
-> "Rename the subroutine at $1000 to 'init_music_player'."
-
-> "Add a comment to address $0810 saying 'Checks for fire button'."
-
 > "Mark the range $2000-$2100 as a byte table."
 
 ## Use Cases
 
 ### 1. The AI Copilot (HTTP Mode)
+
 Run Regenerator 2000 with `--mcp-server`. You work in the TUI, navigating and making manual edits. Simultaneously, you ask your AI assistant (connected via HTTP) to:
-*   "Document this function I'm looking at."
-*   "Find where this variable is modified."
-*   "Interpret this confusing block of code."
+
+- "Document this function I'm looking at."
+- "Interpret this confusing block of code."
 
 The AI's changes (renaming labels, adding comments) appear instantly in your TUI.
 
 ### 2. Automated Deep Dive (Stdio Mode)
+
 Configure Claude Desktop with a specific project file.
-*   **Prompt**: "Analyze `adventure.prg`. Find the high score table location and the routine that updates it."
-*   **Response**: The AI loads the context, uses search tools, reads memory, and produces a report without you needing to open the interface.
+
+- **Prompt**: "Analyze `adventure.prg`. Find the high score table location and the routine that updates it."
+- **Response**: The AI loads the context, uses search tools, reads memory, and produces a report without you needing to open the interface.
