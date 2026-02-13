@@ -276,6 +276,24 @@ fn list_tools() -> Result<Value, McpError> {
                     },
                     "required": ["address", "format"]
                 }
+            },
+            {
+                "name": "get_symbol_table",
+                "description": "Returns a list of all defined labels (user and system) and their addresses.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "get_all_comments",
+                "description": "Returns a list of all user-defined comments (both line and side comments) and their addresses.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             }
         ]
     }))
@@ -529,6 +547,26 @@ fn handle_tool_call(
                 "content": [{
                     "type": "text",
                     "text": format!("Operand format at ${:04X} set to {}", address, format_str)
+                }]
+            }))
+        }
+
+        "get_symbol_table" => {
+            let symbols = get_symbol_table_impl(app_state);
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&symbols).unwrap()
+                }]
+            }))
+        }
+
+        "get_all_comments" => {
+            let comments = get_all_comments_impl(app_state);
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&comments).unwrap()
                 }]
             }))
         }
@@ -1039,6 +1077,56 @@ fn set_operand_format_impl(
     app_state.disassemble();
 
     Ok(())
+}
+
+fn get_symbol_table_impl(app_state: &AppState) -> Vec<Value> {
+    let mut symbols = Vec::new();
+    for (addr, labels) in &app_state.labels {
+        for label in labels {
+            symbols.push(json!({
+                "address": addr,
+                "name": label.name,
+                "kind": format!("{:?}", label.kind),
+                "type": format!("{:?}", label.label_type)
+            }));
+        }
+    }
+    // Sort by address
+    symbols.sort_by(|a, b| {
+        let addr_a = a["address"].as_u64().unwrap();
+        let addr_b = b["address"].as_u64().unwrap();
+        addr_a.cmp(&addr_b)
+    });
+    symbols
+}
+
+fn get_all_comments_impl(app_state: &AppState) -> Vec<Value> {
+    let mut comments = Vec::new();
+
+    for (addr, comment) in &app_state.user_line_comments {
+        comments.push(json!({
+            "address": addr,
+            "type": "line",
+            "comment": comment
+        }));
+    }
+
+    for (addr, comment) in &app_state.user_side_comments {
+        comments.push(json!({
+            "address": addr,
+            "type": "side",
+            "comment": comment
+        }));
+    }
+
+    // Sort by address
+    comments.sort_by(|a, b| {
+        let addr_a = a["address"].as_u64().unwrap();
+        let addr_b = b["address"].as_u64().unwrap();
+        addr_a.cmp(&addr_b)
+    });
+
+    comments
 }
 
 // Helpers
