@@ -1,6 +1,6 @@
 use crate::mcp::types::{McpError, McpRequest, McpResponse};
 use crate::state::AppState;
-use crate::state::types::BlockType;
+use crate::state::types::{BlockType, ImmediateFormat};
 use base64::prelude::*;
 use serde_json::{Value, json};
 
@@ -230,6 +230,52 @@ fn list_tools() -> Result<Value, McpError> {
                      "properties": {},
                      "required": []
                 }
+            },
+            {
+                "name": "search_memory",
+                "description": "Search for a sequence of bytes or a text string in the memory. Returns a list of addresses where the sequence is found.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The search query. can be a hex string (e.g. 'A9 00'), or text."
+                        },
+                        "encoding": {
+                            "type": "string",
+                            "description": "The encoding to use for text search. Options: 'ascii', 'petscii', 'screencode', 'hex'. Default is 'hex' if query looks like hex, otherwise tries to guess or defaults to 'ascii'.",
+                            "enum": ["ascii", "petscii", "screencode", "hex"]
+                        }
+                    },
+                    "required": ["query"]
+                }
+            },
+            {
+                "name": "get_cross_references",
+                "description": "Get a list of addresses that reference the given address (e.g. JSRs, JMPs, loads).",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                         "address": { "type": ["integer", "string"], "description": "The target address to find references to." }
+                    },
+                    "required": ["address"]
+                }
+            },
+            {
+                "name": "set_operand_format",
+                "description": "Sets the display format for immediate values (operands) at a specific address. Useful for visualizing bitmasks or characters.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                         "address": { "type": ["integer", "string"], "description": "The address of the instruction." },
+                         "format": {
+                             "type": "string",
+                             "description": "The desired format. Options: 'hex' ($00), 'decimal' (0), 'binary' (%00000000).",
+                             "enum": ["hex", "decimal", "binary"]
+                         }
+                    },
+                    "required": ["address", "format"]
+                }
             }
         ]
     }))
@@ -434,6 +480,57 @@ fn handle_tool_call(
             let (start, end) = get_selection_range_hexdump(app_state, ui_state)?;
             let text = get_hexdump_text(app_state, start, end);
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
+        }
+
+        "search_memory" => {
+            let query = args
+                .get("query")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| McpError {
+                    code: -32602,
+                    message: "Missing 'query'".to_string(),
+                    data: None,
+                })?;
+            let encoding = args.get("encoding").and_then(|v| v.as_str());
+            let matches = search_memory_impl(app_state, query, encoding)?;
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&matches).unwrap()
+                }]
+            }))
+        }
+
+        "get_cross_references" => {
+            let address = get_address(&args, "address")?;
+            let refs = get_cross_references_impl(app_state, address);
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&refs).unwrap()
+                }]
+            }))
+        }
+
+        "set_operand_format" => {
+            let address = get_address(&args, "address")?;
+            let format_str =
+                args.get("format")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| McpError {
+                        code: -32602,
+                        message: "Missing 'format'".to_string(),
+                        data: None,
+                    })?;
+
+            set_operand_format_impl(app_state, address, format_str)?;
+
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": format!("Operand format at ${:04X} set to {}", address, format_str)
+                }]
+            }))
         }
 
         _ => Err(McpError {
@@ -792,4 +889,177 @@ fn get_analyzed_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec<V
     }
 
     blocks
+}
+
+fn search_memory_impl(
+    app_state: &AppState,
+    query: &str,
+    encoding: Option<&str>,
+) -> Result<Vec<u16>, McpError> {
+    let mut search_bytes = Vec::new();
+
+    // Determine mode
+    let mode = if let Some(enc) = encoding {
+        enc
+    } else {
+        // Simple heuristic: if query contains space and hex-like chars, try hex
+        // If query is quoted, assume text?
+        // Let's default to "text" (ascii) if not specified, unless it looks like "A9 00"
+        if query.contains(' ')
+            && query
+                .split_whitespace()
+                .all(|s| u8::from_str_radix(s, 16).is_ok())
+        {
+            "hex"
+        } else {
+            "ascii"
+        }
+    };
+
+    match mode {
+        "hex" => {
+            for part in query.split_whitespace() {
+                // Remove $ or 0x prefix if present
+                let clean_part = part
+                    .trim_start_matches("0x")
+                    .trim_start_matches("0X")
+                    .trim_start_matches('$');
+                if let Ok(b) = u8::from_str_radix(clean_part, 16) {
+                    search_bytes.push(b);
+                } else {
+                    // Try to parse as sequence of bytes if no spaces? no, split_whitespace handles that.
+                    // If parsing fails, maybe it's not hex.
+                }
+            }
+        }
+        "ascii" => {
+            search_bytes = query.as_bytes().to_vec();
+        }
+        "petscii" => {
+            // Simple mapping: 'a' -> 'A' ($41), 'A' -> 'a' ($61 but in PETSCII it's shifted/unshifted logic)
+            // Let's use a simplified converter for tool search
+            for c in query.chars() {
+                search_bytes.push(ascii_char_to_petscii(c));
+            }
+        }
+        "screencode" => {
+            for c in query.chars() {
+                let p = ascii_char_to_petscii(c);
+                search_bytes.push(petscii_to_screencode_simple(p));
+            }
+        }
+        _ => {
+            return Err(McpError {
+                code: -32602,
+                message: format!("Unknown encoding: {}", mode),
+                data: None,
+            });
+        }
+    }
+
+    if search_bytes.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let mut found_addresses = Vec::new();
+    let data = &app_state.raw_data;
+    let origin = app_state.origin;
+
+    if data.len() < search_bytes.len() {
+        return Ok(Vec::new());
+    }
+
+    for i in 0..=data.len() - search_bytes.len() {
+        if data[i..i + search_bytes.len()] == search_bytes[..] {
+            found_addresses.push(origin.wrapping_add(i as u16));
+            if found_addresses.len() >= 100 {
+                break; // Limit results
+            }
+        }
+    }
+
+    Ok(found_addresses)
+}
+
+fn get_cross_references_impl(app_state: &AppState, address: u16) -> Vec<u16> {
+    if let Some(refs) = app_state.cross_refs.get(&address) {
+        let mut sorted_refs = refs.clone();
+        sorted_refs.sort();
+        sorted_refs.dedup();
+        sorted_refs
+    } else {
+        Vec::new()
+    }
+}
+
+fn set_operand_format_impl(
+    app_state: &mut AppState,
+    address: u16,
+    format_str: &str,
+) -> Result<(), McpError> {
+    let format = match format_str.to_lowercase().as_str() {
+        "hex" => ImmediateFormat::Hex,
+        "decimal" | "dec" => ImmediateFormat::Decimal,
+        "binary" | "bin" => ImmediateFormat::Binary,
+        "char" | "text" | "ascii" => {
+            // We don't have a direct "Char" enum in `ImmediateFormat`?
+            // Let's check `types.rs`.
+            // ImmediateFormat: Hex, InvertedHex, Decimal, NegativeDecimal, Binary, InvertedBinary, LowByte, HighByte.
+            // It seems "Char" is missing or I missed it.
+            // View file output of types.rs:
+            // pub enum ImmediateFormat { Hex, InvertedHex, Decimal, NegativeDecimal, Binary, InvertedBinary, LowByte, HighByte }
+            // Ah, so we cannot set it to "Char".
+            // I should remove "char" from the enum in list_tools schema.
+            // But wait, the user asked for "useful tools".
+            // If the AppState doesn't support Char format for immediate, we can't add it easily without modifying types.rs.
+            // I'll stick to what's available.
+            return Err(McpError {
+                code: -32602,
+                message: "Char format not supported by current engine version".to_string(),
+                data: None,
+            });
+        }
+        _ => {
+            return Err(McpError {
+                code: -32602,
+                message: format!("Unknown format: {}", format_str),
+                data: None,
+            });
+        }
+    };
+
+    let command = crate::commands::Command::SetImmediateFormat {
+        address,
+        new_format: Some(format),
+        old_format: app_state.immediate_value_formats.get(&address).cloned(),
+    };
+
+    command.apply(app_state);
+    app_state.push_command(command);
+    app_state.disassemble();
+
+    Ok(())
+}
+
+// Helpers
+
+fn ascii_char_to_petscii(c: char) -> u8 {
+    let b = c as u8;
+    match b {
+        b'a'..=b'z' => b - 32, // 'a' (97) -> 'A' (65) (Unshifted PETSCII)
+        b'A'..=b'Z' => b + 32, // 'A' (65) -> 'a' (97) (Shifted PETSCII / Graphics)
+        _ => b,                // Numbers, punctuation mostly map 1:1 for basic ASCII
+    }
+}
+
+fn petscii_to_screencode_simple(petscii: u8) -> u8 {
+    // Inverse of screencode_to_petscii somewhat
+    // 00-1F (@..) <- 40-5F
+    match petscii {
+        0x40..=0x5F => petscii - 0x40,
+        0x20..=0x3F => petscii,
+        0x60..=0x7F => petscii - 0x20,
+        0xA0..=0xBF => petscii - 0x40,
+        _ => petscii, // Fallback
+    }
 }
