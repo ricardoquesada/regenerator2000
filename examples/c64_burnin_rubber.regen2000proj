@@ -1555,7 +1555,7 @@
     ],
     "21049": [
       {
-        "name": "wait_for_raster_sync",
+        "name": "sync_with_irq_update",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1752,6 +1752,7 @@
     "20029": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPhysics - Increments Y-positions for all active sprites.",
     "20400": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain Loop Tail - Synchronizes game logic and loops for the next frame.",
     "20992": "Plays a SID sound effect (Triangle Wave) based on index in $0806.\nCommonly used for variable pitch sounds like engine noise or jumping.",
+    "21049": "Synchronizes game logic with the interrupt-driven update of Zero Page $C5. \nThis ensures the game loop runs at a consistent speed tied to the system's 50/60Hz interrupt.",
     "21504": "Interrupt-driven music and sound effect engine.\nProcesses a data stream at $5500 to update SID registers\nfor background music and ambient sounds.",
     "22272": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ Handler"
   },
@@ -1834,14 +1835,14 @@
     },
     "22310": "Hex"
   },
-  "cursor_address": 22384,
+  "cursor_address": 21055,
   "hex_dump_cursor_address": 2112,
-  "sprites_cursor_address": 14464,
+  "sprites_cursor_address": 14656,
   "charset_cursor_address": 8192,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
