@@ -142,6 +142,18 @@
     },
     {
       "start": 3583,
+      "end": 3694,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 3695,
+      "end": 3710,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 3711,
       "end": 3743,
       "type_": "ScreencodeText",
       "collapsed": false
@@ -694,6 +706,27 @@
     }
   ],
   "labels": {
+    "73": [
+      {
+        "name": "zp_ptr_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "74": [
+      {
+        "name": "zp_ptr_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "1024": [
+      {
+        "name": "SCREEN_RAM_BASE",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "2040": [
       {
         "name": "sprite_0_frame_ptr",
@@ -750,6 +783,48 @@
         "kind": "User"
       }
     ],
+    "2048": [
+      {
+        "name": "map_row_index",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2049": [
+      {
+        "name": "map_col_index",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2050": [
+      {
+        "name": "row_transition_counter",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2051": [
+      {
+        "name": "current_season_index",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2080": [
+      {
+        "name": "cars_scratched_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2081": [
+      {
+        "name": "cars_scratched_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "2082": [
       {
         "name": "lives_hi",
@@ -760,6 +835,244 @@
     "2083": [
       {
         "name": "lives_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2085": [
+      {
+        "name": "player_score_bcd",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2135": [
+      {
+        "name": "high_score_rank",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2136": [
+      {
+        "name": "high_score_entry_timer_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2137": [
+      {
+        "name": "high_score_entry_timer_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2142": [
+      {
+        "name": "collision_cooldown_active_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2143": [
+      {
+        "name": "collision_cooldown_timer",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2144": [
+      {
+        "name": "high_score_cursor_row",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2145": [
+      {
+        "name": "high_score_cursor_col",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2259": [
+      {
+        "name": "collision_temp_x_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2260": [
+      {
+        "name": "collision_temp_y_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2272": [
+      {
+        "name": "hero_speed_bcd",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2303": [
+      {
+        "name": "delay_loop_counter",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2304": [
+      {
+        "name": "enemy_speed_fraction_array",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2308": [
+      {
+        "name": "enemy_horiz_dir_array",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2312": [
+      {
+        "name": "enemy_horiz_speed_array",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2320": [
+      {
+        "name": "enemy_vert_dir_array",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2324": [
+      {
+        "name": "enemy_vert_speed_array",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2336": [
+      {
+        "name": "enemy_move_timer_array",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2340": [
+      {
+        "name": "enemy_collision_active_array",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2344": [
+      {
+        "name": "enemy_active_flag_array",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2348": [
+      {
+        "name": "enemy_type_index_array",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2352": [
+      {
+        "name": "enemy_crash_timer_array",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2432": [
+      {
+        "name": "item_active_flags_array",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2435": [
+      {
+        "name": "item_timer_array",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2438": [
+      {
+        "name": "score_update_buffer_1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2439": [
+      {
+        "name": "score_update_buffer_2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2441": [
+      {
+        "name": "hero_horiz_move_speed",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2442": [
+      {
+        "name": "hero_horiz_move_active_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2443": [
+      {
+        "name": "hero_horiz_move_duration_timer",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2560": [
+      {
+        "name": "p1_state_buffer_0a00",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3072": [
+      {
+        "name": "p2_state_buffer_0c00",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3840": [
+      {
+        "name": "game_mode_players",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3841": [
+      {
+        "name": "active_player_index",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3920": [
+      {
+        "name": "high_score_values_table",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -834,6 +1147,20 @@
         "kind": "User"
       }
     ],
+    "5344": [
+      {
+        "name": "long_delay",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5360": [
+      {
+        "name": "short_delay",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "5577": [
       {
         "name": "increment_score_routine",
@@ -841,9 +1168,121 @@
         "kind": "User"
       }
     ],
+    "5632": [
+      {
+        "name": "txt_congratulations",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5650": [
+      {
+        "name": "txt_scratched_cars",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5670": [
+      {
+        "name": "txt_bonus_points",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5686": [
+      {
+        "name": "txt_x_500",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5696": [
+      {
+        "name": "txt_extra_bonus_points",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5714": [
+      {
+        "name": "txt_50000",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5719": [
+      {
+        "name": "text_next_way_is",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5730": [
+      {
+        "name": "txt_good_luck",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5744": [
+      {
+        "name": "tbl_sprite2_frame",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5748": [
+      {
+        "name": "tbl_sprite1_frame",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5752": [
+      {
+        "name": "tbl_sprite1_color",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5756": [
+      {
+        "name": "tbl_seasons_color",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5760": [
+      {
+        "name": "tbl_seasons_text",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5793": [
+      {
+        "name": "init_player_run",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5900": [
+      {
+        "name": "render_new_stage_screen",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "6054": [
       {
         "name": "hero_joy_up_down",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6094": [
+      {
+        "name": "hero_movement_logic",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -858,6 +1297,13 @@
     "6153": [
       {
         "name": "main_loop_start",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6194": [
+      {
+        "name": "main_loop_sprite_dispatcher",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -946,6 +1392,41 @@
         "kind": "User"
       }
     ],
+    "15060": [
+      {
+        "name": "spawn_and_init_enemies",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15072": [
+      {
+        "name": "process_enemy_collisions",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15088": [
+      {
+        "name": "process_item_pickup",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15104": [
+      {
+        "name": "check_sprite_collision",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15616": [
+      {
+        "name": "update_enemy_positions",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "16075": [
       {
         "name": "play_crash_sound",
@@ -960,9 +1441,23 @@
         "kind": "User"
       }
     ],
+    "17920": [
+      {
+        "name": "main_loop_sync_delay",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "17936": [
       {
         "name": "set_game_over",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18194": [
+      {
+        "name": "manage_collision_cooldown",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -974,9 +1469,93 @@
         "kind": "User"
       }
     ],
+    "18848": [
+      {
+        "name": "update_sprite_visibility",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "19456": [
+      {
+        "name": "move_enemies_horizontally",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "19697": [
+      {
+        "name": "deactivate_enemy_slot",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "19763": [
+      {
+        "name": "check_bg_collision_at_pos",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20053": [
+      {
+        "name": "animate_enemy_sprites",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20173": [
+      {
+        "name": "process_scrolling_and_finish_frame",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20228": [
+      {
+        "name": "check_enemy_obstacle_drop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20400": [
+      {
+        "name": "finish_frame_and_sync",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "20412": [
       {
         "name": "main_loop_end",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20670": [
+      {
+        "name": "dispatch_player_context_switch",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20992": [
+      {
+        "name": "play_engine_or_jump_sound",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21040": [
+      {
+        "name": "play_collision_sound_and_deactivate",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21049": [
+      {
+        "name": "wait_for_raster_sync",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -991,6 +1570,90 @@
     "21088": [
       {
         "name": "sid_tbl_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21504": [
+      {
+        "name": "irq_music_engine",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21542": [
+      {
+        "name": "music_raster_sync_prev",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21543": [
+      {
+        "name": "music_toggle_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21544": [
+      {
+        "name": "music_note_timer",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21545": [
+      {
+        "name": "music_sequencer_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21546": [
+      {
+        "name": "music_channel_selector",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21573": [
+      {
+        "name": "music_data_ptr_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21574": [
+      {
+        "name": "music_data_ptr_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21760": [
+      {
+        "name": "music_data_stream_start",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22080": [
+      {
+        "name": "music_freq_lo_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22144": [
+      {
+        "name": "music_freq_hi_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "55296": [
+      {
+        "name": "COLOR_RAM_BASE",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1011,6 +1674,15 @@
     "4428": "yellow",
     "4564": "Joy#2 fire",
     "4578": "Joy#2 fire",
+    "4867": "X = current map row index",
+    "4870": "Y = current map column index",
+    "4873": "Calculate pointer to map data at $4000",
+    "4881": "Loop: add 32 ($20) for each row index",
+    "4902": "Retrieve map byte using column index Y",
+    "4906": "Calculate pointer to tile data at $8010",
+    "4913": "Loop: add 4 for each tile ID (tiles are 4 bytes?)",
+    "4928": "Copy map row to screen RAM ($0428) and color RAM ($D828)",
+    "4941": "Check if column reaches 32 (end of stage)",
     "5610": "Hero car #0",
     "5968": "hero car #0",
     "6057": "Joy#2 left",
@@ -1054,15 +1726,17 @@
     "4560": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInput Utility - Waits for Joystick Port 1 fire button with debounce.",
     "4592": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHUD Refresh - Redraws the UI status bar and triggers background scrolling.",
     "4608": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nGame Reset - Initializes lives, scores, and cleared game variables.",
-    "4864": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlayfield Generator - Translates level map data into Screen/Color RAM.",
+    "4864": "Main game state update routine.\nHandles background scrolling by copying map data to screen RAM\nand manages level/season transitions when the end of the map is reached.",
     "5344": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTiming - Standard nested X/Y register delay loop.",
     "5360": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTiming - Short delay loop variation.",
     "5376": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScroll Logic - Shifts screen character data to create movement effect.",
     "5607": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSprite State - Configures hardware sprite expansion and pointer resets.",
+    "5793": "Initializes a new run for a player.\nResets scratched car counters and triggers the player context switch\nand stage reconstruction logic.",
     "5900": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nStage Init - Prepares game state and hardware for a new level/stage.",
     "6054": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHero Movement (X) - Handles joystick left/right and updates Sprite 0 X.",
     "6144": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain game initialization and entry point.\nCalls various setup routines for SID, VIC, and screen.",
     "6153": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain Game Loop.\nUpdates game state, handles input, and manages screen/sprites.",
+    "6194": "Sprite Update and Collision Dispatcher.\nExecutes the core logic for all active sprites, including movement,\nanimation, and interaction checks.",
     "6656": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFire Logic - Detects Joy fire button to jump.",
     "6912": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCollision Detection - Checks player sprite against background characters.",
     "7005": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nGame Over - Displays final message and triggers high score logic.",
@@ -1074,8 +1748,11 @@
     "18432": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLose a life.\nDecrements lives counter and checks for game over.",
     "18752": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScore Processor - Manages point increments and extra life awards.",
     "18944": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nEnemy Spawner - Uses RNG to initialize and position new enemy sprites.",
+    "19456": "Updates horizontal positions for all active enemies.\nIncludes an integrated background collision check after every pixel of movement.",
     "20029": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPhysics - Increments Y-positions for all active sprites.",
     "20400": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain Loop Tail - Synchronizes game logic and loops for the next frame.",
+    "20992": "Plays a SID sound effect (Triangle Wave) based on index in $0806.\nCommonly used for variable pitch sounds like engine noise or jumping.",
+    "21504": "Interrupt-driven music and sound effect engine.\nProcesses a data stream at $5500 to update SID registers\nfor background music and ambient sounds.",
     "22272": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ Handler"
   },
   "settings": {
@@ -1113,6 +1790,12 @@
     "4165": "Binary",
     "4167": "Binary",
     "4530": "Decimal",
+    "4873": {
+      "LowByte": 16384
+    },
+    "4877": {
+      "HighByte": 16384
+    },
     "6057": "Binary",
     "6064": "Binary",
     "6155": "Binary",
@@ -1143,16 +1826,22 @@
     "19795": {
       "HighByte": 1024
     },
+    "19907": {
+      "LowByte": 985
+    },
+    "19911": {
+      "HighByte": 985
+    },
     "22310": "Hex"
   },
-  "cursor_address": 2120,
+  "cursor_address": 22384,
   "hex_dump_cursor_address": 2112,
-  "sprites_cursor_address": 14400,
+  "sprites_cursor_address": 14464,
   "charset_cursor_address": 8192,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 32768,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
