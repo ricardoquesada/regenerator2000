@@ -1,6 +1,7 @@
 use crate::mcp::types::{McpError, McpRequest, McpResponse};
 use crate::state::AppState;
 use crate::state::types::BlockType;
+use base64::prelude::*;
 use serde_json::{Value, json};
 
 use crate::ui_state::UIState;
@@ -213,18 +214,23 @@ fn list_resources() -> Result<Value, McpError> {
                 "mimeType": "text/plain",
                 "description": "Information about accessing the full disassembly. Direct reading is not supported; use region resources instead."
             },
-
+            {
+                "uri": "binary://main",
+                "name": "Full Binary",
+                "mimeType": "application/octet-stream",
+                "description": "The full raw binary with 2-byte load address header (PRG format)."
+            },
             {
                 "uri": "disasm://selected",
-                "name": "Active Selection (Disassembly)",
+                "name": "Disassembly selection",
                 "mimeType": "text/plain",
-                "description": "The 6502 disassembly text for the range currently selected by the user in the UI. READ THIS to understand the code the user is referencing."
+                "description": "The 6502 disassembly text for the range currently selected by the user in the UI."
             },
             {
                 "uri": "hexdump://selected",
-                "name": "Active Selection (Hexdump)",
+                "name": "Hexdump selection",
                 "mimeType": "text/plain",
-                "description": "The hexdump view for the range currently selected by the user in the UI. READ THIS to understand the raw data the user is referencing."
+                "description": "The hexdump view for the range currently selected by the user in the UI."
             }
         ]
     }))
@@ -490,6 +496,22 @@ fn handle_resource_read(
                 "uri": uri,
                 "mimeType": "text/plain",
                 "text": "Full disassembly not supported via simple resource read, use regions."
+            }]
+        }))
+    } else if uri == "binary://main" {
+        let mut data = Vec::with_capacity(app_state.raw_data.len() + 2);
+        let origin = app_state.origin;
+        data.push((origin & 0xFF) as u8);
+        data.push(((origin >> 8) & 0xFF) as u8);
+        data.extend_from_slice(&app_state.raw_data);
+
+        let encoded = BASE64_STANDARD.encode(&data);
+
+        Ok(json!({
+            "contents": [{
+                "uri": uri,
+                "mimeType": "application/octet-stream",
+                "blob": encoded
             }]
         }))
     } else if uri == "disasm://selected" {
