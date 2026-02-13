@@ -441,9 +441,10 @@ fn get_address(args: &Value, key: &str) -> Result<u16, McpError> {
     }
 
     if let Some(s) = val.as_str()
-        && let Some(addr) = parse_address_string(s) {
-            return Ok(addr);
-        }
+        && let Some(addr) = parse_address_string(s)
+    {
+        return Ok(addr);
+    }
 
     Err(McpError {
         code: -32602,
