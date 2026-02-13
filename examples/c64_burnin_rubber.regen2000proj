@@ -766,14 +766,14 @@
     ],
     "4096": [
       {
-        "name": "setup_vic",
+        "name": "init_vic_routine",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "4178": [
       {
-        "name": "paint_screen",
+        "name": "init_screen_routine",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -801,7 +801,7 @@
     ],
     "4501": [
       {
-        "name": "setup_sid",
+        "name": "init_sid_routine",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -809,6 +809,34 @@
     "4560": [
       {
         "name": "wait_for_joy_fire",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4608": [
+      {
+        "name": "init_game_vars",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4800": [
+      {
+        "name": "lose_life_routine",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4864": [
+      {
+        "name": "update_game_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5577": [
+      {
+        "name": "increment_score_routine",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -827,9 +855,23 @@
         "kind": "User"
       }
     ],
+    "6153": [
+      {
+        "name": "main_loop_start",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "6656": [
       {
         "name": "wait_joy2_fire",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6912": [
+      {
+        "name": "check_hero_bg_collision",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -911,6 +953,13 @@
         "kind": "User"
       }
     ],
+    "17408": [
+      {
+        "name": "handle_hero_input",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "17936": [
       {
         "name": "set_game_over",
@@ -921,6 +970,13 @@
     "18656": [
       {
         "name": "do_delay",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20412": [
+      {
+        "name": "main_loop_end",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -989,7 +1045,7 @@
   },
   "user_line_comments": {
     "2049": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nBootloader - Copies main program from $9700 range to execution memory.",
-    "2083": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nboot strap",
+    "2083": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitialization code: Moves code/data block to $8000 and sets up IRQ.\nAfter initialization, $0823 is reused as lives_lo.",
     "4096": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nVIC-II Init - Sets border/bg colors, sprite pointers, and memory layout.",
     "4178": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScreen Painter - Copies character data to Screen RAM and sets Color RAM.",
     "4378": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\npaint_screen_start",
@@ -1005,14 +1061,17 @@
     "5607": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSprite State - Configures hardware sprite expansion and pointer resets.",
     "5900": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nStage Init - Prepares game state and hardware for a new level/stage.",
     "6054": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHero Movement (X) - Handles joystick left/right and updates Sprite 0 X.",
-    "6144": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain Setup - Entry point for hardware and game state initialization.",
+    "6144": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain game initialization and entry point.\nCalls various setup routines for SID, VIC, and screen.",
+    "6153": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain Game Loop.\nUpdates game state, handles input, and manages screen/sprites.",
     "6656": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFire Logic - Detects Joy fire button to jump.",
     "6912": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCollision Detection - Checks player sprite against background characters.",
     "7005": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nGame Over - Displays final message and triggers high score logic.",
     "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCharset",
     "12288": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nsprites",
+    "17408": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandle hero movement based on joystick input.\nChecks for collisions and updates sprite position.",
     "17424": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHero Movement (Y) - Handles joystick up/down and updates Sprite 0 Y.",
     "17936": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nGame Over Text - Prints the 'GAME OVER' string using screencodes.",
+    "18432": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLose a life.\nDecrements lives counter and checks for game over.",
     "18752": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScore Processor - Manages point increments and extra life awards.",
     "18944": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nEnemy Spawner - Uses RNG to initialize and position new enemy sprites.",
     "20029": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPhysics - Increments Y-positions for all active sprites.",
@@ -1041,11 +1100,13 @@
     "2085": {
       "HighByte": 38656
     },
-    "2091": "Hex",
+    "2091": {
+      "HighByte": 48896
+    },
     "2111": "Hex",
     "2115": "Binary",
     "2120": {
-      "LowByte": 22272
+      "HighByte": 22272
     },
     "4116": "Binary",
     "4157": "Binary",
@@ -1084,14 +1145,14 @@
     },
     "22310": "Hex"
   },
-  "cursor_address": 17920,
-  "hex_dump_cursor_address": 4096,
-  "sprites_cursor_address": 14208,
+  "cursor_address": 2120,
+  "hex_dump_cursor_address": 2112,
+  "sprites_cursor_address": 14400,
   "charset_cursor_address": 8192,
-  "right_pane_visible": "None",
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [

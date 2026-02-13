@@ -129,9 +129,9 @@ impl Widget for CompleteAddressDialog {
                 if let Some(target_address) = self.get_complete_address() {
                     // Create immediate format for this instruction
                     let fmt = if self.lo_first {
-                        crate::state::ImmediateFormat::HighByte(target_address)
-                    } else {
                         crate::state::ImmediateFormat::LowByte(target_address)
+                    } else {
+                        crate::state::ImmediateFormat::HighByte(target_address)
                     };
 
                     let old_fmt = app_state
