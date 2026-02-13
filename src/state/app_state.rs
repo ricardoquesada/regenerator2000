@@ -194,7 +194,8 @@ impl AppState {
                 // If we loaded a project successfully, update system config
                 let res = self.load_project(path.clone());
                 if res.is_ok() {
-                    self.system_config.last_project_path = Some(path);
+                    let abs_path = std::fs::canonicalize(&path).unwrap_or(path.clone());
+                    self.system_config.last_project_path = Some(abs_path);
                     let _ = self.system_config.save();
                 }
                 return res;
@@ -443,7 +444,8 @@ impl AppState {
             self.last_saved_pointer = self.undo_stack.get_pointer();
 
             if update_global_config {
-                self.system_config.last_project_path = Some(path.clone());
+                let abs_path = std::fs::canonicalize(path).unwrap_or(path.clone());
+                self.system_config.last_project_path = Some(abs_path);
                 let _ = self.system_config.save();
             }
 
@@ -798,11 +800,8 @@ impl AppState {
         // Add external label definitions at the top if enabled
         if self.settings.all_labels {
             let external_lines = self.get_external_label_definitions();
-            if !external_lines.is_empty() {
-                let mut all_lines = external_lines;
-                all_lines.extend(lines);
-                lines = all_lines;
-            }
+            // Prepend external lines
+            lines.splice(0..0, external_lines);
         }
 
         self.disassembly = lines;
@@ -1516,5 +1515,94 @@ mod analysis_tests {
         assert!(!content.contains("CHROUT"));
 
         let _ = std::fs::remove_file(path);
+    }
+}
+
+#[cfg(test)]
+mod config_tests {
+    use super::*;
+    use std::fs::File;
+    use std::io::Write;
+    use uuid::Uuid;
+
+    #[test]
+    fn test_last_project_path_is_full_path() {
+        let mut dir = std::env::temp_dir();
+        dir.push(format!("regen_test_{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let filename = "test_project.regen2000proj";
+        let project_path = dir.join(filename);
+
+        // Create a minimal valid project file
+        let mut file = File::create(&project_path).unwrap();
+        let valid_base64 = crate::state::project::encode_raw_data_to_base64(&[]).unwrap();
+
+        write!(
+            file,
+            r#"{{
+            "origin": 2048,
+            "raw_data_base64": "{}",
+            "blocks": [],
+            "labels": {{}},
+            "user_side_comments": {{}},
+            "user_line_comments": {{}},
+            "immediate_value_formats": {{}},
+            "settings": {{
+                "platform": "Commodore 64",
+                "assembler": "Ca65",
+                "all_labels": false,
+                "enabled_features": {{}}
+            }},
+            "cursor_address": 0,
+            "hex_dump_cursor_address": 0,
+            "sprites_cursor_address": 0,
+            "right_pane_visible": null,
+            "charset_cursor_address": 0,
+            "bitmap_cursor_address": 0,
+            "sprite_multicolor_mode": false,
+            "charset_multicolor_mode": false,
+            "bitmap_multicolor_mode": false,
+            "hexdump_view_mode": "ScreencodeShifted",
+            "splitters": [],
+            "blocks_view_cursor": 0
+         }}"#,
+            valid_base64
+        )
+        .unwrap();
+        drop(file);
+
+        let mut app_state = AppState::new();
+
+        // Override config path to avoid writing to user's real config
+        let config_path = dir.join("config.json");
+        app_state.system_config.config_path_override = Some(config_path);
+
+        // Load using the path (absolute, but might contain symlinks)
+        let res = app_state.load_file(project_path.clone());
+        assert!(res.is_ok(), "Failed to load project: {:?}", res.err());
+
+        // Check if last_project_path is absolute and canonical
+        let stored_path = app_state
+            .system_config
+            .last_project_path
+            .as_ref()
+            .expect("last_project_path should be set");
+
+        assert!(
+            stored_path.is_absolute(),
+            "last_project_path should be absolute, got: {:?}",
+            stored_path
+        );
+
+        // Verify it is canonicalized
+        let canonical_expected = std::fs::canonicalize(&project_path).unwrap();
+        assert_eq!(
+            *stored_path, canonical_expected,
+            "last_project_path should be canonicalized"
+        );
+
+        // Cleanup
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

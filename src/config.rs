@@ -22,6 +22,8 @@ pub struct SystemConfig {
     pub sync_bitmap_view: bool,
     #[serde(default = "default_entropy_threshold")]
     pub entropy_threshold: f32,
+    #[serde(skip)]
+    pub config_path_override: Option<PathBuf>,
 }
 
 fn default_true() -> bool {
@@ -53,6 +55,7 @@ impl Default for SystemConfig {
             sync_sprites_view: false,
             sync_bitmap_view: false,
             entropy_threshold: 7.5,
+            config_path_override: None,
         }
     }
 }
@@ -87,6 +90,11 @@ impl SystemConfig {
     }
 
     pub fn save(&self) -> anyhow::Result<()> {
+        if let Some(path) = &self.config_path_override {
+            let data = serde_json::to_string_pretty(self)?;
+            std::fs::write(path, data)?;
+            return Ok(());
+        }
         if let Some(proj_dirs) = ProjectDirs::from("", "", "regenerator2000") {
             let config_dir = proj_dirs.config_dir();
             std::fs::create_dir_all(config_dir)?;
