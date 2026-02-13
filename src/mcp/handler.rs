@@ -81,7 +81,7 @@ fn list_tools() -> Result<Value, McpError> {
             },
              {
                 "name": "set_line_comment",
-                "description": "Adds a line comment at a specific address. Line comments appear on their own line before the instruction and can act as visual separators.",
+                "description": "Adds a line comment at a specific address. Line comments appear on their own line before the instruction and can act as visual separators. It supports multi-line comments.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
