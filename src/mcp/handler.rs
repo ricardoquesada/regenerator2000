@@ -294,6 +294,15 @@ fn list_tools() -> Result<Value, McpError> {
                     "properties": {},
                     "required": []
                 }
+            },
+            {
+                "name": "save_project",
+                "description": "Saves the current project state to the existing .regen2000proj file. This tool only works if the project was previously loaded from or saved to a project file. It does not accept a filename for security reasons.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             }
         ]
     }))
@@ -567,6 +576,29 @@ fn handle_tool_call(
                 "content": [{
                     "type": "text",
                     "text": serde_json::to_string_pretty(&comments).unwrap()
+                }]
+            }))
+        }
+        "save_project" => {
+            if app_state.project_path.is_none() {
+                return Err(McpError {
+                    code: -32603,
+                    message: "No active project path. Project must be loaded from or saved to a .regen2000proj file before it can be saved.".to_string(),
+                    data: None,
+                });
+            }
+
+            let ctx = create_save_context(app_state, ui_state);
+            app_state.save_project(ctx, true).map_err(|e| McpError {
+                code: -32603,
+                message: format!("Failed to save project: {}", e),
+                data: None,
+            })?;
+
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": format!("Project saved to {}", app_state.project_path.as_ref().unwrap().display())
                 }]
             }))
         }
@@ -1127,6 +1159,55 @@ fn get_all_comments_impl(app_state: &AppState) -> Vec<Value> {
     });
 
     comments
+}
+
+fn create_save_context(
+    app_state: &AppState,
+    ui_state: &UIState,
+) -> crate::state::project::ProjectSaveContext {
+    let origin = app_state.origin as usize;
+
+    // Cursor address
+    let cursor_address = app_state
+        .disassembly
+        .get(ui_state.cursor_index)
+        .map(|l| l.address);
+
+    // Hex cursor address
+    let alignment_padding = origin % 16;
+    let aligned_origin = origin - alignment_padding;
+    let hex_dump_cursor_address = Some((aligned_origin + ui_state.hex_cursor_index * 16) as u16);
+
+    // Sprites cursor address
+    let aligned_sprite_origin = (origin / 64) * 64;
+    let sprites_cursor_address =
+        Some((aligned_sprite_origin + ui_state.sprites_cursor_index * 64) as u16);
+
+    // Charset cursor address
+    let base_alignment = 0x400;
+    let aligned_charset_origin = (origin / base_alignment) * base_alignment;
+    let charset_cursor_address =
+        Some((aligned_charset_origin + ui_state.charset_cursor_index * 8) as u16);
+
+    // Bitmap cursor address
+    let aligned_bitmap_origin = (origin / 8192) * 8192;
+    let bitmap_cursor_address =
+        Some((aligned_bitmap_origin + ui_state.bitmap_cursor_index * 8192) as u16);
+
+    crate::state::project::ProjectSaveContext {
+        cursor_address,
+        hex_dump_cursor_address,
+        sprites_cursor_address,
+        right_pane_visible: Some(format!("{:?}", ui_state.right_pane)),
+        charset_cursor_address,
+        bitmap_cursor_address,
+        sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
+        charset_multicolor_mode: ui_state.charset_multicolor_mode,
+        bitmap_multicolor_mode: ui_state.bitmap_multicolor_mode,
+        hexdump_view_mode: ui_state.hexdump_view_mode,
+        splitters: app_state.splitters.clone(),
+        blocks_view_cursor: ui_state.blocks_list_state.selected(),
+    }
 }
 
 // Helpers
