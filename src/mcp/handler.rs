@@ -56,7 +56,7 @@ fn list_tools() -> Result<Value, McpError> {
     Ok(json!({
         "tools": [
             {
-                "name": "set_label_name",
+                "name": "r2000_set_label_name",
                 "description": "Sets a user-defined label at a specific MOS 6502 memory address. Use this to name functions, variables, or jump targets to make the C64 disassembly more readable.",
                 "inputSchema": {
                     "type": "object",
@@ -68,7 +68,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "set_side_comment",
+                "name": "r2000_set_side_comment",
                 "description": "Adds a side comment to a specific address. Side comments appear on the same line as the instruction.",
                 "inputSchema": {
                     "type": "object",
@@ -80,7 +80,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
              {
-                "name": "set_line_comment",
+                "name": "r2000_set_line_comment",
                 "description": "Adds a line comment at a specific address. Line comments appear on their own line before the instruction and can act as visual separators. It supports multi-line comments.",
                 "inputSchema": {
                     "type": "object",
@@ -92,67 +92,67 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "convert_region_to_code",
+                "name": "r2000_convert_region_to_code",
                 "description": "Marks a memory region as executable code. This forces the disassembler to interpret bytes as MOS 6502 instructions. Use this for all executable machine code.",
                 "inputSchema": region_schema()
             },
             {
-                "name": "convert_region_to_bytes",
+                "name": "r2000_convert_region_to_bytes",
                 "description": "Marks a memory region as raw Data Byte (8-bit values). Use this for sprite data, distinct variables, tables, or memory regions where the data format is unknown.",
                 "inputSchema": region_schema()
             },
             {
-                "name": "convert_region_to_words",
+                "name": "r2000_convert_region_to_words",
                 "description": "Marks a memory region as Data Word (16-bit Little-Endian values). Use this for 16-bit counters, pointers (that shouldn't be analyzed as code references), or math constants.",
                 "inputSchema": region_schema()
             },
             {
-                "name": "convert_region_to_address",
+                "name": "r2000_convert_region_to_address",
                 "description": "Marks a memory region as Address (16-bit pointers). Unlike 'Data Word', this type explicitly tells the analyzer that the value points to a location in memory, creating Cross-References (X-Refs). Essential for Jump Tables.",
                 "inputSchema": region_schema()
             },
             {
-                "name": "convert_region_to_petscii",
+                "name": "r2000_convert_region_to_petscii",
                 "description": "Marks a memory region as PETSCII encoded text. Use for game messages, high score names, or print routines.",
                 "inputSchema": region_schema()
             },
             {
-                "name": "convert_region_to_screencode",
+                "name": "r2000_convert_region_to_screencode",
                 "description": "Marks a memory region as Commodore Screen Code encoded text (Matrix codes). Use for data directly copied to Screen RAM ($0400).",
                 "inputSchema": region_schema()
             },
             {
-                "name": "convert_region_to_lo_hi_address",
+                "name": "r2000_convert_region_to_lo_hi_address",
                 "description": "Marks a memory region as a Lo/Hi Address Table. Must have an even number of bytes. The first half determines the low bytes, the second half the high bytes. Common in C64 games.",
                 "inputSchema": region_schema()
             },
             {
-                "name": "convert_region_to_hi_lo_address",
+                "name": "r2000_convert_region_to_hi_lo_address",
                 "description": "Marks a memory region as a Hi/Lo Address Table. Must have an even number of bytes. The first half determines the high bytes, the second half the low bytes. Common in C64 games.",
                 "inputSchema": region_schema()
             },
             {
-                "name": "convert_region_to_lo_hi_word",
+                "name": "r2000_convert_region_to_lo_hi_word",
                 "description": "Marks a memory region as a Lo/Hi Word Table. Must have a size divisible by 4. The first half contains the low words, the second half the high words. Use case: SID frequency tables.",
                 "inputSchema": region_schema()
             },
             {
-                "name": "convert_region_to_hi_lo_word",
+                "name": "r2000_convert_region_to_hi_lo_word",
                 "description": "Marks a memory region as a Hi/Lo Word Table. Must have a size divisible by 4. The first half contains the high words, the second half the low words. Use case: SID frequency tables.",
                 "inputSchema": region_schema()
             },
             {
-                "name": "convert_region_to_external_file",
+                "name": "r2000_convert_region_to_external_file",
                 "description": "Marks a memory region as External File (binary data). Use for large chunks of included binary data (like music SID files, raw bitmaps, or character sets) that should be exported as included binary files.",
                 "inputSchema": region_schema()
             },
             {
-                "name": "convert_region_to_undefined",
+                "name": "r2000_convert_region_to_undefined",
                 "description": "Resets the block to an 'Unknown' / 'Undefined' state. Use this if you made a mistake and want the Auto-Analyzer to take a fresh look at the usage of this region.",
                 "inputSchema": region_schema()
             },
              {
-                "name": "toggle_splitter",
+                "name": "r2000_toggle_splitter",
                 "description": "Toggles a Splitter at a specific address. Splitters prevent the auto-merger from combining adjacent blocks of the same type. Crucial for separating adjacent Lo/Hi tables.",
                 "inputSchema": {
                     "type": "object",
@@ -163,7 +163,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "undo",
+                "name": "r2000_undo",
                 "description": "Undoes the latest operation. Use this command to revert changes if you made a mistake or want to go back to a previous state.",
                 "inputSchema": {
                     "type": "object",
@@ -172,7 +172,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "redo",
+                "name": "r2000_redo",
                 "description": "Redoes the latest undone operation. Use this command to re-apply changes that were previously undone.",
                 "inputSchema": {
                     "type": "object",
@@ -181,17 +181,17 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "read_disasm_region",
+                "name": "r2000_read_disasm_region",
                 "description": "Get MOS 6502 disassembly text for a specific memory range. Supports decimal (4096), hex (0x1000) and 6502 hex ($1000).",
                 "inputSchema": region_schema()
             },
             {
-                "name": "read_hexdump_region",
+                "name": "r2000_read_hexdump_region",
                 "description": "Get raw hexdump view for a specific C64 memory range. Supports decimal (4096), hex (0x1000) and 6502 hex ($1000).",
                 "inputSchema": region_schema()
             },
             {
-                "name": "get_binary_info",
+                "name": "r2000_get_binary_info",
                 "description": "Returns the origin address and size of the analyzed binary in bytes.",
                 "inputSchema": {
                     "type": "object",
@@ -200,7 +200,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "get_analyzed_blocks",
+                "name": "r2000_get_analyzed_blocks",
                 "description": "Returns the list of memory blocks as analyzed, including their range and type. Respects splitters. Supported types: Code, Byte, Word, Address, PETSCII Text, Screencode Text, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined.",
                 "inputSchema": {
                      "type": "object",
@@ -214,7 +214,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "read_selected_disasm",
+                "name": "r2000_read_selected_disasm",
                 "description": "Get disassembly text for the range currently selected in the UI. If no range is selected, it returns the instruction under the cursor.",
                 "inputSchema": {
                      "type": "object",
@@ -223,7 +223,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "read_selected_hexdump",
+                "name": "r2000_read_selected_hexdump",
                 "description": "Get hexdump view for the range currently selected in the UI. If no range is selected, it returns the byte row under the cursor.",
                 "inputSchema": {
                      "type": "object",
@@ -232,7 +232,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "get_disassembly_cursor",
+                "name": "r2000_get_disassembly_cursor",
                 "description": "Returns the memory address of the current cursor position in the disassembly view.",
                 "inputSchema": {
                     "type": "object",
@@ -241,7 +241,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "search_memory",
+                "name": "r2000_search_memory",
                 "description": "Search for a sequence of bytes or a text string in the memory. Returns a list of addresses where the sequence is found.",
                 "inputSchema": {
                     "type": "object",
@@ -260,7 +260,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "get_cross_references",
+                "name": "r2000_get_cross_references",
                 "description": "Get a list of addresses that reference the given address (e.g. JSRs, JMPs, loads).",
                 "inputSchema": {
                     "type": "object",
@@ -271,7 +271,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "set_operand_format",
+                "name": "r2000_set_operand_format",
                 "description": "Sets the display format for immediate values (operands) at a specific address. Useful for visualizing bitmasks or characters.",
                 "inputSchema": {
                     "type": "object",
@@ -287,7 +287,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "get_symbol_table",
+                "name": "r2000_get_symbol_table",
                 "description": "Returns a list of all defined labels (user and system) and their addresses.",
                 "inputSchema": {
                     "type": "object",
@@ -296,7 +296,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "get_all_comments",
+                "name": "r2000_get_all_comments",
                 "description": "Returns a list of all user-defined comments (both line and side comments) and their addresses.",
                 "inputSchema": {
                     "type": "object",
@@ -305,7 +305,7 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "save_project",
+                "name": "r2000_save_project",
                 "description": "Saves the current project state to the existing .regen2000proj file. This tool only works if the project was previously loaded from or saved to a project file. It does not accept a filename for security reasons.",
                 "inputSchema": {
                     "type": "object",
@@ -364,7 +364,7 @@ fn handle_tool_call(
     let args = params.get("arguments").cloned().unwrap_or(json!({}));
 
     match name {
-        "set_label_name" => {
+        "r2000_set_label_name" => {
             let address = get_address(&args, "address")?;
             let label_name = args
                 .get("name")
@@ -395,14 +395,14 @@ fn handle_tool_call(
                 json!({ "content": [{ "type": "text", "text": format!("Label set at ${:04X}", address) }] }),
             )
         }
-        "set_side_comment" | "set_line_comment" => {
+        "r2000_set_side_comment" | "r2000_set_line_comment" => {
             let address = get_address(&args, "address")?;
             let comment = args
                 .get("comment")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
 
-            let command = if name == "set_side_comment" {
+            let command = if name == "r2000_set_side_comment" {
                 crate::commands::Command::SetUserSideComment {
                     address,
                     new_comment: comment.clone(),
@@ -423,28 +423,36 @@ fn handle_tool_call(
                 json!({ "content": [{ "type": "text", "text": format!("Comment set at ${:04X}", address) }] }),
             )
         }
-        "convert_region_to_code" => convert_region(app_state, &args, BlockType::Code),
-        "convert_region_to_bytes" => convert_region(app_state, &args, BlockType::DataByte),
-        "convert_region_to_words" => convert_region(app_state, &args, BlockType::DataWord),
-        "convert_region_to_address" => convert_region(app_state, &args, BlockType::Address),
-        "convert_region_to_petscii" => convert_region(app_state, &args, BlockType::PetsciiText),
-        "convert_region_to_screencode" => {
+        "r2000_convert_region_to_code" => convert_region(app_state, &args, BlockType::Code),
+        "r2000_convert_region_to_bytes" => convert_region(app_state, &args, BlockType::DataByte),
+        "r2000_convert_region_to_words" => convert_region(app_state, &args, BlockType::DataWord),
+        "r2000_convert_region_to_address" => convert_region(app_state, &args, BlockType::Address),
+        "r2000_convert_region_to_petscii" => {
+            convert_region(app_state, &args, BlockType::PetsciiText)
+        }
+        "r2000_convert_region_to_screencode" => {
             convert_region(app_state, &args, BlockType::ScreencodeText)
         }
-        "convert_region_to_lo_hi_address" => {
+        "r2000_convert_region_to_lo_hi_address" => {
             convert_region(app_state, &args, BlockType::LoHiAddress)
         }
-        "convert_region_to_hi_lo_address" => {
+        "r2000_convert_region_to_hi_lo_address" => {
             convert_region(app_state, &args, BlockType::HiLoAddress)
         }
-        "convert_region_to_lo_hi_word" => convert_region(app_state, &args, BlockType::LoHiWord),
-        "convert_region_to_hi_lo_word" => convert_region(app_state, &args, BlockType::HiLoWord),
-        "convert_region_to_external_file" => {
+        "r2000_convert_region_to_lo_hi_word" => {
+            convert_region(app_state, &args, BlockType::LoHiWord)
+        }
+        "r2000_convert_region_to_hi_lo_word" => {
+            convert_region(app_state, &args, BlockType::HiLoWord)
+        }
+        "r2000_convert_region_to_external_file" => {
             convert_region(app_state, &args, BlockType::ExternalFile)
         }
-        "convert_region_to_undefined" => convert_region(app_state, &args, BlockType::Undefined),
+        "r2000_convert_region_to_undefined" => {
+            convert_region(app_state, &args, BlockType::Undefined)
+        }
 
-        "toggle_splitter" => {
+        "r2000_toggle_splitter" => {
             let address = get_address(&args, "address")?;
             let command = crate::commands::Command::ToggleSplitter { address };
             command.apply(app_state);
@@ -455,33 +463,33 @@ fn handle_tool_call(
             )
         }
 
-        "undo" => {
+        "r2000_undo" => {
             let msg = app_state.undo_last_command();
             app_state.disassemble();
             Ok(json!({ "content": [{ "type": "text", "text": msg }] }))
         }
 
-        "read_disasm_region" => {
+        "r2000_read_disasm_region" => {
             let start_addr = get_address(&args, "start_address")?;
             let end_addr = get_address(&args, "end_address")?;
             let text = get_disassembly_text(app_state, start_addr, end_addr);
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
         }
 
-        "read_hexdump_region" => {
+        "r2000_read_hexdump_region" => {
             let start_addr = get_address(&args, "start_address")?;
             let end_addr = get_address(&args, "end_address")?;
             let text = get_hexdump_text(app_state, start_addr, end_addr);
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
         }
 
-        "redo" => {
+        "r2000_redo" => {
             let msg = app_state.redo_last_command();
             app_state.disassemble();
             Ok(json!({ "content": [{ "type": "text", "text": msg }] }))
         }
 
-        "get_binary_info" => {
+        "r2000_get_binary_info" => {
             let origin = app_state.origin;
             let size = app_state.raw_data.len();
             Ok(json!({
@@ -495,7 +503,7 @@ fn handle_tool_call(
             }))
         }
 
-        "get_analyzed_blocks" => {
+        "r2000_get_analyzed_blocks" => {
             let filter = args.get("block_type").and_then(|v| v.as_str());
             let blocks = get_analyzed_blocks_impl(app_state, filter);
             Ok(json!({
@@ -506,19 +514,19 @@ fn handle_tool_call(
             }))
         }
 
-        "read_selected_disasm" => {
+        "r2000_read_selected_disasm" => {
             let (start, end) = get_selection_range_disasm(app_state, ui_state)?;
             let text = get_disassembly_text(app_state, start, end);
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
         }
 
-        "read_selected_hexdump" => {
+        "r2000_read_selected_hexdump" => {
             let (start, end) = get_selection_range_hexdump(app_state, ui_state)?;
             let text = get_hexdump_text(app_state, start, end);
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
         }
 
-        "get_disassembly_cursor" => {
+        "r2000_get_disassembly_cursor" => {
             let idx = ui_state.cursor_index;
             if let Some(line) = app_state.disassembly.get(idx) {
                 Ok(json!({
@@ -536,7 +544,7 @@ fn handle_tool_call(
             }
         }
 
-        "search_memory" => {
+        "r2000_search_memory" => {
             let query = args
                 .get("query")
                 .and_then(|v| v.as_str())
@@ -555,7 +563,7 @@ fn handle_tool_call(
             }))
         }
 
-        "get_cross_references" => {
+        "r2000_get_cross_references" => {
             let address = get_address(&args, "address")?;
             let refs = get_cross_references_impl(app_state, address);
             Ok(json!({
@@ -566,7 +574,7 @@ fn handle_tool_call(
             }))
         }
 
-        "set_operand_format" => {
+        "r2000_set_operand_format" => {
             let address = get_address(&args, "address")?;
             let format_str =
                 args.get("format")
@@ -587,7 +595,7 @@ fn handle_tool_call(
             }))
         }
 
-        "get_symbol_table" => {
+        "r2000_get_symbol_table" => {
             let symbols = get_symbol_table_impl(app_state);
             Ok(json!({
                 "content": [{
@@ -597,7 +605,7 @@ fn handle_tool_call(
             }))
         }
 
-        "get_all_comments" => {
+        "r2000_get_all_comments" => {
             let comments = get_all_comments_impl(app_state);
             Ok(json!({
                 "content": [{
@@ -606,7 +614,7 @@ fn handle_tool_call(
                 }]
             }))
         }
-        "save_project" => {
+        "r2000_save_project" => {
             if app_state.project_path.is_none() {
                 return Err(McpError {
                     code: -32603,

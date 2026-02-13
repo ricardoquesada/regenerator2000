@@ -42,7 +42,7 @@ mod tests {
         let (tx, _r) = oneshot::channel();
         let req = McpRequest {
             method: "tools/call".to_string(),
-            params: json!({ "name": "read_selected_disasm", "arguments": {} }),
+            params: json!({ "name": "r2000_read_selected_disasm", "arguments": {} }),
             response_sender: tx,
         };
 
@@ -86,7 +86,7 @@ mod tests {
         let (tx, _) = oneshot::channel();
         let req = McpRequest {
             method: "tools/call".to_string(),
-            params: json!({ "name": "read_selected_hexdump", "arguments": {} }),
+            params: json!({ "name": "r2000_read_selected_hexdump", "arguments": {} }),
             response_sender: tx,
         };
 
@@ -111,7 +111,7 @@ mod tests {
         let (tx2, _) = oneshot::channel();
         let req2 = McpRequest {
             method: "tools/call".to_string(),
-            params: json!({ "name": "read_selected_hexdump", "arguments": {} }),
+            params: json!({ "name": "r2000_read_selected_hexdump", "arguments": {} }),
             response_sender: tx2,
         };
 

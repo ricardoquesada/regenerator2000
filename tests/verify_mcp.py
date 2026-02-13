@@ -277,7 +277,7 @@ def test_list_tools(client):
         print(f"Found {len(tools)} tools.")
         names = [t["name"] for t in tools]
         print(f"Tools: {names}")
-        if "set_label_name" in names and "convert_region_to_code" in names:
+        if "r2000_set_label_name" in names and "r2000_convert_region_to_code" in names:
             print("PASS")
         else:
             print("FAIL: Missing tools")
@@ -285,11 +285,11 @@ def test_list_tools(client):
         print(f"FAIL: {res}")
 
 def test_set_label(client):
-    print("\nTesting set_label_name...")
+    print("\nTesting r2000_set_label_name...")
     # Assuming standard C64 load address $0801 (2049) is valid data
     # We'll try to set a label at $1000 (4096)
     res = client.rpc("tools/call", {
-        "name": "set_label_name",
+        "name": "r2000_set_label_name",
         "arguments": {
             "address": 4096,
             "name": "TEST_LABEL"
@@ -319,7 +319,7 @@ def test_complex_scenario(client):
     # 1. Set $1000-$100f to CODE
     print("- Converting $1000-$100F to CODE")
     res = client.rpc("tools/call", {
-        "name": "convert_region_to_code",
+        "name": "r2000_convert_region_to_code",
         "arguments": {
             "start_address": 0x1000,
             "end_address": 0x100F
@@ -333,7 +333,7 @@ def test_complex_scenario(client):
     # 2. Set $1010-$101f to BYTES
     print("- Converting $1010-$101F to BYTES")
     res = client.rpc("tools/call", {
-        "name": "convert_region_to_bytes",
+        "name": "r2000_convert_region_to_bytes",
         "arguments": {
             "start_address": 0x1010,
             "end_address": 0x101F
@@ -347,7 +347,7 @@ def test_complex_scenario(client):
     # 3. Set $1020-$102f to WORDS
     print("- Converting $1020-$102F to WORDS")
     res = client.rpc("tools/call", {
-        "name": "convert_region_to_words",
+        "name": "r2000_convert_region_to_words",
         "arguments": {
             "start_address": 0x1020,
             "end_address": 0x102F
@@ -361,7 +361,7 @@ def test_complex_scenario(client):
     # 4. Set Line Comment at $1000
     print("- Setting line comment at $1000")
     res = client.rpc("tools/call", {
-        "name": "set_line_comment",
+        "name": "r2000_set_line_comment",
         "arguments": {
             "address": 0x1000,
             "comment": "added by MCP"
@@ -375,10 +375,10 @@ def test_complex_scenario(client):
 
 
 def test_convert_lo_hi_address(client):
-    print("\nTesting convert_region_to_lo_hi_address...")
+    print("\nTesting r2000_convert_region_to_lo_hi_address...")
     # Using a dummy range, assuming it won't crash even if data is random
     res = client.rpc("tools/call", {
-        "name": "convert_region_to_lo_hi_address",
+        "name": "r2000_convert_region_to_lo_hi_address",
         "arguments": {
             "start_address": 0x1000,
             "end_address": 0x1003
@@ -392,9 +392,9 @@ def test_convert_lo_hi_address(client):
         print(f"FAIL (Lo/Hi Addr): {res}")
 
 def test_tool_response_content(client):
-    print("\nTesting tool response content (set_line_comment)...")
+    print("\nTesting tool response content (r2000_set_line_comment)...")
     res = client.rpc("tools/call", {
-        "name": "set_line_comment",
+        "name": "r2000_set_line_comment",
         "arguments": {
             "address": 0x1000,
             "comment": "test comment"
@@ -415,9 +415,9 @@ def test_tool_response_content(client):
         print(f"FAIL: Tool call failed {res}")
 
 def test_read_disasm_region(client):
-    print("\nTesting read_disasm_region (formerly a resource)...")
+    print("\nTesting r2000_read_disasm_region (formerly a resource)...")
     res = client.rpc("tools/call", {
-        "name": "read_disasm_region",
+        "name": "r2000_read_disasm_region",
         "arguments": {
             "start_address": 4096,
             "end_address": 4097
@@ -442,9 +442,9 @@ def test_read_disasm_region(client):
         print(f"FAIL: {res}")
 
 def test_read_hexdump_region(client):
-    print("\nTesting read_hexdump_region...")
+    print("\nTesting r2000_read_hexdump_region...")
     res = client.rpc("tools/call", {
-        "name": "read_hexdump_region",
+        "name": "r2000_read_hexdump_region",
         "arguments": {
             "start_address": 4096,
             "end_address": 4097
@@ -454,16 +454,16 @@ def test_read_hexdump_region(client):
         # print("Success:")
         # print(json.dumps(res["result"], indent=2))
         if "content" in res["result"] and len(res["result"]["content"]) > 0:
-             print("PASS: read_hexdump_region returned content")
+             print("PASS: r2000_read_hexdump_region returned content")
         else:
-             print("FAIL: read_hexdump_region response missing content")
+             print("FAIL: r2000_read_hexdump_region response missing content")
     else:
         print(f"FAIL: {res}")
 
 def test_read_selected_tools(client):
-    print("\nTesting read_selected_disasm...")
+    print("\nTesting r2000_read_selected_disasm...")
     res = client.rpc("tools/call", {
-        "name": "read_selected_disasm", 
+        "name": "r2000_read_selected_disasm", 
         "arguments": {}
     })
     if res and "result" in res:
@@ -473,9 +473,9 @@ def test_read_selected_tools(client):
     else:
         print(f"FAIL (Disasm): {res}")
 
-    print("\nTesting read_selected_hexdump...")
+    print("\nTesting r2000_read_selected_hexdump...")
     res = client.rpc("tools/call", {
-        "name": "read_selected_hexdump",
+        "name": "r2000_read_selected_hexdump",
         "arguments": {}
     })
     if res and "result" in res:
@@ -489,80 +489,80 @@ def test_new_tools(client):
     print("\nTesting new tools (search, xrefs, symbols, comments)...")
 
     # Search Memory
-    print("- search_memory")
+    print("- r2000_search_memory")
     res = client.rpc("tools/call", {
-        "name": "search_memory",
+        "name": "r2000_search_memory",
         "arguments": {
             "query": "A9 00" # lda #$00
         }
     })
     if res and "result" in res:
-         print("PASS: search_memory returned result")
+         print("PASS: r2000_search_memory returned result")
     else:
-         print(f"FAIL: search_memory {res}")
+         print(f"FAIL: r2000_search_memory {res}")
 
     # Get Cross References
-    print("- get_cross_references")
+    print("- r2000_get_cross_references")
     res = client.rpc("tools/call", {
-        "name": "get_cross_references",
+        "name": "r2000_get_cross_references",
         "arguments": {
             "address": 0x1000
         }
     })
     if res and "result" in res:
-         print("PASS: get_cross_references returned result")
+         print("PASS: r2000_get_cross_references returned result")
     else:
-         print(f"FAIL: get_cross_references {res}")
+         print(f"FAIL: r2000_get_cross_references {res}")
 
     # Get Symbol Table
-    print("- get_symbol_table")
+    print("- r2000_get_symbol_table")
     res = client.rpc("tools/call", {
-        "name": "get_symbol_table",
+        "name": "r2000_get_symbol_table",
         "arguments": {}
     })
     if res and "result" in res:
-         print("PASS: get_symbol_table returned result")
+         print("PASS: r2000_get_symbol_table returned result")
     else:
-         print(f"FAIL: get_symbol_table {res}")
+         print(f"FAIL: r2000_get_symbol_table {res}")
 
     # Get All Comments
-    print("- get_all_comments")
+    print("- r2000_get_all_comments")
     res = client.rpc("tools/call", {
-        "name": "get_all_comments",
+        "name": "r2000_get_all_comments",
         "arguments": {}
     })
     if res and "result" in res:
-         print("PASS: get_all_comments returned result")
+         print("PASS: r2000_get_all_comments returned result")
     else:
-         print(f"FAIL: get_all_comments {res}")
+         print(f"FAIL: r2000_get_all_comments {res}")
 
     # Set Operand Format
-    print("- set_operand_format")
+    print("- r2000_set_operand_format")
     res = client.rpc("tools/call", {
-        "name": "set_operand_format",
+        "name": "r2000_set_operand_format",
         "arguments": {
             "address": 0x1000,
             "format": "binary"
         }
     })
     if res and "result" in res:
-         print("PASS: set_operand_format returned result")
+         print("PASS: r2000_set_operand_format returned result")
     else:
-         print(f"FAIL: set_operand_format {res}")
+         print(f"FAIL: r2000_set_operand_format {res}")
 
     # Save Project
-    print("- save_project")
+    print("- r2000_save_project")
     res = client.rpc("tools/call", {
-        "name": "save_project",
+        "name": "r2000_save_project",
         "arguments": {}
     })
     # We expect an error because no project is loaded, but that confirms the tool is reachable
     if res and "error" in res:
-         print(f"PASS: save_project returned expected error (no project loaded): {res['error']['message']}")
+         print(f"PASS: r2000_save_project returned expected error (no project loaded): {res['error']['message']}")
     elif res and "result" in res:
-         print("PASS: save_project returned result (unexpected but valid)")
+         print("PASS: r2000_save_project returned result (unexpected but valid)")
     else:
-         print(f"FAIL: save_project {res}")
+         print(f"FAIL: r2000_save_project {res}")
 
 
 def test_list_resources(client):
@@ -583,9 +583,9 @@ def test_list_resources(client):
 
 
 def test_get_disassembly_cursor(client):
-    print("\nTesting get_disassembly_cursor...")
+    print("\nTesting r2000_get_disassembly_cursor...")
     res = client.rpc("tools/call", {
-        "name": "get_disassembly_cursor",
+        "name": "r2000_get_disassembly_cursor",
         "arguments": {}
     })
     if res and "result" in res:
