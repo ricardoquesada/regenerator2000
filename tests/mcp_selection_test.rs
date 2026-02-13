@@ -38,11 +38,11 @@ mod tests {
         ui_state.cursor_index = 1; // 1002
         ui_state.selection_start = Some(2); // 1003
 
-        // Create Request
-        let (tx, _r) = oneshot::channel(); // Dummy channel
+        // Create Request (Tool Call)
+        let (tx, _r) = oneshot::channel();
         let req = McpRequest {
-            method: "resources/read".to_string(),
-            params: json!({ "uri": "disasm://selected" }),
+            method: "tools/call".to_string(),
+            params: json!({ "name": "read_selected_disasm", "arguments": {} }),
             response_sender: tx,
         };
 
@@ -50,10 +50,14 @@ mod tests {
         let response = handle_request(&req, &mut app_state, &ui_state);
 
         // Verify Response
-        assert!(response.result.is_some());
+        assert!(
+            response.result.is_some(),
+            "Tool call failed: {:?}",
+            response.error
+        );
         let result = response.result.unwrap();
-        let contents = result.get("contents").unwrap().as_array().unwrap();
-        let text = contents[0].get("text").unwrap().as_str().unwrap();
+        let content = result.get("content").unwrap().as_array().unwrap();
+        let text = content[0].get("text").unwrap().as_str().unwrap();
 
         println!("Selected Text:\n{}", text);
 
@@ -81,17 +85,21 @@ mod tests {
 
         let (tx, _) = oneshot::channel();
         let req = McpRequest {
-            method: "resources/read".to_string(),
-            params: json!({ "uri": "hexdump://selected" }),
+            method: "tools/call".to_string(),
+            params: json!({ "name": "read_selected_hexdump", "arguments": {} }),
             response_sender: tx,
         };
 
         let response = handle_request(&req, &mut app_state, &ui_state);
 
-        assert!(response.result.is_some());
+        assert!(
+            response.result.is_some(),
+            "Tool call failed: {:?}",
+            response.error
+        );
         let result = response.result.unwrap();
-        let contents = result.get("contents").unwrap().as_array().unwrap();
-        let text = contents[0].get("text").unwrap().as_str().unwrap();
+        let content = result.get("content").unwrap().as_array().unwrap();
+        let text = content[0].get("text").unwrap().as_str().unwrap();
 
         println!("Hexdump Text:\n{}", text);
 
@@ -102,14 +110,14 @@ mod tests {
         ui_state.hex_selection_start = Some(1);
         let (tx2, _) = oneshot::channel();
         let req2 = McpRequest {
-            method: "resources/read".to_string(),
-            params: json!({ "uri": "hexdump://selected" }),
+            method: "tools/call".to_string(),
+            params: json!({ "name": "read_selected_hexdump", "arguments": {} }),
             response_sender: tx2,
         };
 
         let response2 = handle_request(&req2, &mut app_state, &ui_state);
         let result2 = response2.result.unwrap();
-        let text2 = result2.get("contents").unwrap().as_array().unwrap()[0]
+        let text2 = result2.get("content").unwrap().as_array().unwrap()[0]
             .get("text")
             .unwrap()
             .as_str()

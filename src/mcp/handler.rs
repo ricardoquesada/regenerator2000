@@ -29,9 +29,9 @@ pub fn handle_request(
         "tools/list" => list_tools(),
         "resources/list" => list_resources(),
         // Tools
-        "tools/call" => handle_tool_call(&req.params, app_state),
+        "tools/call" => handle_tool_call(&req.params, app_state, ui_state),
         // Resources
-        "resources/read" => handle_resource_read(&req.params, app_state, ui_state),
+        "resources/read" => handle_resource_read(&req.params, app_state),
 
         _ => Err(McpError {
             code: -32601,
@@ -190,6 +190,47 @@ fn list_tools() -> Result<Value, McpError> {
                 "description": "Get raw hexdump view for a specific C64 memory range. Supports decimal (4096), hex (0x1000) and 6502 hex ($1000).",
                 "inputSchema": region_schema()
             },
+            {
+                "name": "get_binary_info",
+                "description": "Returns the origin address and size of the analyzed binary in bytes.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "get_analyzed_blocks",
+                "description": "Returns the list of memory blocks as analyzed, including their range and type. Respects splitters. Supported types: Code, Byte, Word, Address, PETSCII Text, Screencode Text, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined.",
+                "inputSchema": {
+                     "type": "object",
+                     "properties": {
+                        "block_type": {
+                            "type": "string",
+                            "description": "Optional filter to return only blocks of a specific type. Case-insensitive."
+                        }
+                     },
+                     "required": []
+                }
+            },
+            {
+                "name": "read_selected_disasm",
+                "description": "Get disassembly text for the range currently selected in the UI. If no range is selected, it returns the instruction under the cursor.",
+                "inputSchema": {
+                     "type": "object",
+                     "properties": {},
+                     "required": []
+                }
+            },
+            {
+                "name": "read_selected_hexdump",
+                "description": "Get hexdump view for the range currently selected in the UI. If no range is selected, it returns the byte row under the cursor.",
+                "inputSchema": {
+                     "type": "object",
+                     "properties": {},
+                     "required": []
+                }
+            }
         ]
     }))
 }
@@ -219,24 +260,16 @@ fn list_resources() -> Result<Value, McpError> {
                 "name": "Full Binary",
                 "mimeType": "application/octet-stream",
                 "description": "The full raw binary with 2-byte load address header (PRG format)."
-            },
-            {
-                "uri": "disasm://selected",
-                "name": "Disassembly selection",
-                "mimeType": "text/plain",
-                "description": "The 6502 disassembly text for the range currently selected by the user in the UI."
-            },
-            {
-                "uri": "hexdump://selected",
-                "name": "Hexdump selection",
-                "mimeType": "text/plain",
-                "description": "The hexdump view for the range currently selected by the user in the UI."
             }
         ]
     }))
 }
 
-fn handle_tool_call(params: &Value, app_state: &mut AppState) -> Result<Value, McpError> {
+fn handle_tool_call(
+    params: &Value,
+    app_state: &mut AppState,
+    ui_state: &UIState,
+) -> Result<Value, McpError> {
     let name = params
         .get("name")
         .and_then(|v| v.as_str())
@@ -366,6 +399,43 @@ fn handle_tool_call(params: &Value, app_state: &mut AppState) -> Result<Value, M
             Ok(json!({ "content": [{ "type": "text", "text": msg }] }))
         }
 
+        "get_binary_info" => {
+            let origin = app_state.origin;
+            let size = app_state.raw_data.len();
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&json!({
+                        "origin": origin,
+                        "size": size
+                    })).unwrap()
+                }]
+            }))
+        }
+
+        "get_analyzed_blocks" => {
+            let filter = args.get("block_type").and_then(|v| v.as_str());
+            let blocks = get_analyzed_blocks_impl(app_state, filter);
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&blocks).unwrap()
+                }]
+            }))
+        }
+
+        "read_selected_disasm" => {
+            let (start, end) = get_selection_range_disasm(app_state, ui_state)?;
+            let text = get_disassembly_text(app_state, start, end);
+            Ok(json!({ "content": [{ "type": "text", "text": text }] }))
+        }
+
+        "read_selected_hexdump" => {
+            let (start, end) = get_selection_range_hexdump(app_state, ui_state)?;
+            let text = get_hexdump_text(app_state, start, end);
+            Ok(json!({ "content": [{ "type": "text", "text": text }] }))
+        }
+
         _ => Err(McpError {
             code: -32601,
             message: format!("Tool not found: {}", name),
@@ -476,11 +546,7 @@ fn parse_address_string(s: &str) -> Option<u16> {
     s.parse::<u16>().ok()
 }
 
-fn handle_resource_read(
-    params: &Value,
-    app_state: &mut AppState,
-    ui_state: &UIState,
-) -> Result<Value, McpError> {
+fn handle_resource_read(params: &Value, app_state: &mut AppState) -> Result<Value, McpError> {
     let uri = params
         .get("uri")
         .and_then(|v| v.as_str())
@@ -512,27 +578,6 @@ fn handle_resource_read(
                 "uri": uri,
                 "mimeType": "application/octet-stream",
                 "blob": encoded
-            }]
-        }))
-    } else if uri == "disasm://selected" {
-        let (start, end) = get_selection_range_disasm(app_state, ui_state)?;
-        let text = get_disassembly_text(app_state, start, end);
-        Ok(json!({
-             "contents": [{
-                "uri": format!("disasm://region/{}/{}", start, end),
-                "mimeType": "text/plain",
-                "text": text
-            }]
-        }))
-    } else if uri == "hexdump://selected" {
-        let (start, end) = get_selection_range_hexdump(app_state, ui_state)?;
-        let output = get_hexdump_text(app_state, start, end);
-
-        Ok(json!({
-             "contents": [{
-                "uri": format!("hexdump://region/{}/{}", start, end),
-                "mimeType": "text/plain",
-                "text": output
             }]
         }))
     } else {
@@ -683,4 +728,68 @@ fn get_hexdump_text(app_state: &AppState, start_addr: u16, end_addr: u16) -> Str
         output.push_str(&format!("{:02X} ", byte));
     }
     output
+}
+
+fn get_analyzed_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec<Value> {
+    let mut blocks = Vec::new();
+    let origin = app_state.origin;
+    let max_len = app_state.block_types.len();
+
+    if max_len == 0 {
+        return blocks;
+    }
+
+    let mut start_idx = 0;
+    let mut current_type = app_state.block_types[0];
+
+    for i in 1..max_len {
+        let addr = origin.wrapping_add(i as u16);
+        let type_ = app_state.block_types[i];
+
+        let is_splitter = app_state.splitters.contains(&addr);
+
+        if type_ != current_type || is_splitter {
+            // Finish previous block
+            let end_idx = i - 1;
+            let start_addr = origin.wrapping_add(start_idx as u16);
+            let end_addr = origin.wrapping_add(end_idx as u16);
+
+            let type_str = current_type.to_string();
+            let should_include = match filter {
+                Some(f) => type_str.eq_ignore_ascii_case(f),
+                None => true,
+            };
+
+            if should_include {
+                blocks.push(json!({
+                    "start_address": start_addr,
+                    "end_address": end_addr,
+                    "type": type_str
+                }));
+            }
+
+            start_idx = i;
+            current_type = type_;
+        }
+    }
+
+    // Last block
+    let end_idx = max_len - 1;
+    let start_addr = origin.wrapping_add(start_idx as u16);
+    let end_addr = origin.wrapping_add(end_idx as u16);
+    let type_str = current_type.to_string();
+    let should_include = match filter {
+        Some(f) => type_str.eq_ignore_ascii_case(f),
+        None => true,
+    };
+
+    if should_include {
+        blocks.push(json!({
+            "start_address": start_addr,
+            "end_address": end_addr,
+            "type": type_str
+        }));
+    }
+
+    blocks
 }
