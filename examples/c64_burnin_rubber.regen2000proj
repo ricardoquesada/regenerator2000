@@ -232,18 +232,6 @@
     },
     {
       "start": 4863,
-      "end": 5854,
-      "type_": "Code",
-      "collapsed": false
-    },
-    {
-      "start": 5855,
-      "end": 5875,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 5876,
       "end": 6040,
       "type_": "Code",
       "collapsed": false
@@ -629,7 +617,7 @@
     {
       "start": 19282,
       "end": 19294,
-      "type_": "DataByte",
+      "type_": "ScreencodeText",
       "collapsed": false
     },
     {
@@ -1328,6 +1316,20 @@
         "kind": "User"
       }
     ],
+    "6946": [
+      {
+        "name": "calc_screen_offset_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6965": [
+      {
+        "name": "check_four_chars",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "7005": [
       {
         "name": "the_game_is_over",
@@ -1335,37 +1337,289 @@
         "kind": "User"
       }
     ],
+    "7010": [
+      {
+        "name": "display_game_over_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7051": [
+      {
+        "name": "copy_more_text_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7069": [
+      {
+        "name": "compare_1st_place",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7097": [
+      {
+        "name": "compare_2nd_place",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7124": [
+      {
+        "name": "compare_3rd_place",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7151": [
+      {
+        "name": "compare_4th_place",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7178": [
+      {
+        "name": "compare_5th_place",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7208": [
+      {
+        "name": "shift_high_scores",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7221": [
+      {
+        "name": "shift_5th_to_6th",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7241": [
+      {
+        "name": "shift_4th_to_5th",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7261": [
+      {
+        "name": "shift_3rd_to_4th",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7281": [
+      {
+        "name": "shift_2nd_to_3rd",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7292": [
+      {
+        "name": "insert_player_score",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7306": [
+      {
+        "name": "copy_score_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7323": [
+      {
+        "name": "display_hi_score_names",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7362": [
+      {
+        "name": "display_hi_score_digits",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7415": [
+      {
+        "name": "shift_hi_score_names",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7428": [
+      {
+        "name": "shift_name_5th_to_6th",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7448": [
+      {
+        "name": "shift_name_4th_to_5th",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7468": [
+      {
+        "name": "shift_name_3rd_to_4th",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7488": [
+      {
+        "name": "shift_name_2nd_to_3rd",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7502": [
+      {
+        "name": "hi_score_name_entry",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7539": [
+      {
+        "name": "name_entry_main_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7580": [
+      {
+        "name": "update_timer_and_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7587": [
+      {
+        "name": "delay_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "7660": [
       {
-        "name": "joy2_up",
+        "name": "handle_joy_up",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "7663": [
       {
-        "name": "joy2_down",
+        "name": "handle_joy_down",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "7666": [
       {
-        "name": "joy2_left",
+        "name": "handle_joy_left",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "7669": [
       {
-        "name": "joy2_right",
+        "name": "handle_joy_right",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "7672": [
       {
-        "name": "joy2_fire",
+        "name": "handle_joy_fire",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7676": [
+      {
+        "name": "no_hi_score_msg",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7717": [
+      {
+        "name": "draw_cursor",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7755": [
+      {
+        "name": "calc_cursor_offset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7781": [
+      {
+        "name": "move_cursor_up",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7800": [
+      {
+        "name": "move_cursor_down",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7819": [
+      {
+        "name": "move_cursor_left",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7841": [
+      {
+        "name": "move_cursor_right",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7863": [
+      {
+        "name": "set_cursor_color",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7875": [
+      {
+        "name": "calc_color_offset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7932": [
+      {
+        "name": "store_character",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8103": [
+      {
+        "name": "map_row_to_display",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1622,6 +1876,90 @@
         "kind": "User"
       }
     ],
+    "21248": [
+      {
+        "name": "update_stage_counter",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21265": [
+      {
+        "name": "increment_frame_counter",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21280": [
+      {
+        "name": "increment_stage_digit",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21294": [
+      {
+        "name": "check_max_stage",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21314": [
+      {
+        "name": "update_display",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21324": [
+      {
+        "name": "wait_for_mode_change",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21331": [
+      {
+        "name": "bonus_text_data",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21344": [
+      {
+        "name": "init_bonus_display",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21351": [
+      {
+        "name": "copy_bonus_text_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21383": [
+      {
+        "name": "delay_outer_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21385": [
+      {
+        "name": "delay_middle_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21387": [
+      {
+        "name": "delay_inner_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "21504": [
       {
         "name": "irq_music_engine",
@@ -1720,6 +2058,69 @@
         "kind": "User"
       }
     ],
+    "22272": [
+      {
+        "name": "sid_sound_effect",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22315": [
+      {
+        "name": "update_sound_sweep",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22331": [
+      {
+        "name": "sound_sweep_up_done",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22343": [
+      {
+        "name": "reverse_sweep_direction",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22354": [
+      {
+        "name": "update_sid_frequency",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22360": [
+      {
+        "name": "exit_sound_routine",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22363": [
+      {
+        "name": "disable_sound",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22370": [
+      {
+        "name": "padding_bytes",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22384": [
+      {
+        "name": "copyright_text",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "55296": [
       {
         "name": "COLOR_RAM_BASE",
@@ -1766,12 +2167,163 @@
     "6841": "hero car jumping #1",
     "6856": "hero car jumping #2",
     "6898": "hero car jumping #0",
-    "7558": "Joy #2 up/down/left/right mask",
-    "7560": "up ?",
-    "7564": "down ?",
-    "7568": "left ?",
-    "7572": "right ?",
-    "7576": "Fire active",
+    "6912": "Check collision flag",
+    "6915": "If zero, proceed with collision check",
+    "6918": "Get sprite 0 X position from VIC-II",
+    "6922": "Subtract 16 pixels offset",
+    "6924": "Divide by 8 to get character column",
+    "6927": "Store column in Y register",
+    "6928": "Set pointer to $0400 (screen RAM)",
+    "6936": "Get sprite 0 Y position from VIC-II",
+    "6940": "Subtract 46 pixels offset",
+    "6942": "Divide by 8 to get character row",
+    "6945": "Store row in X register",
+    "6946": "If row = 0, done calculating offset",
+    "6951": "Add 40 ($28) bytes per row",
+    "6961": "Decrement row counter",
+    "6965": "Read character at position (top-left)",
+    "6968": "Check collision for this character",
+    "6971": "Move to next column (top-right)",
+    "6972": "Read character at position",
+    "6980": "Add 39 to get to next row, same column",
+    "6983": "Read character at position (bottom-left)",
+    "6990": "Read character at position (bottom-right)",
+    "7005": "Display game over message",
+    "7008": "Initialize loop counter",
+    "7010": "Copy \"GAME OVER\" text to screen",
+    "7034": "Set color to yellow",
+    "7048": "Loop for all 256 bytes",
+    "7057": "Set color to light red",
+    "7063": "Loop for 120 bytes",
+    "7069": "Load high score digit",
+    "7072": "Compare with player score digit",
+    "7075": "Player score is higher - rank 1st!",
+    "7077": "Scores differ, check next place",
+    "7079": "Check next digit (7 digits total)",
+    "7084": "Exact tie - rank 2nd place",
+    "7092": "Player got 1st place!",
+    "7114": "Exact tie - rank 3rd",
+    "7119": "Player got 2nd place!",
+    "7141": "Exact tie - rank 4th",
+    "7146": "Player got 3rd place!",
+    "7168": "Exact tie - rank 5th",
+    "7173": "Player got 4th place!",
+    "7195": "Didn't make high score list (rank = 0)",
+    "7200": "Player got 5th place!",
+    "7208": "Get player's rank",
+    "7211": "No rank? Skip shifting",
+    "7213": "Rank 5? Also skip (last place)",
+    "7217": "Shift the high score names",
+    "7221": "Move 4th place score to 5th place",
+    "7228": "Copy 8 bytes (7 score digits + name ptr)",
+    "7232": "Was player rank 4?",
+    "7237": "Yes, done shifting",
+    "7241": "Move 3rd place score to 4th place",
+    "7252": "Was player rank 3?",
+    "7261": "Move 2nd place score to 3rd place",
+    "7272": "Was player rank 2?",
+    "7281": "Move 1st place score to 2nd place",
+    "7292": "Get rank again",
+    "7295": "No rank? Skip insertion",
+    "7298": "Calculate offset: (rank-1) * 8",
+    "7303": "Y = offset into score table",
+    "7306": "Copy player score to high score table",
+    "7312": "Initialize name with spaces ($20)",
+    "7319": "Copy 7 score digits",
+    "7325": "Copy names to screen RAM",
+    "7356": "Copy 3 characters per name",
+    "7362": "Get BCD score digit",
+    "7366": "Convert BCD to screen code (+$30)",
+    "7368": "Display 1st place score",
+    "7408": "Display all 7 score digits",
+    "7415": "Check player rank",
+    "7418": "Rank 5? Skip (last place)",
+    "7422": "No rank? Skip",
+    "7428": "Move 4th place name to 5th",
+    "7435": "Copy 3 characters",
+    "7505": "Check if player made high score list",
+    "7508": "No rank? Skip name entry",
+    "7519": "Set timer to 99 seconds",
+    "7529": "Set initial cursor row (row 5)",
+    "7534": "Set initial cursor column (col 6)",
+    "7539": "Draw cursor at current position",
+    "7542": "Set cursor color",
+    "7555": "Read joystick port 2 ($DC00)",
+    "7558": "Mask to get direction/fire bits",
+    "7560": "Check for UP pressed",
+    "7564": "Check for DOWN pressed",
+    "7568": "Check for LEFT pressed",
+    "7572": "Check for RIGHT pressed",
+    "7576": "Check for FIRE pressed",
+    "7580": "Redraw cursor",
+    "7584": "Save X on stack",
+    "7587": "Delay loop for timing",
+    "7596": "Restore X from stack",
+    "7597": "Decrement timer (low digit)",
+    "7606": "Underflow?",
+    "7610": "Reset to 9",
+    "7615": "Decrement timer (high digit)",
+    "7624": "Check if time expired",
+    "7634": "Display timer on screen",
+    "7652": "Time's up! Exit name entry",
+    "7660": "Handle joystick UP",
+    "7663": "Handle joystick DOWN",
+    "7666": "Handle joystick LEFT",
+    "7669": "Handle joystick RIGHT",
+    "7672": "Handle joystick FIRE (select character)",
+    "7678": "Display \"NO HI SCORE\" message",
+    "7684": "Set text color (yellow)",
+    "7690": "34 characters to display",
+    "7717": "Display countdown timer",
+    "7721": "Convert to PETSCII digit",
+    "7735": "Set timer color to yellow",
+    "7743": "Point to color RAM ($D800)",
+    "7747": "Get cursor column",
+    "7752": "Get cursor row",
+    "7755": "If row = 0, offset calculated",
+    "7760": "Add 40 bytes per row",
+    "7774": "Set color to red (cursor highlight)",
+    "7781": "Check current row",
+    "7784": "At top? Can't go higher",
+    "7791": "Move up 2 rows (character grid spacing)",
+    "7803": "At bottom (row 9)?",
+    "7810": "Move down 2 rows",
+    "7822": "At leftmost position (col 6)?",
+    "7829": "Move left 3 columns (character grid)",
+    "7844": "At rightmost position (col 33)?",
+    "7851": "Move right 3 columns",
+    "7863": "Point to color RAM",
+    "7870": "Get cursor position",
+    "7880": "Calculate color RAM offset",
+    "7894": "Set color to white (selected char)",
+    "7932": "Get player's rank",
+    "7935": "Is it 1st place?",
+    "7939": "Convert color RAM ptr to screen RAM",
+    "7946": "Y = 0 (indirect addressing offset)",
+    "7948": "Get character from screen",
+    "7950": "Store to 1st place name table",
+    "7953": "Also display on screen immediately",
+    "7956": "Restore color RAM pointer",
+    "7966": "Is it 2nd place?",
+    "7981": "Store to 2nd place name table",
+    "7997": "Is it 3rd place?",
+    "8012": "Store to 3rd place name table",
+    "8028": "Is it 4th place?",
+    "8043": "Store to 4th place name table",
+    "8070": "Must be 5th place - store there",
+    "8086": "Increment character position (X)",
+    "8103": "Get current map row index",
+    "8106": "Is row >= 29?",
+    "8111": "Add offset for range 29+",
+    "8116": "Set tens digit to '3' (30-39)",
+    "8122": "Is row >= 19?",
+    "8127": "Add offset for range 19-28",
+    "8132": "Set tens digit to '2' (20-29)",
+    "8138": "Is row >= 9?",
+    "8143": "Add offset for range 9-18",
+    "8148": "Set tens digit to '1' (10-19)",
+    "8155": "Range 0-8: add offset",
+    "8160": "Set tens digit to '0' (00-09)",
     "17427": "joy2 left/right/up/down mask",
     "17429": "joy2 up",
     "17959": "delay",
@@ -1805,6 +2357,63 @@
     "20530": "Copy all 256 bytes",
     "20532": "Done",
     "20973": "joy#2 up ?",
+    "21248": "Save current counter digits",
+    "21250": "Store ones digit to display location",
+    "21253": "Get tens digit",
+    "21255": "Store tens digit to display location",
+    "21258": "Check state/mode flag",
+    "21260": "Must be in mode 3 to increment",
+    "21262": "Proceed with increment",
+    "21264": "Wrong mode, exit without incrementing",
+    "21265": "Increment animation/frame counter",
+    "21268": "Check frame counter value",
+    "21271": "Reached 16 frames?",
+    "21273": "Not yet, continue",
+    "21275": "Reset frame counter to 0",
+    "21280": "Increment ones digit (screen code)",
+    "21282": "Get updated ones digit",
+    "21284": "Compare with $3A (screen code '9'+1)",
+    "21286": "No overflow, skip carry logic",
+    "21288": "Wrap ones digit to '0' ($30)",
+    "21292": "Carry to tens digit",
+    "21294": "Check tens digit",
+    "21296": "Is it '1' ($31)?",
+    "21298": "Not '1', continue normally",
+    "21300": "Check ones digit",
+    "21302": "Is it '7' ($37)?",
+    "21304": "Not at stage 17 yet, continue",
+    "21306": "Reached stage 17! Wrap to stage 01",
+    "21308": "Set ones digit to '1'",
+    "21310": "Set tens digit to '0'",
+    "21314": "Write updated ones digit to screen",
+    "21319": "Write updated tens digit to screen",
+    "21324": "Wait loop - check mode flag",
+    "21326": "Still in mode 3?",
+    "21328": "Yes, keep waiting",
+    "21330": "Mode changed, exit",
+    "21331": "\"BONUS 10000\" (screen codes + color)",
+    "21344": "Reset to beginning",
+    "21346": "Set map row index to 0",
+    "21349": "Initialize loop counter",
+    "21351": "Load bonus text character",
+    "21354": "Write to screen RAM at $0756",
+    "21357": "Set color to purple (4)",
+    "21359": "Write to color RAM at $DB56",
+    "21362": "Next character",
+    "21363": "Copied 11 characters?",
+    "21365": "No, continue copying",
+    "21367": "Call subroutine (likely display update)",
+    "21370": "Call again (double buffer or delay?)",
+    "21379": "Set outer loop counter to 8",
+    "21383": "Set X to 0 (middle loop = 256 iterations)",
+    "21385": "Set Y to 0 (inner loop = 256 iterations)",
+    "21387": "Decrement Y (256 times)",
+    "21388": "Inner loop not done",
+    "21390": "Decrement X (256 times)",
+    "21391": "Middle loop not done",
+    "21393": "Decrement outer counter (8 times)",
+    "21395": "Outer loop not done",
+    "21397": "Delay complete, continue execution",
     "21504": "Get current raster sync value",
     "21506": "Has it changed from last frame?",
     "21509": "No change, skip init",
@@ -1870,7 +2479,47 @@
     "21683": "Set channel selector to 0",
     "21686": "Gate off Voice 2",
     "21692": "Set channel selector to 1",
-    "21695": "Gate off Voice 3"
+    "21695": "Gate off Voice 3",
+    "22272": "Check sound enabled flag",
+    "22275": "Sound disabled? Jump to cleanup",
+    "22277": "Load sound state flag",
+    "22280": "Already initialized? Skip init",
+    "22282": "X=0, clear frequency delta",
+    "22285": "Clear Voice 1 freq low byte ($D400)",
+    "22288": "Clear Voice 1 freq high byte ($D401)",
+    "22291": "Clear Voice 1 attack/decay ($D405)",
+    "22294": "Clear Voice 1 control register ($D404)",
+    "22297": "X=1, set initial state",
+    "22298": "Mark as initialized",
+    "22301": "X=2, set frequency increment",
+    "22302": "Store frequency delta (+2)",
+    "22305": "Set sustain/release to $F4",
+    "22307": "Write to SID sustain/release ($D406)",
+    "22310": "Set control: gate on + triangle wave",
+    "22312": "Trigger sound ($D404)",
+    "22315": "Check if state flag is negative",
+    "22317": "Get current frequency value",
+    "22320": "Add frequency delta",
+    "22321": "freq += delta",
+    "22324": "Did we overflow to zero?",
+    "22326": "Check delta direction",
+    "22329": "Is delta positive?",
+    "22331": "Sweep up complete, gate off triangle",
+    "22333": "Release the note (gate off)",
+    "22336": "Set state to $80 (sweep done)",
+    "22338": "Mark sound effect complete",
+    "22341": "Exit sound update",
+    "22343": "Delta is negative, reverse it",
+    "22345": "Calculate 0 - delta",
+    "22346": "Negate delta (changes sweep direction)",
+    "22349": "Store reversed delta",
+    "22352": "Set frequency to $FE (high pitch)",
+    "22354": "Store new frequency value",
+    "22357": "Write to SID freq high ($D401)",
+    "22360": "Continue to next routine",
+    "22363": "Clear sound state",
+    "22365": "Set state to 0 (disabled)",
+    "22368": "Exit routine"
   },
   "user_line_comments": {
     "2049": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nBootloader - Copies main program from $9700 range to execution memory.",
@@ -1895,8 +2544,26 @@
     "6153": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain Game Loop.\nUpdates game state, handles input, and manages screen/sprites.",
     "6194": "Sprite Update and Collision Dispatcher.\nExecutes the core logic for all active sprites, including movement,\nanimation, and interaction checks.",
     "6656": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFire Logic - Detects Joy fire button to jump.",
-    "6912": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCollision Detection - Checks player sprite against background characters.",
-    "7005": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nGame Over - Displays final message and triggers high score logic.",
+    "6912": "===================================================================\nCHECK HERO BACKGROUND COLLISION\nChecks if hero sprite collides with background tiles\n===================================================================",
+    "7005": "===================================================================\nGAME OVER SEQUENCE\nHandles end of game, displays \"GAME OVER\" text and compares\nplayer score against high score table\n===================================================================",
+    "7067": "Compare player score against 1st place high score ($7400)",
+    "7097": "Compare player score against 2nd place high score ($7408)",
+    "7124": "Compare player score against 3rd place high score ($7410)",
+    "7151": "Compare player score against 4th place high score ($7418)",
+    "7178": "Compare player score against 5th place high score ($7420)",
+    "7208": "===================================================================\nSHIFT HIGH SCORE TABLE\nMakes room for new high score by shifting lower scores down\n===================================================================",
+    "7292": "Insert player's score into the high score table",
+    "7323": "Display high score names on screen",
+    "7415": "===================================================================\nSHIFT HIGH SCORE NAMES\nShifts the 3-character names down when a new score is inserted\n===================================================================",
+    "7502": "===================================================================\nHIGH SCORE NAME ENTRY\nAllows player to enter 3-character name using joystick\n===================================================================",
+    "7717": "===================================================================\nDRAW CURSOR\nDraws the selection cursor at current row/col position\n===================================================================",
+    "7781": "Joystick UP handler - move cursor up 2 rows",
+    "7800": "Joystick DOWN handler - move cursor down 2 rows",
+    "7819": "Joystick LEFT handler - move cursor left 3 columns",
+    "7841": "Joystick RIGHT handler - move cursor right 3 columns",
+    "7863": "===================================================================\nSET CURSOR COLOR\nSets the color at cursor position to highlight selection\n===================================================================",
+    "7932": "===================================================================\nSTORE SELECTED CHARACTER TO HIGH SCORE NAME\nWhen FIRE is pressed, stores the selected character into the\nappropriate position in the high score name table\n===================================================================",
+    "8103": "===================================================================\nCONVERT MAP ROW TO DISPLAY COORDINATES\nConverts internal map row index to screen display coordinates\nTakes map_row_index and outputs two-digit decimal representation\n===================================================================",
     "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCharset",
     "12288": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nsprites",
     "17408": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandle hero movement based on joystick input.\nChecks for collisions and updates sprite position.",
@@ -1914,6 +2581,10 @@
     "20515": "Player 2 is active - load their state",
     "20992": "Plays a SID sound effect (Triangle Wave) based on index in $0806.\nCommonly used for variable pitch sounds like engine noise or jumping.",
     "21049": "Synchronizes game logic with the interrupt-driven update of Zero Page $C5. \nThis ensures the game loop runs at a consistent speed tied to the system's 50/60Hz interrupt.",
+    "21248": "===================================================================\nSTAGE/LEVEL COUNTER UPDATE\nUpdates a two-digit counter display (01-17) that likely represents\nthe current stage or level number\n===================================================================",
+    "21331": "===================================================================\nBONUS TEXT DATA\nText string: \"BONUS 10000\" with color code and terminator\nFormat: [color] [text] [terminator] [padding]\n===================================================================",
+    "21344": "===================================================================\nINITIALIZE BONUS DISPLAY\nSets up bonus screen display with \"BONUS 10000\" text\nResets map row index and prepares for bonus stage\n===================================================================",
+    "21379": "Delay loop to pause before continuing",
     "21504": "────────────────────────────────────────────────────────────\nIRQ Music Engine - Main Entry Point\nHandles raster sync, note timing, and SID register updates\n────────────────────────────────────────────────────────────",
     "21518": "Sync value is $06 - Initialize SID voices 2 & 3",
     "21534": "Check if music playback is active",
@@ -1931,7 +2602,12 @@
     "21666": "════════════════════════════════════════════════════════════\nState 0: Note-Off Handler (Release Phase)\n════════════════════════════════════════════════════════════",
     "21681": "Turn off Voice 2 and switch to Voice 3 for next note",
     "21692": "Turn off Voice 3 and switch to Voice 2 for next note",
-    "22272": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ Handler"
+    "22272": "===================================================================\nSID SOUND EFFECT ROUTINE\nHandles sound effects using the SID chip (MOS 6581)\nCreates a frequency sweep/pitch bend effect on Voice 1\n===================================================================",
+    "22282": "Initialize SID chip registers for sound effect",
+    "22315": "Update frequency sweep - creates pitch bend effect",
+    "22363": "Sound disabled - turn off SID and exit",
+    "22370": "Padding bytes (unused space)",
+    "22384": "===================================================================\nCOPYRIGHT TEXT\n\"copyright colosoftware xrom system brussels 1983\"\nCompany: Colosoftware\nSystem: XROM System\nLocation: Brussels, Belgium\nYear: 1983\n==================================================================="
   },
   "settings": {
     "all_labels": false,
@@ -2018,14 +2694,14 @@
     },
     "22310": "Hex"
   },
-  "cursor_address": 20480,
+  "cursor_address": 22346,
   "hex_dump_cursor_address": 2112,
-  "sprites_cursor_address": 14848,
+  "sprites_cursor_address": 14912,
   "charset_cursor_address": 8192,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
