@@ -176,8 +176,26 @@ impl Widget for HexDumpView {
         let total_len = app_state.raw_data.len() + alignment_padding;
         let total_rows = total_len.div_ceil(bytes_per_row);
 
-        let context_lines = visible_height / 2;
-        let offset = ui_state.hex_cursor_index.saturating_sub(context_lines);
+        // --- Scrolloff Logic Start ---
+        let margin = 5.min(visible_height / 3);
+        let mut offset = ui_state.hex_scroll_index;
+
+        // Constraint 1: Cursor must be visible (at least margin from top)
+        if ui_state.hex_cursor_index < offset + margin {
+            offset = ui_state.hex_cursor_index.saturating_sub(margin);
+        }
+
+        // Constraint 2: Cursor must be visible (at least margin from bottom)
+        if ui_state.hex_cursor_index >= offset + visible_height.saturating_sub(margin) {
+            offset = ui_state
+                .hex_cursor_index
+                .saturating_sub(visible_height.saturating_sub(margin).saturating_sub(1));
+        }
+
+        // Final bounds check
+        let max_offset = total_rows.saturating_sub(visible_height);
+        offset = offset.min(max_offset);
+        // --- Scrolloff Logic End ---
 
         let items: Vec<ListItem> = (0..visible_height)
             .map(|i| {

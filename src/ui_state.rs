@@ -56,7 +56,6 @@ pub struct UIState {
     pub selection_start: Option<usize>,
     pub cursor_index: usize,
     pub sub_cursor_index: usize,
-    #[allow(dead_code)]
     pub scroll_index: usize,
 
     // Hex View State

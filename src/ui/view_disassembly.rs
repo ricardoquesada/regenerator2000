@@ -377,8 +377,28 @@ impl Widget for DisassemblyView {
 
         let visible_height = inner_area.height as usize;
         let total_items = app_state.disassembly.len();
-        let context_lines = visible_height / 2;
-        let offset = ui_state.cursor_index.saturating_sub(context_lines);
+
+        // --- Scrolloff Logic Start ---
+        let margin = 5.min(visible_height / 3);
+        let mut offset = ui_state.scroll_index;
+
+        // Constraint 1: Cursor must be visible (at least margin from top)
+        if ui_state.cursor_index < offset + margin {
+            offset = ui_state.cursor_index.saturating_sub(margin);
+        }
+
+        // Constraint 2: Cursor must be visible (at least margin from bottom)
+        // Note: we use visible_height - 1 as the last visible row index
+        if ui_state.cursor_index >= offset + visible_height.saturating_sub(margin) {
+            offset = ui_state
+                .cursor_index
+                .saturating_sub(visible_height.saturating_sub(margin).saturating_sub(1));
+        }
+
+        // Final bounds check for offset
+        let max_offset = total_items.saturating_sub(visible_height);
+        offset = offset.min(max_offset);
+        // --- Scrolloff Logic End ---
 
         // --- Arrow Calculation Start ---
         // We want to find all arrows that overlap with the visible range: [offset, offset + visible_height]
