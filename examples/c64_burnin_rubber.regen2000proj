@@ -664,9 +664,15 @@
     },
     {
       "start": 19651,
-      "end": 20158,
+      "end": 20030,
       "type_": "DataByte",
       "collapsed": true
+    },
+    {
+      "start": 20031,
+      "end": 20158,
+      "type_": "LoHiWord",
+      "collapsed": false
     },
     {
       "start": 20159,
@@ -1532,6 +1538,48 @@
         "kind": "User"
       }
     ],
+    "20480": [
+      {
+        "name": "restore_player_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20490": [
+      {
+        "name": "load_player1_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20492": [
+      {
+        "name": "copy_p1_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20508": [
+      {
+        "name": "check_active_player",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20515": [
+      {
+        "name": "load_player2_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20517": [
+      {
+        "name": "copy_p2_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "20670": [
       {
         "name": "dispatch_player_context_switch",
@@ -1581,6 +1629,13 @@
         "kind": "User"
       }
     ],
+    "21539": [
+      {
+        "name": "music_exit_to_main_irq",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "21542": [
       {
         "name": "music_raster_sync_prev",
@@ -1616,6 +1671,13 @@
         "kind": "User"
       }
     ],
+    "21572": [
+      {
+        "name": "read_next_music_byte",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "21573": [
       {
         "name": "music_data_ptr_lo",
@@ -1626,6 +1688,13 @@
     "21574": [
       {
         "name": "music_data_ptr_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21666": [
+      {
+        "name": "note_off_handler",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1713,7 +1782,95 @@
     "18516": "sprite frame: crash #4",
     "18928": "down active?",
     "19803": "Next row",
-    "20973": "joy#2 up ?"
+    "20480": "NOPs - likely debug/patch space",
+    "20483": "Check game mode",
+    "20486": "Is this 2-player mode?",
+    "20488": "Yes - handle 2-player logic",
+    "20490": "Start at beginning of buffer",
+    "20492": "Load from P1 buffer ($0A00)",
+    "20495": "Restore to active game state",
+    "20498": "Load enemy speed data",
+    "20501": "Restore enemy speeds",
+    "20504": "Next byte",
+    "20505": "Copy all 256 bytes",
+    "20507": "Done",
+    "20508": "Get active player (1 or 2)",
+    "20511": "Is it Player 1?",
+    "20513": "Yes - use P1 buffer",
+    "20517": "Load from P2 buffer ($0C00)",
+    "20520": "Restore to active game state",
+    "20523": "Load enemy speed data",
+    "20526": "Restore enemy speeds",
+    "20529": "Next byte",
+    "20530": "Copy all 256 bytes",
+    "20532": "Done",
+    "20973": "joy#2 up ?",
+    "21504": "Get current raster sync value",
+    "21506": "Has it changed from last frame?",
+    "21509": "No change, skip init",
+    "21511": "Update previous sync value",
+    "21514": "Check if sync value = $06",
+    "21516": "Skip if not $06",
+    "21518": "Gate off pattern %00100000",
+    "21520": "Voice 2 control register",
+    "21523": "Voice 3 control register",
+    "21526": "Get current toggle state",
+    "21529": "Flip bit 0 (toggle between 0/1)",
+    "21531": "Store new toggle state",
+    "21534": "Load toggle flag (0=off, 1=on)",
+    "21537": "If active, continue to music engine",
+    "21552": "Countdown note duration timer",
+    "21555": "Still counting? Exit if not zero",
+    "21557": "Get current state",
+    "21560": "If 0, go to note-off handler",
+    "21562": "Y = 0 for indexing",
+    "21564": "Set state back to 0",
+    "21567": "Note duration = 8 frames",
+    "21569": "Set timer for next note",
+    "21572": "Load byte from music data",
+    "21575": "Advance pointer (low byte)",
+    "21578": "Did low byte wrap?",
+    "21580": "Yes, increment high byte",
+    "21583": "Is it < $40?",
+    "21585": "Yes, it's a note - go play it",
+    "21587": "Reset to start address high",
+    "21592": "Reset to start address low",
+    "21597": "Read next byte (always branches)",
+    "21599": "Is it $30 (rest)?",
+    "21601": "Yes, skip note - just exit",
+    "21603": "Use note value as index",
+    "21604": "Get frequency high byte",
+    "21607": "Save to Y register",
+    "21608": "Get frequency low byte",
+    "21611": "Which SID voice to use?",
+    "21614": "If 0, use Voice 3",
+    "21616": "X = 0 for control",
+    "21618": "Gate off Voice 2",
+    "21621": "Set freq low byte",
+    "21624": "Set freq high byte",
+    "21627": "Clear sustain/release",
+    "21630": "Attack=$B, Decay=$A",
+    "21635": "Triangle wave + gate on",
+    "21637": "Trigger Voice 2",
+    "21640": "Exit",
+    "21642": "Gate off Voice 3",
+    "21645": "Set freq low byte",
+    "21648": "Set freq high byte",
+    "21651": "Clear sustain/release",
+    "21654": "Attack=$B, Decay=$A",
+    "21659": "Triangle wave + gate on",
+    "21661": "Trigger Voice 3",
+    "21664": "Exit",
+    "21666": "Switch to state 1 (next will play note)",
+    "21669": "Release duration = 3 frames",
+    "21671": "Set timer",
+    "21674": "Gate-off value for control reg",
+    "21676": "Check which channel to turn off",
+    "21679": "If 0, turn off Voice 3",
+    "21683": "Set channel selector to 0",
+    "21686": "Gate off Voice 2",
+    "21692": "Set channel selector to 1",
+    "21695": "Gate off Voice 3"
   },
   "user_line_comments": {
     "2049": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nBootloader - Copies main program from $9700 range to execution memory.",
@@ -1751,9 +1908,29 @@
     "19456": "Updates horizontal positions for all active enemies.\nIncludes an integrated background collision check after every pixel of movement.",
     "20029": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPhysics - Increments Y-positions for all active sprites.",
     "20400": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain Loop Tail - Synchronizes game logic and loops for the next frame.",
+    "20480": "──────────────────────────────────────────────────────────\nRESTORE PLAYER STATE\nLoads the current player's game state from their buffer\nIn 2-player mode, each player has their own state buffer\n──────────────────────────────────────────────────────────",
+    "20490": "Load Player 1's state (also used for single player mode)",
+    "20508": "2-Player mode: Check which player is active",
+    "20515": "Player 2 is active - load their state",
     "20992": "Plays a SID sound effect (Triangle Wave) based on index in $0806.\nCommonly used for variable pitch sounds like engine noise or jumping.",
     "21049": "Synchronizes game logic with the interrupt-driven update of Zero Page $C5. \nThis ensures the game loop runs at a consistent speed tied to the system's 50/60Hz interrupt.",
-    "21504": "Interrupt-driven music and sound effect engine.\nProcesses a data stream at $5500 to update SID registers\nfor background music and ambient sounds.",
+    "21504": "────────────────────────────────────────────────────────────\nIRQ Music Engine - Main Entry Point\nHandles raster sync, note timing, and SID register updates\n────────────────────────────────────────────────────────────",
+    "21518": "Sync value is $06 - Initialize SID voices 2 & 3",
+    "21534": "Check if music playback is active",
+    "21539": "Exit point - jump to main IRQ continuation",
+    "21552": "════════════════════════════════════════════════════════════\nMAIN MUSIC SEQUENCER - This is where you are!\nDecrements note timer and processes music data stream\n════════════════════════════════════════════════════════════",
+    "21557": "Timer expired - check sequencer state (0=play note, 1=note off)",
+    "21562": "State 1: Play next note from data stream",
+    "21572": "Read next byte from music data stream",
+    "21583": "Check if byte is a note value or control code",
+    "21587": "Value >= $40 - Loop/restart command: reset pointer to $5500",
+    "21599": "Check for rest/pause command ($30)",
+    "21603": "Play the note: look up frequency in tables",
+    "21616": "Program SID Voice 2 (channel selector != 0)",
+    "21642": "Program SID Voice 3 (channel selector = 0)",
+    "21666": "════════════════════════════════════════════════════════════\nState 0: Note-Off Handler (Release Phase)\n════════════════════════════════════════════════════════════",
+    "21681": "Turn off Voice 2 and switch to Voice 3 for next note",
+    "21692": "Turn off Voice 3 and switch to Voice 2 for next note",
     "22272": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ Handler"
   },
   "settings": {
@@ -1833,16 +2010,22 @@
     "19911": {
       "HighByte": 985
     },
+    "21587": {
+      "HighByte": 21760
+    },
+    "21592": {
+      "LowByte": 21760
+    },
     "22310": "Hex"
   },
-  "cursor_address": 21055,
+  "cursor_address": 20480,
   "hex_dump_cursor_address": 2112,
-  "sprites_cursor_address": 14656,
+  "sprites_cursor_address": 14848,
   "charset_cursor_address": 8192,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 57344,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [

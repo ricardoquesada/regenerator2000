@@ -36,7 +36,7 @@ Regenerator 2000 supports two MCP transport modes:
 
 Before connecting any client, you must start Regenerator 2000 with **MCP Server** enabled. This opens the TUI and starts the HTTP server, allowing you to use the interface while the AI interacts with it.
 
-```bash
+```shell
 # Open your project with the server enabled
 regenerator2000 --mcp-server your_project.regen2000proj
 ```
@@ -45,21 +45,21 @@ The server will listen on `http://127.0.0.1:3000/mcp` by default.
 
 ### 2. Configure Client
 
-#### Claude Code / Claude Desktop
+#### Claude Code
 
-To use Regenerator 2000 with Claude, add the configuration to your `claude_desktop_config.json` or `config.json`.
+To use Regenerator 2000 with Claude Code doe:
 
-**Location:**
+```shell
+claude mcp add regenerator2000 http://127.0.0.1:3000/mcp
+```
 
-- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-
-**Configuration:**
+Or, alternative, add the following to your `claude.json`:
 
 ```json
 {
   "mcpServers": {
     "regenerator2000": {
+      "type": "http",
       "url": "http://127.0.0.1:3000/mcp"
     }
   }
@@ -76,16 +76,17 @@ To use Gemini CLI with the running server, simply provide the URL to the connect
 
 ```bash
 # Example connection command
-gemini connect http://127.0.0.1:3000/mcp
+gemini mcp add regenerator2000 http://127.0.0.1:3000/mcp --scope user -t http
 ```
 
-or, update the file `~/.gemini/settigns.json` with:
+Or, alternative, add the following to `~/.gemini/settigns.json`:
 
 ```json
 {
   "mcpServers": {
     "regenerator2000": {
-      "url": "http://localhost:3000/mcp"
+      "url": "http://localhost:3000/mcp",
+      "tyep": "http"
     }
   }
 }
