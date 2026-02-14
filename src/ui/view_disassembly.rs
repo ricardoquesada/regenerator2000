@@ -6,7 +6,7 @@ use ratatui::{
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, ListState},
+    widgets::{Block, Borders, List, ListItem},
 };
 
 use crate::ui::widget::{Widget, WidgetResult};
@@ -40,14 +40,13 @@ impl DisassemblyView {
 
         for _ in 0..amount {
             let line = &app_state.disassembly[ui_state.cursor_index];
-            let counts = Self::get_visual_line_counts(line, app_state);
-            let instruction_sub_idx = counts.labels + counts.comments;
+            let visual_len = Self::get_visual_line_count_for_instruction(line, app_state);
 
-            if ui_state.sub_cursor_index < instruction_sub_idx {
-                // If we are currently on a label or comment (e.g. mouse click), jump to the instruction
-                ui_state.sub_cursor_index = instruction_sub_idx;
+            if ui_state.sub_cursor_index + 1 < visual_len {
+                // Move to next line within same instruction (comment/label/etc)
+                ui_state.sub_cursor_index += 1;
             } else {
-                // Move to next line, skipping metadata lines
+                // Move to next instruction
                 let mut next_idx = ui_state.cursor_index + 1;
                 while next_idx < app_state.disassembly.len() {
                     let next_line = &app_state.disassembly[next_idx];
@@ -63,10 +62,8 @@ impl DisassemblyView {
 
                 if next_idx < app_state.disassembly.len() {
                     ui_state.cursor_index = next_idx;
-                    let next_line = &app_state.disassembly[ui_state.cursor_index];
-                    let next_counts = Self::get_visual_line_counts(next_line, app_state);
-                    // Always land on the instruction, skipping labels and comments
-                    ui_state.sub_cursor_index = next_counts.labels + next_counts.comments;
+                    // Start at the top of the next instruction block
+                    ui_state.sub_cursor_index = 0;
                 }
             }
         }
@@ -83,9 +80,9 @@ impl DisassemblyView {
         }
 
         for _ in 0..amount {
-            // Unlike Down, Up always takes us to the previous line's instruction
-            // regardless of where we are in the current line (instruction, comment, or label).
-            if ui_state.cursor_index > 0 {
+            if ui_state.sub_cursor_index > 0 {
+                ui_state.sub_cursor_index -= 1;
+            } else if ui_state.cursor_index > 0 {
                 let mut prev_idx = ui_state.cursor_index - 1;
                 while prev_idx > 0 {
                     let prev_line = &app_state.disassembly[prev_idx];
@@ -99,7 +96,7 @@ impl DisassemblyView {
                     prev_idx -= 1;
                 }
 
-                // Check if the found prev_idx is valid (it might be 0 and valid, or 0 and invalid if file starts with metadata)
+                // Check if the found prev_idx is valid
                 let prev_line = &app_state.disassembly[prev_idx];
                 if !prev_line.bytes.is_empty()
                     || prev_line.is_collapsed
@@ -107,12 +104,10 @@ impl DisassemblyView {
                     || !prev_line.mnemonic.is_empty()
                 {
                     ui_state.cursor_index = prev_idx;
-                    let prev_counts = Self::get_visual_line_counts(prev_line, app_state);
-                    ui_state.sub_cursor_index = prev_counts.labels + prev_counts.comments;
+                    let prev_counts =
+                        Self::get_visual_line_count_for_instruction(prev_line, app_state);
+                    ui_state.sub_cursor_index = prev_counts.saturating_sub(1);
                 }
-            } else if ui_state.sub_cursor_index > 0 {
-                // Optimization/Edge-case: If we are at index 0 but sub-index > 0 (comment/label at file start),
-                // do nothing as per existing logic analysis.
             }
         }
     }
@@ -254,6 +249,11 @@ impl Navigable for DisassemblyView {
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
         let max = self.len(app_state).saturating_sub(1);
         ui_state.cursor_index = index.min(max);
+        ui_state.sub_cursor_index = 0;
+
+        // Reset scroll
+        ui_state.scroll_index = ui_state.cursor_index;
+        ui_state.scroll_sub_index = 0;
     }
 
     fn jump_to_user_input(&self, app_state: &AppState, ui_state: &mut UIState, input: usize) {
@@ -270,6 +270,11 @@ impl Navigable for DisassemblyView {
                 ui_state.selection_start = Some(ui_state.cursor_index);
             }
             ui_state.cursor_index = idx;
+            ui_state.sub_cursor_index = 0;
+
+            // Reset scroll
+            ui_state.scroll_index = idx;
+            ui_state.scroll_sub_index = 0;
         }
         // If invalid, Navigable trait doesn't currently support error feedback via return.
         // handle_nav_input will print generic success message if not handled differently?
@@ -378,26 +383,105 @@ impl Widget for DisassemblyView {
         let visible_height = inner_area.height as usize;
         let total_items = app_state.disassembly.len();
 
+        // 1. Calculate Cursor Visual Offset (distance from top of file)
+        // This is expensive O(N) if we scan from 0. Ideally we only care about relative position
+        // between scroll_index and cursor_index.
+
+        let mut scroll_inst_idx = ui_state.scroll_index;
+        let mut scroll_sub_idx = ui_state.scroll_sub_index;
+
+        // Ensure scroll indices are valid
+        if scroll_inst_idx >= total_items {
+            scroll_inst_idx = total_items.saturating_sub(1);
+            scroll_sub_idx = 0;
+        }
+
         // --- Scrolloff Logic Start ---
+        // We calculate the VALID range for the scroll position relative to the cursor.
+        // The scroll position (top of view) must be:
+        // 1. Not too "below" the cursor (cursor - margin). Ideally <= (cursor - margin).
+        // 2. Not too "above" the cursor (cursor - (height - margin)). Ideally >= (cursor - (height - margin)).
+
         let margin = 5.min(visible_height / 3);
-        let mut offset = ui_state.scroll_index;
 
-        // Constraint 1: Cursor must be visible (at least margin from top)
-        if ui_state.cursor_index < offset + margin {
-            offset = ui_state.cursor_index.saturating_sub(margin);
+        // Helper to walk backwards visual lines
+        let walk_back = |start_inst: usize, start_sub: usize, steps: usize| -> (usize, usize) {
+            let mut curr_inst = start_inst;
+            let mut curr_sub = start_sub;
+            for _ in 0..steps {
+                if curr_sub > 0 {
+                    curr_sub -= 1;
+                } else if curr_inst > 0 {
+                    // Find previous valid instruction
+                    let mut prev_idx = curr_inst - 1;
+                    while prev_idx > 0 {
+                        let prev_line = &app_state.disassembly[prev_idx];
+                        if !prev_line.bytes.is_empty()
+                            || prev_line.is_collapsed
+                            || prev_line.label.is_some()
+                            || !prev_line.mnemonic.is_empty()
+                        {
+                            break;
+                        }
+                        prev_idx -= 1;
+                    }
+                    curr_inst = prev_idx;
+                    // Check if valid line found (handle file start case where loop might fail if nothing valid)
+                    let prev_line = &app_state.disassembly[curr_inst];
+                    // Re-verify validity (esp for index 0)
+                    if !prev_line.bytes.is_empty()
+                        || prev_line.is_collapsed
+                        || prev_line.label.is_some()
+                        || !prev_line.mnemonic.is_empty()
+                    {
+                        let prev_lines =
+                            Self::get_visual_line_count_for_instruction(prev_line, app_state);
+                        curr_sub = prev_lines.saturating_sub(1);
+                    } else {
+                        // Fallback to start of file
+                        return (0, 0);
+                    }
+                } else {
+                    return (0, 0);
+                }
+            }
+            (curr_inst, curr_sub)
+        };
+
+        let (max_scroll_inst, max_scroll_sub) =
+            walk_back(ui_state.cursor_index, ui_state.sub_cursor_index, margin);
+
+        // Calculate min_scroll (furthest UP scroll can be)
+        // Since we want cursor to be at most (visible_height - margin - 1) lines away from top,
+        // min_scroll is (cursor) walked back by (visible_height - margin - 1).
+        // However, max_scroll is (cursor) walked back by (margin).
+        // So min_scroll is max_scroll walked back by (visible_height - margin - 1 - margin).
+
+        let window_size = visible_height.saturating_sub(2 * margin).saturating_sub(1);
+        let (min_scroll_inst, min_scroll_sub) = if window_size > 0 {
+            walk_back(max_scroll_inst, max_scroll_sub, window_size)
+        } else {
+            (max_scroll_inst, max_scroll_sub)
+        };
+
+        // Clamp current scroll (scroll_inst_idx, scroll_sub_idx) to [min_scroll, max_scroll]
+
+        // 1. Check if too high (scroll > max_scroll) -> Move UP to max_scroll
+        if scroll_inst_idx > max_scroll_inst
+            || (scroll_inst_idx == max_scroll_inst && scroll_sub_idx > max_scroll_sub)
+        {
+            scroll_inst_idx = max_scroll_inst;
+            scroll_sub_idx = max_scroll_sub;
         }
 
-        // Constraint 2: Cursor must be visible (at least margin from bottom)
-        // Note: we use visible_height - 1 as the last visible row index
-        if ui_state.cursor_index >= offset + visible_height.saturating_sub(margin) {
-            offset = ui_state
-                .cursor_index
-                .saturating_sub(visible_height.saturating_sub(margin).saturating_sub(1));
+        // 2. Check if too low (scroll < min_scroll) -> Move DOWN to min_scroll
+        if scroll_inst_idx < min_scroll_inst
+            || (scroll_inst_idx == min_scroll_inst && scroll_sub_idx < min_scroll_sub)
+        {
+            scroll_inst_idx = min_scroll_inst;
+            scroll_sub_idx = min_scroll_sub;
         }
 
-        // Final bounds check for offset
-        let max_offset = total_items.saturating_sub(visible_height);
-        offset = offset.min(max_offset);
         // --- Scrolloff Logic End ---
 
         // --- Arrow Calculation Start ---
@@ -412,7 +496,7 @@ impl Widget for DisassemblyView {
             end_visible: bool,
         }
 
-        let end_view = offset + visible_height;
+        let end_view = scroll_inst_idx + visible_height; // Approximation for arrow visibility
 
         // Optimization: Use cached arrows from AppState to avoid O(N) search per frame
         let mut relevant_arrows: Vec<ArrowInfo> = Vec::with_capacity(app_state.cached_arrows.len());
@@ -425,7 +509,7 @@ impl Widget for DisassemblyView {
             let high = std::cmp::max(src_idx, dst_idx);
 
             // Check if arrow overlaps with visible area
-            if low < end_view && high >= offset {
+            if low < end_view && high >= scroll_inst_idx {
                 let target_addr_val = arrow.target_addr.unwrap_or(0);
 
                 // Check if it is an exact match to the line address
@@ -448,8 +532,8 @@ impl Widget for DisassemblyView {
                     end: dst_idx,
                     col: 0,
                     target_addr: relative_target,
-                    start_visible: src_idx >= offset && src_idx < end_view,
-                    end_visible: dst_idx >= offset && dst_idx < end_view,
+                    start_visible: src_idx >= scroll_inst_idx && src_idx < end_view,
+                    end_visible: dst_idx >= scroll_inst_idx && dst_idx < end_view,
                 });
             }
         }
@@ -464,8 +548,8 @@ impl Widget for DisassemblyView {
         relevant_arrows.sort_by_key(|a| (a.start as isize - a.end as isize).abs());
 
         let max_allowed_cols = app_state.settings.max_arrow_columns;
-        let view_start = offset;
-        let view_end = offset + visible_height;
+        let view_start = scroll_inst_idx;
+        let view_end = scroll_inst_idx + visible_height;
 
         // Split into Full and Partial
         let (full_arrows, mut partial_arrows): (Vec<_>, Vec<_>) =
@@ -837,271 +921,271 @@ impl Widget for DisassemblyView {
             chars.iter().collect()
         };
 
-        let mut current_line_num: usize = 1;
-        for i in 0..offset {
-            if let Some(line) = app_state.disassembly.get(i) {
-                current_line_num += Self::get_visual_line_count_for_instruction(line, app_state);
-            }
-        }
+        // Render Loop: Generate ListItems starting from scroll_inst_idx, scroll_sub_idx
+        let mut items = Vec::new();
+        let mut current_inst = scroll_inst_idx;
+        let mut current_sub = scroll_sub_idx;
+        let mut processed_visual_lines = 0;
 
-        let items: Vec<ListItem> = app_state
-            .disassembly
-            .iter()
-            .skip(offset)
-            .take(visible_height)
-            .enumerate()
-            .map(|(local_i, line)| {
-                let i = offset + local_i;
-                let is_selected = if let Some(selection_start) = ui_state.selection_start {
-                    let (start, end) = if selection_start < ui_state.cursor_index {
-                        (selection_start, ui_state.cursor_index)
-                    } else {
-                        (ui_state.cursor_index, selection_start)
-                    };
-                    i >= start && i <= end
+        // let mut arrow_calc_offset_map = Vec::new(); // Map visual line index (0..visible) to instruction index for arrows
+
+        while processed_visual_lines < visible_height && current_inst < total_items {
+            let line = &app_state.disassembly[current_inst];
+            // let line_visual_count = Self::get_visual_line_count_for_instruction(line, app_state);
+
+            // We need to generate the specific visual lines for this instruction, starting from current_sub
+            // Since the original generate logic produced a single ListItem with multiple Lines,
+            // we now need to replicate that logic but conditionally extracting single Lines.
+
+            // Helper specific to this instruction to get "all visual parts" in order
+            // 1. Labels [1..len]
+            // 2. Comments (lines)
+            // 3. Instruction itself
+
+            let mut parts = Vec::new();
+
+            // Part generation logic (copied/adapted from previous render)
+            let is_cursor_row = current_inst == ui_state.cursor_index;
+            let is_selected_block = if let Some(selection_start) = ui_state.selection_start {
+                let (start, end) = if selection_start < ui_state.cursor_index {
+                    (selection_start, ui_state.cursor_index)
                 } else {
-                    false
+                    (ui_state.cursor_index, selection_start)
                 };
+                current_inst >= start && current_inst <= end
+            } else {
+                false
+            };
 
-                let is_cursor_row = i == ui_state.cursor_index;
-                let item_base_style = if is_selected {
-                    Style::default()
-                        .bg(ui_state.theme.selection_bg)
-                        .fg(ui_state.theme.selection_fg)
-                } else {
-                    Style::default()
-                };
+            let base_style = if is_selected_block {
+                Style::default()
+                    .bg(ui_state.theme.selection_bg)
+                    .fg(ui_state.theme.selection_fg)
+            } else {
+                Style::default()
+            };
 
-                let label_text = if let Some(label) = &line.label {
-                    formatter.format_label_definition(label)
-                } else {
-                    String::new()
-                };
-
-                let mut item_lines = Vec::new();
-                let mut current_sub_index = 0;
-
-                if line.bytes.len() > 1 {
-                    for offset in 1..line.bytes.len() {
-                        let mid_addr = line.address.wrapping_add(offset as u16);
-                        if let Some(labels) = app_state.labels.get(&mid_addr) {
-                            let xref_str = if let Some(refs) = app_state.cross_refs.get(&mid_addr) {
-                                if !refs.is_empty() && app_state.settings.max_xref_count > 0 {
-                                    format!(
-                                        "{} {}",
-                                        formatter.comment_prefix(),
-                                        crate::disassembler::format_cross_references(
-                                            refs,
-                                            app_state.settings.max_xref_count,
-                                        )
+            // 1. Labels
+            if line.bytes.len() > 1 {
+                for offset in 1..line.bytes.len() {
+                    let mid_addr = line.address.wrapping_add(offset as u16);
+                    if let Some(labels) = app_state.labels.get(&mid_addr) {
+                        // XREF logic
+                        let xref_str = if let Some(refs) = app_state.cross_refs.get(&mid_addr) {
+                            if !refs.is_empty() && app_state.settings.max_xref_count > 0 {
+                                format!(
+                                    "{} {}",
+                                    formatter.comment_prefix(),
+                                    crate::disassembler::format_cross_references(
+                                        refs,
+                                        app_state.settings.max_xref_count
                                     )
-                                } else {
-                                    String::new()
-                                }
+                                )
                             } else {
                                 String::new()
-                            };
-
-                            for label in labels {
-                                let is_highlighted = !is_selected
-                                    && is_cursor_row
-                                    && ui_state.sub_cursor_index == current_sub_index;
-                                let line_style = if is_highlighted {
-                                    Style::default().bg(ui_state.theme.selection_bg)
-                                } else {
-                                    item_base_style
-                                };
-
-                                let arrow_padding_for_rel =
-                                    get_comment_arrow_str(i, Some(mid_addr));
-                                let label_def = format!("{} =*+${:02x}", label.name, offset);
-
-                                let mut spans = vec![
-                                    Span::styled(
-                                        format!("{:5} ", current_line_num),
-                                        line_style.fg(ui_state.theme.bytes),
-                                    ),
-                                    Span::styled(
-                                        format!(
-                                            "{:<width$} ",
-                                            arrow_padding_for_rel,
-                                            width = arrow_width
-                                        ),
-                                        line_style.fg(ui_state.theme.arrow),
-                                    ),
-                                    Span::styled("                 ".to_string(), line_style),
-                                    Span::styled(
-                                        format!("{:<36}", label_def),
-                                        line_style.fg(ui_state.theme.label_def),
-                                    ),
-                                ];
-
-                                if !xref_str.is_empty() {
-                                    spans.push(Span::styled(
-                                        xref_str.clone(),
-                                        line_style.fg(ui_state.theme.comment),
-                                    ));
-                                }
-
-                                item_lines.push(Line::from(spans));
-                                current_line_num += 1;
-                                current_sub_index += 1;
                             }
-                        }
-                    }
-                }
-
-                let arrow_padding = get_arrow_str(i);
-
-                if let Some(line_comment) = &line.line_comment {
-                    for comment_part in line_comment.lines() {
-                        let is_highlighted = !is_selected
-                            && is_cursor_row
-                            && ui_state.sub_cursor_index == current_sub_index;
-                        let line_style = if is_highlighted {
-                            Style::default().bg(ui_state.theme.selection_bg)
                         } else {
-                            Style::default()
+                            String::new()
                         };
 
-                        let comment_arrow_padding = get_comment_arrow_str(i, None);
-                        item_lines.push(Line::from(vec![
-                            Span::styled(
-                                format!("{:5} ", current_line_num),
-                                line_style.fg(ui_state.theme.bytes),
-                            ),
-                            Span::styled(
-                                format!("{:width$} ", comment_arrow_padding, width = arrow_width),
-                                line_style.fg(ui_state.theme.arrow),
-                            ),
-                            Span::styled("                 ".to_string(), line_style),
-                            Span::styled(
-                                format!("{} {}", formatter.comment_prefix(), comment_part),
-                                line_style.fg(ui_state.theme.comment),
-                            ),
-                        ]));
-                        current_line_num += 1;
-                        current_sub_index += 1;
+                        for label in labels {
+                            let arrow_padding = get_comment_arrow_str(current_inst, Some(mid_addr)); // Need accurate active_arrows calculate first?
+                            // Arrows calculation depends on 'offset' which is scroll_index (inst).
+                            // But with smooth scrolling, arrows should be calculated based on the window.
+                            // The arrow logic "get_arrow_str" takes 'current_line' (instruction index).
+                            // So it remains valid as long as we pass 'current_inst'.
+                            // The VISUAL clipping in arrow logic used 'offset' and 'visible_height'.
+                            // This might need tweak if we show "half an instruction".
+                            // For now we assume arrow logic works on Instruction granularity.
+
+                            let label_def = format!("{} =*+${:02x}", label.name, offset);
+                            let mut spans = vec![
+                                Span::styled(
+                                    format!("{:5} ", ""),
+                                    base_style.fg(ui_state.theme.bytes),
+                                ), // No line num for label sub-lines? Or same?
+                                Span::styled(
+                                    format!("{:<width$} ", arrow_padding, width = arrow_width),
+                                    base_style.fg(ui_state.theme.arrow),
+                                ),
+                                Span::styled("                 ".to_string(), base_style),
+                                Span::styled(
+                                    format!("{:<36}", label_def),
+                                    base_style.fg(ui_state.theme.label_def),
+                                ),
+                            ];
+                            if !xref_str.is_empty() {
+                                spans.push(Span::styled(
+                                    xref_str.clone(),
+                                    base_style.fg(ui_state.theme.comment),
+                                ));
+                            }
+                            parts.push(Line::from(spans));
+                        }
                     }
                 }
+            }
 
-                let is_highlighted =
-                    !is_selected && is_cursor_row && ui_state.sub_cursor_index == current_sub_index;
-                let is_collapsed = line.is_collapsed;
-                let line_style = if is_highlighted {
-                    Style::default().bg(ui_state.theme.selection_bg)
-                } else if is_collapsed {
-                    Style::default().bg(ui_state.theme.collapsed_block_bg)
-                } else {
-                    Style::default()
-                };
-
-                let show_address =
-                    !line.bytes.is_empty() || line.is_collapsed || line.label.is_some();
-                let address_str = if show_address {
-                    format!(
-                        "${:04X}{} ",
-                        line.address,
-                        if app_state.splitters.contains(&line.address) {
-                            "*"
-                        } else {
-                            " "
-                        }
-                    )
-                } else {
-                    "       ".to_string()
-                };
-
-                let mut spans = vec![
-                    Span::styled(
-                        format!("{:5} ", current_line_num),
-                        line_style.fg(ui_state.theme.bytes),
-                    ),
-                    Span::styled(
-                        format!("{:<width$} ", arrow_padding, width = arrow_width),
-                        line_style.fg(ui_state.theme.arrow),
-                    ),
-                    Span::styled(
-                        address_str,
-                        if let Some(next_line) = app_state.disassembly.get(i + 1)
-                            && app_state.splitters.contains(&next_line.address)
-                            && show_address
-                        {
-                            line_style
-                                .fg(ui_state.theme.address)
-                                .add_modifier(Modifier::UNDERLINED)
-                        } else if app_state.splitters.contains(&line.address) && show_address {
-                            line_style
-                                .fg(ui_state.theme.address)
-                                .add_modifier(Modifier::BOLD)
-                        } else {
-                            line_style.fg(ui_state.theme.address)
-                        },
-                    ),
-                    Span::styled(
-                        format!(
-                            "{: <10}",
-                            if line.show_bytes {
-                                hex_bytes(&line.bytes)
-                            } else {
-                                String::new()
-                            }
+            // 2. Comments
+            if let Some(line_comment) = &line.line_comment {
+                for comment_part in line_comment.lines() {
+                    let arrow_padding = get_comment_arrow_str(current_inst, None);
+                    parts.push(Line::from(vec![
+                        Span::styled(format!("{:5} ", ""), base_style.fg(ui_state.theme.bytes)),
+                        Span::styled(
+                            format!("{:width$} ", arrow_padding, width = arrow_width),
+                            base_style.fg(ui_state.theme.arrow),
                         ),
-                        line_style.fg(ui_state.theme.bytes),
-                    ),
-                ];
-
-                if is_collapsed {
-                    spans.push(Span::styled(
-                        line.mnemonic.to_string(),
-                        line_style
-                            .fg(ui_state.theme.collapsed_block)
-                            .add_modifier(Modifier::BOLD),
-                    ));
-                } else {
-                    spans.push(Span::styled(
-                        format!("{: <20}", label_text),
-                        line_style
-                            .fg(ui_state.theme.label_def)
-                            .add_modifier(Modifier::BOLD),
-                    ));
-                    spans.push(Span::styled(
-                        format!("{: <4} ", line.mnemonic),
-                        line_style
-                            .fg(ui_state.theme.mnemonic)
-                            .add_modifier(Modifier::BOLD),
-                    ));
-                    spans.push(Span::styled(
-                        format!("{: <15}", line.operand),
-                        line_style.fg(ui_state.theme.operand),
-                    ));
-                    spans.push(Span::styled(
-                        if line.comment.is_empty() {
-                            String::new()
-                        } else {
-                            format!("{} {}", formatter.comment_prefix(), line.comment)
-                        },
-                        line_style.fg(ui_state.theme.comment),
-                    ));
+                        Span::styled("                 ".to_string(), base_style),
+                        Span::styled(
+                            format!("{} {}", formatter.comment_prefix(), comment_part),
+                            base_style.fg(ui_state.theme.comment),
+                        ),
+                    ]));
                 }
+            }
 
-                item_lines.push(Line::from(spans));
-                current_line_num += 1;
+            // 3. Instruction
+            let show_address = !line.bytes.is_empty() || line.is_collapsed || line.label.is_some();
+            let address_str = if show_address {
+                format!(
+                    "${:04X}{} ",
+                    line.address,
+                    if app_state.splitters.contains(&line.address) {
+                        "*"
+                    } else {
+                        " "
+                    }
+                )
+            } else {
+                "       ".to_string()
+            };
 
-                ListItem::new(item_lines).style(item_base_style)
-            })
-            .collect();
+            let label_text = if let Some(label) = &line.label {
+                formatter.format_label_definition(label)
+            } else {
+                String::new()
+            };
+            let arrow_padding = get_arrow_str(current_inst);
+
+            let mut inst_spans = vec![
+                Span::styled(format!("{:5} ", ""), base_style.fg(ui_state.theme.bytes)), // Line num placeholder
+                Span::styled(
+                    format!("{:<width$} ", arrow_padding, width = arrow_width),
+                    base_style.fg(ui_state.theme.arrow),
+                ),
+                Span::styled(
+                    address_str,
+                    if let Some(next) = app_state.disassembly.get(current_inst + 1)
+                        && app_state.splitters.contains(&next.address)
+                        && show_address
+                    {
+                        base_style
+                            .fg(ui_state.theme.address)
+                            .add_modifier(Modifier::UNDERLINED)
+                    } else if app_state.splitters.contains(&line.address) && show_address {
+                        base_style
+                            .fg(ui_state.theme.address)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        base_style.fg(ui_state.theme.address)
+                    },
+                ),
+                Span::styled(
+                    format!(
+                        "{: <10}",
+                        if line.show_bytes {
+                            hex_bytes(&line.bytes)
+                        } else {
+                            String::new()
+                        }
+                    ),
+                    base_style.fg(ui_state.theme.bytes),
+                ),
+            ];
+
+            if line.is_collapsed {
+                inst_spans.push(Span::styled(
+                    line.mnemonic.to_string(),
+                    base_style
+                        .fg(ui_state.theme.collapsed_block)
+                        .add_modifier(Modifier::BOLD),
+                ));
+            } else {
+                inst_spans.push(Span::styled(
+                    format!("{: <20}", label_text),
+                    base_style
+                        .fg(ui_state.theme.label_def)
+                        .add_modifier(Modifier::BOLD),
+                ));
+                inst_spans.push(Span::styled(
+                    format!("{: <4} ", line.mnemonic),
+                    base_style
+                        .fg(ui_state.theme.mnemonic)
+                        .add_modifier(Modifier::BOLD),
+                ));
+                inst_spans.push(Span::styled(
+                    format!("{: <15}", line.operand),
+                    base_style.fg(ui_state.theme.operand),
+                ));
+                inst_spans.push(Span::styled(
+                    if line.comment.is_empty() {
+                        String::new()
+                    } else {
+                        format!("{} {}", formatter.comment_prefix(), line.comment)
+                    },
+                    base_style.fg(ui_state.theme.comment),
+                ));
+            }
+            parts.push(Line::from(inst_spans));
+
+            // --- Emit processed parts ---
+            for (idx, part) in parts.into_iter().enumerate() {
+                if idx >= current_sub {
+                    // This sub-part is visible
+                    // Check highlight for this specific sub-part
+                    let is_cursor_sub = is_cursor_row && idx == ui_state.sub_cursor_index;
+
+                    let style = if is_cursor_sub && !is_selected_block {
+                        // Sub-cursor Highlight
+                        base_style.bg(ui_state.theme.selection_bg)
+                    } else {
+                        base_style
+                    };
+
+                    items.push(ListItem::new(part).style(style));
+                    // arrow_calc_offset_map.push(current_inst); // Not used in new logic
+                    processed_visual_lines += 1;
+
+                    if processed_visual_lines >= visible_height {
+                        break;
+                    }
+                }
+            }
+
+            // Advance to next instruction
+            let mut next = current_inst + 1;
+            while next < total_items {
+                let l = &app_state.disassembly[next];
+                if !l.bytes.is_empty()
+                    || l.is_collapsed
+                    || l.label.is_some()
+                    || !l.mnemonic.is_empty()
+                {
+                    break;
+                }
+                next += 1;
+            }
+            current_inst = next;
+            current_sub = 0; // Reset sub for next instruction
+        }
 
         let list = List::new(items).block(block);
-        let mut state = ListState::default();
-        if total_items > 0 {
-            let local_cursor = ui_state.cursor_index.saturating_sub(offset);
-            if local_cursor < visible_height {
-                state.select(Some(local_cursor));
-            }
-        }
-        f.render_stateful_widget(list, area, &mut state);
-        ui_state.scroll_index = offset;
+        f.render_widget(list, area);
+
+        // Update persistent state
+        ui_state.scroll_index = scroll_inst_idx;
+        ui_state.scroll_sub_index = scroll_sub_idx;
     }
 
     fn handle_input(

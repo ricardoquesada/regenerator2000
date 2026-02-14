@@ -57,6 +57,7 @@ pub struct UIState {
     pub cursor_index: usize,
     pub sub_cursor_index: usize,
     pub scroll_index: usize,
+    pub scroll_sub_index: usize,
 
     // Hex View State
     pub hex_cursor_index: usize,
@@ -119,6 +120,7 @@ impl UIState {
             cursor_index: 0,
             sub_cursor_index: 0,
             scroll_index: 0,
+            scroll_sub_index: 0,
             hex_cursor_index: 0,
             hex_selection_start: None,
             sprites_cursor_index: 0,
@@ -179,6 +181,10 @@ impl UIState {
         let initial_addr = loaded_cursor.unwrap_or(app_state.origin);
         if let Some(idx) = app_state.get_line_index_for_address(initial_addr) {
             self.cursor_index = idx;
+            // Also reset scroll and sub-cursor so it's visible at top
+            self.scroll_index = idx;
+            self.sub_cursor_index = 0;
+            self.scroll_sub_index = 0;
         }
 
         // Update file dialog directory to the project/file location

@@ -133,6 +133,11 @@ pub fn jump_to_disassembly_at_address(
         ui_state.cursor_index = line_idx;
         ui_state.active_pane = crate::ui_state::ActivePane::Disassembly;
         ui_state.sub_cursor_index = 0;
+
+        // Also reset scroll and sub-cursor so it's visible at top
+        ui_state.scroll_index = line_idx;
+        ui_state.scroll_sub_index = 0;
+
         ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
     } else {
         ui_state.set_status_message(format!("Address ${:04X} not found", target_addr));
