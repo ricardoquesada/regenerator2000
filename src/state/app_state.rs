@@ -220,17 +220,12 @@ impl AppState {
                     .map_err(|e| anyhow::anyhow!("Failed to parse T64: {}", e))?;
                 self.origin = load_address;
                 self.raw_data = raw_data;
-            } else if ext.eq_ignore_ascii_case("tap") {
-                let (load_address, raw_data) = crate::parser::tap::parse_tap(&data)
-                    .map_err(|e| anyhow::anyhow!("Failed to parse TAP: {}", e))?;
-                self.origin = load_address;
-                self.raw_data = raw_data;
             } else if ext.eq_ignore_ascii_case("bin") || ext.eq_ignore_ascii_case("raw") {
                 self.origin = 0; // Default for .bin
                 self.raw_data = data;
             } else {
                 return Err(anyhow::anyhow!(
-                    "Unsupported file extension: .{}\nSupported extensions: .prg, .crt, .vsf, .t64, .tap, .d64, .d71, .d81, .bin, .raw, .regen2000proj",
+                    "Unsupported file extension: .{}\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .regen2000proj",
                     ext
                 ));
             }
@@ -244,7 +239,7 @@ impl AppState {
             // But the request says "if ... extension is not one of the supported ones".
             // I will reject files without extension to be safe and consistent with the requirement.
             return Err(anyhow::anyhow!(
-                "File has no extension.\nSupported extensions: .prg, .crt, .vsf, .t64, .tap, .d64, .d71, .d81, .bin, .raw, .regen2000proj"
+                "File has no extension.\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .regen2000proj"
             ));
         }
 
