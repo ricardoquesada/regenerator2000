@@ -197,8 +197,8 @@ fn main() -> Result<()> {
                 }
                 Err(e) => {
                     eprintln!("Error loading file: {}", e);
-                    // In headless mode we should exit on error
-                    if headless {
+                    // In headless mode or if explicit file failed, we should exit
+                    if headless || file_to_load.is_some() {
                         std::process::exit(1);
                     }
                 }

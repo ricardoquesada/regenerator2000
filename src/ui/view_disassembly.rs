@@ -383,6 +383,12 @@ impl Widget for DisassemblyView {
         let visible_height = inner_area.height as usize;
         let total_items = app_state.disassembly.len();
 
+        // Ensure cursor is within valid bounds to avoid panic
+        if ui_state.cursor_index >= total_items {
+            ui_state.cursor_index = total_items.saturating_sub(1);
+            ui_state.sub_cursor_index = 0;
+        }
+
         // 1. Calculate Cursor Visual Offset (distance from top of file)
         // This is expensive O(N) if we scan from 0. Ideally we only care about relative position
         // between scroll_index and cursor_index.

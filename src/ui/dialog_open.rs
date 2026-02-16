@@ -40,6 +40,7 @@ impl OpenDialog {
                 "d71".to_string(),
                 "d81".to_string(),
                 "raw".to_string(),
+                "tap".to_string(),
                 "regen2000proj".to_string(),
             ],
             mode: OpenMode::ProjectOrFile,

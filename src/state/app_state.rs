@@ -225,13 +225,27 @@ impl AppState {
                     .map_err(|e| anyhow::anyhow!("Failed to parse TAP: {}", e))?;
                 self.origin = load_address;
                 self.raw_data = raw_data;
-            } else {
+            } else if ext.eq_ignore_ascii_case("bin") || ext.eq_ignore_ascii_case("raw") {
                 self.origin = 0; // Default for .bin
                 self.raw_data = data;
+            } else {
+                return Err(anyhow::anyhow!(
+                    "Unsupported file extension: .{}\nSupported extensions: .prg, .crt, .vsf, .t64, .tap, .d64, .d71, .d81, .bin, .raw, .regen2000proj",
+                    ext
+                ));
             }
         } else {
-            self.origin = 0;
-            self.raw_data = data;
+            // specific handling for files without extension?
+            // "if a user tries to load a file ... and the extension is not one of the suported ones"
+            // This implies files without extensions might also be rejected or accepted as binary?
+            // usually "extension is not one of supported" includes "no extension".
+            // But traditionally, no extension might be treated as binary.
+            // Given the strictness, I'll reject it or maybe better to assume binary if user forces it?
+            // But the request says "if ... extension is not one of the supported ones".
+            // I will reject files without extension to be safe and consistent with the requirement.
+            return Err(anyhow::anyhow!(
+                "File has no extension.\nSupported extensions: .prg, .crt, .vsf, .t64, .tap, .d64, .d71, .d81, .bin, .raw, .regen2000proj"
+            ));
         }
 
         self.block_types = vec![BlockType::Code; self.raw_data.len()];
