@@ -533,6 +533,21 @@ def test_new_tools(client):
     })
     if res and "result" in res:
          print("PASS: r2000_get_all_comments returned result")
+         try:
+            content_text = res["result"]["content"][0]["text"]
+            comments = json.loads(content_text)
+            if isinstance(comments, list):
+                print(f"PASS: Comments is a list (len={len(comments)})")
+                if len(comments) > 0:
+                    c = comments[0]
+                    if "address" in c and "type" in c and "comment" in c:
+                         print(f"PASS: Comment structure matches: {c}")
+                    else:
+                         print(f"FAIL: Invalid comment structure: {c}")
+            else:
+                print("FAIL: Comments is not a list")
+         except Exception as e:
+             print(f"FAIL: Error parsing comments: {e}")
     else:
          print(f"FAIL: r2000_get_all_comments {res}")
 

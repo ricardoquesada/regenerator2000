@@ -291,7 +291,7 @@ fn list_tools() -> Result<Value, McpError> {
             },
             {
                 "name": "r2000_get_all_comments",
-                "description": "Returns a list of all user-defined comments (both line and side comments) and their addresses.",
+                "description": "Returns a list of all user-defined comments (both line and side comments) and their addresses. The returned JSON is a list of objects, each containing 'address' (integer), 'type' (string: 'line' or 'side'), and 'comment' (string).",
                 "inputSchema": {
                     "type": "object",
                     "properties": {},
