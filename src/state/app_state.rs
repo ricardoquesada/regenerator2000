@@ -220,6 +220,11 @@ impl AppState {
                     .map_err(|e| anyhow::anyhow!("Failed to parse T64: {}", e))?;
                 self.origin = load_address;
                 self.raw_data = raw_data;
+            } else if ext.eq_ignore_ascii_case("tap") {
+                let (load_address, raw_data) = crate::parser::tap::parse_tap(&data)
+                    .map_err(|e| anyhow::anyhow!("Failed to parse TAP: {}", e))?;
+                self.origin = load_address;
+                self.raw_data = raw_data;
             } else {
                 self.origin = 0; // Default for .bin
                 self.raw_data = data;

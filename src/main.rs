@@ -50,7 +50,7 @@ fn main() -> Result<()> {
                 println!("Usage: {} [OPTIONS] [FILE]", env!("CARGO_PKG_NAME"));
                 println!();
                 println!(
-                    "Supported file types: .prg, .crt, .t64, .d64, .d71, .d81, .vsf, .bin, .raw, .regen2000proj"
+                    "Supported file types: .prg, .crt, .t64, .tap, .d64, .d71, .d81, .vsf, .bin, .raw, .regen2000proj"
                 );
                 println!();
                 println!("Options:");
