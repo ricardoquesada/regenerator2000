@@ -94,6 +94,12 @@ Or, alternative, add the following to `~/.gemini/settigns.json`:
 
 ## Usage Examples
 
+!!! note
+
+    If it fails to use the "Regenerator2000 MCP", you can prefix the first prompt with:
+
+    > "Using regenerator2000 mcp server, ..."
+
 Once connected, you can prompt the AI to perform complex tasks.
 
 ### Analysis
@@ -104,17 +110,11 @@ Once connected, you can prompt the AI to perform complex tasks.
 
 > "Analyze the function at $C000. It seems to be checking sprite collisions. Rename variables accordingly."
 
+> "Analyze in detail the function that I'm looking at. Add comments and labels as needed. Convert regtions to code, byte, word, petscii, screencode, etc as needed."
+
 ### Exploration
 
 > "List available tools to see what you can do."
-
-> "Read the disassembly at address $0800 to $0850 and explain what it does."
-
-> "Check the memory dump at $D000. Is this a C64 I/O area?"
-
-### Modification
-
-> "Mark the range $2000-$2100 as a byte table."
 
 ## Use Cases
 
@@ -131,5 +131,5 @@ The AI's changes (renaming labels, adding comments) appear instantly in your TUI
 
 Configure Claude Desktop with a specific project file.
 
-- **Prompt**: "Analyze `adventure.prg`. Find the high score table location and the routine that updates it."
+- **Prompt**: "Analyze the loaded program. Find the high score table location and the routine that updates it."
 - **Response**: The AI loads the context, uses search tools, reads memory, and produces a report without you needing to open the interface.
