@@ -126,8 +126,63 @@ impl<'a> TapBitReader<'a> {
         self.reader.pos = self.last_pulse_pos;
     }
 
+    // Single-pulse-per-bit decoding for turbo loaders
+    fn read_bit_single_pulse(&mut self, inverted: bool) -> Result<u8> {
+        let p = match self.next_valid_pulse() {
+            Some(p) => p,
+            None => return Err(anyhow!("EOF reading bit")),
+        };
+
+        let bit = match p {
+            Pulse::Short => 0,
+            Pulse::Medium => 1,
+            Pulse::Long => return Err(anyhow!("Block terminated by Long pulse")),
+            Pulse::KeepAlive => return Err(anyhow!("KeepAlive pulse inside bit data")),
+        };
+
+        if inverted { Ok(1 - bit) } else { Ok(bit) }
+    }
+
+    fn read_byte_single_pulse(&mut self, inverted: bool) -> Result<u8> {
+        self.read_byte_single_pulse_lsb(inverted)
+    }
+
+    fn read_byte_single_pulse_lsb(&mut self, inverted: bool) -> Result<u8> {
+        let mut byte = 0u8;
+        // LSB first
+        for i in 0..8 {
+            let bit = self.read_bit_single_pulse(inverted)?;
+            byte |= bit << i;
+        }
+
+        Ok(byte)
+    }
+
+    fn read_byte_single_pulse_msb(&mut self, inverted: bool) -> Result<u8> {
+        let mut byte = 0u8;
+        // MSB first
+        for i in (0..8).rev() {
+            let bit = self.read_bit_single_pulse(inverted)?;
+            byte |= bit << i;
+        }
+
+        Ok(byte)
+    }
+
+    // With parity bit
+    fn read_byte_single_pulse_lsb_parity(&mut self, inverted: bool) -> Result<u8> {
+        let mut byte = 0u8;
+        for i in 0..8 {
+            let bit = self.read_bit_single_pulse(inverted)?;
+            byte |= bit << i;
+        }
+        let _ = self.read_bit_single_pulse(inverted); // parity
+        Ok(byte)
+    }
+
     // Try to sync to the next block using KERNAL logic
     fn sync(&mut self) -> bool {
+        let _start_pos = self.reader.pos;
         loop {
             // 1. Find a Long Pulse
             let p1 = match self.next_valid_pulse() {
@@ -150,7 +205,8 @@ impl<'a> TapBitReader<'a> {
                     }
                     Pulse::Medium => {
                         // Found L, M pair (Data Start Marker).
-                        // Ready to read bits.
+                        // This marks the start of countdown or data.
+                        // Marker is consumed, ready to read bytes.
                         return true;
                     }
                     Pulse::Long => {
@@ -191,9 +247,12 @@ impl<'a> TapBitReader<'a> {
         };
 
         // Pass 2 check
+        // According to C64 KERNAL encoding:
+        // Bit 0 = SHORT + MEDIUM (so p2 = MEDIUM)
+        // Bit 1 = MEDIUM + SHORT (so p2 = SHORT)
         match p2 {
-            Pulse::Short => Ok(0),
-            Pulse::Medium => Ok(1),
+            Pulse::Short => Ok(1),  // MEDIUM + SHORT = bit 1
+            Pulse::Medium => Ok(0), // SHORT + MEDIUM = bit 0
             Pulse::Long => Err(anyhow!("Block terminated by Long pulse in 2nd pass")),
             Pulse::KeepAlive => Err(anyhow!("KeepAlive pulse inside bit data")),
         }
@@ -213,23 +272,235 @@ impl<'a> TapBitReader<'a> {
 
         Ok(byte)
     }
+
+    // Read a byte with its own LONG+MEDIUM marker (used for countdown)
+    fn read_byte_with_marker(&mut self) -> Result<u8> {
+        // Check for byte marker: LONG + MEDIUM
+        let p1 = self
+            .next_valid_pulse()
+            .ok_or(anyhow!("EOF before byte marker"))?;
+
+        if p1 != Pulse::Long {
+            return Err(anyhow!("Expected LONG pulse for byte marker, got {:?}", p1));
+        }
+
+        let p2 = self
+            .next_valid_pulse()
+            .ok_or(anyhow!("EOF in byte marker"))?;
+
+        match p2 {
+            Pulse::Medium => {
+                // Valid byte marker (LONG + MEDIUM), continue reading byte
+            }
+            Pulse::Short => {
+                // End of block marker (LONG + SHORT)
+                return Err(anyhow!("End of block/countdown marker"));
+            }
+            _ => {
+                return Err(anyhow!("Invalid byte marker"));
+            }
+        }
+
+        // Now read the byte data
+        self.read_byte()
+    }
+}
+
+// Helper to score how much data looks like valid C64 code (higher is better)
+fn score_c64_data(data: &[u8]) -> u32 {
+    if data.len() < 16 {
+        return 0;
+    }
+
+    let mut score = 0u32;
+
+    // C64 BASIC programs at 0x0801 typically start with a link to next line
+    // Common patterns: 0x0B 0x08, 0x?? 0x08, etc.
+    if data[1] == 0x08 {
+        score += 100; // Strong indicator
+    }
+
+    // Check for common BASIC stub patterns
+    // First two bytes should be link address (little-endian)
+    let link = u16::from_le_bytes([data[0], data[1]]);
+    if (0x0801..0x0900).contains(&link) {
+        score += 50;
+    }
+
+    // Check for SYS command (0x9E) in first 30 bytes
+    for i in 0..data.len().min(30) {
+        if data[i] == 0x9E {
+            // SYS token
+            score += 80;
+            break;
+        }
+    }
+
+    // Check for common 6502 opcodes
+    let common_opcodes = [
+        0x20, // JSR
+        0x4C, // JMP
+        0xA9, // LDA #
+        0xA2, // LDX #
+        0xA0, // LDY #
+        0x85, // STA zp
+        0x86, // STX zp
+        0x8D, // STA abs
+        0x60, // RTS
+    ];
+
+    for &byte in data.iter().take(100) {
+        if common_opcodes.contains(&byte) {
+            score += 1;
+        }
+    }
+
+    score
+}
+
+// Fallback parser for turbo loaders that don't use standard KERNAL blocks
+fn parse_tap_turbo(data: &[u8]) -> Result<(u16, Vec<u8>)> {
+    let start_addr = 0x0801;
+    let mut best_score = 0u32;
+    let mut best_data = Vec::new();
+
+    // Try both normal and inverted bit encoding
+    for inverted in [false, true] {
+        let mut reader = TapBitReader::new(data)?;
+
+        // Find first sync
+        if !reader.sync() {
+            continue;
+        }
+
+        let mut program_data = Vec::new();
+
+        // Try single-pulse-per-bit decoding
+        for _ in 0..65536 {
+            match reader.read_byte_single_pulse(inverted) {
+                Ok(byte) => program_data.push(byte),
+                Err(_) => break,
+            }
+        }
+
+        // If we got very little data, try standard two-pulse decoding as fallback
+        if program_data.len() < 100 {
+            program_data.clear();
+            reader = TapBitReader::new(data)?;
+            if !reader.sync() {
+                continue;
+            }
+
+            for _ in 0..65536 {
+                match reader.read_byte() {
+                    Ok(byte) => program_data.push(byte),
+                    Err(_) => break,
+                }
+            }
+        }
+
+        if program_data.is_empty() {
+            continue;
+        }
+
+        // Try to find and append additional blocks
+        loop {
+            if !reader.sync() {
+                break;
+            }
+
+            let mut block_data = Vec::new();
+            for _ in 0..65536 {
+                match reader.read_byte_single_pulse(inverted) {
+                    Ok(byte) => block_data.push(byte),
+                    Err(_) => break,
+                }
+            }
+
+            if !block_data.is_empty() {
+                program_data.extend(block_data);
+            } else {
+                break;
+            }
+        }
+
+        // Score this encoding
+        let score = score_c64_data(&program_data);
+        if score > best_score {
+            best_score = score;
+            best_data = program_data;
+        }
+    }
+
+    if best_data.is_empty() {
+        return Err(anyhow!(
+            "Could not decode turbo loader data - no valid data found"
+        ));
+    }
+
+    Ok((start_addr, best_data))
 }
 
 pub fn parse_tap(data: &[u8]) -> Result<(u16, Vec<u8>)> {
-    let mut reader = TapBitReader::new(data)?;
+    // Try standard two-pulse encoding first, then single-pulse encoding
+    for use_single_pulse in [false, true] {
+        if let Ok(result) = parse_tap_with_encoding(data, use_single_pulse) {
+            return Ok(result);
+        }
+    }
 
-    // We search for a Header (Type 1 or 3), then the following Data (Type 2 or 4).
+    // If standard KERNAL parsing failed with both encodings, try turbo loader fallback
+    parse_tap_turbo(data)
+}
+
+fn parse_tap_with_encoding(data: &[u8], use_single_pulse: bool) -> Result<(u16, Vec<u8>)> {
+    // Try all combinations of bit encoding
+    for inverted in [false, true] {
+        for msb_first in [false, true] {
+            if let Ok(result) = parse_tap_with_params(data, use_single_pulse, inverted, msb_first) {
+                return Ok(result);
+            }
+        }
+    }
+    Err(anyhow!("Could not find valid encoding"))
+}
+
+fn parse_tap_with_params(
+    data: &[u8],
+    use_single_pulse: bool,
+    inverted: bool,
+    msb_first: bool,
+) -> Result<(u16, Vec<u8>)> {
+    let mut reader = TapBitReader::new(data)?;
+    const MAX_SYNC_ATTEMPTS: usize = 50; // Increased to handle countdown bytes
+    let mut sync_attempts = 0;
 
     loop {
         if !reader.sync() {
             return Err(anyhow!("End of tape or sync not found"));
         }
 
+        sync_attempts += 1;
+        if sync_attempts > MAX_SYNC_ATTEMPTS {
+            return Err(anyhow!("Too many sync attempts, wrong encoding"));
+        }
+
         // Read Block Type
-        let block_type = match reader.read_byte() {
-            Ok(b) => b,
-            Err(_) => continue, // Sync found but read failed, retry sync
+        let block_type = if use_single_pulse {
+            if msb_first {
+                reader.read_byte_single_pulse_msb(inverted)?
+            } else {
+                reader.read_byte_single_pulse_lsb(inverted)?
+            }
+        } else {
+            reader.read_byte()?
         };
+
+        // Skip countdown bytes (typically 0x85-0x89 decreasing)
+        // Just keep trying until we get a valid block type
+        if !use_single_pulse && (0x80..=0x90).contains(&block_type) {
+            continue; // Try next byte
+        }
 
         if block_type == 1 || block_type == 3 {
             // Found Header
@@ -240,19 +511,31 @@ pub fn parse_tap(data: &[u8]) -> Result<(u16, Vec<u8>)> {
             // Byte 3: End Address HI
             // Byte 4-19: Filename
 
-            let start_lo = match reader.read_byte() {
+            let read_byte_fn = |r: &mut TapBitReader| {
+                if use_single_pulse {
+                    if msb_first {
+                        r.read_byte_single_pulse_msb(inverted)
+                    } else {
+                        r.read_byte_single_pulse_lsb(inverted)
+                    }
+                } else {
+                    r.read_byte()
+                }
+            };
+
+            let start_lo = match read_byte_fn(&mut reader) {
                 Ok(b) => b,
                 Err(_) => continue,
             };
-            let start_hi = match reader.read_byte() {
+            let start_hi = match read_byte_fn(&mut reader) {
                 Ok(b) => b,
                 Err(_) => continue,
             };
-            let end_lo = match reader.read_byte() {
+            let end_lo = match read_byte_fn(&mut reader) {
                 Ok(b) => b,
                 Err(_) => continue,
             };
-            let end_hi = match reader.read_byte() {
+            let end_hi = match read_byte_fn(&mut reader) {
                 Ok(b) => b,
                 Err(_) => continue,
             };
@@ -263,7 +546,7 @@ pub fn parse_tap(data: &[u8]) -> Result<(u16, Vec<u8>)> {
             // Consume filename (16 bytes)
             let mut valid_header = true;
             for _ in 0..16 {
-                if reader.read_byte().is_err() {
+                if read_byte_fn(&mut reader).is_err() {
                     valid_header = false;
                     break;
                 }
@@ -281,7 +564,7 @@ pub fn parse_tap(data: &[u8]) -> Result<(u16, Vec<u8>)> {
                     return Err(anyhow!("Found header but data block missing"));
                 }
 
-                let next_type = match reader.read_byte() {
+                let next_type = match read_byte_fn(&mut reader) {
                     Ok(b) => b,
                     Err(_) => continue,
                 };
@@ -303,7 +586,7 @@ pub fn parse_tap(data: &[u8]) -> Result<(u16, Vec<u8>)> {
                     // We read exactly 'len' bytes.
 
                     for i in 0..len {
-                        match reader.read_byte() {
+                        match read_byte_fn(&mut reader) {
                             Ok(b) => program_data.push(b),
                             Err(_) => {
                                 return Err(anyhow!("Failed to read data byte {}/{}", i, len));
@@ -311,6 +594,11 @@ pub fn parse_tap(data: &[u8]) -> Result<(u16, Vec<u8>)> {
                         }
                     }
 
+                    eprintln!(
+                        "SUCCESS: Parsed KERNAL block! Start: 0x{:04x}, Length: {}",
+                        start_addr,
+                        program_data.len()
+                    );
                     return Ok((start_addr, program_data));
                 } else if next_type == 1 || next_type == 3 {
                     // Found another header (likely redundant copy).
@@ -319,7 +607,7 @@ pub fn parse_tap(data: &[u8]) -> Result<(u16, Vec<u8>)> {
                     // We already read type. Read 20 more.
                     // If this fails, we just continue loop, maybe next block is data?
                     for _ in 0..20 {
-                        let _ = reader.read_byte();
+                        let _ = read_byte_fn(&mut reader);
                     }
 
                     // We ignore the content of this redundant header and rely on the first one we found.
@@ -339,14 +627,13 @@ mod tests {
     // Helper to encode a bit as pulses
     fn encode_bit(bit: u8, data: &mut Vec<u8>) {
         if bit == 0 {
-            // Short, Short
-            data.push(0x30); // ~384 cycles / 8 = 48 (0x30)
-            data.push(0x30);
+            // Bit 0 = SHORT + MEDIUM
+            data.push(0x30); // SHORT: ~384 cycles / 8 = 48 (0x30)
+            data.push(0x42); // MEDIUM: ~528 cycles / 8 = 66 (0x42)
         } else {
-            // Medium, Medium
-            // Use 0x42 (528) to be comfortably above the 512 threshold
-            data.push(0x42);
-            data.push(0x42);
+            // Bit 1 = MEDIUM + SHORT
+            data.push(0x42); // MEDIUM
+            data.push(0x30); // SHORT
         }
     }
 
