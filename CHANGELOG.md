@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Features
+
+- Feature: **MCP Server Support**: Added comprehensive Model Context Protocol (MCP) server support for programmatic access.
+  - HTTP and stdio transport modes
+  - Tools for disassembly manipulation, memory search, block operations, and project management
+  - Resources for accessing binary data, disassembly, and hexdump views
+  - Support for undo/redo operations via MCP
+  - Hexadecimal address support
+- Feature: **CRT Support**: Enhanced CRT (Cartridge) file handling.
+  - Bank picker dialog to choose which bank to analyze
+  - CRT type display in dialog picker
+- Feature: **T64 Support**: Added T64 file picker dialog.
+- Feature: **D64 Enhancements**: Improved D64 file picker dialog.
+  - Added entropy column
+  - Display start and end addresses for files
+- Feature: **Navigation**: Allow navigating on top of comments, relative addresses, and other "sub_index" addresses.
+
+### Changes
+
+- TAP support was temporarily added and then removed. Proper TAP support requires handling different loaders. Users should convert TAP files to .prg format first.
+
+### Fixes
+
+- Fix: **Pack Hi/Lo**: Corrected reversed hi/lo and lo/hi packing in single line.
+- Fix: **Navigation**: Multiple disassembly navigation fixes.
+  - Mouse click now sets cursor correctly
+  - Landing on an address with subindex updates highlight correctly
+  - Page Up/Down have consistent increment/decrement behavior
+- Fix: **File Loading**: Only load supported file extensions, fail with error otherwise. Also prevents crash when cursor is >= new loaded file size.
+- Fix: **UI**: Honor "right pane none" setting with minor fixes to address representation.
+
+### Examples
+
+- Examples: Enhanced example projects with more detailed comments from Claude.
+
+### Documentation
+
+- Docs: Added MCP Server documentation.
+
+### Refactor / Internal
+
+- Testing: Added unit tests for MCP server.
+
 ## [0.6.6] - 2026-02-11
 
 ### Security
