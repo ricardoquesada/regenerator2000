@@ -32,6 +32,8 @@ Regenerator 2000 supports two MCP transport modes:
 
 ## Configuration
 
+  <iframe width="560" height="315" src="https://www.youtube.com/embed/_HW2d7kNCQw" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 ### 1. Start the Server
 
 Before connecting any client, you must start Regenerator 2000 with **MCP Server** enabled. This opens the TUI and starts the HTTP server, allowing you to use the interface while the AI interacts with it.
@@ -47,13 +49,13 @@ The server will listen on `http://127.0.0.1:3000/mcp` by default.
 
 #### Claude Code
 
-To use Regenerator 2000 with Claude Code doe:
+To use Regenerator 2000 with Claude Code:
 
 ```shell
 claude mcp add regenerator2000 http://127.0.0.1:3000/mcp
 ```
 
-Or, alternative, add the following to your `claude.json`:
+Or, alternatively, add the following to your `claude.json`:
 
 ```json
 {
@@ -79,14 +81,14 @@ To use Gemini CLI with the running server, simply provide the URL to the connect
 gemini mcp add regenerator2000 http://127.0.0.1:3000/mcp --scope user -t http
 ```
 
-Or, alternative, add the following to `~/.gemini/settigns.json`:
+Or, alternatively, add the following to `~/.gemini/settings.json`:
 
 ```json
 {
   "mcpServers": {
     "regenerator2000": {
       "url": "http://localhost:3000/mcp",
-      "tyep": "http"
+      "type": "http"
     }
   }
 }
@@ -110,7 +112,7 @@ Once connected, you can prompt the AI to perform complex tasks.
 
 > "Analyze the function at $C000. It seems to be checking sprite collisions. Rename variables accordingly."
 
-> "Analyze in detail the function that I'm looking at. Add comments and labels as needed. Convert regtions to code, byte, word, petscii, screencode, etc as needed."
+> "Analyze in detail the function that I'm looking at. Add comments and labels as needed. Convert regions to code, byte, word, petscii, screencode, etc as needed."
 
 ### Exploration
 
