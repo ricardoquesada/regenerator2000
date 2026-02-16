@@ -497,6 +497,354 @@ fn parse_tap_turbo(data: &[u8]) -> Result<(u16, Vec<u8>)> {
     Ok((start_addr, best_data))
 }
 
+// Entry representing a program in a TAP file
+#[derive(Debug, Clone)]
+pub struct TapEntry {
+    pub start_addr: u16,
+    pub end_addr: u16,
+    pub block_index: usize, // Index of this program in the TAP file
+}
+
+// Parse all programs from a TAP file
+pub fn parse_tap_directory(data: &[u8]) -> Result<Vec<TapEntry>> {
+    // Try standard two-pulse encoding first, then single-pulse encoding
+    for use_single_pulse in [false, true] {
+        if let Ok(result) = parse_tap_directory_with_encoding(data, use_single_pulse)
+            && !result.is_empty()
+        {
+            return Ok(result);
+        }
+    }
+
+    // If no programs found, return error
+    Err(anyhow!("No valid programs found in TAP file"))
+}
+
+fn parse_tap_directory_with_encoding(data: &[u8], use_single_pulse: bool) -> Result<Vec<TapEntry>> {
+    // Try all combinations of bit encoding
+    for inverted in [false, true] {
+        for msb_first in [false, true] {
+            if let Ok(entries) = parse_tap_all_programs(data, use_single_pulse, inverted, msb_first)
+                && !entries.is_empty()
+            {
+                return Ok(entries);
+            }
+        }
+    }
+    Err(anyhow!("Could not parse TAP directory"))
+}
+
+fn parse_tap_all_programs(
+    data: &[u8],
+    use_single_pulse: bool,
+    inverted: bool,
+    msb_first: bool,
+) -> Result<Vec<TapEntry>> {
+    let mut reader = TapBitReader::new(data)?;
+    let mut entries = Vec::new();
+    let mut block_index = 0;
+
+    // For standard KERNAL encoding, each byte has a LONG+MEDIUM marker
+    if !use_single_pulse {
+        reader.set_expect_byte_markers(true);
+    }
+
+    const MAX_SYNC_ATTEMPTS: usize = 100; // Increased to find multiple blocks
+    let mut sync_attempts = 0;
+
+    loop {
+        if !reader.sync() {
+            break; // End of tape
+        }
+
+        sync_attempts += 1;
+        if sync_attempts > MAX_SYNC_ATTEMPTS {
+            break;
+        }
+
+        // Try to read block type
+        let block_type = if use_single_pulse {
+            if msb_first {
+                reader.read_byte_single_pulse_msb(inverted)?
+            } else {
+                reader.read_byte_single_pulse_lsb(inverted)?
+            }
+        } else {
+            reader.read_byte()?
+        };
+
+        // Skip countdown bytes
+        if !use_single_pulse && (0x80..=0x90).contains(&block_type) {
+            continue;
+        }
+
+        if block_type == 1 || block_type == 3 {
+            // Found Header
+            let read_byte_fn = |r: &mut TapBitReader| {
+                if use_single_pulse {
+                    if msb_first {
+                        r.read_byte_single_pulse_msb(inverted)
+                    } else {
+                        r.read_byte_single_pulse_lsb(inverted)
+                    }
+                } else {
+                    r.read_byte()
+                }
+            };
+
+            let start_lo = match read_byte_fn(&mut reader) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
+            let start_hi = match read_byte_fn(&mut reader) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
+            let end_lo = match read_byte_fn(&mut reader) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
+            let end_hi = match read_byte_fn(&mut reader) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
+
+            let start_addr = (start_hi as u16) << 8 | (start_lo as u16);
+            let end_addr = (end_hi as u16) << 8 | (end_lo as u16);
+
+            // Skip filename (187 bytes)
+            let mut valid_header = true;
+            for _i in 0..187 {
+                match read_byte_fn(&mut reader) {
+                    Ok(_) => {}
+                    Err(_) => {
+                        valid_header = false;
+                        break;
+                    }
+                }
+            }
+
+            if !valid_header {
+                continue;
+            }
+
+            // Add entry for this program
+            entries.push(TapEntry {
+                start_addr,
+                end_addr,
+                block_index,
+            });
+            block_index += 1;
+
+            // Now we need to skip the corresponding data block
+            // Look for the next sync and data block type
+            loop {
+                if !reader.sync() {
+                    break; // End of tape, exit inner loop
+                }
+
+                let next_type = match read_byte_fn(&mut reader) {
+                    Ok(b) => b,
+                    Err(_) => break,
+                };
+
+                // Skip countdown bytes
+                if !use_single_pulse && (0x80..=0x90).contains(&next_type) {
+                    continue;
+                }
+
+                if next_type == 2 || next_type == 4 {
+                    // Found data block - skip it
+                    let len = (end_addr.saturating_sub(start_addr) as usize) + 1;
+                    // Try to skip all data bytes
+                    for _ in 0..len {
+                        if read_byte_fn(&mut reader).is_err() {
+                            break;
+                        }
+                    }
+                    break; // Done skipping data block, go to next header
+                } else if next_type == 1 || next_type == 3 {
+                    // Found another header before data block - unusual but handle it
+                    // Don't consume the header bytes, let outer loop handle it
+                    // This is tricky - we'd need to "un-read" the block type
+                    // For now, just break and let the outer loop re-sync
+                    break;
+                } else {
+                    // Unknown block type, keep looking
+                    continue;
+                }
+            }
+        }
+    }
+
+    Ok(entries)
+}
+
+// Extract a specific program from a TAP file
+pub fn extract_tap_program(data: &[u8], entry: &TapEntry) -> Result<(u16, Vec<u8>)> {
+    // Try standard two-pulse encoding first, then single-pulse encoding
+    for use_single_pulse in [false, true] {
+        if let Ok(result) = extract_tap_program_with_encoding(data, entry, use_single_pulse) {
+            return Ok(result);
+        }
+    }
+
+    Err(anyhow!("Could not extract program from TAP file"))
+}
+
+fn extract_tap_program_with_encoding(
+    data: &[u8],
+    entry: &TapEntry,
+    use_single_pulse: bool,
+) -> Result<(u16, Vec<u8>)> {
+    // Try all combinations of bit encoding
+    for inverted in [false, true] {
+        for msb_first in [false, true] {
+            if let Ok(result) =
+                extract_tap_program_data(data, entry, use_single_pulse, inverted, msb_first)
+            {
+                return Ok(result);
+            }
+        }
+    }
+    Err(anyhow!("Could not extract program data"))
+}
+
+fn extract_tap_program_data(
+    data: &[u8],
+    entry: &TapEntry,
+    use_single_pulse: bool,
+    inverted: bool,
+    msb_first: bool,
+) -> Result<(u16, Vec<u8>)> {
+    let mut reader = TapBitReader::new(data)?;
+
+    // For standard KERNAL encoding, each byte has a LONG+MEDIUM marker
+    if !use_single_pulse {
+        reader.set_expect_byte_markers(true);
+    }
+
+    let mut current_block_index = 0;
+
+    loop {
+        if !reader.sync() {
+            return Err(anyhow!("Program block not found"));
+        }
+
+        // Try to read block type
+        let block_type = if use_single_pulse {
+            if msb_first {
+                reader.read_byte_single_pulse_msb(inverted)?
+            } else {
+                reader.read_byte_single_pulse_lsb(inverted)?
+            }
+        } else {
+            reader.read_byte()?
+        };
+
+        // Skip countdown bytes
+        if !use_single_pulse && (0x80..=0x90).contains(&block_type) {
+            continue;
+        }
+
+        if block_type == 1 || block_type == 3 {
+            // Found Header
+            let read_byte_fn = |r: &mut TapBitReader| {
+                if use_single_pulse {
+                    if msb_first {
+                        r.read_byte_single_pulse_msb(inverted)
+                    } else {
+                        r.read_byte_single_pulse_lsb(inverted)
+                    }
+                } else {
+                    r.read_byte()
+                }
+            };
+
+            let start_lo = match read_byte_fn(&mut reader) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
+            let start_hi = match read_byte_fn(&mut reader) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
+            let end_lo = match read_byte_fn(&mut reader) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
+            let end_hi = match read_byte_fn(&mut reader) {
+                Ok(b) => b,
+                Err(_) => continue,
+            };
+
+            let start_addr = (start_hi as u16) << 8 | (start_lo as u16);
+            let end_addr = (end_hi as u16) << 8 | (end_lo as u16);
+
+            // Skip filename (187 bytes)
+            for _i in 0..187 {
+                match read_byte_fn(&mut reader) {
+                    Ok(_) => {}
+                    Err(_) => return Err(anyhow!("Failed to read header filename")),
+                }
+            }
+
+            // Check if this is the block we're looking for
+            if current_block_index == entry.block_index {
+                // Find the data block
+                loop {
+                    if !reader.sync() {
+                        return Err(anyhow!("Found header but data block missing"));
+                    }
+
+                    let next_type = match read_byte_fn(&mut reader) {
+                        Ok(b) => b,
+                        Err(_) => continue,
+                    };
+
+                    if next_type == 2 || next_type == 4 {
+                        // Found Data Block!
+                        let len = (end_addr.saturating_sub(start_addr) as usize) + 1;
+
+                        if len == 0 || len > 65536 {
+                            return Err(anyhow!("Invalid program length from header: {}", len));
+                        }
+
+                        let mut program_data = Vec::with_capacity(len);
+
+                        for i in 0..len {
+                            match read_byte_fn(&mut reader) {
+                                Ok(b) => program_data.push(b),
+                                Err(_) => {
+                                    // Hit end of block marker or error
+                                    if i > (len * 3 / 4) {
+                                        break;
+                                    } else {
+                                        return Err(anyhow!(
+                                            "Failed to read data byte {}/{}",
+                                            i,
+                                            len
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+
+                        return Ok((start_addr, program_data));
+                    } else if next_type == 1 || next_type == 3 {
+                        // Found another header, skip it
+                        for _i in 0..191 {
+                            let _ = read_byte_fn(&mut reader);
+                        }
+                    }
+                }
+            }
+
+            current_block_index += 1;
+        }
+    }
+}
+
 pub fn parse_tap(data: &[u8]) -> Result<(u16, Vec<u8>)> {
     // Try standard two-pulse encoding first, then single-pulse encoding
     for use_single_pulse in [false, true] {

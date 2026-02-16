@@ -354,6 +354,104 @@ impl Widget for OpenDialog {
                                     }
                                 }
 
+                                // Check if this is a TAP file - if so, show file picker
+                                if selected_path
+                                    .extension()
+                                    .and_then(|e| e.to_str())
+                                    .map(|e| e.eq_ignore_ascii_case("tap"))
+                                    .unwrap_or(false)
+                                {
+                                    match std::fs::read(&selected_path) {
+                                        Ok(tape_data) => {
+                                            match crate::parser::tap::parse_tap_directory(
+                                                &tape_data,
+                                            ) {
+                                                Ok(programs) => {
+                                                    if programs.is_empty() {
+                                                        ui_state.set_status_message(
+                                                            "No programs found in TAP file",
+                                                        );
+                                                        return WidgetResult::Handled;
+                                                    }
+
+                                                    if programs.len() == 1 {
+                                                        // Only one program, load it directly
+                                                        match crate::parser::tap::extract_tap_program(
+                                                            &tape_data,
+                                                            &programs[0],
+                                                        ) {
+                                                            Ok((load_address, program_data)) => {
+                                                                app_state.origin = load_address;
+                                                                match app_state.load_binary(
+                                                                    load_address,
+                                                                    program_data,
+                                                                ) {
+                                                                    Ok(loaded_data) => {
+                                                                        crate::ui::dialog_warning::WarningDialog::show_if_needed(
+                                                                            loaded_data.entropy_warning,
+                                                                            ui_state,
+                                                                        );
+                                                                        app_state.file_path =
+                                                                            Some(selected_path.clone());
+                                                                        let filename = selected_path
+                                                                            .file_name()
+                                                                            .unwrap_or_default()
+                                                                            .to_string_lossy();
+                                                                        ui_state.set_status_message(
+                                                                            format!("Loaded: {}", filename),
+                                                                        );
+                                                                        return WidgetResult::Close;
+                                                                    }
+                                                                    Err(e) => {
+                                                                        ui_state.set_status_message(
+                                                                            format!(
+                                                                                "Error loading program: {}",
+                                                                                e
+                                                                            ),
+                                                                        );
+                                                                        return WidgetResult::Handled;
+                                                                    }
+                                                                }
+                                                            }
+                                                            Err(e) => {
+                                                                ui_state.set_status_message(format!(
+                                                                    "Error extracting program: {}",
+                                                                    e
+                                                                ));
+                                                                return WidgetResult::Handled;
+                                                            }
+                                                        }
+                                                    } else {
+                                                        // Multiple programs, show picker
+                                                        ui_state.active_dialog = Some(Box::new(
+                                                            crate::ui::dialog_tap_picker::TapFilePickerDialog::new(
+                                                                programs,
+                                                                tape_data,
+                                                                selected_path,
+                                                            ),
+                                                        ));
+                                                        return WidgetResult::Close;
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    ui_state.set_status_message(format!(
+                                                        "Error parsing TAP: {}",
+                                                        e
+                                                    ));
+                                                    return WidgetResult::Handled;
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            ui_state.set_status_message(format!(
+                                                "Error reading file: {}",
+                                                e
+                                            ));
+                                            return WidgetResult::Handled;
+                                        }
+                                    }
+                                }
+
                                 match app_state.load_file(selected_path.clone()) {
                                     Err(e) => {
                                         ui_state.set_status_message(format!(

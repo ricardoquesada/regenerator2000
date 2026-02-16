@@ -145,8 +145,10 @@ fn main() -> Result<()> {
     let mut initial_load_result = None;
     let mut disk_image_data = None;
     let mut tape_image_data = None;
+    let mut tap_image_data = None;
     let mut is_disk_image = false;
     let mut is_tape_image = false;
+    let mut is_tap_image = false;
 
     if let Some(file_str) = &file_to_load {
         let path = std::path::Path::new(file_str);
@@ -158,6 +160,8 @@ fn main() -> Result<()> {
                 is_disk_image = true;
             } else if ext.eq_ignore_ascii_case("t64") {
                 is_tape_image = true;
+            } else if ext.eq_ignore_ascii_case("tap") {
+                is_tap_image = true;
             }
         }
     }
@@ -195,6 +199,64 @@ fn main() -> Result<()> {
                     }
                     Err(e) => {
                         eprintln!("Error parsing T64 file: {}", e);
+                        if headless {
+                            std::process::exit(1);
+                        }
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Error reading file: {}", e);
+                    if headless {
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+    } else if is_tap_image {
+        if let Some(file_str) = &file_to_load {
+            let path = std::path::PathBuf::from(file_str);
+            match std::fs::read(&path) {
+                Ok(data) => match regenerator2000::parser::tap::parse_tap_directory(&data) {
+                    Ok(programs) => {
+                        if programs.is_empty() {
+                            eprintln!("Error: No programs found in TAP file");
+                            if headless {
+                                std::process::exit(1);
+                            }
+                        } else if programs.len() == 1 {
+                            // Only one program, load it directly
+                            match regenerator2000::parser::tap::extract_tap_program(
+                                &data,
+                                &programs[0],
+                            ) {
+                                Ok((load_address, program_data)) => {
+                                    app_state.origin = load_address;
+                                    match app_state.load_binary(load_address, program_data) {
+                                        Ok(loaded_data) => {
+                                            initial_load_result = Some(Ok((loaded_data, path)));
+                                        }
+                                        Err(e) => {
+                                            eprintln!("Error loading TAP program: {}", e);
+                                            if headless {
+                                                std::process::exit(1);
+                                            }
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    eprintln!("Error extracting TAP program: {}", e);
+                                    if headless {
+                                        std::process::exit(1);
+                                    }
+                                }
+                            }
+                        } else {
+                            // Multiple programs, show picker dialog
+                            tap_image_data = Some((programs, data, path));
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Error parsing TAP file: {}", e);
                         if headless {
                             std::process::exit(1);
                         }
@@ -372,6 +434,11 @@ fn main() -> Result<()> {
     } else if let Some((files, tape_data, tape_path)) = tape_image_data {
         let dialog = regenerator2000::ui::dialog_t64_picker::T64FilePickerDialog::new(
             files, tape_data, tape_path,
+        );
+        ui_state.active_dialog = Some(Box::new(dialog));
+    } else if let Some((programs, tap_data, tap_path)) = tap_image_data {
+        let dialog = regenerator2000::ui::dialog_tap_picker::TapFilePickerDialog::new(
+            programs, tap_data, tap_path,
         );
         ui_state.active_dialog = Some(Box::new(dialog));
     }
