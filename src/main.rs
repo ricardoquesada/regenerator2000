@@ -144,20 +144,21 @@ fn main() -> Result<()> {
     // 1. Load File / Project
     let mut initial_load_result = None;
     let mut disk_image_data = None;
+    let mut tape_image_data = None;
     let mut is_disk_image = false;
+    let mut is_tape_image = false;
 
     if let Some(file_str) = &file_to_load {
         let path = std::path::Path::new(file_str);
-        if path
-            .extension()
-            .and_then(|e| e.to_str())
-            .is_some_and(|ext| {
-                ext.eq_ignore_ascii_case("d64")
-                    || ext.eq_ignore_ascii_case("d71")
-                    || ext.eq_ignore_ascii_case("d81")
-            })
-        {
-            is_disk_image = true;
+        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+            if ext.eq_ignore_ascii_case("d64")
+                || ext.eq_ignore_ascii_case("d71")
+                || ext.eq_ignore_ascii_case("d81")
+            {
+                is_disk_image = true;
+            } else if ext.eq_ignore_ascii_case("t64") {
+                is_tape_image = true;
+            }
         }
     }
 
@@ -171,6 +172,29 @@ fn main() -> Result<()> {
                     }
                     Err(e) => {
                         eprintln!("Error parsing D64/D71/D81 file: {}", e);
+                        if headless {
+                            std::process::exit(1);
+                        }
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Error reading file: {}", e);
+                    if headless {
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+    } else if is_tape_image {
+        if let Some(file_str) = &file_to_load {
+            let path = std::path::PathBuf::from(file_str);
+            match std::fs::read(&path) {
+                Ok(data) => match regenerator2000::parser::t64::parse_t64_directory(&data) {
+                    Ok(files) => {
+                        tape_image_data = Some((files, data, path));
+                    }
+                    Err(e) => {
+                        eprintln!("Error parsing T64 file: {}", e);
                         if headless {
                             std::process::exit(1);
                         }
@@ -343,6 +367,11 @@ fn main() -> Result<()> {
     if let Some((files, disk_data, disk_path)) = disk_image_data {
         let dialog = regenerator2000::ui::dialog_d64_picker::D64FilePickerDialog::new(
             files, disk_data, disk_path,
+        );
+        ui_state.active_dialog = Some(Box::new(dialog));
+    } else if let Some((files, tape_data, tape_path)) = tape_image_data {
+        let dialog = regenerator2000::ui::dialog_t64_picker::T64FilePickerDialog::new(
+            files, tape_data, tape_path,
         );
         ui_state.active_dialog = Some(Box::new(dialog));
     }

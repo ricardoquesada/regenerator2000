@@ -245,6 +245,54 @@ impl Widget for OpenDialog {
                                 }
                             }
                             OpenMode::ProjectOrFile => {
+                                // Check if this is a T64 file - if so, show file picker
+                                if selected_path
+                                    .extension()
+                                    .and_then(|e| e.to_str())
+                                    .map(|e| e.eq_ignore_ascii_case("t64"))
+                                    .unwrap_or(false)
+                                {
+                                    match std::fs::read(&selected_path) {
+                                        Ok(tape_data) => {
+                                            match crate::parser::t64::parse_t64_directory(
+                                                &tape_data,
+                                            ) {
+                                                Ok(files) => {
+                                                    if files.is_empty() {
+                                                        ui_state.set_status_message(
+                                                            "No files in T64 image",
+                                                        );
+                                                        return WidgetResult::Handled;
+                                                    }
+
+                                                    ui_state.active_dialog = Some(Box::new(
+                                                        crate::ui::dialog_t64_picker::T64FilePickerDialog::new(
+                                                            files,
+                                                            tape_data,
+                                                            selected_path,
+                                                        ),
+                                                    ));
+                                                    return WidgetResult::Close;
+                                                }
+                                                Err(e) => {
+                                                    ui_state.set_status_message(format!(
+                                                        "Error parsing T64: {}",
+                                                        e
+                                                    ));
+                                                    return WidgetResult::Handled;
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            ui_state.set_status_message(format!(
+                                                "Error reading file: {}",
+                                                e
+                                            ));
+                                            return WidgetResult::Handled;
+                                        }
+                                    }
+                                }
+
                                 // Check if this is a D64 file - if so, show file picker
                                 if selected_path
                                     .extension()

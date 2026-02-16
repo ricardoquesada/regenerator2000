@@ -15,7 +15,7 @@ pub struct T64Entry {
     pub filename: String,
 }
 
-pub fn parse_t64(data: &[u8]) -> Result<(u16, Vec<u8>)> {
+pub fn parse_t64_directory(data: &[u8]) -> Result<Vec<T64Entry>> {
     if data.len() < T64_HEADER_SIZE {
         return Err(anyhow!("File too small to be a valid T64"));
     }
@@ -27,15 +27,13 @@ pub fn parse_t64(data: &[u8]) -> Result<(u16, Vec<u8>)> {
     }
 
     // Read number of entries
-    // max_entries at 34..36 is unused here
     let used_entries = u16::from_le_bytes(data[36..38].try_into()?);
 
     if used_entries == 0 {
         return Err(anyhow!("T64 file contains no entries"));
     }
 
-    // Parse directory entries
-    let mut best_entry: Option<T64Entry> = None;
+    let mut entries = Vec::new();
 
     for i in 0..used_entries {
         let offset = T64_HEADER_SIZE + (i as usize * T64_ENTRY_SIZE);
@@ -46,46 +44,81 @@ pub fn parse_t64(data: &[u8]) -> Result<(u16, Vec<u8>)> {
         let entry_data = &data[offset..offset + T64_ENTRY_SIZE];
         let file_type = entry_data[0];
 
-        // We are looking for file_type 1 (Normal tape file) usually.
-        if file_type != 1 {
+        // 1 = Normal tape file, 3 = Raw, 4 = Roguelike?
+        // 0 = Free
+        // We accept non-free entries. Standard files are type 1.
+        if file_type == 0 {
             continue;
         }
 
         let start_address = u16::from_le_bytes(entry_data[2..4].try_into()?);
         let end_address = u16::from_le_bytes(entry_data[4..6].try_into()?);
-        let data_offset = u32::from_le_bytes(entry_data[8..12].try_into()?);
+
+        // Offset is u16 in some docs, u32 in others?
+        // Standard T64 entry:
+        // 00: File type (u8)
+        // 01: File type (u8) - 1541 type
+        // 02-03: Start addr
+        // 04-05: End addr
+        // 06-07: Unused
+        // 08-09: Offset (low word) ??
+        // 0A-0B: Offset (high word) ??
+        // Actually at 0x08 is offset (4 bytes).
+        let offset_in_file = u32::from_le_bytes(entry_data[8..12].try_into()?);
 
         // Filename
         let filename_bytes = &entry_data[16..32];
         let filename = String::from_utf8_lossy(filename_bytes).trim().to_string();
 
-        let entry = T64Entry {
+        entries.push(T64Entry {
             file_type,
             start_address,
             end_address,
-            offset: data_offset,
+            offset: offset_in_file,
             filename,
-        };
-
-        // Pick the first valid entry
-        best_entry = Some(entry);
-        break;
+        });
     }
 
-    if let Some(entry) = best_entry {
-        let offset = entry.offset as usize;
+    Ok(entries)
+}
 
-        let calc_len = (entry.end_address).wrapping_sub(entry.start_address) as usize;
+pub fn extract_file(data: &[u8], entry: &T64Entry) -> Result<(u16, Vec<u8>)> {
+    let offset = entry.offset as usize;
+    // T64 end address is inclusive or exclusive? usually exclusive (address of byte AFTER last byte? or last byte?)
+    // Docs say: "End address of the file in memory". Usually this means LAST BYTE address.
+    // Length = End - Start + 1?
+    // Let's check `parse_t64` original logic: `entry.end_address.wrapping_sub(entry.start_address)`.
+    // Wait, original logic was `calc_len = (entry.end_address).wrapping_sub(entry.start_address) as usize;`.
+    // If start is $0801 and end is $0801 (1 byte?), len is 0?
+    // Usually C64 end addresses are "exclusive" implies size = end - start.
+    // But if it is "inclusive" (pointer to last byte), size = end - start + 1.
+    // Looking at common formats: PRG first 2 bytes are start. File length implies end.
+    // T64 stores start/end.
+    // Let's assume original logic was "correct enough" for now, but I suspect it might be off by 1 if end is inclusive.
+    // However, looking at the test:
+    // start $0801. Content len 3. End $0804.
+    // $0804 - $0801 = 3.
+    // So if end is $0804, it means the byte at $0804 is NOT included. (Exclusive).
 
-        if offset + calc_len > data.len() {
-            return Err(anyhow!(
-                "Truncated T64 file data for entry: {}",
-                entry.filename
-            ));
-        }
+    let calc_len = (entry.end_address).wrapping_sub(entry.start_address) as usize;
 
-        let file_content = data[offset..offset + calc_len].to_vec();
-        Ok((entry.start_address, file_content))
+    if offset + calc_len > data.len() {
+        return Err(anyhow!(
+            "Truncated T64 file data for entry: {}",
+            entry.filename
+        ));
+    }
+
+    let file_content = data[offset..offset + calc_len].to_vec();
+    Ok((entry.start_address, file_content))
+}
+
+pub fn parse_t64(data: &[u8]) -> Result<(u16, Vec<u8>)> {
+    let entries = parse_t64_directory(data)?;
+
+    // Find first valid "PRG" like entry (type 1)
+    if let Some(entry) = entries.iter().find(|e| e.file_type == 1) {
+        extract_file(data, entry)
     } else {
         Err(anyhow!("No valid program files found in T64 container"))
     }
