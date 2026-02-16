@@ -123,22 +123,22 @@ fn list_tools() -> Result<Value, McpError> {
             },
             {
                 "name": "r2000_convert_region_to_lo_hi_address",
-                "description": "Marks a memory region as a Lo/Hi Address Table. Must have an even number of bytes. The first half determines the low bytes, the second half the high bytes. Common in C64 games.",
+                "description": "Marks a memory region as a Lo/Hi Address Table. Must have an even number of bytes. The first half determines the low bytes, the second half the high bytes of the addresses",
                 "inputSchema": region_schema()
             },
             {
                 "name": "r2000_convert_region_to_hi_lo_address",
-                "description": "Marks a memory region as a Hi/Lo Address Table. Must have an even number of bytes. The first half determines the high bytes, the second half the low bytes. Common in C64 games.",
+                "description": "Marks a memory region as a Hi/Lo Address Table. Must have an even number of bytes. The first half determines the high bytes, the second half the low bytes of the addresses.",
                 "inputSchema": region_schema()
             },
             {
                 "name": "r2000_convert_region_to_lo_hi_word",
-                "description": "Marks a memory region as a Lo/Hi Word Table. Must have a size divisible by 4. The first half contains the low words, the second half the high words. Use case: SID frequency tables.",
+                "description": "Marks a memory region as a Lo/Hi Word Table. Must have an even number of bytes. The first half contains the low bytes, the second half the high bytes of the words. Use case: SID frequency tables.",
                 "inputSchema": region_schema()
             },
             {
                 "name": "r2000_convert_region_to_hi_lo_word",
-                "description": "Marks a memory region as a Hi/Lo Word Table. Must have a size divisible by 4. The first half contains the high words, the second half the low words. Use case: SID frequency tables.",
+                "description": "Marks a memory region as a Hi/Lo Word Table. Must have an even number of bytes. The first half contains the high bytes, the second half the low bytes of the words. Use case: SID frequency tables.",
                 "inputSchema": region_schema()
             },
             {
@@ -148,19 +148,13 @@ fn list_tools() -> Result<Value, McpError> {
             },
             {
                 "name": "r2000_convert_region_to_undefined",
-                "description": "Resets the block to an 'Unknown' / 'Undefined' state. Use this if you made a mistake and want the Auto-Analyzer to take a fresh look at the usage of this region.",
+                "description": "Resets the block to an 'Unknown' / 'Undefined' state.",
                 "inputSchema": region_schema()
             },
              {
                 "name": "r2000_toggle_splitter",
                 "description": "Toggles a Splitter at a specific address. Splitters prevent the auto-merger from combining adjacent blocks of the same type. Crucial for separating adjacent Lo/Hi tables.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "address": { "type": ["integer", "string"], "description": "The memory address where the splitter should be toggled (e.g., 4096, 0x1000 or $1000)" }
-                    },
-                    "required": ["address"]
-                }
+                "inputSchema": address_schema("The memory address where the splitter should be toggled (e.g., 4096, 0x1000 or $1000)")
             },
             {
                 "name": "r2000_undo",
@@ -327,6 +321,16 @@ fn region_schema() -> Value {
         "required": ["start_address", "end_address"]
     })
 }
+fn address_schema(description: &str) -> Value {
+    json!(
+    {
+        "type": "object",
+        "properties": {
+            "address": { "type": ["integer", "string"], "description": description }
+        },
+        "required": ["address"]
+    })
+}
 
 fn list_resources() -> Result<Value, McpError> {
     Ok(json!({
@@ -476,10 +480,22 @@ fn handle_tool_call(
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
         }
 
+        "r2000_read_selected_disasm" => {
+            let (start, end) = get_selection_range_disasm(app_state, ui_state)?;
+            let text = get_disassembly_text(app_state, start, end);
+            Ok(json!({ "content": [{ "type": "text", "text": text }] }))
+        }
+
         "r2000_read_hexdump_region" => {
             let start_addr = get_address(&args, "start_address")?;
             let end_addr = get_address(&args, "end_address")?;
             let text = get_hexdump_text(app_state, start_addr, end_addr);
+            Ok(json!({ "content": [{ "type": "text", "text": text }] }))
+        }
+
+        "r2000_read_selected_hexdump" => {
+            let (start, end) = get_selection_range_hexdump(app_state, ui_state)?;
+            let text = get_hexdump_text(app_state, start, end);
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
         }
 
@@ -512,18 +528,6 @@ fn handle_tool_call(
                     "text": serde_json::to_string_pretty(&blocks).unwrap()
                 }]
             }))
-        }
-
-        "r2000_read_selected_disasm" => {
-            let (start, end) = get_selection_range_disasm(app_state, ui_state)?;
-            let text = get_disassembly_text(app_state, start, end);
-            Ok(json!({ "content": [{ "type": "text", "text": text }] }))
-        }
-
-        "r2000_read_selected_hexdump" => {
-            let (start, end) = get_selection_range_hexdump(app_state, ui_state)?;
-            let text = get_hexdump_text(app_state, start, end);
-            Ok(json!({ "content": [{ "type": "text", "text": text }] }))
         }
 
         "r2000_get_disassembly_cursor" => {
@@ -797,6 +801,13 @@ fn get_disassembly_text(app_state: &AppState, start: u16, end: u16) -> String {
 
     for line in &app_state.disassembly {
         if line.address >= start && line.address <= end {
+            // Line comments
+            if let Some(comment) = &line.line_comment {
+                for line in comment.lines() {
+                    output.push_str(&format!("; {}\n", line));
+                }
+            }
+
             if let Some(label) = &line.label
                 && !label.is_empty()
             {
@@ -809,7 +820,15 @@ fn get_disassembly_text(app_state: &AppState, start: u16, end: u16) -> String {
                 format!("{} {}", line.mnemonic, line.operand)
             };
 
-            output.push_str(&format!("${:04X} {}\n", line.address, instruction));
+            // Side comments
+            if !line.comment.is_empty() {
+                output.push_str(&format!(
+                    "${:04X} {:<20} ; {}\n",
+                    line.address, instruction, line.comment
+                ));
+            } else {
+                output.push_str(&format!("${:04X} {}\n", line.address, instruction));
+            }
         }
     }
     output
