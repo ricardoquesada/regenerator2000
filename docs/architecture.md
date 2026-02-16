@@ -7,8 +7,10 @@ Regenerator 2000 is an interactive disassembler for the Commodore 64, written in
 ```mermaid
 flowchart TD
     Input[User Input<br/>Keys/Mouse]
+    MCPClient[MCP Client<br/>AI Assistant]
     EventLoop[Event Loop]
     Widget[Active Widget<br/>View/Dialog]
+    MCPServer[MCP Server<br/>HTTP/Stdio]
     CommandSys[Command System]
     AppState[Application State]
     Analyzer[Code Analyzer]
@@ -21,6 +23,9 @@ flowchart TD
     Input -->|Dispatch to Widget| EventLoop
     EventLoop --> Widget
     Widget -->|Results in Action/Command| CommandSys
+    MCPClient -->|Tools/Resources| MCPServer
+    MCPServer -->|Commands| CommandSys
+    MCPServer -.->|Read State| AppState
     CommandSys -->|Apply/Undo| AppState
     AppState -->|Requests| DisasmEngine
     AppState -->|Triggers| Analyzer
@@ -194,7 +199,23 @@ Manages system-level configuration that persists across sessions.
 
 Handles embedded assets like the application logo and other static resources used in the UI.
 
-### 12. Utilities ([`utils.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/utils.rs))
+### 12. MCP Server ([`mcp/`](https://github.com/ricardoquesada/regenerator2000/tree/main/src/mcp))
+
+Implements the Model Context Protocol (MCP) server for programmatic access to Regenerator 2000.
+
+- **[`mod.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/mcp/mod.rs)**: Core MCP server implementation.
+- **[`stdio.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/mcp/stdio.rs)**: Stdio transport mode for MCP communication.
+- **HTTP Mode**: Supports Server-Sent Events (SSE) over HTTP on port 3000.
+- **Stdio Mode**: Headless subprocess mode for AI assistants like Claude Desktop.
+
+The MCP server exposes tools and resources allowing AI agents to:
+
+- **Tools**: Manipulate disassembly (set labels, comments, block types), search memory, manage cross-references, save projects, and perform undo/redo operations.
+- **Resources**: Access binary data, disassembly views, hexdump views, and selected regions.
+
+This enables collaborative human-AI workflows where both can work on the same project simultaneously (HTTP mode) or fully automated analysis sessions (stdio mode).
+
+### 13. Utilities ([`utils.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/utils.rs))
 
 Contains shared helper functions and utilities used across the application.
 

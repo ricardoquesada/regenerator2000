@@ -32,8 +32,12 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 - **Blocks**:
   - Side-by-side view with disassembly.
 - **Platforms**: Supports Commodore 8-bit machines like C64, C128, Plus/4, etc.
-- **Import**: Load `.prg`, `.crt`, `.d64`, `.t64`, `.vsf`, `.bin`, `.raw`, and
+- **Import**: Load `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, `.bin`, `.raw`, and
   `.regen2000proj` files.
+  - D64: 35/40-track disk images
+  - D71: 70-track double-sided disk images
+  - D81: 80-track disk images
+  - CRT: Cartridge images with bank selection support
 - **Export**: Generate compatible assembly source code for:
   - **64tass**
   - **ACME**
@@ -60,6 +64,11 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
   - Text User interface
   - Everything can be done from the keyboard
   - **Visual Mode**: Vim-like selection for batch operations.
+- **MCP Server**:
+  - Model Context Protocol (MCP) server support for programmatic access
+  - HTTP and stdio transport modes
+  - Tools for disassembly manipulation, memory search, block operations
+  - Resources for accessing binary data and views
 - **Fast**:
   - Extremely fast
 
@@ -114,8 +123,10 @@ regenerator2000 [OPTIONS] [path/to/file.prg]
 -   `--export_lbl <PATH>`: Export labels to the specified file (after analysis/import)
 -   `--export_asm <PATH>`: Export assembly to the specified file (after analysis/import)
 -   `--headless`: Run in headless mode (no TUI), useful for batch processing
+-   `--mcp-server`: Run MCP server (HTTP on port 3000)
+-   `--mcp-server-stdio`: Run MCP server via stdio
 
-Supported file formats: `.prg`, `.crt`, `.d64`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.regen2000proj`.
+Supported file formats: `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.regen2000proj`.
 
 ## Keyboard Shortcuts
 
