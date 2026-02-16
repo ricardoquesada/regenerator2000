@@ -5,6 +5,7 @@ pub mod dialog_about;
 pub mod dialog_comment;
 pub mod dialog_complete_address;
 pub mod dialog_confirmation;
+pub mod dialog_crt_picker;
 pub mod dialog_d64_picker;
 pub mod dialog_document_settings;
 pub mod dialog_export_as;

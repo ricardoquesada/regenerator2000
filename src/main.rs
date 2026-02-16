@@ -145,8 +145,10 @@ fn main() -> Result<()> {
     let mut initial_load_result = None;
     let mut disk_image_data = None;
     let mut tape_image_data = None;
+    let mut cart_image_data = None;
     let mut is_disk_image = false;
     let mut is_tape_image = false;
+    let mut is_cart_image = false;
 
     if let Some(file_str) = &file_to_load {
         let path = std::path::Path::new(file_str);
@@ -158,6 +160,8 @@ fn main() -> Result<()> {
                 is_disk_image = true;
             } else if ext.eq_ignore_ascii_case("t64") {
                 is_tape_image = true;
+            } else if ext.eq_ignore_ascii_case("crt") {
+                is_cart_image = true;
             }
         }
     }
@@ -195,6 +199,29 @@ fn main() -> Result<()> {
                     }
                     Err(e) => {
                         eprintln!("Error parsing T64 file: {}", e);
+                        if headless {
+                            std::process::exit(1);
+                        }
+                    }
+                },
+                Err(e) => {
+                    eprintln!("Error reading file: {}", e);
+                    if headless {
+                        std::process::exit(1);
+                    }
+                }
+            }
+        }
+    } else if is_cart_image {
+        if let Some(file_str) = &file_to_load {
+            let path = std::path::PathBuf::from(file_str);
+            match std::fs::read(&path) {
+                Ok(data) => match regenerator2000::parser::crt::parse_crt_chips(&data) {
+                    Ok(chips) => {
+                        cart_image_data = Some((chips, path));
+                    }
+                    Err(e) => {
+                        eprintln!("Error parsing CRT file: {}", e);
                         if headless {
                             std::process::exit(1);
                         }
@@ -373,6 +400,9 @@ fn main() -> Result<()> {
         let dialog = regenerator2000::ui::dialog_t64_picker::T64FilePickerDialog::new(
             files, tape_data, tape_path,
         );
+        ui_state.active_dialog = Some(Box::new(dialog));
+    } else if let Some((chips, path)) = cart_image_data {
+        let dialog = regenerator2000::ui::dialog_crt_picker::CrtBankPickerDialog::new(chips, path);
         ui_state.active_dialog = Some(Box::new(dialog));
     }
 

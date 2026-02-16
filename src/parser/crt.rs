@@ -1,6 +1,14 @@
 use anyhow::{Result, anyhow};
 
-pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
+#[derive(Debug, Clone)]
+pub struct CrtChip {
+    pub load_address: u16,
+    pub bank: u16,
+    pub chip_type: u16,
+    pub data: Vec<u8>,
+}
+
+pub fn parse_crt_chips(data: &[u8]) -> Result<Vec<CrtChip>> {
     if data.len() < 0x40 {
         return Err(anyhow!("File too short to be a valid CRT file"));
     }
@@ -44,6 +52,13 @@ pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
             ));
         }
 
+        // Chip type at 0x08-0x09 (Big Endian)
+        let chip_type =
+            u16::from_be_bytes([data[current_offset + 0x08], data[current_offset + 0x09]]);
+
+        // Bank number at 0x0A-0x0B (Big Endian)
+        let bank = u16::from_be_bytes([data[current_offset + 0x0A], data[current_offset + 0x0B]]);
+
         // Chip load address at 0x0C-0x0D (Big Endian)
         let load_address =
             u16::from_be_bytes([data[current_offset + 0x0C], data[current_offset + 0x0D]]);
@@ -60,8 +75,13 @@ pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
             ));
         }
 
-        let rom_data = &data[rom_data_offset..rom_data_offset + rom_size];
-        chips.push((load_address, rom_data));
+        let rom_data = data[rom_data_offset..rom_data_offset + rom_size].to_vec();
+        chips.push(CrtChip {
+            load_address,
+            bank,
+            chip_type,
+            data: rom_data,
+        });
 
         current_offset += packet_len;
     }
@@ -70,13 +90,19 @@ pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
         return Err(anyhow!("No valid CHIP packets found"));
     }
 
+    Ok(chips)
+}
+
+pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
+    let chips = parse_crt_chips(data)?;
+
     // Calculate total memory range
     let mut min_addr = 0xFFFF;
     let mut max_addr = 0x0000;
 
-    for (addr, rom) in &chips {
-        let start = *addr;
-        let end = start as usize + rom.len();
+    for chip in &chips {
+        let start = chip.load_address;
+        let end = start as usize + chip.data.len();
         if start < min_addr {
             min_addr = start;
         }
@@ -97,11 +123,11 @@ pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
     // Map chips into buffer
     // Note: Iterate in reverse so that earlier chips (e.g. Bank 0) overwrite later ones in the flat memory model.
     // This ensures that the main code (usually in the first chips) is what we see in a flat disassembly.
-    for (addr, rom) in chips.iter().rev() {
-        let offset = (*addr - min_addr) as usize;
-        let len = rom.len();
+    for chip in chips.iter().rev() {
+        let offset = (chip.load_address - min_addr) as usize;
+        let len = chip.data.len();
         if offset + len <= memory.len() {
-            memory[offset..offset + len].copy_from_slice(rom);
+            memory[offset..offset + len].copy_from_slice(&chip.data);
         }
     }
 
