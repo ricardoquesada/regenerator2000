@@ -95,8 +95,9 @@ pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
     let mut memory = vec![0u8; size];
 
     // Map chips into buffer
-    // Note: Later chips overwrite earlier ones, which is crude bank switching support
-    for (addr, rom) in &chips {
+    // Note: Iterate in reverse so that earlier chips (e.g. Bank 0) overwrite later ones in the flat memory model.
+    // This ensures that the main code (usually in the first chips) is what we see in a flat disassembly.
+    for (addr, rom) in chips.iter().rev() {
         let offset = (*addr - min_addr) as usize;
         let len = rom.len();
         if offset + len <= memory.len() {
@@ -143,5 +144,51 @@ mod tests {
         assert_eq!(origin, 0x8000);
         assert_eq!(mem.len(), 16);
         assert_eq!(mem, chip_data);
+    }
+
+    #[test]
+    fn test_parse_crt_overlapping() {
+        // Build a minimal CRT header
+        let mut data = Vec::new();
+        data.extend_from_slice(b"C64 CARTRIDGE   "); // 0x00
+        data.extend_from_slice(&0x40u32.to_be_bytes()); // 0x10 Header len
+        data.extend_from_slice(&[0x01, 0x00]); // 0x14 Version
+        data.extend_from_slice(&[0x00, 0x00]); // 0x16 Hardware type (0=Normal)
+        data.extend_from_slice(&[0; 6]); // 0x18
+        data.extend_from_slice(&[0; 32]); // 0x20
+        // Pad header to 0x40
+        while data.len() < 0x40 {
+            data.push(0);
+        }
+
+        // Chip 1: Bank 0 (Main Code) - "MAIN_CODE_BLOCK_"
+        let chip1_content = b"MAIN_CODE_BLOCK_";
+        let pkt1_len = 0x10 + chip1_content.len() as u32;
+
+        data.extend_from_slice(b"CHIP");
+        data.extend_from_slice(&pkt1_len.to_be_bytes()); // Packet 1 Len
+        data.extend_from_slice(&[0x00, 0x00]); // Type: ROM
+        data.extend_from_slice(&[0x00, 0x00]); // Bank: 0
+        data.extend_from_slice(&0x8000u16.to_be_bytes()); // Load: 8000
+        data.extend_from_slice(&(chip1_content.len() as u16).to_be_bytes()); // Size
+        data.extend_from_slice(chip1_content);
+
+        // Chip 2: Bank 1 (Data that overwrites Code) - "OVERWRITE_DATA__"
+        let chip2_content = b"OVERWRITE_DATA__";
+        let pkt2_len = 0x10 + chip2_content.len() as u32;
+
+        data.extend_from_slice(b"CHIP");
+        data.extend_from_slice(&pkt2_len.to_be_bytes()); // Packet 2 Len
+        data.extend_from_slice(&[0x00, 0x00]); // Type: ROM
+        data.extend_from_slice(&[0x00, 0x01]); // Bank: 1
+        data.extend_from_slice(&0x8000u16.to_be_bytes()); // Load: 8000
+        data.extend_from_slice(&(chip2_content.len() as u16).to_be_bytes()); // Size
+        data.extend_from_slice(chip2_content);
+
+        let (origin, mem) = parse_crt(&data).expect("Should parse valid CRT");
+
+        assert_eq!(origin, 0x8000);
+        // We expect the FIRST chip (Bank 0) to be visible, not overwriten by Bank 1
+        assert_eq!(mem, chip1_content);
     }
 }
