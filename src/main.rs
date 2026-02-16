@@ -401,8 +401,9 @@ fn main() -> Result<()> {
             files, tape_data, tape_path,
         );
         ui_state.active_dialog = Some(Box::new(dialog));
-    } else if let Some((chips, path)) = cart_image_data {
-        let dialog = regenerator2000::ui::dialog_crt_picker::CrtBankPickerDialog::new(chips, path);
+    } else if let Some((crt_header, path)) = cart_image_data {
+        let dialog =
+            regenerator2000::ui::dialog_crt_picker::CrtBankPickerDialog::new(crt_header, path);
         ui_state.active_dialog = Some(Box::new(dialog));
     }
 

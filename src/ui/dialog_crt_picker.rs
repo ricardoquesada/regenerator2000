@@ -1,7 +1,7 @@
 // CRT Bank Picker Dialog
 // Shows list of CHIP banks from a CRT cartridge image and allows user to select one
 
-use crate::parser::crt::CrtChip;
+use crate::parser::crt::{CrtChip, CrtHeader};
 use crate::state::AppState;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
@@ -23,15 +23,20 @@ pub struct CrtBankPickerDialog {
     chips: Vec<CrtPickerEntry>,
     selected_index: usize,
     file_path: PathBuf,
+    crt_header: CrtHeader,
 }
 
 impl CrtBankPickerDialog {
-    pub fn new(chips: Vec<CrtChip>, file_path: PathBuf) -> Self {
-        let entries = chips
-            .into_iter()
+    pub fn new(crt_header: CrtHeader, file_path: PathBuf) -> Self {
+        let entries = crt_header
+            .chips
+            .iter()
             .map(|chip| {
                 let entropy = crate::utils::calculate_entropy(&chip.data);
-                CrtPickerEntry { chip, entropy }
+                CrtPickerEntry {
+                    chip: chip.clone(),
+                    entropy,
+                }
             })
             .collect();
 
@@ -39,6 +44,7 @@ impl CrtBankPickerDialog {
             chips: entries,
             selected_index: 0,
             file_path,
+            crt_header,
         }
     }
 
@@ -64,9 +70,10 @@ impl Widget for CrtBankPickerDialog {
             .and_then(|n| n.to_str())
             .unwrap_or("Unknown");
 
+        let hardware_name = self.crt_header.get_hardware_name();
         let title = format!(
-            " Select Bank from {} (Enter: Load, Esc: Cancel) ",
-            file_name
+            " Select Bank from {} [{}] (Enter: Load, Esc: Cancel) ",
+            file_name, hardware_name
         );
         let block = crate::ui::widget::create_dialog_block(&title, theme);
 

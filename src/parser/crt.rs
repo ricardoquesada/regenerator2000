@@ -8,7 +8,46 @@ pub struct CrtChip {
     pub data: Vec<u8>,
 }
 
-pub fn parse_crt_chips(data: &[u8]) -> Result<Vec<CrtChip>> {
+#[derive(Debug, Clone)]
+pub struct CrtHeader {
+    pub version: u16,
+    pub hardware_type: u16,
+    pub exrom: u8,
+    pub game: u8,
+    pub name: String,
+    pub chips: Vec<CrtChip>,
+}
+
+impl CrtHeader {
+    pub fn get_hardware_name(&self) -> String {
+        match self.hardware_type {
+            0 => "Normal Cartridge".to_string(),
+            1 => "Action Replay".to_string(),
+            2 => "KCS Power Cartridge".to_string(),
+            3 => "Final Cartridge III".to_string(),
+            4 => "Simons' BASIC".to_string(),
+            5 => "Ocean (Type 1)".to_string(),
+            6 => "Expert Cartridge".to_string(),
+            7 => "Final Cartridge I/II".to_string(),
+            8 => "Super Games".to_string(),
+            9 => "Atomic Power".to_string(),
+            10 => "Epyx FastLoad".to_string(),
+            12 => "C64GS (System 3)".to_string(),
+            13 => "Dinamic".to_string(),
+            15 => "C64 Game System".to_string(),
+            17 => "Mikro Assembler".to_string(),
+            18 => "Final Cartridge Plus".to_string(),
+            19 => "Magic Desk".to_string(),
+            20 => "Super Snapshot V5".to_string(),
+            32 => "EasyFlash".to_string(),
+            33 => "GIDE".to_string(),
+            43 => "Retro Replay".to_string(),
+            _ => format!("Unknown Type ({})", self.hardware_type),
+        }
+    }
+}
+
+pub fn parse_crt_chips(data: &[u8]) -> Result<CrtHeader> {
     if data.len() < 0x40 {
         return Err(anyhow!("File too short to be a valid CRT file"));
     }
@@ -22,6 +61,21 @@ pub fn parse_crt_chips(data: &[u8]) -> Result<Vec<CrtChip>> {
 
     // Header length is at 0x10-0x13 (Big Endian)
     let header_len = u32::from_be_bytes([data[0x10], data[0x11], data[0x12], data[0x13]]) as usize;
+
+    // Version at 0x14-0x15
+    let version = u16::from_be_bytes([data[0x14], data[0x15]]);
+
+    // Hardware Type at 0x16-0x17
+    let hardware_type = u16::from_be_bytes([data[0x16], data[0x17]]);
+
+    // EXROM (0x18) and GAME (0x19) line status
+    let exrom = data[0x18];
+    let game = data[0x19];
+
+    // Name at 0x20-0x3F (32 bytes max, stops at null)
+    let name_bytes = &data[0x20..0x40];
+    let end_index = name_bytes.iter().position(|&x| x == 0).unwrap_or(32);
+    let name = String::from_utf8_lossy(&name_bytes[..end_index]).to_string();
 
     // Iterate through CHIP packets
     let mut current_offset = header_len;
@@ -90,11 +144,19 @@ pub fn parse_crt_chips(data: &[u8]) -> Result<Vec<CrtChip>> {
         return Err(anyhow!("No valid CHIP packets found"));
     }
 
-    Ok(chips)
+    Ok(CrtHeader {
+        version,
+        hardware_type,
+        exrom,
+        game,
+        name,
+        chips,
+    })
 }
 
 pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
-    let chips = parse_crt_chips(data)?;
+    let header = parse_crt_chips(data)?;
+    let chips = header.chips;
 
     // Calculate total memory range
     let mut min_addr = 0xFFFF;
