@@ -18,6 +18,7 @@ struct FilePickerEntry {
     entry: D64FileEntry,
     start_addr: Option<u16>,
     end_addr: Option<u16>,
+    entropy: Option<f32>,
 }
 
 pub struct D64FilePickerDialog {
@@ -34,6 +35,7 @@ impl D64FilePickerDialog {
             .map(|entry| {
                 let mut start_addr = None;
                 let mut end_addr = None;
+                let mut entropy = None;
 
                 if entry.file_type == FileType::PRG
                     && let Ok((start, data)) = crate::parser::d64::extract_file(&disk_data, &entry)
@@ -41,9 +43,11 @@ impl D64FilePickerDialog {
                     start_addr = Some(start);
                     if !data.is_empty() {
                         end_addr = Some(start.wrapping_add(data.len() as u16).wrapping_sub(1));
+                        entropy = Some(crate::utils::calculate_entropy(&data));
                     } else {
                         // Empty file (just load address?)
                         end_addr = Some(start);
+                        entropy = Some(0.0);
                     }
                 }
 
@@ -51,6 +55,7 @@ impl D64FilePickerDialog {
                     entry,
                     start_addr,
                     end_addr,
+                    entropy,
                 }
             })
             .collect();
@@ -97,8 +102,8 @@ impl Widget for D64FilePickerDialog {
             .iter()
             .map(|picker_entry| {
                 let entry = &picker_entry.entry;
-                let filename = if entry.filename.len() > 45 {
-                    format!("{}...", &entry.filename[..42])
+                let filename = if entry.filename.len() > 37 {
+                    format!("{}...", &entry.filename[..34])
                 } else {
                     entry.filename.clone()
                 };
@@ -111,12 +116,19 @@ impl Widget for D64FilePickerDialog {
                     String::new()
                 };
 
+                let entropy_str = if let Some(e) = picker_entry.entropy {
+                    format!("{:>5.2}", e)
+                } else {
+                    "     ".to_string()
+                };
+
                 let content = format!(
-                    "{:<45} {:>3} {:>4} blks  {:<11}",
+                    "{:<37} {:>3} {:>4} blks  {:<11}  {}",
                     filename,
                     entry.file_type.as_str(),
                     entry.size_sectors,
-                    addr_str
+                    addr_str,
+                    entropy_str
                 );
 
                 let is_prg = entry.file_type == FileType::PRG;
