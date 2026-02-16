@@ -14,8 +14,14 @@ use ratatui::{
 };
 use std::path::PathBuf;
 
+struct FilePickerEntry {
+    entry: D64FileEntry,
+    start_addr: Option<u16>,
+    end_addr: Option<u16>,
+}
+
 pub struct D64FilePickerDialog {
-    files: Vec<D64FileEntry>,
+    files: Vec<FilePickerEntry>,
     selected_index: usize,
     disk_data: Vec<u8>,
     disk_path: PathBuf,
@@ -23,8 +29,34 @@ pub struct D64FilePickerDialog {
 
 impl D64FilePickerDialog {
     pub fn new(files: Vec<D64FileEntry>, disk_data: Vec<u8>, disk_path: PathBuf) -> Self {
+        let entries = files
+            .into_iter()
+            .map(|entry| {
+                let mut start_addr = None;
+                let mut end_addr = None;
+
+                if entry.file_type == FileType::PRG
+                    && let Ok((start, data)) = crate::parser::d64::extract_file(&disk_data, &entry)
+                {
+                    start_addr = Some(start);
+                    if !data.is_empty() {
+                        end_addr = Some(start.wrapping_add(data.len() as u16).wrapping_sub(1));
+                    } else {
+                        // Empty file (just load address?)
+                        end_addr = Some(start);
+                    }
+                }
+
+                FilePickerEntry {
+                    entry,
+                    start_addr,
+                    end_addr,
+                }
+            })
+            .collect();
+
         Self {
-            files,
+            files: entries,
             selected_index: 0,
             disk_data,
             disk_path,
@@ -56,25 +88,35 @@ impl Widget for D64FilePickerDialog {
         let title = format!(" Select PRG from {} (Enter: Load, Esc: Cancel) ", disk_name);
         let block = crate::ui::widget::create_dialog_block(&title, theme);
 
-        let area = crate::utils::centered_rect_adaptive(60, 60, 60, 14, area);
+        let area = crate::utils::centered_rect_adaptive(80, 60, 80, 14, area);
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area); // Clear background
 
         let items: Vec<ListItem> = self
             .files
             .iter()
-            .map(|entry| {
-                let filename = if entry.filename.len() > 40 {
-                    format!("{}...", &entry.filename[..37])
+            .map(|picker_entry| {
+                let entry = &picker_entry.entry;
+                let filename = if entry.filename.len() > 45 {
+                    format!("{}...", &entry.filename[..42])
                 } else {
                     entry.filename.clone()
                 };
 
+                let addr_str = if let (Some(start), Some(end)) =
+                    (picker_entry.start_addr, picker_entry.end_addr)
+                {
+                    format!("${:04X}-${:04X}", start, end)
+                } else {
+                    String::new()
+                };
+
                 let content = format!(
-                    "{:<40} {:>3} {:>5} blocks",
+                    "{:<45} {:>3} {:>4} blks  {:<11}",
                     filename,
                     entry.file_type.as_str(),
-                    entry.size_sectors
+                    entry.size_sectors,
+                    addr_str
                 );
 
                 let is_prg = entry.file_type == FileType::PRG;
@@ -157,7 +199,7 @@ impl Widget for D64FilePickerDialog {
             }
             KeyCode::Enter => {
                 // Load the selected file
-                let selected_entry = &self.files[self.selected_index];
+                let selected_entry = &self.files[self.selected_index].entry;
 
                 if selected_entry.file_type != FileType::PRG {
                     ui_state.set_status_message(format!(
