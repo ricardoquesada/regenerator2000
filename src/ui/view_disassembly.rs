@@ -13,6 +13,8 @@ use crate::ui::widget::{Widget, WidgetResult};
 
 use crate::ui::navigable::{Navigable, handle_nav_input};
 
+const PAGE_SCROLL_AMOUNT: usize = 30;
+
 pub struct VisualLineCounts {
     pub labels: usize,
     pub comments: usize,
@@ -236,14 +238,34 @@ impl Navigable for DisassemblyView {
     }
 
     fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
+        if app_state.disassembly.is_empty() {
+            return;
+        }
         // PageDown logic: flat 30 lines jump
         ui_state.cursor_index =
-            (ui_state.cursor_index + 30).min(self.len(app_state).saturating_sub(1));
+            (ui_state.cursor_index + PAGE_SCROLL_AMOUNT).min(self.len(app_state).saturating_sub(1));
+
+        // Ensure sub-cursor is valid for the new line
+        let line = &app_state.disassembly[ui_state.cursor_index];
+        let max_sub = Self::get_visual_line_count_for_instruction(line, app_state);
+        if ui_state.sub_cursor_index >= max_sub {
+            ui_state.sub_cursor_index = max_sub.saturating_sub(1);
+        }
     }
 
-    fn page_up(&self, _app_state: &AppState, ui_state: &mut UIState) {
-        // PageUp logic: flat 10 lines jump
-        ui_state.cursor_index = ui_state.cursor_index.saturating_sub(10);
+    fn page_up(&self, app_state: &AppState, ui_state: &mut UIState) {
+        if app_state.disassembly.is_empty() {
+            return;
+        }
+        // PageUp logic: flat 30 lines jump
+        ui_state.cursor_index = ui_state.cursor_index.saturating_sub(PAGE_SCROLL_AMOUNT);
+
+        // Ensure sub-cursor is valid for the new line
+        let line = &app_state.disassembly[ui_state.cursor_index];
+        let max_sub = Self::get_visual_line_count_for_instruction(line, app_state);
+        if ui_state.sub_cursor_index >= max_sub {
+            ui_state.sub_cursor_index = max_sub.saturating_sub(1);
+        }
     }
 
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
@@ -327,18 +349,34 @@ impl Widget for DisassemblyView {
 
         let click_row = (mouse.row - inner_area.y) as usize;
         let visible_height = inner_area.height as usize;
-        let context_lines = visible_height / 2;
-        let start_index = ui_state.cursor_index.saturating_sub(context_lines);
 
+        if app_state.disassembly.is_empty() {
+            return WidgetResult::Handled;
+        }
+
+        // Use scroll state to determine what's actually on screen
+        let mut current_inst = ui_state.scroll_index;
+        let mut current_sub = ui_state.scroll_sub_index;
         let mut current_y = 0;
 
-        for (i, line) in app_state.disassembly.iter().enumerate().skip(start_index) {
-            let counts = Self::get_visual_line_counts(line, app_state);
-            let height = counts.total();
+        // Ensure scroll index is valid (safety check)
+        if current_inst >= app_state.disassembly.len() {
+            current_inst = app_state.disassembly.len().saturating_sub(1);
+            current_sub = 0;
+        }
 
-            if click_row < current_y + height {
-                ui_state.cursor_index = i;
-                ui_state.sub_cursor_index = click_row - current_y;
+        while current_inst < app_state.disassembly.len() {
+            let line = &app_state.disassembly[current_inst];
+            let counts = Self::get_visual_line_counts(line, app_state).total();
+
+            // Number of visual lines associated with this instruction that are actually visible
+            // (starting from current_sub)
+            let visible_part_count = counts.saturating_sub(current_sub);
+
+            if click_row < current_y + visible_part_count {
+                // Found the clicked row
+                ui_state.cursor_index = current_inst;
+                ui_state.sub_cursor_index = current_sub + (click_row - current_y);
 
                 if ui_state.is_visual_mode {
                     if ui_state.selection_start.is_none() {
@@ -350,10 +388,13 @@ impl Widget for DisassemblyView {
                 return WidgetResult::Handled;
             }
 
-            current_y += height;
+            current_y += visible_part_count;
             if current_y >= visible_height {
                 break;
             }
+
+            current_inst += 1;
+            current_sub = 0; // Next instructions start from top
         }
 
         WidgetResult::Handled
