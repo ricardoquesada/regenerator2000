@@ -4,7 +4,6 @@ use crate::state::types::{BlockType, ImmediateFormat};
 use base64::prelude::*;
 use serde_json::{Value, json};
 
-use crate::ui::view_disassembly::DisassemblyView;
 use crate::ui_state::UIState;
 
 pub fn handle_request(
@@ -562,15 +561,12 @@ fn handle_tool_call(
 
         "r2000_jump_to_address" => {
             let address = get_address(&args, "address")?;
-            if let Some(idx) = app_state.get_line_index_for_address(address) {
-                let line = &app_state.disassembly[idx];
-                let sub_idx = DisassemblyView::get_sub_index_for_address(line, app_state, address);
-
-                ui_state.cursor_index = idx;
-                ui_state.scroll_index = idx;
-                ui_state.sub_cursor_index = sub_idx;
-                ui_state.scroll_sub_index = 0;
-                ui_state.active_pane = crate::ui_state::ActivePane::Disassembly;
+            if app_state
+                .get_line_index_containing_address(address)
+                .or_else(|| app_state.get_line_index_for_address(address))
+                .is_some()
+            {
+                crate::ui::menu::perform_jump_to_address(app_state, ui_state, address);
 
                 Ok(json!({
                     "content": [{

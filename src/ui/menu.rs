@@ -1062,85 +1062,66 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("No address selected");
             }
         }
-        MenuAction::NavigateToAddress(target_addr) => {
-            match ui_state.active_pane {
-                ActivePane::Disassembly => {
-                    use crate::ui_state::NavigationTarget;
-                    // Push CURRENT state to history before moving
-                    if let Some(current_line) = app_state.disassembly.get(ui_state.cursor_index) {
-                        ui_state.navigation_history.push((
-                            ActivePane::Disassembly,
-                            NavigationTarget::Address(current_line.address),
-                        ));
-                    } else {
-                        ui_state.navigation_history.push((
-                            ActivePane::Disassembly,
-                            NavigationTarget::Index(ui_state.cursor_index),
-                        ));
-                    }
+        MenuAction::NavigateToAddress(target_addr) => match ui_state.active_pane {
+            ActivePane::Disassembly => {
+                perform_jump_to_address(app_state, ui_state, target_addr);
+            }
+            ActivePane::HexDump => {
+                let origin = app_state.origin as usize;
+                let target = target_addr as usize;
+                let end_addr = origin + app_state.raw_data.len();
 
-                    perform_jump_to_address_no_history(app_state, ui_state, target_addr);
-                }
-                ActivePane::HexDump => {
-                    let origin = app_state.origin as usize;
-                    let target = target_addr as usize;
-                    let end_addr = origin + app_state.raw_data.len();
-
-                    if target >= origin && target < end_addr {
-                        let alignment_padding = origin % 16;
-                        let aligned_origin = origin - alignment_padding;
-                        let offset = target - aligned_origin;
-                        let row = offset / 16;
-                        ui_state.hex_cursor_index = row;
-                        ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
-                    } else {
-                        ui_state.set_status_message("Address out of range");
-                    }
-                }
-                ActivePane::Sprites => {
-                    let origin = app_state.origin as usize;
-                    let target = target_addr as usize;
-                    let padding = (64 - (origin % 64)) % 64;
-                    let aligned_start = origin + padding;
-                    let end_addr = origin + app_state.raw_data.len();
-
-                    if target >= aligned_start && target < end_addr {
-                        let offset = target - aligned_start;
-                        let sprite_idx = offset / 64;
-                        ui_state.sprites_cursor_index = sprite_idx;
-                        ui_state.set_status_message(format!(
-                            "Jumped to sprite at ${:04X}",
-                            target_addr
-                        ));
-                    } else {
-                        ui_state.set_status_message("Address out of range or unaligned");
-                    }
-                }
-                ActivePane::Charset => {
-                    let origin = app_state.origin as usize;
-                    let target = target_addr as usize;
-                    let base_alignment = 0x400;
-                    let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                    let end_addr = origin + app_state.raw_data.len();
-
-                    if target >= aligned_start_addr && target < end_addr {
-                        let offset = target - aligned_start_addr;
-                        let char_idx = offset / 8;
-                        ui_state.charset_cursor_index = char_idx;
-                        ui_state
-                            .set_status_message(format!("Jumped to char at ${:04X}", target_addr));
-                    } else {
-                        ui_state.set_status_message("Address out of range");
-                    }
-                }
-                ActivePane::Blocks => {
-                    ui_state.set_status_message("Jump to address not supported in Blocks view");
-                }
-                ActivePane::Bitmap => {
-                    ui_state.set_status_message("Jump to address not supported in Bitmap view");
+                if target >= origin && target < end_addr {
+                    let alignment_padding = origin % 16;
+                    let aligned_origin = origin - alignment_padding;
+                    let offset = target - aligned_origin;
+                    let row = offset / 16;
+                    ui_state.hex_cursor_index = row;
+                    ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
+                } else {
+                    ui_state.set_status_message("Address out of range");
                 }
             }
-        }
+            ActivePane::Sprites => {
+                let origin = app_state.origin as usize;
+                let target = target_addr as usize;
+                let padding = (64 - (origin % 64)) % 64;
+                let aligned_start = origin + padding;
+                let end_addr = origin + app_state.raw_data.len();
+
+                if target >= aligned_start && target < end_addr {
+                    let offset = target - aligned_start;
+                    let sprite_idx = offset / 64;
+                    ui_state.sprites_cursor_index = sprite_idx;
+                    ui_state
+                        .set_status_message(format!("Jumped to sprite at ${:04X}", target_addr));
+                } else {
+                    ui_state.set_status_message("Address out of range or unaligned");
+                }
+            }
+            ActivePane::Charset => {
+                let origin = app_state.origin as usize;
+                let target = target_addr as usize;
+                let base_alignment = 0x400;
+                let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                let end_addr = origin + app_state.raw_data.len();
+
+                if target >= aligned_start_addr && target < end_addr {
+                    let offset = target - aligned_start_addr;
+                    let char_idx = offset / 8;
+                    ui_state.charset_cursor_index = char_idx;
+                    ui_state.set_status_message(format!("Jumped to char at ${:04X}", target_addr));
+                } else {
+                    ui_state.set_status_message("Address out of range");
+                }
+            }
+            ActivePane::Blocks => {
+                ui_state.set_status_message("Jump to address not supported in Blocks view");
+            }
+            ActivePane::Bitmap => {
+                ui_state.set_status_message("Jump to address not supported in Bitmap view");
+            }
+        },
 
         MenuAction::JumpToOperand => {
             let target_addr = match ui_state.active_pane {
@@ -2077,6 +2058,24 @@ fn update_hexdump_status(ui_state: &mut UIState, mode: crate::state::HexdumpView
     ui_state.set_status_message(format!("Hex Dump: {}", status));
 }
 
+pub fn perform_jump_to_address(app_state: &AppState, ui_state: &mut UIState, target_addr: u16) {
+    // Push CURRENT state to history
+    use crate::ui_state::NavigationTarget;
+    if let Some(current_line) = app_state.disassembly.get(ui_state.cursor_index) {
+        ui_state.navigation_history.push((
+            ActivePane::Disassembly,
+            NavigationTarget::Address(current_line.address),
+        ));
+    } else {
+        ui_state.navigation_history.push((
+            ActivePane::Disassembly,
+            NavigationTarget::Index(ui_state.cursor_index),
+        ));
+    }
+
+    perform_jump_to_address_no_history(app_state, ui_state, target_addr);
+}
+
 pub fn perform_jump_to_address_no_history(
     app_state: &AppState,
     ui_state: &mut UIState,
@@ -2097,6 +2096,8 @@ pub fn perform_jump_to_address_no_history(
         }
 
         ui_state.cursor_index = idx;
+        ui_state.scroll_index = idx; // Ensure we jump visually too
+        ui_state.scroll_sub_index = 0;
 
         // Smart Jump: Select relevant sub-line if applicable
         if let Some(line) = app_state.disassembly.get(idx) {
@@ -2109,6 +2110,9 @@ pub fn perform_jump_to_address_no_history(
         } else {
             ui_state.sub_cursor_index = 0;
         }
+
+        // Ensure active pane is Disassembly (important for MCP calls)
+        ui_state.active_pane = ActivePane::Disassembly;
 
         ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
     } else if !app_state.disassembly.is_empty() {
