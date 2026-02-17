@@ -317,6 +317,28 @@ fn list_tools() -> Result<Value, McpError> {
                     "properties": {},
                     "required": []
                 }
+            },
+            {
+                "name": "r2000_batch_execute",
+                "description": "Executes multiple tools in a single request. Use this for bulk operations like renaming multiple labels to avoid round-trip latency.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "calls": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": { "type": "string", "description": "Name of the tool to execute" },
+                                    "arguments": { "type": "object", "description": "Arguments for the tool" }
+                                },
+                                "required": ["name", "arguments"]
+                            },
+                            "description": "List of tool calls to execute sequentially."
+                        }
+                    },
+                    "required": ["calls"]
+                }
             }
         ]
     }))
@@ -378,7 +400,52 @@ fn handle_tool_call(
 
     let args = params.get("arguments").cloned().unwrap_or(json!({}));
 
+    handle_tool_call_internal(name, args, app_state, ui_state)
+}
+
+fn handle_tool_call_internal(
+    name: &str,
+    args: Value,
+    app_state: &mut AppState,
+    ui_state: &mut UIState,
+) -> Result<Value, McpError> {
     match name {
+        "r2000_batch_execute" => {
+            let calls = args
+                .get("calls")
+                .and_then(|v| v.as_array())
+                .ok_or_else(|| McpError {
+                    code: -32602,
+                    message: "Missing 'calls' array".to_string(),
+                    data: None,
+                })?;
+
+            let mut results = Vec::new();
+            for call in calls {
+                let tool_name =
+                    call.get("name")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| McpError {
+                            code: -32602,
+                            message: "Missing 'name' in call".to_string(),
+                            data: None,
+                        })?;
+
+                let tool_args = call.get("arguments").cloned().unwrap_or(json!({}));
+
+                match handle_tool_call_internal(tool_name, tool_args, app_state, ui_state) {
+                    Ok(val) => results.push(json!({ "status": "success", "result": val })),
+                    Err(err) => results.push(json!({ "status": "error", "error": err })),
+                }
+            }
+
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&results).unwrap()
+                }]
+            }))
+        }
         "r2000_set_label_name" => {
             let address = get_address(&args, "address")?;
             let label_name = args

@@ -624,23 +624,6 @@ def test_get_disassembly_cursor(client):
         print(f"FAIL: {res}")
 
 
-if __name__ == "__main__":
-    client = MCPClient()
-    client.start()
-    
-    test_list_tools(client)
-    test_list_resources(client)
-    test_set_label(client)
-    test_complex_scenario(client)
-    test_read_disasm_region(client)
-    test_read_hexdump_region(client)
-    test_read_selected_tools(client)
-    test_convert_lo_hi_address(client)
-    test_tool_response_content(client)
-    test_new_tools(client)
-    test_get_disassembly_cursor(client)
-    test_jump_to_address(client)
-
 def test_jump_to_address(client):
     print("\nTesting r2000_jump_to_address...")
     
@@ -652,7 +635,9 @@ def test_jump_to_address(client):
     })
     
     if res1 and "result" in res1 and "content" in res1["result"]:
-         print(f"Current: {res1['result']['content'][0]['text']}")
+        content = res1["result"]["content"]
+        if content and len(content) > 0:
+             print(f"Current: {content[0]['text']}")
     
     # 2. Jump to $1000
     print("- Jumping to $1000...")
@@ -664,7 +649,8 @@ def test_jump_to_address(client):
     })
     
     if res2 and "result" in res2:
-         print(f"Jump Result: {json.dumps(res2['result'].get('content', []), indent=2)}")
+         content = res2["result"].get("content", [])
+         print(f"Jump Result: {json.dumps(content, indent=2)}")
          
          # 3. Verify new cursor
          res3 = client.rpc("tools/call", {
@@ -686,5 +672,71 @@ def test_jump_to_address(client):
          print(f"FAIL (Jump Error): {res2['error']['message']}")
     else:
          print(f"FAIL (No Response): {res2}")
+
+def test_batch_execute(client):
+    print("\nTesting r2000_batch_execute...")
+    
+    # 1. Prepare batch calls
+    calls = [
+        {
+            "name": "r2000_set_label_name",
+            "arguments": {
+                "address": 0x1005,
+                "name": "BATCH_LABEL"
+            }
+        },
+        {
+            "name": "r2000_set_side_comment",
+            "arguments": {
+                "address": 0x1005,
+                "comment": "Batch Comment"
+            }
+        }
+    ]
+
+    res = client.rpc("tools/call", {
+        "name": "r2000_batch_execute",
+        "arguments": {
+            "calls": calls
+        }
+    })
+    
+    if res and "result" in res and "content" in res["result"]:
+        content_text = res["result"]["content"][0]["text"]
+        print(f"Batch Result Text: {content_text}")
+        try:
+            results = json.loads(content_text)
+            if isinstance(results, list) and len(results) == 2:
+                if results[0].get("status") == "success" and results[1].get("status") == "success":
+                    print("PASS: Batch execution success")
+                else:
+                    print(f"FAIL: Batch execution items failed: {results}")
+            else:
+                 print(f"FAIL: Invalid batch result structure: {results}")
+        except Exception as e:
+            print(f"FAIL: JSON parsing error: {e}")
+            
+    elif res and "error" in res:
+        print(f"FAIL: Batch tool error: {res['error']}")
+    else:
+        print(f"FAIL: No response or invalid response {res}")
+
+if __name__ == "__main__":
+    client = MCPClient()
+    client.start()
+    
+    test_list_tools(client)
+    test_list_resources(client)
+    test_set_label(client)
+    test_complex_scenario(client)
+    test_read_disasm_region(client)
+    test_read_hexdump_region(client)
+    test_read_selected_tools(client)
+    test_convert_lo_hi_address(client)
+    test_tool_response_content(client)
+    test_new_tools(client)
+    test_get_disassembly_cursor(client)
+    test_jump_to_address(client)
+    test_batch_execute(client)
 
 
