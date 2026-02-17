@@ -331,7 +331,7 @@ fn main() -> Result<()> {
         } else {
             // Headless HTTP server
             let theme = regenerator2000::theme::Theme::from_name(&app_state.system_config.theme);
-            let ui_state = UIState::new(theme);
+            let mut ui_state = UIState::new(theme);
             let (mcp_req_tx, mut mcp_req_rx) = tokio::sync::mpsc::channel(100);
 
             let rt = tokio::runtime::Runtime::new().unwrap();
@@ -347,7 +347,7 @@ fn main() -> Result<()> {
                     let response = regenerator2000::mcp::handler::handle_request(
                         &req,
                         &mut app_state,
-                        &ui_state,
+                        &mut ui_state,
                     );
                     let _ = req.response_sender.send(response);
                 }

@@ -47,7 +47,7 @@ mod tests {
         };
 
         // Handle Request
-        let response = handle_request(&req, &mut app_state, &ui_state);
+        let response = handle_request(&req, &mut app_state, &mut ui_state);
 
         // Verify Response
         assert!(
@@ -90,7 +90,7 @@ mod tests {
             response_sender: tx,
         };
 
-        let response = handle_request(&req, &mut app_state, &ui_state);
+        let response = handle_request(&req, &mut app_state, &mut ui_state);
 
         assert!(
             response.result.is_some(),
@@ -115,7 +115,7 @@ mod tests {
             response_sender: tx2,
         };
 
-        let response2 = handle_request(&req2, &mut app_state, &ui_state);
+        let response2 = handle_request(&req2, &mut app_state, &mut ui_state);
         let result2 = response2.result.unwrap();
         let text2 = result2.get("content").unwrap().as_array().unwrap()[0]
             .get("text")
@@ -126,5 +126,39 @@ mod tests {
         println!("Hexdump Text 2:\n{}", text2);
         assert!(text2.contains("1000:"));
         assert!(text2.contains("1010:"));
+    }
+
+    #[test]
+    fn test_jump_to_address() {
+        let mut app_state = AppState::default();
+        let origin = 0x1000;
+        let data = vec![0xEA; 32]; // NOPs
+        app_state.load_binary(origin, data).unwrap();
+
+        let mut ui_state = UIState::new(Theme::default());
+        ui_state.cursor_index = 0; // Start at $1000N
+
+        // 1. Jump to $1005
+        let (tx, _) = oneshot::channel();
+        let req = McpRequest {
+            method: "tools/call".to_string(),
+            params: json!({
+                "name": "r2000_jump_to_address",
+                "arguments": { "address": 0x1005 }
+            }),
+            response_sender: tx,
+        };
+
+        let response = handle_request(&req, &mut app_state, &mut ui_state);
+        assert!(response.result.is_some());
+
+        // Check Cursor
+        // 0x1005 is index 5 (since each NOP is 1 byte)
+        assert_eq!(ui_state.cursor_index, 5);
+        assert_eq!(ui_state.scroll_index, 5);
+        assert_eq!(
+            ui_state.active_pane,
+            regenerator2000::ui_state::ActivePane::Disassembly
+        );
     }
 }

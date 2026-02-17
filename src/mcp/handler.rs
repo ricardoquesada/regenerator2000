@@ -4,12 +4,13 @@ use crate::state::types::{BlockType, ImmediateFormat};
 use base64::prelude::*;
 use serde_json::{Value, json};
 
+use crate::ui::view_disassembly::DisassemblyView;
 use crate::ui_state::UIState;
 
 pub fn handle_request(
     req: &McpRequest,
     app_state: &mut AppState,
-    ui_state: &UIState,
+    ui_state: &mut UIState,
 ) -> McpResponse {
     let result = match req.method.as_str() {
         "initialize" => Ok(json!({
@@ -235,6 +236,17 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
+                "name": "r2000_jump_to_address",
+                "description": "Moves the disassembly cursor to a specific memory address and scrolls the view to make it visible. Also keeps the history of jumps.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                         "address": { "type": ["integer", "string"], "description": "The target address to jump to." }
+                    },
+                    "required": ["address"]
+                }
+            },
+            {
                 "name": "r2000_search_memory",
                 "description": "Search for a sequence of bytes or a text string in the memory. Returns a list of addresses where the sequence is found.",
                 "inputSchema": {
@@ -354,7 +366,7 @@ fn list_resources() -> Result<Value, McpError> {
 fn handle_tool_call(
     params: &Value,
     app_state: &mut AppState,
-    ui_state: &UIState,
+    ui_state: &mut UIState,
 ) -> Result<Value, McpError> {
     let name = params
         .get("name")
@@ -543,6 +555,36 @@ fn handle_tool_call(
                 Err(McpError {
                     code: -32602,
                     message: "Cursor out of bounds".to_string(),
+                    data: None,
+                })
+            }
+        }
+
+        "r2000_jump_to_address" => {
+            let address = get_address(&args, "address")?;
+            if let Some(idx) = app_state.get_line_index_for_address(address) {
+                let line = &app_state.disassembly[idx];
+                let sub_idx = DisassemblyView::get_sub_index_for_address(line, app_state, address);
+
+                ui_state.cursor_index = idx;
+                ui_state.scroll_index = idx;
+                ui_state.sub_cursor_index = sub_idx;
+                ui_state.scroll_sub_index = 0;
+                ui_state.active_pane = crate::ui_state::ActivePane::Disassembly;
+
+                Ok(json!({
+                    "content": [{
+                        "type": "text",
+                        "text": format!("Jumped to ${:04X}", address)
+                    }]
+                }))
+            } else {
+                Err(McpError {
+                    code: -32602,
+                    message: format!(
+                        "Address ${:04X} not found in disassembly (might be hidden or invalid)",
+                        address
+                    ),
                     data: None,
                 })
             }

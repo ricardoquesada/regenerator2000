@@ -639,5 +639,52 @@ if __name__ == "__main__":
     test_tool_response_content(client)
     test_new_tools(client)
     test_get_disassembly_cursor(client)
+    test_jump_to_address(client)
+
+def test_jump_to_address(client):
+    print("\nTesting r2000_jump_to_address...")
+    
+    # 1. Get current
+    print("- Getting current cursor...")
+    res1 = client.rpc("tools/call", {
+        "name": "r2000_get_disassembly_cursor",
+        "arguments": {}
+    })
+    
+    if res1 and "result" in res1 and "content" in res1["result"]:
+         print(f"Current: {res1['result']['content'][0]['text']}")
+    
+    # 2. Jump to $1000
+    print("- Jumping to $1000...")
+    res2 = client.rpc("tools/call", {
+        "name": "r2000_jump_to_address",
+        "arguments": {
+            "address": 4096
+        }
+    })
+    
+    if res2 and "result" in res2:
+         print(f"Jump Result: {json.dumps(res2['result'].get('content', []), indent=2)}")
+         
+         # 3. Verify new cursor
+         res3 = client.rpc("tools/call", {
+            "name": "r2000_get_disassembly_cursor",
+            "arguments": {}
+         })
+         
+         if res3 and "result" in res3 and "content" in res3["result"]:
+             addr_text = res3["result"]["content"][0]["text"]
+             print(f"New Cursor: {addr_text}")
+             if "$1000" in addr_text:
+                 print("PASS: Cursor moved successfully")
+             else:
+                 print("FAIL: Cursor did not move to $1000")
+         else:
+             print("FAIL: Could not verify cursor after jump")
+             
+    elif res2 and "error" in res2:
+         print(f"FAIL (Jump Error): {res2['error']['message']}")
+    else:
+         print(f"FAIL (No Response): {res2}")
 
 

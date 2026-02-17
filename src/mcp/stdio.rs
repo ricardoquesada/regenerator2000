@@ -65,7 +65,7 @@ pub async fn run_stdio_loop(sender: Sender<McpRequest>) {
 }
 
 // For truly headless mode where we don't bridge to a TUI thread
-pub async fn run_headless_stdio_loop(mut app_state: AppState, ui_state: UIState) {
+pub async fn run_headless_stdio_loop(mut app_state: AppState, mut ui_state: UIState) {
     let stdin = io::stdin();
     let mut reader = stdin.lock();
     let mut line = String::new();
@@ -96,7 +96,7 @@ pub async fn run_headless_stdio_loop(mut app_state: AppState, ui_state: UIState)
 
             // We need a slightly different handle_request or just use the existing one but handle the oneshot manually?
             // Actually, handle_request returns McpResponse directly.
-            let response = handle_request(&request, &mut app_state, &ui_state);
+            let response = handle_request(&request, &mut app_state, &mut ui_state);
 
             let json_resp = if let Some(error) = response.error {
                 json!({

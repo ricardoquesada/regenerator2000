@@ -6,6 +6,7 @@ Through the MCP server, an AI assistant can:
 
 - **Read** disassembly, memory dump, and project state.
 - **Modify** comments, labels, and block types.
+- **Navigate** the UI (move cursor, switch views).
 - **Analyze** code structure and control flow.
 
 !!! note "What is MCP?"
@@ -117,6 +118,12 @@ Once connected, you can prompt the AI to perform complex tasks.
 ### Exploration
 
 > "List available tools to see what you can do."
+
+### Navigation
+
+> "Jump to address $1000."
+
+> "Go to the 'init_screen' label."
 
 ## Use Cases
 

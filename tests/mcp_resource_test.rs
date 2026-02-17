@@ -16,7 +16,7 @@ mod tests {
         let data = vec![0x00, 0x01, 0x02, 0x03, 0xFF]; // random bytes
         app_state.load_binary(origin, data.clone()).unwrap();
 
-        let ui_state = UIState::new(Theme::default());
+        let mut ui_state = UIState::new(Theme::default());
 
         let (tx, _rx) = oneshot::channel(); // Dummy channel
         let req = McpRequest {
@@ -25,7 +25,7 @@ mod tests {
             response_sender: tx,
         };
 
-        let response = handle_request(&req, &mut app_state, &ui_state);
+        let response = handle_request(&req, &mut app_state, &mut ui_state);
 
         assert!(response.result.is_some(), "Response should have a result");
         assert!(
