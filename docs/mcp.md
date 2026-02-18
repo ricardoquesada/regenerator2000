@@ -95,6 +95,24 @@ Or, alternatively, add the following to `~/.gemini/settings.json`:
 }
 ```
 
+#### Antigravity
+
+To use Antigravity with the running server, add the following to `~/.gemini/antigravity/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "regenerator2000": {
+      "serverUrl": "http://127.0.0.1:3000/mcp",
+      "headers": {
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json"
+      }
+    }
+  }
+}
+```
+
 ## Usage Examples
 
 !!! note
@@ -107,7 +125,7 @@ Once connected, you can prompt the AI to perform complex tasks.
 
 ### Analysis
 
-> "Analyze the loaded binary, and add a line comment on top of every function describing what it does."
+> "Analyze this routine"
 
 > "Find all 'JSR $FFD2' calls (CHROUT) and document what is being printed before each call."
 
@@ -124,6 +142,48 @@ Once connected, you can prompt the AI to perform complex tasks.
 > "Jump to address $1000."
 
 > "Go to the 'init_screen' label."
+
+## Agent Skills
+
+**Skills** are reusable instruction sets that guide the AI through complex, multi-step tasks. They live in your project's `.agent/skills/` directory and are automatically discovered by compatible AI agents (e.g., Antigravity).
+
+To install a skill, copy its folder from the Regenerator 2000 source tree into your own project:
+
+```shell
+# From the Regenerator 2000 repo, copy the desired skill into your project
+cp -r .agent/skills/analyze-routine /path/to/your/project/.agent/skills/
+```
+
+The resulting layout should look like:
+
+```
+your_project/
+└── .agent/
+    └── skills/
+        └── analyze-routine/
+            └── SKILL.md
+```
+
+### `analyze-routine`
+
+Analyzes a disassembly subroutine to determine its purpose by examining code, cross-references, and memory usage.
+
+**What it does:**
+
+1. Identifies the bounds of the routine (entry point → `RTS`/`JMP`/`RTI`).
+2. Reads and interprets the instructions, detecting loops, KERNAL calls, and hardware register accesses.
+3. Checks cross-references to understand the call context.
+4. Analyzes data usage (Zero Page variables, hardware registers, etc.).
+5. Synthesizes a summary of purpose, inputs, outputs, and side effects.
+6. Optionally documents the routine by adding a structured comment block above the entry point and renaming the label.
+
+**Example prompts:**
+
+> "Analyze this routine"
+
+> "Analyze the routine at $C000. It seems to be checking sprite collisions. Rename variables accordingly."
+
+> "Analyze in detail the routine that I'm looking at. Add comments and labels as needed."
 
 ## Use Cases
 
