@@ -111,7 +111,7 @@ Once connected, you can prompt the AI to perform complex tasks.
 
 > "Find all 'JSR $FFD2' calls (CHROUT) and document what is being printed before each call."
 
-> "Analyze the function at $C000. It seems to be checking sprite collisions. Rename variables accordingly."
+> "Analyze the routine at $C000. It seems to be checking sprite collisions. Rename variables accordingly."
 
 > "Analyze in detail the function that I'm looking at. Add comments and labels as needed. Convert regions to code, byte, word, petscii, screencode, etc as needed."
 
