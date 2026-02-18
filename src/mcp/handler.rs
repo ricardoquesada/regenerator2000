@@ -74,7 +74,7 @@ fn list_tools() -> Result<Value, McpError> {
                     "type": "object",
                     "properties": {
                         "address": { "type": ["integer", "string"], "description": "The memory address for the comment (e.g., 4096, 0x1000 or $1000)" },
-                        "comment": { "type": "string", "description": "The comment text" }
+                        "comment": { "type": "string", "description": "The comment text. Do not include the ';' prefix." }
                     },
                     "required": ["address", "comment"]
                 }
@@ -86,7 +86,7 @@ fn list_tools() -> Result<Value, McpError> {
                     "type": "object",
                     "properties": {
                         "address": { "type": ["integer", "string"], "description": "The memory address for the comment (e.g., 4096, 0x1000 or $1000)" },
-                        "comment": { "type": "string", "description": "The comment text" }
+                        "comment": { "type": "string", "description": "The comment text. Do not include the ';' prefix." }
                     },
                     "required": ["address", "comment"]
                 }
