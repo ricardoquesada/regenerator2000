@@ -98,17 +98,17 @@ fn list_tools() -> Result<Value, McpError> {
             },
             {
                 "name": "r2000_convert_region_to_bytes",
-                "description": "Marks a memory region as raw Data Byte (8-bit values). Use this for sprite data, distinct variables, tables, or memory regions where the data format is unknown.",
+                "description": "Marks a memory region as raw Data Byte (8-bit values). Use this for sprite data, bitmpa data, charset data, distinct variables, 8-bit tables, or memory regions where the data format is unknown.",
                 "inputSchema": region_schema()
             },
             {
                 "name": "r2000_convert_region_to_words",
-                "description": "Marks a memory region as Data Word (16-bit Little-Endian values). Use this for 16-bit counters, pointers (that shouldn't be analyzed as code references), or math constants.",
+                "description": "Marks a memory region as Data Word (16-bit Little-Endian values). Use this for 16-bit variables or math constants.",
                 "inputSchema": region_schema()
             },
             {
                 "name": "r2000_convert_region_to_address",
-                "description": "Marks a memory region as Address (16-bit pointers). Unlike 'Data Word', this type explicitly tells the analyzer that the value points to a location in memory, creating Cross-References (X-Refs). Essential for Jump Tables.",
+                "description": "Marks a memory region as Address (16-bit Little-Endian pointers). This type explicitly tells the analyzer that the value points to a location in memory, creating Cross-References (X-Refs). Essential for Jump Tables, vectors, and pointers.",
                 "inputSchema": region_schema()
             },
             {
@@ -205,6 +205,17 @@ fn list_tools() -> Result<Value, McpError> {
                         }
                      },
                      "required": []
+                }
+            },
+            {
+                "name": "r2000_get_address_details",
+                "description": "Returns detailed information about a specific memory address, including instruction semantics, cross-references, and state metadata. Use this to dive deep into a specific instruction or data point.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "address": { "type": ["integer", "string"], "description": "The memory address to inspect." }
+                    },
+                    "required": ["address"]
                 }
             },
             {
@@ -604,6 +615,17 @@ fn handle_tool_call_internal(
                 "content": [{
                     "type": "text",
                     "text": serde_json::to_string_pretty(&blocks).unwrap()
+                }]
+            }))
+        }
+
+        "r2000_get_address_details" => {
+            let address = get_address(&args, "address")?;
+            let details = get_address_details_impl(app_state, address)?;
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&details).unwrap()
                 }]
             }))
         }
@@ -1318,6 +1340,140 @@ fn get_all_comments_impl(app_state: &AppState) -> Vec<Value> {
     });
 
     comments
+}
+
+fn get_address_details_impl(app_state: &AppState, address: u16) -> Result<Value, McpError> {
+    let origin = app_state.origin;
+    if address < origin || address >= origin.wrapping_add(app_state.raw_data.len() as u16) {
+        return Ok(json!({
+            "address": address,
+            "type": "OutOfRange",
+            "message": "Address is outside the loaded binary range."
+        }));
+    }
+
+    let idx = (address - origin) as usize;
+    let block_type = app_state.block_types[idx];
+    let mut details = json!({
+        "address": address,
+        "type": format!("{:?}", block_type)
+    });
+
+    // 1. Instruction Semantics (if Code)
+    if block_type == BlockType::Code {
+        // We need to find the instruction starting at or before this address
+        // Ideally, we check if `idx` is the start of an instruction.
+        // We can use the disassembly to find the line.
+        // Use binary search for efficiency
+        if let Ok(line_idx) = app_state
+            .disassembly
+            .binary_search_by_key(&address, |l| l.address)
+        {
+            let line = &app_state.disassembly[line_idx];
+
+            if let Some(opcode) = &line.opcode {
+                let instruction_json = json!({
+                    "mnemonic": opcode.mnemonic,
+                    "mode": format!("{:?}", opcode.mode),
+                    "size": opcode.size,
+                    "cycles": opcode.cycles,
+                    "description": opcode.description,
+                    "bytes": line.bytes,
+                    "operand_text": line.operand
+                });
+
+                // Implied Target (Flow control)
+                if let Some(target) = line.target_address {
+                    details["metadata"]["target_address"] = json!(target);
+                }
+                // Explicit Data Reference (Operand)
+                else {
+                    // Try to extract address from bytes for non-flow instructions
+                    // This is a simplified version of get_referenced_address
+                    let ref_addr = match opcode.mode {
+                        crate::cpu::AddressingMode::Absolute
+                        | crate::cpu::AddressingMode::AbsoluteX
+                        | crate::cpu::AddressingMode::AbsoluteY => {
+                            if line.bytes.len() >= 3 {
+                                Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                            } else {
+                                None
+                            }
+                        }
+                        crate::cpu::AddressingMode::ZeroPage
+                        | crate::cpu::AddressingMode::ZeroPageX
+                        | crate::cpu::AddressingMode::ZeroPageY => {
+                            if line.bytes.len() >= 2 {
+                                Some(line.bytes[1] as u16)
+                            } else {
+                                None
+                            }
+                        }
+                        crate::cpu::AddressingMode::Indirect => {
+                            if line.bytes.len() >= 3 {
+                                Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                            } else {
+                                None
+                            }
+                        }
+                        crate::cpu::AddressingMode::IndirectX
+                        | crate::cpu::AddressingMode::IndirectY => {
+                            if line.bytes.len() >= 2 {
+                                Some(line.bytes[1] as u16)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    };
+
+                    if let Some(addr) = ref_addr {
+                        details["metadata"]["referenced_address"] = json!(addr);
+                    }
+                }
+
+                details["instruction"] = instruction_json;
+            }
+        }
+    }
+
+    // 2. Relational Data (Cross References)
+    // Incoming
+    if let Some(refs) = app_state.cross_refs.get(&address) {
+        details["metadata"]["cross_refs_in"] = json!(refs);
+    }
+
+    // Outgoing (Already covered by target_address for simple jumps/branches)
+    // For more complex analysis we might need to check if this instruction references data
+
+    // 3. Detailed State
+    // Labels
+    if let Some(labels) = app_state.labels.get(&address) {
+        let label_names: Vec<String> = labels.iter().map(|l| l.name.clone()).collect();
+        details["metadata"]["labels"] = json!(label_names);
+    }
+
+    // Comments
+    let mut comments = Vec::new();
+    if let Some(c) = app_state.user_line_comments.get(&address) {
+        comments.push(format!("[User Line] {}", c));
+    }
+    if let Some(c) = app_state.user_side_comments.get(&address) {
+        comments.push(format!("[User Side] {}", c));
+    }
+    if let Some(c) = app_state.system_comments.get(&address) {
+        comments.push(format!("[System] {}", c));
+    }
+    if !comments.is_empty() {
+        details["metadata"]["comments"] = json!(comments);
+    }
+
+    // Immediate Format
+    if let Some(fmt) = app_state.immediate_value_formats.get(&address) {
+        details["metadata"]["operand_format"] = json!(format!("{:?}", fmt));
+    }
+
+    Ok(details)
 }
 
 fn create_save_context(
