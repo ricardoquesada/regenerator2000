@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-02-17
+
+### Features
+
+- Feature: **Bookmarks**: Added bookmark support.
+  - `Ctrl+B`: Toggle bookmark at current address
+  - `Shift+Ctrl+B` / `Alt+B`: Open Bookmark dialog to navigate between bookmarks
+- Feature: **MCP Server – Address Details**: Added `r2000_get_address_details` tool to retrieve detailed information about a specific memory address.
+- Feature: **MCP Server – Batch Execute**: Added batch execute support, allowing multiple MCP tool calls to be dispatched in a single request.
+- Feature: **MCP Server – Cursor Navigation**: MCP clients can now drive the UI by jumping to an address (`r2000_set_disassembly_cursor`), with history preserved for undo/redo.
+
+### Fixes
+
+- Fix: **Menu**: Added missing "Pack Hi/Lo / Lo/Hi address" entries (`[` / `]`) to the Edit menu, enabled when an LDA/LDX/LDY immediate-mode opcode is selected.
+
+### Documentation
+
+- Docs: MCP documentation fixes and embedded YouTube video.
+- Docs: Updated MCP documentation
+
+### Refactor / Internal
+
+- Agent Skills: Added `verify-mcp`, `add-mcp-tool`, `update-mcp-docs` and `analyze-routine` agent skills.
+
 ## [0.7.0] - 2026-02-16
 
 ### Features
@@ -53,6 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.6] - 2026-02-11
 
 ### Security
+
 - Feature: macOS binary is code-signed and notarized.
 
 ## [0.6.5] - 2026-02-10
