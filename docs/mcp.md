@@ -113,7 +113,7 @@ Once connected, you can prompt the AI to perform complex tasks.
 
 > "Analyze the routine at $C000. It seems to be checking sprite collisions. Rename variables accordingly."
 
-> "Analyze in detail the function that I'm looking at. Add comments and labels as needed. Convert regions to code, byte, word, petscii, screencode, etc as needed."
+> "Analyze in detail the routine that I'm looking at. Add comments and labels as needed. Convert regions to code, byte, word, petscii, screencode, etc as needed."
 
 ### Exploration
 
