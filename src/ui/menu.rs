@@ -370,6 +370,16 @@ impl MenuState {
                             Some(">"),
                             Some(MenuAction::SetHiLoAddress),
                         ),
+                        MenuItem::new(
+                            "Pack Lo/Hi Address",
+                            Some("["),
+                            Some(MenuAction::PackLoHiAddress),
+                        ),
+                        MenuItem::new(
+                            "Pack Hi/Lo Address",
+                            Some("]"),
+                            Some(MenuAction::PackHiLoAddress),
+                        ),
                         MenuItem::new("PETSCII Text", Some("P"), Some(MenuAction::PetsciiText)),
                         MenuItem::new(
                             "Screencode Text",
@@ -637,6 +647,20 @@ impl MenuState {
                         match action {
                             MenuAction::FindNext | MenuAction::FindPrevious => {
                                 item.disabled = last_search_empty;
+                            }
+                            MenuAction::PackLoHiAddress | MenuAction::PackHiLoAddress => {
+                                let mut is_valid = false;
+                                if has_document
+                                    && let Some(line) = app_state.disassembly.get(cursor_index)
+                                    && let Some(opcode) = &line.opcode
+                                    && opcode.mode == crate::cpu::AddressingMode::Immediate
+                                    && (opcode.mnemonic == "LDA"
+                                        || opcode.mnemonic == "LDX"
+                                        || opcode.mnemonic == "LDY")
+                                {
+                                    is_valid = true;
+                                }
+                                item.disabled = !is_valid;
                             }
                             MenuAction::NextImmediateFormat
                             | MenuAction::PreviousImmediateFormat => {
