@@ -405,11 +405,7 @@ impl MenuState {
                         ),
                         MenuItem::separator(),
                         MenuItem::new("Side Comment", Some(";"), Some(MenuAction::SideComment)),
-                        MenuItem::new(
-                            "Line Comment",
-                            Some("Shift+;"),
-                            Some(MenuAction::LineComment),
-                        ),
+                        MenuItem::new("Line Comment", Some(":"), Some(MenuAction::LineComment)),
                         MenuItem::new("Set Label", Some("L"), Some(MenuAction::SetLabel)),
                         MenuItem::new(
                             "Toggle Bookmark",

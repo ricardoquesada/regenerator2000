@@ -26,7 +26,8 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 | **Views**                          | **Toggle Hex Dump View**                                                                | ++alt+2++ or ++ctrl+2++                                       |
 |                                    | **Toggle Sprites View**                                                                 | ++alt+3++ or ++ctrl+3++                                       |
 |                                    | **Toggle Charset View**                                                                 | ++alt+4++ or ++ctrl+4++                                       |
-|                                    | **Toggle Blocks View**                                                                  | ++alt+5++ or ++ctrl+5++                                       |
+|                                    | **Toggle Bitmap View**                                                                  | ++alt+5++ or ++ctrl+5++                                       |
+|                                    | **Toggle Blocks View**                                                                  | ++alt+6++ or ++ctrl+6++                                       |
 | **View: Disassembly** (editing)    | **Convert to Code**                                                                     | ++c++                                                         |
 |                                    | **Convert to Byte**                                                                     | ++b++                                                         |
 |                                    | **Convert to Word**                                                                     | ++w++                                                         |
