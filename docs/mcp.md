@@ -149,22 +149,17 @@ Once connected, you can prompt the AI to perform complex tasks.
 
 To install a skill, copy its folder from the Regenerator 2000 source tree into your own project:
 
-```shell
-# From the Regenerator 2000 repo, copy the desired skill into your project
-cp -r .agent/skills/analyze-routine /path/to/your/project/.agent/skills/
-```
-
 The resulting layout should look like:
 
 ```
 your_project/
 └── .agent/
     └── skills/
-        └── analyze-routine/
+        └── r2000-analyze-routine/   (or whichever skill you copied)
             └── SKILL.md
 ```
 
-### `analyze-routine`
+### `r2000-analyze-routine`
 
 Analyzes a disassembly subroutine to determine its purpose by examining code, cross-references, and memory usage.
 
@@ -177,6 +172,12 @@ Analyzes a disassembly subroutine to determine its purpose by examining code, cr
 5. Synthesizes a summary of purpose, inputs, outputs, and side effects.
 6. Optionally documents the routine by adding a structured comment block above the entry point and renaming the label.
 
+**To install:**
+
+```shell
+cp -r .agent/skills/r2000-analyze-routine /path/to/your/project/.agent/skills/
+```
+
 **Example prompts:**
 
 > "Analyze this routine"
@@ -184,6 +185,38 @@ Analyzes a disassembly subroutine to determine its purpose by examining code, cr
 > "Analyze the routine at $C000. It seems to be checking sprite collisions. Rename variables accordingly."
 
 > "Analyze in detail the routine that I'm looking at. Add comments and labels as needed."
+
+### `r2000-analyze-blocks`
+
+Scans a memory range (or the entire binary) and converts each region to the correct block type — separating code from data, text from tables, and pointers from raw bytes. This is the foundational reverse-engineering pass you run on a freshly loaded binary.
+
+**What it does:**
+
+1. Determines the scope (user-specified range or full binary via `r2000_get_binary_info`).
+2. Reads existing block classifications with `r2000_get_analyzed_blocks`.
+3. Performs multiple passes: traces code from entry points, identifies text strings, detects data tables, and classifies remaining regions.
+4. Applies conversions in batches using `r2000_batch_execute` for efficiency.
+5. Uses `r2000_toggle_splitter` to correctly separate adjacent tables of the same type.
+6. Optionally labels and comments notable regions (entry points, strings, jump tables).
+7. Reports a summary of all blocks found and flags ambiguous regions for human review.
+
+**Supported block types:** Code, Byte, Word, Address, PETSCII Text, Screencode Text, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined.
+
+**To install:**
+
+```shell
+cp -r .agent/skills/r2000-analyze-blocks /path/to/your/project/.agent/skills/
+```
+
+**Example prompts:**
+
+> "Analyze all blocks in the binary"
+
+> "Classify the region from $0801 to $1FFF"
+
+> "Scan the whole program and separate code from data"
+
+> "Find all text strings and address tables in the binary"
 
 ## Use Cases
 

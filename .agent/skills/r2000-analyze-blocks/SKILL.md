@@ -1,5 +1,5 @@
 ---
-name: analyze-blocks
+name: r2000-analyze-blocks
 description: Analyzes memory regions of a disassembled binary and converts them to the correct block types (code, bytes, words, text, tables, etc.) using MOS 6502 and Commodore 64 expertise.
 ---
 
@@ -71,7 +71,7 @@ For each chunk of the binary:
 After classifying blocks, optionally:
 
 - Use `r2000_set_label_name` to name entry points, tables, and strings.
-- Use `r2000_set_side_comment` or `r2000_set_line_comment` to add context (using conventions from the **analyze-routine** skill if documenting subroutines).
+- Use `r2000_set_side_comment` or `r2000_set_line_comment` to add context (using conventions from the **r2000-analyze-routine** skill if documenting subroutines).
 
 ---
 

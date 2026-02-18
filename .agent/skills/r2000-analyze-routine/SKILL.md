@@ -1,5 +1,5 @@
 ---
-name: analyze-routine
+name: r2000-analyze-routine
 description: Analyzes a disassembly subroutine to determine its function by examining code, cross-references, and memory usage.
 ---
 
