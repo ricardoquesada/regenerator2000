@@ -22,8 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- Docs: MCP documentation fixes and embedded YouTube video.
-- Docs: Updated MCP documentation
+- Docs: MCP documentation fixes and embedded YouTube video. Updated supported tools.
 
 ### Refactor / Internal
 

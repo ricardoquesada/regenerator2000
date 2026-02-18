@@ -143,7 +143,6 @@ Configure Claude Desktop with a specific project file.
 - **Prompt**: "Analyze the loaded program. Find the high score table location and the routine that updates it."
 - **Response**: The AI loads the context, uses search tools, reads memory, and produces a report without you needing to open the interface.
 
-
 ## Available Tools
 
 The server currently exposes **34** tools.
@@ -154,9 +153,9 @@ Executes multiple tools in a single request. Use this for bulk operations like r
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `calls` | `array` | List of tool calls to execute sequentially. | Yes |
+| Name    | Type    | Description                                 | Required |
+| :------ | :------ | :------------------------------------------ | :------: |
+| `calls` | `array` | List of tool calls to execute sequentially. |   Yes    |
 
 ### `r2000_convert_region_to_address`
 
@@ -164,10 +163,10 @@ Marks a memory region as Address (16-bit Little-Endian pointers). This type expl
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_convert_region_to_bytes`
 
@@ -175,10 +174,10 @@ Marks a memory region as raw Data Byte (8-bit values). Use this for sprite data,
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_convert_region_to_code`
 
@@ -186,10 +185,10 @@ Marks a memory region as executable code. This forces the disassembler to interp
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_convert_region_to_external_file`
 
@@ -197,10 +196,10 @@ Marks a memory region as External File (binary data). Use for large chunks of in
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_convert_region_to_hi_lo_address`
 
@@ -208,10 +207,10 @@ Marks a memory region as a Hi/Lo Address Table. Must have an even number of byte
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_convert_region_to_hi_lo_word`
 
@@ -219,10 +218,10 @@ Marks a memory region as a Hi/Lo Word Table. Must have an even number of bytes. 
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_convert_region_to_lo_hi_address`
 
@@ -230,10 +229,10 @@ Marks a memory region as a Lo/Hi Address Table. Must have an even number of byte
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_convert_region_to_lo_hi_word`
 
@@ -241,10 +240,10 @@ Marks a memory region as a Lo/Hi Word Table. Must have an even number of bytes. 
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_convert_region_to_petscii`
 
@@ -252,10 +251,10 @@ Marks a memory region as PETSCII encoded text. Use for game messages, high score
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_convert_region_to_screencode`
 
@@ -263,10 +262,10 @@ Marks a memory region as Commodore Screen Code encoded text (Matrix codes). Use 
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_convert_region_to_undefined`
 
@@ -274,10 +273,10 @@ Resets the block to an 'Unknown' / 'Undefined' state.
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_convert_region_to_words`
 
@@ -285,10 +284,10 @@ Marks a memory region as Data Word (16-bit Little-Endian values). Use this for 1
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_get_address_details`
 
@@ -296,9 +295,9 @@ Returns detailed information about a specific memory address, including instruct
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer \| string` | The memory address to inspect. | Yes |
+| Name      | Type                      | Description                    | Required |
+| :-------- | :------------------------ | :----------------------------- | :------: |
+| `address` | `integer` &#124; `string` | The memory address to inspect. |   Yes    |
 
 ### `r2000_get_all_comments`
 
@@ -312,9 +311,9 @@ Returns the list of memory blocks as analyzed, including their range and type. R
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `block_type` | `string` | Optional filter to return only blocks of a specific type. Case-insensitive. | No |
+| Name         | Type     | Description                                                                 | Required |
+| :----------- | :------- | :-------------------------------------------------------------------------- | :------: |
+| `block_type` | `string` | Optional filter to return only blocks of a specific type. Case-insensitive. |    No    |
 
 ### `r2000_get_binary_info`
 
@@ -328,9 +327,9 @@ Get a list of addresses that reference the given address (e.g. JSRs, JMPs, loads
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer \| string` | The target address to find references to. | Yes |
+| Name      | Type                      | Description                               | Required |
+| :-------- | :------------------------ | :---------------------------------------- | :------: |
+| `address` | `integer` &#124; `string` | The target address to find references to. |   Yes    |
 
 ### `r2000_get_disassembly_cursor`
 
@@ -350,9 +349,9 @@ Moves the disassembly cursor to a specific memory address and scrolls the view t
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer \| string` | The target address to jump to. | Yes |
+| Name      | Type                      | Description                    | Required |
+| :-------- | :------------------------ | :----------------------------- | :------: |
+| `address` | `integer` &#124; `string` | The target address to jump to. |   Yes    |
 
 ### `r2000_read_disasm_region`
 
@@ -360,10 +359,10 @@ Get MOS 6502 disassembly text for a specific memory range. Supports decimal (409
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_read_hexdump_region`
 
@@ -371,10 +370,10 @@ Get raw hexdump view for a specific C64 memory range. Supports decimal (4096), h
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `end_address` | `integer \| string` | - | Yes |
-| `start_address` | `integer \| string` | - | Yes |
+| Name            | Type                      | Description | Required |
+| :-------------- | :------------------------ | :---------- | :------: |
+| `end_address`   | `integer` &#124; `string` | -           |   Yes    |
+| `start_address` | `integer` &#124; `string` | -           |   Yes    |
 
 ### `r2000_read_selected_disasm`
 
@@ -406,10 +405,10 @@ Search for a sequence of bytes or a text string in the memory. Returns a list of
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `encoding` | `string` | The encoding to use for text search. Options: 'ascii', 'petscii', 'screencode', 'hex'. Default is 'hex' if query looks like hex, otherwise tries to guess or defaults to 'ascii'. | No |
-| `query` | `string` | The search query. can be a hex string (e.g. 'A9 00'), or text. | Yes |
+| Name       | Type     | Description                                                                                                                                                                       | Required |
+| :--------- | :------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------: |
+| `encoding` | `string` | The encoding to use for text search. Options: 'ascii', 'petscii', 'screencode', 'hex'. Default is 'hex' if query looks like hex, otherwise tries to guess or defaults to 'ascii'. |    No    |
+| `query`    | `string` | The search query. can be a hex string (e.g. 'A9 00'), or text.                                                                                                                    |   Yes    |
 
 ### `r2000_set_label_name`
 
@@ -417,10 +416,10 @@ Sets a user-defined label at a specific MOS 6502 memory address. Use this to nam
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer \| string` | The memory address where the label should be set (e.g., 4096, 0x1000 or $1000) | Yes |
-| `name` | `string` | The name of the label (e.g., 'init_screen', 'loop_start') | Yes |
+| Name      | Type                      | Description                                                                    | Required |
+| :-------- | :------------------------ | :----------------------------------------------------------------------------- | :------: |
+| `address` | `integer` &#124; `string` | The memory address where the label should be set (e.g., 4096, 0x1000 or $1000) |   Yes    |
+| `name`    | `string`                  | The name of the label (e.g., 'init_screen', 'loop_start')                      |   Yes    |
 
 ### `r2000_set_line_comment`
 
@@ -428,10 +427,10 @@ Adds a line comment at a specific address. Line comments appear on their own lin
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer \| string` | The memory address for the comment (e.g., 4096, 0x1000 or $1000) | Yes |
-| `comment` | `string` | The comment text | Yes |
+| Name      | Type                      | Description                                                      | Required |
+| :-------- | :------------------------ | :--------------------------------------------------------------- | :------: |
+| `address` | `integer` &#124; `string` | The memory address for the comment (e.g., 4096, 0x1000 or $1000) |   Yes    |
+| `comment` | `string`                  | The comment text                                                 |   Yes    |
 
 ### `r2000_set_operand_format`
 
@@ -439,10 +438,10 @@ Sets the display format for immediate values (operands) at a specific address. U
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer \| string` | The address of the instruction. | Yes |
-| `format` | `string` | The desired format. Options: 'hex' ($00), 'decimal' (0), 'binary' (%00000000). | Yes |
+| Name      | Type                      | Description                                                                    | Required |
+| :-------- | :------------------------ | :----------------------------------------------------------------------------- | :------: |
+| `address` | `integer` &#124; `string` | The address of the instruction.                                                |   Yes    |
+| `format`  | `string`                  | The desired format. Options: 'hex' ($00), 'decimal' (0), 'binary' (%00000000). |   Yes    |
 
 ### `r2000_set_side_comment`
 
@@ -450,10 +449,10 @@ Adds a side comment to a specific address. Side comments appear on the same line
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer \| string` | The memory address for the comment (e.g., 4096, 0x1000 or $1000) | Yes |
-| `comment` | `string` | The comment text | Yes |
+| Name      | Type                      | Description                                                      | Required |
+| :-------- | :------------------------ | :--------------------------------------------------------------- | :------: |
+| `address` | `integer` &#124; `string` | The memory address for the comment (e.g., 4096, 0x1000 or $1000) |   Yes    |
+| `comment` | `string`                  | The comment text                                                 |   Yes    |
 
 ### `r2000_toggle_splitter`
 
@@ -461,9 +460,9 @@ Toggles a Splitter at a specific address. Splitters prevent the auto-merger from
 
 **Arguments:**
 
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `address` | `integer \| string` | The memory address where the splitter should be toggled (e.g., 4096, 0x1000 or $1000) | Yes |
+| Name      | Type                      | Description                                                                           | Required |
+| :-------- | :------------------------ | :------------------------------------------------------------------------------------ | :------: |
+| `address` | `integer` &#124; `string` | The memory address where the splitter should be toggled (e.g., 4096, 0x1000 or $1000) |   Yes    |
 
 ### `r2000_undo`
 
