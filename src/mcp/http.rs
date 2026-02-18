@@ -152,7 +152,13 @@ pub async fn run_server(port: u16, sender: Sender<McpRequest>) -> std::io::Resul
     let service = StreamableHttpService::new(
         move || Ok(handler_clone.clone()),
         session_manager,
-        StreamableHttpServerConfig::default(),
+        StreamableHttpServerConfig {
+            // Disable SSE priming events (retry:) — clients like Antigravity
+            // try to parse every SSE event's data as JSON-RPC, and priming
+            // events have no `data:` field, causing "unexpected end of JSON input".
+            sse_retry: None,
+            ..StreamableHttpServerConfig::default()
+        },
     );
 
     // Nest the MCP service into an Axum router
