@@ -41,6 +41,7 @@ pub struct AppState {
     pub user_line_comments: BTreeMap<u16, String>,
     pub immediate_value_formats: BTreeMap<u16, ImmediateFormat>,
     pub cross_refs: BTreeMap<u16, Vec<u16>>,
+    pub bookmarks: BTreeMap<u16, String>,
 
     pub system_config: SystemConfig,
 
@@ -80,6 +81,7 @@ impl AppState {
             user_line_comments: BTreeMap::new(),
             immediate_value_formats: BTreeMap::new(),
             cross_refs: BTreeMap::new(),
+            bookmarks: BTreeMap::new(),
             system_config: SystemConfig::load(),
             undo_stack: crate::commands::UndoStack::new(),
             last_saved_pointer: 0,
@@ -174,6 +176,7 @@ impl AppState {
         self.user_side_comments.clear();
         self.user_line_comments.clear();
         self.immediate_value_formats.clear();
+        self.bookmarks.clear();
         self.collapsed_blocks.clear(); // clear collapsed blocks
         self.splitters.clear(); // clear splitters
         self.last_import_labels_path = None;
@@ -286,6 +289,7 @@ impl AppState {
         self.user_side_comments.clear();
         self.user_line_comments.clear();
         self.immediate_value_formats.clear();
+        self.bookmarks.clear();
         self.collapsed_blocks.clear();
         self.splitters.clear();
         self.last_import_labels_path = None;
@@ -361,6 +365,7 @@ impl AppState {
         self.user_side_comments = project.user_side_comments;
         self.user_line_comments = project.user_line_comments;
         self.immediate_value_formats = project.immediate_value_formats;
+        self.bookmarks = project.bookmarks;
         self.settings = project.settings;
 
         // Migration for legacy platform names
@@ -438,6 +443,7 @@ impl AppState {
                 user_side_comments: self.user_side_comments.clone(),
                 user_line_comments: self.user_line_comments.clone(),
                 immediate_value_formats: self.immediate_value_formats.clone(),
+                bookmarks: self.bookmarks.clone(),
                 settings: self.settings.clone(),
                 cursor_address: ctx.cursor_address,
                 hex_dump_cursor_address: ctx.hex_dump_cursor_address,
@@ -1187,6 +1193,7 @@ mod save_project_tests {
                     hexdump_view_mode: HexdumpViewMode::default(),
                     splitters: BTreeSet::new(),
                     blocks_view_cursor: None,
+                    bookmarks: BTreeMap::new(),
                 },
                 false,
             )

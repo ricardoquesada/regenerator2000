@@ -71,6 +71,8 @@ pub enum MenuAction {
     GoToSymbol,
     ImportViceLabels,
     ExportViceLabels,
+    ToggleBookmark,
+    ListBookmarks,
 }
 
 impl MenuAction {
@@ -356,12 +358,8 @@ impl MenuState {
                         MenuItem::new("Byte", Some("B"), Some(MenuAction::Byte)),
                         MenuItem::new("Word", Some("W"), Some(MenuAction::Word)),
                         MenuItem::new("Address", Some("A"), Some(MenuAction::Address)),
-                        MenuItem::new("Lo/Hi Word Table", Some("T"), Some(MenuAction::SetLoHiWord)),
-                        MenuItem::new(
-                            "Hi/Lo Word Table",
-                            Some("Shift+T"),
-                            Some(MenuAction::SetHiLoWord),
-                        ),
+                        MenuItem::new("Lo/Hi Word Table", Some(","), Some(MenuAction::SetLoHiWord)),
+                        MenuItem::new("Hi/Lo Word Table", Some("."), Some(MenuAction::SetHiLoWord)),
                         MenuItem::new(
                             "Lo/Hi Address Table",
                             Some("<"),
@@ -403,6 +401,16 @@ impl MenuState {
                             Some(MenuAction::LineComment),
                         ),
                         MenuItem::new("Set Label", Some("L"), Some(MenuAction::SetLabel)),
+                        MenuItem::new(
+                            "Toggle Bookmark",
+                            Some("Ctrl+B"),
+                            Some(MenuAction::ToggleBookmark),
+                        ),
+                        MenuItem::new(
+                            "List Bookmarks...",
+                            Some("Ctrl+Shift+B"),
+                            Some(MenuAction::ListBookmarks),
+                        ),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Toggle Splitter",
@@ -654,7 +662,9 @@ impl MenuState {
                             MenuAction::ToggleBitmapMulticolor => {
                                 item.disabled = active_pane != ActivePane::Bitmap;
                             }
-                            MenuAction::SetLabel | MenuAction::FindReferences => {
+                            MenuAction::SetLabel
+                            | MenuAction::FindReferences
+                            | MenuAction::ToggleBookmark => {
                                 item.disabled = active_pane != ActivePane::Disassembly;
                             }
                             _ => item.disabled = false,
@@ -993,6 +1003,40 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         }
         MenuAction::Redo => {
             ui_state.set_status_message(app_state.redo_last_command());
+        }
+        MenuAction::ToggleBookmark => {
+            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                if line.external_label_address.is_some() {
+                    ui_state.set_status_message("Cannot bookmark external label definition");
+                } else {
+                    let address = line.address;
+                    let is_bookmarked = app_state.bookmarks.contains_key(&address);
+
+                    let command = crate::commands::Command::SetBookmark {
+                        address,
+                        new_name: if is_bookmarked {
+                            None
+                        } else {
+                            Some(String::new())
+                        },
+                        old_name: app_state.bookmarks.get(&address).cloned(),
+                    };
+                    command.apply(app_state);
+                    app_state.push_command(command);
+
+                    if is_bookmarked {
+                        ui_state
+                            .set_status_message(format!("Bookmark removed at ${:04X}", address));
+                    } else {
+                        ui_state.set_status_message(format!("Bookmark set at ${:04X}", address));
+                    }
+                }
+            }
+        }
+        MenuAction::ListBookmarks => {
+            let dialog = crate::ui::dialog_bookmarks::BookmarksDialog;
+            ui_state.active_dialog = Some(Box::new(dialog));
+            ui_state.bookmarks_list_state.select(Some(0));
         }
 
         MenuAction::Code => apply_block_type(app_state, ui_state, crate::state::BlockType::Code),
@@ -2045,6 +2089,7 @@ fn create_save_context(
         hexdump_view_mode: ui_state.hexdump_view_mode,
         splitters: app_state.splitters.clone(),
         blocks_view_cursor: ui_state.blocks_list_state.selected(),
+        bookmarks: app_state.bookmarks.clone(),
     }
 }
 

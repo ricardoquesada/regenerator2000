@@ -1045,12 +1045,17 @@ impl Widget for DisassemblyView {
                             // This might need tweak if we show "half an instruction".
                             // For now we assume arrow logic works on Instruction granularity.
 
+                            let is_bookmarked = app_state.bookmarks.contains_key(&mid_addr);
+                            let gutter = if is_bookmarked { "  *  " } else { "     " };
+                            let gutter_style = if is_bookmarked {
+                                base_style.fg(ui_state.theme.label)
+                            } else {
+                                base_style.fg(ui_state.theme.bytes)
+                            };
+
                             let label_def = format!("{} =*+${:02x}", label.name, offset);
                             let mut spans = vec![
-                                Span::styled(
-                                    format!("{:5} ", ""),
-                                    base_style.fg(ui_state.theme.bytes),
-                                ), // No line num for label sub-lines? Or same?
+                                Span::styled(gutter, gutter_style),
                                 Span::styled(
                                     format!("{:<width$} ", arrow_padding, width = arrow_width),
                                     base_style.fg(ui_state.theme.arrow),
@@ -1115,8 +1120,16 @@ impl Widget for DisassemblyView {
             };
             let arrow_padding = get_arrow_str(current_inst);
 
+            let is_bookmarked = app_state.bookmarks.contains_key(&line.address);
+            let gutter = if is_bookmarked { "  *  " } else { "     " }; // 5 chars
+            let gutter_style = if is_bookmarked {
+                base_style.fg(ui_state.theme.label) // Use label color for bookmark? Or generic highlight?
+            } else {
+                base_style.fg(ui_state.theme.bytes)
+            };
+
             let mut inst_spans = vec![
-                Span::styled(format!("{:5} ", ""), base_style.fg(ui_state.theme.bytes)), // Line num placeholder
+                Span::styled(gutter, gutter_style),
                 Span::styled(
                     format!("{:<width$} ", arrow_padding, width = arrow_width),
                     base_style.fg(ui_state.theme.arrow),
@@ -1464,7 +1477,25 @@ impl Widget for DisassemblyView {
             KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
                 WidgetResult::Action(MenuAction::ToggleCollapsedBlock)
             }
-            _ => WidgetResult::Ignored,
+            _ => {
+                // Check if modifiers contain CONTROL
+                if key.modifiers.contains(KeyModifiers::CONTROL)
+                    && let KeyCode::Char('b') = key.code
+                {
+                    if key.modifiers.contains(KeyModifiers::SHIFT) {
+                        return WidgetResult::Action(MenuAction::ListBookmarks);
+                    } else {
+                        return WidgetResult::Action(MenuAction::ToggleBookmark);
+                    }
+                }
+
+                if key.modifiers.contains(KeyModifiers::ALT)
+                    && let KeyCode::Char('b') = key.code
+                {
+                    return WidgetResult::Action(MenuAction::ListBookmarks);
+                }
+                WidgetResult::Ignored
+            }
         }
     }
 }

@@ -69,6 +69,7 @@ pub struct UIState {
     pub bitmap_cursor_index: usize,
 
     pub blocks_list_state: ListState,
+    pub bookmarks_list_state: ListState,
     #[allow(dead_code)]
     pub hex_scroll_index: usize,
     pub right_pane: RightPane,
@@ -129,6 +130,7 @@ impl UIState {
             charset_selection_start: None,
             bitmap_cursor_index: 0,
             blocks_list_state: ListState::default(),
+            bookmarks_list_state: ListState::default(),
             hex_scroll_index: 0,
             right_pane: RightPane::HexDump,
             sprite_multicolor_mode: false,

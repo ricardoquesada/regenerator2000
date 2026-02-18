@@ -44,6 +44,8 @@ pub struct ProjectState {
     #[serde(default)]
     pub immediate_value_formats: BTreeMap<u16, ImmediateFormat>,
     #[serde(default)]
+    pub bookmarks: BTreeMap<u16, String>,
+    #[serde(default)]
     pub cursor_address: Option<u16>,
     #[serde(default)]
     pub hex_dump_cursor_address: Option<u16>,
@@ -98,6 +100,7 @@ pub struct ProjectSaveContext {
     pub hexdump_view_mode: HexdumpViewMode,
     pub splitters: BTreeSet<u16>,
     pub blocks_view_cursor: Option<usize>,
+    pub bookmarks: BTreeMap<u16, String>,
 }
 
 pub fn encode_raw_data_to_base64(data: &[u8]) -> anyhow::Result<String> {

@@ -52,6 +52,11 @@ pub enum Command {
         new_labels: Vec<(u16, crate::state::Label)>,
         old_labels: BTreeMap<u16, Vec<crate::state::Label>>,
     },
+    SetBookmark {
+        address: u16,
+        new_name: Option<String>,
+        old_name: Option<String>,
+    },
     Batch(Vec<Command>),
 }
 
@@ -162,6 +167,17 @@ impl Command {
                     {
                         labels.push(label.clone());
                     }
+                }
+            }
+            Command::SetBookmark {
+                address,
+                new_name,
+                old_name: _,
+            } => {
+                if let Some(name) = new_name {
+                    state.bookmarks.insert(*address, name.clone());
+                } else {
+                    state.bookmarks.remove(address);
                 }
             }
             Command::Batch(commands) => {
@@ -275,6 +291,17 @@ impl Command {
                     } else {
                         state.labels.remove(&addr);
                     }
+                }
+            }
+            Command::SetBookmark {
+                address,
+                new_name: _,
+                old_name,
+            } => {
+                if let Some(name) = old_name {
+                    state.bookmarks.insert(*address, name.clone());
+                } else {
+                    state.bookmarks.remove(address);
                 }
             }
             Command::Batch(commands) => {

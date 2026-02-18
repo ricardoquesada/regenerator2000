@@ -43,6 +43,8 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Convert to External File**                                                            | ++e++                                                         |
 |                                    | **Convert to Undefined**                                                                | ++question-mark++                                             |
 |                                    | **Set Label**                                                                           | ++l++                                                         |
+|                                    | **Toggle Bookmark**                                                                     | ++ctrl+b++                                                    |
+|                                    | **List Bookmarks**                                                                      | ++ctrl+shift+b++ or ++alt+b++                                 |
 |                                    | **Add Side Comment**                                                                    | ++semicolon++                                                 |
 |                                    | **Add Line Comment**                                                                    | ++colon++                                                     |
 |                                    | **Toggle Collapsed Block**                                                              | ++ctrl+k++                                                    |

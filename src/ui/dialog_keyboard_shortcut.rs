@@ -84,6 +84,8 @@ impl ShortcutsDialog {
             (";", "Side Comment"),
             (":", "Line Comment"),
             ("l", "Label"),
+            ("Ctrl+b", "Toggle Bookmark"),
+            ("Alt+b (Ctrl+Shift+b)", "List Bookmarks"),
             ("|", "Toggle Splitter"),
             ("Ctrl+a", "Analyze"),
             ("Ctrl+k", "Toggle Collapsed Block"),

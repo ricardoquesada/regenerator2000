@@ -45,6 +45,7 @@ mod tests {
             hexdump_view_mode: regenerator2000::state::HexdumpViewMode::default(),
             splitters: std::collections::BTreeSet::new(),
             blocks_view_cursor: None,
+            bookmarks: BTreeMap::new(),
         };
 
         let json = serde_json::to_string(&project).unwrap();

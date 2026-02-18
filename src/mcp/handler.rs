@@ -1522,6 +1522,7 @@ fn create_save_context(
         hexdump_view_mode: ui_state.hexdump_view_mode,
         splitters: app_state.splitters.clone(),
         blocks_view_cursor: ui_state.blocks_list_state.selected(),
+        bookmarks: app_state.bookmarks.clone(),
     }
 }
 
