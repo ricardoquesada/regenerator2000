@@ -2622,7 +2622,11 @@
     "text_char_limit": 40,
     "addresses_per_line": 5,
     "bytes_per_line": 8,
-    "enabled_features": {},
+    "enabled_features": {
+      "KERNAL": true,
+      "BASIC": false,
+      "Lower Page": false
+    },
     "description": "Top-down racing video game. You can jump on top of other cars"
   },
   "immediate_value_formats": {
@@ -2698,12 +2702,12 @@
   "bookmarks": {},
   "cursor_address": 15161,
   "hex_dump_cursor_address": 2112,
-  "sprites_cursor_address": 15168,
+  "sprites_cursor_address": 15296,
   "charset_cursor_address": 8192,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 57344,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [

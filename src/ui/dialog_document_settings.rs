@@ -147,7 +147,7 @@ impl Widget for DocumentSettingsDialog {
         let system_config = crate::assets::load_system_config(&settings.platform);
 
         let mut dynamic_items = Vec::new();
-        let dynamic_start_idx = items.len() + 7; // 5 base + 7 fixed options/platform
+        let dynamic_start_idx = items.len() + 8; // 5 base + 8 fixed options (desc, xref, arrow, text, addr, bytes, asm, plat)
 
         for (i, feature) in system_config.features.iter().enumerate() {
             let idx = dynamic_start_idx + i;
@@ -188,7 +188,7 @@ impl Widget for DocumentSettingsDialog {
                 Constraint::Length(2),                      // Bytes Per Line
                 Constraint::Length(2),                      // Assembler
                 Constraint::Length(2),                      // Platform
-                Constraint::Length(if dynamic_items.is_empty() { 0 } else { 2 }), // System Labels Header
+                Constraint::Length(if dynamic_items.is_empty() { 0 } else { 1 }), // System Labels Header
                 Constraint::Length(dynamic_items.len() as u16),                   // Dynamic items
             ])
             .split(inner);
@@ -515,17 +515,17 @@ impl Widget for DocumentSettingsDialog {
         // Calculate dynamic max items for navigation
         let system_config = crate::assets::load_system_config(&app_state.settings.platform);
         let dynamic_items_count = system_config.features.len();
+
         let base_items_count = 5; // AllLabels, PreserveLongBytes, BrkSingle, PatchBrk, IllegalOpcodes
 
-        let fixed_start = base_items_count;
-        let idx_description = fixed_start;
-        let idx_xref = fixed_start + 1;
-        let idx_arrow = fixed_start + 2;
-        let idx_text_limit = fixed_start + 3;
-        let idx_addr_limit = fixed_start + 4;
-        let idx_bytes_limit = fixed_start + 5;
-        let idx_assembler = fixed_start + 6;
-        let idx_platform = fixed_start + 7;
+        let idx_description = base_items_count;
+        let idx_xref = base_items_count + 1;
+        let idx_arrow = base_items_count + 2;
+        let idx_text_limit = base_items_count + 3;
+        let idx_addr_limit = base_items_count + 4;
+        let idx_bytes_limit = base_items_count + 5;
+        let idx_assembler = base_items_count + 6;
+        let idx_platform = base_items_count + 7;
         let dynamic_start_idx = idx_platform + 1;
 
         let total_items = dynamic_start_idx + dynamic_items_count;
@@ -626,7 +626,7 @@ impl Widget for DocumentSettingsDialog {
                         app_state.settings.enabled_features.clear();
                         // Recalculate idx_platform - actually it is constant now
                         // const idx_platform = base_items_count + 6;
-                        self.selected_index = base_items_count + 6;
+                        self.selected_index = base_items_count + 7;
                     }
                 } else if self.is_selecting_assembler {
                     let assemblers = crate::state::Assembler::all();
@@ -792,7 +792,7 @@ impl Widget for DocumentSettingsDialog {
                         app_state.settings.enabled_features.clear();
                         // Recalculate idx_platform - constant
                         // const idx_platform = base_items_count + 6;
-                        self.selected_index = base_items_count + 6;
+                        self.selected_index = base_items_count + 7;
                     }
                 } else if self.is_selecting_assembler {
                     let assemblers = crate::state::Assembler::all();
