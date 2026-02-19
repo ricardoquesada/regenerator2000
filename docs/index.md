@@ -1,38 +1,108 @@
 # Regenerator 2000
 
-Welcome to the **Regenerator 2000** documentation.
+<p align="center">
+  <img src="regenerator2000_logo_noname.png" alt="Regenerator 2000 Logo" width="200"/>
+</p>
 
-![logo](regenerator2000_logo.png)
+# The Modern 6502 Disassembler
 
-Regenerator 2000 is a modern 6502 disassembler, TUI-based, with a Turbo Debugger look and feel, enhanced with features from modern tools like IDA Pro.
+**Regenerator 2000** is a modern, interactive disassembler for the Commodore 64 and other 6502-based systems. It combines the retro feel of Turbo Debugger with the power of modern tools like IDA Pro, all within a fast, keyboard-centric terminal interface.
 
-## Features
+---
 
-- **6502 Support**: Full support for 6502 instruction set including undocumented opcodes.
-- **Interactive TUI**: Built with Rust and Ratatui for a fast, keyboard-centric terminal interface.
-- **Analysis**: Distinguishes code from data, identifies jump tables, and more.
-- **Editing**: Undo/Redo support, comments, labels, code, data and customizable views.
-- **Views**: Disassembly, Hexdump, Sprites, Charset, Bitmap and blocks views.
-- **Navigation**: Jump to address, line, operand, and more.
-- **Shortcuts**: Keyboard shortcuts for common actions.
-- **Settings**: System settings and document settings.
-- **MCP Server**: AI assistant integration via Model Context Protocol for collaborative analysis.
+## At a Glance
 
-## Getting Started
+Explore the regenerative power of Regenerator 2000 through its various views:
 
-- **[Installation & Usage](install.md)** - Learn how to install and start using Regenerator 2000.
-- **[Views](views.md)** - Discover the different views available in the interface and how to use them.
-- **[Blocks](blocks.md)** - Understand the core concept of code and data blocks.
-- **[Tutorial](#tutorial)** - Follow a step-by-step walkthrough of a sample reverse-engineering session.
+=== "Disassembly"
+
+    **The Code View**: The heart of the operation. Navigate code, follow jumps, and label everything.
+
+    ![Disassembly View](regenerator2000_disassembly_screenshot.png)
+
+=== "Hexdump"
+
+    **The Data View**: Inspect raw memory, spotting patterns in data and tables.
+
+    ![Hexdump View](regenerator2000_hexdump_screenshot.png)
+
+=== "Character Set"
+
+    **Visualizing Graphics**: Instantly see 8x8 character data.
+
+    ![Charset View](regenerator2000_charset_screenshot.png)
+
+=== "Sprites"
+
+    **Sprite Gallery**: View 24x21 sprites in all their glory.
+
+    ![Sprites View](regenerator2000_sprites_screenshot.png)
+
+=== "Bitmap"
+
+    **Bitmap Mode**: Visualize memory as a bitmap (HiRes or MultiColor).
+
+    ![Bitmap View](regenerator2000_bitmap_screenshot.png)
+
+=== "Blocks"
+
+    **Structure Analysis**: See how Regenerator 2000 analyzes and segments the binary into code and data blocks.
+
+    ![Blocks View](regenerator2000_blocks_screenshot.png)
+
+---
+
+## Key Features
+
+- **🚀 6502 & Undocumented Opcodes**: Full support for the 6502 instruction set.
+- **⚡ Fast TUI**: Built with Rust for blazingly fast performance.
+- **🧠 Smart Analysis**: Automatically distinguishes code from data.
+- **⏪ Undo/Redo**: Experiment without fear.
+- **🏷️ Labels & Comments**: Rename subroutines and variable for readability.
+- **🤖 MCP Integration**: Collaborate with AI assistants for deeper analysis.
+- **💾 Project Saving**: Save your work and resume later.
+- **📤 Export**: Generate compilable source code or VICE labels for debugging.
+
+## Quick Start
+
+1.  **Install**:
+
+    ```bash
+    cargo install regenerator2000
+    ```
+
+2.  **Run**:
+
+    ```bash
+    regenerator2000 my_game.prg
+    ```
+
+3.  **Explore**:
+    - **Move**: Arrow keys, map, or jumps.
+    - **Define Code**: Press ++c++
+    - **Define Data**: Press ++b++
+    - **Comment**: Press ++semicolon++
+    - **Rename**: Press ++l++
+
+[Get Started Now](install.md){ .md-button .md-button--primary }
+
+---
+
+## Documentation
+
+- **[Installation & Usage](install.md)**: Setup guide.
+- **[Views](views.md)**: Detailed breakdown of each view.
+- **[Keyboard Shortcuts](keyboard_shortcuts.md)**: Master the controls.
+- **[MCP Integration](mcp.md)**: meaningful AI collaboration.
 
 ## Tutorial
 
-A typical Regenerator 2000 workflow looks like the following:
+A typical workflow involves loading a file, identifying code and data regions, labeling them, and iteratively refining the disassembly.
 
 ```mermaid
 flowchart TD
     S1[1. Load File] --> S2[2. Explore]
-    S2 --> S3[3-6. Define Code, Data, Labels, Comments, etc.]
+    S2 --> S3[3-6. Define Code, Data, Labels, Comments]
     S3 --> S7[7. Save Project]
     S3 --> S2
     S7 --> Q{Debug?}
@@ -43,40 +113,4 @@ flowchart TD
     S10 --> Done[Assemble it, patch it, etc.]
 ```
 
-1.  **Load a file**: Start by loading a program:
-    ```bash
-    regenerator2000 my_game.prg
-    ```
-2.  **Explore**: Use the arrow keys or ++page-up++/++page-down++ to scroll. Press ++enter++ on any
-    `JMP` or `JSR` operand to follow the code flow and jump to that address. Press ++backspace++
-    to return to where you were.
-3.  **Define Code**: As you explore, you might find bytes marked as data that look like code.
-    Move the cursor there and press ++c++ to disassemble them into instructions.
-4.  **Define Data**: Conversely, if you see "code" that looks like garbage (illegal opcodes or nonsense instructions),
-    it's likely graphics or tables. Select the lines (using ++shift+v++ and arrows) and press ++b++ to mark them as bytes.
-5.  **Labels**: When you identify a subroutine (e.g., a music player init), press ++l++ on its start address
-    to give it a name like `init_music`. This name will automatically appear everywhere that address is referenced.
-6.  **Comments**: Select a line and press ++semicolon++ to add a side comment explaining what the code does.
-    Or press ++colon++ to add a line comment.
-7.  **Save Project**: Press ++ctrl+s++ to save your work. This creates a project file
-    that preserves all your labels, comments, and formatting.
-8.  **Export VICE Labels** (Optional): If you want to debug the program in VICE using your new labels,
-    use the "Export VICE labels..." menu option. This generates a label file.
-9.  **Debug it with VICE with the new labels** (Optional): Load your program and the generated label file in the VICE emulator
-    to see your variable names and subroutine names in the VICE monitor. Use this insight to understand the code better,
-    then go back to **Step 2** to refine your disassembly.
-10. **Export Project**: Finally, where you are done disassembling, you can export the project
-    to a file that can be used by an assembler. Press ++ctrl+e++ to export the project.
-
-## User Reference
-
-- [Keyboard Shortcuts](keyboard_shortcuts.md): Comprehensive list of all keyboard shortcuts.
-- [Settings](settings.md): How to configure the application.
-- [Assemblers](assemblers.md): Supported assemblers and command line usage.
-- [MCP Integration](mcp.md): AI assistant integration via Model Context Protocol.
-- [FAQ](faq.md): Frequently Asked Questions.
-
-## Development & Internals
-
-- [Architecture](architecture.md): Deep dive into the internal design and components.
-- [Requirements](requirements.md): The project's design goals and manifesto.
+For a detailed step-by-step walkthrough, check out the [full tutorial](tutorial.md).

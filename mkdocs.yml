@@ -48,11 +48,13 @@ theme:
     - content.code.copy
     - navigation.top
     - navigation.tracking
+    - content.tabs.link
 
 nav:
   - Home: index.md
   - Getting Started:
       - Installation & Usage: install.md
+      - Tutorial: tutorial.md
       - Views: views.md
       - Blocks: blocks.md
   - User Reference:
@@ -83,6 +85,7 @@ markdown_extensions:
 plugins:
   - include-markdown
   - search
+  - social
 
 extra:
   analytics:

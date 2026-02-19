@@ -11,3 +11,4 @@ a.out
 .DS_store
 
 site/
+.cache/
