@@ -3,7 +3,8 @@
 Welcome to the **Regenerator 2000** tutorial. This guide will walk you through a typical reverse engineering session, transforming a raw binary into a comprehensible, labeled, and commented disassembly project.
 
 !!! tip "Prerequisites"
-Ensure you have installed Regenerator 2000 and have a C64 program (`.prg`) ready to analyze.
+
+    Ensure you have installed Regenerator 2000 and have a C64 program (`.prg`) ready to analyze.
 
 ---
 
