@@ -22,6 +22,8 @@ pub struct DocumentSettingsDialog {
     pub addresses_per_line_input: String,
     pub is_editing_bytes_per_line: bool,
     pub bytes_per_line_input: String,
+    pub is_editing_description: bool,
+    pub description_input: String,
 }
 
 impl Default for DocumentSettingsDialog {
@@ -46,16 +48,18 @@ impl DocumentSettingsDialog {
             addresses_per_line_input: String::new(),
             is_editing_bytes_per_line: false,
             bytes_per_line_input: String::new(),
+            is_editing_description: false,
+            description_input: String::new(),
         }
     }
 
     pub fn next(&mut self) {
-        let max_items = 12;
+        let max_items = 13;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 12;
+        let max_items = 13;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {
@@ -162,19 +166,21 @@ impl Widget for DocumentSettingsDialog {
 
         // Indices calculation for rigid elements
         let fixed_opts_start = items.len();
-        let idx_xref = fixed_opts_start;
-        let idx_arrow = fixed_opts_start + 1;
-        let idx_text_limit = fixed_opts_start + 2;
-        let idx_addr_limit = fixed_opts_start + 3;
-        let idx_bytes_limit = fixed_opts_start + 4;
-        let idx_assembler = fixed_opts_start + 5;
-        let idx_platform = fixed_opts_start + 6;
+        let idx_description = fixed_opts_start;
+        let idx_xref = fixed_opts_start + 1;
+        let idx_arrow = fixed_opts_start + 2;
+        let idx_text_limit = fixed_opts_start + 3;
+        let idx_addr_limit = fixed_opts_start + 4;
+        let idx_bytes_limit = fixed_opts_start + 5;
+        let idx_assembler = fixed_opts_start + 6;
+        let idx_platform = fixed_opts_start + 7;
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(items.len() as u16 + 2), // Base Checkboxes + padding + header
+                Constraint::Length(items.len() as u16 + 1), // Base Checkboxes + padding
                 Constraint::Length(1),                      // Spacer
+                Constraint::Length(3),                      // Description
                 Constraint::Length(2),                      // Max X-Refs
                 Constraint::Length(2),                      // Arrow Columns
                 Constraint::Length(2),                      // Text Line Limit
@@ -207,23 +213,74 @@ impl Widget for DocumentSettingsDialog {
                     "System Labels:",
                     Style::default().add_modifier(Modifier::BOLD),
                 )),
-                Rect::new(layout[9].x + 2, layout[9].y + 1, layout[9].width - 4, 1),
+                Rect::new(layout[10].x + 2, layout[10].y, layout[10].width - 4, 1),
             );
 
             for (i, item) in dynamic_items.into_iter().enumerate() {
                 f.render_widget(
                     Paragraph::new(item),
                     Rect::new(
-                        layout[10].x + 2,
-                        layout[10].y + i as u16,
-                        layout[10].width - 4,
+                        layout[11].x + 2,
+                        layout[11].y + i as u16,
+                        layout[11].width - 4,
                         1,
                     ),
                 );
             }
         }
 
-        // X-Refs uses layout[2] (layout[1] is spacer)
+        // Description uses layout[2]
+        let desc_selected = self.selected_index == idx_description;
+        let desc_value_str = if self.is_editing_description {
+            self.description_input.clone()
+        } else if settings.description.is_empty() {
+            "(empty)".to_string()
+        } else {
+            settings.description.clone()
+        };
+
+        let desc_title = if self.is_editing_description {
+            "Description (Enter to save):"
+        } else {
+            "Description:"
+        };
+
+        // Two lines for description: Title, then Box
+        let desc_chunk = layout[2];
+        let desc_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(1), Constraint::Length(1)])
+            .split(desc_chunk);
+
+        f.render_widget(
+            Paragraph::new(desc_title).style(if desc_selected {
+                Style::default()
+                    .fg(theme.highlight_fg)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.dialog_fg)
+            }),
+            Rect::new(desc_chunk.x + 2, desc_chunks[0].y, desc_chunk.width - 4, 1),
+        );
+
+        let desc_style = if self.is_editing_description {
+            Style::default()
+                .fg(theme.highlight_fg)
+                .bg(theme.menu_selected_bg)
+        } else if desc_selected {
+            Style::default()
+                .fg(theme.highlight_fg)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(theme.dialog_fg)
+        };
+
+        f.render_widget(
+            Paragraph::new(desc_value_str).style(desc_style),
+            Rect::new(desc_chunk.x + 2, desc_chunks[1].y, desc_chunk.width - 4, 1),
+        );
+
+        // X-Refs uses layout[3] (layout[1] is spacer, layout[2] is description)
         let xref_selected = self.selected_index == idx_xref;
         let xref_value_str = if self.is_editing_xref_count {
             self.xref_count_input.clone()
@@ -242,7 +299,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             xref_widget,
-            Rect::new(layout[2].x + 2, layout[2].y, layout[2].width - 4, 1),
+            Rect::new(layout[3].x + 2, layout[3].y, layout[3].width - 4, 1),
         );
 
         // Arrow Columns
@@ -264,7 +321,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             arrow_widget,
-            Rect::new(layout[3].x + 2, layout[3].y, layout[3].width - 4, 1),
+            Rect::new(layout[4].x + 2, layout[4].y, layout[4].width - 4, 1),
         );
 
         // Text Line Limit
@@ -286,7 +343,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             text_limit_widget,
-            Rect::new(layout[4].x + 2, layout[4].y, layout[4].width - 4, 1),
+            Rect::new(layout[5].x + 2, layout[5].y, layout[5].width - 4, 1),
         );
 
         // Addresses Per Line
@@ -308,7 +365,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             addr_limit_widget,
-            Rect::new(layout[5].x + 2, layout[5].y, layout[5].width - 4, 1),
+            Rect::new(layout[6].x + 2, layout[6].y, layout[6].width - 4, 1),
         );
 
         // Bytes Per Line
@@ -330,7 +387,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             bytes_limit_widget,
-            Rect::new(layout[6].x + 2, layout[6].y, layout[6].width - 4, 1),
+            Rect::new(layout[7].x + 2, layout[7].y, layout[7].width - 4, 1),
         );
 
         // Assembler Section
@@ -345,17 +402,17 @@ impl Widget for DocumentSettingsDialog {
             Style::default().fg(theme.dialog_fg)
         });
 
-        // Assembler uses layout[7]
+        // Assembler uses layout[8]
         f.render_widget(
             assembler_widget,
-            Rect::new(layout[7].x + 2, layout[7].y, layout[7].width - 4, 1),
+            Rect::new(layout[8].x + 2, layout[8].y, layout[8].width - 4, 1),
         );
 
         // Platform Section (Moved to end)
         let platform_label = Span::raw("Platform:");
         f.render_widget(
             Paragraph::new(platform_label),
-            Rect::new(layout[8].x + 2, layout[8].y, layout[8].width - 4, 1),
+            Rect::new(layout[9].x + 2, layout[9].y, layout[9].width - 4, 1),
         );
 
         let platforms = crate::assets::get_available_platforms();
@@ -374,7 +431,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             platform_widget,
-            Rect::new(layout[8].x + 2, layout[8].y, layout[8].width - 4, 1),
+            Rect::new(layout[9].x + 2, layout[9].y, layout[9].width - 4, 1),
         );
 
         // Platform Popup
@@ -461,13 +518,14 @@ impl Widget for DocumentSettingsDialog {
         let base_items_count = 5; // AllLabels, PreserveLongBytes, BrkSingle, PatchBrk, IllegalOpcodes
 
         let fixed_start = base_items_count;
-        let idx_xref = fixed_start;
-        let idx_arrow = fixed_start + 1;
-        let idx_text_limit = fixed_start + 2;
-        let idx_addr_limit = fixed_start + 3;
-        let idx_bytes_limit = fixed_start + 4;
-        let idx_assembler = fixed_start + 5;
-        let idx_platform = fixed_start + 6;
+        let idx_description = fixed_start;
+        let idx_xref = fixed_start + 1;
+        let idx_arrow = fixed_start + 2;
+        let idx_text_limit = fixed_start + 3;
+        let idx_addr_limit = fixed_start + 4;
+        let idx_bytes_limit = fixed_start + 5;
+        let idx_assembler = fixed_start + 6;
+        let idx_platform = fixed_start + 7;
         let dynamic_start_idx = idx_platform + 1;
 
         let total_items = dynamic_start_idx + dynamic_items_count;
@@ -484,11 +542,22 @@ impl Widget for DocumentSettingsDialog {
         };
 
         match key.code {
+            KeyCode::Char(c) if self.is_editing_description => {
+                self.description_input.push(c);
+                return WidgetResult::Handled;
+            }
+            KeyCode::Backspace if self.is_editing_description => {
+                self.description_input.pop();
+                return WidgetResult::Handled;
+            }
             KeyCode::Esc => {
                 if self.is_selecting_platform {
                     self.is_selecting_platform = false;
                 } else if self.is_selecting_assembler {
                     self.is_selecting_assembler = false;
+                } else if self.is_editing_description {
+                    self.is_editing_description = false;
+                    self.description_input.clear();
                 } else if self.is_editing_xref_count {
                     self.is_editing_xref_count = false;
                     self.xref_count_input.clear();
@@ -582,6 +651,7 @@ impl Widget for DocumentSettingsDialog {
                     && !self.is_editing_text_char_limit
                     && !self.is_editing_addresses_per_line
                     && !self.is_editing_bytes_per_line
+                    && !self.is_editing_description
                 {
                     prev(&mut self.selected_index);
                 }
@@ -592,6 +662,7 @@ impl Widget for DocumentSettingsDialog {
                     && !self.is_editing_text_char_limit
                     && !self.is_editing_addresses_per_line
                     && !self.is_editing_bytes_per_line
+                    && !self.is_editing_description
                 {
                     if self.selected_index == idx_xref {
                         app_state.settings.max_xref_count =
@@ -645,7 +716,7 @@ impl Widget for DocumentSettingsDialog {
                             app_state.settings.enabled_features.clear();
                             // Recalculate idx_platform - constant
                             // const idx_platform = base_items_count + 6;
-                            self.selected_index = base_items_count + 6;
+                            self.selected_index = base_items_count + 7;
                         }
                     }
                 }
@@ -656,6 +727,7 @@ impl Widget for DocumentSettingsDialog {
                     && !self.is_editing_text_char_limit
                     && !self.is_editing_addresses_per_line
                     && !self.is_editing_bytes_per_line
+                    && !self.is_editing_description
                 {
                     if self.selected_index == idx_xref {
                         app_state.settings.max_xref_count =
@@ -701,7 +773,7 @@ impl Widget for DocumentSettingsDialog {
                             app_state.settings.enabled_features.clear();
                             // Recalculate idx_platform - constant
                             // const idx_platform = base_items_count + 6;
-                            self.selected_index = base_items_count + 6;
+                            self.selected_index = base_items_count + 7;
                         }
                     }
                 }
@@ -741,6 +813,7 @@ impl Widget for DocumentSettingsDialog {
                     && !self.is_editing_text_char_limit
                     && !self.is_editing_addresses_per_line
                     && !self.is_editing_bytes_per_line
+                    && !self.is_editing_description
                 {
                     next(&mut self.selected_index);
                 }
@@ -783,6 +856,9 @@ impl Widget for DocumentSettingsDialog {
                             self.bytes_per_line_input = "Invalid (1-40)".to_string();
                         }
                     }
+                } else if self.is_editing_description {
+                    app_state.settings.description = self.description_input.clone();
+                    self.is_editing_description = false;
                 } else {
                     // Toggle checkbox or enter mode
                     match self.selected_index {
@@ -834,6 +910,10 @@ impl Widget for DocumentSettingsDialog {
                                     .enabled_features
                                     .insert(feature.id.clone(), !current_val);
                             }
+                        }
+                        idx if idx == idx_description => {
+                            self.is_editing_description = true;
+                            self.description_input = app_state.settings.description.clone();
                         }
                         idx if idx == idx_xref => {
                             self.is_editing_xref_count = true;

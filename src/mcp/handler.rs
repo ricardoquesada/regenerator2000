@@ -186,7 +186,7 @@ fn list_tools() -> Result<Value, McpError> {
             },
             {
                 "name": "r2000_get_binary_info",
-                "description": "Returns the origin address, size of the analyzed binary in bytes, the target platform (e.g. 'Commodore 64'), and the filename if available.",
+                "description": "Returns the origin address, size of the analyzed binary in bytes, the target platform (e.g. 'Commodore 64'), the filename if available, and a user-provided description.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {},
@@ -613,7 +613,8 @@ fn handle_tool_call_internal(
                         "origin": origin,
                         "size": size,
                         "platform": platform,
-                        "filename": filename
+                        "filename": filename,
+                        "description": app_state.settings.description
                     })).unwrap()
                 }]
             }))

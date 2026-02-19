@@ -38,9 +38,9 @@ code from data, text from tables, and pointers from raw bytes.
 ### 1. Determine Scope
 
 - Ask the user what range to analyze, or default to the **entire binary**.
-- Use `r2000_get_binary_info` to get the origin address, size, and **platform**.
+- Use `r2000_get_binary_info` to get the origin address, size, **platform**, and **description**.
   - **CRITICAL**: The `platform` field tells you the target computer (e.g., C64, VIC-20). You **MUST** become an expert in that specific target computer's memory map, hardware registers, and KERNAL routines for the duration of the analysis.
-  - **CONTEXT**: The `filename` field (e.g., "burnin_rubber.prg", "turrican.d64") gives you the specific software context. Use this to search for known memory maps, common drivers (music, compression), and game-specific variables.
+  - **CONTEXT**: The `filename` field (e.g., "burnin_rubber.prg", "turrican.d64") and `description` (if provided by the user) give you the specific software context. Use this to search for known memory maps, common drivers (music, compression), and game-specific variables.
 - Use `r2000_get_analyzed_blocks` to see what has already been classified.
 - If the user says "the whole thing" or "entire binary", work in chunks of **~256–512 bytes** to avoid overwhelming context windows.
 

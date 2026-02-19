@@ -29,6 +29,8 @@ pub struct DocumentSettings {
     pub bytes_per_line: usize, // default 8
     #[serde(default)]
     pub enabled_features: std::collections::HashMap<String, bool>,
+    #[serde(default)]
+    pub description: String,
 }
 
 fn default_text_char_limit() -> usize {
@@ -71,6 +73,7 @@ impl Default for DocumentSettings {
             addresses_per_line: 5,
             bytes_per_line: 8,
             enabled_features: std::collections::HashMap::new(),
+            description: String::new(),
         }
     }
 }

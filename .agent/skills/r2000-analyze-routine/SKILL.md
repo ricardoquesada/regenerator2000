@@ -9,9 +9,9 @@ Use this skill when the user asks to "analyze this routine" or "what does this f
 
 ## 1. Determine Platform & Context
 
-- Use `r2000_get_binary_info` to get the **platform** and **filename**.
+- Use `r2000_get_binary_info` to get the **platform**, **filename**, and **description**.
 - **CRITICAL**: The `platform` field tells you the target computer (e.g., Commodore 64, VIC-20). You **MUST** become an expert in that specific target computer's memory map, hardware registers, and KERNAL routines.
-- **CONTEXT**: The `filename` tells you the specific software being analyzed. Use this to identify standard libraries (e.g., "Hubbard music driver", "Exomizer decompressor") and to understand the likely purpose of routines based on the game's genre (e.g., "check_collision" in a shooter).
+- **CONTEXT**: The `filename` and `description` tell you the specific software being analyzed. Use this to identify standard libraries (e.g., "Hubbard music driver", "Exomizer decompressor") and to understand the likely purpose of routines based on the game's genre (e.g., "check_collision" in a shooter).
 
 ## 2. Identify the Bounds
 
