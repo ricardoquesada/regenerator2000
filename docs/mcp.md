@@ -48,6 +48,10 @@ The server will listen on `http://127.0.0.1:3000/mcp` by default.
 
 ### 2. Configure Client
 
+!!! tip
+
+    Ensure the `regenerator2000` application is running with `--mcp-server` **before** you start Claude Code, Gemini or Antigravity as they will attempt to connect on startup.
+
 #### Claude Code
 
 To use Regenerator 2000 with Claude Code:
@@ -68,10 +72,6 @@ Or, alternatively, add the following to your `claude.json`:
   }
 }
 ```
-
-!!! tip
-
-    Ensure the `regenerator2000` application is running with `--mcp-server` **before** you start Claude Desktop or Claude Code, as they will attempt to connect on startup.
 
 #### Gemini CLI
 
@@ -113,35 +113,51 @@ To use Antigravity with the running server, add the following to `~/.gemini/anti
 }
 ```
 
-## Usage Examples
+## Common Workflows
 
-!!! note
+The true power of the MCP server comes from combining the AI's semantic understanding with Regenerator 2000's analysis tools.
 
-    If it fails to use the "Regenerator2000 MCP", you can prefix the first prompt with:
+### 1. Analyze a Routine
 
-    > "Using regenerator2000 mcp server, ..."
+**Goal**: Understand what a specific subroutine does, rename variables, and document it.
 
-Once connected, you can prompt the AI to perform complex tasks.
+!!! example "Prompt"
 
-### Analysis
+    > "Analyze the routine at $C000. It seems to be checking sprite collisions. Rename variables accordingly and add comments explaining the logic."
 
-> "Analyze this routine"
+**What happens**: The AI reads the disassembly at `$C000`, follows the code flow, identifies memory accesses (e.g., `$D01E` for sprite collision), and uses `r2000_set_label_name` and `r2000_set_line_comment` to update your project.
 
-> "Find all 'JSR $FFD2' calls (CHROUT) and document what is being printed before each call."
+### 2. Identify Code vs. Data
 
-> "Analyze the routine at $C000. It seems to be checking sprite collisions. Rename variables accordingly."
+**Goal**: You have a large binary and don't know where the code ends and graphics begin.
 
-> "Analyze in detail the routine that I'm looking at. Add comments and labels as needed. Convert regions to code, byte, word, petscii, screencode, etc as needed."
+!!! example "Prompt"
 
-### Exploration
+    > "Scan the region from $2000 to $4000. Identify any valid code sequences and mark the rest as byte data. If you see patterns resembling text, mark them as PETSCII."
 
-> "List available tools to see what you can do."
+**What happens**: The AI uses `r2000_read_disasm_region` or `r2000_get_analyzed_blocks` to inspect the memory. It then iteratively applies `r2000_convert_region_to_code` or `r2000_convert_region_to_bytes` based on its analysis.
 
-### Navigation
+### 3. Trace Cross-References
 
-> "Jump to address $1000."
+**Goal**: Find everywhere a specific global variable or function is used.
 
-> "Go to the 'init_screen' label."
+!!! example "Prompt"
+
+    > "Find all `JSR $FFD2` (CHROUT) calls. For each call, document what character or value is being printed before the call."
+
+**What happens**: The AI queries `r2000_get_cross_references` for `$FFD2`, then inspects the instructions immediately preceding each call to deduce the arguments (e.g., `LDA #$05`).
+
+### 4. Semantic Navigation
+
+**Goal**: Move around the project using natural language descriptions instead of addresses.
+
+!!! example "Prompt"
+
+    > "Jump to the high score table."
+
+    > "Go to the interrupt handler."
+
+**What happens**: The AI searches the symbol table or analyzes the code to find the likely candidate, then uses `r2000_jump_to_address` to move your viewport.
 
 ## Agent Skills
 
@@ -159,7 +175,7 @@ your_project/
             └── SKILL.md
 ```
 
-### `r2000-analyze-routine`
+### Skill: `r2000-analyze-routine`
 
 Analyzes a disassembly subroutine to determine its purpose by examining code, cross-references, and memory usage.
 
@@ -178,15 +194,11 @@ Analyzes a disassembly subroutine to determine its purpose by examining code, cr
 cp -r .agent/skills/r2000-analyze-routine /path/to/your/project/.agent/skills/
 ```
 
-**Example prompts:**
+!!! example "Prompt"
 
-> "Analyze this routine"
+    > "Analyze this routine", "What does this function do?"
 
-> "Analyze the routine at $C000. It seems to be checking sprite collisions. Rename variables accordingly."
-
-> "Analyze in detail the routine that I'm looking at. Add comments and labels as needed."
-
-### `r2000-analyze-blocks`
+### Skill: `r2000-analyze-blocks`
 
 Scans a memory range (or the entire binary) and converts each region to the correct block type — separating code from data, text from tables, and pointers from raw bytes. This is the foundational reverse-engineering pass you run on a freshly loaded binary.
 
@@ -208,33 +220,9 @@ Scans a memory range (or the entire binary) and converts each region to the corr
 cp -r .agent/skills/r2000-analyze-blocks /path/to/your/project/.agent/skills/
 ```
 
-**Example prompts:**
+!!! example "Prompt"
 
-> "Analyze all blocks in the binary"
-
-> "Classify the region from $0801 to $1FFF"
-
-> "Scan the whole program and separate code from data"
-
-> "Find all text strings and address tables in the binary"
-
-## Use Cases
-
-### 1. The AI Copilot (HTTP Mode)
-
-Run Regenerator 2000 with `--mcp-server`. You work in the TUI, navigating and making manual edits. Simultaneously, you ask your AI assistant (connected via HTTP) to:
-
-- "Document this function I'm looking at."
-- "Interpret this confusing block of code."
-
-The AI's changes (renaming labels, adding comments) appear instantly in your TUI.
-
-### 2. Automated Deep Dive (Stdio Mode)
-
-Configure Claude Desktop with a specific project file.
-
-- **Prompt**: "Analyze the loaded program. Find the high score table location and the routine that updates it."
-- **Response**: The AI loads the context, uses search tools, reads memory, and produces a report without you needing to open the interface.
+    > "Analyze blocks", "Convert blocks", "Identify data regions", "Classify the program"
 
 ## Available Tools
 

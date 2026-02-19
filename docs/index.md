@@ -1,7 +1,7 @@
 # Regenerator 2000
 
 <p align="center">
-  <img src="regenerator2000_logo_noname.png" alt="Regenerator 2000 Logo" width="200"/>
+  <img src="regenerator2000_logo.png" alt="Regenerator 2000 Logo" width="600"/>
 </p>
 
 # The Modern 6502 Disassembler
@@ -56,7 +56,7 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 
 - **🚀 6502 & Undocumented Opcodes**: Full support for the 6502 instruction set.
 - **⚡ Fast TUI**: Built with Rust for blazingly fast performance.
-- **🧠 Smart Analysis**: Automatically distinguishes code from data.
+- **🧠 Analysis**: Automatically create labels and comments.
 - **⏪ Undo/Redo**: Experiment without fear.
 - **🏷️ Labels & Comments**: Rename subroutines and variable for readability.
 - **🤖 MCP Integration**: Collaborate with AI assistants for deeper analysis.
