@@ -543,7 +543,21 @@ impl Widget for DisassemblyView {
             end_visible: bool,
         }
 
-        let end_view = scroll_inst_idx + visible_height; // Approximation for arrow visibility
+        // Compute the accurate last visible instruction index by walking the disassembly
+        // and counting visual rows (accounting for line comments and mid-address labels),
+        // exactly like the render loop does. Using a naive `scroll_inst_idx + visible_height`
+        // overestimates when instructions have multi-row comments, causing arrows to be
+        // marked as visible when they are actually off-screen.
+        let end_view = {
+            let mut visual_rows = scroll_sub_idx; // Already-consumed sub-rows at top
+            let mut inst = scroll_inst_idx;
+            while inst < total_items && visual_rows < visible_height {
+                let line = &app_state.disassembly[inst];
+                visual_rows += Self::get_visual_line_count_for_instruction(line, app_state);
+                inst += 1;
+            }
+            inst // exclusive upper bound (instruction index)
+        };
 
         // Optimization: Use cached arrows from AppState to avoid O(N) search per frame
         let mut relevant_arrows: Vec<ArrowInfo> = Vec::with_capacity(app_state.cached_arrows.len());
@@ -596,7 +610,7 @@ impl Widget for DisassemblyView {
 
         let max_allowed_cols = app_state.settings.max_arrow_columns;
         let view_start = scroll_inst_idx;
-        let view_end = scroll_inst_idx + visible_height;
+        let view_end = end_view; // Use the accurate value computed above
 
         // Split into Full and Partial
         let (full_arrows, mut partial_arrows): (Vec<_>, Vec<_>) =
@@ -741,65 +755,108 @@ impl Widget for DisassemblyView {
                 let is_down = arrow.start < arrow.end;
                 let is_relative_target = arrow.target_addr.is_some() && current_line == arrow.end;
 
-                if arrow.start_visible && arrow.end_visible {
-                    let (low, high) = if is_down {
-                        (arrow.start, arrow.end)
-                    } else {
-                        (arrow.end, arrow.start)
-                    };
+                let (low, high) = if is_down {
+                    (arrow.start, arrow.end)
+                } else {
+                    (arrow.end, arrow.start)
+                };
 
-                    if current_line > low && current_line < high {
-                        if chars[c_idx] == ' ' {
-                            chars[c_idx] = '│';
-                        } else if chars[c_idx] == '─' {
-                            chars[c_idx] = '┼';
-                        }
-                    }
-
-                    if is_relative_target
-                        && !is_down
-                        && current_line == arrow.end
-                        && chars[c_idx] == ' '
-                    {
+                // 1. Vertical Body
+                // Draw vertical line if we are strictly inside the arrow span
+                if current_line > low && current_line < high {
+                    if chars[c_idx] == ' ' {
                         chars[c_idx] = '│';
-                    }
-
-                    if current_line == arrow.start {
-                        if app_state.disassembly[current_line].target_address.is_some() {
-                            chars[c_idx] = if is_down { '┌' } else { '└' };
-                            chars[c_idx + 1] = '─';
-                        }
-                    } else if current_line == arrow.end && !is_relative_target {
-                        chars[c_idx] = if is_down { '└' } else { '┌' };
-                        chars[c_idx + 1] = '─';
-                    }
-                } else if arrow.start_visible {
-                    if current_line == arrow.start {
-                        if app_state.disassembly[current_line].target_address.is_some() {
-                            chars[c_idx] = if is_down { '┌' } else { '└' };
-                            chars[c_idx + 1] = '─';
-                        }
-                    } else if is_down {
-                        if current_line == arrow.start + 1 {
-                            chars[c_idx] = '▼';
-                        }
-                    } else if current_line == arrow.start.saturating_sub(1) {
-                        chars[c_idx] = '▲';
-                    }
-                } else if arrow.end_visible {
-                    if current_line == arrow.end && !is_relative_target {
-                        chars[c_idx] = if is_down { '└' } else { '┌' };
-                        chars[c_idx + 1] = '─';
-                    } else if is_down {
-                        if current_line == arrow.end.saturating_sub(1) {
-                            chars[c_idx] = '│';
-                        }
-                    } else if current_line == arrow.end + 1 {
-                        chars[c_idx] = '│';
+                    } else if chars[c_idx] == '─' {
+                        chars[c_idx] = '┼';
                     }
                 }
+
+                // Relative target special vertical handling
+                // If this is the ending line of the arrow, but it's a relative target (offset),
+                // we might need to continue draw the vertical line through the instruction?
+                // Logic:
+                // Downward relative: target is somewhere inside this instruction or later.
+                //   If later, well, `current_line` is `end`.
+                //   If target is "inside", we generally draw `└` at `end`.
+                //   Wait, `is_relative_target` means `target_addr` matches inside `end` line.
+                //   If we are at `end`, and it's relative, do we stop here?
+                //   The `target_addr` logic inside `render` handles drawing the `└` at the sub-line.
+                //   For the main instruction line, if it's relative, we probably want `│`
+                //   to reach the sub-line?
+                //   If Unsure, check existing behavior:
+                //   "if is_relative_target && !is_down && current_line == arrow.end { chars = | }"
+                //   Upward relative: target is inside `end` (start < end? No, end < start).
+                //   So arrow comes from below. Reaches `end`. Target is inside.
+                //   The arrow line needs to go UP to the sub-line.
+                //   Since instruction line is usually the "base", and sub-lines (comments/labels)
+                //   are considered "above" or "inside"?
+                //   Actually we index sub-lines for display.
+                //   If target is inside, we need `│` on the base instruction line IF the target
+                //   is "after" the base rendering?
+                //   Actually, sub-lines (labels) are rendered BEFORE the instruction line.
+                //   For Upward Relative:
+                //      We come from below. We hit `end` (Instruction line).
+                //      Target is one of the labels ABOVE.
+                //      So we need `│` on the instruction line? No.
+                //      The line comes from below. It passes `end+1`. It reaches `end`.
+                //      It needs to reach the labels ABOVE `end`.
+                //      So yes, it must pass through the instruction line to reach labels.
+                //      So Upward Relative at `end` -> Need `│`.
+                //   For Downward Relative:
+                //      We come from above. We hit `end`. Target is label ABOVE?
+                //      If target is label ABOVE instruction, we already passed it.
+                //      So we don't need `│` on instruction line.
+                //      If target is offset bytes INSIDE instruction (rare? jumps to middle of instruction?)
+                //      Then we might need it. But typically relative targets are labels.
+
+                if is_relative_target
+                    && !is_down
+                    && current_line == arrow.end
+                    && chars[c_idx] == ' '
+                {
+                    chars[c_idx] = '│';
+                }
+
+                // 2. Start Hook
+                // Only if start is visible on this line
+                if arrow.start_visible && current_line == arrow.start {
+                    if app_state.disassembly[current_line].target_address.is_some() {
+                        chars[c_idx] = if is_down { '┌' } else { '└' };
+                        chars[c_idx + 1] = '─';
+                    }
+                }
+                // 3. End Hook
+                // Only if end is visible on this line
+                else if arrow.end_visible && current_line == arrow.end && !is_relative_target {
+                    chars[c_idx] = if is_down { '└' } else { '┌' };
+                    chars[c_idx + 1] = '─';
+                }
+
+                // 4. Edge Pointers (Partial visibility)
+                // If start visible but end NOT:
+                if arrow.start_visible && !arrow.end_visible {
+                    // Check if we need to draw '▼' or '▲' just to indicate direction at edge?
+                    // Previous code:
+                    if is_down && current_line == arrow.start + 1 {
+                        chars[c_idx] = '▼';
+                    } else if !is_down && current_line == arrow.start.saturating_sub(1) {
+                        chars[c_idx] = '▲';
+                    }
+                }
+                // If end visible but start NOT:
+                else if !arrow.start_visible
+                    && arrow.end_visible
+                    && ((is_down && current_line == arrow.end.saturating_sub(1))
+                        || (!is_down && current_line == arrow.end + 1))
+                {
+                    chars[c_idx] = '│'; // Ensure connection coming in?
+                }
+
+                // 5. Fill gaps for partial arrows that fully cross the screen
+                // (Handled by Step 1 "Vertical Body" which checks low/high range)
             }
 
+            // Horizontal connectors
             for arrow in &active_arrows {
                 let is_relative_target = arrow.target_addr.is_some();
                 let is_end_line = current_line == arrow.end;
@@ -812,18 +869,17 @@ impl Widget for DisassemblyView {
                 }
 
                 let is_valid_source = app_state.disassembly[current_line].target_address.is_some();
-                let safe_is_start_line = is_start_line && is_valid_source;
+                // Safe start line: visible and is actually a control flow source
+                let safe_is_start_line = is_start_line && arrow.start_visible && is_valid_source;
+
+                // Draw horizontal line if:
+                // 1. It's the start line (and valid)
+                // 2. It's the end line (and visible), unless it's a relative target (handled elsewhere)
 
                 let draw_horizontal = if arrow.start == arrow.end {
-                    arrow.start_visible && is_valid_source
-                } else if arrow.start_visible && arrow.end_visible {
-                    safe_is_start_line || (is_end_line && !is_relative_target)
-                } else if arrow.start_visible {
                     safe_is_start_line
-                } else if arrow.end_visible {
-                    is_end_line
                 } else {
-                    false
+                    safe_is_start_line || (is_end_line && arrow.end_visible && !is_relative_target)
                 };
 
                 if draw_horizontal {
@@ -859,6 +915,112 @@ impl Widget for DisassemblyView {
                     (arrow.end, arrow.start)
                 };
 
+                let is_down = arrow.start < arrow.end;
+
+                // Determine if this line should have a vertical pass-through bar.
+                // 1. If strictly inside the arrow body, ALWAYS pass through.
+                let strictly_inside = current_line > low && current_line < high;
+
+                // 2. Boundary conditions for comments (which appear "above" the instruction line)
+                // - If upward jump (start > end):
+                //    - At `start`: Comments are above start. Arrow goes UP from start. So pass through.
+                //    - At `end`: Comments are above end. Arrow comes DOWN to end. So pass through.
+                // - If downward jump (start < end):
+                //    - At `start`: Comments are above start. Arrow goes DOWN from start. No pass through.
+                //    - At `end`: Comments are above end. Arrow comes DOWN to end. So pass through.
+
+                let boundary_pass = if is_down {
+                    // Downward: Start -> End
+                    // Start line comments: No line (arrow starts below comments).
+                    // End line comments: Yes line (arrow arrives from above).
+                    current_line == arrow.end
+                } else {
+                    // Upward: End <- Start
+                    // Start line comments: Yes line (arrow goes up from instruction, passing through comments above it).
+                    // End line comments: Yes line (arrow comes down to instruction, passing through comments above it... wait?)
+                    // Logic check: Upward arrow `└─` at start goes UP. Comments are above. So Yes.
+                    // Upward arrow `┌─` at end comes DOWN. Comments are above. So Yes?
+                    // Actually, standard representation:
+                    // Upward jump:
+                    //   End:  ┌─> Target
+                    //         │
+                    //   Start:└─ Source
+                    //
+                    // At End (Target): The arrow arrives from BELOW (it wraps around? No, it's just a line).
+                    // Visual:
+                    // JMP $1000  (Start)  └──────┐
+                    // ...                        │
+                    // $1000 NOP  (End)    <──────┘
+                    //
+                    // Wait, upward arrow usually drawn on the right in some tools, but here on left.
+                    // Left side upward jump:
+                    //    ┌─ $1000 (End)
+                    //    │
+                    //    └─ JMP $1000 (Start)
+                    //
+                    // So at End: Line comes from below? No, from Start (below) to End (above).
+                    // So at End, the hook is `┌─`. The vertical line is BELOW the hook.
+                    // Comments are ABOVE the instruction.
+                    // So comments at End are OUTSIDE the arrow span. No line.
+
+                    // At Start: Hook is `└─`. Vertical line is ABOVE the hook.
+                    // Comments are ABOVE the instruction.
+                    // So comments at Start are INSIDE the arrow span. Yes line.
+
+                    current_line == arrow.start
+                };
+
+                let mut passes_through = strictly_inside || boundary_pass;
+
+                let is_relative_target_elsewhere =
+                    arrow.target_addr.is_some() && arrow.end == current_line;
+
+                // Relative target adjustment
+                if is_relative_target_elsewhere && let Some(target) = arrow.target_addr {
+                    if let Some(this_addr) = sub_addr {
+                        // If inside the target line, check if we passed the specific address
+                        if arrow.start < arrow.end {
+                            // Downward
+                            // Target is inside line. We stop at target.
+                            passes_through = this_addr < target;
+                        } else {
+                            // Upward
+                            // Target is inside line. We are coming from below.
+                            // If we are at End, we are "above" the vertical span.
+                            // But we logic said `boundary_pass` is FALSE for `current_line == arrow.end` (Upward).
+                            // So `passes_through` is false.
+                            // But checking `sub_addr`: if `this_addr < target`, are we inside?
+                            // Upward jump arrives at target from below.
+                            // If target is in middle of line:
+                            //   [Addr 1]
+                            //   [Addr 2] <- Target
+                            //   [Addr 3]
+                            // The line comes from below, reaches Addr 2, turns right.
+                            // So Addr 3 "has line". Addr 1 "no line".
+                            // So if `this_addr > target`, passes_through = true?
+                            if sub_addr.is_some() {
+                                passes_through = this_addr > target;
+                            }
+                        }
+                    } else {
+                        // No sub-addr (comment).
+                        // For upward jump at End: comments are above.
+                        // Line comes from below to target.
+                        // Comments are "before" target. So "no line"?
+                        // Logic above said boundary_pass false for End/Upward.
+                        // So this remains false. Correct.
+                        // For downward jump at End: comments are above.
+                        // Line comes from above to target.
+                        // Comments are "before" target. So "yes line".
+                        // Logic above said boundary_pass true for End/Downward.
+                        // So remains true. Correct.
+                    }
+                }
+
+                if passes_through {
+                    chars[c_idx] = '│';
+                }
+
                 let is_target_here = if let Some(addr) = sub_addr
                     && let Some(target) = arrow.target_addr
                 {
@@ -867,71 +1029,6 @@ impl Widget for DisassemblyView {
                     false
                 };
 
-                let is_relative_target_elsewhere =
-                    arrow.target_addr.is_some() && arrow.end == current_line;
-
-                let is_down = arrow.start < arrow.end;
-                let mut passes_through = (current_line > low
-                    && current_line < high
-                    && arrow.start_visible
-                    && arrow.end_visible)
-                    || (current_line == arrow.start && arrow.end < arrow.start)
-                    || (current_line == arrow.end && arrow.start < arrow.end);
-
-                // Add tip logic for partial arrows to match get_arrow_str
-                if !passes_through {
-                    if arrow.start_visible && !arrow.end_visible {
-                        if is_down
-                            && (current_line == arrow.start
-                                || current_line == arrow.start.saturating_add(1))
-                        {
-                            // If we are at start, comments are ABOVE, so no line.
-                            // If we are at start+1, comments are ABOVE (between start and start+1), so draw line to connect with ▼
-                            if current_line == arrow.start.saturating_add(1) {
-                                passes_through = true;
-                            }
-                        } else if !is_down && current_line == arrow.start {
-                            // Comments of start line for upward jump are ABOVE, so draw line
-                            passes_through = true;
-                        }
-                    } else if !arrow.start_visible && arrow.end_visible {
-                        if is_down && current_line == arrow.end {
-                            // Comments of end line for downward jump are ABOVE, so draw line
-                            passes_through = true;
-                        } else if !is_down
-                            && (current_line == arrow.end
-                                || current_line == arrow.end.saturating_add(1))
-                        {
-                            // If we are at end, comments are ABOVE, so no line.
-                            // If we are at end+1, comments are ABOVE (between end and end+1), so draw line to connect with │
-                            if current_line == arrow.end.saturating_add(1) {
-                                passes_through = true;
-                            }
-                        }
-                    }
-                }
-
-                if is_relative_target_elsewhere {
-                    if arrow.start < arrow.end {
-                        if let Some(this_addr) = sub_addr
-                            && let Some(target) = arrow.target_addr
-                        {
-                            passes_through = this_addr < target;
-                        } else if sub_addr.is_none() {
-                            passes_through = false;
-                        }
-                    } else if let Some(this_addr) = sub_addr
-                        && let Some(target) = arrow.target_addr
-                    {
-                        passes_through = this_addr < target;
-                    } else if sub_addr.is_none() {
-                        passes_through = true;
-                    }
-                }
-
-                if passes_through {
-                    chars[c_idx] = '│';
-                }
                 if is_target_here {
                     if arrow.start < arrow.end {
                         chars[c_idx] = '└';
@@ -954,6 +1051,7 @@ impl Widget for DisassemblyView {
 
                 if is_target_here {
                     let c_idx = arrow.col * 2;
+
                     for c in chars.iter_mut().skip(c_idx + 1) {
                         if *c == ' ' {
                             *c = '─';
@@ -1083,7 +1181,7 @@ impl Widget for DisassemblyView {
                 for comment_part in line_comment.lines() {
                     let arrow_padding = get_comment_arrow_str(current_inst, None);
                     parts.push(Line::from(vec![
-                        Span::styled(format!("{:5} ", ""), base_style.fg(ui_state.theme.bytes)),
+                        Span::styled("     ", base_style.fg(ui_state.theme.bytes)),
                         Span::styled(
                             format!("{:width$} ", arrow_padding, width = arrow_width),
                             base_style.fg(ui_state.theme.arrow),
