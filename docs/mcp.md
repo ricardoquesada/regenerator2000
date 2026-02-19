@@ -171,32 +171,17 @@ The resulting layout should look like:
 your_project/
 └── .agent/
     └── skills/
-        └── r2000-analyze-routine/   (or whichever skill you copied)
+        └── r2000-analyze-blocks/   (or whichever skill you copied)
             └── SKILL.md
 ```
 
-### Skill: `r2000-analyze-routine`
+### Recommended Workflow
 
-Analyzes a disassembly subroutine to determine its purpose by examining code, cross-references, and memory usage.
+For the best results, we recommend applying these skills in the following order:
 
-**What it does:**
-
-1. Identifies the bounds of the routine (entry point → `RTS`/`JMP`/`RTI`).
-2. Reads and interprets the instructions, detecting loops, KERNAL calls, and hardware register accesses.
-3. Checks cross-references to understand the call context.
-4. Analyzes data usage (Zero Page variables, hardware registers, etc.).
-5. Synthesizes a summary of purpose, inputs, outputs, and side effects.
-6. Optionally documents the routine by adding a structured comment block above the entry point and renaming the label.
-
-**To install:**
-
-```shell
-cp -r .agent/skills/r2000-analyze-routine /path/to/your/project/.agent/skills/
-```
-
-!!! example "Prompt"
-
-    > "Analyze this routine", "What does this function do?"
+1. **Macro Analysis**: Use `r2000-analyze-blocks` to break down the binary into code and data regions.
+2. **Micro Analysis (Control Flow)**: Use `r2000-analyze-routine` to understand the logic of individual subroutines.
+3. **Micro Analysis (Data Flow)**: Use `r2000-analyze-symbol` to identify variables, pointers, and hardware registers.
 
 ### Skill: `r2000-analyze-blocks`
 
@@ -223,6 +208,52 @@ cp -r .agent/skills/r2000-analyze-blocks /path/to/your/project/.agent/skills/
 !!! example "Prompt"
 
     > "Analyze blocks", "Convert blocks", "Identify data regions", "Classify the program"
+
+### Skill: `r2000-analyze-routine`
+
+Analyzes a disassembly subroutine to determine its purpose by examining code, cross-references, and memory usage.
+
+**What it does:**
+
+1. Identifies the bounds of the routine (entry point → `RTS`/`JMP`/`RTI`).
+2. Reads and interprets the instructions, detecting loops, KERNAL calls, and hardware register accesses.
+3. Checks cross-references to understand the call context.
+4. Analyzes data usage (Zero Page variables, hardware registers, etc.).
+5. Synthesizes a summary of purpose, inputs, outputs, and side effects.
+6. Optionally documents the routine by adding a structured comment block above the entry point and renaming the label.
+
+**To install:**
+
+```shell
+cp -r .agent/skills/r2000-analyze-routine /path/to/your/project/.agent/skills/
+```
+
+!!! example "Prompt"
+
+    > "Analyze this routine", "What does this function do?"
+
+### Skill: `r2000-analyze-symbol`
+
+Analyzes a specific memory address or label to determine its purpose (variable, flag, pointer, hardware register) by examining its cross-references and usage patterns.
+
+**What it does:**
+
+1. Determines the target address/label and the platform (C64, VIC-20, etc.).
+2. Checks if the address corresponds to a known hardware register.
+3. Analyzes all cross-references to see how the symbol is used (read, write, modify).
+4. Identifies patterns: Pointers (indirect indexed), Flags (boolean checks), Counters (loops), State variables.
+5. Renames the symbol to a descriptive name (`snake_case` for variables, `CapsExpr` for hardware/constants).
+6. Adds line comments (definitions) and side comments (usages) to document the data flow.
+
+**To install:**
+
+```shell
+cp -r .agent/skills/r2000-analyze-symbol /path/to/your/project/.agent/skills/
+```
+
+!!! example "Prompt"
+
+    > "Analyze this label", "What is this variable?", "Trace this address"
 
 ## Available Tools
 
