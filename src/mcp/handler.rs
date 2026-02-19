@@ -186,7 +186,7 @@ fn list_tools() -> Result<Value, McpError> {
             },
             {
                 "name": "r2000_get_binary_info",
-                "description": "Returns the origin address, size of the analyzed binary in bytes, and the target platform (e.g. 'Commodore 64', 'Commodore 128')",
+                "description": "Returns the origin address, size of the analyzed binary in bytes, the target platform (e.g. 'Commodore 64'), and the filename if available.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {},
@@ -598,13 +598,22 @@ fn handle_tool_call_internal(
             let origin = app_state.origin;
             let size = app_state.raw_data.len();
             let platform = &app_state.settings.platform;
+            let filename = app_state
+                .file_path
+                .as_ref()
+                .or(app_state.project_path.as_ref())
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str())
+                .map(|s| s.to_string());
+
             Ok(json!({
                 "content": [{
                     "type": "text",
                     "text": serde_json::to_string_pretty(&json!({
                         "origin": origin,
                         "size": size,
-                        "platform": platform
+                        "platform": platform,
+                        "filename": filename
                     })).unwrap()
                 }]
             }))

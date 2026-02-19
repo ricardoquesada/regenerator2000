@@ -12,6 +12,7 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 - **Get the Target**: If the user provides a label or address, use that. If not, use `r2000_get_disassembly_cursor` or `r2000_get_address_details` to identify the address under the cursor.
 - **Get the Platform**: Use `r2000_get_binary_info`.
   - **CRITICAL**: Knowing the platform (e.g., C64, VIC-20) is essential for identifying hardware registers (VIC-II, SID, CIA, VIA).
+  - **CONTEXT**: Use the `filename` response to identify the specific game or program. This allows you to infer domain-specific labels (e.g., "lap_counter" for a racing game, "lives" for a platformer) and look up known memory maps for popular titles.
 
 ## 2. Gather Usage Data
 
