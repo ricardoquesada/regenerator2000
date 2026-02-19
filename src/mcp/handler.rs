@@ -17,9 +17,9 @@ pub fn handle_request(
             "serverInfo": {
                 "name": "regenerator2000-mcp",
                 "version": env!("CARGO_PKG_VERSION"),
-                "description": "An interactive disassembler for Commodore 64 / MOS 6502 assembly."
+                "description": "An interactive disassembler for the MOS 6502 assembly."
             },
-            "instructions": "You are an expert Commodore 64 and MOS 6502 assembly programmer. Always assume the code is 6502 assembly unless stated otherwise.",
+            "instructions": "You are an expert in MOS 6502 assembly programmer. Always assume the code is 6502 assembly unless stated otherwise.",
             "capabilities": {
                 "tools": {},
                 "resources": {}
@@ -186,7 +186,7 @@ fn list_tools() -> Result<Value, McpError> {
             },
             {
                 "name": "r2000_get_binary_info",
-                "description": "Returns the origin address and size of the analyzed binary in bytes.",
+                "description": "Returns the origin address, size of the analyzed binary in bytes, and the target platform (e.g. 'Commodore 64', 'Commodore 128')",
                 "inputSchema": {
                     "type": "object",
                     "properties": {},
@@ -597,12 +597,14 @@ fn handle_tool_call_internal(
         "r2000_get_binary_info" => {
             let origin = app_state.origin;
             let size = app_state.raw_data.len();
+            let platform = &app_state.settings.platform;
             Ok(json!({
                 "content": [{
                     "type": "text",
                     "text": serde_json::to_string_pretty(&json!({
                         "origin": origin,
-                        "size": size
+                        "size": size,
+                        "platform": platform
                     })).unwrap()
                 }]
             }))

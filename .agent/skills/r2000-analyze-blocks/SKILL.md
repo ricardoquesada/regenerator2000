@@ -1,6 +1,6 @@
 ---
 name: r2000-analyze-blocks
-description: Analyzes memory regions of a disassembled binary and converts them to the correct block types (code, bytes, words, text, tables, etc.) using MOS 6502 and Commodore 64 expertise.
+description: Analyzes memory regions of a disassembled binary and converts them to the correct block types (code, bytes, words, text, tables, etc.) using MOS 6502 and the target platform's expertise.
 ---
 
 # Analyze Blocks Workflow
@@ -38,7 +38,8 @@ code from data, text from tables, and pointers from raw bytes.
 ### 1. Determine Scope
 
 - Ask the user what range to analyze, or default to the **entire binary**.
-- Use `r2000_get_binary_info` to get the origin address and size.
+- Use `r2000_get_binary_info` to get the origin address, size, and **platform**.
+  - **CRITICAL**: The `platform` field tells you the target computer (e.g., C64, VIC-20). You **MUST** become an expert in that specific target computer's memory map, hardware registers, and KERNAL routines for the duration of the analysis.
 - Use `r2000_get_analyzed_blocks` to see what has already been classified.
 - If the user says "the whole thing" or "entire binary", work in chunks of **~256–512 bytes** to avoid overwhelming context windows.
 

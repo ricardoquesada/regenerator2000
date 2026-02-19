@@ -398,7 +398,7 @@ Returns the list of memory blocks as analyzed, including their range and type. R
 
 ### `r2000_get_binary_info`
 
-Returns the origin address and size of the analyzed binary in bytes.
+Returns the origin address, size of the analyzed binary in bytes, and the target platform (e.g. 'Commodore 64', 'Commodore 128').
 
 _No arguments._
 

@@ -18,7 +18,7 @@ class MCPClient:
 
     def start(self):
         print(f"Connecting to MCP Server at {BASE_URL}...")
-        
+
         # 1. Initialize via POST (Capture Session ID)
         init_payload = {
             "jsonrpc": "2.0",
@@ -37,25 +37,25 @@ class MCPClient:
         try:
              # Initial POST request to establish session and get initialization response
             response = requests.post(
-                BASE_URL, 
-                json=init_payload, 
+                BASE_URL,
+                json=init_payload,
                 headers={
                     "Accept": "application/json, text/event-stream",
                     "Content-Type": "application/json"
                 },
                 stream=True,
-                timeout=10 
+                timeout=10
             )
             response.raise_for_status()
-            
+
             # Check for Session ID
             self.session_id = response.headers.get("mcp-session-id")
             if not self.session_id:
                 print("Error: No mcp-session-id in response headers")
                 sys.exit(1)
-                
+
             print(f"Connected. Session ID: {self.session_id}")
-            
+
             # Read the initialization response from the POST stream
             init_response = None
             for line in response.iter_lines():
@@ -71,16 +71,16 @@ class MCPClient:
                                     break
                             except json.JSONDecodeError:
                                 continue
-            
+
             # Close the POST response stream
             response.close()
-            
+
             if not init_response or "result" not in init_response:
                 print("Failed to get initialization response")
                 sys.exit(1)
-            
+
             print("Initialized successfully.")
-            
+
             # 2. Open a dedicated GET stream for ongoing communication
             get_response = requests.get(
                 BASE_URL,
@@ -92,18 +92,18 @@ class MCPClient:
                 timeout=None
             )
             get_response.raise_for_status()
-            
+
             # Start listening to the GET stream
             self.read_thread = threading.Thread(target=self._listen_sse, args=(get_response,), daemon=True)
             self.read_thread.start()
-            
+
             # Wait for connection to be established
             if not self.connected.wait(timeout=5):
                 print("Timeout waiting for GET stream connection")
                 sys.exit(1)
-            
+
             # Send initialized notification
-            self.rpc("notifications/initialized", {}) 
+            self.rpc("notifications/initialized", {})
 
         except Exception as e:
             print(f"Connection failed: {e}")
@@ -112,7 +112,7 @@ class MCPClient:
 
     def _listen_sse(self, initial_response):
         response = initial_response
-        
+
         while True:
             self.connected.set()
             try:
@@ -138,14 +138,14 @@ class MCPClient:
                 self.connected.clear()
                 if response:
                     response.close()
-            
+
             print("SSE stream ended. Reconnecting...")
             time.sleep(1) # Wait a bit before reconnecting
-            
+
             if not self.session_id:
                 print("No session ID, cannot reconnect.")
                 break
-                
+
             try:
                 headers={
                     "Accept": "text/event-stream",
@@ -153,7 +153,7 @@ class MCPClient:
                 }
                 print(f"Reconnecting to {BASE_URL} with session {self.session_id}")
                 response = requests.get(
-                    BASE_URL, 
+                    BASE_URL,
                     headers=headers,
                     stream=True,
                     timeout=None # Keep open indefinitely
@@ -191,31 +191,31 @@ class MCPClient:
                 return None
 
         is_notification = method.startswith("notifications/")
-        
+
         payload = {
             "jsonrpc": "2.0",
             "method": method,
             "params": params
         }
-        
+
         current_id = None
         if not is_notification:
             self.msg_id += 1
             current_id = self.msg_id
             payload["id"] = current_id
-        
+
         headers = {
             "Accept": "application/json, text/event-stream",
             "Content-Type": "application/json",
             "mcp-session-id": self.session_id
         }
-        
+
         try:
             # Send request on the /message endpoint, using the Session ID
             cmd_url = BASE_URL
             # print(f"DEBUG: Sending {method} to {cmd_url} with headers: {headers}")
             response = requests.post(cmd_url, json=payload, headers=headers, stream=True, timeout=10)
-            
+
             if response.status_code == 200:
                 # If it's a stream, we should read it
                 if "text/event-stream" in response.headers.get("Content-Type", ""):
@@ -263,7 +263,7 @@ class MCPClient:
             print(f"Timeout waiting for response to {method}")
             response.close()
             return None
-            
+
         except Exception as e:
             print(f"Request failed: {e}")
             return None
@@ -315,7 +315,7 @@ def test_set_label(client):
 
 def test_complex_scenario(client):
     print("\nTesting complex scenario...")
-    
+
     # 1. Set $1000-$100f to CODE
     print("- Converting $1000-$100F to CODE")
     res = client.rpc("tools/call", {
@@ -400,7 +400,7 @@ def test_tool_response_content(client):
             "comment": "test comment"
         }
     })
-    
+
     if res and "result" in res:
         content = res["result"].get("content", [])
         if content and content[0].get("text"):
@@ -426,7 +426,7 @@ def test_read_disasm_region(client):
     if res and "result" in res:
         print("Success:")
         print(json.dumps(res["result"], indent=2))
-        
+
         # Verify content
         if "content" in res["result"] and len(res["result"]["content"]) > 0:
             content = res["result"]["content"][0]
@@ -463,7 +463,7 @@ def test_read_hexdump_region(client):
 def test_read_selected_tools(client):
     print("\nTesting r2000_read_selected_disasm...")
     res = client.rpc("tools/call", {
-        "name": "r2000_read_selected_disasm", 
+        "name": "r2000_read_selected_disasm",
         "arguments": {}
     })
     if res and "result" in res:
@@ -597,6 +597,33 @@ def test_list_resources(client):
 
 
 
+
+def test_get_binary_info(client):
+    print("\nTesting r2000_get_binary_info...")
+    res = client.rpc("tools/call", {
+        "name": "r2000_get_binary_info",
+        "arguments": {}
+    })
+    if res and "result" in res:
+        content = res["result"].get("content", [])
+        if content and content[0].get("text"):
+            text = content[0]["text"]
+            print(f"Response text: {text}")
+            try:
+                data = json.loads(text)
+                if "origin" in data and "size" in data and "platform" in data:
+                    print("PASS: Returned origin, size, and platform")
+                    print(f"Platform: {data['platform']}")
+                else:
+                    print(f"FAIL: Missing fields in response: {data.keys()}")
+            except json.JSONDecodeError:
+                 print(f"FAIL: Could not decode JSON response: {text}")
+        else:
+             print("FAIL: Check content structure")
+    else:
+        print(f"FAIL: {res}")
+
+
 def test_get_disassembly_cursor(client):
     print("\nTesting r2000_get_disassembly_cursor...")
     res = client.rpc("tools/call", {
@@ -606,7 +633,7 @@ def test_get_disassembly_cursor(client):
     if res and "result" in res:
         print("Success:")
         print(json.dumps(res["result"], indent=2))
-        
+
         # Verify content
         if "content" in res["result"] and len(res["result"]["content"]) > 0:
             content = res["result"]["content"][0]
@@ -619,26 +646,26 @@ def test_get_disassembly_cursor(client):
 
     elif res and "error" in res:
          # Acceptable if cursor is out of bounds (e.g. empty project)
-         print(f"PASS (valid error): {res['error']['message']}") 
+         print(f"PASS (valid error): {res['error']['message']}")
     else:
         print(f"FAIL: {res}")
 
 
 def test_jump_to_address(client):
     print("\nTesting r2000_jump_to_address...")
-    
+
     # 1. Get current
     print("- Getting current cursor...")
     res1 = client.rpc("tools/call", {
         "name": "r2000_get_disassembly_cursor",
         "arguments": {}
     })
-    
+
     if res1 and "result" in res1 and "content" in res1["result"]:
         content = res1["result"]["content"]
         if content and len(content) > 0:
              print(f"Current: {content[0]['text']}")
-    
+
     # 2. Jump to $1000
     print("- Jumping to $1000...")
     res2 = client.rpc("tools/call", {
@@ -647,17 +674,17 @@ def test_jump_to_address(client):
             "address": 4096
         }
     })
-    
+
     if res2 and "result" in res2:
          content = res2["result"].get("content", [])
          print(f"Jump Result: {json.dumps(content, indent=2)}")
-         
+
          # 3. Verify new cursor
          res3 = client.rpc("tools/call", {
             "name": "r2000_get_disassembly_cursor",
             "arguments": {}
          })
-         
+
          if res3 and "result" in res3 and "content" in res3["result"]:
              addr_text = res3["result"]["content"][0]["text"]
              print(f"New Cursor: {addr_text}")
@@ -667,7 +694,7 @@ def test_jump_to_address(client):
                  print("FAIL: Cursor did not move to $1000")
          else:
              print("FAIL: Could not verify cursor after jump")
-             
+
     elif res2 and "error" in res2:
          print(f"FAIL (Jump Error): {res2['error']['message']}")
     else:
@@ -675,7 +702,7 @@ def test_jump_to_address(client):
 
 def test_batch_execute(client):
     print("\nTesting r2000_batch_execute...")
-    
+
     # 1. Prepare batch calls
     calls = [
         {
@@ -700,7 +727,7 @@ def test_batch_execute(client):
             "calls": calls
         }
     })
-    
+
     if res and "result" in res and "content" in res["result"]:
         content_text = res["result"]["content"][0]["text"]
         print(f"Batch Result Text: {content_text}")
@@ -715,7 +742,7 @@ def test_batch_execute(client):
                  print(f"FAIL: Invalid batch result structure: {results}")
         except Exception as e:
             print(f"FAIL: JSON parsing error: {e}")
-            
+
     elif res and "error" in res:
         print(f"FAIL: Batch tool error: {res['error']}")
     else:
@@ -724,7 +751,7 @@ def test_batch_execute(client):
 if __name__ == "__main__":
     client = MCPClient()
     client.start()
-    
+
     test_list_tools(client)
     test_list_resources(client)
     test_set_label(client)
@@ -735,8 +762,7 @@ if __name__ == "__main__":
     test_convert_lo_hi_address(client)
     test_tool_response_content(client)
     test_new_tools(client)
+    test_get_binary_info(client)
     test_get_disassembly_cursor(client)
     test_jump_to_address(client)
     test_batch_execute(client)
-
-
