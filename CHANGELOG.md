@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2026-02-18
+
+### Features
+
+- Feature: **Disassembly View**: Improved arrow visualization for jump instructions (restored full arrows).
+
+### Documentation
+
+- Docs: Improved documentation structure and readability (MkDocs, Homepage, and Tutorials).
+
+### Refactor / Internal
+
+- Agent: Added `r2000-analyze-symbol` and `r2000-analyze-blocks` skills.
+- Agent: Renamed skills to use `r2000` prefix to avoid conflicts.
+- Agent: `r2000-analyze-routine` skill now uses platform expertise.
+- MCP Server: `get_binary_info` tool now returns platform information.
+- MCP Server: Comments tool fix (removed automatic `;` prefix).
+- Agent: Added `update-keyboard-shortcuts` skill for maintaining consistency.
+
 ## [0.7.1] - 2026-02-17
 
 ### Features
