@@ -1,6 +1,6 @@
 use crate::state::{AppState, BlockType};
 use crate::ui_state::{ActivePane, MenuAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -101,6 +101,31 @@ impl Widget for BlocksView {
             MouseEventKind::ScrollUp => {
                 self.move_up(app_state, ui_state, 3);
                 WidgetResult::Handled
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                let index = ui_state.blocks_list_state.offset()
+                    + (mouse.row.saturating_sub(inner_area.y) as usize);
+                let blocks = app_state.get_blocks_view_items();
+                if index < blocks.len() {
+                    ui_state.blocks_list_state.select(Some(index));
+
+                    let target_addr = match blocks[index] {
+                        crate::state::BlockItem::Block { start, .. } => {
+                            // start is u16 (offset from origin)
+                            Some(app_state.origin.wrapping_add(start))
+                        }
+                        crate::state::BlockItem::Splitter(addr) => Some(addr),
+                    };
+
+                    if let Some(addr) = target_addr {
+                        crate::ui::navigable::jump_to_disassembly_at_address(
+                            app_state, ui_state, addr,
+                        );
+                    }
+                    WidgetResult::Handled
+                } else {
+                    WidgetResult::Ignored
+                }
             }
             _ => WidgetResult::Ignored,
         }
