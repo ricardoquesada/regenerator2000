@@ -24,6 +24,8 @@ pub struct SystemConfig {
     pub entropy_threshold: f32,
     #[serde(skip)]
     pub config_path_override: Option<PathBuf>,
+    #[serde(default)]
+    pub recent_projects: Vec<PathBuf>,
 }
 
 fn default_true() -> bool {
@@ -56,11 +58,24 @@ impl Default for SystemConfig {
             sync_bitmap_view: false,
             entropy_threshold: 7.5,
             config_path_override: None,
+            recent_projects: Vec::new(),
         }
     }
 }
 
 impl SystemConfig {
+    pub fn add_recent_project(&mut self, path: PathBuf) {
+        let canon = std::fs::canonicalize(&path).unwrap_or(path);
+        self.recent_projects.retain(|p| p != &canon);
+        self.recent_projects.insert(0, canon);
+        self.recent_projects.truncate(20);
+    }
+
+    pub fn remove_recent_project(&mut self, path: &std::path::Path) {
+        let canon = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        self.recent_projects.retain(|p| p != &canon);
+    }
+
     pub fn load() -> Self {
         if let Some(proj_dirs) = ProjectDirs::from("", "", "regenerator2000") {
             let config_path = proj_dirs.config_dir().join("config.json");

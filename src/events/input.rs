@@ -99,6 +99,12 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         KeyCode::Char('o') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Open)
         }
+        KeyCode::Char('o')
+            if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
+                || key.modifiers == KeyModifiers::ALT =>
+        {
+            handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::OpenRecent);
+        }
         KeyCode::Char('a') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Analyze);
         }
@@ -136,7 +142,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                 crate::ui_state::MenuAction::SystemSettings,
             );
         }
-        KeyCode::Char('o') if key.modifiers == KeyModifiers::ALT => {
+        KeyCode::Char('p') if key.modifiers == KeyModifiers::ALT => {
             handle_menu_action(
                 app_state,
                 ui_state,

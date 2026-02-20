@@ -14,6 +14,7 @@ use ratatui::{
 pub enum MenuAction {
     Exit,
     Open,
+    OpenRecent,
     Save,
     SaveAs,
     ExportProject,
@@ -81,6 +82,7 @@ impl MenuAction {
             self,
             MenuAction::Exit
                 | MenuAction::Open
+                | MenuAction::OpenRecent
                 | MenuAction::About
                 | MenuAction::KeyboardShortcuts
                 | MenuAction::SystemSettings
@@ -318,6 +320,11 @@ impl MenuState {
                     name: "File".to_string(),
                     items: vec![
                         MenuItem::new("Open...", Some("Ctrl+O"), Some(MenuAction::Open)),
+                        MenuItem::new(
+                            "Open Recents...",
+                            Some("Alt+O"),
+                            Some(MenuAction::OpenRecent),
+                        ),
                         MenuItem::new("Save", Some("Ctrl+S"), Some(MenuAction::Save)),
                         MenuItem::new("Save As...", Some("Alt+S"), Some(MenuAction::SaveAs)),
                         MenuItem::separator(),
@@ -343,7 +350,7 @@ impl MenuState {
                             Some(MenuAction::ExportViceLabels),
                         ),
                         MenuItem::separator(),
-                        MenuItem::new("Settings", Some("Alt+O"), Some(MenuAction::SystemSettings)),
+                        MenuItem::new("Settings", Some("Alt+P"), Some(MenuAction::SystemSettings)),
                         MenuItem::separator(),
                         MenuItem::new("Exit", Some("Ctrl+Q"), Some(MenuAction::Exit)),
                     ],
@@ -884,7 +891,10 @@ pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, acti
     }
 
     // Check for changes on destructive actions
-    let is_destructive = matches!(action, MenuAction::Exit | MenuAction::Open);
+    let is_destructive = matches!(
+        action,
+        MenuAction::Exit | MenuAction::Open | MenuAction::OpenRecent
+    );
 
     if is_destructive && app_state.is_dirty() {
         ui_state.active_dialog = Some(Box::new(
@@ -911,6 +921,12 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.file_dialog_current_dir.clone(),
             )));
             ui_state.set_status_message("Select a file to open");
+        }
+        MenuAction::OpenRecent => {
+            ui_state.active_dialog =
+                Some(Box::new(crate::ui::dialog_open_recent::OpenRecentDialog));
+            ui_state.recent_list_state.select(Some(0));
+            ui_state.set_status_message("Open recent project");
         }
         MenuAction::ImportViceLabels => {
             ui_state.active_dialog = Some(Box::new(

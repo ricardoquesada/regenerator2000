@@ -19,7 +19,8 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Export Project (ASM)**                                                                | ++ctrl+e++                                                    |
 |                                    | **Export Project As (ASM)**                                                             | ++alt+e++ or ++ctrl+shift+e++                                 |
 |                                    | **Document Settings**                                                                   | ++alt+d++ or ++ctrl+shift+d++                                 |
-|                                    | **Settings**                                                                            | ++alt+o++ or ++ctrl+comma++                                   |
+|                                    | **Settings**                                                                            | ++alt+p++ or ++ctrl+comma++                                   |
+|                                    | **Open Recent Projects**                                                                | ++alt+o++ or ++ctrl+shift+o++                                 |
 |                                    | **Undo**                                                                                | ++u++                                                         |
 |                                    | **Redo**                                                                                | ++ctrl+r++                                                    |
 |                                    | **Switch Pane (betweeen Disasm and right pane)**                                        | ++tab++                                                       |
