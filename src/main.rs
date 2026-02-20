@@ -475,7 +475,7 @@ fn main() -> Result<()> {
     }
 
     // Run app
-    let res = events::run_app(&mut terminal, app_state, ui_state, event_rx);
+    let res = events::run_app(&mut terminal, app_state, ui_state, event_tx, event_rx);
 
     // Restore terminal
     disable_raw_mode()?;

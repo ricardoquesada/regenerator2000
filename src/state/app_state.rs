@@ -54,6 +54,8 @@ pub struct AppState {
     pub last_export_labels_filename: Option<String>,
     pub last_save_as_filename: Option<String>,
     pub last_export_asm_filename: Option<String>,
+    pub vice_state: crate::vice::ViceState,
+    pub vice_client: Option<crate::vice::ViceClient>,
 }
 
 impl Default for AppState {
@@ -92,6 +94,8 @@ impl AppState {
             last_export_labels_filename: None,
             last_save_as_filename: None,
             last_export_asm_filename: None,
+            vice_state: crate::vice::ViceState::new(),
+            vice_client: None,
         }
     }
 

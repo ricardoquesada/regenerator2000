@@ -74,6 +74,9 @@ pub enum MenuAction {
     ExportViceLabels,
     ToggleBookmark,
     ListBookmarks,
+    ViceConnect,
+    ViceDisconnect,
+    ViceStep,
 }
 
 impl MenuAction {
@@ -261,6 +264,18 @@ impl Widget for Menu {
                     .categories
                     .iter()
                     .position(|c| c.name == "Edit")
+                {
+                    ui_state.menu.selected_category = pos;
+                    ui_state.menu.select_first_enabled_item();
+                }
+                WidgetResult::Handled
+            }
+            KeyCode::Char('u') if key.modifiers == KeyModifiers::ALT => {
+                if let Some(pos) = ui_state
+                    .menu
+                    .categories
+                    .iter()
+                    .position(|c| c.name == "Debugger")
                 {
                     ui_state.menu.selected_category = pos;
                     ui_state.menu.select_first_enabled_item();
@@ -546,6 +561,19 @@ impl MenuState {
                     ],
                 },
                 MenuCategory {
+                    name: "Debugger".to_string(),
+                    items: vec![
+                        MenuItem::new("Connect to VICE", None, Some(MenuAction::ViceConnect)),
+                        MenuItem::new(
+                            "Disconnect from VICE",
+                            None,
+                            Some(MenuAction::ViceDisconnect),
+                        ),
+                        MenuItem::separator(),
+                        MenuItem::new("Step Instruction", Some("F10"), Some(MenuAction::ViceStep)),
+                    ],
+                },
+                MenuCategory {
                     name: "Help".to_string(),
                     items: vec![
                         MenuItem::new(
@@ -777,6 +805,11 @@ pub fn render_menu(f: &mut Frame, area: Rect, menu_state: &MenuState, theme: &cr
             spans.push(Span::styled("Sea", style));
             spans.push(Span::styled("r", style.add_modifier(Modifier::UNDERLINED)));
             spans.push(Span::styled("ch ", style));
+        } else if category.name == "Debugger" {
+            spans.push(Span::styled(" ", style));
+            spans.push(Span::styled("Deb", style));
+            spans.push(Span::styled("u", style.add_modifier(Modifier::UNDERLINED)));
+            spans.push(Span::styled("gger ", style));
         } else {
             spans.push(Span::styled(format!(" {} ", category.name), style));
         }
@@ -1073,6 +1106,9 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             let dialog = crate::ui::dialog_bookmarks::BookmarksDialog;
             ui_state.active_dialog = Some(Box::new(dialog));
             ui_state.bookmarks_list_state.select(Some(0));
+        }
+        MenuAction::ViceConnect | MenuAction::ViceDisconnect | MenuAction::ViceStep => {
+            // Handled directly in run_app
         }
 
         MenuAction::Code => apply_block_type(app_state, ui_state, crate::state::BlockType::Code),

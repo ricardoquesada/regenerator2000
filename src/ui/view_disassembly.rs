@@ -1219,9 +1219,21 @@ impl Widget for DisassemblyView {
             let arrow_padding = get_arrow_str(current_inst);
 
             let is_bookmarked = app_state.bookmarks.contains_key(&line.address);
-            let gutter = if is_bookmarked { "  *  " } else { "     " }; // 5 chars
-            let gutter_style = if is_bookmarked {
-                base_style.fg(ui_state.theme.label) // Use label color for bookmark? Or generic highlight?
+            let is_pc = app_state.vice_state.pc == Some(line.address);
+            let gutter = if is_pc {
+                "  >  "
+            } else if is_bookmarked {
+                "  *  "
+            } else {
+                "     "
+            };
+
+            let gutter_style = if is_pc {
+                base_style
+                    .fg(ui_state.theme.border_active)
+                    .add_modifier(Modifier::BOLD)
+            } else if is_bookmarked {
+                base_style.fg(ui_state.theme.label)
             } else {
                 base_style.fg(ui_state.theme.bytes)
             };

@@ -12,7 +12,7 @@ pub mod ui;
 pub mod ui_state;
 
 pub mod config;
+pub mod mcp;
 pub mod theme;
 pub mod utils;
-
-pub mod mcp;
+pub mod vice;

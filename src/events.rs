@@ -12,6 +12,7 @@ pub enum AppEvent {
     Crossterm(Event),
     Mcp(crate::mcp::types::McpRequest),
     McpError(String),
+    Vice(crate::vice::ViceEvent),
     Tick,
 }
 
@@ -19,6 +20,7 @@ pub fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
     mut app_state: AppState,
     mut ui_state: UIState,
+    event_tx: std::sync::mpsc::Sender<AppEvent>,
     event_rx: std::sync::mpsc::Receiver<AppEvent>,
 ) -> io::Result<()> {
     // Initial render before event loop
@@ -44,6 +46,69 @@ pub fn run_app<B: Backend>(
             }
             AppEvent::McpError(err_msg) => {
                 ui_state.set_status_message(format!("MCP Error: {}", err_msg));
+                should_render = true;
+            }
+            AppEvent::Vice(vice_event) => {
+                match vice_event {
+                    crate::vice::ViceEvent::Connected => {
+                        app_state.vice_state.connected = true;
+                        ui_state.set_status_message("Connected to VICE Monitor");
+                    }
+                    crate::vice::ViceEvent::Disconnected(reason) => {
+                        app_state.vice_state.connected = false;
+                        ui_state.set_status_message(format!("Disconnected from VICE: {}", reason));
+                    }
+                    crate::vice::ViceEvent::Message(msg) => {
+                        // Handle register get to update PC
+                        if msg.command == crate::vice::ViceCommand::REGISTERS_GET {
+                            let payload = &msg.payload;
+                            if payload.len() >= 2 {
+                                let ref_count = u16::from_le_bytes([payload[0], payload[1]]);
+                                let mut offset = 2;
+                                let mut pc_found = None;
+
+                                for _ in 0..ref_count {
+                                    if offset >= payload.len() {
+                                        break;
+                                    }
+                                    let item_size = payload[offset] as usize;
+                                    if offset + 1 + item_size > payload.len() {
+                                        break;
+                                    }
+
+                                    let reg_id = payload[offset + 1];
+                                    if reg_id == 0x03 && item_size >= 3 {
+                                        let pc_val = u16::from_le_bytes([
+                                            payload[offset + 2],
+                                            payload[offset + 3],
+                                        ]);
+                                        pc_found = Some(pc_val);
+                                    }
+
+                                    offset += 1 + item_size;
+                                }
+
+                                if let Some(pc) = pc_found {
+                                    app_state.vice_state.pc = Some(pc);
+                                    ui_state.set_status_message(format!("VICE PC: ${:04X}", pc));
+
+                                    if let Ok(idx) = app_state
+                                        .disassembly
+                                        .binary_search_by_key(&pc, |l| l.address)
+                                    {
+                                        ui_state.cursor_index = idx;
+                                    }
+                                } else {
+                                    ui_state.set_status_message(
+                                        "VICE Registers: did not find PC".to_string(),
+                                    );
+                                }
+                            }
+                        } else {
+                            ui_state.set_status_message(format!("VICE Msg: {:02x}", msg.command));
+                        }
+                    }
+                }
                 should_render = true;
             }
             AppEvent::Tick => {
@@ -79,11 +144,32 @@ pub fn run_app<B: Backend>(
                                 crate::ui::widget::WidgetResult::Action(action) => {
                                     ui_state.active_dialog = Some(dialog);
                                     should_render = true;
-                                    crate::ui::menu::handle_menu_action(
-                                        &mut app_state,
-                                        &mut ui_state,
-                                        action,
-                                    );
+                                    if action == crate::ui::menu::MenuAction::ViceConnect {
+                                        if let Ok(client) = crate::vice::ViceClient::connect(
+                                            "127.0.0.1:6502",
+                                            event_tx.clone(),
+                                        ) {
+                                            app_state.vice_client = Some(client);
+                                        } else {
+                                            ui_state
+                                                .set_status_message("Failed to connect to VICE");
+                                        }
+                                    } else if action == crate::ui::menu::MenuAction::ViceDisconnect
+                                    {
+                                        app_state.vice_client = None;
+                                        app_state.vice_state.connected = false;
+                                        ui_state.set_status_message("Disconnected from VICE");
+                                    } else if action == crate::ui::menu::MenuAction::ViceStep {
+                                        if let Some(client) = &app_state.vice_client {
+                                            client.send_advance_instruction();
+                                        }
+                                    } else {
+                                        crate::ui::menu::handle_menu_action(
+                                            &mut app_state,
+                                            &mut ui_state,
+                                            action,
+                                        );
+                                    }
                                 }
                             }
                             if ui_state.should_quit {
@@ -98,11 +184,30 @@ pub fn run_app<B: Backend>(
                                 &mut ui_state,
                             );
                             if let crate::ui::widget::WidgetResult::Action(action) = result {
-                                crate::ui::menu::handle_menu_action(
-                                    &mut app_state,
-                                    &mut ui_state,
-                                    action,
-                                );
+                                if action == crate::ui::menu::MenuAction::ViceConnect {
+                                    if let Ok(client) = crate::vice::ViceClient::connect(
+                                        "127.0.0.1:6502",
+                                        event_tx.clone(),
+                                    ) {
+                                        app_state.vice_client = Some(client);
+                                    } else {
+                                        ui_state.set_status_message("Failed to connect to VICE");
+                                    }
+                                } else if action == crate::ui::menu::MenuAction::ViceDisconnect {
+                                    app_state.vice_client = None;
+                                    app_state.vice_state.connected = false;
+                                    ui_state.set_status_message("Disconnected from VICE");
+                                } else if action == crate::ui::menu::MenuAction::ViceStep {
+                                    if let Some(client) = &app_state.vice_client {
+                                        client.send_advance_instruction();
+                                    }
+                                } else {
+                                    crate::ui::menu::handle_menu_action(
+                                        &mut app_state,
+                                        &mut ui_state,
+                                        action,
+                                    );
+                                }
                             }
                             // Confirmation dialog removed (generic)
                             // Origin dialog removed (generic)
@@ -152,11 +257,32 @@ pub fn run_app<B: Backend>(
                                     // Event handled, will render below
                                 }
                                 WidgetResult::Action(action) => {
-                                    crate::ui::menu::handle_menu_action(
-                                        &mut app_state,
-                                        &mut ui_state,
-                                        action,
-                                    );
+                                    if action == crate::ui::menu::MenuAction::ViceConnect {
+                                        if let Ok(client) = crate::vice::ViceClient::connect(
+                                            "127.0.0.1:6502",
+                                            event_tx.clone(),
+                                        ) {
+                                            app_state.vice_client = Some(client);
+                                        } else {
+                                            ui_state
+                                                .set_status_message("Failed to connect to VICE");
+                                        }
+                                    } else if action == crate::ui::menu::MenuAction::ViceDisconnect
+                                    {
+                                        app_state.vice_client = None;
+                                        app_state.vice_state.connected = false;
+                                        ui_state.set_status_message("Disconnected from VICE");
+                                    } else if action == crate::ui::menu::MenuAction::ViceStep {
+                                        if let Some(client) = &app_state.vice_client {
+                                            client.send_advance_instruction();
+                                        }
+                                    } else {
+                                        crate::ui::menu::handle_menu_action(
+                                            &mut app_state,
+                                            &mut ui_state,
+                                            action,
+                                        );
+                                    }
                                 }
                                 WidgetResult::Ignored => {
                                     // Try global input handler
@@ -215,11 +341,34 @@ pub fn run_app<B: Backend>(
                                     crate::ui::widget::WidgetResult::Action(action) => {
                                         ui_state.active_dialog = Some(dialog);
                                         should_render = true;
-                                        crate::ui::menu::handle_menu_action(
-                                            &mut app_state,
-                                            &mut ui_state,
-                                            action,
-                                        );
+                                        if action == crate::ui::menu::MenuAction::ViceConnect {
+                                            if let Ok(client) = crate::vice::ViceClient::connect(
+                                                "127.0.0.1:6502",
+                                                event_tx.clone(),
+                                            ) {
+                                                app_state.vice_client = Some(client);
+                                            } else {
+                                                ui_state.set_status_message(
+                                                    "Failed to connect to VICE",
+                                                );
+                                            }
+                                        } else if action
+                                            == crate::ui::menu::MenuAction::ViceDisconnect
+                                        {
+                                            app_state.vice_client = None;
+                                            app_state.vice_state.connected = false;
+                                            ui_state.set_status_message("Disconnected from VICE");
+                                        } else if action == crate::ui::menu::MenuAction::ViceStep {
+                                            if let Some(client) = &app_state.vice_client {
+                                                client.send_advance_instruction();
+                                            }
+                                        } else {
+                                            crate::ui::menu::handle_menu_action(
+                                                &mut app_state,
+                                                &mut ui_state,
+                                                action,
+                                            );
+                                        }
                                     }
                                 }
                                 if ui_state.should_quit {
@@ -339,11 +488,31 @@ pub fn run_app<B: Backend>(
                             }
 
                             if let crate::ui::widget::WidgetResult::Action(action) = widget_result {
-                                crate::ui::menu::handle_menu_action(
-                                    &mut app_state,
-                                    &mut ui_state,
-                                    action,
-                                );
+                                if action == crate::ui::menu::MenuAction::ViceConnect {
+                                    if let Ok(client) = crate::vice::ViceClient::connect(
+                                        "127.0.0.1:6502",
+                                        event_tx.clone(),
+                                    ) {
+                                        client.send_registers_get(); // This will pause execution and yield the PC
+                                        app_state.vice_client = Some(client);
+                                    } else {
+                                        ui_state.set_status_message("Failed to connect to VICE");
+                                    }
+                                } else if action == crate::ui::menu::MenuAction::ViceDisconnect {
+                                    app_state.vice_client = None;
+                                    app_state.vice_state.connected = false;
+                                    ui_state.set_status_message("Disconnected from VICE");
+                                } else if action == crate::ui::menu::MenuAction::ViceStep {
+                                    if let Some(client) = &app_state.vice_client {
+                                        client.send_advance_instruction();
+                                    }
+                                } else {
+                                    crate::ui::menu::handle_menu_action(
+                                        &mut app_state,
+                                        &mut ui_state,
+                                        action,
+                                    );
+                                }
                             }
 
                             if ui_state.should_quit {
