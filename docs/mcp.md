@@ -1,6 +1,6 @@
 # MCP Integration
 
-Regenerator 2000 supports the **Model Context Protocol (MCP)**, allowing AI agents like **Claude Desktop**, **Claude Code**, and **Gemini CLI** to interact directly with your analysis project.
+Regenerator 2000 supports the **Model Context Protocol (MCP)**, allowing AI agents like **Antigravity**, **Claude Code**, and **Gemini CLI** to interact directly with your analysis project.
 
 Through the MCP server, an AI assistant can:
 
