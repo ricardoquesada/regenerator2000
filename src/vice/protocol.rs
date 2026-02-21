@@ -22,6 +22,7 @@ impl ViceCommand {
     pub const CHECKPOINT_LIST: u8 = 0x14;
     pub const REGISTERS_GET: u8 = 0x31;
     pub const ADVANCE_INSTRUCTION: u8 = 0x71;
+    pub const EXECUTE_UNTIL_RETURN: u8 = 0x73;
     pub const EXIT_MONITOR: u8 = 0xaa; // Resume/continue execution (MON_CMD_EXIT)
     pub const PING: u8 = 0x81;
 

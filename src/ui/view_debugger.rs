@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui_state::{ActivePane, MenuAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -223,6 +223,10 @@ impl Widget for DebuggerView {
                 Span::styled("  F11 ", label_style),
                 Span::styled("Step over", dim_style),
             ]),
+            Line::from(vec![
+                Span::styled("  S-F11", label_style),
+                Span::styled("Step out", dim_style),
+            ]),
         ]);
 
         let para = Paragraph::new(lines);
@@ -237,8 +241,15 @@ impl Widget for DebuggerView {
     ) -> WidgetResult {
         match key.code {
             KeyCode::F(5) => WidgetResult::Action(MenuAction::ViceContinue),
+            KeyCode::F(8) => WidgetResult::Action(MenuAction::ViceRunToCursor),
+            KeyCode::F(9) => WidgetResult::Action(MenuAction::ViceToggleBreakpoint),
             KeyCode::F(10) => WidgetResult::Action(MenuAction::ViceStep),
-            KeyCode::F(11) => WidgetResult::Action(MenuAction::ViceStepOver),
+            KeyCode::F(11) if key.modifiers.is_empty() => {
+                WidgetResult::Action(MenuAction::ViceStepOver)
+            }
+            KeyCode::F(11) if key.modifiers == KeyModifiers::SHIFT => {
+                WidgetResult::Action(MenuAction::ViceStepOut)
+            }
             _ => WidgetResult::Ignored,
         }
     }

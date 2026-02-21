@@ -130,10 +130,15 @@ pub fn run_app<B: Backend>(
                                                 i.saturating_sub(1)
                                                     .min(app_state.disassembly.len() - 1)
                                             });
+                                        let sub_idx = crate::ui::view_disassembly::DisassemblyView::get_sub_index_for_address(
+                                            &app_state.disassembly[idx],
+                                            &app_state,
+                                            pc,
+                                        );
                                         ui_state.cursor_index = idx;
-                                        ui_state.sub_cursor_index = 0;
+                                        ui_state.sub_cursor_index = sub_idx;
                                         ui_state.scroll_index = idx;
-                                        ui_state.scroll_sub_index = 0;
+                                        ui_state.scroll_sub_index = sub_idx;
                                     }
 
                                     // Request live memory around the PC for live disassembly.

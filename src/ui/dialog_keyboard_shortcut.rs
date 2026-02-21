@@ -27,7 +27,7 @@ impl ShortcutsDialog {
     fn get_shortcuts() -> Vec<(&'static str, &'static str)> {
         vec![
             ("General", ""),
-            ("F10", "Activate Menu"),
+            ("F10", "Activate Main Menu"),
             ("Ctrl+q", "Quit"),
             ("Ctrl+o", "Open File"),
             ("Alt+o (Ctrl+Shift+o)", "Open Recent Projects"),
@@ -91,6 +91,14 @@ impl ShortcutsDialog {
             ("|", "Toggle Splitter"),
             ("Ctrl+a", "Analyze"),
             ("Ctrl+k", "Toggle Collapsed Block"),
+            ("", ""),
+            ("Debugger", ""),
+            ("F2", "Toggle Breakpoint"),
+            ("F4", "Run to Cursor"),
+            ("F7", "Step Instruction"),
+            ("F8", "Step Over"),
+            ("Shift+F8", "Step Out"),
+            ("F9", "Run / Pause (Continue)"),
             ("", ""),
             ("Editing (Hex Dump, Sprites, Charset, Bitmap)", ""),
             ("Shift+v", "Toggle Visual Selection Mode"),

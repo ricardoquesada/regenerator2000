@@ -1740,6 +1740,9 @@ impl Widget for DisassemblyView {
             KeyCode::F(11) if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::ViceStepOver)
             }
+            KeyCode::F(11) if key.modifiers == KeyModifiers::SHIFT => {
+                WidgetResult::Action(MenuAction::ViceStepOut)
+            }
             _ => {
                 // Check if modifiers contain CONTROL
                 if key.modifiers.contains(KeyModifiers::CONTROL)

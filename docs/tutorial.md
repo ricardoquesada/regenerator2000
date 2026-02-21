@@ -164,7 +164,7 @@ Once you are done (or want to test your changes), export the project to a source
 
 Want to step through your code in the VICE emulator with your new labels?
 
-- Go to **Menu** (`F10`) -> **File** -> **Export VICE labels...**.
+- Go to **Menu** -> **File** -> **Export VICE labels...**.
 - Load this labels file in VICE to see `main_loop` in the emulator's monitor!
 
 ---

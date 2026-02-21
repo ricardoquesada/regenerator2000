@@ -9,7 +9,31 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Exit);
         }
-        KeyCode::F(5) => {
+        KeyCode::F(2) => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::ViceToggleBreakpoint,
+            );
+        }
+        KeyCode::F(4) => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::ViceRunToCursor,
+            );
+        }
+        KeyCode::F(7) => {
+            handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::ViceStep);
+        }
+        KeyCode::F(8) if key.modifiers.is_empty() => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::ViceStepOver,
+            );
+        }
+        KeyCode::F(9) => {
             handle_menu_action(
                 app_state,
                 ui_state,
@@ -21,18 +45,11 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             ui_state.menu.select_first_enabled_item();
             ui_state.set_status_message("Menu Active");
         }
-        KeyCode::F(9) => {
+        KeyCode::F(8) if key.modifiers == KeyModifiers::SHIFT => {
             handle_menu_action(
                 app_state,
                 ui_state,
-                crate::ui_state::MenuAction::ViceToggleBreakpoint,
-            );
-        }
-        KeyCode::F(11) => {
-            handle_menu_action(
-                app_state,
-                ui_state,
-                crate::ui_state::MenuAction::ViceStepOver,
+                crate::ui_state::MenuAction::ViceStepOut,
             );
         }
         KeyCode::Char('f') if key.modifiers == KeyModifiers::ALT => {

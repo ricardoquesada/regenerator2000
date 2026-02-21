@@ -11,9 +11,9 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 
 | Context                            | Action                                                                                  | Shortcut                                                      |
 | :--------------------------------- | :-------------------------------------------------------------------------------------- | :------------------------------------------------------------ |
-| **Global**                         | **Activate Menu**                                                                       | ++f10++                                                       |
-|                                    | **Exit**                                                                                | ++ctrl+q++                                                    |
-|                                    | **Open File**                                                                           | ++ctrl+o++                                                    |
+| **General**                        | **Activate Main Menu**                                                                  | ++f10++                                                       |
+|                                    | **Quit**                                                                                | ++ctrl+q++                                                    |
+| **General**                        | **Open File**                                                                           | ++ctrl+o++                                                    |
 |                                    | **Save Project**                                                                        | ++ctrl+s++                                                    |
 |                                    | **Save Project As**                                                                     | ++alt+s++ or ++ctrl+shift+s++                                 |
 |                                    | **Export Project (ASM)**                                                                | ++ctrl+e++                                                    |
@@ -77,6 +77,12 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Jump to Disassembly + update cursor**                                                 | ++enter++                                                     |
 | **View: Blocks**                   | **Toggle Collapsed Block**                                                              | ++ctrl+k++                                                    |
 |                                    | **Jump to Disassembly + update cursor**                                                 | ++enter++                                                     |
+| **Debugger**                       | **Toggle Breakpoint**                                                                   | ++f2++                                                        |
+|                                    | **Run to Cursor**                                                                       | ++f4++                                                        |
+|                                    | **Step Instruction**                                                                    | ++f7++                                                        |
+|                                    | **Step Over**                                                                           | ++f8++                                                        |
+|                                    | **Step Out**                                                                            | ++shift+f8++                                                  |
+|                                    | **Run / Pause (Continue)**                                                              | ++f9++                                                        |
 | **Menus**                          | **Navigate Menu**                                                                       | ++arrow-up++, ++arrow-down++, ++arrow-left++, ++arrow-right++ |
 |                                    | **Select Item**                                                                         | ++enter++                                                     |
 |                                    | **Close Menu**                                                                          | ++escape++                                                    |

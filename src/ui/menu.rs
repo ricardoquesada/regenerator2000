@@ -79,6 +79,7 @@ pub enum MenuAction {
     ViceStep,
     ViceContinue,
     ViceStepOver,
+    ViceStepOut,
     ViceRunToCursor,
     ViceToggleBreakpoint,
     ToggleDebuggerView,
@@ -98,6 +99,7 @@ impl MenuAction {
                 | MenuAction::ToggleDebuggerView
                 | MenuAction::ViceContinue
                 | MenuAction::ViceStepOver
+                | MenuAction::ViceStepOut
                 | MenuAction::ViceRunToCursor
                 | MenuAction::ViceToggleBreakpoint
         )
@@ -580,17 +582,18 @@ impl MenuState {
                             Some(MenuAction::ViceDisconnect),
                         ),
                         MenuItem::separator(),
-                        MenuItem::new("Step Instruction", Some("F10"), Some(MenuAction::ViceStep)),
-                        MenuItem::new("Step Over", Some("F11"), Some(MenuAction::ViceStepOver)),
-                        MenuItem::new("Continue", Some("F5"), Some(MenuAction::ViceContinue)),
+                        MenuItem::new("Step Instruction", Some("F7"), Some(MenuAction::ViceStep)),
+                        MenuItem::new("Step Over", Some("F8"), Some(MenuAction::ViceStepOver)),
+                        MenuItem::new("Step Out", Some("Shift+F8"), Some(MenuAction::ViceStepOut)),
+                        MenuItem::new("Continue", Some("F9"), Some(MenuAction::ViceContinue)),
                         MenuItem::new(
                             "Run to Cursor",
-                            Some("F8"),
+                            Some("F4"),
                             Some(MenuAction::ViceRunToCursor),
                         ),
                         MenuItem::new(
                             "Toggle Breakpoint",
-                            Some("F9"),
+                            Some("F2"),
                             Some(MenuAction::ViceToggleBreakpoint),
                         ),
                         MenuItem::separator(),
@@ -749,6 +752,18 @@ impl MenuState {
                             | MenuAction::FindReferences
                             | MenuAction::ToggleBookmark => {
                                 item.disabled = active_pane != ActivePane::Disassembly;
+                            }
+                            MenuAction::ViceConnect => {
+                                item.disabled = app_state.vice_client.is_some();
+                            }
+                            MenuAction::ViceDisconnect
+                            | MenuAction::ViceStep
+                            | MenuAction::ViceStepOver
+                            | MenuAction::ViceStepOut
+                            | MenuAction::ViceContinue
+                            | MenuAction::ViceRunToCursor
+                            | MenuAction::ViceToggleBreakpoint => {
+                                item.disabled = app_state.vice_client.is_none();
                             }
                             _ => item.disabled = false,
                         }
@@ -1617,10 +1632,71 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Not connected to VICE");
             }
         }
+        MenuAction::ViceStepOut => {
+            if let Some(client) = &app_state.vice_client {
+                if let Some(target) = app_state.vice_state.get_return_address() {
+                    client.send_checkpoint_set_exec_temp(target);
+                    client.send_continue();
+                    ui_state
+                        .set_status_message(format!("VICE: Stepping out to ${:04X}...", target));
+                } else {
+                    ui_state.set_status_message("VICE: SP/Stack unavailable for Step Out");
+                }
+            } else {
+                ui_state.set_status_message("Not connected to VICE");
+            }
+        }
         MenuAction::ViceRunToCursor => {
             if let Some(client) = &app_state.vice_client {
-                if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                    let addr = line.address;
+                let target_addr = match ui_state.active_pane {
+                    ActivePane::Disassembly => app_state
+                        .disassembly
+                        .get(ui_state.cursor_index)
+                        .map(|l| l.address),
+                    ActivePane::HexDump => {
+                        let origin = app_state.origin as usize;
+                        let alignment_padding = origin % 16;
+                        let aligned_origin = origin - alignment_padding;
+                        Some((aligned_origin + ui_state.hex_cursor_index * 16) as u16)
+                    }
+                    ActivePane::Sprites => {
+                        let origin = app_state.origin as usize;
+                        let padding = (64 - (origin % 64)) % 64;
+                        Some((origin + padding + ui_state.sprites_cursor_index * 64) as u16)
+                    }
+                    ActivePane::Charset => {
+                        let origin = app_state.origin as usize;
+                        let base_alignment = 0x400;
+                        let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                        Some((aligned_start_addr + ui_state.charset_cursor_index * 8) as u16)
+                    }
+                    ActivePane::Bitmap => {
+                        let origin = app_state.origin as usize;
+                        let first_aligned_addr = ((origin / 8192) * 8192)
+                            + if origin.is_multiple_of(8192) { 0 } else { 8192 };
+                        Some((first_aligned_addr + ui_state.bitmap_cursor_index * 8192) as u16)
+                    }
+                    ActivePane::Blocks => {
+                        let blocks = app_state.get_blocks_view_items();
+                        let idx = ui_state.blocks_list_state.selected().unwrap_or(0);
+                        if idx < blocks.len() {
+                            match blocks[idx] {
+                                crate::state::BlockItem::Block { start, .. } => {
+                                    Some(app_state.origin.wrapping_add(start))
+                                }
+                                crate::state::BlockItem::Splitter(addr) => Some(addr),
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    ActivePane::Debugger => app_state
+                        .disassembly
+                        .get(ui_state.cursor_index)
+                        .map(|l| l.address),
+                };
+
+                if let Some(addr) = target_addr {
                     client.send_checkpoint_set_exec_temp(addr);
                     client.send_continue();
                     ui_state.set_status_message(format!("VICE: Running to ${:04X}...", addr));
