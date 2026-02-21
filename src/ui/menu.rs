@@ -80,6 +80,7 @@ pub enum MenuAction {
     ViceContinue,
     ViceStepOver,
     ViceRunToCursor,
+    ViceToggleBreakpoint,
     ToggleDebuggerView,
 }
 
@@ -98,6 +99,7 @@ impl MenuAction {
                 | MenuAction::ViceContinue
                 | MenuAction::ViceStepOver
                 | MenuAction::ViceRunToCursor
+                | MenuAction::ViceToggleBreakpoint
         )
     }
 }
@@ -585,6 +587,11 @@ impl MenuState {
                             "Run to Cursor",
                             Some("F8"),
                             Some(MenuAction::ViceRunToCursor),
+                        ),
+                        MenuItem::new(
+                            "Toggle Breakpoint",
+                            Some("F9"),
+                            Some(MenuAction::ViceToggleBreakpoint),
                         ),
                         MenuItem::separator(),
                         MenuItem::new(
@@ -1617,6 +1624,35 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     client.send_checkpoint_set_exec_temp(addr);
                     client.send_continue();
                     ui_state.set_status_message(format!("VICE: Running to ${:04X}...", addr));
+                }
+            } else {
+                ui_state.set_status_message("Not connected to VICE");
+            }
+        }
+        MenuAction::ViceToggleBreakpoint => {
+            if let Some(client) = &app_state.vice_client {
+                // Find cursor address from disassembly
+                let cursor_addr = app_state
+                    .disassembly
+                    .get(ui_state.cursor_index)
+                    .map(|l| l.address);
+                if let Some(addr) = cursor_addr {
+                    if let Some(pos) = app_state
+                        .vice_state
+                        .breakpoints
+                        .iter()
+                        .position(|bp| bp.address == addr)
+                    {
+                        // Remove existing breakpoint
+                        let id = app_state.vice_state.breakpoints[pos].id;
+                        client.send_checkpoint_delete(id);
+                        app_state.vice_state.breakpoints.remove(pos);
+                        ui_state.set_status_message(format!("Breakpoint removed at ${:04X}", addr));
+                    } else {
+                        // Set new persistent breakpoint — will be added to list on response
+                        client.send_checkpoint_set_exec(addr);
+                        ui_state.set_status_message(format!("Breakpoint set at ${:04X}", addr));
+                    }
                 }
             } else {
                 ui_state.set_status_message("Not connected to VICE");

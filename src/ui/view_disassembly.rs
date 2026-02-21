@@ -1342,8 +1342,11 @@ impl Widget for DisassemblyView {
 
             let is_bookmarked = app_state.bookmarks.contains_key(&line.address);
             let is_pc = app_state.vice_state.pc == Some(line.address);
+            let has_breakpoint = app_state.vice_state.has_breakpoint_at(line.address);
             let gutter = if is_pc {
                 "  >  "
+            } else if has_breakpoint {
+                "  ●  "
             } else if is_bookmarked {
                 "  *  "
             } else {
@@ -1353,6 +1356,10 @@ impl Widget for DisassemblyView {
             let gutter_style = if is_pc {
                 base_style
                     .fg(ui_state.theme.border_active)
+                    .add_modifier(Modifier::BOLD)
+            } else if has_breakpoint {
+                base_style
+                    .fg(ui_state.theme.error_fg)
                     .add_modifier(Modifier::BOLD)
             } else if is_bookmarked {
                 base_style.fg(ui_state.theme.label)
@@ -1715,6 +1722,9 @@ impl Widget for DisassemblyView {
             }
             KeyCode::F(8) if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::ViceRunToCursor)
+            }
+            KeyCode::F(9) if key.modifiers.is_empty() => {
+                WidgetResult::Action(MenuAction::ViceToggleBreakpoint)
             }
             KeyCode::F(11) if key.modifiers.is_empty() => {
                 WidgetResult::Action(MenuAction::ViceStepOver)

@@ -56,6 +56,10 @@ pub fn run_app<B: Backend>(
                             ui_state.right_pane = crate::ui_state::RightPane::Debugger;
                             ui_state.active_pane = ActivePane::Debugger;
                         }
+                        // Sync existing breakpoints from VICE (e.g. set in a previous session)
+                        if let Some(client) = &app_state.vice_client {
+                            client.send_checkpoint_list();
+                        }
                         ui_state.set_status_message("Connected to VICE Monitor");
                     }
                     crate::vice::ViceEvent::Disconnected(reason) => {
@@ -115,22 +119,34 @@ pub fn run_app<B: Backend>(
                                     app_state.vice_state.pc = Some(pc);
                                     ui_state.set_status_message(format!("VICE PC: ${:04X}", pc));
 
-                                    if let Ok(idx) = app_state
-                                        .disassembly
-                                        .binary_search_by_key(&pc, |l| l.address)
-                                    {
+                                    // Jump static disassembly cursor + scroll to PC.
+                                    // unwrap_or_else(|i| i-1) finds the containing instruction
+                                    // when PC is mid-instruction or in a data region.
+                                    if !app_state.disassembly.is_empty() {
+                                        let idx = app_state
+                                            .disassembly
+                                            .binary_search_by_key(&pc, |l| l.address)
+                                            .unwrap_or_else(|i| {
+                                                i.saturating_sub(1)
+                                                    .min(app_state.disassembly.len() - 1)
+                                            });
                                         ui_state.cursor_index = idx;
+                                        ui_state.sub_cursor_index = 0;
+                                        ui_state.scroll_index = idx;
+                                        ui_state.scroll_sub_index = 0;
                                     }
 
                                     // Request live memory around the PC for live disassembly.
                                     // Fetch 32 bytes before PC and 96 bytes after (128 total window).
                                     // This covers roughly 40+ instructions around the current PC.
+                                    // Also fetch the stack page ($0100–$01FF) for the stack view.
                                     if let Some(client) = &app_state.vice_client {
                                         let before: u16 = 32;
                                         let after: u16 = 95;
                                         let mem_start = pc.saturating_sub(before);
                                         let mem_end = pc.saturating_add(after);
                                         client.send_memory_get(mem_start, mem_end);
+                                        client.send_memory_get(0x0100, 0x01FF);
                                     }
                                 } else {
                                     ui_state.set_status_message(
@@ -148,10 +164,64 @@ pub fn run_app<B: Backend>(
                                 let mem_len = u16::from_le_bytes([payload[2], payload[3]]) as usize;
                                 if payload.len() >= 4 + mem_len && mem_len > 0 {
                                     let bytes = payload[4..4 + mem_len].to_vec();
-                                    app_state.vice_state.live_memory_start = mem_start;
-                                    app_state.vice_state.live_memory = Some(bytes);
+                                    if mem_start == 0x0100 {
+                                        // Stack page response ($0100–$01FF)
+                                        app_state.vice_state.stack_memory = Some(bytes);
+                                    } else {
+                                        // Live disassembly window around PC
+                                        app_state.vice_state.live_memory_start = mem_start;
+                                        app_state.vice_state.live_memory = Some(bytes);
+                                    }
                                 }
                             }
+                        } else if (msg.command == crate::vice::ViceCommand::CHECKPOINT_SET
+                            || msg.command == crate::vice::ViceCommand::CHECKPOINT_GET)
+                            && msg.error_code == 0
+                        {
+                            // CHECKPOINT_SET (0x12) and CHECKPOINT_GET (0x11) both carry the
+                            // same checkpoint_info body:
+                            //   id(4) start(2) end(2) stop(1) enabled(1) cpu_op(1) temporary(1)
+                            //   hit_count(4) ignore_count(4) has_cond(1) — 21 bytes total
+                            //
+                            // VICE uses 0x11 for:
+                            //   - Individual responses after a CHECKPOINT_LIST request
+                            //   - CHECKPOINT_SET acknowledgment in some VICE versions
+                            // VICE uses 0x12 for:
+                            //   - CHECKPOINT_SET acknowledgment in other VICE versions
+                            // Handling both here makes us robust to all versions.
+                            let p = &msg.payload;
+                            if p.len() >= 12 {
+                                let id = u32::from_le_bytes([p[0], p[1], p[2], p[3]]);
+                                let addr = u16::from_le_bytes([p[4], p[5]]);
+                                let enabled = p[9] != 0;
+                                let temporary = p[11] != 0;
+                                // Only track persistent breakpoints (not run-to-cursor temps)
+                                if !temporary {
+                                    // Avoid duplicates (e.g. if both 0x11 and 0x12 arrive for same checkpoint)
+                                    if !app_state
+                                        .vice_state
+                                        .breakpoints
+                                        .iter()
+                                        .any(|bp| bp.id == id)
+                                    {
+                                        app_state.vice_state.breakpoints.push(
+                                            crate::vice::state::ViceBreakpoint {
+                                                id,
+                                                address: addr,
+                                                enabled,
+                                            },
+                                        );
+                                    }
+                                }
+                            }
+                        } else if msg.command == crate::vice::ViceCommand::CHECKPOINT_LIST
+                            && msg.error_code == 0
+                        {
+                            // CHECKPOINT_LIST response: just a count (4 bytes).
+                            // VICE then sends individual CHECKPOINT_GET (0x11) responses for each
+                            // checkpoint — those are handled above. Clear the list here so the
+                            // incoming 0x11 responses repopulate it cleanly.
+                            app_state.vice_state.breakpoints.clear();
                         } else if msg.command == crate::vice::ViceCommand::STOPPED {
                             // CPU stopped (step complete, step-over complete, or checkpoint hit).
                             // Fetch registers so the debugger panel and live view update.
@@ -171,9 +241,7 @@ pub fn run_app<B: Backend>(
                             // Silence known commands that need no further handling
                             let silent = matches!(
                                 msg.command,
-                                crate::vice::ViceCommand::CHECKPOINT_SET
-                                    | crate::vice::ViceCommand::CHECKPOINT_DELETE
-                                    | crate::vice::ViceCommand::CHECKPOINT_GET
+                                crate::vice::ViceCommand::CHECKPOINT_DELETE
                                     | crate::vice::ViceCommand::RESUMED
                                     | crate::vice::ViceCommand::EXIT_MONITOR
                             );

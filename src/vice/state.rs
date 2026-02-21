@@ -1,3 +1,10 @@
+#[derive(Debug, Clone)]
+pub struct ViceBreakpoint {
+    pub id: u32,
+    pub address: u16,
+    pub enabled: bool,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct ViceState {
     pub connected: bool,
@@ -12,6 +19,12 @@ pub struct ViceState {
     // Live memory snapshot: bytes fetched from VICE via MEMORY_GET
     pub live_memory: Option<Vec<u8>>,
     pub live_memory_start: u16, // the address that live_memory[0] corresponds to
+
+    // Stack page snapshot ($0100–$01FF), fetched after each step
+    pub stack_memory: Option<Vec<u8>>,
+
+    // Persistent breakpoints (excludes temporary run-to-cursor checkpoints)
+    pub breakpoints: Vec<ViceBreakpoint>,
 }
 
 impl ViceState {
@@ -27,6 +40,8 @@ impl ViceState {
             status: "Disconnected".to_string(),
             live_memory: None,
             live_memory_start: 0,
+            stack_memory: None,
+            breakpoints: Vec::new(),
         }
     }
 
@@ -39,5 +54,12 @@ impl ViceState {
         self.p = None;
         self.live_memory = None;
         self.live_memory_start = 0;
+        self.stack_memory = None;
+        self.breakpoints.clear();
+    }
+
+    /// Returns true if there is a persistent breakpoint at `addr`.
+    pub fn has_breakpoint_at(&self, addr: u16) -> bool {
+        self.breakpoints.iter().any(|bp| bp.address == addr)
     }
 }

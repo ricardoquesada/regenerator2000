@@ -85,7 +85,7 @@ impl Widget for DebuggerView {
             .fg(theme.label)
             .add_modifier(Modifier::BOLD);
 
-        let lines: Vec<Line> = vec![
+        let mut lines: Vec<Line> = vec![
             Line::from(Span::styled(status_text, status_style)),
             Line::from(""),
             Line::from(Span::styled("CPU Registers", heading_style)),
@@ -119,6 +119,89 @@ impl Widget for DebuggerView {
                 Span::styled(p_bits_str, dim_style),
             ]),
             Line::from(""),
+            Line::from(Span::styled("Breakpoints", heading_style)),
+        ];
+
+        if vs.breakpoints.is_empty() {
+            lines.push(Line::from(Span::styled("  (none)", dim_style)));
+        } else {
+            for bp in &vs.breakpoints {
+                let bp_style = if bp.enabled {
+                    Style::default()
+                        .fg(ui_state.theme.error_fg)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    dim_style
+                };
+                let flag = if bp.enabled { "●" } else { "○" };
+                lines.push(Line::from(vec![
+                    Span::styled(format!("  {} ", flag), bp_style),
+                    Span::styled(format!("#{:<3}", bp.id), dim_style),
+                    Span::styled(format!("${:04X}", bp.address), value_style),
+                ]));
+            }
+        }
+
+        // Stack view
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled("Stack", heading_style)));
+
+        if let (Some(sp), Some(stack_mem)) = (vs.sp, &vs.stack_memory) {
+            let sp_addr = 0x0100u16 + sp as u16;
+            lines.push(Line::from(vec![
+                Span::styled("  SP  ", label_style),
+                Span::styled(format!("${:02X}", sp), value_style),
+                Span::styled(format!("  →${:04X}", sp_addr), dim_style),
+            ]));
+
+            // Show up to 5 entries above SP (the used stack), from top (SP+1) downward
+            let top = 0x01FFu16;
+            let stack_top_addr = sp_addr.saturating_add(1);
+            if stack_top_addr > top {
+                lines.push(Line::from(Span::styled("  (empty)", dim_style)));
+            } else {
+                let max_entries = 5usize;
+                let entries_available = (top - stack_top_addr + 1) as usize;
+                let count = max_entries.min(entries_available);
+                for i in 0..count {
+                    let entry_addr = stack_top_addr + i as u16;
+                    let byte_idx = (entry_addr - 0x0100) as usize;
+                    let byte = stack_mem.get(byte_idx).copied();
+                    let is_top = i == 0;
+                    let addr_span = Span::styled(
+                        format!("  ${:04X}  ", entry_addr),
+                        if is_top { value_style } else { dim_style },
+                    );
+                    let val_span = match byte {
+                        Some(b) => Span::styled(
+                            format!("${:02X}", b),
+                            if is_top { value_style } else { dim_style },
+                        ),
+                        None => Span::styled("??", dim_style),
+                    };
+                    if is_top {
+                        lines.push(Line::from(vec![
+                            addr_span,
+                            val_span,
+                            Span::styled("  ← top", dim_style),
+                        ]));
+                    } else {
+                        lines.push(Line::from(vec![addr_span, val_span]));
+                    }
+                }
+                if entries_available > max_entries {
+                    lines.push(Line::from(Span::styled(
+                        format!("  … {} more", entries_available - max_entries),
+                        dim_style,
+                    )));
+                }
+            }
+        } else {
+            lines.push(Line::from(Span::styled("  (no data)", dim_style)));
+        }
+
+        lines.extend([
+            Line::from(""),
             Line::from(Span::styled("Controls", heading_style)),
             Line::from(vec![
                 Span::styled("  F5  ", label_style),
@@ -129,6 +212,10 @@ impl Widget for DebuggerView {
                 Span::styled("Run to cursor", dim_style),
             ]),
             Line::from(vec![
+                Span::styled("  F9  ", label_style),
+                Span::styled("Toggle breakpoint", dim_style),
+            ]),
+            Line::from(vec![
                 Span::styled("  F10 ", label_style),
                 Span::styled("Step into", dim_style),
             ]),
@@ -136,7 +223,7 @@ impl Widget for DebuggerView {
                 Span::styled("  F11 ", label_style),
                 Span::styled("Step over", dim_style),
             ]),
-        ];
+        ]);
 
         let para = Paragraph::new(lines);
         f.render_widget(para, inner);

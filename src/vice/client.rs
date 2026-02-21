@@ -124,6 +124,32 @@ impl ViceClient {
         self.send(ViceMessage::new(ViceCommand::EXIT_MONITOR, vec![]));
     }
 
+    /// Request the full list of checkpoints from VICE (used on connect to sync state).
+    pub fn send_checkpoint_list(&self) {
+        self.send(ViceMessage::new(ViceCommand::CHECKPOINT_LIST, vec![]));
+    }
+
+    /// Set a persistent exec-only breakpoint at `addr`.
+    /// The response will contain the checkpoint number needed for deletion.
+    pub fn send_checkpoint_set_exec(&self, addr: u16) {
+        let mut payload = Vec::with_capacity(8);
+        payload.extend_from_slice(&addr.to_le_bytes()); // start_addr
+        payload.extend_from_slice(&addr.to_le_bytes()); // end_addr
+        payload.push(1); // stop_when_hit
+        payload.push(1); // enabled
+        payload.push(0x04); // cpu_operation: exec
+        payload.push(0); // temporary: persistent (keep after hit)
+        self.send(ViceMessage::new(ViceCommand::CHECKPOINT_SET, payload));
+    }
+
+    /// Delete a checkpoint by its ID (returned in the CHECKPOINT_SET response).
+    pub fn send_checkpoint_delete(&self, id: u32) {
+        self.send(ViceMessage::new(
+            ViceCommand::CHECKPOINT_DELETE,
+            id.to_le_bytes().to_vec(),
+        ));
+    }
+
     /// Set a temporary exec-only breakpoint at `addr` and auto-delete it after it's hit.
     /// Used for Run-to-Cursor (F8): set, continue, VICE stops at addr, checkpoint is gone.
     /// CHECKPOINT_SET payload: start_addr (2 LE), end_addr (2 LE),
