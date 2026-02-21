@@ -145,8 +145,11 @@ pub fn run_app<B: Backend>(
                                         let after: u16 = 95;
                                         let mem_start = pc.saturating_sub(before);
                                         let mem_end = pc.saturating_add(after);
-                                        client.send_memory_get(mem_start, mem_end);
-                                        client.send_memory_get(0x0100, 0x01FF);
+                                        client.send_memory_get(mem_start, mem_end, 1);
+                                        client.send_memory_get(0x0100, 0x01FF, 2);
+                                        // Also store mem_start temporarily in vice_state or just calculate it
+                                        // We can store it directly when sending, or reconstruct it on receive.
+                                        app_state.vice_state.live_memory_start = mem_start;
                                     }
                                 } else {
                                     ui_state.set_status_message(
@@ -157,19 +160,18 @@ pub fn run_app<B: Backend>(
                         } else if msg.command == crate::vice::ViceCommand::MEMORY_GET
                             && msg.error_code == 0
                         {
-                            // MEMORY_GET response payload: start_addr (2 LE) + length (2 LE) + bytes
+                            // MEMORY_GET response payload: length (2 LE) + bytes
                             let payload = &msg.payload;
-                            if payload.len() >= 4 {
-                                let mem_start = u16::from_le_bytes([payload[0], payload[1]]);
-                                let mem_len = u16::from_le_bytes([payload[2], payload[3]]) as usize;
-                                if payload.len() >= 4 + mem_len && mem_len > 0 {
-                                    let bytes = payload[4..4 + mem_len].to_vec();
-                                    if mem_start == 0x0100 {
+                            if payload.len() >= 2 {
+                                let mem_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
+                                if payload.len() >= 2 + mem_len && mem_len > 0 {
+                                    let bytes = payload[2..2 + mem_len].to_vec();
+                                    if msg.request_id == 2 {
                                         // Stack page response ($0100–$01FF)
                                         app_state.vice_state.stack_memory = Some(bytes);
-                                    } else {
+                                    } else if msg.request_id == 1 {
                                         // Live disassembly window around PC
-                                        app_state.vice_state.live_memory_start = mem_start;
+                                        // live_memory_start was saved when the request was sent
                                         app_state.vice_state.live_memory = Some(bytes);
                                     }
                                 }
@@ -190,11 +192,11 @@ pub fn run_app<B: Backend>(
                             //   - CHECKPOINT_SET acknowledgment in other VICE versions
                             // Handling both here makes us robust to all versions.
                             let p = &msg.payload;
-                            if p.len() >= 12 {
+                            if p.len() >= 13 {
                                 let id = u32::from_le_bytes([p[0], p[1], p[2], p[3]]);
-                                let addr = u16::from_le_bytes([p[4], p[5]]);
-                                let enabled = p[9] != 0;
-                                let temporary = p[11] != 0;
+                                let addr = u16::from_le_bytes([p[5], p[6]]);
+                                let enabled = p[10] != 0;
+                                let temporary = p[12] != 0;
                                 // Only track persistent breakpoints (not run-to-cursor temps)
                                 if !temporary {
                                     // Avoid duplicates (e.g. if both 0x11 and 0x12 arrive for same checkpoint)

@@ -166,14 +166,17 @@ impl ViceClient {
         self.send(ViceMessage::new(ViceCommand::CHECKPOINT_SET, payload));
     }
 
-    /// Request a memory range from VICE.
-    /// MEMORY_GET payload: start_addr (2 LE) + end_addr (2 LE) + memory_space (1)
-    /// memory_space 0 = default (main C64 RAM)
-    pub fn send_memory_get(&self, start: u16, end: u16) {
-        let mut payload = Vec::with_capacity(5);
+    pub fn send_memory_get(&self, start: u16, end: u16, req_id: u32) {
+        let mut payload = Vec::with_capacity(8);
+        payload.push(0); // side effects: 0 = false
         payload.extend_from_slice(&start.to_le_bytes());
         payload.extend_from_slice(&end.to_le_bytes());
         payload.push(0); // memory_space 0 = main RAM
-        self.send(ViceMessage::new(ViceCommand::MEMORY_GET, payload));
+        payload.extend_from_slice(&0u16.to_le_bytes()); // bank ID
+        self.send(ViceMessage::with_id(
+            ViceCommand::MEMORY_GET,
+            payload,
+            req_id,
+        ));
     }
 }

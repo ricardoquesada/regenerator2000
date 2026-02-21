@@ -1266,8 +1266,19 @@ impl Widget for DisassemblyView {
                             // For now we assume arrow logic works on Instruction granularity.
 
                             let is_bookmarked = app_state.bookmarks.contains_key(&mid_addr);
-                            let gutter = if is_bookmarked { "  *  " } else { "     " };
-                            let gutter_style = if is_bookmarked {
+                            let has_breakpoint = app_state.vice_state.has_breakpoint_at(mid_addr);
+                            let gutter = if has_breakpoint {
+                                "  *  "
+                            } else if is_bookmarked {
+                                "  +  "
+                            } else {
+                                "     "
+                            };
+                            let gutter_style = if has_breakpoint {
+                                base_style
+                                    .fg(ui_state.theme.error_fg)
+                                    .add_modifier(Modifier::BOLD)
+                            } else if is_bookmarked {
                                 base_style.fg(ui_state.theme.label)
                             } else {
                                 base_style.fg(ui_state.theme.bytes)
@@ -1346,9 +1357,9 @@ impl Widget for DisassemblyView {
             let gutter = if is_pc {
                 "  >  "
             } else if has_breakpoint {
-                "  ●  "
-            } else if is_bookmarked {
                 "  *  "
+            } else if is_bookmarked {
+                "  +  "
             } else {
                 "     "
             };
