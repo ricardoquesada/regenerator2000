@@ -102,13 +102,52 @@ impl ViceClient {
     }
 
     pub fn send_advance_instruction(&self) {
-        // Step trace: 0 (one instruction) ? Actually doc says count = 2 bytes?
-        // Let's send a basic command to advance 1 instruction.
-        // The advance instructions payload is usually: Step mode (1 byte), Count (2 bytes little-endian)
-        // Step mode 0 = single step
+        // Payload: step_mode (1 byte), count (2 bytes LE)
+        // step_mode 0 = step-into (single step)
         self.send(ViceMessage::new(
             ViceCommand::ADVANCE_INSTRUCTION,
-            vec![0, 1, 0], // Mode 0 (step), Count 1 (little endian)
+            vec![0, 1, 0],
         ));
+    }
+
+    /// Step over (next): execute through subroutine calls without stopping inside them.
+    /// step_mode 1 = step-over
+    pub fn send_step_over(&self) {
+        self.send(ViceMessage::new(
+            ViceCommand::ADVANCE_INSTRUCTION,
+            vec![1, 1, 0],
+        ));
+    }
+
+    /// Resume execution (exit the monitor / continue).
+    pub fn send_continue(&self) {
+        self.send(ViceMessage::new(ViceCommand::EXIT_MONITOR, vec![]));
+    }
+
+    /// Set a temporary exec-only breakpoint at `addr` and auto-delete it after it's hit.
+    /// Used for Run-to-Cursor (F8): set, continue, VICE stops at addr, checkpoint is gone.
+    /// CHECKPOINT_SET payload: start_addr (2 LE), end_addr (2 LE),
+    ///   stop_when_hit (1), enabled (1), cpu_operation (1), temporary (1)
+    /// cpu_operation 0x04 = exec; temporary 1 = auto-delete on hit.
+    pub fn send_checkpoint_set_exec_temp(&self, addr: u16) {
+        let mut payload = Vec::with_capacity(8);
+        payload.extend_from_slice(&addr.to_le_bytes()); // start_addr
+        payload.extend_from_slice(&addr.to_le_bytes()); // end_addr (same = exact address)
+        payload.push(1); // stop_when_hit
+        payload.push(1); // enabled
+        payload.push(0x04); // cpu_operation: exec
+        payload.push(1); // temporary: auto-delete after first hit
+        self.send(ViceMessage::new(ViceCommand::CHECKPOINT_SET, payload));
+    }
+
+    /// Request a memory range from VICE.
+    /// MEMORY_GET payload: start_addr (2 LE) + end_addr (2 LE) + memory_space (1)
+    /// memory_space 0 = default (main C64 RAM)
+    pub fn send_memory_get(&self, start: u16, end: u16) {
+        let mut payload = Vec::with_capacity(5);
+        payload.extend_from_slice(&start.to_le_bytes());
+        payload.extend_from_slice(&end.to_le_bytes());
+        payload.push(0); // memory_space 0 = main RAM
+        self.send(ViceMessage::new(ViceCommand::MEMORY_GET, payload));
     }
 }

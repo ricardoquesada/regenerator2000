@@ -77,6 +77,10 @@ pub enum MenuAction {
     ViceConnect,
     ViceDisconnect,
     ViceStep,
+    ViceContinue,
+    ViceStepOver,
+    ViceRunToCursor,
+    ToggleDebuggerView,
 }
 
 impl MenuAction {
@@ -90,6 +94,10 @@ impl MenuAction {
                 | MenuAction::KeyboardShortcuts
                 | MenuAction::SystemSettings
                 | MenuAction::Search
+                | MenuAction::ToggleDebuggerView
+                | MenuAction::ViceContinue
+                | MenuAction::ViceStepOver
+                | MenuAction::ViceRunToCursor
         )
     }
 }
@@ -571,6 +579,19 @@ impl MenuState {
                         ),
                         MenuItem::separator(),
                         MenuItem::new("Step Instruction", Some("F10"), Some(MenuAction::ViceStep)),
+                        MenuItem::new("Step Over", Some("F11"), Some(MenuAction::ViceStepOver)),
+                        MenuItem::new("Continue", Some("F5"), Some(MenuAction::ViceContinue)),
+                        MenuItem::new(
+                            "Run to Cursor",
+                            Some("F8"),
+                            Some(MenuAction::ViceRunToCursor),
+                        ),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Toggle Debugger Panel",
+                            Some("Alt+1"),
+                            Some(MenuAction::ToggleDebuggerView),
+                        ),
                     ],
                 },
                 MenuCategory {
@@ -1237,6 +1258,9 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ActivePane::Bitmap => {
                 ui_state.set_status_message("Jump to address not supported in Bitmap view");
             }
+            ActivePane::Debugger => {
+                ui_state.set_status_message("Jump to address not supported in Debugger view");
+            }
         },
 
         MenuAction::JumpToOperand => {
@@ -1356,6 +1380,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
                     Some(bitmap_addr as u16)
                 }
+                ActivePane::Debugger => None,
             };
 
             if let Some(addr) = target_addr {
@@ -1568,6 +1593,46 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.right_pane = crate::ui_state::RightPane::Blocks;
                 ui_state.active_pane = ActivePane::Blocks;
                 ui_state.set_status_message("Blocks View Shown");
+            }
+        }
+        MenuAction::ViceContinue => {
+            if let Some(client) = &app_state.vice_client {
+                client.send_continue();
+                ui_state.set_status_message("VICE: Running...");
+            } else {
+                ui_state.set_status_message("Not connected to VICE");
+            }
+        }
+        MenuAction::ViceStepOver => {
+            if let Some(client) = &app_state.vice_client {
+                client.send_step_over();
+            } else {
+                ui_state.set_status_message("Not connected to VICE");
+            }
+        }
+        MenuAction::ViceRunToCursor => {
+            if let Some(client) = &app_state.vice_client {
+                if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
+                    let addr = line.address;
+                    client.send_checkpoint_set_exec_temp(addr);
+                    client.send_continue();
+                    ui_state.set_status_message(format!("VICE: Running to ${:04X}...", addr));
+                }
+            } else {
+                ui_state.set_status_message("Not connected to VICE");
+            }
+        }
+        MenuAction::ToggleDebuggerView => {
+            if ui_state.right_pane == crate::ui_state::RightPane::Debugger {
+                ui_state.right_pane = crate::ui_state::RightPane::None;
+                if ui_state.active_pane == ActivePane::Debugger {
+                    ui_state.active_pane = ActivePane::Disassembly;
+                }
+                ui_state.set_status_message("Debugger Panel Hidden");
+            } else {
+                ui_state.right_pane = crate::ui_state::RightPane::Debugger;
+                ui_state.active_pane = ActivePane::Debugger;
+                ui_state.set_status_message("Debugger Panel Shown");
             }
         }
         MenuAction::KeyboardShortcuts => {

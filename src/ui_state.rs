@@ -15,6 +15,7 @@ pub enum ActivePane {
     Charset,
     Bitmap,
     Blocks,
+    Debugger,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -32,6 +33,7 @@ pub enum RightPane {
     Charset,
     Bitmap,
     Blocks,
+    Debugger,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -9,10 +9,24 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Exit);
         }
+        KeyCode::F(5) => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::ViceContinue,
+            );
+        }
         KeyCode::F(10) => {
             ui_state.menu.active = true;
             ui_state.menu.select_first_enabled_item();
             ui_state.set_status_message("Menu Active");
+        }
+        KeyCode::F(11) => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::ViceStepOver,
+            );
         }
         KeyCode::Char('f') if key.modifiers == KeyModifiers::ALT => {
             ui_state.menu.selected_category = 0; // File is index 0
@@ -180,6 +194,15 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Redo);
         }
+        KeyCode::Char('1')
+            if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
+        {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::ToggleDebuggerView,
+            );
+        }
         KeyCode::Char('2')
             if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
         {
@@ -249,12 +272,14 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                     crate::ui_state::RightPane::Charset => ActivePane::Charset,
                     crate::ui_state::RightPane::Bitmap => ActivePane::Bitmap,
                     crate::ui_state::RightPane::Blocks => ActivePane::Blocks,
+                    crate::ui_state::RightPane::Debugger => ActivePane::Debugger,
                 },
                 ActivePane::HexDump
                 | ActivePane::Sprites
                 | ActivePane::Charset
                 | ActivePane::Bitmap
-                | ActivePane::Blocks => ActivePane::Disassembly,
+                | ActivePane::Blocks
+                | ActivePane::Debugger => ActivePane::Disassembly,
             };
         }
         KeyCode::Esc => {

@@ -18,9 +18,15 @@ impl ViceCommand {
     pub const MEMORY_SET: u8 = 0x02;
     pub const CHECKPOINT_GET: u8 = 0x11;
     pub const CHECKPOINT_SET: u8 = 0x12;
+    pub const CHECKPOINT_DELETE: u8 = 0x13;
     pub const REGISTERS_GET: u8 = 0x31;
     pub const ADVANCE_INSTRUCTION: u8 = 0x71;
+    pub const EXIT_MONITOR: u8 = 0x77; // Resume/continue execution
     pub const PING: u8 = 0x81;
+
+    // Push notifications from VICE (not request/response — VICE sends these unsolicited)
+    pub const STOPPED: u8 = 0x62; // CPU stopped (checkpoint hit, step complete)
+    pub const RESUMED: u8 = 0x65; // CPU resumed execution
 }
 
 impl ViceMessage {

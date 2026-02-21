@@ -32,6 +32,7 @@ pub mod statusbar;
 pub mod view_bitmap;
 pub mod view_blocks;
 pub mod view_charset;
+pub mod view_debugger;
 pub mod view_disassembly;
 pub mod view_hexdump;
 pub mod view_sprites;
@@ -84,6 +85,7 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         RightPane::Charset => 76, // Grid view: 8 cols * (8+1) width + padding
         RightPane::Bitmap => 80,  // Compact view, ratatui-image scales to fit
         RightPane::Blocks => 42,
+        RightPane::Debugger => 36,
     };
     let disasm_view_width = area.width.saturating_sub(right_pane_width);
 
@@ -107,6 +109,9 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         RightPane::Charset => view_charset::CharsetView.render(f, layout[1], app_state, ui_state),
         RightPane::Bitmap => view_bitmap::BitmapView.render(f, layout[1], app_state, ui_state),
         RightPane::Blocks => view_blocks::BlocksView.render(f, layout[1], app_state, ui_state),
+        RightPane::Debugger => {
+            view_debugger::DebuggerView.render(f, layout[1], app_state, ui_state)
+        }
     }
 }
 

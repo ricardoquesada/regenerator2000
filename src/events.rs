@@ -52,10 +52,15 @@ pub fn run_app<B: Backend>(
                 match vice_event {
                     crate::vice::ViceEvent::Connected => {
                         app_state.vice_state.connected = true;
+                        if ui_state.right_pane == crate::ui_state::RightPane::None {
+                            ui_state.right_pane = crate::ui_state::RightPane::Debugger;
+                            ui_state.active_pane = ActivePane::Debugger;
+                        }
                         ui_state.set_status_message("Connected to VICE Monitor");
                     }
                     crate::vice::ViceEvent::Disconnected(reason) => {
                         app_state.vice_state.connected = false;
+                        app_state.vice_state.reset_registers();
                         ui_state.set_status_message(format!("Disconnected from VICE: {}", reason));
                     }
                     crate::vice::ViceEvent::Message(msg) => {
@@ -77,12 +82,30 @@ pub fn run_app<B: Backend>(
                                     }
 
                                     let reg_id = payload[offset + 1];
-                                    if reg_id == 0x03 && item_size >= 3 {
-                                        let pc_val = u16::from_le_bytes([
-                                            payload[offset + 2],
-                                            payload[offset + 3],
-                                        ]);
-                                        pc_found = Some(pc_val);
+                                    match reg_id {
+                                        0x00 if item_size >= 2 => {
+                                            app_state.vice_state.a = Some(payload[offset + 2]);
+                                        }
+                                        0x01 if item_size >= 2 => {
+                                            app_state.vice_state.x = Some(payload[offset + 2]);
+                                        }
+                                        0x02 if item_size >= 2 => {
+                                            app_state.vice_state.y = Some(payload[offset + 2]);
+                                        }
+                                        0x03 if item_size >= 3 => {
+                                            let pc_val = u16::from_le_bytes([
+                                                payload[offset + 2],
+                                                payload[offset + 3],
+                                            ]);
+                                            pc_found = Some(pc_val);
+                                        }
+                                        0x04 if item_size >= 2 => {
+                                            app_state.vice_state.sp = Some(payload[offset + 2]);
+                                        }
+                                        0x05 if item_size >= 2 => {
+                                            app_state.vice_state.p = Some(payload[offset + 2]);
+                                        }
+                                        _ => {}
                                     }
 
                                     offset += 1 + item_size;
@@ -98,14 +121,66 @@ pub fn run_app<B: Backend>(
                                     {
                                         ui_state.cursor_index = idx;
                                     }
+
+                                    // Request live memory around the PC for live disassembly.
+                                    // Fetch 32 bytes before PC and 96 bytes after (128 total window).
+                                    // This covers roughly 40+ instructions around the current PC.
+                                    if let Some(client) = &app_state.vice_client {
+                                        let before: u16 = 32;
+                                        let after: u16 = 95;
+                                        let mem_start = pc.saturating_sub(before);
+                                        let mem_end = pc.saturating_add(after);
+                                        client.send_memory_get(mem_start, mem_end);
+                                    }
                                 } else {
                                     ui_state.set_status_message(
                                         "VICE Registers: did not find PC".to_string(),
                                     );
                                 }
                             }
+                        } else if msg.command == crate::vice::ViceCommand::MEMORY_GET
+                            && msg.error_code == 0
+                        {
+                            // MEMORY_GET response payload: start_addr (2 LE) + length (2 LE) + bytes
+                            let payload = &msg.payload;
+                            if payload.len() >= 4 {
+                                let mem_start = u16::from_le_bytes([payload[0], payload[1]]);
+                                let mem_len = u16::from_le_bytes([payload[2], payload[3]]) as usize;
+                                if payload.len() >= 4 + mem_len && mem_len > 0 {
+                                    let bytes = payload[4..4 + mem_len].to_vec();
+                                    app_state.vice_state.live_memory_start = mem_start;
+                                    app_state.vice_state.live_memory = Some(bytes);
+                                }
+                            }
+                        } else if msg.command == crate::vice::ViceCommand::STOPPED {
+                            // CPU stopped (step complete, step-over complete, or checkpoint hit).
+                            // Fetch registers so the debugger panel and live view update.
+                            if let Some(client) = &app_state.vice_client {
+                                client.send_registers_get();
+                            }
+                        } else if msg.command == crate::vice::ViceCommand::ADVANCE_INSTRUCTION
+                            && msg.error_code == 0
+                        {
+                            // Step/step-over acknowledged — fetch updated registers.
+                            if let Some(client) = &app_state.vice_client {
+                                client.send_registers_get();
+                            }
+                        } else if msg.error_code != 0 {
+                            // Ignore error responses silently (e.g. memory not accessible)
                         } else {
-                            ui_state.set_status_message(format!("VICE Msg: {:02x}", msg.command));
+                            // Silence known commands that need no further handling
+                            let silent = matches!(
+                                msg.command,
+                                crate::vice::ViceCommand::CHECKPOINT_SET
+                                    | crate::vice::ViceCommand::CHECKPOINT_DELETE
+                                    | crate::vice::ViceCommand::CHECKPOINT_GET
+                                    | crate::vice::ViceCommand::RESUMED
+                                    | crate::vice::ViceCommand::EXIT_MONITOR
+                            );
+                            if !silent {
+                                ui_state
+                                    .set_status_message(format!("VICE Msg: {:02x}", msg.command));
+                            }
                         }
                     }
                 }
@@ -238,6 +313,7 @@ pub fn run_app<B: Backend>(
                             use crate::ui::view_bitmap::BitmapView;
                             use crate::ui::view_blocks::BlocksView;
                             use crate::ui::view_charset::CharsetView;
+                            use crate::ui::view_debugger::DebuggerView;
                             use crate::ui::view_disassembly::DisassemblyView;
                             use crate::ui::view_hexdump::HexDumpView;
                             use crate::ui::view_sprites::SpritesView;
@@ -250,6 +326,7 @@ pub fn run_app<B: Backend>(
                                 ActivePane::Charset => Box::new(CharsetView),
                                 ActivePane::Bitmap => Box::new(BitmapView),
                                 ActivePane::Blocks => Box::new(BlocksView),
+                                ActivePane::Debugger => Box::new(DebuggerView),
                             };
 
                             match active_view.handle_input(key, &mut app_state, &mut ui_state) {
@@ -448,12 +525,16 @@ pub fn run_app<B: Backend>(
                                         crate::ui_state::RightPane::Blocks => {
                                             ui_state.active_pane = ActivePane::Blocks
                                         }
+                                        crate::ui_state::RightPane::Debugger => {
+                                            ui_state.active_pane = ActivePane::Debugger
+                                        }
                                         _ => {}
                                     }
 
                                     use crate::ui::view_bitmap::BitmapView;
                                     use crate::ui::view_blocks::BlocksView;
                                     use crate::ui::view_charset::CharsetView;
+                                    use crate::ui::view_debugger::DebuggerView;
                                     use crate::ui::view_disassembly::DisassemblyView;
                                     use crate::ui::view_hexdump::HexDumpView;
                                     use crate::ui::view_sprites::SpritesView;
@@ -466,6 +547,7 @@ pub fn run_app<B: Backend>(
                                             ActivePane::Charset => Box::new(CharsetView),
                                             ActivePane::Bitmap => Box::new(BitmapView),
                                             ActivePane::Blocks => Box::new(BlocksView),
+                                            ActivePane::Debugger => Box::new(DebuggerView),
                                         };
                                     widget_result = active_view.handle_mouse(
                                         mouse,
