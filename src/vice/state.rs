@@ -65,21 +65,4 @@ impl ViceState {
     pub fn has_breakpoint_at(&self, addr: u16) -> bool {
         self.breakpoints.iter().any(|bp| bp.address == addr)
     }
-
-    /// Calculates the return address from the stack pointer and stack memory snapshot.
-    /// This is used for stepping out of subroutines.
-    pub fn get_return_address(&self) -> Option<u16> {
-        let sp_usize = self.sp? as usize;
-        let stack = self.stack_memory.as_ref()?;
-
-        let lo_idx = (sp_usize + 1) & 0xFF; // Wrap properly within page 1
-        let hi_idx = (sp_usize + 2) & 0xFF; // $0100-$01FF
-        let lo = stack[lo_idx] as u16;
-        let hi = stack[hi_idx] as u16;
-        let ret_addr = (hi << 8) | lo;
-
-        // RTS pulls this address minus 1 (i.e. address of 3rd byte of JSR)
-        // It adds 1 to get the next instruction's address.
-        Some(ret_addr.wrapping_add(1))
-    }
 }

@@ -1658,15 +1658,11 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         }
         MenuAction::ViceStepOut => {
             if let Some(client) = &app_state.vice_client {
-                if let Some(target) = app_state.vice_state.get_return_address() {
-                    client.send_checkpoint_set_exec_temp(target);
-                    client.send_continue();
-                    app_state.vice_state.running = true;
-                    ui_state
-                        .set_status_message(format!("VICE: Stepping out to ${:04X}...", target));
-                } else {
-                    ui_state.set_status_message("VICE: SP/Stack unavailable for Step Out");
-                }
+                client.send_execute_until_return();
+                // We must tell the editor that the vice client is running so that
+                // step controls are disabled until the command hits the return point.
+                app_state.vice_state.running = true;
+                ui_state.set_status_message("VICE: Stepping out...");
             } else {
                 ui_state.set_status_message("Not connected to VICE");
             }

@@ -119,6 +119,11 @@ impl ViceClient {
         ));
     }
 
+    /// Execute until return (step out).
+    pub fn send_execute_until_return(&self) {
+        self.send(ViceMessage::new(ViceCommand::EXECUTE_UNTIL_RETURN, vec![]));
+    }
+
     /// Resume execution (exit the monitor / continue).
     pub fn send_continue(&self) {
         self.send(ViceMessage::new(ViceCommand::EXIT_MONITOR, vec![]));
