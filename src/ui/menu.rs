@@ -75,6 +75,7 @@ pub enum MenuAction {
     ToggleBookmark,
     ListBookmarks,
     ViceConnect,
+    ViceConnectAddress(String),
     ViceDisconnect,
     ViceStep,
     ViceContinue,
@@ -575,7 +576,7 @@ impl MenuState {
                 MenuCategory {
                     name: "Debugger".to_string(),
                     items: vec![
-                        MenuItem::new("Connect to VICE", None, Some(MenuAction::ViceConnect)),
+                        MenuItem::new("Connect to VICE...", None, Some(MenuAction::ViceConnect)),
                         MenuItem::new(
                             "Disconnect from VICE",
                             None,
@@ -1150,7 +1151,13 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ui_state.active_dialog = Some(Box::new(dialog));
             ui_state.bookmarks_list_state.select(Some(0));
         }
-        MenuAction::ViceConnect | MenuAction::ViceDisconnect | MenuAction::ViceStep => {
+        MenuAction::ViceConnect => {
+            ui_state.active_dialog = Some(Box::new(
+                crate::ui::dialog_vice_connect::ViceConnectDialog::new(),
+            ));
+            ui_state.set_status_message("Enter VICE hostname and port (e.g. localhost:6502)");
+        }
+        MenuAction::ViceConnectAddress(_) | MenuAction::ViceDisconnect | MenuAction::ViceStep => {
             // Handled directly in run_app
         }
 

@@ -1,6 +1,6 @@
 use crate::state::AppState;
-use crate::ui_state::{ActivePane, MenuAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crate::ui_state::{ActivePane, UIState};
+use crossterm::event::KeyEvent;
 use ratatui::{
     Frame,
     layout::Rect,
@@ -204,27 +204,27 @@ impl Widget for DebuggerView {
             Line::from(""),
             Line::from(Span::styled("Controls", heading_style)),
             Line::from(vec![
-                Span::styled("  F5  ", label_style),
+                Span::styled("  F9  ", label_style),
                 Span::styled("Continue", dim_style),
             ]),
             Line::from(vec![
-                Span::styled("  F8  ", label_style),
+                Span::styled("  F4  ", label_style),
                 Span::styled("Run to cursor", dim_style),
             ]),
             Line::from(vec![
-                Span::styled("  F9  ", label_style),
+                Span::styled("  F2  ", label_style),
                 Span::styled("Toggle breakpoint", dim_style),
             ]),
             Line::from(vec![
-                Span::styled("  F10 ", label_style),
+                Span::styled("  F7  ", label_style),
                 Span::styled("Step into", dim_style),
             ]),
             Line::from(vec![
-                Span::styled("  F11 ", label_style),
+                Span::styled("  F8  ", label_style),
                 Span::styled("Step over", dim_style),
             ]),
             Line::from(vec![
-                Span::styled("  S-F11", label_style),
+                Span::styled("  S-F8", label_style),
                 Span::styled("Step out", dim_style),
             ]),
         ]);
@@ -235,22 +235,37 @@ impl Widget for DebuggerView {
 
     fn handle_input(
         &mut self,
-        key: KeyEvent,
+        _key: KeyEvent,
         _app_state: &mut AppState,
         _ui_state: &mut UIState,
     ) -> WidgetResult {
-        match key.code {
-            KeyCode::F(5) => WidgetResult::Action(MenuAction::ViceContinue),
-            KeyCode::F(8) => WidgetResult::Action(MenuAction::ViceRunToCursor),
-            KeyCode::F(9) => WidgetResult::Action(MenuAction::ViceToggleBreakpoint),
-            KeyCode::F(10) => WidgetResult::Action(MenuAction::ViceStep),
-            KeyCode::F(11) if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::ViceStepOver)
-            }
-            KeyCode::F(11) if key.modifiers == KeyModifiers::SHIFT => {
-                WidgetResult::Action(MenuAction::ViceStepOut)
-            }
-            _ => WidgetResult::Ignored,
-        }
+        WidgetResult::Ignored
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::AppState;
+    use crate::ui_state::UIState;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_debugger_view_handle_input_ignored() {
+        let mut view = DebuggerView;
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+
+        let key1 = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
+        assert_eq!(
+            view.handle_input(key1, &mut app_state, &mut ui_state),
+            WidgetResult::Ignored
+        );
+
+        let key2 = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+        assert_eq!(
+            view.handle_input(key2, &mut app_state, &mut ui_state),
+            WidgetResult::Ignored
+        );
     }
 }

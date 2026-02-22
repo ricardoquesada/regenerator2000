@@ -1728,21 +1728,6 @@ impl Widget for DisassemblyView {
             KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
                 WidgetResult::Action(MenuAction::ToggleCollapsedBlock)
             }
-            KeyCode::F(5) if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::ViceContinue)
-            }
-            KeyCode::F(8) if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::ViceRunToCursor)
-            }
-            KeyCode::F(9) if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::ViceToggleBreakpoint)
-            }
-            KeyCode::F(11) if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::ViceStepOver)
-            }
-            KeyCode::F(11) if key.modifiers == KeyModifiers::SHIFT => {
-                WidgetResult::Action(MenuAction::ViceStepOut)
-            }
             _ => {
                 // Check if modifiers contain CONTROL
                 if key.modifiers.contains(KeyModifiers::CONTROL)

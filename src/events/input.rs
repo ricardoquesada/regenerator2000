@@ -9,21 +9,24 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Exit);
         }
-        KeyCode::F(2) => {
+
+        // VICE Debugger begin
+        // VICE keyboard shortcuts are global, at least the "F" keys, since they can be used from different views.
+        KeyCode::F(2) if key.modifiers.is_empty() => {
             handle_menu_action(
                 app_state,
                 ui_state,
                 crate::ui_state::MenuAction::ViceToggleBreakpoint,
             );
         }
-        KeyCode::F(4) => {
+        KeyCode::F(4) if key.modifiers.is_empty() => {
             handle_menu_action(
                 app_state,
                 ui_state,
                 crate::ui_state::MenuAction::ViceRunToCursor,
             );
         }
-        KeyCode::F(7) => {
+        KeyCode::F(7) if key.modifiers.is_empty() => {
             handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::ViceStep);
         }
         KeyCode::F(8) if key.modifiers.is_empty() => {
@@ -33,18 +36,6 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                 crate::ui_state::MenuAction::ViceStepOver,
             );
         }
-        KeyCode::F(9) => {
-            handle_menu_action(
-                app_state,
-                ui_state,
-                crate::ui_state::MenuAction::ViceContinue,
-            );
-        }
-        KeyCode::F(10) => {
-            ui_state.menu.active = true;
-            ui_state.menu.select_first_enabled_item();
-            ui_state.set_status_message("Menu Active");
-        }
         KeyCode::F(8) if key.modifiers == KeyModifiers::SHIFT => {
             handle_menu_action(
                 app_state,
@@ -52,6 +43,19 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                 crate::ui_state::MenuAction::ViceStepOut,
             );
         }
+        KeyCode::F(9) if key.modifiers.is_empty() => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::ViceContinue,
+            );
+        }
+        KeyCode::F(10) if key.modifiers.is_empty() => {
+            ui_state.menu.active = true;
+            ui_state.menu.select_first_enabled_item();
+            ui_state.set_status_message("Menu Active");
+        }
+        // VICE Debugger end
         KeyCode::Char('f') if key.modifiers == KeyModifiers::ALT => {
             ui_state.menu.selected_category = 0; // File is index 0
             ui_state.menu.active = true;

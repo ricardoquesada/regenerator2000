@@ -292,11 +292,19 @@ pub fn run_app<B: Backend>(
                                     should_render = true;
                                 }
                                 crate::ui::widget::WidgetResult::Action(action) => {
-                                    ui_state.active_dialog = Some(dialog);
+                                    let is_vice_connect = matches!(
+                                        action,
+                                        crate::ui::menu::MenuAction::ViceConnectAddress(_)
+                                    );
+                                    if !is_vice_connect {
+                                        ui_state.active_dialog = Some(dialog);
+                                    }
                                     should_render = true;
-                                    if action == crate::ui::menu::MenuAction::ViceConnect {
+                                    if let crate::ui::menu::MenuAction::ViceConnectAddress(addr) =
+                                        action
+                                    {
                                         if let Ok(client) = crate::vice::ViceClient::connect(
-                                            "127.0.0.1:6502",
+                                            &addr,
                                             event_tx.clone(),
                                         ) {
                                             app_state.vice_client = Some(client);
@@ -334,11 +342,12 @@ pub fn run_app<B: Backend>(
                                 &mut ui_state,
                             );
                             if let crate::ui::widget::WidgetResult::Action(action) = result {
-                                if action == crate::ui::menu::MenuAction::ViceConnect {
-                                    if let Ok(client) = crate::vice::ViceClient::connect(
-                                        "127.0.0.1:6502",
-                                        event_tx.clone(),
-                                    ) {
+                                if let crate::ui::menu::MenuAction::ViceConnectAddress(addr) =
+                                    action
+                                {
+                                    if let Ok(client) =
+                                        crate::vice::ViceClient::connect(&addr, event_tx.clone())
+                                    {
                                         app_state.vice_client = Some(client);
                                     } else {
                                         ui_state.set_status_message("Failed to connect to VICE");
@@ -409,9 +418,11 @@ pub fn run_app<B: Backend>(
                                     // Event handled, will render below
                                 }
                                 WidgetResult::Action(action) => {
-                                    if action == crate::ui::menu::MenuAction::ViceConnect {
+                                    if let crate::ui::menu::MenuAction::ViceConnectAddress(addr) =
+                                        action
+                                    {
                                         if let Ok(client) = crate::vice::ViceClient::connect(
-                                            "127.0.0.1:6502",
+                                            &addr,
                                             event_tx.clone(),
                                         ) {
                                             app_state.vice_client = Some(client);
@@ -491,11 +502,20 @@ pub fn run_app<B: Backend>(
                                         should_render = true;
                                     }
                                     crate::ui::widget::WidgetResult::Action(action) => {
-                                        ui_state.active_dialog = Some(dialog);
+                                        let is_vice_connect = matches!(
+                                            action,
+                                            crate::ui::menu::MenuAction::ViceConnectAddress(_)
+                                        );
+                                        if !is_vice_connect {
+                                            ui_state.active_dialog = Some(dialog);
+                                        }
                                         should_render = true;
-                                        if action == crate::ui::menu::MenuAction::ViceConnect {
+                                        if let crate::ui::menu::MenuAction::ViceConnectAddress(
+                                            addr,
+                                        ) = action
+                                        {
                                             if let Ok(client) = crate::vice::ViceClient::connect(
-                                                "127.0.0.1:6502",
+                                                &addr,
                                                 event_tx.clone(),
                                             ) {
                                                 app_state.vice_client = Some(client);
@@ -645,11 +665,12 @@ pub fn run_app<B: Backend>(
                             }
 
                             if let crate::ui::widget::WidgetResult::Action(action) = widget_result {
-                                if action == crate::ui::menu::MenuAction::ViceConnect {
-                                    if let Ok(client) = crate::vice::ViceClient::connect(
-                                        "127.0.0.1:6502",
-                                        event_tx.clone(),
-                                    ) {
+                                if let crate::ui::menu::MenuAction::ViceConnectAddress(addr) =
+                                    action
+                                {
+                                    if let Ok(client) =
+                                        crate::vice::ViceClient::connect(&addr, event_tx.clone())
+                                    {
                                         client.send_registers_get(); // This will pause execution and yield the PC
                                         app_state.vice_client = Some(client);
                                     } else {
