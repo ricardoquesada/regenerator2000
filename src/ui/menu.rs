@@ -547,6 +547,11 @@ impl MenuState {
                         ),
                         MenuItem::separator(),
                         MenuItem::new(
+                            "Toggle Blocks View",
+                            Some("Alt+1"),
+                            Some(MenuAction::ToggleBlocksView),
+                        ),
+                        MenuItem::new(
                             "Toggle Hex Dump",
                             Some("Alt+2"),
                             Some(MenuAction::ToggleHexDump),
@@ -567,9 +572,9 @@ impl MenuState {
                             Some(MenuAction::ToggleBitmapView),
                         ),
                         MenuItem::new(
-                            "Toggle Blocks View",
+                            "Toggle Debugger View",
                             Some("Alt+6"),
-                            Some(MenuAction::ToggleBlocksView),
+                            Some(MenuAction::ToggleDebuggerView),
                         ),
                     ],
                 },
@@ -596,12 +601,6 @@ impl MenuState {
                             "Toggle Breakpoint",
                             Some("F2"),
                             Some(MenuAction::ViceToggleBreakpoint),
-                        ),
-                        MenuItem::separator(),
-                        MenuItem::new(
-                            "Toggle Debugger Panel",
-                            Some("Alt+1"),
-                            Some(MenuAction::ToggleDebuggerView),
                         ),
                     ],
                 },

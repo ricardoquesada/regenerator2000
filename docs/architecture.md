@@ -45,6 +45,7 @@ The central hub of the application, organized across multiple modules:
 - **[`app_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/state/app_state.rs)**: The main `AppState` struct that holds the runtime state, including:
   - **Undo Stack**: History of commands for Undo/Redo functionality.
   - **Disassembly Cache**: Used to avoid re-disassembling the entire file on every frame.
+  - **VICE State**: Tracks connection with the VICE emulator, breakpoints, CPU registers, and debugger state.
   - **Labels & Cross-References**: Auto-generated and user-defined labels with their cross-references.
 - **[`project.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/state/project.rs)**: The `ProjectState` struct - the persistent part of the state (saved to .regen2000proj files), containing:
   - **Raw Data**: The binary being disassembled (gzip-compressed and base64-encoded for JSON serialization).
@@ -143,6 +144,7 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   - **[`view_charset.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/view_charset.rs)**: Character set editor/viewer for font data.
   - **[`view_bitmap.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/view_bitmap.rs)**: Bitmap graphics viewer for hires and multicolor bitmaps.
   - **[`view_blocks.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/view_blocks.rs)**: Block type overview showing the memory layout.
+  - **[`view_debugger.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/view_debugger.rs)**: Live debugging view for VICE integration.
 
 - **Dialogs** ([`ui/dialog_*.rs`](https://github.com/ricardoquesada/regenerator2000/tree/main/src/ui)):
   - **[`dialog_about.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/dialog_about.rs)**: About/help dialog.
@@ -164,11 +166,12 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   - **[`dialog_save_as.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/dialog_save_as.rs)**: Save project dialog.
   - **[`dialog_search.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/dialog_search.rs)**: Search for bytes or text.
   - **[`dialog_settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/dialog_settings.rs)**: Application-level settings.
+  - **[`dialog_vice_connect.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/dialog_vice_connect.rs)**: Configures connection to VICE's remote monitor.
   - **[`dialog_warning.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/dialog_warning.rs)**: Generic warning dialog for displaying important messages to the user.
 
 - **UI State Management ([`ui_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui_state.rs))**:
   Tracks transient interface state:
-  - **Active Pane**: Enum (`Disassembly`, `HexDump`, `Sprites`, `Charset`, `Bitmap`, `Blocks`) identifying the focused tool.
+  - **Active Pane**: Enum (`Disassembly`, `HexDump`, `Sprites`, `Charset`, `Bitmap`, `Blocks`, `Debugger`) identifying the focused tool.
   - **Right Pane**: Enum defining which view is shown in the right-side panel.
   - **Active Dialog**: `Option<Box<dyn Widget>>` allowing modal dialogs to take over input and rendering.
   - **View State**: Cursor positions, scroll offsets, selection ranges, and view-specific modes (e.g., Hexdump PETSCII/Screencode modes, multicolor modes for sprites/charset/bitmap).

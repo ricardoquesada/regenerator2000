@@ -228,7 +228,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             handle_menu_action(
                 app_state,
                 ui_state,
-                crate::ui_state::MenuAction::ToggleDebuggerView,
+                crate::ui_state::MenuAction::ToggleBlocksView,
             );
         }
         KeyCode::Char('2')
@@ -273,7 +273,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             handle_menu_action(
                 app_state,
                 ui_state,
-                crate::ui_state::MenuAction::ToggleBlocksView,
+                crate::ui_state::MenuAction::ToggleDebuggerView,
             );
         }
         KeyCode::Char('g')

@@ -23,12 +23,13 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Open Recent Projects**                                                                | ++alt+o++ or ++ctrl+shift+o++                                 |
 |                                    | **Undo**                                                                                | ++u++                                                         |
 |                                    | **Redo**                                                                                | ++ctrl+r++                                                    |
-|                                    | **Switch Pane (betweeen Disasm and right pane)**                                        | ++tab++                                                       |
-| **Views**                          | **Toggle Hex Dump View**                                                                | ++alt+2++ or ++ctrl+2++                                       |
+|                                    | **Switch Pane (between Disasm and right pane)**                                         | ++tab++                                                       |
+| **Views**                          | **Toggle Blocks View**                                                                  | ++alt+1++ or ++ctrl+1++                                       |
+|                                    | **Toggle Hex Dump View**                                                                | ++alt+2++ or ++ctrl+2++                                       |
 |                                    | **Toggle Sprites View**                                                                 | ++alt+3++ or ++ctrl+3++                                       |
 |                                    | **Toggle Charset View**                                                                 | ++alt+4++ or ++ctrl+4++                                       |
 |                                    | **Toggle Bitmap View**                                                                  | ++alt+5++ or ++ctrl+5++                                       |
-|                                    | **Toggle Blocks View**                                                                  | ++alt+6++ or ++ctrl+6++                                       |
+|                                    | **Toggle Debugger Panel**                                                               | ++alt+6++ or ++ctrl+6++                                       |
 | **View: Disassembly** (editing)    | **Convert to Code**                                                                     | ++c++                                                         |
 |                                    | **Convert to Byte**                                                                     | ++b++                                                         |
 |                                    | **Convert to Word**                                                                     | ++w++                                                         |

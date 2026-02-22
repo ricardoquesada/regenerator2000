@@ -8,7 +8,7 @@ Regenerator 2000 can connect to the [VICE](https://vice-emu.sourceforge.io/) emu
    - **x64**: `x64 -binarymonitor` (default address is `localhost:6502`).
 2. In Regenerator 2000, open the **Debugger** menu and choose **Connect to VICE...**.
 3. The dialog defaults to `localhost:6502`. Press **Enter** to connect.
-4. To show the Debugger panel in the right pane, use **View → Debugger** (or the equivalent shortcut). You can also switch to the Debugger pane with **Tab** when it is visible.
+4. To show the Debugger panel in the right pane, use **Debugger → Toggle Debugger Panel** (or ++alt+6++ / ++ctrl+6++). You can also switch to the Debugger pane with **Tab** when it is visible.
 
 Once connected, the Debugger panel shows connection status and, when the emulator is stopped, live disassembly around the PC, registers, and breakpoints.
 
