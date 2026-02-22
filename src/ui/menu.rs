@@ -1159,7 +1159,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ));
             ui_state.set_status_message("Enter VICE hostname and port (e.g. localhost:6502)");
         }
-        MenuAction::ViceConnectAddress(_) | MenuAction::ViceDisconnect | MenuAction::ViceStep => {
+        MenuAction::ViceConnectAddress(_) => {
             // Handled directly in run_app
         }
 
@@ -1624,6 +1624,19 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.right_pane = crate::ui_state::RightPane::Blocks;
                 ui_state.active_pane = ActivePane::Blocks;
                 ui_state.set_status_message("Blocks View Shown");
+            }
+        }
+        MenuAction::ViceDisconnect => {
+            app_state.vice_client = None;
+            app_state.vice_state.connected = false;
+            ui_state.set_status_message("Disconnected from VICE");
+        }
+        MenuAction::ViceStep => {
+            if let Some(client) = &app_state.vice_client {
+                client.send_advance_instruction();
+                app_state.vice_state.running = true;
+            } else {
+                ui_state.set_status_message("Not connected to VICE");
             }
         }
         MenuAction::ViceContinue => {

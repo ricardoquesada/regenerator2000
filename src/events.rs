@@ -315,16 +315,6 @@ pub fn run_app<B: Backend>(
                                             ui_state
                                                 .set_status_message("Failed to connect to VICE");
                                         }
-                                    } else if action == crate::ui::menu::MenuAction::ViceDisconnect
-                                    {
-                                        app_state.vice_client = None;
-                                        app_state.vice_state.connected = false;
-                                        ui_state.set_status_message("Disconnected from VICE");
-                                    } else if action == crate::ui::menu::MenuAction::ViceStep {
-                                        if let Some(client) = &app_state.vice_client {
-                                            client.send_advance_instruction();
-                                            app_state.vice_state.running = true;
-                                        }
                                     } else {
                                         crate::ui::menu::handle_menu_action(
                                             &mut app_state,
@@ -355,15 +345,6 @@ pub fn run_app<B: Backend>(
                                         app_state.vice_client = Some(client);
                                     } else {
                                         ui_state.set_status_message("Failed to connect to VICE");
-                                    }
-                                } else if action == crate::ui::menu::MenuAction::ViceDisconnect {
-                                    app_state.vice_client = None;
-                                    app_state.vice_state.connected = false;
-                                    ui_state.set_status_message("Disconnected from VICE");
-                                } else if action == crate::ui::menu::MenuAction::ViceStep {
-                                    if let Some(client) = &app_state.vice_client {
-                                        client.send_advance_instruction();
-                                        app_state.vice_state.running = true;
                                     }
                                 } else {
                                     crate::ui::menu::handle_menu_action(
@@ -434,16 +415,6 @@ pub fn run_app<B: Backend>(
                                         } else {
                                             ui_state
                                                 .set_status_message("Failed to connect to VICE");
-                                        }
-                                    } else if action == crate::ui::menu::MenuAction::ViceDisconnect
-                                    {
-                                        app_state.vice_client = None;
-                                        app_state.vice_state.connected = false;
-                                        ui_state.set_status_message("Disconnected from VICE");
-                                    } else if action == crate::ui::menu::MenuAction::ViceStep {
-                                        if let Some(client) = &app_state.vice_client {
-                                            client.send_advance_instruction();
-                                            app_state.vice_state.running = true;
                                         }
                                     } else {
                                         crate::ui::menu::handle_menu_action(
@@ -529,17 +500,6 @@ pub fn run_app<B: Backend>(
                                                 ui_state.set_status_message(
                                                     "Failed to connect to VICE",
                                                 );
-                                            }
-                                        } else if action
-                                            == crate::ui::menu::MenuAction::ViceDisconnect
-                                        {
-                                            app_state.vice_client = None;
-                                            app_state.vice_state.connected = false;
-                                            ui_state.set_status_message("Disconnected from VICE");
-                                        } else if action == crate::ui::menu::MenuAction::ViceStep {
-                                            if let Some(client) = &app_state.vice_client {
-                                                client.send_advance_instruction();
-                                                app_state.vice_state.running = true;
                                             }
                                         } else {
                                             crate::ui::menu::handle_menu_action(
@@ -682,15 +642,6 @@ pub fn run_app<B: Backend>(
                                         app_state.vice_client = Some(client);
                                     } else {
                                         ui_state.set_status_message("Failed to connect to VICE");
-                                    }
-                                } else if action == crate::ui::menu::MenuAction::ViceDisconnect {
-                                    app_state.vice_client = None;
-                                    app_state.vice_state.connected = false;
-                                    ui_state.set_status_message("Disconnected from VICE");
-                                } else if action == crate::ui::menu::MenuAction::ViceStep {
-                                    if let Some(client) = &app_state.vice_client {
-                                        client.send_advance_instruction();
-                                        app_state.vice_state.running = true;
                                     }
                                 } else {
                                     crate::ui::menu::handle_menu_action(
