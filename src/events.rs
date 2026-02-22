@@ -219,6 +219,12 @@ pub fn run_app<B: Backend>(
                                             },
                                         );
                                     }
+                                } else {
+                                    // It's a temporary breakpoint (e.g. Run To Cursor). Keep track of it
+                                    // so we can delete it if the emulator stops prematurely.
+                                    if !app_state.vice_state.temporary_breakpoints.contains(&id) {
+                                        app_state.vice_state.temporary_breakpoints.push(id);
+                                    }
                                 }
                             }
                         } else if msg.command == crate::vice::ViceCommand::CHECKPOINT_LIST
@@ -233,9 +239,20 @@ pub fn run_app<B: Backend>(
                             app_state.vice_state.running = true;
                         } else if msg.command == crate::vice::ViceCommand::STOPPED {
                             app_state.vice_state.running = false;
-                            // CPU stopped (step complete, step-over complete, or checkpoint hit).
-                            // Fetch registers so the debugger panel and live view update.
+
                             if let Some(client) = &app_state.vice_client {
+                                // If we had any pending temporary breakpoints, delete them.
+                                // VICE auto-deletes temp breakpoints when they are hit, but it
+                                // does NOT delete them if the CPU stopped for another reason
+                                // (e.g. user manually paused, or another breakpoint was hit).
+                                // Deleting a breakpoint that was already auto-deleted is harmless.
+                                for id in &app_state.vice_state.temporary_breakpoints {
+                                    client.send_checkpoint_delete(*id);
+                                }
+                                app_state.vice_state.temporary_breakpoints.clear();
+
+                                // CPU stopped (step complete, step-over complete, or checkpoint hit).
+                                // Fetch registers so the debugger panel and live view update.
                                 client.send_registers_get();
                             }
                         } else if msg.command == crate::vice::ViceCommand::ADVANCE_INSTRUCTION

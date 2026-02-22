@@ -26,6 +26,10 @@ pub struct ViceState {
 
     // Persistent breakpoints (excludes temporary run-to-cursor checkpoints)
     pub breakpoints: Vec<ViceBreakpoint>,
+
+    // Tracks temporary breakpoints (like run-to-cursor) so we can clear them
+    // if the CPU stops before reaching them.
+    pub temporary_breakpoints: Vec<u32>,
 }
 
 impl ViceState {
@@ -44,6 +48,7 @@ impl ViceState {
             live_memory_start: 0,
             stack_memory: None,
             breakpoints: Vec::new(),
+            temporary_breakpoints: Vec::new(),
         }
     }
 
@@ -59,6 +64,7 @@ impl ViceState {
         self.live_memory_start = 0;
         self.stack_memory = None;
         self.breakpoints.clear();
+        self.temporary_breakpoints.clear();
     }
 
     /// Returns true if there is a persistent breakpoint at `addr`.
