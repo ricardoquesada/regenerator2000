@@ -59,6 +59,7 @@ nav:
       - Blocks: blocks.md
   - User Reference:
       - Keyboard Shortcuts: keyboard_shortcuts.md
+      - Debugger (VICE): debugger.md
       - Settings: settings.md
       - Assemblers: assemblers.md
       - MCP Integration: mcp.md

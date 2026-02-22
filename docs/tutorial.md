@@ -169,6 +169,15 @@ Want to step through your code in the VICE emulator with your new labels?
 
 ---
 
+## Phase 7: Debugging with VICE
+
+You can connect Regenerator 2000 directly to a running VICE instance for live debugging. Start VICE with the remote monitor enabled,
+then use **Debugger → Connect to VICE...** and enter the address (e.g. `localhost:6502`). Open the **Debugger** panel from the View menu
+to see the current PC, registers, and breakpoints. Use **F2** to toggle breakpoints, **F7**/**F8** to step, and **F9** to run. For full
+details and all shortcuts, see [Debugger (VICE)](debugger.md) and [Keyboard Shortcuts](keyboard_shortcuts.md).
+
+---
+
 ## Summary of Key Keys
 
 | Key         | Action                        |

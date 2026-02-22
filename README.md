@@ -31,6 +31,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
   - Multicolor or Single Color
 - **Blocks**:
   - Side-by-side view with disassembly.
+- **Debugger**: Connect to VICE for live disassembly, breakpoints, run/step (F2–F9); Debugger panel in the right pane.
 - **Platforms**: Supports Commodore 8-bit machines like C64, C128, Plus/4, etc.
 - **Import**: Load `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, `.bin`, `.raw`, and
   `.regen2000proj` files.
