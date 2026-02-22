@@ -3,7 +3,7 @@ use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::KeyEvent;
 use ratatui::{
     Frame,
-    layout::Rect,
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
@@ -35,14 +35,124 @@ impl Widget for DebuggerView {
 
         let vs = &app_state.vice_state;
 
+        // ---- Live Disassembly Panel (if connected and we have memory) ----
+        const LIVE_PANEL_HEIGHT: u16 = 12; // rows reserved for live panel
+        let (live_area, debugger_area) = if vs.live_memory.is_some() && vs.connected {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(LIVE_PANEL_HEIGHT), Constraint::Min(1)])
+                .split(inner);
+            (Some(chunks[0]), chunks[1])
+        } else {
+            (None, inner)
+        };
+
+        // Render live disassembly panel if we have live memory
+        if let (Some(live_rect), Some(live_bytes)) = (live_area, &vs.live_memory) {
+            let mem_start = vs.live_memory_start;
+            let pc = vs.pc.unwrap_or(mem_start);
+
+            use crate::state::{BlockType, DocumentSettings};
+            use std::collections::{BTreeMap, BTreeSet};
+
+            let block_types: Vec<BlockType> = vec![BlockType::Code; live_bytes.len()];
+            let empty_labels: BTreeMap<u16, Vec<crate::state::Label>> = BTreeMap::new();
+            let empty_comments: BTreeMap<u16, String> = BTreeMap::new();
+            let empty_line_comments: BTreeMap<u16, String> = BTreeMap::new();
+            let empty_formats: BTreeMap<u16, crate::state::ImmediateFormat> = BTreeMap::new();
+            let empty_xrefs: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
+            let empty_splitters: BTreeSet<u16> = BTreeSet::new();
+            let settings = DocumentSettings::default();
+            let collapsed: Vec<(usize, usize)> = Vec::new();
+
+            let live_lines = app_state.disassembler.disassemble(
+                live_bytes,
+                &block_types,
+                &empty_labels,
+                mem_start,
+                &settings,
+                &empty_comments,
+                &empty_comments,
+                &empty_line_comments,
+                &empty_formats,
+                &empty_xrefs,
+                &collapsed,
+                &empty_splitters,
+            );
+
+            let pc_live_idx = live_lines.iter().position(|l| l.address == pc).unwrap_or(0);
+            let panel_rows = (LIVE_PANEL_HEIGHT as usize).saturating_sub(1);
+            // panel_rows is 11. The disassembly view has a top margin of 5.
+            // With a header row, we want 4 rows before the PC to place the PC at row 5.
+            let half = (panel_rows / 2).saturating_sub(1);
+            let start_idx = pc_live_idx.saturating_sub(half);
+            let end_idx = (start_idx + panel_rows).min(live_lines.len());
+
+            let live_style = Style::default().bg(theme.background).fg(theme.foreground);
+            let pc_style = Style::default()
+                .bg(theme.border_active)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD);
+            let dim_style = Style::default().fg(theme.comment);
+            let header_style = Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD);
+
+            let mut live_rendered: Vec<Line> = Vec::new();
+            live_rendered.push(Line::from(Span::styled(
+                format!(" Live @ ${:04X} ─────────────────", pc),
+                header_style,
+            )));
+
+            for line in live_lines[start_idx..end_idx].iter() {
+                let is_pc_line = line.address == pc;
+                let gutter = if is_pc_line { ">" } else { " " };
+                let row_text = format!(
+                    "{} ${:04X}  {:<10} {} {}",
+                    gutter,
+                    line.address,
+                    if line.show_bytes {
+                        line.bytes
+                            .iter()
+                            .map(|b| format!("{:02X}", b))
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    } else {
+                        String::new()
+                    },
+                    line.mnemonic,
+                    line.operand,
+                );
+                let style = if is_pc_line { pc_style } else { live_style };
+                live_rendered.push(Line::from(Span::styled(row_text, style)));
+            }
+
+            while live_rendered.len() < LIVE_PANEL_HEIGHT as usize {
+                live_rendered.push(Line::from(Span::styled("", dim_style)));
+            }
+
+            let live_para =
+                Paragraph::new(live_rendered).style(Style::default().bg(theme.background));
+            f.render_widget(live_para, live_rect);
+        }
+
         // Connection status line
         let (status_text, status_style) = if vs.connected {
-            (
-                "● CONNECTED",
-                Style::default()
-                    .fg(Color::Green)
-                    .add_modifier(Modifier::BOLD),
-            )
+            if vs.running {
+                (
+                    "▶ RUNNING",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                )
+            } else {
+                (
+                    "⏸ PAUSED",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                )
+            }
         } else {
             ("○ Offline", Style::default().fg(Color::DarkGray))
         };
@@ -230,7 +340,7 @@ impl Widget for DebuggerView {
         ]);
 
         let para = Paragraph::new(lines);
-        f.render_widget(para, inner);
+        f.render_widget(para, debugger_area);
     }
 
     fn handle_input(

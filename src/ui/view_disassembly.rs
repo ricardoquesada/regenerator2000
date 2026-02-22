@@ -3,10 +3,10 @@ use crate::ui_state::{ActivePane, MenuAction, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    layout::Rect,
+    style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem},
 };
 
 use crate::ui::widget::{Widget, WidgetResult};
@@ -424,122 +424,10 @@ impl Widget for DisassemblyView {
                     .bg(ui_state.theme.background)
                     .fg(ui_state.theme.foreground),
             );
-        let full_inner_area = block.inner(area);
+        let list_area = block.inner(area);
 
         // Render outer border block first (separately from the list)
         f.render_widget(block.clone(), area);
-
-        // ---- Live Disassembly Panel ----
-        // When connected to VICE and live memory is available, show a live
-        // disassembly of the bytes around the current PC at the top of the
-        // inner area, above the static disassembly list.
-        const LIVE_PANEL_HEIGHT: u16 = 12; // rows reserved for live panel
-        let (live_area, list_area) =
-            if app_state.vice_state.live_memory.is_some() && app_state.vice_state.connected {
-                let chunks = Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([Constraint::Length(LIVE_PANEL_HEIGHT), Constraint::Min(1)])
-                    .split(full_inner_area);
-                (Some(chunks[0]), chunks[1])
-            } else {
-                (None, full_inner_area)
-            };
-
-        // Render live disassembly panel if we have live memory
-        if let (Some(live_rect), Some(live_bytes)) = (live_area, &app_state.vice_state.live_memory)
-        {
-            let mem_start = app_state.vice_state.live_memory_start;
-            let pc = app_state.vice_state.pc.unwrap_or(mem_start);
-
-            // Disassemble the live bytes (all Code, no labels, just raw bytes)
-            use crate::state::{BlockType, DocumentSettings};
-            use std::collections::{BTreeMap, BTreeSet};
-
-            let block_types: Vec<BlockType> = vec![BlockType::Code; live_bytes.len()];
-            let empty_labels: BTreeMap<u16, Vec<crate::state::Label>> = BTreeMap::new();
-            let empty_comments: BTreeMap<u16, String> = BTreeMap::new();
-            let empty_line_comments: BTreeMap<u16, String> = BTreeMap::new();
-            let empty_formats: BTreeMap<u16, crate::state::ImmediateFormat> = BTreeMap::new();
-            let empty_xrefs: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
-            let empty_splitters: BTreeSet<u16> = BTreeSet::new();
-            let settings = DocumentSettings::default();
-            let collapsed: Vec<(usize, usize)> = Vec::new();
-
-            let live_lines = app_state.disassembler.disassemble(
-                live_bytes,
-                &block_types,
-                &empty_labels,
-                mem_start,
-                &settings,
-                &empty_comments,
-                &empty_comments,
-                &empty_line_comments,
-                &empty_formats,
-                &empty_xrefs,
-                &collapsed,
-                &empty_splitters,
-            );
-
-            // Find the PC line in the live disassembly
-            let pc_live_idx = live_lines.iter().position(|l| l.address == pc).unwrap_or(0);
-
-            // Show up to LIVE_PANEL_HEIGHT-1 lines: center around PC
-            let panel_rows = (LIVE_PANEL_HEIGHT as usize).saturating_sub(1); // -1 for header
-            let half = panel_rows / 2;
-            let start_idx = pc_live_idx.saturating_sub(half);
-            let end_idx = (start_idx + panel_rows).min(live_lines.len());
-
-            let live_style = Style::default()
-                .bg(ui_state.theme.background)
-                .fg(ui_state.theme.foreground);
-            let pc_style = Style::default()
-                .bg(ui_state.theme.border_active)
-                .fg(Color::Black)
-                .add_modifier(Modifier::BOLD);
-            let dim_style = Style::default().fg(ui_state.theme.comment);
-            let header_style = Style::default()
-                .fg(Color::Green)
-                .add_modifier(Modifier::BOLD);
-
-            let mut live_rendered: Vec<Line> = Vec::new();
-            // Header row
-            live_rendered.push(Line::from(Span::styled(
-                format!(" Live @ ${:04X} ─────────────────", pc),
-                header_style,
-            )));
-
-            for line in live_lines[start_idx..end_idx].iter() {
-                let is_pc_line = line.address == pc;
-                let gutter = if is_pc_line { ">" } else { " " };
-                let row_text = format!(
-                    "{} ${:04X}  {:<10} {} {}",
-                    gutter,
-                    line.address,
-                    if line.show_bytes {
-                        line.bytes
-                            .iter()
-                            .map(|b| format!("{:02X}", b))
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    } else {
-                        String::new()
-                    },
-                    line.mnemonic,
-                    line.operand,
-                );
-                let style = if is_pc_line { pc_style } else { live_style };
-                live_rendered.push(Line::from(Span::styled(row_text, style)));
-            }
-
-            // Fill remaining rows with dim dashes if needed
-            while live_rendered.len() < LIVE_PANEL_HEIGHT as usize {
-                live_rendered.push(Line::from(Span::styled("", dim_style)));
-            }
-
-            let live_para =
-                Paragraph::new(live_rendered).style(Style::default().bg(ui_state.theme.background));
-            f.render_widget(live_para, live_rect);
-        }
 
         let formatter = app_state.get_formatter();
 

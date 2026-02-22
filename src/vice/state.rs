@@ -15,6 +15,7 @@ pub struct ViceState {
     pub sp: Option<u8>,
     pub p: Option<u8>, // status flags
     pub status: String,
+    pub running: bool,
 
     // Live memory snapshot: bytes fetched from VICE via MEMORY_GET
     pub live_memory: Option<Vec<u8>>,
@@ -38,6 +39,7 @@ impl ViceState {
             sp: None,
             p: None,
             status: "Disconnected".to_string(),
+            running: false,
             live_memory: None,
             live_memory_start: 0,
             stack_memory: None,
@@ -52,6 +54,7 @@ impl ViceState {
         self.y = None;
         self.sp = None;
         self.p = None;
+        self.running = false;
         self.live_memory = None;
         self.live_memory_start = 0;
         self.stack_memory = None;

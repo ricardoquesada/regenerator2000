@@ -757,14 +757,16 @@ impl MenuState {
                             MenuAction::ViceConnect => {
                                 item.disabled = app_state.vice_client.is_some();
                             }
-                            MenuAction::ViceDisconnect
-                            | MenuAction::ViceStep
+                            MenuAction::ViceDisconnect | MenuAction::ViceToggleBreakpoint => {
+                                item.disabled = app_state.vice_client.is_none();
+                            }
+                            MenuAction::ViceStep
                             | MenuAction::ViceStepOver
                             | MenuAction::ViceStepOut
                             | MenuAction::ViceContinue
-                            | MenuAction::ViceRunToCursor
-                            | MenuAction::ViceToggleBreakpoint => {
-                                item.disabled = app_state.vice_client.is_none();
+                            | MenuAction::ViceRunToCursor => {
+                                item.disabled =
+                                    app_state.vice_client.is_none() || app_state.vice_state.running;
                             }
                             _ => item.disabled = false,
                         }
@@ -1627,6 +1629,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         MenuAction::ViceContinue => {
             if let Some(client) = &app_state.vice_client {
                 client.send_continue();
+                app_state.vice_state.running = true;
                 ui_state.set_status_message("VICE: Running...");
             } else {
                 ui_state.set_status_message("Not connected to VICE");
@@ -1635,6 +1638,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         MenuAction::ViceStepOver => {
             if let Some(client) = &app_state.vice_client {
                 client.send_step_over();
+                app_state.vice_state.running = true;
             } else {
                 ui_state.set_status_message("Not connected to VICE");
             }
@@ -1644,6 +1648,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 if let Some(target) = app_state.vice_state.get_return_address() {
                     client.send_checkpoint_set_exec_temp(target);
                     client.send_continue();
+                    app_state.vice_state.running = true;
                     ui_state
                         .set_status_message(format!("VICE: Stepping out to ${:04X}...", target));
                 } else {
@@ -1706,6 +1711,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 if let Some(addr) = target_addr {
                     client.send_checkpoint_set_exec_temp(addr);
                     client.send_continue();
+                    app_state.vice_state.running = true;
                     ui_state.set_status_message(format!("VICE: Running to ${:04X}...", addr));
                 }
             } else {

@@ -229,7 +229,10 @@ pub fn run_app<B: Backend>(
                             // checkpoint — those are handled above. Clear the list here so the
                             // incoming 0x11 responses repopulate it cleanly.
                             app_state.vice_state.breakpoints.clear();
+                        } else if msg.command == crate::vice::ViceCommand::RESUMED {
+                            app_state.vice_state.running = true;
                         } else if msg.command == crate::vice::ViceCommand::STOPPED {
+                            app_state.vice_state.running = false;
                             // CPU stopped (step complete, step-over complete, or checkpoint hit).
                             // Fetch registers so the debugger panel and live view update.
                             if let Some(client) = &app_state.vice_client {
@@ -320,6 +323,7 @@ pub fn run_app<B: Backend>(
                                     } else if action == crate::ui::menu::MenuAction::ViceStep {
                                         if let Some(client) = &app_state.vice_client {
                                             client.send_advance_instruction();
+                                            app_state.vice_state.running = true;
                                         }
                                     } else {
                                         crate::ui::menu::handle_menu_action(
@@ -359,6 +363,7 @@ pub fn run_app<B: Backend>(
                                 } else if action == crate::ui::menu::MenuAction::ViceStep {
                                     if let Some(client) = &app_state.vice_client {
                                         client.send_advance_instruction();
+                                        app_state.vice_state.running = true;
                                     }
                                 } else {
                                     crate::ui::menu::handle_menu_action(
@@ -438,6 +443,7 @@ pub fn run_app<B: Backend>(
                                     } else if action == crate::ui::menu::MenuAction::ViceStep {
                                         if let Some(client) = &app_state.vice_client {
                                             client.send_advance_instruction();
+                                            app_state.vice_state.running = true;
                                         }
                                     } else {
                                         crate::ui::menu::handle_menu_action(
@@ -533,6 +539,7 @@ pub fn run_app<B: Backend>(
                                         } else if action == crate::ui::menu::MenuAction::ViceStep {
                                             if let Some(client) = &app_state.vice_client {
                                                 client.send_advance_instruction();
+                                                app_state.vice_state.running = true;
                                             }
                                         } else {
                                             crate::ui::menu::handle_menu_action(
@@ -683,6 +690,7 @@ pub fn run_app<B: Backend>(
                                 } else if action == crate::ui::menu::MenuAction::ViceStep {
                                     if let Some(client) = &app_state.vice_client {
                                         client.send_advance_instruction();
+                                        app_state.vice_state.running = true;
                                     }
                                 } else {
                                     crate::ui::menu::handle_menu_action(
