@@ -259,13 +259,6 @@ pub fn run_app<B: Backend>(
                                 // Fetch registers so the debugger panel and live view update.
                                 client.send_registers_get();
                             }
-                        } else if msg.command == crate::vice::ViceCommand::ADVANCE_INSTRUCTION
-                            && msg.error_code == 0
-                        {
-                            // Step/step-over acknowledged — fetch updated registers.
-                            if let Some(client) = &app_state.vice_client {
-                                client.send_registers_get();
-                            }
                         } else if msg.error_code != 0 {
                             // Ignore error responses silently (e.g. memory not accessible)
                         } else {
