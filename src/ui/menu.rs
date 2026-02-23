@@ -67,7 +67,10 @@ pub enum MenuAction {
     ToggleSplitter,
     FindReferences,
     NavigateToAddress(u16),
-    SetBytesBlockByOffset { start: usize, end: usize },
+    SetBytesBlockByOffset {
+        start: usize,
+        end: usize,
+    },
     SetLabel,
     GoToSymbol,
     ImportViceLabels,
@@ -83,6 +86,11 @@ pub enum MenuAction {
     ViceStepOut,
     ViceRunToCursor,
     ViceToggleBreakpoint,
+    ViceToggleWatchpoint,
+    ViceSetWatchpoint {
+        address: u16,
+        kind: crate::vice::state::BreakpointKind,
+    },
     ToggleDebuggerView,
 }
 
@@ -103,6 +111,7 @@ impl MenuAction {
                 | MenuAction::ViceStepOut
                 | MenuAction::ViceRunToCursor
                 | MenuAction::ViceToggleBreakpoint
+                | MenuAction::ViceToggleWatchpoint
         )
     }
 }
@@ -602,6 +611,11 @@ impl MenuState {
                             Some("F2"),
                             Some(MenuAction::ViceToggleBreakpoint),
                         ),
+                        MenuItem::new(
+                            "Watchpoint...",
+                            Some("Shift+F3"),
+                            Some(MenuAction::ViceToggleWatchpoint),
+                        ),
                     ],
                 },
                 MenuCategory {
@@ -756,7 +770,9 @@ impl MenuState {
                             MenuAction::ViceConnect => {
                                 item.disabled = app_state.vice_client.is_some();
                             }
-                            MenuAction::ViceDisconnect | MenuAction::ViceToggleBreakpoint => {
+                            MenuAction::ViceDisconnect
+                            | MenuAction::ViceToggleBreakpoint
+                            | MenuAction::ViceToggleWatchpoint => {
                                 item.disabled = app_state.vice_client.is_none();
                             }
                             MenuAction::ViceStep
@@ -953,6 +969,57 @@ pub fn render_menu_popup(
     );
 
     f.render_widget(list, area);
+}
+
+fn vice_open_watchpoint_dialog(app_state: &AppState, ui_state: &mut UIState) {
+    let prefill = app_state
+        .disassembly
+        .get(ui_state.cursor_index)
+        .map(|l| l.address);
+    ui_state.active_dialog = Some(Box::new(
+        crate::ui::dialog_watchpoint_address::WatchpointAddressDialog::new(prefill),
+    ));
+}
+
+fn vice_toggle_watchpoint(
+    app_state: &mut AppState,
+    ui_state: &mut UIState,
+    addr: u16,
+    kind: crate::vice::state::BreakpointKind,
+) {
+    if let Some(client) = &app_state.vice_client {
+        if let Some(pos) = app_state
+            .vice_state
+            .breakpoints
+            .iter()
+            .position(|bp| bp.address == addr && bp.kind == kind)
+        {
+            let id = app_state.vice_state.breakpoints[pos].id;
+            client.send_checkpoint_delete(id);
+            app_state.vice_state.breakpoints.remove(pos);
+            ui_state.set_status_message(format!(
+                "[{}] watchpoint removed at ${:04X}",
+                kind.label(),
+                addr
+            ));
+        } else {
+            match kind {
+                crate::vice::state::BreakpointKind::Load => client.send_checkpoint_set_load(addr),
+                crate::vice::state::BreakpointKind::Store => client.send_checkpoint_set_store(addr),
+                crate::vice::state::BreakpointKind::LoadStore => {
+                    client.send_checkpoint_set_load_store(addr)
+                }
+                crate::vice::state::BreakpointKind::Exec => {}
+            }
+            ui_state.set_status_message(format!(
+                "[{}] watchpoint set at ${:04X}",
+                kind.label(),
+                addr
+            ));
+        }
+    } else {
+        ui_state.set_status_message("Not connected to VICE");
+    }
 }
 
 pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: MenuAction) {
@@ -1728,25 +1795,19 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         }
         MenuAction::ViceToggleBreakpoint => {
             if let Some(client) = &app_state.vice_client {
-                // Find cursor address from disassembly
                 let cursor_addr = app_state
                     .disassembly
                     .get(ui_state.cursor_index)
                     .map(|l| l.address);
                 if let Some(addr) = cursor_addr {
-                    if let Some(pos) = app_state
-                        .vice_state
-                        .breakpoints
-                        .iter()
-                        .position(|bp| bp.address == addr)
-                    {
-                        // Remove existing breakpoint
+                    if let Some(pos) = app_state.vice_state.breakpoints.iter().position(|bp| {
+                        bp.address == addr && bp.kind == crate::vice::state::BreakpointKind::Exec
+                    }) {
                         let id = app_state.vice_state.breakpoints[pos].id;
                         client.send_checkpoint_delete(id);
                         app_state.vice_state.breakpoints.remove(pos);
                         ui_state.set_status_message(format!("Breakpoint removed at ${:04X}", addr));
                     } else {
-                        // Set new persistent breakpoint — will be added to list on response
                         client.send_checkpoint_set_exec(addr);
                         ui_state.set_status_message(format!("Breakpoint set at ${:04X}", addr));
                     }
@@ -1754,6 +1815,12 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             } else {
                 ui_state.set_status_message("Not connected to VICE");
             }
+        }
+        MenuAction::ViceToggleWatchpoint => {
+            vice_open_watchpoint_dialog(app_state, ui_state);
+        }
+        MenuAction::ViceSetWatchpoint { address, kind } => {
+            vice_toggle_watchpoint(app_state, ui_state, address, kind);
         }
         MenuAction::ToggleDebuggerView => {
             if ui_state.right_pane == crate::ui_state::RightPane::Debugger {

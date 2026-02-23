@@ -1,8 +1,37 @@
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BreakpointKind {
+    Exec,
+    Load,
+    Store,
+    LoadStore,
+}
+
+impl BreakpointKind {
+    pub fn from_cpu_op(op: u8) -> Self {
+        match op {
+            0x01 => BreakpointKind::Load,
+            0x02 => BreakpointKind::Store,
+            0x03 => BreakpointKind::LoadStore,
+            _ => BreakpointKind::Exec,
+        }
+    }
+
+    pub fn label(&self) -> &'static str {
+        match self {
+            BreakpointKind::Exec => "X",
+            BreakpointKind::Load => "R",
+            BreakpointKind::Store => "W",
+            BreakpointKind::LoadStore => "RW",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ViceBreakpoint {
     pub id: u32,
     pub address: u16,
     pub enabled: bool,
+    pub kind: BreakpointKind,
 }
 
 #[derive(Debug, Clone, Default)]

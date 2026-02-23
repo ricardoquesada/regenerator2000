@@ -11,6 +11,14 @@ pub struct ViceMessage {
     pub error_code: u8,
 }
 
+pub struct ViceCpuOp;
+
+impl ViceCpuOp {
+    pub const LOAD: u8 = 0x01; // Break on memory read
+    pub const STORE: u8 = 0x02; // Break on memory write
+    pub const EXEC: u8 = 0x04; // Break on execution
+}
+
 pub struct ViceCommand;
 
 impl ViceCommand {

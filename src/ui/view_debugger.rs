@@ -232,10 +232,21 @@ impl Widget for DebuggerView {
             Line::from(Span::styled("Breakpoints", heading_style)),
         ];
 
-        if vs.breakpoints.is_empty() {
+        let exec_bps: Vec<_> = vs
+            .breakpoints
+            .iter()
+            .filter(|bp| bp.kind == crate::vice::state::BreakpointKind::Exec)
+            .collect();
+        let watchpoints: Vec<_> = vs
+            .breakpoints
+            .iter()
+            .filter(|bp| bp.kind != crate::vice::state::BreakpointKind::Exec)
+            .collect();
+
+        if exec_bps.is_empty() {
             lines.push(Line::from(Span::styled("  (none)", dim_style)));
         } else {
-            for bp in &vs.breakpoints {
+            for bp in &exec_bps {
                 let bp_style = if bp.enabled {
                     Style::default()
                         .fg(ui_state.theme.error_fg)
@@ -248,6 +259,30 @@ impl Widget for DebuggerView {
                     Span::styled(format!("  {} ", flag), bp_style),
                     Span::styled(format!("#{:<3}", bp.id), dim_style),
                     Span::styled(format!("${:04X}", bp.address), value_style),
+                ]));
+            }
+        }
+
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled("Watchpoints", heading_style)));
+
+        if watchpoints.is_empty() {
+            lines.push(Line::from(Span::styled("  (none)", dim_style)));
+        } else {
+            for bp in &watchpoints {
+                let bp_style = if bp.enabled {
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    dim_style
+                };
+                let flag = if bp.enabled { "●" } else { "○" };
+                lines.push(Line::from(vec![
+                    Span::styled(format!("  {} ", flag), bp_style),
+                    Span::styled(format!("#{:<3}", bp.id), dim_style),
+                    Span::styled(format!("${:04X}", bp.address), value_style),
+                    Span::styled(format!(" [{}]", bp.kind.label()), bp_style),
                 ]));
             }
         }
@@ -324,6 +359,10 @@ impl Widget for DebuggerView {
             Line::from(vec![
                 Span::styled("  F2  ", label_style),
                 Span::styled("Toggle breakpoint", dim_style),
+            ]),
+            Line::from(vec![
+                Span::styled("  S-F3", label_style),
+                Span::styled("Watchpoint...", dim_style),
             ]),
             Line::from(vec![
                 Span::styled("  F7  ", label_style),

@@ -1,4 +1,4 @@
-use super::protocol::{ViceCommand, ViceMessage};
+use super::protocol::{ViceCommand, ViceCpuOp, ViceMessage};
 use crate::events::AppEvent;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpStream};
@@ -134,17 +134,49 @@ impl ViceClient {
         self.send(ViceMessage::new(ViceCommand::CHECKPOINT_LIST, vec![]));
     }
 
-    /// Set a persistent exec-only breakpoint at `addr`.
-    /// The response will contain the checkpoint number needed for deletion.
-    pub fn send_checkpoint_set_exec(&self, addr: u16) {
+    /// Build a persistent checkpoint payload for any cpu_operation type.
+    fn checkpoint_payload(addr: u16, cpu_op: u8) -> Vec<u8> {
         let mut payload = Vec::with_capacity(8);
         payload.extend_from_slice(&addr.to_le_bytes()); // start_addr
         payload.extend_from_slice(&addr.to_le_bytes()); // end_addr
         payload.push(1); // stop_when_hit
         payload.push(1); // enabled
-        payload.push(0x04); // cpu_operation: exec
-        payload.push(0); // temporary: persistent (keep after hit)
-        self.send(ViceMessage::new(ViceCommand::CHECKPOINT_SET, payload));
+        payload.push(cpu_op);
+        payload.push(0); // temporary: persistent
+        payload
+    }
+
+    /// Set a persistent exec-only breakpoint at `addr`.
+    /// The response will contain the checkpoint number needed for deletion.
+    pub fn send_checkpoint_set_exec(&self, addr: u16) {
+        self.send(ViceMessage::new(
+            ViceCommand::CHECKPOINT_SET,
+            Self::checkpoint_payload(addr, ViceCpuOp::EXEC),
+        ));
+    }
+
+    /// Set a persistent read (load) watchpoint at `addr`.
+    pub fn send_checkpoint_set_load(&self, addr: u16) {
+        self.send(ViceMessage::new(
+            ViceCommand::CHECKPOINT_SET,
+            Self::checkpoint_payload(addr, ViceCpuOp::LOAD),
+        ));
+    }
+
+    /// Set a persistent write (store) watchpoint at `addr`.
+    pub fn send_checkpoint_set_store(&self, addr: u16) {
+        self.send(ViceMessage::new(
+            ViceCommand::CHECKPOINT_SET,
+            Self::checkpoint_payload(addr, ViceCpuOp::STORE),
+        ));
+    }
+
+    /// Set a persistent read+write watchpoint at `addr`.
+    pub fn send_checkpoint_set_load_store(&self, addr: u16) {
+        self.send(ViceMessage::new(
+            ViceCommand::CHECKPOINT_SET,
+            Self::checkpoint_payload(addr, ViceCpuOp::LOAD | ViceCpuOp::STORE),
+        ));
     }
 
     /// Delete a checkpoint by its ID (returned in the CHECKPOINT_SET response).
@@ -166,7 +198,7 @@ impl ViceClient {
         payload.extend_from_slice(&addr.to_le_bytes()); // end_addr (same = exact address)
         payload.push(1); // stop_when_hit
         payload.push(1); // enabled
-        payload.push(0x04); // cpu_operation: exec
+        payload.push(ViceCpuOp::EXEC); // cpu_operation: exec
         payload.push(1); // temporary: auto-delete after first hit
         self.send(ViceMessage::new(ViceCommand::CHECKPOINT_SET, payload));
     }

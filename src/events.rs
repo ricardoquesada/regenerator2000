@@ -201,7 +201,10 @@ pub fn run_app<B: Backend>(
                                 let id = u32::from_le_bytes([p[0], p[1], p[2], p[3]]);
                                 let addr = u16::from_le_bytes([p[5], p[6]]);
                                 let enabled = p[10] != 0;
+                                // p[11] = cpu_operation (between enabled and temporary)
+                                let cpu_op = p[11];
                                 let temporary = p[12] != 0;
+                                let kind = crate::vice::state::BreakpointKind::from_cpu_op(cpu_op);
                                 // Only track persistent breakpoints (not run-to-cursor temps)
                                 if !temporary {
                                     // Avoid duplicates (e.g. if both 0x11 and 0x12 arrive for same checkpoint)
@@ -216,6 +219,7 @@ pub fn run_app<B: Backend>(
                                                 id,
                                                 address: addr,
                                                 enabled,
+                                                kind,
                                             },
                                         );
                                     }
@@ -312,11 +316,12 @@ pub fn run_app<B: Backend>(
                                     should_render = true;
                                 }
                                 crate::ui::widget::WidgetResult::Action(action) => {
-                                    let is_vice_connect = matches!(
+                                    let closes_dialog = matches!(
                                         action,
                                         crate::ui::menu::MenuAction::ViceConnectAddress(_)
+                                            | crate::ui::menu::MenuAction::ViceSetWatchpoint { .. }
                                     );
-                                    if !is_vice_connect {
+                                    if !closes_dialog {
                                         ui_state.active_dialog = Some(dialog);
                                     }
                                     should_render = true;

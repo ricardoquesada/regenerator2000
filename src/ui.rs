@@ -26,6 +26,7 @@ pub mod dialog_settings;
 pub mod dialog_t64_picker;
 pub mod dialog_vice_connect;
 pub mod dialog_warning;
+pub mod dialog_watchpoint_address;
 pub mod graphics_common;
 pub mod menu;
 pub mod navigable;
