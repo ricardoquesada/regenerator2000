@@ -1,6 +1,8 @@
 # Debugger (VICE Integration)
 
-Regenerator 2000 can connect to the [VICE](https://vice-emu.sourceforge.io/) emulator to provide live debugging: view the current program counter (PC), registers, and memory while the program runs, and use breakpoints, step, and run-to-cursor directly from the TUI.
+Regenerator 2000 can connect to the [VICE](https://vice-emu.sourceforge.io/) emulator to provide live debugging:
+view the current program counter (PC), registers and disassembly, while the program runs, and use breakpoints,
+step, and run-to-cursor directly from the TUI.
 
 ## Connecting to VICE
 
@@ -20,11 +22,12 @@ Once connected, the Debugger panel shows connection status and, when the emulato
 - **Connection status**: Whether Regenerator 2000 is connected to VICE and whether the emulator is running or stopped.
 - **Live disassembly**: When stopped, a small window of disassembly around the current PC, with the current instruction highlighted.
 - **Registers**: A, X, Y, SP, and P (status) when available.
-- **Breakpoints**: List of breakpoints set in VICE (synced on connect and when you toggle breakpoints from Regenerator 2000).
+- **Breakpoints**: List of breakpoints set in VICE.
+- **Watchpoints**: List of watchpoins set in VICE.
 
 ![Debugger Only](regenerator2000_debugger_screenshot_only.png)
 
-The main **Disassembly** view also reflects the debugger when connected: the current PC is highlighted, and breakpoints are indicated. You can set or clear a breakpoint at the cursor with **F2**.
+The main **Disassembly** view also reflects the debugger when connected: the current PC is highlighted, and breakpoints are indicated. You can set or clear a breakpoint at the cursor with **F2**. And do the same with watchpoints with **F6**.
 
 ## Keyboard Shortcuts
 

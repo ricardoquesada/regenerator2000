@@ -171,8 +171,6 @@ To install all available skills at once, run:
 cp -r .agent/skills/r2000* /path/to/your/project/.agent/skills/
 ```
 
-To install a specific skill, copy its folder from the Regenerator 2000 source tree into your own project:
-
 The resulting layout should look like:
 
 ```
