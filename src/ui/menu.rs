@@ -613,7 +613,7 @@ impl MenuState {
                         ),
                         MenuItem::new(
                             "Watchpoint...",
-                            Some("Shift+F3"),
+                            Some("F6"),
                             Some(MenuAction::ViceToggleWatchpoint),
                         ),
                     ],

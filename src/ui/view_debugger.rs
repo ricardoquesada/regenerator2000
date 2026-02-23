@@ -372,7 +372,7 @@ impl Widget for DebuggerView {
                 Span::styled("Toggle breakpoint", dim_style),
             ]),
             Line::from(vec![
-                Span::styled("  S-F3", label_style),
+                Span::styled("  F6  ", label_style),
                 Span::styled("Watchpoint...", dim_style),
             ]),
             Line::from(vec![

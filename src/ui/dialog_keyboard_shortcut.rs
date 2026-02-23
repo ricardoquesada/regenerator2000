@@ -98,6 +98,7 @@ impl ShortcutsDialog {
             ("", ""),
             ("Debugger", ""),
             ("F2", "Toggle Breakpoint"),
+            ("F6", "Watchpoint"),
             ("F4", "Run to Cursor"),
             ("F7", "Step Instruction"),
             ("F8", "Step Over"),

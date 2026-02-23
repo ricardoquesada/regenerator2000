@@ -79,6 +79,7 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 | **View: Blocks**                   | **Toggle Collapsed Block**                                                              | ++ctrl+k++                                                    |
 |                                    | **Jump to Disassembly + update cursor**                                                 | ++enter++                                                     |
 | **Debugger**                       | **Toggle Breakpoint**                                                                   | ++f2++                                                        |
+|                                    | **Watchpoint**                                                                          | ++f6++                                                        |
 |                                    | **Run to Cursor**                                                                       | ++f4++                                                        |
 |                                    | **Step Instruction**                                                                    | ++f7++                                                        |
 |                                    | **Step Over**                                                                           | ++f8++                                                        |
