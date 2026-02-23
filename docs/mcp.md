@@ -163,7 +163,15 @@ The true power of the MCP server comes from combining the AI's semantic understa
 
 **Skills** are reusable instruction sets that guide the AI through complex, multi-step tasks. They live in your project's `.agent/skills/` directory and are automatically discovered by compatible AI agents (e.g., Antigravity).
 
-To install a skill, copy its folder from the Regenerator 2000 source tree into your own project:
+### Installation
+
+To install all available skills at once, run:
+
+```shell
+cp -r .agent/skills/r2000* /path/to/your/project/.agent/skills/
+```
+
+To install a specific skill, copy its folder from the Regenerator 2000 source tree into your own project:
 
 The resulting layout should look like:
 
@@ -199,12 +207,6 @@ Scans a memory range (or the entire binary) and converts each region to the corr
 
 **Supported block types:** Code, Byte, Word, Address, PETSCII Text, Screencode Text, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined.
 
-**To install:**
-
-```shell
-cp -r .agent/skills/r2000-analyze-blocks /path/to/your/project/.agent/skills/
-```
-
 !!! example "Prompt"
 
     > "Analyze blocks", "Convert blocks", "Identify data regions", "Classify the program"
@@ -222,12 +224,6 @@ Analyzes a disassembly subroutine to determine its purpose by examining code, cr
 5. Synthesizes a summary of purpose, inputs, outputs, and side effects.
 6. Optionally documents the routine by adding a structured comment block above the entry point and renaming the label.
 
-**To install:**
-
-```shell
-cp -r .agent/skills/r2000-analyze-routine /path/to/your/project/.agent/skills/
-```
-
 !!! example "Prompt"
 
     > "Analyze this routine", "What does this function do?"
@@ -244,12 +240,6 @@ Analyzes a specific memory address or label to determine its purpose (variable, 
 4. Identifies patterns: Pointers (indirect indexed), Flags (boolean checks), Counters (loops), State variables.
 5. Renames the symbol to a descriptive name (`snake_case` for variables, `CapsExpr` for hardware/constants).
 6. Adds line comments (definitions) and side comments (usages) to document the data flow.
-
-**To install:**
-
-```shell
-cp -r .agent/skills/r2000-analyze-symbol /path/to/your/project/.agent/skills/
-```
 
 !!! example "Prompt"
 
