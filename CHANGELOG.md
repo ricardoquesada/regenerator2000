@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-02-23
+
+### Features
+
+- Feature: **VICE Debugger**: Comprehensive support for VICE remote debugging.
+  - Debugger view with CPU status, stack, and registers information.
+  - Breakpoints and Watchpoints support.
+  - Execution controls: Continue, Step Into, Step Over, Step Out, Run to Cursor.
+  - Live Disassembly View
+- Feature: **Open Recents**: Added "Open Recent" support for quickly accessing recent files.
+- Feature: **UI**: Mouse click on blocks in Blocks View now updates the Disassembly View cursor.
+- Feature: **Settings**: Added description field to Document Settings.
+- Feature: **MCP**: `get_binary_info` tool now includes the filename, description and platform to aid agent tasks.
+
+### Changes
+
+- UI: Removed "switch view" from MCP as it is not currently implemented.
+- UI: Improved navigation in the Document Settings dialog.
+- UI: Minor cosmetic fixes in keyboard shortcut dialogs.
+
+### Fixes
+
+- Fix: Keyboard shortcuts handling simplified and corrected for the Debugger integrations (F6, F7, etc).
+- Fix: Addressed duplicate issues with initial breakpoint on connection.
+
+### Documentation
+
+- Docs: Added comprehensive VICE debugger documentation and screenshots.
+- Docs: Updated MCP documentation to reference Antigravity.
+- Examples: Updated descriptions for example projects.
+
 ## [0.7.2] - 2026-02-18
 
 ### Features
