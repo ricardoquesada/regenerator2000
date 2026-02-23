@@ -35,17 +35,51 @@ impl Widget for DebuggerView {
 
         let vs = &app_state.vice_state;
 
+        // Connection status line
+        let (status_text, status_style) = if vs.connected {
+            if vs.running {
+                (
+                    "▶ RUNNING",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                )
+            } else {
+                (
+                    "⏸ PAUSED",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                )
+            }
+        } else {
+            ("○ Offline", Style::default().fg(Color::DarkGray))
+        };
+
         // ---- Live Disassembly Panel (if connected and we have memory) ----
         const LIVE_PANEL_HEIGHT: u16 = 12; // rows reserved for live panel
-        let (live_area, debugger_area) = if vs.live_memory.is_some() && vs.connected {
+        let (status_area, live_area, debugger_area) = if vs.live_memory.is_some() && vs.connected {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints([Constraint::Length(LIVE_PANEL_HEIGHT), Constraint::Min(1)])
+                .constraints([
+                    Constraint::Length(1), // Status line
+                    Constraint::Length(LIVE_PANEL_HEIGHT),
+                    Constraint::Min(1),
+                ])
                 .split(inner);
-            (Some(chunks[0]), chunks[1])
+            (Some(chunks[0]), Some(chunks[1]), chunks[2])
         } else {
-            (None, inner)
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([Constraint::Length(2), Constraint::Min(1)]) // text + empty line space
+                .split(inner);
+            (Some(chunks[0]), None, chunks[1])
         };
+
+        if let Some(s_area) = status_area {
+            let status_para = Paragraph::new(Line::from(Span::styled(status_text, status_style)));
+            f.render_widget(status_para, s_area);
+        }
 
         // Render live disassembly panel if we have live memory
         if let (Some(live_rect), Some(live_bytes)) = (live_area, &vs.live_memory) {
@@ -82,10 +116,10 @@ impl Widget for DebuggerView {
 
             let pc_live_idx = live_lines.iter().position(|l| l.address == pc).unwrap_or(0);
             let panel_rows = (LIVE_PANEL_HEIGHT as usize).saturating_sub(1);
-            // panel_rows is 11. The disassembly view has a top margin of 5.
-            // With a header row, we want 4 rows before the PC to place the PC at row 5.
-            let half = (panel_rows / 2).saturating_sub(1);
-            let start_idx = pc_live_idx.saturating_sub(half);
+            // Since status line takes 1 row above, and we have a header,
+            // we need exactly 3 rows before the PC to render it at inner.y + 5.
+            let rows_before_pc = 3;
+            let start_idx = pc_live_idx.saturating_sub(rows_before_pc);
             let end_idx = (start_idx + panel_rows).min(live_lines.len());
 
             let live_style = Style::default().bg(theme.background).fg(theme.foreground);
@@ -136,27 +170,6 @@ impl Widget for DebuggerView {
             f.render_widget(live_para, live_rect);
         }
 
-        // Connection status line
-        let (status_text, status_style) = if vs.connected {
-            if vs.running {
-                (
-                    "▶ RUNNING",
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                )
-            } else {
-                (
-                    "⏸ PAUSED",
-                    Style::default()
-                        .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
-                )
-            }
-        } else {
-            ("○ Offline", Style::default().fg(Color::DarkGray))
-        };
-
         let fmt_byte = |v: Option<u8>| -> String {
             match v {
                 Some(b) => format!("${:02X}", b),
@@ -196,8 +209,6 @@ impl Widget for DebuggerView {
             .add_modifier(Modifier::BOLD);
 
         let mut lines: Vec<Line> = vec![
-            Line::from(Span::styled(status_text, status_style)),
-            Line::from(""),
             Line::from(Span::styled("CPU Registers", heading_style)),
             Line::from(vec![
                 Span::styled("  PC  ", label_style),
