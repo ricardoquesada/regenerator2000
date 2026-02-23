@@ -12,12 +12,16 @@ Regenerator 2000 can connect to the [VICE](https://vice-emu.sourceforge.io/) emu
 
 Once connected, the Debugger panel shows connection status and, when the emulator is stopped, live disassembly around the PC, registers, and breakpoints.
 
+![Debugger View](regenerator2000_debugger_screenshot.png)
+
 ## What the Debugger Panel Shows
 
 - **Connection status**: Whether Regenerator 2000 is connected to VICE and whether the emulator is running or stopped.
 - **Live disassembly**: When stopped, a small window of disassembly around the current PC, with the current instruction highlighted.
 - **Registers**: A, X, Y, SP, and P (status) when available.
 - **Breakpoints**: List of breakpoints set in VICE (synced on connect and when you toggle breakpoints from Regenerator 2000).
+
+![Debugger Only](regenerator2000_debugger_screenshot_only.png)
 
 The main **Disassembly** view also reflects the debugger when connected: the current PC is highlighted, and breakpoints are indicated. You can set or clear a breakpoint at the cursor with **F2**.
 
@@ -29,6 +33,7 @@ All debugger actions are available from the **Debugger** menu and have keyboard 
 | ----------------- | ------------ |
 | Toggle Breakpoint | ++f2++       |
 | Run to Cursor     | ++f4++       |
+| Watchpoint        | ++f6++       |
 | Step Instruction  | ++f7++       |
 | Step Over         | ++f8++       |
 | Step Out          | ++shift+f8++ |

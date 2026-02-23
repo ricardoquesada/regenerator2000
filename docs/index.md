@@ -50,6 +50,12 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 
     ![Blocks View](regenerator2000_blocks_screenshot.png)
 
+=== "Debugger"
+
+    **Live Debugging**: Connect to VICE, view registers, memory, breakpoints, and step through code.
+
+    ![Debugger View](regenerator2000_debugger_screenshot.png)
+
 ---
 
 ## Key Features
