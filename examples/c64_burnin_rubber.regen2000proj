@@ -34,6 +34,18 @@
     },
     {
       "start": 10625,
+      "end": 12287,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 12288,
+      "end": 13311,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 13312,
       "end": 18287,
       "type_": "Code",
       "collapsed": false
@@ -58,9 +70,44 @@
     }
   ],
   "labels": {
+    "4096": [
+      {
+        "name": "init_vic_video",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4178": [
+      {
+        "name": "init_screen_and_sprites",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4501": [
+      {
+        "name": "init_game_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "4752": [
       {
         "name": "boot",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4864": [
+      {
+        "name": "scroll_and_draw_map_row",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5577": [
+      {
+        "name": "increment_score",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -121,9 +168,100 @@
         "kind": "User"
       }
     ],
+    "5808": [
+      {
+        "name": "update_hud_display",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6048": [
+      {
+        "name": "handle_player_movement",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "6144": [
       {
         "name": "main",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6153": [
+      {
+        "name": "main_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6656": [
+      {
+        "name": "check_jump_input",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6714": [
+      {
+        "name": "update_jump_animation",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6912": [
+      {
+        "name": "check_background_collision",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15060": [
+      {
+        "name": "process_entities_and_input",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "17408": [
+      {
+        "name": "apply_y_offset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "17424": [
+      {
+        "name": "handle_acceleration",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "17508": [
+      {
+        "name": "handle_deceleration",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "17920": [
+      {
+        "name": "delay_frame_by_speed",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18194": [
+      {
+        "name": "update_pickup_timer",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18944": [
+      {
+        "name": "spawn_enemy_cars",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -136,12 +274,112 @@
       }
     ]
   },
-  "user_side_comments": {},
+  "user_side_comments": {
+    "4099": "Clear sprite coordinates ($D000-$D010)",
+    "4156": "Enable multi-color mode for text",
+    "4167": "Set character memory to $2000",
+    "4174": "Sprite 0 pointer points to $3000",
+    "4180": "Copy layout 1 ($2400) to Screen RAM ($0400)",
+    "4211": "Color Memory ($D800) Setup",
+    "4264": "Setup Sprites 0-7 X/Y Coordinates",
+    "4324": "Setup Sprites 0-7 Pointers",
+    "4368": "Slide/Fade in Sprite Enable bits",
+    "4399": "Copy layout 2 ($2800) to Screen RAM ($0400)",
+    "4506": "Clear object array",
+    "4514": "SID Mode/Volume",
+    "4520": "Fill 40 bytes (screen width)",
+    "4536": "SID Resonance/Voice Input",
+    "4635": "Clear $0820-$084E",
+    "4695": "Copy page $0800 to $0A00, $0C00",
+    "4706": "Copy page $0900 to $0B00, $0D00",
+    "4864": "Scroll screen downward",
+    "5577": "Start at least significant digit (index 6)",
+    "5583": "Add 1 to the current digit",
+    "5585": "Check for base-10 overflow",
+    "5594": "Move to next most significant digit (carry)",
+    "5812": "Convert to Screencode '0'-'9'",
+    "5880": "Convert Score to Screencode",
+    "5882": "Write Score to Screen",
+    "5889": "Convert High Score to Screencode",
+    "5891": "Write High Score to Screen",
+    "6054": "Check input state array at $00F5",
+    "6057": "Check Bit 2 (Left)",
+    "6064": "Check Bit 3 (Right)",
+    "6072": "Move Right 6 pixels",
+    "6076": "Clamp to max string edge ($FF)",
+    "6086": "Move Left 6 pixels",
+    "6090": "Clamp to left edge ($00)",
+    "6153": "6510 IO Port",
+    "6155": "Bank out Basic ROM",
+    "6159": "Probably play music/SFX",
+    "6164": "Bank Basic ROM back in",
+    "6656": "Read input state",
+    "6659": "Check Bit 4 (Fire button)",
+    "6664": "Check if already jumping ($0805 != 0)",
+    "6677": "Set jump active flag",
+    "6682": "Reset jump animation frame",
+    "6696": "Set Sprite 0 pointer for jump start",
+    "6714": "Check jump active flag",
+    "6720": "Decrement jump frame timer",
+    "6734": "Increment animation frame (in A)",
+    "6789": "Animation Frame 1 & 2: Draw ascending sprite",
+    "6804": "Animation Frame 3: Max height, expand sprite",
+    "6827": "Animation Frame 4 & 5: Expanded descending",
+    "6833": "Animation Frame 7: Shrink sprite back",
+    "6871": "Animation Frame 9 (End): Reset sequence",
+    "6912": "Ignore collision if jumping",
+    "6918": "Convert Pixel X to Char Column (divide by 8)",
+    "6936": "Convert Pixel Y to Char Row (divide by 8)",
+    "6946": "Calculate pointer offset down Screen RAM",
+    "6965": "Check Top-Left Character",
+    "6971": "Check Top-Right Character",
+    "6978": "Move to Bottom-Left Character",
+    "6989": "Check Bottom-Right Character",
+    "17412": "Add offset buffered in $0808",
+    "17418": "Clear the buffered offset",
+    "17427": "Check Bit 0 (Up/Forward)",
+    "17431": "Branch if not pressed to check Down",
+    "17440": "Move Car UP 1 pixel",
+    "17449": "Increase scroll speed ($0804) x2",
+    "17459": "Base-10 Increment Speedometer array ($08E0)",
+    "17515": "Move Car DOWN 1 pixel",
+    "17534": "Base-10 Decrement Speedometer array ($08E0)",
+    "17920": "Base delay count",
+    "17923": "Subtract current speed",
+    "17927": "Outer loop count (X register)",
+    "17929": "Inner busy loop (Y register)",
+    "18194": "Check if pickup sprite is active",
+    "18200": "Decrement duration timer",
+    "18205": "Turn off active flag",
+    "18210": "Hide Sprite 7 off-screen",
+    "18949": "Check if slot is empty (0)",
+    "18959": "Generate Random Number (uses BASIC ROM)",
+    "18966": "Random 0-7 (enemy car type)",
+    "18980": "Generate Random Number for Position",
+    "19021": "Bounds math for enemy type 0 and 1",
+    "19085": "Generate Random Number for Speed"
+  },
   "user_line_comments": {
+    "4096": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nInitializes the VIC-II video chip settings for the game.\\nClears sprite coordinates, enables multi-color mode for character display,\\nsets up global border and background colors, and configures sprite sizes,\\npriorities, and multi-color settings. Also sets the character memory pointer.\\n\\nInputs:  None\\nOutputs: None\\nSide Effects: Modifies VIC-II registers ($D000-$D026) and Sprite 0 pointer ($07F8)\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "4178": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nInitializes the screen display, background colors, and title/game sprites.\\nThis routine runs at startup to paint the initial screen layout to Screen RAM\\n($0400) and Color RAM ($D800). It establishes the sprite positions and does a\\nfade-in effect by shifting bits into the sprite enable register ($D015) before\\nswitching to a second screen layout ($2800).\\n\\nInputs:  None\\nOutputs: None\\nSide Effects: Modifies Screen RAM ($0400), Color RAM ($D800), and all Sprite\\n              registers in ($D000-$D015). Loops through wait delays.\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "4501": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nInitializes the game state, memory buffers, and SID audio filters.\\nThis routine sets up several 256-byte pages ($0800-$0DFF), clears object/sprite\\nbuffers, and resets various variables at the start of $0800. It also initializes\\nthe SID chip's filter and volume settings initially calling `$1195` then jumping\\nto `$1200` to complete the rest of the work.\\n\\nInputs:  None\\nOutputs: None\\nSide Effects: Modifies memory regions $0800-$0DFF, $0F50-$0F56, $7400-$7457,\\n              and SID registers $D415-$D418.\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4752": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMAIN ENTRY POINT",
-    "6144": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nmain",
+    "4864": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nScrolls the playfield down and fetches the next row of map tile data.\\nFirst, it shifts Screen RAM down by one row to create a scrolling effect.\\nThen, it computes a pointer to the level map array ($4000) based on the current\\nscroll position to grab a 1024-byte map tile ID. Because tile data is located\\nat $8010 and stretches underneath the BASIC ROM ($A000-$BFFF), the caller must\\nbank out BASIC first. It finally copies 40 bytes of the tile row into Screen RAM \\nat $0428 (row 1, leaving the UI row intact) and updates Color RAM.\\n\\nInputs:  $0800 (Map Block Row), $0801 (Map Block Column), $0802 (Tile Y offset)\\nOutputs: None\\nSide Effects: Modifies Screen RAM ($0428+), Color RAM, and pointers at $49/$4A.\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "5577": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nIncrements the player's 7-digit score uniformly.\\nBecause the score is stored as an array of 7 individual digits (0-9) at $0825,\\nthis routine performs a manual base-10 addition. It starts at the least\\nsignificant digit (index 6, $082B), adds 1, and carries over any overflow (10)\\nto the next significant digit.\\n\\nInputs:  Score array at $0825-$082B\\nOutputs: Modified Score array\\nSide Effects: None\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "5808": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nUpdates the HUD text on the top row of the screen ($0400).\\nConverts numeric gameplay variables such as the current score, high score, and\\nother state values into screencodes (by adding $30) and writes them directly\\nto Screen RAM.\\n\\nInputs:  Numeric values at $0821, $0822, $0823, $0825-$082B (Score), and $0F50-$0F56 (High Score)\\nOutputs: None\\nSide Effects: Modifies Screen RAM ($0403-$0427) to update visible UI numbers.\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "6048": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nHandles horizontal movement for the player car (Sprite 0).\\nChecks the game state flag at $098A. If active, reads the parsed input state\\nat zero page $00F5. Bit 2 ($04) corresponds to Left, Bit 3 ($08) to Right.\\nIf left is pressed, Sprite 0's X position ($D000) is moved left by 6 pixels,\\nclamping at 0. If right is pressed, it is moved right by 6 pixels, clamping\\nat $FF (255).\\n\\nInputs:  State flag $098A, Parsed Input state at $00F5\\nOutputs: None\\nSide Effects: Modifies Sprite 0 X position ($D000)\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "6144": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nInitializes the game and enters the main game loop.\\nThe main loop banks out BASIC to play music/SFX, then calls various game logic\\nand rendering subroutines, eventually looping back.\\n\\nInputs:  None\\nOutputs: None\\nSide Effects: Modifies 6510 IO Port, updates game state and screen\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "6656": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nChecks if the Fire button is pressed to initiate a car jump.\\nReads the parsed input state at $00F5 (Bit 4 = Fire button). If the jump\\naction is requested and the car is not already jumping (jump state $0805 is 0),\\nit initializes the jump animation state machine, sets the initial sprite\\npointer for the jump, and slightly shifts the car's X position.\\n\\nInputs:  Parsed input state at $00F5, jump state at $0805\\nOutputs: None\\nSide Effects: Modifies $0805 (jump active), $0806 (jump frame),\\n              and Sprite 0 X position ($D000).\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "6714": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nProcesses the jump animation state machine for Sprite 0.\\nThis routine runs continuously in the game loop. If $0805 indicates a jump is\\nactive, it decrements the frame timer $0811. Once the timer elapses, it\\nadvances the animation frame $0806 and uses a switch statement ($1A51) to update\\nthe sprite pointer, sizes, and position to create a jumping arc.\\nWhen the animation reaches the end (frame 9), it resets $0805 to 0.\\n\\nInputs:  Jump state at $0805, animation frame $0806, timer $0811\\nOutputs: None\\nSide Effects: Modifies Sprite 0 X position ($D000), Sprite Pointer ($07F8),\\n              and Sprite Expansion bits ($D017, $D01D).\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "6912": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nChecks if the player's car has collided with physical background obstacles.\\nFirst, checks if the car is actively jumping (ignores collision if jump state\\nis non-zero). If on the ground, transforms Sprite 0's X and Y pixel positions\\ninto 40x25 character grid coordinates (column and row). It then calculates\\na pointer into Screen RAM ($0400) relative to the car's current position.\\nFinally, tests the four corners surrounding the car's footprint by fetching\\nthe characters and calling $46DE to see if they are a fatal obstacle tile.\\n\\nInputs:  Jump State at $0805, Sprite 0 X/Y Positions ($D000, $D001)\\nOutputs: None (Direct exit/jump on collision via $46DE)\\nSide Effects: Can initiate crash sequence, mutates temp pointers $49 and $4A.\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCharset",
     "12288": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSprites",
+    "15060": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nA small wrapper routine called by the main loop.\\nIt manages spawning new enemy cars, and then handles player jump inputs.\\n\\nInputs:  None\\nOutputs: None\\nSide Effects: Can spawn entities and mutate player state.\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "17408": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nApplies a buffered vertical offset to Sprite 0 (the player's car).\\nTakes the accumulated vertical offset stored at $0808, adds it to the current\\nY position of Sprite 0 ($D001), and then clears $0808 back to 0. This is\\nused to process collision bumps, road bumps, or other vertical shifts pending\\nfor the frame.\\n\\nInputs:  Y position at $D001, offset at $0808\\nOutputs: None\\nSide Effects: Modifies Sprite 0 Y pos ($D001) and sets $0808 to 0.\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "17424": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nHandles player acceleration (Up direction) and deceleration (Down direction).\\nReads the parsed input state at $00F5. If 'Up' (Bit 0) is pressed, the car\\nmoves up the screen (Y position at $D001 decreases until clamped at $90),\\nthe scrolling speed $0804 is increased, and the 3-byte visual speedometer array\\nat $08E0 is incremented in base-10.\\nIf 'Down' is pressed, it branches to $4464 which performs the inverse (speed\\narray decrements, car moves down the screen until clamped at $D0).\\n\\nInputs:  Parsed input state at $00F5\\nOutputs: None\\nSide Effects: Modifies Sprite 0 Y pos ($D001), speed $0804, and speedometer $08E0\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "17920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nDynamic delay loop to govern the frame rate and scrolling speed.\\nSubtracts the current speed value ($0804) from a base constant ($F3).\\nThe resulting value determines how many times a nested busy-wait loop executes.\\nThe faster the car is going (higher $0804 value), the smaller the delay count,\\nresulting in the frame executing more quickly.\\n\\nInputs:  Speed variable at $0804\\nOutputs: None\\nSide Effects: Busy waits (delays CPU execution)\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18194": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nUpdates the temporary display timer for a pickup/coin sprite.\\nWhen the player hits a specific map tile (e.g., $65), Sprite 7 is spawned as\\na visual indicator of the points gained, and state flag $085E is set.\\nThis routine runs each frame to tick down its lifespan timer at $085F. \\nOnce the timer hits 0, it deactivates the flag and hides Sprite 7 off-screen.\\n\\nInputs:  Pickup Active Flag at $085E, Timer at $085F\\nOutputs: None\\nSide Effects: Modifies $085E, $085F, and Sprite 7 X Pos ($D00E)\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18944": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nIterates through the 4 available enemy car slots ($0928).\\nIf it finds an empty slot, it uses the BASIC ROM's random number generator\\nrutines ($E097) multiple times to determine the enemy car's sprite shape (0-7),\\ninitial starting X coordinate (bounded so it stays on the road), and speed.\\n\\nInputs:  Enemy active array at $0928\\nOutputs: None\\nSide Effects: Spawns new enemies, modifies Sprite Pointers $07F9-$07FC,\\n              and relies on BASIC ROM state.\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "21400": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMusic IRQ handler",
     "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLevels"
   },
@@ -170,14 +408,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 6144,
-  "hex_dump_cursor_address": 6144,
-  "sprites_cursor_address": 14848,
-  "charset_cursor_address": 9208,
-  "right_pane_visible": "HexDump",
+  "cursor_address": 15060,
+  "hex_dump_cursor_address": 16384,
+  "sprites_cursor_address": 16384,
+  "charset_cursor_address": 16320,
+  "right_pane_visible": "Charset",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
