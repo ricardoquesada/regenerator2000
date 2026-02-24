@@ -1,0 +1,177 @@
+{
+  "origin": 804,
+  "raw_data_base64": "H4sIAAAAAAAA/wHcACP/V/HsA+32PvEv82b+N/g3+AAAAAAAAAAAWFMgpfSlkCm/0AFg6urqzgSATOL8qfGNJwOpyo0mA6kBqqAAIAD+hLeEnYTDogiGxJggPgN4qb+FZKmPhWKgAIRhhGOxYTjtPANNPQORY8jQ8sZkxmKlZMl/0OipV4VkqU+FYrFhOO3GA03HA5FjyNDyxmTGYqVkyQ/Q6KlTjRUDqZiNFANYTPQDUk/q6uqpAIWyqZCFs6mAjZECqeWNKAOpA40pA0xRA6n/hZFM7fat/wPQ2UzK8aWQKb/QA0wAGExLAzq3Cm3cAAAA",
+  "blocks": [
+    {
+      "start": 0,
+      "end": 15,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 16,
+      "end": 23,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 24,
+      "end": 25,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 26,
+      "end": 219,
+      "type_": "Code",
+      "collapsed": false
+    }
+  ],
+  "labels": {
+    "828": [
+      {
+        "name": "decrypt_key1_sbc",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "829": [
+      {
+        "name": "decrypt_key1_eor",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "830": [
+      {
+        "name": "call_tape_read",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "843": [
+      {
+        "name": "error_reset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "849": [
+      {
+        "name": "load_and_decrypt",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "896": [
+      {
+        "name": "decrypt_loop1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "928": [
+      {
+        "name": "decrypt_loop2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "966": [
+      {
+        "name": "decrypt_key2_sbc",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "967": [
+      {
+        "name": "decrypt_key2_eor",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "970": [
+      {
+        "name": "init_loader",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "1004": [
+      {
+        "name": "chrout_hook",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "1012": [
+      {
+        "name": "start_game",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ]
+  },
+  "user_side_comments": {},
+  "user_line_comments": {
+    "830": "Calls $F4A5 (Setup Tape Read).",
+    "849": "Restore CHROUT vector, setup tape for reading, read file, then decrypt.",
+    "881": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\ndecrypt 1",
+    "896": "First decryption loop: decrypts $8000-$8FFF to $B000-$BFFF (moving downwards)",
+    "920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\ndecrypt 2",
+    "928": "Second decryption loop: decrypts $1000-$4FFF to $1800-$57FF (downwards)",
+    "970": "Initialize loader:\nDisable screen display and normal function keys.\nMap $0328 (STOP vector) to custom handler.",
+    "1004": "Intercepts CHROUT. If flag $03FF is set, starts the loader. Otherwise normal CHROUT.",
+    "1012": "Check for kernel status errors, if none, start the loaded program."
+  },
+  "settings": {
+    "all_labels": false,
+    "preserve_long_bytes": true,
+    "brk_single_byte": true,
+    "patch_brk": false,
+    "platform": "Commodore 64",
+    "assembler": "Tass64",
+    "max_xref_count": 5,
+    "max_arrow_columns": 6,
+    "use_illegal_opcodes": false,
+    "text_char_limit": 40,
+    "addresses_per_line": 5,
+    "bytes_per_line": 8,
+    "enabled_features": {},
+    "description": ""
+  },
+  "immediate_value_formats": {
+    "849": {
+      "HighByte": 61898
+    },
+    "854": {
+      "LowByte": 61898
+    },
+    "882": {
+      "HighByte": 48896
+    },
+    "886": {
+      "HighByte": 36608
+    },
+    "920": {
+      "HighByte": 22272
+    },
+    "924": {
+      "HighByte": 20224
+    }
+  },
+  "bookmarks": {},
+  "cursor_address": 896,
+  "hex_dump_cursor_address": 896,
+  "sprites_cursor_address": 896,
+  "charset_cursor_address": 0,
+  "right_pane_visible": "HexDump",
+  "sprite_multicolor_mode": false,
+  "charset_multicolor_mode": false,
+  "bitmap_cursor_address": 16384,
+  "bitmap_multicolor_mode": false,
+  "hexdump_view_mode": "ScreencodeShifted",
+  "splitters": [],
+  "blocks_view_cursor": null
+}
