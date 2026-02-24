@@ -88,6 +88,42 @@
     },
     {
       "start": 768,
+      "end": 1236,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 1237,
+      "end": 1247,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 1248,
+      "end": 1258,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 1259,
+      "end": 1263,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 1264,
+      "end": 1274,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 1275,
+      "end": 1279,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 1280,
       "end": 1527,
       "type_": "Code",
       "collapsed": false
@@ -316,6 +352,48 @@
     },
     {
       "start": 17248,
+      "end": 17401,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 17402,
+      "end": 17407,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 17408,
+      "end": 17445,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 17446,
+      "end": 17455,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 17456,
+      "end": 17641,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 17642,
+      "end": 17983,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 17984,
+      "end": 18111,
+      "type_": "LoHiWord",
+      "collapsed": false
+    },
+    {
+      "start": 18112,
       "end": 18287,
       "type_": "Code",
       "collapsed": false
@@ -340,6 +418,13 @@
     }
   ],
   "labels": {
+    "2053": [
+      {
+        "name": "sfx_voice_1_en",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "4096": [
       {
         "name": "init_vic_video",
@@ -647,6 +732,111 @@
         "label_type": "UserDefined",
         "kind": "User"
       }
+    ],
+    "21443": [
+      {
+        "name": "sfx_voice_1_modulate",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21471": [
+      {
+        "name": "sfx_voice_1_bounce",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21482": [
+      {
+        "name": "sfx_voice_1_store_freq",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21491": [
+      {
+        "name": "sfx_voice_1_reset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21504": [
+      {
+        "name": "irq_handler_voice23",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21542": [
+      {
+        "name": "sfx_prev_key",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21543": [
+      {
+        "name": "sfx_v23_en",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21544": [
+      {
+        "name": "sfx_v23_timer",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21545": [
+      {
+        "name": "sfx_v23_idx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21546": [
+      {
+        "name": "sfx_v23_toggle",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22080": [
+      {
+        "name": "sid_freq2_lo_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22144": [
+      {
+        "name": "sid_freq2_hi_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "28800": [
+      {
+        "name": "sfx_voice_1_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "28801": [
+      {
+        "name": "sfx_voice_1_freq_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "28802": [
+      {
+        "name": "sfx_voice_1_freq_mod",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
     ]
   },
   "user_side_comments": {
@@ -740,7 +930,39 @@
     "18966": "Random 0-7 (enemy car type)",
     "18980": "Generate Random Number for Position",
     "19021": "Bounds math for enemy type 0 and 1",
-    "19085": "Generate Random Number for Speed"
+    "19085": "Generate Random Number for Speed",
+    "21403": "If sf_voice_1_en is clear, reset state",
+    "21408": "If state > 0 (already playing), branch to modulation",
+    "21410": "Clear internal freq_lo component",
+    "21413": "Clear SID Voice 1 frequency low",
+    "21416": "Clear SID Voice 1 frequency high",
+    "21425": "Set state to 1 (initialized)",
+    "21430": "Set mod factor to 2",
+    "21433": "Sustain = $F, Release = $4",
+    "21438": "Gate ON + Triangle Wave",
+    "21443": "If state == $80 (releasing), don't process modulation",
+    "21449": "Add frequency modifier to frequency component",
+    "21461": "Gate OFF (Release phase) on Voice 1",
+    "21466": "Set state to $80 (releasing)",
+    "21477": "Reverse direction of modifier (negate it)",
+    "21480": "Wrap-around value",
+    "21485": "Update SID Voice 1 frequency high",
+    "21488": "Chain to next IRQ routine",
+    "21493": "Reset Voice 1 state",
+    "21504": "Load current key pressed",
+    "21509": "If key unchanged, skip to processing",
+    "21514": "Check if specific key ($BF) was pressed",
+    "21520": "Gate OFF Voice 2",
+    "21523": "Gate OFF Voice 3",
+    "21526": "Toggle the enable flag",
+    "21537": "If not enabled, skip processing",
+    "21552": "Decrement wait timer",
+    "21555": "If timer hasn't expired, exit",
+    "21603": "Load pitch index into X",
+    "21604": "Read frequency high byte into A",
+    "21608": "Read frequency low byte into A",
+    "21611": "Check voice toggle flag",
+    "21614": "If 0, use Voice 3. If !0, use Voice 2"
   },
   "user_line_comments": {
     "4096": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the VIC-II video chip settings for the game.\nClears sprite coordinates, enables multi-color mode for character display,\nsets up global border and background colors, and configures sprite sizes,\npriorities, and multi-color settings. Also sets the character memory pointer.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies VIC-II registers ($D000-$D026) and Sprite 0 pointer ($07F8)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -774,7 +996,8 @@
     "20480": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRestores game variables from double buffers.\nThis routine copies game state data from back buffers ($0A00/$0B00 or $0C00/$0D00)\ninto the active variables pages ($0800/$0900). It chooses which buffer to pull\nfrom based on player/turn states in $0F00 and $0F01 (useful for 2-player modes).\n\nInputs:  $0F00, $0F01\nOutputs: None\nSide Effects: Overwrites $0800-$09FF memory region.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "21248": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles user input during the main menu / selection screen.\nThis routine monitors a specific key press (flagged as $F7 in the keyboard\nmatrix byte $C5, likely the F1 key or spacebar) to increment a 2-digit number\nstored in $49 and $4A as ASCII/Screen Code characters. The number cycles\nfrom '01' up to '16', and wraps back around. It then renders those digits directly\nto Video RAM at $0651 and $0652 to provide visual feedback of the selection\n(e.g., selecting a starting level or difficulty).\n\nInputs:  $C5 (Current Key Pressed)\nOutputs: None\nSide Effects: Modifies $49 (units), $4A (tens), and Video RAM $0651-$0652.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "21344": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays a \"BONUS 10000\" message and awards bonus points.\nThis routine copies the \"BONUS 10000\" text to the screen ($0756 area) and colors\nit purple ($04). It then calls the score increment routine twice to award the\npoints, performs a nested delay loop to leave the text on-screen momentarily,\nand finally jumps back to the main flow.\n\nInputs:  None\nOutputs: None\nSide Effects: Updates Screen RAM, Color RAM, Score array, and delays execution.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "21400": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMusic IRQ handler",
+    "21400": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSFX Engine Voice 1 (Engine Sound) Handler\n\nInitializes and modulates Voice 1 on the SID to create a continuous sound\nwhile sfx_voice_1_en is non-zero. When zeroed, it resets the local state.\n\nInputs:  sfx_voice_1_en ($0805) - Enable flag for the Voice 1 SFX\nOutputs: sfx_voice_1_state ($7080), sfx_voice_1_freq_lo ($7081),\n         sfx_voice_1_freq_mod ($7082)\nSide Effects: Updates Voice 1 registers (Frequency, Control, Attack/Decay, Sustain/Release)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "21504": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSFX Engine Voices 2 & 3 Handler\n\nPart of the main IRQ. Handles playback of secondary sound effects/music on Voices 2 \nand 3. Triggered by a specific keyboard matrix key ($BF). It toggles playback and \nsteps through a sequence using lookup tables.\n\nInputs:  Current Key Pressed ($C5), sfx_prev_key ($5426), sfx_v23_en ($5427),\n         sfx_v23_timer ($5428), sfx_v23_idx ($5429)\nOutputs: Updates Voice 2 and Voice 3 registers.\nSide Effects: Triggers secondary sound effects/music loop.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLevels"
   },
   "settings": {
@@ -802,14 +1025,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 5376,
-  "hex_dump_cursor_address": 5376,
+  "cursor_address": 22144,
+  "hex_dump_cursor_address": 22144,
   "sprites_cursor_address": 16384,
   "charset_cursor_address": 16320,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
