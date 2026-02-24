@@ -1025,8 +1025,8 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 22072,
-  "hex_dump_cursor_address": 22064,
+  "cursor_address": 21572,
+  "hex_dump_cursor_address": 21568,
   "sprites_cursor_address": 16384,
   "charset_cursor_address": 16320,
   "right_pane_visible": "HexDump",
