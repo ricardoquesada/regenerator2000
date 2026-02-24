@@ -148,6 +148,15 @@ pub fn analyze(
                     }
                 }
                 pc += count;
+            } else if current_type == BlockType::LoHiWord || current_type == BlockType::HiLoWord {
+                // Skip the whole block
+                let mut count = 0;
+                while pc + count < data_len
+                    && state.block_types.get(pc + count) == Some(&current_type)
+                {
+                    count += 1;
+                }
+                pc += count;
             } else {
                 pc += 1;
             }

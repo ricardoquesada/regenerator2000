@@ -154,8 +154,11 @@ fn handle_split_byte_table(
             (hi as u16) << 8 | (lo as u16)
         };
 
-        // Try to resolve label.
-        let label_part = if let Some(label_vec) = ctx.labels.get(&val)
+        // Try to resolve label only for Address blocks.
+        let is_address_block =
+            target_type == BlockType::LoHiAddress || target_type == BlockType::HiLoAddress;
+        let label_part = if is_address_block
+            && let Some(label_vec) = ctx.labels.get(&val)
             && let Some(label) = crate::disassembler::resolve_label(label_vec, val, ctx.settings)
         {
             formatter.format_label(&label.name)
