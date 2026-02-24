@@ -4,14 +4,267 @@
   "blocks": [
     {
       "start": 0,
-      "end": 46847,
+      "end": 14,
       "type_": "Code",
       "collapsed": false
+    },
+    {
+      "start": 15,
+      "end": 1791,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 1792,
+      "end": 2237,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2238,
+      "end": 2248,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 2249,
+      "end": 2285,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2286,
+      "end": 2303,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 2304,
+      "end": 2434,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2435,
+      "end": 2462,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 2463,
+      "end": 3327,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3328,
+      "end": 3435,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 3436,
+      "end": 3455,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 3456,
+      "end": 3488,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 3489,
+      "end": 4165,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4166,
+      "end": 4351,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 4352,
+      "end": 5865,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5866,
+      "end": 5873,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 5874,
+      "end": 5878,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5879,
+      "end": 5887,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 5888,
+      "end": 6911,
+      "type_": "DataByte",
+      "collapsed": true
+    },
+    {
+      "start": 6912,
+      "end": 8022,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 8023,
+      "end": 8023,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 8024,
+      "end": 9983,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 9984,
+      "end": 12415,
+      "type_": "DataByte",
+      "collapsed": true
+    },
+    {
+      "start": 12416,
+      "end": 12416,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 12417,
+      "end": 14079,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 14080,
+      "end": 15103,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 15104,
+      "end": 19026,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 19027,
+      "end": 19037,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 19038,
+      "end": 19038,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 19039,
+      "end": 20079,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 20080,
+      "end": 20134,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 20135,
+      "end": 20223,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 20224,
+      "end": 46847,
+      "type_": "DataByte",
+      "collapsed": true
     }
   ],
-  "labels": {},
+  "labels": {
+    "5632": [
+      {
+        "name": "txt_congratulations_pt1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5650": [
+      {
+        "name": "txt_crash_cars",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5670": [
+      {
+        "name": "txt_bonus_pts_are",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5686": [
+      {
+        "name": "txt_multiplier_500",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5714": [
+      {
+        "name": "txt_50000",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5719": [
+      {
+        "name": "txt_next_way_is",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5730": [
+      {
+        "name": "txt_good_luck",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5760": [
+      {
+        "name": "txt_seasons",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ]
+  },
   "user_side_comments": {},
-  "user_line_comments": {},
+  "user_line_comments": {
+    "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCharset",
+    "12288": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSprites",
+    "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLevels"
+  },
   "settings": {
     "all_labels": false,
     "preserve_long_bytes": true,
@@ -26,20 +279,22 @@
     "addresses_per_line": 5,
     "bytes_per_line": 8,
     "enabled_features": {},
-    "description": ""
+    "description": "Burnin Rubber is a top-down racing game. You can jump on top of other cars"
   },
   "immediate_value_formats": {},
   "bookmarks": {},
-  "cursor_address": 2304,
+  "cursor_address": 2307,
   "hex_dump_cursor_address": 2304,
-  "sprites_cursor_address": 2304,
-  "charset_cursor_address": 2048,
+  "sprites_cursor_address": 14336,
+  "charset_cursor_address": 24384,
   "right_pane_visible": "HexDump",
-  "sprite_multicolor_mode": false,
+  "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
-  "splitters": [],
-  "blocks_view_cursor": null
+  "splitters": [
+    12288
+  ],
+  "blocks_view_cursor": 10
 }
