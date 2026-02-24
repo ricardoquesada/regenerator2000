@@ -68,7 +68,15 @@ pub fn parse_t64_directory(data: &[u8]) -> Result<Vec<T64Entry>> {
 
         // Filename
         let filename_bytes = &entry_data[16..32];
-        let filename = String::from_utf8_lossy(filename_bytes).trim().to_string();
+        let mut filename = String::with_capacity(16);
+        for &b in filename_bytes {
+            match b {
+                0x20..=0x5E | 0x61..=0x7A => filename.push(b as char),
+                0xC1..=0xDA => filename.push((b - 0x80) as char),
+                _ => filename.push(' '),
+            }
+        }
+        let filename = filename.trim_end().to_string();
 
         entries.push(T64Entry {
             file_type,
