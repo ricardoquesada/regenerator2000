@@ -57,7 +57,7 @@ The server will listen on `http://127.0.0.1:3000/mcp` by default.
 To use Regenerator 2000 with Claude Code:
 
 ```shell
-claude mcp add regenerator2000 http://127.0.0.1:3000/mcp
+claude mcp add -t http regenerator2000 http://127.0.0.1:3000/mcp
 ```
 
 Or, alternatively, add the following to your `claude.json`:
