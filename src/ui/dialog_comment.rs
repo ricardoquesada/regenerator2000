@@ -52,13 +52,7 @@ impl CommentDialog {
 
     fn create_default_textarea(comment_type: &CommentType) -> TextArea<'static> {
         match comment_type {
-            CommentType::Line => {
-                let default_text = "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-";
-                let mut textarea = TextArea::from(vec![default_text.to_string(), "".to_string()]);
-                textarea.move_cursor(CursorMove::Bottom);
-                textarea.move_cursor(CursorMove::End);
-                textarea
-            }
+            CommentType::Line => TextArea::default(),
             CommentType::Side => TextArea::default(),
         }
     }
@@ -238,6 +232,14 @@ impl Widget for CommentDialog {
                 }
             }
             // Separator shortcuts (only in multi-line / Line comment mode)
+            // Ctrl+J (0x0A) is the reliable cross-terminal fallback for "new line":
+            // macOS Terminal.app and iTerm2 cannot distinguish Ctrl+Enter from plain Enter.
+            KeyCode::Char('j') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                if self.comment_type == CommentType::Line {
+                    self.textarea.insert_newline();
+                }
+                WidgetResult::Handled
+            }
             KeyCode::Char('-') if key.modifiers.contains(KeyModifiers::ALT) => {
                 if self.comment_type == CommentType::Line {
                     self.insert_separator(&"-".repeat(SEPARATOR_LEN));
@@ -305,8 +307,8 @@ mod tests {
     fn test_cursor_position_default_line_comment() {
         let dialog = CommentDialog::new(None, CommentType::Line);
         let cursor = dialog.textarea.cursor();
-        // Default line comment has 2 lines. Cursor should be at the start of the second line (index 1).
-        assert_eq!(cursor, (1, 0));
+        // Dialog now starts empty; cursor should be at (0, 0).
+        assert_eq!(cursor, (0, 0));
     }
 
     #[test]
