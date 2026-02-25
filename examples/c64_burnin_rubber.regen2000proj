@@ -432,6 +432,34 @@
         "kind": "User"
       }
     ],
+    "2080": [
+      {
+        "name": "hud_level_digit",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2082": [
+      {
+        "name": "dist_digit_tens",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2083": [
+      {
+        "name": "dist_digit_ones",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2087": [
+      {
+        "name": "scroll_row_counter",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "2259": [
       {
         "name": "collision_rel_x",
@@ -491,6 +519,20 @@
     "2356": [
       {
         "name": "car_fresh_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2438": [
+      {
+        "name": "scroll_row_snapshot",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2439": [
+      {
+        "name": "dist_substep",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -663,6 +705,13 @@
         "kind": "User"
       }
     ],
+    "6109": [
+      {
+        "name": "update_hiscore_if_beaten",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "6144": [
       {
         "name": "main",
@@ -768,6 +817,13 @@
         "kind": "User"
       }
     ],
+    "16324": [
+      {
+        "name": "sid_tick_sfx_and_get_ones",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "17408": [
       {
         "name": "apply_y_offset",
@@ -806,6 +862,20 @@
     "18262": [
       {
         "name": "tick_gameplay_systems",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18688": [
+      {
+        "name": "shift_colour_row_pipeline",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18752": [
+      {
+        "name": "advance_distance_counter",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1049,7 +1119,7 @@
     "4706": "Copy page $0900 to $0B00, $0D00",
     "4707": "Copy $0900-$09FF to $0B00 and $0D00",
     "4864": "Scroll screen downward",
-    "5376": "Scroll lower specific rows",
+    "5376": "shift colour pipeline; A=$07 on return",
     "5383": "Set pointer to $0747",
     "5391": "Copy byte down one row (40 bytes offset)",
     "5398": "Decrement pointer ($49)",
@@ -1171,6 +1241,50 @@
     "18200": "Decrement duration timer",
     "18205": "Turn off active flag",
     "18210": "Hide Sprite 7 off-screen",
+    "18688": "Y = 0, loop index for 29-byte colour strip copy",
+    "18690": "read slot 2 strip byte [y]  ($07A3+y)",
+    "18693": "write to slot 3 strip byte [y]  ($07CB+y)  -- slot2 -> slot3",
+    "18696": "read slot 1 strip byte [y]  ($077B+y)",
+    "18699": "write to slot 2 strip byte [y]  ($07A3+y)  -- slot1 -> slot2",
+    "18702": "read slot 0 strip byte [y]  ($0753+y)  -- newest row",
+    "18705": "write to slot 1 strip byte [y]  ($077B+y)  -- slot0 -> slot1",
+    "18709": "29 bytes per strip (not 40; word ptrs live in the gap above $076F)",
+    "18713": "slot 1 colour-RAM row ptr lo  ($0798) ...",
+    "18716": "... -> slot 2 ptr lo  ($07C0)  -- slot1 ptr -> slot2 ptr",
+    "18719": "slot 1 colour-RAM row ptr hi  ($0799)",
+    "18722": "-> slot 2 ptr hi  ($07C1)",
+    "18725": "slot 0 colour-RAM row ptr lo  ($0770)",
+    "18728": "-> slot 1 ptr lo  ($0798)  -- slot0 ptr -> slot1 ptr",
+    "18731": "slot 0 colour-RAM row ptr hi  ($0771)",
+    "18734": "-> slot 1 ptr hi  ($0799)",
+    "18737": "incoming slot ptr lo  ($0748)  -- freshest ptr, set by caller/loader",
+    "18740": "-> slot 0 ptr lo  ($0770)",
+    "18743": "incoming slot ptr hi  ($0749)",
+    "18746": "-> slot 0 ptr hi  ($0771)",
+    "18749": "return A=$07: scroll_screen_down uses this as high byte of ptr $0747",
+    "18752": "load current scroll-row counter (0-9, wraps each 10 rows)",
+    "18755": "compare with snapshot from previous call",
+    "18758": "current < snapshot means counter wrapped through 0; take wrap path",
+    "18764": "delta = current - snapshot",
+    "18774": "partial subtraction (will be negative without correction)",
+    "18778": "+10 corrects for modular wrap: delta = (current - snapshot) + 10",
+    "18780": "X = number of scroll-row ticks to consume this frame",
+    "18781": "loop: all ticks consumed?",
+    "18783": "yes -> save snapshot and exit",
+    "18785": "load sub-step counter (0-6); digit advances once every 7 ticks",
+    "18794": "completed a full 7-step cycle?",
+    "18796": "no -> skip digit advance this tick",
+    "18800": "reset sub-step to 0 for next cycle",
+    "18803": "fire SID voice-1 tick SFX; returns current dist_digit_ones in A",
+    "18807": "increment ones digit",
+    "18812": "ones digit reached 10? (overflow)",
+    "18814": "no overflow -> continue loop",
+    "18818": "wrap ones digit back to 0",
+    "18821": "carry into tens digit",
+    "18824": "consume one tick; loop back",
+    "18828": "reload current row counter (snapshot must be fresh, not stale in A)",
+    "18831": "save as new snapshot for next call",
+    "18834": "tail-call: update hi-score if beaten; returns A = hud_level_digit ($0820)",
     "18949": "Check if slot is empty (0)",
     "18959": "Generate Random Number (uses BASIC ROM)",
     "18966": "Random 0-7 (enemy car type)",
@@ -1294,6 +1408,10 @@
     "17920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDynamic delay loop to govern the frame rate and scrolling speed.\nSubtracts the current speed value ($0804) from a base constant ($F3).\nThe resulting value determines how many times a nested busy-wait loop executes.\nThe faster the car is going (higher $0804 value), the smaller the delay count,\nresulting in the frame executing more quickly.\n\nInputs:  Speed variable at $0804\nOutputs: None\nSide Effects: Busy waits (delays CPU execution)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18194": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the temporary display timer for a pickup/coin sprite.\nWhen the player hits a specific map tile (e.g., $65), Sprite 7 is spawned as\na visual indicator of the points gained, and state flag $085E is set.\nThis routine runs each frame to tick down its lifespan timer at $085F. \nOnce the timer hits 0, it deactivates the flag and hides Sprite 7 off-screen.\n\nInputs:  Pickup Active Flag at $085E, Timer at $085F\nOutputs: None\nSide Effects: Modifies $085E, $085F, and Sprite 7 X Pos ($D00E)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18262": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain gameplay tick routine.\nThis is the core subroutine called every frame/tick during gameplay to process\nall major game systems. It updates the HUD, increments the score, handles player\ninput and movement, processes jumps and background collisions, applies vertical\noffsets, handles acceleration (if enabled), manages frame delays, and ticks down\nthe pickup/coin visual indicator.\n\nInputs:  None (relies on global state)\nOutputs: None\nSide Effects: Updates player coordinates, animations, score, HUD, and timers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18688": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances a 4-stage pipeline of road colour-row data used by the scrolling engine.\n\nThe game maintains four pipeline slots, each 40 bytes apart in RAM:\n  Slot 0 (newest): ptr $0748/$0749, colour strip $0753..$076F (29 bytes)\n  Slot 1:          ptr $0770/$0771, colour strip $077B..$0797\n  Slot 2:          ptr $0798/$0799, colour strip $07A3..$07BF\n  Slot 3 (oldest): ptr $07C0/$07C1, colour strip $07CB..$07E7\n\nEach call shifts all slots one step toward the screen bottom (slot 3 drops off):\n  strip[2] -> strip[3]  (29 bytes, Y = 0..28)\n  strip[1] -> strip[2]\n  strip[0] -> strip[1]\n  ptr[2]   -> ptr[3]    (16-bit colour-RAM row address)\n  ptr[1]   -> ptr[2]\n  ptr[0]   -> ptr[1]\n  $0748/$0749 -> ptr[0] (freshest pointer, injected each frame by the map scroller)\n\nSlot 0 ($0753 strip + $0748 ptr) is written by the caller with the new road row\ndata before this routine runs, making it the \"front\" of the FIFO queue.\n\nReturns A = $07 so that scroll_screen_down ($1500) can immediately form the\nscreen pointer $0747 (a4A=$07, a49=$47 = last byte of the visible play area),\navoiding a redundant LDA #$07.\n\nCalled once per frame by scroll_screen_down ($1500) as the first step of the\nfull downward screen scroll (road flows top-to-bottom in this top-down racer).\n\nInputs:       $0753..$076F  colour strip, slot 0 (29 bytes, newest row)\n              $077B..$0797  colour strip, slot 1\n              $07A3..$07BF  colour strip, slot 2\n              $0748/$0749   colour-RAM row pointer, slot 0\n              $0770/$0771   colour-RAM row pointer, slot 1\n              $0798/$0799   colour-RAM row pointer, slot 2\nOutputs:      A = $07 (high byte for screen-RAM scroll pointer $0747)\n              $077B..$07E7  slots 1-3 colour strips overwritten with shifted data\n              $0770/$0771, $0798/$0799, $07C0/$07C1  colour-RAM ptrs shifted\nSide Effects: Slot 3 previous content destroyed; slot 0 inputs are not touched.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18752": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances the two-digit on-screen distance counter shown in the HUD, driven by\nhow many new road rows have scrolled since the last call.\n\nscroll_row_counter ($0827) is a 0-9 modular counter incremented once per road\nrow by the map scroller.  Each call computes delta = (current - snapshot) mod 10\nto get the number of new rows that have passed.  For each delta tick the\nsub-step counter dist_substep ($0987) is incremented; once it reaches 7 the\nones digit dist_digit_ones ($0823) advances by 1, carrying into the tens digit\ndist_digit_tens ($0822) on overflow.  Every digit advance also fires a short SID\nvoice-1 \"tick\" click via sid_tick_sfx_and_get_ones.\n\nThe routine does NOT end with RTS.  It tail-calls update_hiscore_if_beaten\n($17DD), which compares the 7-digit score ($0825-$082B) against the stored\nhi-score ($0F50-$0F56) and copies the score over if it is higher.  That routine\nreturns with A = hud_level_digit ($0820), which propagates back to the caller\nupdate_hud_display ($16B0) and is written to screen RAM at $0420 as the level\ndigit after adding $30.\n\nInputs:       scroll_row_counter  ($0827)  current 0-9 row counter\n              scroll_row_snapshot ($0986)  row counter value at previous call\n              dist_substep        ($0987)  sub-step accumulator (0-6)\n              dist_digit_ones     ($0823)  ones digit of distance counter (0-9)\n              dist_digit_tens     ($0822)  tens digit of distance counter (0-9)\nOutputs:      A = hud_level_digit ($0820)  (returned via tail-call to $17DD)\n              dist_digit_ones and dist_digit_tens updated in place\nSide Effects: scroll_row_snapshot ($0986) updated to current scroll_row_counter\n              dist_substep ($0987) updated\n              SID voice 1 programmed with tick SFX on each digit advance\n              Hi-score at $0F50-$0F56 overwritten if current score is higher\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18760": "no-wrap path: delta = current - snapshot (0..9)",
+    "18770": "wrap path: counter passed through 0; delta = (current - snapshot) + 10",
     "18944": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates through the 4 available enemy car slots ($0928).\nIf it finds an empty slot, it uses the BASIC ROM's random number generator\nrutines ($E097) multiple times to determine the enemy car's sprite shape (0-7),\ninitial starting X coordinate (bounded so it stays on the road), and speed.\n\nInputs:  Enemy active array at $0928\nOutputs: None\nSide Effects: Spawns new enemies, modifies Sprite Pointers $07F9-$07FC,\n              and relies on BASIC ROM state.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "19456": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the position and state of the enemy cars (Sprites 1-4).\nThis routine iterates through up to 4 active enemy entities. For each active\nentity, it updates their horizontal position (swerving left or right) based on\ntheir local state metrics. It then computes their new vertical position on the\nscreen by factoring in the player's current speed/scroll offset ($0804).\nIf an enemy car falls off the top or bottom of the screen (Y < $3A or Y >= $F0),\nthe routine automatically despawns it by clearing its status flag and hiding the\nsprite.\n\nInputs:  Global scroll/speed ($0804), arrays at $0900/0904/0908/090C/0924/0928\nOutputs: None\nSide Effects: Modifies Sprite 1-4 X/Y coordinates ($D002-$D009) and entity states.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "20053": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates explosion and projectile animation timers.\nFirst, it checks the enemy pool (Sprites 1-4). If an enemy is in state $02\n(exploding), it ticks down a duration timer at $0930. When the timer reaches 0, \nit resets their state, restores their default multi-color bit config, and hides them.\nThen, it runs a second loop over a pool of 3 secondary objects (Sprites 5-7),\nticking their timers and dropping them downward visually by adding to their Y Pos.\n\nInputs:  Enemy states at $0928, Timers at $0930 and $0983\nOutputs: None\nSide Effects: Modifies Sprites 1-7 coordinates and multi-color registers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1333,8 +1451,8 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 16152,
-  "hex_dump_cursor_address": 16144,
+  "cursor_address": 18752,
+  "hex_dump_cursor_address": 18752,
   "sprites_cursor_address": 16384,
   "charset_cursor_address": 16320,
   "right_pane_visible": "HexDump",
