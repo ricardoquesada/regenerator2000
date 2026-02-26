@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-02-25
+
+### Features
+
+- Feature: **Line Comment**: `Ctrl+Enter` / `Ctrl+J` creates a new line within the comment dialog (multi-line support).
+- Feature: **Line Comment**: Keyboard shortcuts for inserting separator comments (dashes, equals, mixed) from within the dialog.
+- Feature: **Dialogs**: Save As, Export As, and Export VICE Labels dialogs now pre-fill the filename with the current project name.
+- Feature: **UI**: Application handles terminal resize events and repaints correctly.
+
+### Fixes
+
+- Fix: **LoHi/HiLo Words**: Words no longer resolve to addresses even when a word value matches an existing label address.
+- Fix: **Cross-references**: Cross-references now work correctly on relative address sub-indices.
+- Fix: **T64 Picker**: File picker handles "noisy" (non-printable) characters in T64 filenames gracefully.
+
+### Documentation
+
+- Docs: Updated settings and views documentation (indentation, Blocks View ordering, Debug View added).
+- Examples: Added more detailed comments and descriptions to example projects.
+
 ## [0.8.0] - 2026-02-23
 
 ### Features
