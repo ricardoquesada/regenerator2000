@@ -256,6 +256,18 @@
     },
     {
       "start": 13312,
+      "end": 14586,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 14587,
+      "end": 14591,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 14592,
       "end": 15137,
       "type_": "Code",
       "collapsed": false
@@ -1451,14 +1463,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 18752,
-  "hex_dump_cursor_address": 18752,
+  "cursor_address": 18655,
+  "hex_dump_cursor_address": 18640,
   "sprites_cursor_address": 16384,
   "charset_cursor_address": 16320,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],

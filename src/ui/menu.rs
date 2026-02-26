@@ -1283,8 +1283,36 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         }
         MenuAction::FindReferences => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                let addr = if line.address == 0 && line.bytes.is_empty() {
-                    line.external_label_address.unwrap_or(0)
+                // Resolve the effective address under the cursor, mirroring
+                // the logic used in action_set_label:
+                //
+                //  1. External label definition (bytes empty, external_label_address set)
+                //     e.g.  "s11CA =*=$01  ; x-ref $1031"  at the top of the listing.
+                //  2. Relative / mid-instruction label (bytes.len() > 1, sub_cursor
+                //     is on one of the inline labels).
+                //  3. Normal instruction / data line → use line.address.
+                let addr = if line.bytes.is_empty() {
+                    // External label definition row (or blank separator row)
+                    line.external_label_address.unwrap_or(line.address)
+                } else if line.bytes.len() > 1 {
+                    // A multi-byte line may expose relative-address labels
+                    // (rendered as sub-rows before the instruction itself).
+                    // Walk through them the same way action_set_label does.
+                    let mut resolved = line.address;
+                    let mut current_sub_index = 0;
+                    'outer: for offset in 1..line.bytes.len() {
+                        let mid_addr = line.address.wrapping_add(offset as u16);
+                        if let Some(labels) = app_state.labels.get(&mid_addr) {
+                            for _ in labels {
+                                if current_sub_index == ui_state.sub_cursor_index {
+                                    resolved = mid_addr;
+                                    break 'outer;
+                                }
+                                current_sub_index += 1;
+                            }
+                        }
+                    }
+                    resolved
                 } else {
                     line.address
                 };
