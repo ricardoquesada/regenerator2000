@@ -70,8 +70,8 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 1.  **Rename**: Use `r2000_set_label_name` to give it a meaningful, descriptive name based on your analysis.
     - Style: `snake_case` is generally preferred for variables (e.g., `player_lives`), `CapsExpr` for constants or hardware.
 2.  **Document**:
-    - Use `r2000_set_line_comment` at the definition (if it's a variable in memory) to explain its range, purpose, or bitfield layout.
-    - Use `r2000_set_side_comment` at key usages to clarify _why_ it's being read or written (e.g., "Reset life counter", "Check for fire button").
+    - Use `r2000_set_comment` with `"type": "line"` at the definition (if it's a variable in memory) to explain its range, purpose, or bitfield layout.
+    - Use `r2000_set_comment` with `"type": "side"` at key usages to clarify _why_ it's being read or written (e.g., "Reset life counter", "Check for fire button").
 
 ## Example Output
 

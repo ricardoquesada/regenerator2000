@@ -30,10 +30,11 @@ mod tests {
                 }
             }),
             json!({
-                "name": "r2000_set_side_comment",
+                "name": "r2000_set_comment",
                 "arguments": {
                     "address": 0x1000,
-                    "comment": "Loop Entry"
+                    "comment": "Loop Entry",
+                    "type": "side"
                 }
             }),
         ];

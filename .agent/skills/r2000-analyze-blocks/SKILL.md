@@ -18,20 +18,22 @@ code from data, text from tables, and pointers from raw bytes.
 
 ## Block Types Reference
 
-| Block Type          | Tool                                    | When to Use                                                                                             |
-| ------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| **Code**            | `r2000_convert_region_to_code`          | Executable MOS 6502 instructions. Valid opcode sequences with coherent control flow.                    |
-| **Byte**            | `r2000_convert_region_to_bytes`         | Raw 8-bit data: sprite data, bitmap data, charset data, lookup tables, variables, or unknown data.      |
-| **Word**            | `r2000_convert_region_to_words`         | 16-bit little-endian values: 16-bit variables, math constants, SID frequency values.                    |
-| **Address**         | `r2000_convert_region_to_address`       | 16-bit little-endian pointers to memory locations. Creates cross-references. For jump tables & vectors. |
-| **PETSCII Text**    | `r2000_convert_region_to_petscii`       | PETSCII-encoded strings: game messages, prompts, high score names, print routine data.                  |
-| **Screencode Text** | `r2000_convert_region_to_screencode`    | Screen code text: data written directly to Screen RAM ($0400–$07E7).                                    |
-| **Lo/Hi Address**   | `r2000_convert_region_to_lo_hi_address` | Split address table: first half = low bytes, second half = high bytes. Even byte count required.        |
-| **Hi/Lo Address**   | `r2000_convert_region_to_hi_lo_address` | Split address table: first half = high bytes, second half = low bytes. Even byte count required.        |
-| **Lo/Hi Word**      | `r2000_convert_region_to_lo_hi_word`    | Split word table: first half = low bytes, second half = high bytes. E.g., SID frequency tables.         |
-| **Hi/Lo Word**      | `r2000_convert_region_to_hi_lo_word`    | Split word table: first half = high bytes, second half = low bytes.                                     |
-| **External File**   | `r2000_convert_region_to_external_file` | Large binary blobs: SID music files, raw bitmaps, character sets that should be exported as-is.         |
-| **Undefined**       | `r2000_convert_region_to_undefined`     | Reset a region to unknown state. Use to undo a wrong classification.                                    |
+Use `r2000_set_data_type` with the `data_type` enum value from the right column.
+
+| Block Type          | `data_type` value | When to Use                                                                                             |
+| ------------------- | ----------------- | ------------------------------------------------------------------------------------------------------- |
+| **Code**            | `code`            | Executable MOS 6502 instructions. Valid opcode sequences with coherent control flow.                    |
+| **Byte**            | `byte`            | Raw 8-bit data: sprite data, bitmap data, charset data, lookup tables, variables, or unknown data.      |
+| **Word**            | `word`            | 16-bit little-endian values: 16-bit variables, math constants, SID frequency values.                    |
+| **Address**         | `address`         | 16-bit little-endian pointers to memory locations. Creates cross-references. For jump tables & vectors. |
+| **PETSCII Text**    | `petscii`         | PETSCII-encoded strings: game messages, prompts, high score names, print routine data.                  |
+| **Screencode Text** | `screencode`      | Screen code text: data written directly to Screen RAM ($0400–$07E7).                                    |
+| **Lo/Hi Address**   | `lo_hi_address`   | Split address table: first half = low bytes, second half = high bytes. Even byte count required.        |
+| **Hi/Lo Address**   | `hi_lo_address`   | Split address table: first half = high bytes, second half = low bytes. Even byte count required.        |
+| **Lo/Hi Word**      | `lo_hi_word`      | Split word table: first half = low bytes, second half = high bytes. E.g., SID frequency tables.         |
+| **Hi/Lo Word**      | `hi_lo_word`      | Split word table: first half = high bytes, second half = low bytes.                                     |
+| **External File**   | `external_file`   | Large binary blobs: SID music files, raw bitmaps, character sets that should be exported as-is.         |
+| **Undefined**       | `undefined`       | Reset a region to unknown state. Use to undo a wrong classification.                                    |
 
 ## Step-by-Step Workflow
 
@@ -57,13 +59,13 @@ Process the binary in **multiple passes**, in this order:
 
 For each chunk of the binary:
 
-- Use `r2000_read_disasm_region` to see how it disassembles.
-- Use `r2000_read_hexdump_region` to see raw byte patterns.
+- Use `r2000_read_region` (with `"view": "disasm"`) to see how it disassembles.
+- Use `r2000_read_region` (with `"view": "hexdump"`) to see raw byte patterns.
 - Apply the heuristics below to determine the block type.
 
 ### 4. Apply Conversions
 
-- Use `r2000_batch_execute` to apply multiple conversions at once for efficiency.
+- Use `r2000_batch_execute` to apply multiple `r2000_set_data_type` calls at once for efficiency.
 - After each batch, use `r2000_get_analyzed_blocks` to verify the result.
 - If a conversion was wrong, use `r2000_undo` to revert.
 - Use `r2000_toggle_splitter` when you need to separate two adjacent regions of the same type (e.g., two separate byte tables side by side).
@@ -73,7 +75,7 @@ For each chunk of the binary:
 After classifying blocks, optionally:
 
 - Use `r2000_set_label_name` to name entry points, tables, and strings.
-- Use `r2000_set_side_comment` or `r2000_set_line_comment` to add context (using conventions from the **r2000-analyze-routine** skill if documenting subroutines).
+- Use `r2000_set_comment` (type `"line"` or `"side"`) to add context (using conventions from the **r2000-analyze-routine** skill if documenting subroutines).
 
 ---
 
@@ -208,14 +210,14 @@ When analyzing, keep these known address ranges in mind:
 
 ## Batch Conversion Strategy
 
-When converting large ranges, use `r2000_batch_execute` to group conversions. Example:
+When converting large ranges, use `r2000_batch_execute` to group `r2000_set_data_type` calls. Example:
 
 ```
 r2000_batch_execute with calls:
-  - r2000_convert_region_to_code:      $0801–$08FF
-  - r2000_convert_region_to_bytes:     $0900–$093F
-  - r2000_convert_region_to_petscii:   $0940–$097F
-  - r2000_convert_region_to_code:      $0980–$0A00
+  - r2000_set_data_type: start=2049, end=2303, data_type="code"
+  - r2000_set_data_type: start=2304, end=2367, data_type="byte"
+  - r2000_set_data_type: start=2368, end=2431, data_type="petscii"
+  - r2000_set_data_type: start=2432, end=2560, data_type="code"
 ```
 
 This avoids making dozens of individual round-trip tool calls.

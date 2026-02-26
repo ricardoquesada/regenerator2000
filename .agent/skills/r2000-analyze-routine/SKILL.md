@@ -21,7 +21,7 @@ Use this skill when the user asks to "analyze this routine" or "what does this f
 
 ## 3. Read the Code
 
-- Use `r2000_read_disasm_region` to get the instructions.
+- Use `r2000_read_region` (with `"view": "disasm"`) to get the instructions.
 - Analyze the flow:
   - Does it loop?
   - Does it call other known routines (e.g., KERNAL routines like `$FFD2` (CHROUT))?
@@ -52,7 +52,7 @@ Combine findings into a summary:
 
 If the analysis is solid, offer to add a multi-line comment block on top of the routine and/or rename the label.
 
-The multi-line comment block must be placed **above the first instruction** of the routine using `r2000_set_line_comment`. It should follow this exact format — the separator line must be used as both the **first** and **last** line of the comment:
+The multi-line comment block must be placed **above the first instruction** of the routine using `r2000_set_comment` with `"type": "line"`. It should follow this exact format — the separator line must be used as both the **first** and **last** line of the comment:
 
 ```
 =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -67,5 +67,5 @@ Side Effects: <hardware changes, screen updates, etc., or "None">
 To document the routine, use:
 
 - `r2000_set_label_name` — to give the routine a descriptive name.
-- `r2000_set_line_comment` — to add the multi-line comment block above the entry point.
-- `r2000_set_side_comment` — to annotate key instructions within the routine body with short inline notes (e.g., explaining what a register holds, why a branch is taken, or what a memory address represents).
+- `r2000_set_comment` with `"type": "line"` — to add the multi-line comment block above the entry point.
+- `r2000_set_comment` with `"type": "side"` — to annotate key instructions within the routine body with short inline notes (e.g., explaining what a register holds, why a branch is taken, or what a memory address represents).
