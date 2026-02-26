@@ -129,7 +129,12 @@ impl Widget for CommentDialog {
                 .add_modifier(Modifier::DIM);
             let hint = Paragraph::new(TextLine::from(vec![
                 Span::styled(
-                    " Ctrl+Enter",
+                    " Shift+Enter",
+                    Style::default().add_modifier(Modifier::BOLD | Modifier::DIM),
+                ),
+                Span::styled("/", dim),
+                Span::styled(
+                    "Ctrl+Enter",
                     Style::default().add_modifier(Modifier::BOLD | Modifier::DIM),
                 ),
                 Span::styled(":new line", dim),
@@ -180,7 +185,9 @@ impl Widget for CommentDialog {
                 WidgetResult::Close
             }
             KeyCode::Enter => {
-                if key.modifiers.contains(KeyModifiers::CONTROL) {
+                if key.modifiers.contains(KeyModifiers::CONTROL)
+                    || key.modifiers.contains(KeyModifiers::SHIFT)
+                {
                     if self.comment_type == CommentType::Line {
                         self.textarea.insert_newline();
                     }
