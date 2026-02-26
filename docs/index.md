@@ -65,6 +65,7 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 - **🧠 Analysis**: Automatically create labels and comments.
 - **⏪ Undo/Redo**: Experiment without fear.
 - **🏷️ Labels & Comments**: Rename subroutines and variable for readability.
+- **🐛 VICE Debugger Integration**: Connect to a running VICE emulator for live debugging — step through code, inspect registers, set breakpoints and watchpoints.
 - **🤖 MCP Integration**: Collaborate with AI assistants for deeper analysis.
 - **💾 Project Saving**: Save your work and resume later.
 - **📤 Export**: Generate compilable source code or VICE labels for debugging.
