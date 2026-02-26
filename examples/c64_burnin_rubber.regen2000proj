@@ -208,6 +208,18 @@
     },
     {
       "start": 10625,
+      "end": 11441,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 11442,
+      "end": 11445,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 11446,
       "end": 11770,
       "type_": "Code",
       "collapsed": false
@@ -256,6 +268,30 @@
     },
     {
       "start": 13312,
+      "end": 14207,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 14208,
+      "end": 14239,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 14240,
+      "end": 14557,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 14558,
+      "end": 14559,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 14560,
       "end": 14586,
       "type_": "Code",
       "collapsed": false
@@ -878,6 +914,27 @@
         "kind": "User"
       }
     ],
+    "18336": [
+      {
+        "name": "award_collision_score_and_damage_sprite",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18623": [
+      {
+        "name": "dead_snapshot_delta_draft",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18656": [
+      {
+        "name": "busy_wait_delay",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "18688": [
       {
         "name": "shift_colour_row_pipeline",
@@ -1253,6 +1310,43 @@
     "18200": "Decrement duration timer",
     "18205": "Turn off active flag",
     "18210": "Hide Sprite 7 off-screen",
+    "18336": "Save X (NPC slot) and Y (car type index) — restored at $47D9",
+    "18340": "Load sprite frame byte for this car type from lookup table",
+    "18343": "$E3 = small car sprite frame",
+    "18345": "Not small car, check next",
+    "18347": "Small car => 5 points",
+    "18352": "$E4 = medium car sprite frame",
+    "18356": "Medium car => 3 points",
+    "18361": "Large car ($E5) => 2 points (default)",
+    "18363": "Start ripple-carry loop at digit index 4 (ones place)",
+    "18365": "Load current score digit",
+    "18369": "Increment digit by 1",
+    "18374": "Overflow at 10? (BCD-style carry)",
+    "18378": "Reset digit to 0, carry to next column",
+    "18383": "Move left to next score digit",
+    "18387": "Repeat for each point unit (Y times total)",
+    "18390": "Redraw HUD score display after all digits updated",
+    "18393": "Restore Y (car type index) and X (NPC slot)",
+    "18397": "Re-read sprite frame byte for this car type",
+    "18400": "Fall into j4E03: store frame, clear D01C multicolor bit for this sprite slot",
+    "18623": "DEAD CODE: load snapshot (note: operand order is reversed vs advance_distance_counter at $4940)",
+    "18626": "compare snapshot against current counter",
+    "18629": "snapshot < counter -> counter has NOT wrapped; take no-wrap path",
+    "18631": "no-wrap path: delta = snapshot - counter (0..9)",
+    "18641": "wrap path: counter wrapped through 0 since snapshot was taken",
+    "18645": "partial subtraction (negative without correction)",
+    "18649": "+10 corrects for modular wrap: delta = (snapshot - counter) + 10",
+    "18651": "X = delta mod 10; result is never used (no branch on CPX below)",
+    "18652": "CPX #$00 with no subsequent branch - dead; falls into padding bytes",
+    "18656": "outer loop counter = 2 passes",
+    "18658": "store outer count in $08FF",
+    "18661": "middle loop: X = 256 iterations per outer pass",
+    "18663": "inner loop: Y = 256 iterations per X step",
+    "18665": "inner burn: ~5 cycles per iteration",
+    "18668": "middle step: 256 inner loops done, decrement X",
+    "18671": "decrement outer counter ($08FF); loop back if not zero",
+    "18676": "return after ~0.67 s delay (2 x 256 x 256 inner iterations)",
+    "18677": "DEAD: unreachable - BNE/DEX/BNE below $48F4 never executed",
     "18688": "Y = 0, loop index for 29-byte colour strip copy",
     "18690": "read slot 2 strip byte [y]  ($07A3+y)",
     "18693": "write to slot 3 strip byte [y]  ($07CB+y)  -- slot2 -> slot3",
@@ -1420,6 +1514,9 @@
     "17920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDynamic delay loop to govern the frame rate and scrolling speed.\nSubtracts the current speed value ($0804) from a base constant ($F3).\nThe resulting value determines how many times a nested busy-wait loop executes.\nThe faster the car is going (higher $0804 value), the smaller the delay count,\nresulting in the frame executing more quickly.\n\nInputs:  Speed variable at $0804\nOutputs: None\nSide Effects: Busy waits (delays CPU execution)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18194": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the temporary display timer for a pickup/coin sprite.\nWhen the player hits a specific map tile (e.g., $65), Sprite 7 is spawned as\na visual indicator of the points gained, and state flag $085E is set.\nThis routine runs each frame to tick down its lifespan timer at $085F. \nOnce the timer hits 0, it deactivates the flag and hides Sprite 7 off-screen.\n\nInputs:  Pickup Active Flag at $085E, Timer at $085F\nOutputs: None\nSide Effects: Modifies $085E, $085F, and Sprite 7 X Pos ($D00E)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18262": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain gameplay tick routine.\nThis is the core subroutine called every frame/tick during gameplay to process\nall major game systems. It updates the HUD, increments the score, handles player\ninput and movement, processes jumps and background collisions, applies vertical\noffsets, handles acceleration (if enabled), manages frame delays, and ticks down\nthe pickup/coin visual indicator.\n\nInputs:  None (relies on global state)\nOutputs: None\nSide Effects: Updates player coordinates, animations, score, HUD, and timers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18336": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\naward_collision_score_and_damage_sprite\n\nCalled when the player's car lands on (or collides with) an NPC car.\nOn entry, X = NPC slot index (0-3), Y = car type index from f092C,x.\n\nPhase 1 — Score award:\n  Looks up the NPC's sprite frame byte from f3F18,y:\n    $E3 (small car)  => add 5 points to score array f0825\n    $E4 (medium car) => add 3 points\n    $E5 (large car)  => add 2 points\n  Score is stored as individual BCD-style digits at f0825 (7 bytes,\n  index 4=ones ... index 0=highest). The loop ripple-carries from\n  digit 4 upward for as many iterations as the point value (Y).\n  Then calls update_hud_display to redraw the score on the HUD.\n\nPhase 2 — Sprite damage:\n  After restoring X/Y, re-reads f3F18,y (same frame byte) and\n  falls through to j4E03, which:\n    - Stores the frame byte into a07F9,x (sprite pointer for NPC slot)\n    - Builds a single-bit mask for slot X, inverts it, ANDs it into\n      $D01C (Sprites Multi-Color Select), switching that NPC sprite\n      from multicolor to hires mode (visual 'hit' state)\n    - Increments a0821 (hit sub-counter); when it reaches 10,\n      resets to 0 and increments hud_level_digit\n\nInputs:       X = NPC car slot index (0-3)\n              Y = car type index (f092C,x), used to index f3F18\nOutputs:      None (returns via j4E03/RTS at $4E3C)\nSide Effects: f0825 score digits updated; $D01C multicolor bit cleared\n              for the hit NPC sprite; a0821 and hud_level_digit may\n              increment; HUD redrawn via update_hud_display\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18623": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDEAD CODE - unreferenced draft of the scroll-row modular delta calculation.\n\nNo JSR, JMP, or address-table entry points to this block anywhere in the binary.\nIt computes (scroll_row_snapshot - scroll_row_counter) mod 10, the arithmetic\ncomplement of advance_distance_counter ($4940), which computes the identical\ndelta in the opposite operand order.  The CPX #$00 at $48DC has no branch and\nis never acted upon.  The two padding bytes ($00 $FE) at $48DE-$48DF confirm\nthis was abandoned before the entry point for busy_wait_delay was stitched in\nat $48E0.\n\nThis is almost certainly an earlier draft of advance_distance_counter ($4940)\nthat was left in place when the final version was written four pages later.\n\nInputs:       scroll_row_snapshot ($0986), scroll_row_counter ($0827)\nOutputs:      X = (snapshot - counter) mod 10  [result never used]\nSide Effects: none (dead code, never executed)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18656": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nBusy-wait delay of approximately 0.67 seconds, used to pace the crash/explosion\nanimation in the game-over sequence.\n\nThe routine burns CPU cycles with a three-level nested countdown loop:\n  outer  : $08FF counts down from 2 to 0         (2 passes)\n  middle : X    counts down from 0 to 0 (wraps)   (256 iterations per pass)\n  inner  : Y    counts down from 0 to 0 (wraps)   (256 iterations per X step)\n\nTotal inner iterations = 2 x 256 x 256 = 131,072.\nAt ~5 cycles per DEY/BNE pair on PAL C64 (985 kHz) this is roughly 0.67 s.\n\nCalled three times in succession during the crash sprite swap sequence at j4800\n($4829, $4831, $4839 / $4849, $4851, $4859), producing a ~2-second animated\npause while the explosion sprite frames cycle and the SID crash sound plays.\n\nNote: $48F4-$48F9 are dead bytes (a BNE/DEX/BNE sequence that is unreachable\nbecause the DEC $08FF / BNE loop exits only when $08FF reaches 0, at which\npoint the BNE at $48F2 falls through directly to RTS at $48F4).\n\nInputs:       none\nOutputs:      A = 0, X = 0, Y = 1 (loop residue); $08FF = 0\nSide Effects: ~0.67 s of CPU time consumed; $08FF zeroed\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18688": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances a 4-stage pipeline of road colour-row data used by the scrolling engine.\n\nThe game maintains four pipeline slots, each 40 bytes apart in RAM:\n  Slot 0 (newest): ptr $0748/$0749, colour strip $0753..$076F (29 bytes)\n  Slot 1:          ptr $0770/$0771, colour strip $077B..$0797\n  Slot 2:          ptr $0798/$0799, colour strip $07A3..$07BF\n  Slot 3 (oldest): ptr $07C0/$07C1, colour strip $07CB..$07E7\n\nEach call shifts all slots one step toward the screen bottom (slot 3 drops off):\n  strip[2] -> strip[3]  (29 bytes, Y = 0..28)\n  strip[1] -> strip[2]\n  strip[0] -> strip[1]\n  ptr[2]   -> ptr[3]    (16-bit colour-RAM row address)\n  ptr[1]   -> ptr[2]\n  ptr[0]   -> ptr[1]\n  $0748/$0749 -> ptr[0] (freshest pointer, injected each frame by the map scroller)\n\nSlot 0 ($0753 strip + $0748 ptr) is written by the caller with the new road row\ndata before this routine runs, making it the \"front\" of the FIFO queue.\n\nReturns A = $07 so that scroll_screen_down ($1500) can immediately form the\nscreen pointer $0747 (a4A=$07, a49=$47 = last byte of the visible play area),\navoiding a redundant LDA #$07.\n\nCalled once per frame by scroll_screen_down ($1500) as the first step of the\nfull downward screen scroll (road flows top-to-bottom in this top-down racer).\n\nInputs:       $0753..$076F  colour strip, slot 0 (29 bytes, newest row)\n              $077B..$0797  colour strip, slot 1\n              $07A3..$07BF  colour strip, slot 2\n              $0748/$0749   colour-RAM row pointer, slot 0\n              $0770/$0771   colour-RAM row pointer, slot 1\n              $0798/$0799   colour-RAM row pointer, slot 2\nOutputs:      A = $07 (high byte for screen-RAM scroll pointer $0747)\n              $077B..$07E7  slots 1-3 colour strips overwritten with shifted data\n              $0770/$0771, $0798/$0799, $07C0/$07C1  colour-RAM ptrs shifted\nSide Effects: Slot 3 previous content destroyed; slot 0 inputs are not touched.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18752": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances the two-digit on-screen distance counter shown in the HUD, driven by\nhow many new road rows have scrolled since the last call.\n\nscroll_row_counter ($0827) is a 0-9 modular counter incremented once per road\nrow by the map scroller.  Each call computes delta = (current - snapshot) mod 10\nto get the number of new rows that have passed.  For each delta tick the\nsub-step counter dist_substep ($0987) is incremented; once it reaches 7 the\nones digit dist_digit_ones ($0823) advances by 1, carrying into the tens digit\ndist_digit_tens ($0822) on overflow.  Every digit advance also fires a short SID\nvoice-1 \"tick\" click via sid_tick_sfx_and_get_ones.\n\nThe routine does NOT end with RTS.  It tail-calls update_hiscore_if_beaten\n($17DD), which compares the 7-digit score ($0825-$082B) against the stored\nhi-score ($0F50-$0F56) and copies the score over if it is higher.  That routine\nreturns with A = hud_level_digit ($0820), which propagates back to the caller\nupdate_hud_display ($16B0) and is written to screen RAM at $0420 as the level\ndigit after adding $30.\n\nInputs:       scroll_row_counter  ($0827)  current 0-9 row counter\n              scroll_row_snapshot ($0986)  row counter value at previous call\n              dist_substep        ($0987)  sub-step accumulator (0-6)\n              dist_digit_ones     ($0823)  ones digit of distance counter (0-9)\n              dist_digit_tens     ($0822)  tens digit of distance counter (0-9)\nOutputs:      A = hud_level_digit ($0820)  (returned via tail-call to $17DD)\n              dist_digit_ones and dist_digit_tens updated in place\nSide Effects: scroll_row_snapshot ($0986) updated to current scroll_row_counter\n              dist_substep ($0987) updated\n              SID voice 1 programmed with tick SFX on each digit advance\n              Hi-score at $0F50-$0F56 overwritten if current score is higher\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18760": "no-wrap path: delta = current - snapshot (0..9)",
@@ -1463,14 +1560,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 18655,
+  "cursor_address": 18395,
   "hex_dump_cursor_address": 18640,
   "sprites_cursor_address": 16384,
   "charset_cursor_address": 16320,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 57344,
+  "bitmap_cursor_address": 0,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
