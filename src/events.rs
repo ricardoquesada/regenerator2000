@@ -672,6 +672,12 @@ pub fn run_app<B: Backend>(
                             }
                         } // Close the else block for mouse dialog handling
                     }
+                    Event::Resize(width, height) => {
+                        terminal
+                            .resize(ratatui::layout::Rect::new(0, 0, width, height))
+                            .map_err(|e| io::Error::other(e.to_string()))?;
+                        should_render = true;
+                    }
                     _ => {}
                 }
             } // End AppEvent::Crossterm
