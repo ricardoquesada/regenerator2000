@@ -304,6 +304,18 @@
     },
     {
       "start": 14592,
+      "end": 14839,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 14840,
+      "end": 14847,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 14848,
       "end": 15137,
       "type_": "Code",
       "collapsed": false
@@ -364,6 +376,24 @@
     },
     {
       "start": 16384,
+      "end": 16623,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 16624,
+      "end": 16631,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 16632,
+      "end": 16639,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 16640,
       "end": 16975,
       "type_": "Code",
       "collapsed": false
@@ -424,6 +454,18 @@
     },
     {
       "start": 17456,
+      "end": 17603,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 17604,
+      "end": 17615,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 17616,
       "end": 17641,
       "type_": "Code",
       "collapsed": false
@@ -442,8 +484,14 @@
     },
     {
       "start": 18112,
-      "end": 18287,
+      "end": 18240,
       "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 18241,
+      "end": 18287,
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -963,6 +1011,13 @@
         "kind": "User"
       }
     ],
+    "19763": [
+      {
+        "name": "check_car_on_road",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "20053": [
       {
         "name": "update_explosion_animations",
@@ -987,6 +1042,20 @@
     "20480": [
       {
         "name": "restore_game_vars",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20720": [
+      {
+        "name": "txt_player",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20736": [
+      {
+        "name": "handle_scroll_direction_switch",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1397,6 +1466,16 @@
     "18980": "Generate Random Number for Position",
     "19021": "Bounds math for enemy type 0 and 1",
     "19085": "Generate Random Number for Speed",
+    "19763": "sprite index -> X reg (doubled for VIC pair offset)",
+    "19779": "subtract left border ($10 px) then >> 3 = tile column -> Y",
+    "19783": "subtract top border ($32 px) then >> 3 = tile row -> X",
+    "19795": "base screen RAM low byte = $00 (addr $0400)",
+    "19797": "base screen RAM high byte = $04 (addr $0400)",
+    "19802": "X rows x $28 bytes/row to get pointer to correct screen row",
+    "19820": "$20 (space screencode) = road tile -> car is off-road/blocked",
+    "19839": "$65 = alternate road screencode -> also off-road",
+    "19843": "not on road: clear on-road flag for this car",
+    "19854": "bits 0-1 of ZP $8E = road surface type -> f0908,x",
     "20231": "Skip if game state 0 or 3 (not in active play)",
     "20244": "Only check on-road/active cars (state 1)",
     "20257": "Only process type-4 cars (jump target)",
@@ -1413,6 +1492,16 @@
     "20380": "Write bottom-left tile",
     "20385": "Write bottom-right tile",
     "20391": "Clear flag: don't stamp this car again",
+    "20736": "$02 = scroll direction-change mode; anything else = bail",
+    "20746": "$01 = reverse direction, $02 = forward direction",
+    "20753": "check if any pending NPC cars in secondary lane buffer",
+    "20766": "direction is $01: check $0C22/$0C23 pending cars instead",
+    "20779": "PATH A: pending cars present in lane A; set dir=$01, swap to C/D buffers",
+    "20784": "copy work screen buffer $0800 -> $0C00 (256 bytes)",
+    "20787": "copy active car table $0900 -> $0D00 (256 bytes)",
+    "20816": "PATH C: direction $01, pending cars in C lane; swap to A/B buffers",
+    "20821": "copy work screen buffer $0800 -> $0A00 (256 bytes)",
+    "20824": "copy active car table $0900 -> $0B00 (256 bytes)",
     "21049": "Phase 1: key already held? Return immediately",
     "21051": "$7F = no key; wait for release",
     "21055": "Phase 2: spin until any key pressed",
@@ -1523,9 +1612,11 @@
     "18770": "wrap path: counter passed through 0; delta = (current - snapshot) + 10",
     "18944": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates through the 4 available enemy car slots ($0928).\nIf it finds an empty slot, it uses the BASIC ROM's random number generator\nrutines ($E097) multiple times to determine the enemy car's sprite shape (0-7),\ninitial starting X coordinate (bounded so it stays on the road), and speed.\n\nInputs:  Enemy active array at $0928\nOutputs: None\nSide Effects: Spawns new enemies, modifies Sprite Pointers $07F9-$07FC,\n              and relies on BASIC ROM state.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "19456": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the position and state of the enemy cars (Sprites 1-4).\nThis routine iterates through up to 4 active enemy entities. For each active\nentity, it updates their horizontal position (swerving left or right) based on\ntheir local state metrics. It then computes their new vertical position on the\nscreen by factoring in the player's current speed/scroll offset ($0804).\nIf an enemy car falls off the top or bottom of the screen (Y < $3A or Y >= $F0),\nthe routine automatically despawns it by clearing its status flag and hiding the\nsprite.\n\nInputs:  Global scroll/speed ($0804), arrays at $0900/0904/0908/090C/0924/0928\nOutputs: None\nSide Effects: Modifies Sprite 1-4 X/Y coordinates ($D002-$D009) and entity states.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "19763": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks whether an enemy car (sprite N, passed in X) is on a drivable road tile.\n\nThe routine converts the sprite's screen-space pixel position (from VIC-II\n$D002/$D003 registers) into a tile column (Y) and tile row (X) by subtracting\na fixed border offset and dividing by 8 (three LSRs). It then computes a\npointer into screen RAM at $0400 using a 16-bit base address in (a49/a4A)\nand multiplies the row by 40 ($28) to find the correct row offset.\n\nA lookup table at $F0904, indexed by sprite number X, provides a half-tile\ncolumn adjustment (+1) to handle wide sprites that straddle two tiles.\n\nThe road tile check reads the screen code at the computed (row, col) position:\n  - $20 (space)  = road tile  -> jump to j4ED3 (car is off-road / blocked)\n  - $65 (letter) = another road variant -> also treated as blocked\n\nIf the car is on road (non-road tile), the routine stores $01 at f0904,x (car\nis on-road flag = active), restores registers, samples bits 0-1 of ZP $8E for\na 2-bit value and stores it at f0908,x (road direction/surface type), then\njumps to j4C9A (continue normal car movement logic).\n\nIf the car is off-road, f0904,x is cleared ($00), and the routine redirects to\nj4ED3 which will handle the out-of-bounds / collision branch.\n\nInputs:  X = sprite/car index (0-3)\nOutputs: f0904,x = 1 if on-road, 0 if off-road; f0908,x = road surface bits\nSide Effects: Reads VIC-II sprite X/Y registers ($D002/$D003); reads screen RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "20053": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates explosion and projectile animation timers.\nFirst, it checks the enemy pool (Sprites 1-4). If an enemy is in state $02\n(exploding), it ticks down a duration timer at $0930. When the timer reaches 0, \nit resets their state, restores their default multi-color bit config, and hides them.\nThen, it runs a second loop over a pool of 3 secondary objects (Sprites 5-7),\nticking their timers and dropping them downward visually by adding to their Y Pos.\n\nInputs:  Enemy states at $0928, Timers at $0930 and $0983\nOutputs: None\nSide Effects: Modifies Sprites 1-7 coordinates and multi-color registers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "20228": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nWrites a 2x2 tile stamp to screen RAM when the player successfully passes\nover a type-4 NPC car (the \"jump target\" car). Only fires once per car\nappearance: car_fresh_flag[x] is set at spawn and cleared here after stamping.\n\nProximity conditions (both must hold):\n  Y: player sprite Y >= NPC sprite Y + $20  (player is >= 32px past the NPC)\n  X: |player X - NPC X| < $40              (within 64px horizontally)\n\nScreen address: $0400 + ((npc_sprite_y - $22) >> 3) * 40 + ((npc_sprite_x - $10) >> 3)\nTile stamp (2x2):\n  $1B $1C      <- top row at computed address\n  $1D $1E      <- bottom row 40 chars later\n\nSkipped if game state (a0800) is 0 or 3.\n\nInputs:       a0800 (game state), car_state[0..3], f092C[0..3] (car type),\n              car_fresh_flag[0..3], VIC-II sprite regs $D000-$D009\nOutputs:      Screen RAM ($0400+)\nSide Effects: Clears car_fresh_flag[x] after stamping (one-shot per car)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "20480": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRestores game variables from double buffers.\nThis routine copies game state data from back buffers ($0A00/$0B00 or $0C00/$0D00)\ninto the active variables pages ($0800/$0900). It chooses which buffer to pull\nfrom based on player/turn states in $0F00 and $0F01 (useful for 2-player modes).\n\nInputs:  $0F00, $0F01\nOutputs: None\nSide Effects: Overwrites $0800-$09FF memory region.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "20736": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles a scroll direction change event, triggered from the countdown/wait\nloop at $51E6 once it expires. It checks two state variables to decide how\nto swap the map scroll buffers, then reloads the game level via s170C.\n\n$0F00 = current scroll mode (must be $02 = \"switching direction\" to act)\n$0F01 = current scroll direction ($01 = scrolling up/reverse, $02 = forward)\n\nIf $0F00 != $02: bail out immediately to j1803 (re-init video).\n\nIf $0F00 == $02, four paths based on $0F01 + pending car data:\n\n  PATH A ($0F01 != $01, pending cars at $0A22/$0A23):\n    Set $0F01 = $01, copy work buffer $0800 -> $0C00,\n    copy car table $0900 -> $0D00, then reload level (s170C).\n\n  PATH B ($0F01 != $01, pending cars at $0A22/$0A23 absent):\n    Copy work buffer $0800 -> $0A00,\n    copy car table $0900 -> $0B00, then reload level (s170C).\n    Set $0F01 = $02.\n\n  PATH C ($0F01 == $01, pending cars at $0C22/$0C23):\n    Copy work buffer $0800 -> $0A00,\n    copy car table $0900 -> $0B00, then reload level (s170C).\n\n  PATH D ($0F01 == $01, no pending cars):\n    Set $0F01 = $01, copy work buffer $0800 -> $0C00,\n    copy car table $0900 -> $0D00, then reload level (s170C).\n\nIn all active paths, the 256-byte buffers are fully copied via a DEX/BNE loop.\n\nInputs:  $0F00 = scroll mode flag; $0F01 = direction; $0A22/$0A23, $0C22/$0C23\n         = pending NPC car presence flags; $0800, $0900 = source work buffers\nOutputs: $0A00/$0B00 or $0C00/$0D00 = updated scroll/car buffers;\n         $0F01 = updated direction state\nSide Effects: Calls s170C (restore_game_vars + level reload), re-entering the\n              main game flow from the top of the level\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "21049": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain-loop input synchronizer. Called every frame from j4FB0.\n\nTies the main loop's execution pace to player key input:\n  - If any key is currently held (key_scan != $7F): returns immediately,\n    allowing the game loop to run at full speed.\n  - If no key is held (key_scan == $7F): spins through a full\n    press -> release -> press cycle before returning.\n\nThe CIA keyboard scanner (j56E2) runs inside the IRQ, so key_scan is\nupdated even during the spin-waits — sprite animation continues unaffected.\n\nPhase 1 ($5239): bail immediately if a key is already held\nPhase 2 ($523F): spin until any key is pressed\nPhase 3 ($5245): spin until key is released\nPhase 4 (j5270): spin until key is pressed again, then return\n\nInputs:       key_scan ($C5)\nOutputs:      A = key_scan on early exit; undefined on full wait path\nSide Effects: Stalls main loop execution until a fresh keypress cycle\n              completes when no key is being held\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "21248": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles user input during the main menu / selection screen.\nThis routine monitors a specific key press (flagged as $F7 in the keyboard\nmatrix byte $C5, likely the F1 key or spacebar) to increment a 2-digit number\nstored in $49 and $4A as ASCII/Screen Code characters. The number cycles\nfrom '01' up to '16', and wraps back around. It then renders those digits directly\nto Video RAM at $0651 and $0652 to provide visual feedback of the selection\n(e.g., selecting a starting level or difficulty).\n\nInputs:  $C5 (Current Key Pressed)\nOutputs: None\nSide Effects: Modifies $49 (units), $4A (tens), and Video RAM $0651-$0652.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "21344": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays a \"BONUS 10000\" message and awards bonus points.\nThis routine copies the \"BONUS 10000\" text to the screen ($0756 area) and colors\nit purple ($04). It then calls the score increment routine twice to award the\npoints, performs a nested delay loop to leave the text on-screen momentarily,\nand finally jumps back to the main flow.\n\nInputs:  None\nOutputs: None\nSide Effects: Updates Screen RAM, Color RAM, Score array, and delays execution.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1560,14 +1651,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 18395,
-  "hex_dump_cursor_address": 18640,
+  "cursor_address": 22361,
+  "hex_dump_cursor_address": 22352,
   "sprites_cursor_address": 16384,
   "charset_cursor_address": 16320,
-  "right_pane_visible": "None",
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
