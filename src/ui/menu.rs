@@ -971,6 +971,19 @@ pub fn render_menu_popup(
     f.render_widget(list, area);
 }
 
+/// Returns the file stem (no extension, no path) of the currently open file or project,
+/// to be used as a default autocomplete value in save/export dialogs.
+fn get_default_filename_stem(app_state: &AppState) -> Option<String> {
+    // Prefer project_path if it exists, otherwise fall back to file_path.
+    let path = app_state
+        .project_path
+        .as_ref()
+        .or(app_state.file_path.as_ref())?;
+    path.file_stem()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_string())
+}
+
 fn vice_open_watchpoint_dialog(app_state: &AppState, ui_state: &mut UIState) {
     let prefill = app_state
         .disassembly
@@ -1083,10 +1096,12 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ui_state.set_status_message("Select a VICE label file to import");
         }
         MenuAction::ExportViceLabels => {
+            let initial = app_state
+                .last_export_labels_filename
+                .clone()
+                .or_else(|| get_default_filename_stem(app_state));
             ui_state.active_dialog = Some(Box::new(
-                crate::ui::dialog_export_labels::ExportLabelsDialog::new(
-                    app_state.last_export_labels_filename.clone(),
-                ),
+                crate::ui::dialog_export_labels::ExportLabelsDialog::new(initial),
             ));
             ui_state.set_status_message("Enter VICE label filename");
         }
@@ -1105,16 +1120,23 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     ui_state.set_status_message(format!("Saved: {}", filename));
                 }
             } else {
-                ui_state.active_dialog =
-                    Some(Box::new(crate::ui::dialog_save_as::SaveAsDialog::new(
-                        app_state.last_save_as_filename.clone(),
-                    )));
+                let initial = app_state
+                    .last_save_as_filename
+                    .clone()
+                    .or_else(|| get_default_filename_stem(app_state));
+                ui_state.active_dialog = Some(Box::new(
+                    crate::ui::dialog_save_as::SaveAsDialog::new(initial),
+                ));
                 ui_state.set_status_message("Enter Project filename");
             }
         }
         MenuAction::SaveAs => {
+            let initial = app_state
+                .last_save_as_filename
+                .clone()
+                .or_else(|| get_default_filename_stem(app_state));
             ui_state.active_dialog = Some(Box::new(crate::ui::dialog_save_as::SaveAsDialog::new(
-                app_state.last_save_as_filename.clone(),
+                initial,
             )));
             ui_state.set_status_message("Enter Project filename");
         }
@@ -1127,18 +1149,24 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     ui_state.set_status_message(format!("Exported: {}", filename));
                 }
             } else {
-                ui_state.active_dialog =
-                    Some(Box::new(crate::ui::dialog_export_as::ExportAsDialog::new(
-                        app_state.last_export_asm_filename.clone(),
-                    )));
+                let initial = app_state
+                    .last_export_asm_filename
+                    .clone()
+                    .or_else(|| get_default_filename_stem(app_state));
+                ui_state.active_dialog = Some(Box::new(
+                    crate::ui::dialog_export_as::ExportAsDialog::new(initial),
+                ));
                 ui_state.set_status_message("Enter .asm filename");
             }
         }
         MenuAction::ExportProjectAs => {
-            ui_state.active_dialog =
-                Some(Box::new(crate::ui::dialog_export_as::ExportAsDialog::new(
-                    app_state.last_export_asm_filename.clone(),
-                )));
+            let initial = app_state
+                .last_export_asm_filename
+                .clone()
+                .or_else(|| get_default_filename_stem(app_state));
+            ui_state.active_dialog = Some(Box::new(
+                crate::ui::dialog_export_as::ExportAsDialog::new(initial),
+            ));
             ui_state.set_status_message("Enter .asm filename");
         }
         MenuAction::DocumentSettings => {
