@@ -164,7 +164,12 @@ A region is likely an **External File** if:
 
 ---
 
-## Commodore 64 Memory Map Reference
+## C64 Reference (only when platform = Commodore 64)
+
+> **Use this section only if `r2000_get_binary_info` returns platform = Commodore 64.**
+> For other platforms (VIC-20, Apple II, NES, etc.), rely on your own knowledge of that platform's memory map, hardware registers, and OS entry points.
+
+### C64 Memory Map
 
 When analyzing, keep these known address ranges in mind:
 
