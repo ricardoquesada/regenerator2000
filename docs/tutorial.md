@@ -51,8 +51,8 @@ You are now in the **Disassembly View**. The interface might look overwhelming a
 
 ### Basic Movement
 
-- **Scroll**: Use `Arrow Keys` or `Page Up` / `Page Down`.
-- **Jump to Address**: Press `Ctrl+g`, type an address (e.g., `c000` or `$c000`), and hit `Enter`.
+- **Scroll**: Use ++arrow-up++ / ++arrow-down++ or ++page-up++ / ++page-down++ keys.
+- **Jump to Address**: Press ++ctrl+g++, type an address (e.g., `c000` or `$c000`), and hit `Enter`.
 - **Follow Flow**: Highlighting a `JMP` or `JSR` instruction? Press `Enter` to jump to its target.
 - **Go Back**: Press `Backspace` to return to where you were before the jump.
 
@@ -107,7 +107,7 @@ Now, every instruction that jumps to `$C015` will read `JMP main_loop` instead o
 
 Regenerator 2000 automatically tracks **X-Refs**. If you are at a subroutine `draw_sprite`, you can see exactly _who_ calls this function.
 
-- Look for the `X-Ref` section in the info panel (or press `Ctrl+x` to jump between references).
+- Look for the `X-Ref` section in the info panel (or press ++ctrl+x++ to jump between references).
 - This is crucial for understanding _how_ a function is used.
 
 ---
@@ -182,7 +182,7 @@ The most powerful way to test your analysis is by connecting Regenerator 2000 di
 1.  **Start VICE**: Start the emulator with the remote monitor enabled:
     `x64 -binarymonitor`
 2.  **Connect**: In Regenerator 2000, go to **Debugger → Connect to VICE...** (`localhost:6502`).
-3.  **View**: Open the **Debugger** panel with **Alt+6** (or **Ctrl+6**) to see the current PC, registers, and breakpoints.
+3.  **View**: Open the **Debugger** panel with ++alt+6++ (or ++ctrl+6++) to see the current PC, registers, and breakpoints.
 
 ### Debugging Features
 
