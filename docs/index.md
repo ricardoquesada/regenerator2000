@@ -115,8 +115,8 @@ flowchart TD
     S3 --> S2
     S7 --> Q{Debug?}
     Q -- No --> S10[10. Export Project]
-    Q -- Yes --> S8[8. Export VICE Labels]
-    S8 --> S9[9. Debug in VICE]
+    Q -- Yes --> S8[8. Connect to VICE]
+    S8 --> S9[9. Live Debugging]
     S9 --> S2
     S10 --> Done[Assemble it, patch it, etc.]
 ```

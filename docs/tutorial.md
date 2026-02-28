@@ -25,7 +25,10 @@ flowchart TD
     Data --> Comment
     Label --> Comment
     Comment --> Explore
-    Explore --> Finish{Done?}
+    Explore --> Debug{Debug?}
+    Debug -- Yes --> VICE[Connect to VICE]
+    VICE --> Explore
+    Debug -- No --> Finish{Done?}
     Finish -- No --> Explore
     Finish -- Yes --> Export[Export Project]
 ```
@@ -67,9 +70,7 @@ You might see a block of bytes that looks like this:
 $C000  A9 00 85 D0 ...
 ```
 
-If you suspect this is code, place your cursor on the line and press:
-
-> ++c++ (Convert to Code)
+If you suspect this is code, place your cursor on the line and press: ++c++.
 
 Regenerator 2000 will disassemble the bytes starting from that location. It will follow the code flow (jumps and branches) to automatically disassemble reachable instructions.
 
@@ -80,11 +81,11 @@ Sometimes, the disassembler might misinterpret data as code (creating "illegal o
 To mark a region as raw bytes:
 
 1.  **Select the region**:
-    - Press `Shift+v` to enter **Visual Mode**.
+    - Press ++shift+v++ to enter **Visual Mode**.
     - Use `Arrow Keys` to highlight the rows.
 2.  **Convert**:
-    - Press `b` to convert to **Bytes** (`.byte $00, $01...`).
-    - Press `w` to convert to **Words** (`.word $1000...`).
+    - Press ++b++ to convert to **Bytes** (`.byte $00, $01...`).
+    - Press ++w++ to convert to **Words** (`.word $1000...`).
 
 ---
 
@@ -97,7 +98,7 @@ As you analyze the code, you'll recognize patterns. For example, you might see a
 Instead of remembering `$C015` is "Main Loop", give it a name!
 
 1.  Move cursor to `$C015`.
-2.  Press `l` (Label).
+2.  Press ++l++.
 3.  Type `main_loop` and hit `Enter`.
 
 Now, every instruction that jumps to `$C015` will read `JMP main_loop` instead of `JMP $C015`.
@@ -119,7 +120,7 @@ Code tells you _what_ passes, comments tell you _why_.
 
 Good for short notes on a specific line.
 
-- Press `;` (semicolon).
+- Press ++semicolon++ (semicolon).
 - Type: `Update score counter`.
 - Result: `INC $D020  ; Update score counter`
 
@@ -127,9 +128,22 @@ Good for short notes on a specific line.
 
 Good for section headers or detailed explanations.
 
-- Press `:` (colon).
+- Press ++colon++ (colon).
 - Type: `--- INIT ROUTINE ---`.
 - Result: The comment appears on its own line _above_ the instruction.
+  ```asm
+  ; --- INIT ROUTINE ---
+  lda #$00
+  ...
+  ```
+
+!!! tip "Multi-line and Separator Comments"
+
+    - Use **++shift+enter++** or **++ctrl+j++** to insert a new line while in the comment dialog.
+    - Use the following shortcuts within the dialog for quick formatting:
+        - ++ctrl+minus++: Insert a line of dashes (`---`).
+        - ++ctrl+plus++: Insert a line of equals signs (`===`).
+        - ++ctrl+backslash++: Insert a mixed separator (`-=-`).
 
 ---
 
@@ -137,9 +151,10 @@ Good for section headers or detailed explanations.
 
 Some data isn't code or numbers—it's art.
 
-- **Sprites**: Press `Alt+3` to open the **Sprite View**. If you see a Space Invader, you've found the sprite data! Select that memory range and mark it as specific data (or keep it as bytes).
-- **Charset**: Press `Alt+4` to check for custom fonts.
-- **Screens**: Press `Alt+5` for the **Bitmap View** to see if a memory block forms a valid image.
+- **Sprites**: Press ++alt+3++ to open the **Sprite View**. If you see a Space Invader, you've found the sprite data!
+  Select that memory range and mark it as bytes.
+- **Charset**: Press ++alt+4++ to check for custom charset.
+- **Screens**: Press ++alt+5++ for the **Bitmap View** to see if a memory block forms a valid image.
 
 Knowing _where_ graphics are helps you avoid trying to disassemble them as code.
 
@@ -151,43 +166,49 @@ Knowing _where_ graphics are helps you avoid trying to disassemble them as code.
 
 Reverse engineering takes time. Save your progress often.
 
-- Press `Ctrl+s`.
+- Press ++ctrl+s++.
 - This creates a `.regen2000proj` file. It saves your labels, comments, formatting, and history.
 
 ### Exporting to Assembler
 
 Once you are done (or want to test your changes), export the project to a source file (`.asm`) compatible with modern assemblers like 64tass or ACME.
 
-- Press `Ctrl+e`.
-
-### Exporting for Debugging (VICE)
-
-Want to step through your code in the VICE emulator with your new labels?
-
-- Go to **Menu** -> **File** -> **Export VICE labels...**.
-- Load this labels file in VICE to see `main_loop` in the emulator's monitor!
-
----
+- Press ++ctrl+e++.
 
 ## Phase 7: Debugging with VICE
 
-You can connect Regenerator 2000 directly to a running VICE instance for live debugging. Start VICE with the remote monitor enabled,
-then use **Debugger → Connect to VICE...** and enter the address (e.g. `localhost:6502`). Open the **Debugger** panel from the View menu
-to see the current PC, registers, and breakpoints. Use **F2** to toggle breakpoints, **F7**/**F8** to step, and **F9** to run. For full
-details and all shortcuts, see [Debugger (VICE)](debugger.md) and [Keyboard Shortcuts](keyboard_shortcuts.md).
+The most powerful way to test your analysis is by connecting Regenerator 2000 directly to a running VICE instance for live debugging.
+
+1.  **Start VICE**: Start the emulator with the remote monitor enabled:
+    `x64 -binarymonitor`
+2.  **Connect**: In Regenerator 2000, go to **Debugger → Connect to VICE...** (`localhost:6502`).
+3.  **View**: Open the **Debugger** panel with **Alt+6** (or **Ctrl+6**) to see the current PC, registers, and breakpoints.
+
+### Debugging Features
+
+- **Breakpoints**: Use ++f2++ to toggle breakpoints or ++f6++ for watchpoints directly at the cursor.
+- **Stepping**: Use ++f7++ (Step Instruction), ++f8++ (Step Over), or ++shift+f8++ (Step Out).
+- **Control**: Use ++f9++ to resume or ++f4++ to run until the cursor's location.
+
+!!! note "Legacy Workflow: Export VICE Labels"
+
+    If you'd rather use the VICE monitor alone, you can still export your project's labels using **File → Export VICE labels...**. However, for the best experience, we recommend using the integrated **VICE Debugger**.
 
 ---
 
 ## Summary of Key Keys
 
-| Key         | Action                        |
-| ----------- | ----------------------------- |
-| `c`         | **C**ode                      |
-| `b`         | **B**yte                      |
-| `l`         | **L**abel                     |
-| `;`         | Side Comment                  |
-| `:`         | Line Comment                  |
-| `Enter`     | Follow Jump / Jump to Operand |
-| `Backspace` | Go Back                       |
+| Key             | Action                        |
+| --------------- | ----------------------------- |
+| ++c++           | **C**ode                      |
+| ++b++           | **B**yte                      |
+| ++l++           | **L**abel                     |
+| ++semicolon++   | Side Comment                  |
+| ++colon++       | Line Comment                  |
+| ++enter++       | Follow Jump / Jump to Operand |
+| ++backspace++   | Go Back                       |
+| ++f2++          | Toggle Breakpoint             |
+| ++f7++ / ++f8++ | Step Into / Step Over         |
+| ++f9++          | Run / Continue                |
 
 Happy Hacking!
