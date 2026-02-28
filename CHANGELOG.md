@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-02-28
+
+### Documentation
+
+- Docs: Updated `index.md` and `tutorial.md` with comprehensive VICE debugger workflow and documentation.
+- Examples: Added more detailed comments and descriptions to example projects.
+
+### Refactor / Internal
+
+- MCP: Simplified MCP server tools by consolidating and renaming them to reduce context and improve agent reliability.
+- Agent: Updated `r2000-analyze-blocks`, `r2000-analyze-symbol`, and `r2000-analyze-routine` skills to follow best practices and provide better analysis context.
+
 ## [0.8.1] - 2026-02-25
 
 ### Features
