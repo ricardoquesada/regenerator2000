@@ -6,6 +6,17 @@ step, and run-to-cursor directly from the TUI.
 
 ## Connecting to VICE
 
+!!! note
+
+    Both VICE and Regenerator 2000 must be running the same binary. E.g:
+    ```bash
+    # Start VICE
+    x64 -binarymonitor my_program.prg
+
+    # Start Regenerator 2000
+    regenerator2000 my_program.prg
+    ```
+
 1. Start VICE with the **remote monitor** enabled so it listens for a TCP connection. For example, for C64:
    `x64 -binarymonitor`
 2. In Regenerator 2000, open the **Debugger** menu and choose **Connect to VICE...**.
