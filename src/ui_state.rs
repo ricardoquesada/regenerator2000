@@ -63,7 +63,9 @@ pub struct UIState {
 
     // Hex View State
     pub hex_cursor_index: usize,
+    pub hex_col_cursor: usize,
     pub hex_selection_start: Option<usize>,
+    pub hex_selection_start_col: usize,
     pub sprites_cursor_index: usize,
     pub sprites_selection_start: Option<usize>,
     pub charset_cursor_index: usize,
@@ -126,7 +128,9 @@ impl UIState {
             scroll_index: 0,
             scroll_sub_index: 0,
             hex_cursor_index: 0,
+            hex_col_cursor: 0,
             hex_selection_start: None,
+            hex_selection_start_col: 0,
             sprites_cursor_index: 0,
             sprites_selection_start: None,
             charset_cursor_index: 0,
