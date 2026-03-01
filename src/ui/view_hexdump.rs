@@ -670,6 +670,14 @@ impl Widget for HexDumpView {
                 ui_state.is_visual_mode = false;
                 ui_state.selection_start = None;
 
+                // Move hex cursor to the end of the newly-created bytes block so
+                // that sync_hex_to_disassembly agrees with the cursor re-anchor done
+                // in the menu handler (otherwise sync would pull cursor_index back to
+                // the wrong position on the next render).
+                let end_abs_addr = origin + end_offset;
+                ui_state.hex_cursor_index = (end_abs_addr - aligned_origin) / bytes_per_row;
+                ui_state.hex_col_cursor = (end_abs_addr - aligned_origin) % bytes_per_row;
+
                 if start_offset < app_state.raw_data.len() {
                     WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
                         start: start_offset,

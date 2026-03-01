@@ -2041,10 +2041,24 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 app_state.disassemble();
 
                 let start_addr = app_state.origin.wrapping_add(start as u16);
-                // Re-anchor cursor to the newly-created bytes block.  The old
-                // cursor_index is stale because disassemble() may have merged
-                // several instruction rows into one bytes-block row.
-                if let Some(idx) = app_state.get_line_index_for_address(start_addr) {
+                let end_addr = app_state.origin.wrapping_add(valid_end as u16);
+                // Re-anchor cursor to the end of the newly-created bytes block.
+                // The old cursor_index is stale because disassemble() may have
+                // merged several instruction rows into one bytes-block row.
+                // Use get_line_index_containing_address so we land on the block
+                // itself (not the instruction after it).
+                let anchor_addr = end_addr;
+                if let Some(idx) = app_state.get_line_index_containing_address(anchor_addr) {
+                    let sub = crate::ui::view_disassembly::DisassemblyView::get_visual_line_counts(
+                        &app_state.disassembly[idx],
+                        app_state,
+                    );
+                    let opcode_sub = sub.labels + sub.comments;
+                    ui_state.cursor_index = idx;
+                    ui_state.sub_cursor_index = opcode_sub;
+                    ui_state.scroll_index = idx;
+                    ui_state.scroll_sub_index = opcode_sub;
+                } else if let Some(idx) = app_state.get_line_index_for_address(start_addr) {
                     let sub = crate::ui::view_disassembly::DisassemblyView::get_visual_line_counts(
                         &app_state.disassembly[idx],
                         app_state,
@@ -2055,8 +2069,6 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     ui_state.scroll_index = idx;
                     ui_state.scroll_sub_index = opcode_sub;
                 }
-
-                let end_addr = app_state.origin.wrapping_add(valid_end as u16);
                 ui_state.set_status_message(format!(
                     "Set bytes block ${:04X}-${:04X} ({} bytes)",
                     start_addr,
