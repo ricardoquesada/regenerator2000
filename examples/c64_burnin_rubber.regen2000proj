@@ -124,6 +124,18 @@
     },
     {
       "start": 1280,
+      "end": 1323,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 1324,
+      "end": 1326,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 1327,
       "end": 1527,
       "type_": "Code",
       "collapsed": false
@@ -268,6 +280,18 @@
     },
     {
       "start": 13312,
+      "end": 13590,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 13591,
+      "end": 13596,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 13597,
       "end": 14207,
       "type_": "Code",
       "collapsed": false
@@ -510,7 +534,7 @@
       "start": 18432,
       "end": 45055,
       "type_": "ExternalFile",
-      "collapsed": true
+      "collapsed": false
     }
   ],
   "labels": {
@@ -1627,7 +1651,7 @@
     "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLevels"
   },
   "settings": {
-    "all_labels": false,
+    "all_labels": true,
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
@@ -1651,16 +1675,16 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 4096,
-  "hex_dump_cursor_address": 4096,
+  "cursor_address": 4521,
+  "hex_dump_cursor_address": 4224,
   "sprites_cursor_address": 16384,
   "charset_cursor_address": 16320,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 40960,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
-  "blocks_view_cursor": null
+  "blocks_view_cursor": 0
 }
