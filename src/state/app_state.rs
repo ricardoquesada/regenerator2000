@@ -731,6 +731,29 @@ impl AppState {
         sort_group(&mut ext_jumps);
         sort_group(&mut others);
 
+        // Collect labels whose addresses fall inside ExternalFile blocks.
+        // The exporter skips those disassembly lines (replacing them with a .binary
+        // directive), so referenced labels would be undefined in the output ASM unless
+        // we declare them here.
+        let mut ext_file_labels: Vec<(u16, &String)> = Vec::new();
+        {
+            let mut seen: std::collections::HashSet<&String> = std::collections::HashSet::new();
+            for (addr, labels) in &self.labels {
+                if !self.is_external(*addr) {
+                    let offset = addr.wrapping_sub(self.origin) as usize;
+                    if offset < self.block_types.len()
+                        && self.block_types[offset] == BlockType::ExternalFile
+                        && let Some(label) =
+                            crate::disassembler::resolve_label(labels, *addr, &self.settings)
+                        && seen.insert(&label.name)
+                    {
+                        ext_file_labels.push((*addr, &label.name));
+                    }
+                }
+            }
+            ext_file_labels.sort_by_key(|(a, _)| *a);
+        }
+
         let mut lines = Vec::new();
 
         let formatter = self.get_formatter();
@@ -801,6 +824,7 @@ impl AppState {
         add_group("ABSOLUTE ADDRESSES", abs, false);
         add_group("POINTERS", ptrs, false);
         add_group("EXTERNAL JUMPS", ext_jumps, false);
+        add_group("EXTERNAL FILE LABELS", ext_file_labels, false);
         add_group("OTHERS", others, false);
 
         lines

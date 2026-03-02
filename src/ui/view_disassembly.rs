@@ -1311,7 +1311,11 @@ impl Widget for DisassemblyView {
                 ));
             } else {
                 inst_spans.push(Span::styled(
-                    format!("{: <20}", label_text),
+                    if label_text.len() < 20 {
+                        format!("{: <20}", label_text)
+                    } else {
+                        format!("{} ", label_text)
+                    },
                     base_style
                         .fg(ui_state.theme.label_def)
                         .add_modifier(Modifier::BOLD),

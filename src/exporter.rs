@@ -238,7 +238,11 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             format!("{} {}", line.mnemonic, line.operand)
         };
 
-        let line_out = format!("{:<24}{}", label_part, instruction_part);
+        let line_out = if label_part.len() < 24 {
+            format!("{:<24}{}", label_part, instruction_part)
+        } else {
+            format!("{} {}", label_part, instruction_part)
+        };
 
         if !line.comment.is_empty() {
             output.push_str(&format!(
@@ -1416,5 +1420,75 @@ mod tests {
         if path.exists() {
             let _ = std::fs::remove_file(&path);
         }
+    }
+
+    /// Labels defined inside an ExternalFile block must appear in the exported
+    /// ASM as constant definitions (under "EXTERNAL FILE LABELS"), since the
+    /// exporter replaces those bytes with a .binary directive and the label
+    /// definitions are never written inline.
+    #[test]
+    fn test_external_file_block_labels_declared_at_top() {
+        use crate::state::{Label, LabelKind, LabelType};
+
+        let mut state = AppState::new();
+        state.origin = 0x1000;
+        // 4 bytes: NOP | ext_byte_1 | ext_byte_2 | RTS
+        state.raw_data = vec![0xEA, 0x11, 0x22, 0x60];
+        state.block_types = vec![
+            crate::state::BlockType::Code,
+            crate::state::BlockType::ExternalFile,
+            crate::state::BlockType::ExternalFile,
+            crate::state::BlockType::Code,
+        ];
+
+        // A label defined at $1001 (inside the ExternalFile region)
+        state.labels.insert(
+            0x1001,
+            vec![Label {
+                name: "ext_data".to_string(),
+                label_type: LabelType::AbsoluteAddress,
+                kind: LabelKind::User,
+            }],
+        );
+
+        state.settings.assembler = crate::state::Assembler::Tass64;
+        state.disassemble();
+
+        let definitions = state.get_external_label_definitions();
+        let has_ext_file_section = definitions
+            .iter()
+            .any(|l| l.mnemonic.contains("EXTERNAL FILE LABELS"));
+        assert!(
+            has_ext_file_section,
+            "Expected an EXTERNAL FILE LABELS section"
+        );
+
+        let has_label_def = definitions.iter().any(|l| l.mnemonic.contains("ext_data"));
+        assert!(
+            has_label_def,
+            "Expected ext_data label definition in external file labels section"
+        );
+
+        // Also verify the exported ASM contains the label definition
+        let path = PathBuf::from("test_ext_file_labels.asm");
+        let bin_path = PathBuf::from("test_ext_file_labels_1001_1002.bin");
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(&bin_path);
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(
+            content.contains("ext_data"),
+            "Exported ASM must declare ext_data: got\n{content}"
+        );
+        assert!(
+            content.contains(".binary"),
+            "Exported ASM must have .binary directive"
+        );
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(&bin_path);
     }
 }
