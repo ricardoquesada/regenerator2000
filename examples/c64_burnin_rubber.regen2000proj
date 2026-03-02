@@ -1651,7 +1651,7 @@
     "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLevels"
   },
   "settings": {
-    "all_labels": true,
+    "all_labels": false,
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
@@ -1675,14 +1675,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 4521,
+  "cursor_address": 8192,
   "hex_dump_cursor_address": 4224,
   "sprites_cursor_address": 16384,
   "charset_cursor_address": 16320,
-  "right_pane_visible": "Blocks",
+  "right_pane_visible": "Debugger",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],

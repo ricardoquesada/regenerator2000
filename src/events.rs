@@ -156,7 +156,10 @@ pub fn run_app<B: Backend>(
                                             || app_state.settings.platform == "Commodore 128";
                                         if is_commodore {
                                             client.send_memory_get(0xD000, 0xDFFF, 3);
+                                            client.send_memory_get(0x0000, 0x0001, 4);
                                         }
+
+                                        client.send_memory_get(0xFFFA, 0xFFFF, 5);
 
                                         // Also store mem_start temporarily in vice_state or just calculate it
                                         // We can store it directly when sending, or reconstruct it on receive.
@@ -183,6 +186,10 @@ pub fn run_app<B: Backend>(
                                     } else if msg.request_id == 3 {
                                         // I/O block snapshot ($D000–$DFFF)
                                         app_state.vice_state.io_memory = Some(bytes);
+                                    } else if msg.request_id == 4 {
+                                        app_state.vice_state.zp00_01 = Some(bytes);
+                                    } else if msg.request_id == 5 {
+                                        app_state.vice_state.vectors = Some(bytes);
                                     } else if msg.request_id == 1 {
                                         // Live disassembly window around PC
                                         // live_memory_start was saved when the request was sent

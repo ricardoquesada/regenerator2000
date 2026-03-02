@@ -87,11 +87,7 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         RightPane::Charset => 76, // Grid view: 8 cols * (8+1) width + padding
         RightPane::Bitmap => 80,  // Compact view, ratatui-image scales to fit
         RightPane::Blocks => 42,
-        RightPane::Debugger => {
-            let is_commodore = app_state.settings.platform == "Commodore 64"
-                || app_state.settings.platform == "Commodore 128";
-            if is_commodore { 76 } else { 36 }
-        }
+        RightPane::Debugger => 76,
     };
     let disasm_view_width = area.width.saturating_sub(right_pane_width);
 
