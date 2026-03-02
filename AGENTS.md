@@ -1,68 +1,64 @@
-# Regenerator 2000 - Project Overview
+# Regenerator 2000 - Project Instructions
 
-## Identity
-Regenerator 2000 is a modern, interactive 6502 disassembler and regenerator written in Rust. It is designed to be a successor to the original Windows-based "Regenerator", bringing the experience to the terminal (TUI) with cross-platform support (macOS, Linux, Windows).
+Regenerator 2000 is an interactive 6502 disassembler TUI written in Rust, targeting Commodore 8-bit machines. It uses [ratatui](https://github.com/ratatui-org/ratatui) + crossterm for the terminal UI and exposes an MCP server for programmatic access.
 
-## Tech Stack
-- **Language**: Rust (Edition 2024)
-- **TUI Framework**: [Ratatui](https://github.com/ratatui-org/ratatui) (formerly tui-rs)
-- **Terminal Backend**: Crossterm
-- **Error Handling**: `anyhow`
-- **Serialization**: `serde`, `serde_json`
-- **Compression**: `flate2` (used for project file compression)
-- **Images**: `image`, `ratatui-image` (for potential graphics interoperability)
+## Commands
+
+```bash
+cargo build                      # Debug build
+cargo build --release            # Release build
+cargo run -- [path/to/file.prg]  # Run with optional file
+cargo test                       # Run all tests
+cargo test --test disassembler_tests  # Run a single integration test file
+cargo fmt -- --check             # Check formatting (CI requirement)
+cargo clippy -- -D warnings      # Lint (CI requirement, warnings are errors)
+```
+
+CI runs fmt check and clippy only on Linux; tests run on macOS, Linux, and Windows.
 
 ## Architecture
-The application follows a **Unidirectional Data Flow** architecture, similar to Redux or The Elm Architecture.
 
-1. **Input**: Key events are captured in `events.rs` and dispatched to the active `Widget`.
-2. **Action**: Widgets return `WidgetResult::Action` (e.g., `MenuAction::SetBlockType`).
-3. **Command**: Actions are converted into **Commands** (`src/commands.rs`).
-   - **Crucial**: All state mutations MUST be encapsulated in a Command to support **Undo/Redo**.
-4. **State**: Commands modify `AppState` (`src/state.rs`).
-5. **Analysis**: Changes trigger the **Analyzer** (`src/analyzer.rs`) and **Disassembler** (`src/disassembler.rs`) to update the model.
-6. **Render**: The UI (`src/ui.rs` and submodules) renders based on the new state.
+The application follows a **unidirectional data flow** (Redux/Elm style):
 
-### Key Directories
-- **`src/`**: specific logic.
-  - **`disassembler/`**: Core disassembly logic (decoding opcodes, formatting).
-  - **`ui/`**: TUI implementation. All views (HexDump, Disassembly, etc.) implement the `Widget` trait.
-  - **`cpu.rs`**: 6502/6510 CPU model (opcodes, addressing modes).
-  - **`state.rs`**: Single source of truth for application data.
-  - **`commands.rs`**: Command pattern implementation.
-- **`tests/`**: Integration tests.
-- **`docs/`**: Documentation (Architecture, User Guide).
+```
+Key Event → Widget::handle_input → WidgetResult::Action(MenuAction)
+         → events/input.rs dispatch → Command
+         → Command::apply(&mut AppState)
+         → analyzer / disassembler update
+         → ui() re-renders from AppState + UIState
+```
 
-## Development Guidelines
+### Core separation
 
-### 1. State Management
-- **Never modify `AppState` directly from the UI** for logical changes. dispatch a `Command`.
-- `UIState` (`src/ui_state.rs`) maps transient state (scroll position, active cursor, active pane).
+- **`AppState`** (`src/state/`) — single source of truth for all persistent data: raw bytes, block types, labels, comments, cross-refs, bookmarks, undo stack, VICE state. Serialized to `.regen2000proj`.
+- **`UIState`** (`src/ui_state.rs`) — transient rendering state only: cursor positions, scroll offsets, active pane, active dialog, navigation history. Never serialized.
 
-### 2. UI Components
-- All UI components (dialogs, views) should implement the `Widget` trait (`src/ui/widget.rs`).
-- `Widget::handle_input` processes events.
-- `Widget::render` draws to the frame.
+**Rule**: UI code must never mutate `AppState` directly for logical changes. All mutations go through `Command::apply()` so undo/redo works.
 
-### 3. Testing
-- Run tests with `cargo test`.
-- Integration tests in `tests/` check the assembler/disassembler round-trip accuracy.
+### Key modules
 
-## Build & Run
-- **Build**: `cargo build`
-- **Run**: `cargo run -- [path/to/rom.prg]`
-- **Release**: `cargo build --release`
+| Path | Purpose |
+|------|---------|
+| `src/commands.rs` | `Command` enum + `UndoStack`; every undoable action is a variant |
+| `src/events.rs` + `src/events/input.rs` | Main event loop; routes `AppEvent` (crossterm, MCP, VICE, Tick) |
+| `src/ui/widget.rs` | `Widget` trait (`render`, `handle_input`, `handle_mouse`); `WidgetResult` |
+| `src/ui/menu.rs` | `MenuAction` enum — the bridge between raw key events and semantic actions |
+| `src/ui/view_*.rs` | The six main views: Disassembly, HexDump, Sprites, Charset, Bitmap, Blocks |
+| `src/ui/dialog_*.rs` | Modal dialogs; each implements `Widget` and is stored in `UIState::active_dialog` |
+| `src/analyzer.rs` | Auto-analysis: walks block types to generate labels and cross-refs |
+| `src/disassembler/` | 6502 decode + per-assembler formatters (64tass, ACME, KickAssembler, ca65) |
+| `src/cpu.rs` | 6502/6510 opcode table and addressing modes |
+| `src/parser/` | File parsers: d64, t64, crt, VICE labels (`.lbl`), VICE snapshots (`.vsf`) |
+| `src/mcp/` | MCP server: HTTP (port 3000) and stdio transports |
+| `src/vice/` | VICE binary monitor protocol client for live debugging |
+| `src/state/project.rs` | Project save/load with base64+flate2 compression |
 
-## Common Tasks
-- **Adding a new feature**:
-  1. Define the logical change in `src/commands.rs`.
-  2. Add the UI trigger in the appropriate `src/ui/view_*.rs` file.
-  3. Ensure `AppState` handles the command.
-- **Fixing a bug**:
-  - Check `events.rs` for input issues.
-  - Check `disassembler.rs` for output generation issues.
+### Adding a new feature
 
-## Project Goals
-- **Interactive**: Immediate feedback.
-- **Authentic**: Accurate representation of C64 binaries (PRG, CRT, etc.).
-- **User Friendly**: Vim-like navigation, intuitive shortcuts.
+1. Add a `Command` variant in `src/commands.rs` with `apply` (forward) and `undo` (reverse) logic.
+2. Add a `MenuAction` variant in `src/ui/menu.rs` and handle it in `src/events/input.rs`.
+3. Trigger the action from the relevant `view_*.rs` `handle_input`.
+
+### Git commit style
+
+Present tense, imperative mood, ≤72 chars on first line (e.g., `Add multicolor bitmap export`).
