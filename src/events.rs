@@ -329,6 +329,7 @@ pub fn run_app<B: Backend>(
                                         action,
                                         crate::ui::menu::MenuAction::ViceConnectAddress(_)
                                             | crate::ui::menu::MenuAction::ViceSetWatchpoint { .. }
+                                            | crate::ui::menu::MenuAction::ViceSetBreakpointAt { .. }
                                     );
                                     if !closes_dialog {
                                         ui_state.active_dialog = Some(dialog);

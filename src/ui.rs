@@ -3,6 +3,7 @@ use crate::ui_state::{RightPane, UIState};
 
 pub mod dialog_about;
 pub mod dialog_bookmarks;
+pub mod dialog_breakpoint_address;
 pub mod dialog_comment;
 pub mod dialog_complete_address;
 pub mod dialog_confirmation;

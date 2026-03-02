@@ -19,6 +19,13 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                 crate::ui_state::MenuAction::ViceToggleBreakpoint,
             );
         }
+        KeyCode::F(2) if key.modifiers == KeyModifiers::SHIFT => {
+            handle_menu_action(
+                app_state,
+                ui_state,
+                crate::ui_state::MenuAction::ViceBreakpointDialog,
+            );
+        }
         KeyCode::F(6) if key.modifiers.is_empty() => {
             handle_menu_action(
                 app_state,

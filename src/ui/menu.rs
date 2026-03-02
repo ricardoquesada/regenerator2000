@@ -86,6 +86,10 @@ pub enum MenuAction {
     ViceStepOut,
     ViceRunToCursor,
     ViceToggleBreakpoint,
+    ViceBreakpointDialog,
+    ViceSetBreakpointAt {
+        address: u16,
+    },
     ViceToggleWatchpoint,
     ViceSetWatchpoint {
         address: u16,
@@ -111,6 +115,8 @@ impl MenuAction {
                 | MenuAction::ViceStepOut
                 | MenuAction::ViceRunToCursor
                 | MenuAction::ViceToggleBreakpoint
+                | MenuAction::ViceBreakpointDialog
+                | MenuAction::ViceSetBreakpointAt { .. }
                 | MenuAction::ViceToggleWatchpoint
         )
     }
@@ -612,6 +618,11 @@ impl MenuState {
                             Some(MenuAction::ViceToggleBreakpoint),
                         ),
                         MenuItem::new(
+                            "Toggle Breakpoint...",
+                            Some("Shift+F2"),
+                            Some(MenuAction::ViceBreakpointDialog),
+                        ),
+                        MenuItem::new(
                             "Watchpoint...",
                             Some("F6"),
                             Some(MenuAction::ViceToggleWatchpoint),
@@ -772,6 +783,7 @@ impl MenuState {
                             }
                             MenuAction::ViceDisconnect
                             | MenuAction::ViceToggleBreakpoint
+                            | MenuAction::ViceBreakpointDialog
                             | MenuAction::ViceToggleWatchpoint => {
                                 item.disabled = app_state.vice_client.is_none();
                             }
@@ -982,6 +994,34 @@ fn get_default_filename_stem(app_state: &AppState) -> Option<String> {
     path.file_stem()
         .and_then(|s| s.to_str())
         .map(|s| s.to_string())
+}
+
+fn vice_open_breakpoint_dialog(app_state: &AppState, ui_state: &mut UIState) {
+    let prefill = app_state
+        .disassembly
+        .get(ui_state.cursor_index)
+        .map(|l| l.address);
+    ui_state.active_dialog = Some(Box::new(
+        crate::ui::dialog_breakpoint_address::BreakpointAddressDialog::new(prefill),
+    ));
+}
+
+fn vice_toggle_breakpoint_at(app_state: &mut AppState, ui_state: &mut UIState, addr: u16) {
+    if let Some(client) = &app_state.vice_client {
+        if let Some(pos) = app_state.vice_state.breakpoints.iter().position(|bp| {
+            bp.address == addr && bp.kind == crate::vice::state::BreakpointKind::Exec
+        }) {
+            let id = app_state.vice_state.breakpoints[pos].id;
+            client.send_checkpoint_delete(id);
+            app_state.vice_state.breakpoints.remove(pos);
+            ui_state.set_status_message(format!("Breakpoint removed at ${:04X}", addr));
+        } else {
+            client.send_checkpoint_set_exec(addr);
+            ui_state.set_status_message(format!("Breakpoint set at ${:04X}", addr));
+        }
+    } else {
+        ui_state.set_status_message("Not connected to VICE");
+    }
 }
 
 fn vice_open_watchpoint_dialog(app_state: &AppState, ui_state: &mut UIState) {
@@ -1871,6 +1911,12 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             } else {
                 ui_state.set_status_message("Not connected to VICE");
             }
+        }
+        MenuAction::ViceBreakpointDialog => {
+            vice_open_breakpoint_dialog(app_state, ui_state);
+        }
+        MenuAction::ViceSetBreakpointAt { address } => {
+            vice_toggle_breakpoint_at(app_state, ui_state, address);
         }
         MenuAction::ViceToggleWatchpoint => {
             vice_open_watchpoint_dialog(app_state, ui_state);
