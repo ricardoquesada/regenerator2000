@@ -38,20 +38,23 @@ Once connected, the Debugger panel shows connection status and, when the emulato
 
 ![Debugger Only](regenerator2000_debugger_screenshot_only.png)
 
-The main **Disassembly** view also reflects the debugger when connected: the current PC is highlighted, and breakpoints are indicated. You can set or clear a breakpoint at the cursor with **F2**. And do the same with watchpoints with **F6**.
+The main **Disassembly** view also reflects the debugger when connected: the current PC is highlighted, and breakpoints are indicated.
+You can toggle a breakpoint at the cursor with ++f2++, or toggle a breakpoint at any address with ++shift+f2++.
+And do the same with watchpoints with ++f6++.
 
 ## Keyboard Shortcuts
 
 All debugger actions are available from the **Debugger** menu and have keyboard shortcuts. For the full list, see [Keyboard Shortcuts](keyboard_shortcuts.md). Summary:
 
-| Action            | Shortcut     |
-| ----------------- | ------------ |
-| Toggle Breakpoint | ++f2++       |
-| Run to Cursor     | ++f4++       |
-| Watchpoint        | ++f6++       |
-| Step Instruction  | ++f7++       |
-| Step Over         | ++f8++       |
-| Step Out          | ++shift+f8++ |
-| Run / Continue    | ++f9++       |
+| Action               | Shortcut     |
+| -------------------- | ------------ |
+| Toggle Breakpoint    | ++f2++       |
+| Toggle Breakpoint... | ++shift+f2++ |
+| Run to Cursor        | ++f4++       |
+| Watchpoint           | ++f6++       |
+| Step Instruction     | ++f7++       |
+| Step Over            | ++f8++       |
+| Step Out             | ++shift+f8++ |
+| Run / Continue       | ++f9++       |
 
 Disconnect using **Debugger → Disconnect from VICE**.

@@ -208,13 +208,14 @@ For more details on connecting to VICE and using the debugger, see [Debugger (VI
 
 ### Keyboard Shortcuts
 
-| Action                | Shortcut     |
-| :-------------------- | :----------- |
-| **Toogle view**       | ++alt+6++    |
-| **Toggle Breakpoint** | ++f2++       |
-| **Run to Cursor**     | ++f4++       |
-| **Watchpoint**        | ++f6++       |
-| **Step Instruction**  | ++f7++       |
-| **Step Over**         | ++f8++       |
-| **Step Out**          | ++shift+f8++ |
-| **Run / Continue**    | ++f9++       |
+| Action                   | Shortcut     |
+| :----------------------- | :----------- |
+| **Toogle view**          | ++alt+6++    |
+| **Toggle Breakpoint**    | ++f2++       |
+| **Toggle Breakpoint...** | ++shift+f2++ |
+| **Run to Cursor**        | ++f4++       |
+| **Watchpoint**           | ++f6++       |
+| **Step Instruction**     | ++f7++       |
+| **Step Over**            | ++f8++       |
+| **Step Out**             | ++shift+f8++ |
+| **Run / Continue**       | ++f9++       |

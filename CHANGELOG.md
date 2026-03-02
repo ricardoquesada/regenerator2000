@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3] - 2026-03-01
+
+### Features
+
+- Feature: **VICE Debugger**: Shift+F2 shortcut opens dialog to toggle breakpoints.
+- Feature: **VICE Debugger**: Show 6502 hw vectors info for all platforms.
+- Feature: **VICE Debugger**: Show 6510 registers when platform is C64 / C128.
+- Feature: **VICE Debugger**: Show VIC/CIA registers when platform is C64 / C128.
+- Feature: **UI**: Hexdump view supports selecting columns, not just rows.
+
+### Fixes
+
+- Fix: **Hexdump**: Fixed hexdump and disassembly synchronization issues.
+- Fix: **Disassembler**: Export to ASM and view disassembler fixes.
+
+### Documentation
+
+- Docs: Added VICE note that both VICE and Regenerator must run the same binary.
+- Docs: View documentation fixes, reordered content, and added more keyboard shortcuts.
+- Examples: Updated example projects.
+
+### Refactor / Internal
+
+- Agent: Added `CLAUDE.md` and merged `AGENTS.md` into it.
+
 ## [0.8.2] - 2026-02-28
 
 ### Documentation

@@ -186,7 +186,7 @@ The most powerful way to test your analysis is by connecting Regenerator 2000 di
 
 ### Debugging Features
 
-- **Breakpoints**: Use ++f2++ to toggle breakpoints or ++f6++ for watchpoints directly at the cursor.
+- **Breakpoints**: Use ++f2++ (or ++shift+f2++) to toggle breakpoints or ++f6++ for watchpoints directly at the cursor.
 - **Stepping**: Use ++f7++ (Step Instruction), ++f8++ (Step Over), or ++shift+f8++ (Step Out).
 - **Control**: Use ++f9++ to resume or ++f4++ to run until the cursor's location.
 
