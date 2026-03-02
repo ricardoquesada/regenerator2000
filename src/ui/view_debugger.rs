@@ -412,19 +412,7 @@ impl Widget for DebuggerView {
         if let Some(hr) = hw_rect {
             let mut right_lines: Vec<Line> = Vec::new();
 
-            right_lines.push(Line::from(Span::styled(
-                "6502/6510 Hardware",
-                heading_style,
-            )));
-            if let Some(zp) = &vs.zp00_01
-                && zp.len() >= 2
-            {
-                right_lines.push(Line::from(vec![
-                    Span::styled("  $00/$01 ", label_style),
-                    Span::styled(format!("${:02X} / ${:02X}", zp[0], zp[1]), value_style),
-                    Span::styled(" (1510 IO)", dim_style),
-                ]));
-            }
+            right_lines.push(Line::from(Span::styled("6502 Vectors", heading_style)));
             if let Some(vecs) = &vs.vectors
                 && vecs.len() >= 6
             {
@@ -432,15 +420,52 @@ impl Widget for DebuggerView {
                 let res = u16::from_le_bytes([vecs[2], vecs[3]]);
                 let irq = u16::from_le_bytes([vecs[4], vecs[5]]);
                 right_lines.push(Line::from(vec![
-                    Span::styled("  Vectors ", label_style),
-                    Span::styled(
-                        format!("N:${:04X} R:${:04X} I:${:04X}", nmi, res, irq),
-                        value_style,
-                    ),
+                    Span::styled("  NMI  ", label_style),
+                    Span::styled(format!("${:04X}", nmi), value_style),
+                ]));
+                right_lines.push(Line::from(vec![
+                    Span::styled("  RES  ", label_style),
+                    Span::styled(format!("${:04X}", res), value_style),
+                ]));
+                right_lines.push(Line::from(vec![
+                    Span::styled("  IRQ  ", label_style),
+                    Span::styled(format!("${:04X}", irq), value_style),
                 ]));
             }
 
             if is_commodore {
+                right_lines.push(Line::from(""));
+                right_lines.push(Line::from(Span::styled(
+                    "6510/8502 Registers",
+                    heading_style,
+                )));
+                if let Some(zp) = &vs.zp00_01
+                    && zp.len() >= 2
+                {
+                    right_lines.push(Line::from(vec![
+                        Span::styled("  $00  ", label_style),
+                        Span::styled(format!("${:02X}", zp[0]), value_style),
+                        Span::styled("  (DDR)", dim_style),
+                    ]));
+                    let reg01 = zp[1];
+                    let loram = if reg01 & 0x03 == 0x03 {
+                        "BASIC"
+                    } else {
+                        "LO RAM"
+                    };
+                    let hiram = if reg01 & 0x02 != 0 {
+                        "KERNAL"
+                    } else {
+                        "HI RAM"
+                    };
+                    let charen = if reg01 & 0x04 != 0 { "I/O" } else { "CHAR ROM" };
+                    let bits_str = format!("{}|{}|{}", loram, hiram, charen);
+                    right_lines.push(Line::from(vec![
+                        Span::styled("  $01  ", label_style),
+                        Span::styled(format!("${:02X}  ", reg01), value_style),
+                        Span::styled(bits_str, dim_style),
+                    ]));
+                }
                 right_lines.push(Line::from(""));
                 if let Some(io_mem) = &vs.io_memory {
                     let vic = crate::vice::Vic2State::decode(io_mem);

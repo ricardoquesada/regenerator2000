@@ -75,7 +75,7 @@ impl Widget for BreakpointAddressDialog {
     fn handle_input(
         &mut self,
         key: KeyEvent,
-        app_state: &mut AppState,
+        _app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
         match key.code {
