@@ -53,6 +53,9 @@ pub struct ViceState {
     // Stack page snapshot ($0100–$01FF), fetched after each step
     pub stack_memory: Option<Vec<u8>>,
 
+    // I/O block snapshot ($D000–$DFFF), fetched after each step if platform is C64/C128
+    pub io_memory: Option<Vec<u8>>,
+
     // Persistent breakpoints (excludes temporary run-to-cursor checkpoints)
     pub breakpoints: Vec<ViceBreakpoint>,
 
@@ -76,6 +79,7 @@ impl ViceState {
             live_memory: None,
             live_memory_start: 0,
             stack_memory: None,
+            io_memory: None,
             breakpoints: Vec::new(),
             temporary_breakpoints: Vec::new(),
         }
@@ -92,6 +96,7 @@ impl ViceState {
         self.live_memory = None;
         self.live_memory_start = 0;
         self.stack_memory = None;
+        self.io_memory = None;
         self.breakpoints.clear();
         self.temporary_breakpoints.clear();
     }

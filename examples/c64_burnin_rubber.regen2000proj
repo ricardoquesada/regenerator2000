@@ -185,7 +185,7 @@
     {
       "start": 4096,
       "end": 5119,
-      "type_": "DataByte",
+      "type_": "ExternalFile",
       "collapsed": true
     },
     {
@@ -509,7 +509,7 @@
     {
       "start": 18432,
       "end": 45055,
-      "type_": "DataByte",
+      "type_": "ExternalFile",
       "collapsed": true
     }
   ],
@@ -1651,14 +1651,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 22361,
-  "hex_dump_cursor_address": 22352,
+  "cursor_address": 8192,
+  "hex_dump_cursor_address": 4096,
   "sprites_cursor_address": 16384,
   "charset_cursor_address": 16320,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "Debugger",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],

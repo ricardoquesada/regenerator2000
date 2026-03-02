@@ -52,10 +52,8 @@ pub fn run_app<B: Backend>(
                 match vice_event {
                     crate::vice::ViceEvent::Connected => {
                         app_state.vice_state.connected = true;
-                        if ui_state.right_pane == crate::ui_state::RightPane::None {
-                            ui_state.right_pane = crate::ui_state::RightPane::Debugger;
-                            ui_state.active_pane = ActivePane::Debugger;
-                        }
+                        ui_state.right_pane = crate::ui_state::RightPane::Debugger;
+                        ui_state.active_pane = ActivePane::Debugger;
                         // Sync existing breakpoints from VICE (e.g. set in a previous session)
                         if let Some(client) = &app_state.vice_client {
                             client.send_checkpoint_list();
@@ -152,6 +150,14 @@ pub fn run_app<B: Backend>(
                                         let mem_end = pc.saturating_add(after);
                                         client.send_memory_get(mem_start, mem_end, 1);
                                         client.send_memory_get(0x0100, 0x01FF, 2);
+
+                                        let is_commodore = app_state.settings.platform
+                                            == "Commodore 64"
+                                            || app_state.settings.platform == "Commodore 128";
+                                        if is_commodore {
+                                            client.send_memory_get(0xD000, 0xDFFF, 3);
+                                        }
+
                                         // Also store mem_start temporarily in vice_state or just calculate it
                                         // We can store it directly when sending, or reconstruct it on receive.
                                         app_state.vice_state.live_memory_start = mem_start;
@@ -174,6 +180,9 @@ pub fn run_app<B: Backend>(
                                     if msg.request_id == 2 {
                                         // Stack page response ($0100–$01FF)
                                         app_state.vice_state.stack_memory = Some(bytes);
+                                    } else if msg.request_id == 3 {
+                                        // I/O block snapshot ($D000–$DFFF)
+                                        app_state.vice_state.io_memory = Some(bytes);
                                     } else if msg.request_id == 1 {
                                         // Live disassembly window around PC
                                         // live_memory_start was saved when the request was sent

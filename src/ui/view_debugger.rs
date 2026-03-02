@@ -389,8 +389,99 @@ impl Widget for DebuggerView {
             ]),
         ]);
 
+        let is_commodore = app_state.settings.platform == "Commodore 64"
+            || app_state.settings.platform == "Commodore 128";
+
+        let (stack_rect, hw_rect) = if is_commodore && debugger_area.width > 50 {
+            let ch = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(debugger_area);
+            (ch[0], Some(ch[1]))
+        } else {
+            (debugger_area, None)
+        };
+
         let para = Paragraph::new(lines);
-        f.render_widget(para, debugger_area);
+        f.render_widget(para, stack_rect);
+
+        if let Some(hr) = hw_rect {
+            let mut right_lines: Vec<Line> = Vec::new();
+            if let Some(io_mem) = &vs.io_memory {
+                let vic = crate::vice::Vic2State::decode(io_mem);
+                let cia1 = crate::vice::CiaState::decode(io_mem, 0xDC00 - 0xD000);
+                let cia2 = crate::vice::CiaState::decode(io_mem, 0xDD00 - 0xD000);
+
+                right_lines.push(Line::from(Span::styled("VIC-II Registers", heading_style)));
+                right_lines.push(Line::from(vec![
+                    Span::styled("  Mode  ", label_style),
+                    Span::styled(if vic.bitmap_mode { "Bitmap" } else { "Text" }, value_style),
+                    Span::styled(
+                        if vic.multicolor_mode { " MC" } else { " Hires" },
+                        value_style,
+                    ),
+                ]));
+                right_lines.push(Line::from(vec![
+                    Span::styled("  Color ", label_style),
+                    Span::styled(
+                        if vic.extended_bg_color { "ExtBG " } else { "" },
+                        value_style,
+                    ),
+                    Span::styled(
+                        format!("Border: {} BG: {}", vic.border_color, vic.bg_color),
+                        dim_style,
+                    ),
+                ]));
+                right_lines.push(Line::from(vec![
+                    Span::styled("  Scrl  ", label_style),
+                    Span::styled(
+                        format!("X: {} Y: {}", vic.x_scroll, vic.y_scroll),
+                        value_style,
+                    ),
+                    Span::styled(format!(" {}x{}", vic.columns, vic.rows), dim_style),
+                ]));
+                right_lines.push(Line::from(vec![
+                    Span::styled("  Rast  ", label_style),
+                    Span::styled(format!("{}", vic.raster_line), value_style),
+                    Span::styled(if vic.blanking { " (Blank)" } else { "" }, dim_style),
+                ]));
+                right_lines.push(Line::from(vec![
+                    Span::styled("  Mem   ", label_style),
+                    Span::styled(
+                        format!(
+                            "Scrn: ${:04X} Char: ${:04X}",
+                            vic.screen_mem_address, vic.charset_address
+                        ),
+                        dim_style,
+                    ),
+                ]));
+
+                right_lines.push(Line::from(""));
+                right_lines.push(Line::from(Span::styled("CIA 1 ($DC00)", heading_style)));
+                right_lines.push(Line::from(vec![
+                    Span::styled("  PRA   ", label_style),
+                    Span::styled(format!("${:02X} (Joy2/P1)", cia1.pra), value_style),
+                ]));
+                right_lines.push(Line::from(vec![
+                    Span::styled("  PRB   ", label_style),
+                    Span::styled(format!("${:02X} (Joy1/P2)", cia1.prb), value_style),
+                ]));
+
+                right_lines.push(Line::from(""));
+                right_lines.push(Line::from(Span::styled("CIA 2 ($DD00)", heading_style)));
+                right_lines.push(Line::from(vec![
+                    Span::styled("  PRA   ", label_style),
+                    Span::styled(format!("${:02X} (VIC Bank)", cia2.pra), value_style),
+                ]));
+            } else {
+                right_lines.push(Line::from(Span::styled(
+                    "Hardware state unavailable",
+                    dim_style,
+                )));
+            }
+            let r_para = Paragraph::new(right_lines);
+            f.render_widget(r_para, hr);
+        }
     }
 
     fn handle_input(
