@@ -630,7 +630,12 @@ fn handle_tool_call_internal(
                     data: None,
                 })?;
             let encoding = args.get("encoding").and_then(|v| v.as_str());
-            let matches = search_memory_impl(app_state, query, encoding)?;
+            let matches = crate::state::search::search_memory_raw(app_state, query, encoding, 100)
+                .map_err(|msg| McpError {
+                    code: -32602,
+                    message: msg,
+                    data: None,
+                })?;
             Ok(json!({
                 "content": [{
                     "type": "text",
@@ -1066,89 +1071,6 @@ fn get_analyzed_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec<V
     blocks
 }
 
-fn search_memory_impl(
-    app_state: &AppState,
-    query: &str,
-    encoding: Option<&str>,
-) -> Result<Vec<u16>, McpError> {
-    let mut search_bytes = Vec::new();
-
-    // Determine mode
-    let mode = if let Some(enc) = encoding {
-        enc
-    } else {
-        // Simple heuristic: if query contains space and hex-like chars, try hex
-        if query.contains(' ')
-            && query
-                .split_whitespace()
-                .all(|s| u8::from_str_radix(s, 16).is_ok())
-        {
-            "hex"
-        } else {
-            "ascii"
-        }
-    };
-
-    match mode {
-        "hex" => {
-            for part in query.split_whitespace() {
-                // Remove $ or 0x prefix if present
-                let clean_part = part
-                    .trim_start_matches("0x")
-                    .trim_start_matches("0X")
-                    .trim_start_matches('$');
-                if let Ok(b) = u8::from_str_radix(clean_part, 16) {
-                    search_bytes.push(b);
-                }
-            }
-        }
-        "ascii" => {
-            search_bytes = query.as_bytes().to_vec();
-        }
-        "petscii" => {
-            for c in query.chars() {
-                search_bytes.push(ascii_char_to_petscii(c));
-            }
-        }
-        "screencode" => {
-            for c in query.chars() {
-                let p = ascii_char_to_petscii(c);
-                search_bytes.push(petscii_to_screencode_simple(p));
-            }
-        }
-        _ => {
-            return Err(McpError {
-                code: -32602,
-                message: format!("Unknown encoding: {}", mode),
-                data: None,
-            });
-        }
-    }
-
-    if search_bytes.is_empty() {
-        return Ok(Vec::new());
-    }
-
-    let mut found_addresses = Vec::new();
-    let data = &app_state.raw_data;
-    let origin = app_state.origin;
-
-    if data.len() < search_bytes.len() {
-        return Ok(Vec::new());
-    }
-
-    for i in 0..=data.len() - search_bytes.len() {
-        if data[i..i + search_bytes.len()] == search_bytes[..] {
-            found_addresses.push(origin.wrapping_add(i as u16));
-            if found_addresses.len() >= 100 {
-                break; // Limit results
-            }
-        }
-    }
-
-    Ok(found_addresses)
-}
-
 fn get_cross_references_impl(app_state: &AppState, address: u16) -> Vec<u16> {
     if let Some(refs) = app_state.cross_refs.get(&address) {
         let mut sorted_refs = refs.clone();
@@ -1410,26 +1332,5 @@ fn create_save_context(
         splitters: app_state.splitters.clone(),
         blocks_view_cursor: ui_state.blocks_list_state.selected(),
         bookmarks: app_state.bookmarks.clone(),
-    }
-}
-
-// Helpers
-
-fn ascii_char_to_petscii(c: char) -> u8 {
-    let b = c as u8;
-    match b {
-        b'a'..=b'z' => b - 32, // 'a' (97) -> 'A' (65) (Unshifted PETSCII)
-        b'A'..=b'Z' => b + 32, // 'A' (65) -> 'a' (97) (Shifted PETSCII / Graphics)
-        _ => b,                // Numbers, punctuation mostly map 1:1 for basic ASCII
-    }
-}
-
-fn petscii_to_screencode_simple(petscii: u8) -> u8 {
-    match petscii {
-        0x40..=0x5F => petscii - 0x40,
-        0x20..=0x3F => petscii,
-        0x60..=0x7F => petscii - 0x20,
-        0xA0..=0xBF => petscii - 0x40,
-        _ => petscii, // Fallback
     }
 }
