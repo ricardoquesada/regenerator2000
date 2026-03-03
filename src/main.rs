@@ -77,6 +77,7 @@ fn main() -> Result<()> {
     let mut mcp_server = false;
     let mut export_lbl_path = None;
     let mut export_asm_path = None;
+    let mut verify = false;
 
     let mut i = 1;
     while i < args.len() {
@@ -106,6 +107,12 @@ fn main() -> Result<()> {
                 );
                 println!("    --headless                Run in headless mode (no TUI)");
                 println!("                              Only .regen2000proj files supported");
+                println!(
+                    "    --verify                  Verify export roundtrip (export → assemble → diff)"
+                );
+                println!(
+                    "                              Tests all 4 assemblers. Requires --headless"
+                );
                 println!("    --mcp-server              Run MCP server (HTTP port 3000)");
                 println!("    --mcp-server-stdio        Run MCP server (stdio)");
                 return Ok(());
@@ -150,6 +157,11 @@ fn main() -> Result<()> {
             }
             "--headless" => {
                 headless = true;
+                i += 1;
+            }
+            "--verify" => {
+                verify = true;
+                headless = true; // verify implies headless
                 i += 1;
             }
             arg if arg.starts_with('-') => {
@@ -347,6 +359,42 @@ fn main() -> Result<()> {
                 }
             }
         }
+    }
+
+    // 5. Verify roundtrip (export → assemble → diff)
+    if verify {
+        println!("\nRoundtrip Export Verification");
+        println!("=============================");
+        let results = regenerator2000::exporter::verify_all_assemblers(&app_state);
+        let mut all_passed = true;
+        let mut any_ran = false;
+        for r in &results {
+            println!("{}", r);
+            if !r.success {
+                // "not found in PATH" means the assembler simply isn't installed — not a failure
+                if !r.message.contains("not found in PATH") {
+                    all_passed = false;
+                }
+                if r.message.contains("not found in PATH") {
+                    // skipped
+                } else {
+                    any_ran = true;
+                }
+            } else {
+                any_ran = true;
+            }
+        }
+        if !any_ran {
+            eprintln!("\nNo assemblers found — install at least one to verify.");
+            std::process::exit(1);
+        }
+        if all_passed {
+            println!("\n✓ All roundtrip verifications passed.");
+        } else {
+            eprintln!("\n✗ Some roundtrip verifications failed.");
+            std::process::exit(1);
+        }
+        return Ok(());
     }
 
     if headless && !mcp_server {
