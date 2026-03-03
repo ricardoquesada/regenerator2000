@@ -1,5 +1,10 @@
 # Requirements
 
+!!! Note
+
+    These are the original requirements of the project. The project has changed a lot since then.
+    Keeping them here for reference and historic purposes.
+
 Have 6502 disassembler with a Turbo Assembler / Turbo Debugger (from Borland in 80's and 90s) look and feel, but with
 modern features from IDA Pro 5.0.
 
