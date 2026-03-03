@@ -117,14 +117,17 @@
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
-    "platform": "Commodore64",
+    "platform": "Commodore 128",
     "assembler": "Tass64",
     "max_xref_count": 5,
     "max_arrow_columns": 6,
     "use_illegal_opcodes": false,
     "text_char_limit": 40,
     "addresses_per_line": 5,
-    "bytes_per_line": 8
+    "bytes_per_line": 8,
+    "enabled_features": {},
+    "description": "",
+    "show_analysis_hints": true
   },
   "immediate_value_formats": {
     "2267": {
@@ -140,14 +143,15 @@
       "HighByte": 2175
     }
   },
-  "cursor_address": 2393,
-  "hex_dump_cursor_address": 2384,
+  "bookmarks": {},
+  "cursor_address": 2072,
+  "hex_dump_cursor_address": 2064,
   "sprites_cursor_address": 3584,
   "charset_cursor_address": 2048,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [

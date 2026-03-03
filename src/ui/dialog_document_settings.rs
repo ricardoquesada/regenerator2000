@@ -54,12 +54,12 @@ impl DocumentSettingsDialog {
     }
 
     pub fn next(&mut self) {
-        let max_items = 13;
+        let max_items = 14;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 13;
+        let max_items = 14;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {
@@ -139,6 +139,12 @@ impl Widget for DocumentSettingsDialog {
                 "Use Illegal Opcodes",
                 settings.use_illegal_opcodes,
                 self.selected_index == 4,
+                false,
+            ),
+            checkbox(
+                "Show Analysis Hints",
+                settings.show_analysis_hints,
+                self.selected_index == 5,
                 false,
             ),
         ];
@@ -516,7 +522,7 @@ impl Widget for DocumentSettingsDialog {
         let system_config = crate::assets::load_system_config(&app_state.settings.platform);
         let dynamic_items_count = system_config.features.len();
 
-        let base_items_count = 5; // AllLabels, PreserveLongBytes, BrkSingle, PatchBrk, IllegalOpcodes
+        let base_items_count = 6; // AllLabels, PreserveLongBytes, BrkSingle, PatchBrk, IllegalOpcodes, ShowAnalysisHints
 
         let idx_description = base_items_count;
         let idx_xref = base_items_count + 1;
@@ -892,6 +898,10 @@ impl Widget for DocumentSettingsDialog {
                         4 => {
                             app_state.settings.use_illegal_opcodes =
                                 !app_state.settings.use_illegal_opcodes
+                        }
+                        5 => {
+                            app_state.settings.show_analysis_hints =
+                                !app_state.settings.show_analysis_hints
                         }
                         idx if idx >= dynamic_start_idx => {
                             // Dynamic items

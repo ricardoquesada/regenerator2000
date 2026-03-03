@@ -29,6 +29,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         user_line_comments: &state.user_line_comments,
         immediate_value_formats: &state.immediate_value_formats,
         cross_refs: &state.cross_refs,
+        analysis_hints: &state.analysis_hints,
         collapsed_blocks: &[], // Ignore collapsed_blocks
         splitters: &state.splitters,
     };

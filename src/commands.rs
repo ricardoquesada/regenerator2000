@@ -17,8 +17,10 @@ pub enum Command {
     SetAnalysisData {
         labels: BTreeMap<u16, Vec<Label>>,
         cross_refs: BTreeMap<u16, Vec<u16>>,
+        hints: BTreeMap<u16, String>,
         old_labels: BTreeMap<u16, Vec<Label>>,
         old_cross_refs: BTreeMap<u16, Vec<u16>>,
+        old_hints: BTreeMap<u16, String>,
     },
     SetUserSideComment {
         address: u16,
@@ -85,9 +87,10 @@ impl Command {
 
                     // Re-analyze reference counts and labels
                     // Re-analyze reference counts and labels
-                    let (new_labels, new_cross_refs) = crate::analyzer::analyze(state);
-                    state.labels = new_labels;
-                    state.cross_refs = new_cross_refs;
+                    let result = crate::analyzer::analyze(state);
+                    state.labels = result.labels;
+                    state.cross_refs = result.cross_refs;
+                    state.analysis_hints = result.hints;
                 }
             }
             Command::SetLabel {
@@ -104,14 +107,14 @@ impl Command {
             Command::SetAnalysisData {
                 labels,
                 cross_refs,
+                hints,
                 old_labels: _,
                 old_cross_refs: _,
+                old_hints: _,
             } => {
-                // Complete replacement of the map (avoid clone by using reference)
-                // Since labels/cross_refs are references from the command, we still need to clone
-                // But this is unavoidable for undo/redo to work properly
                 state.labels = labels.clone();
                 state.cross_refs = cross_refs.clone();
+                state.analysis_hints = hints.clone();
             }
             Command::SetUserSideComment {
                 address,
@@ -206,9 +209,10 @@ impl Command {
 
                     // Re-analyze reference counts and labels
                     // Re-analyze reference counts and labels
-                    let (new_labels, new_cross_refs) = crate::analyzer::analyze(state);
-                    state.labels = new_labels;
-                    state.cross_refs = new_cross_refs;
+                    let result = crate::analyzer::analyze(state);
+                    state.labels = result.labels;
+                    state.cross_refs = result.cross_refs;
+                    state.analysis_hints = result.hints;
                 }
             }
             Command::SetLabel {
@@ -225,11 +229,14 @@ impl Command {
             Command::SetAnalysisData {
                 labels: _,
                 cross_refs: _,
+                hints: _,
                 old_labels,
                 old_cross_refs,
+                old_hints,
             } => {
                 state.labels = old_labels.clone();
                 state.cross_refs = old_cross_refs.clone();
+                state.analysis_hints = old_hints.clone();
             }
             Command::SetUserSideComment {
                 address,
@@ -489,9 +496,9 @@ mod tests {
         app_state.block_types = vec![BlockType::Code; 6];
 
         // Initial Analysis
-        let (labels, cross_refs) = crate::analyzer::analyze(&app_state);
-        app_state.labels = labels;
-        app_state.cross_refs = cross_refs;
+        let result = crate::analyzer::analyze(&app_state);
+        app_state.labels = result.labels;
+        app_state.cross_refs = result.cross_refs;
 
         // Assert label exists
         assert!(app_state.labels.contains_key(&0x1005));

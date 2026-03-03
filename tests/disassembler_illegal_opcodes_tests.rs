@@ -27,6 +27,7 @@ fn test_illegal_opcodes_disabled_by_default() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
     );
@@ -65,6 +66,7 @@ fn test_illegal_opcodes_enabled() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
     );
@@ -96,6 +98,7 @@ fn test_new_illegal_opcodes() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
     );
@@ -110,6 +113,7 @@ fn test_new_illegal_opcodes() {
         &BTreeMap::new(),
         0x1000,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -134,6 +138,7 @@ fn test_new_illegal_opcodes() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
     );
@@ -153,6 +158,7 @@ fn test_new_illegal_opcodes() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
+        &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
     );
@@ -167,6 +173,7 @@ fn test_new_illegal_opcodes() {
         &BTreeMap::new(),
         0x1000,
         &settings,
+        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),

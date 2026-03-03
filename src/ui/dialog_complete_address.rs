@@ -153,9 +153,10 @@ impl Widget for CompleteAddressDialog {
                     app_state.push_command(command);
 
                     // Re-analyze to generate new auto-labels for Lo/Hi addresses
-                    let (new_labels, new_cross_refs) = crate::analyzer::analyze(app_state);
-                    app_state.labels = new_labels;
-                    app_state.cross_refs = new_cross_refs;
+                    let result = crate::analyzer::analyze(app_state);
+                    app_state.labels = result.labels;
+                    app_state.cross_refs = result.cross_refs;
+                    app_state.analysis_hints = result.hints;
 
                     app_state.disassemble();
 

@@ -4,6 +4,13 @@ use std::collections::BTreeMap;
 
 use crate::state::LabelType;
 
+/// Result of the analysis pass.
+pub struct AnalysisResult {
+    pub labels: BTreeMap<u16, Vec<crate::state::Label>>,
+    pub cross_refs: BTreeMap<u16, Vec<u16>>,
+    pub hints: BTreeMap<u16, String>,
+}
+
 type UsageData = (
     BTreeMap<LabelType, usize>,
     Vec<u16>,
@@ -19,12 +26,7 @@ fn is_zp_style(t: LabelType) -> bool {
     )
 }
 
-pub fn analyze(
-    state: &AppState,
-) -> (
-    BTreeMap<u16, Vec<crate::state::Label>>,
-    BTreeMap<u16, Vec<u16>>,
-) {
+pub fn analyze(state: &AppState) -> AnalysisResult {
     // We want to track ALL usages, illegal or not, and then pick the best ones.
     // Map: Address -> Set of used LabelTypes
     // We also need ref counts.
@@ -284,7 +286,29 @@ pub fn analyze(
         }
     }
 
-    (labels, cross_refs)
+    // === Advanced analysis passes ===
+    let mut hints: BTreeMap<u16, String> = BTreeMap::new();
+
+    // Pass 1: Follow JMP (Indirect) through jump tables
+    // Always run this pass since it also generates labels and cross-refs
+    follow_indirect_jumps(state, &mut labels, &mut cross_refs, &mut hints);
+
+    if state.settings.show_analysis_hints {
+        // Pass 2: Detect common patterns (platform-aware)
+        detect_patterns(state, &mut hints);
+
+        // Pass 3: Self-modifying code detection
+        detect_self_modifying_code(state, &mut hints);
+    } else {
+        // Discard hints from pass 1 when hints are disabled
+        hints.clear();
+    }
+
+    AnalysisResult {
+        labels,
+        cross_refs,
+        hints,
+    }
 }
 
 fn analyze_instruction(
@@ -403,6 +427,463 @@ fn update_usage(
         });
 }
 
+// =============================================================================
+// Pass 1: Follow JMP (Indirect) through jump tables
+// =============================================================================
+
+/// When we see `JMP ($xxxx)`, check if `$xxxx` points to an Address-typed block
+/// inside our binary. If so, read the 16-bit pointer stored there and register
+/// it as a jump target label + cross-reference.
+fn follow_indirect_jumps(
+    state: &AppState,
+    labels: &mut BTreeMap<u16, Vec<crate::state::Label>>,
+    cross_refs: &mut BTreeMap<u16, Vec<u16>>,
+    hints: &mut BTreeMap<u16, String>,
+) {
+    let data = &state.raw_data;
+    let origin = state.origin;
+    let data_len = data.len();
+    let end_addr = origin.wrapping_add(data_len as u16);
+
+    let mut pc = 0;
+    while pc < data_len {
+        let current_type = state
+            .block_types
+            .get(pc)
+            .copied()
+            .unwrap_or(BlockType::Code);
+
+        if current_type != BlockType::Code {
+            pc += 1;
+            continue;
+        }
+
+        let opcode_byte = data[pc];
+        // JMP Indirect = 0x6C
+        if opcode_byte != 0x6C {
+            if let Some(opcode) = &state.disassembler.opcodes[opcode_byte as usize] {
+                if opcode.illegal && !state.settings.use_illegal_opcodes {
+                    pc += 1;
+                } else if pc + opcode.size as usize <= data_len {
+                    pc += opcode.size as usize;
+                } else {
+                    pc += 1;
+                }
+            } else {
+                pc += 1;
+            }
+            continue;
+        }
+
+        // JMP ($xxxx) - 3 bytes: 6C lo hi
+        if pc + 3 > data_len {
+            pc += 1;
+            continue;
+        }
+
+        let jmp_addr = origin.wrapping_add(pc as u16);
+        let pointer_addr = (data[pc + 2] as u16) << 8 | (data[pc + 1] as u16);
+
+        // Check if pointer_addr is inside our binary
+        let is_internal = if origin < end_addr {
+            pointer_addr >= origin && pointer_addr < end_addr
+        } else {
+            pointer_addr >= origin || pointer_addr < end_addr
+        };
+
+        if is_internal {
+            let ptr_offset = pointer_addr.wrapping_sub(origin) as usize;
+
+            // Check if the pointer location is an Address block
+            let is_address_block = ptr_offset + 1 < data_len
+                && state.block_types.get(ptr_offset) == Some(&BlockType::Address);
+
+            if is_address_block {
+                // Read the target address from the jump table
+                let target = (data[ptr_offset + 1] as u16) << 8 | (data[ptr_offset] as u16);
+
+                // Add label for the target
+                let is_target_external = state.is_external(target);
+                let label_type = if is_target_external {
+                    LabelType::ExternalJump
+                } else {
+                    LabelType::Jump
+                };
+
+                let label_name = label_type.format_label(target);
+
+                // Only add if no user label already exists at target
+                let existing = labels.get(&target);
+                let has_user_label = existing
+                    .map(|v| v.iter().any(|l| l.kind == crate::state::LabelKind::User))
+                    .unwrap_or(false);
+
+                if !has_user_label && !state.excluded_addresses.contains(&target) {
+                    labels.entry(target).or_default().push(crate::state::Label {
+                        name: label_name,
+                        label_type,
+                        kind: crate::state::LabelKind::Auto,
+                    });
+                }
+
+                // Add cross-reference
+                cross_refs.entry(target).or_default().push(jmp_addr);
+
+                // Add hint at the JMP instruction
+                hints.insert(
+                    jmp_addr,
+                    format!(
+                        "[Jump Table] Indirect JMP via ${:04X} -> target ${:04X}",
+                        pointer_addr, target
+                    ),
+                );
+            } else {
+                // Pointer is in binary but not an Address block - still note it
+                hints.insert(
+                    jmp_addr,
+                    format!(
+                        "[Jump Table] JMP (${:04X}) - pointer in binary, consider marking as Address",
+                        pointer_addr
+                    ),
+                );
+            }
+        }
+
+        pc += 3;
+    }
+}
+
+// =============================================================================
+// Pass 2: Detect common C64/6502 patterns
+// =============================================================================
+
+/// Hardware addresses used for cross-instruction pattern detection.
+const IRQ_VECTOR_LO: u16 = 0x0314;
+const IRQ_VECTOR_HI: u16 = 0x0315;
+const NMI_VECTOR_LO: u16 = 0x0318;
+const NMI_VECTOR_HI: u16 = 0x0319;
+const HW_IRQ_LO: u16 = 0xFFFE;
+const HW_IRQ_HI: u16 = 0xFFFF;
+const SID_BASE: u16 = 0xD400;
+const SID_END: u16 = 0xD418;
+
+/// Scans code for well-known patterns:
+/// - HW IRQ setup (STA $FFFE/$FFFF) — universal for all 6502 platforms
+/// - IRQ setup (STA $0314/$0315) — C64/C128 only
+/// - NMI setup (STA $0318/$0319) — C64/C128 only
+/// - Raster interrupt setup (STA $D012, STA $D01A) — C64/C128 only
+/// - SID player init/play (JSR to routines that touch $D400-$D418) — C64/C128 only
+fn detect_patterns(state: &AppState, hints: &mut BTreeMap<u16, String>) {
+    let data = &state.raw_data;
+    let origin = state.origin;
+    let data_len = data.len();
+
+    let is_c64_c128 =
+        state.settings.platform == "Commodore 64" || state.settings.platform == "Commodore 128";
+
+    // First pass: find SID-touching subroutines (C64/C128 only)
+    let sid_routines = if is_c64_c128 {
+        find_sid_routines(state)
+    } else {
+        BTreeMap::new()
+    };
+
+    let mut pc = 0;
+    while pc < data_len {
+        let current_type = state
+            .block_types
+            .get(pc)
+            .copied()
+            .unwrap_or(BlockType::Code);
+
+        if current_type != BlockType::Code {
+            pc += 1;
+            continue;
+        }
+
+        let opcode_byte = data[pc];
+        let Some(opcode) = &state.disassembler.opcodes[opcode_byte as usize] else {
+            pc += 1;
+            continue;
+        };
+
+        if opcode.illegal && !state.settings.use_illegal_opcodes {
+            pc += 1;
+            continue;
+        }
+
+        if pc + opcode.size as usize > data_len {
+            pc += 1;
+            continue;
+        }
+
+        let addr = origin.wrapping_add(pc as u16);
+
+        // Check for JSR to SID-touching routines (C64/C128 only)
+        // This is a pattern-level insight: identifies subroutines that are likely
+        // SID init/play routines based on aggregated register access patterns.
+        // System comments only annotate individual register addresses, not routine roles.
+        if is_c64_c128 && opcode.mnemonic == "JSR" && opcode.size == 3 {
+            let target = (data[pc + 2] as u16) << 8 | (data[pc + 1] as u16);
+            if let Some(role) = sid_routines.get(&target) {
+                hints
+                    .entry(addr)
+                    .or_insert_with(|| format!("[SID Player] JSR to {} routine", role));
+            }
+        }
+
+        // Check for SEI (0x78) which often precedes IRQ setup.
+        // This is a cross-instruction pattern: SEI followed by vector writes nearby.
+        // System comments can't detect this because they only annotate individual addresses.
+        if opcode_byte == 0x78 && has_irq_setup_nearby(state, pc, is_c64_c128) {
+            hints
+                .entry(addr)
+                .or_insert_with(|| "[IRQ Setup] SEI before interrupt vector change".to_string());
+        }
+
+        pc += opcode.size as usize;
+    }
+}
+
+/// Look for SID-touching subroutines. A subroutine that writes to $D400-$D418
+/// is likely a SID init or play routine.
+///
+/// Returns a map from subroutine address to a role description.
+fn find_sid_routines(state: &AppState) -> BTreeMap<u16, String> {
+    let data = &state.raw_data;
+    let origin = state.origin;
+    let data_len = data.len();
+    let mut result = BTreeMap::new();
+
+    // Find all JSR targets (subroutine entry points within our binary)
+    let mut jsr_targets: Vec<u16> = Vec::new();
+    let mut pc = 0;
+    while pc < data_len {
+        let current_type = state
+            .block_types
+            .get(pc)
+            .copied()
+            .unwrap_or(BlockType::Code);
+        if current_type == BlockType::Code {
+            if let Some(opcode) = &state.disassembler.opcodes[data[pc] as usize] {
+                if !opcode.illegal || state.settings.use_illegal_opcodes {
+                    if opcode.mnemonic == "JSR" && opcode.size == 3 && pc + 3 <= data_len {
+                        let target = (data[pc + 2] as u16) << 8 | (data[pc + 1] as u16);
+                        if !state.is_external(target) {
+                            jsr_targets.push(target);
+                        }
+                    }
+                    pc += opcode.size as usize;
+                } else {
+                    pc += 1;
+                }
+            } else {
+                pc += 1;
+            }
+        } else {
+            pc += 1;
+        }
+    }
+
+    jsr_targets.sort_unstable();
+    jsr_targets.dedup();
+
+    // For each subroutine, scan its body for SID register writes
+    for &entry in &jsr_targets {
+        let entry_offset = entry.wrapping_sub(origin) as usize;
+        if entry_offset >= data_len {
+            continue;
+        }
+
+        let mut sid_write_count = 0;
+        let mut scan_pc = entry_offset;
+        let scan_limit = (entry_offset + 256).min(data_len); // Scan up to 256 bytes
+
+        while scan_pc < scan_limit {
+            let bt = state
+                .block_types
+                .get(scan_pc)
+                .copied()
+                .unwrap_or(BlockType::Code);
+            if bt != BlockType::Code {
+                break;
+            }
+
+            let ob = data[scan_pc];
+            if let Some(op) = &state.disassembler.opcodes[ob as usize] {
+                if op.mnemonic == "RTS" || op.mnemonic == "RTI" {
+                    break; // End of subroutine
+                }
+                if matches!(op.mnemonic, "STA" | "STX" | "STY")
+                    && op.mode == AddressingMode::Absolute
+                    && op.size == 3
+                    && scan_pc + 3 <= data_len
+                {
+                    let t = (data[scan_pc + 2] as u16) << 8 | (data[scan_pc + 1] as u16);
+                    if (SID_BASE..=SID_END).contains(&t) {
+                        sid_write_count += 1;
+                    }
+                }
+                if scan_pc + op.size as usize <= data_len {
+                    scan_pc += op.size as usize;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        if sid_write_count >= 3 {
+            // Heuristic: many SID writes = likely init or play
+            // init typically writes more registers (full reset)
+            let role = if sid_write_count >= 10 {
+                "init"
+            } else {
+                "play"
+            };
+            result.insert(entry, role.to_string());
+        }
+    }
+
+    result
+}
+
+/// Check if there are IRQ vector writes within ~20 instructions after the given PC.
+/// When `is_c64_c128` is false, only checks universal HW vectors ($FFFE/$FFFF).
+fn has_irq_setup_nearby(state: &AppState, start_pc: usize, is_c64_c128: bool) -> bool {
+    let data = &state.raw_data;
+    let data_len = data.len();
+    let mut pc = start_pc;
+    let limit = (start_pc + 40).min(data_len); // ~20 instructions max
+
+    while pc < limit {
+        let bt = state
+            .block_types
+            .get(pc)
+            .copied()
+            .unwrap_or(BlockType::Code);
+        if bt != BlockType::Code {
+            break;
+        }
+        let ob = data[pc];
+        if let Some(op) = &state.disassembler.opcodes[ob as usize] {
+            if matches!(op.mnemonic, "STA" | "STX" | "STY")
+                && op.mode == AddressingMode::Absolute
+                && op.size == 3
+                && pc + 3 <= data_len
+            {
+                let t = (data[pc + 2] as u16) << 8 | (data[pc + 1] as u16);
+                // Universal: HW IRQ vectors
+                if t == HW_IRQ_LO || t == HW_IRQ_HI {
+                    return true;
+                }
+                // C64/C128-specific: Kernal IRQ/NMI vectors
+                if is_c64_c128
+                    && (t == IRQ_VECTOR_LO
+                        || t == IRQ_VECTOR_HI
+                        || t == NMI_VECTOR_LO
+                        || t == NMI_VECTOR_HI)
+                {
+                    return true;
+                }
+            }
+            if pc + op.size as usize <= data_len {
+                pc += op.size as usize;
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+    false
+}
+
+// =============================================================================
+// Pass 3: Self-modifying code detection
+// =============================================================================
+
+/// Detects STA/STX/STY instructions whose target address falls inside a region
+/// marked as Code. This is a strong indicator of self-modifying code (SMC).
+fn detect_self_modifying_code(state: &AppState, hints: &mut BTreeMap<u16, String>) {
+    let data = &state.raw_data;
+    let origin = state.origin;
+    let data_len = data.len();
+    let end_addr = origin.wrapping_add(data_len as u16);
+
+    let mut pc = 0;
+    while pc < data_len {
+        let current_type = state
+            .block_types
+            .get(pc)
+            .copied()
+            .unwrap_or(BlockType::Code);
+
+        if current_type != BlockType::Code {
+            pc += 1;
+            continue;
+        }
+
+        let opcode_byte = data[pc];
+        let Some(opcode) = &state.disassembler.opcodes[opcode_byte as usize] else {
+            pc += 1;
+            continue;
+        };
+
+        if opcode.illegal && !state.settings.use_illegal_opcodes {
+            pc += 1;
+            continue;
+        }
+
+        if pc + opcode.size as usize > data_len {
+            pc += 1;
+            continue;
+        }
+
+        // Only check store instructions with absolute addressing
+        if matches!(opcode.mnemonic, "STA" | "STX" | "STY")
+            && matches!(
+                opcode.mode,
+                AddressingMode::Absolute | AddressingMode::AbsoluteX | AddressingMode::AbsoluteY
+            )
+            && opcode.size == 3
+        {
+            let target = (data[pc + 2] as u16) << 8 | (data[pc + 1] as u16);
+
+            // Check if target is inside our binary
+            let is_internal = if origin < end_addr {
+                target >= origin && target < end_addr
+            } else {
+                target >= origin || target < end_addr
+            };
+
+            if is_internal {
+                let target_offset = target.wrapping_sub(origin) as usize;
+                if target_offset < data_len {
+                    let target_block = state
+                        .block_types
+                        .get(target_offset)
+                        .copied()
+                        .unwrap_or(BlockType::Code);
+
+                    if target_block == BlockType::Code {
+                        let addr = origin.wrapping_add(pc as u16);
+                        hints.entry(addr).or_insert_with(|| {
+                            format!(
+                                "[SMC] {} writes to code region at ${:04X}",
+                                opcode.mnemonic, target
+                            )
+                        });
+                    }
+                }
+            }
+        }
+
+        pc += opcode.size as usize;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -420,7 +901,8 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
 
         // $1005 is JMP target -> j1005
         assert_eq!(
@@ -459,7 +941,8 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
         // Changed expectations: explicit ExternalJump type logic
         assert_eq!(
             labels
@@ -479,7 +962,8 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; 2];
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
         // ZP access -> ZeroPage Priority -> a10
         assert_eq!(
             labels
@@ -499,7 +983,8 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; 2];
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
         // Field usage in ZP -> f50
         assert_eq!(
             labels
@@ -519,7 +1004,8 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; 3];
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
         // External Jump -> e0010
         // (Note: Jumps use 4 digits usually, unless we want e10?
         // User said "Only for external jumps... not for data".
@@ -552,7 +1038,8 @@ mod tests {
         ];
 
         // Re-analyze reference counts and labels
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
 
         // DataWord at $1000 should NOT generate label for ITSELF ($1000)
         // BUT $1002 IS Reference to $1000. So $1000 SHOULD have a label now.
@@ -578,7 +1065,8 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
 
         // Case 1: $1000 -> jump to $1002. Usage: b1002 (Internal)
         assert_eq!(
@@ -648,7 +1136,8 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
 
         // Indirect JMP -> p1000
         assert_eq!(
@@ -731,7 +1220,8 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
 
         // Check 1005
         // Expect 'b' because it was referenced by Branch FIRST.
@@ -764,7 +1254,8 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; state.raw_data.len()];
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
 
         // Expectation: b1005 (Branch) because it was first.
         // (Before fix, this would likely be j1005 because Jump > Branch in priority)
@@ -803,7 +1294,8 @@ mod tests {
             state.raw_data[i] = *b;
         }
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
 
         // Result should be aE000
         assert_eq!(
@@ -827,14 +1319,16 @@ mod tests {
 
         state.excluded_addresses.insert(0xE500);
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
 
         // Should be None
         assert_eq!(labels.get(&0xE500), None);
 
         // Verification: if we remove it from excludes, it should appear
         state.excluded_addresses.remove(&0xE500);
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
         assert_eq!(
             labels
                 .get(&0xE500)
@@ -857,7 +1351,8 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; 2];
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
         // Should be e1081 (ExternalJump type), NOT b1081 (Branch type).
         assert_eq!(
             labels
@@ -886,7 +1381,8 @@ mod tests {
             illegal: false,
         });
 
-        let (labels_map, _) = analyze(&app_state);
+        let result = analyze(&app_state);
+        let labels_map = result.labels;
         let labels = labels_map
             .get(&0x00A0)
             .expect("Should have a label at $00A0");
@@ -916,7 +1412,8 @@ mod tests {
             illegal: false,
         });
 
-        let (labels_map, _) = analyze(&app_state);
+        let result = analyze(&app_state);
+        let labels_map = result.labels;
         let labels = labels_map
             .get(&0x00A0)
             .expect("Should have a label at $00A0");
@@ -974,7 +1471,8 @@ mod tests {
             illegal: false,
         });
 
-        let (labels_map, _) = analyze(&app_state);
+        let result = analyze(&app_state);
+        let labels_map = result.labels;
         let label_vec = labels_map
             .get(&0x00FB)
             .expect("Should have labels at $00FB");
@@ -1025,7 +1523,8 @@ mod tests {
             illegal: false,
         });
 
-        let (labels_map, _) = analyze(&app_state);
+        let result = analyze(&app_state);
+        let labels_map = result.labels;
         let label_vec = labels_map
             .get(&0x00A0)
             .expect("Should have labels at $00A0");
@@ -1051,7 +1550,8 @@ mod tests {
         state.raw_data = data;
         state.block_types = vec![BlockType::HiLoAddress; 4];
 
-        let (labels, _) = analyze(&state);
+        let result = analyze(&state);
+        let labels = result.labels;
 
         // Check $C000 -> aC000 (AbsoluteAddress usage from HiLo)
         assert_eq!(

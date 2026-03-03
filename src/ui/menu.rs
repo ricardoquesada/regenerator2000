@@ -2396,9 +2396,10 @@ fn apply_lo_hi_packing(app_state: &mut AppState, ui_state: &mut UIState, lo_firs
         app_state.push_command(batch_cmd);
 
         // Re-analyze to generate new auto-labels for Lo/Hi addresses
-        let (new_labels, new_cross_refs) = crate::analyzer::analyze(app_state);
-        app_state.labels = new_labels;
-        app_state.cross_refs = new_cross_refs;
+        let result = crate::analyzer::analyze(app_state);
+        app_state.labels = result.labels;
+        app_state.cross_refs = result.cross_refs;
+        app_state.analysis_hints = result.hints;
 
         app_state.disassemble();
     } else if let Some(cursor_idx) = single_cursor_index {

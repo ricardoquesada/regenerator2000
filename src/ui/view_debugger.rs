@@ -96,6 +96,7 @@ impl Widget for DebuggerView {
             let empty_formats: BTreeMap<u16, crate::state::ImmediateFormat> = BTreeMap::new();
             let empty_xrefs: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
             let empty_splitters: BTreeSet<u16> = BTreeSet::new();
+            let empty_hints: BTreeMap<u16, String> = BTreeMap::new();
             let settings = DocumentSettings::default();
             let collapsed: Vec<(usize, usize)> = Vec::new();
 
@@ -110,6 +111,7 @@ impl Widget for DebuggerView {
                 &empty_line_comments,
                 &empty_formats,
                 &empty_xrefs,
+                &empty_hints,
                 &collapsed,
                 &empty_splitters,
             );
