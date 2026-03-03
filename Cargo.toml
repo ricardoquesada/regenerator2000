@@ -36,6 +36,7 @@ hyper-util = { version = "0.1.20", features = ["tokio", "server-auto", "server",
 http-body-util = "0.1.3"
 hyper = { version = "1.8.1", features = ["full"] }
 axum = "0.8.8"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 
 [build-dependencies]
 anyhow = "1.0"

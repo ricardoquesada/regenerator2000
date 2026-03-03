@@ -18,6 +18,45 @@ use simplelog::*;
 use std::fs::File;
 use std::panic;
 
+async fn check_for_new_version() -> Option<String> {
+    const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
+    const API_URL: &str =
+        "https://api.github.com/repos/ricardoquesada/regenerator2000/releases/latest";
+
+    let client = reqwest::Client::builder()
+        .user_agent(concat!(
+            env!("CARGO_PKG_NAME"),
+            "/",
+            env!("CARGO_PKG_VERSION")
+        ))
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .ok()?;
+
+    let response = client.get(API_URL).send().await.ok()?;
+    let json: serde_json::Value = response.json().await.ok()?;
+    let tag_name = json["tag_name"].as_str()?;
+    let remote_version = tag_name.trim_start_matches('v');
+
+    if is_newer_version(CURRENT_VERSION, remote_version) {
+        Some(remote_version.to_string())
+    } else {
+        None
+    }
+}
+
+fn is_newer_version(current: &str, remote: &str) -> bool {
+    let parse = |v: &str| -> (u32, u32, u32) {
+        let mut parts = v.split('.').filter_map(|p| p.parse::<u32>().ok());
+        (
+            parts.next().unwrap_or(0),
+            parts.next().unwrap_or(0),
+            parts.next().unwrap_or(0),
+        )
+    };
+    parse(remote) > parse(current)
+}
+
 fn main() -> Result<()> {
     // 1. Initialize Logging
     let log_path = std::env::temp_dir().join("regenerator2000.log");
@@ -446,6 +485,19 @@ fn main() -> Result<()> {
             }
         }
     });
+
+    // Spawn version update check thread
+    if app_state.system_config.check_for_updates {
+        let update_tx = event_tx.clone();
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            rt.block_on(async {
+                if let Some(version) = check_for_new_version().await {
+                    let _ = update_tx.send(events::AppEvent::UpdateAvailable(version));
+                }
+            });
+        });
+    }
 
     // Start MCP Server if requested
     if mcp_server {

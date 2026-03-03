@@ -126,7 +126,13 @@ pub struct Menu;
 
 impl Widget for Menu {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
-        render_menu(f, area, &ui_state.menu, &ui_state.theme);
+        render_menu(
+            f,
+            area,
+            &ui_state.menu,
+            &ui_state.theme,
+            ui_state.new_version_available.as_deref(),
+        );
     }
 
     fn handle_mouse(
@@ -840,7 +846,13 @@ impl MenuItem {
     }
 }
 
-pub fn render_menu(f: &mut Frame, area: Rect, menu_state: &MenuState, theme: &crate::theme::Theme) {
+pub fn render_menu(
+    f: &mut Frame,
+    area: Rect,
+    menu_state: &MenuState,
+    theme: &crate::theme::Theme,
+    new_version: Option<&str>,
+) {
     let mut spans = Vec::new();
 
     for (i, category) in menu_state.categories.iter().enumerate() {
@@ -892,6 +904,24 @@ pub fn render_menu(f: &mut Frame, area: Rect, menu_state: &MenuState, theme: &cr
     let menu_bar = Paragraph::new(Line::from(spans))
         .style(Style::default().bg(theme.menu_bg).fg(theme.menu_fg));
     f.render_widget(menu_bar, area);
+
+    // Render version update badge on the right side of the menu bar
+    if let Some(version) = new_version {
+        let badge_text = format!(" New version {} available ", version);
+        let badge_width = badge_text.len() as u16;
+        if area.width > badge_width {
+            let badge_area = Rect::new(area.x + area.width - badge_width, area.y, badge_width, 1);
+            f.render_widget(
+                Paragraph::new(badge_text).style(
+                    Style::default()
+                        .bg(theme.highlight_fg)
+                        .fg(theme.menu_bg)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                badge_area,
+            );
+        }
+    }
 }
 
 pub fn render_menu_popup(

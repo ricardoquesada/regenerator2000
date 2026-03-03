@@ -26,6 +26,8 @@ pub struct SystemConfig {
     pub config_path_override: Option<PathBuf>,
     #[serde(default)]
     pub recent_projects: Vec<PathBuf>,
+    #[serde(default = "default_true")]
+    pub check_for_updates: bool,
 }
 
 fn default_true() -> bool {
@@ -59,6 +61,7 @@ impl Default for SystemConfig {
             entropy_threshold: 7.5,
             config_path_override: None,
             recent_projects: Vec::new(),
+            check_for_updates: true,
         }
     }
 }

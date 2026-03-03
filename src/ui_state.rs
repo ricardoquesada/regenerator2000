@@ -104,6 +104,9 @@ pub struct UIState {
     // Bitmap cache: key is (bitmap_address, multicolor_mode, screen_ram_address)
     pub bitmap_cache: HashMap<(usize, bool, usize), DynamicImage>,
 
+    // Version update notification
+    pub new_version_available: Option<String>,
+
     // Layout Areas for Mouse Interaction
     pub menu_area: ratatui::layout::Rect,
     pub main_area: ratatui::layout::Rect,
@@ -159,6 +162,8 @@ impl UIState {
             last_search_query: String::new(),
             bitmap_cache: HashMap::new(),
             theme,
+
+            new_version_available: None,
 
             menu_area: ratatui::layout::Rect::default(),
             main_area: ratatui::layout::Rect::default(),

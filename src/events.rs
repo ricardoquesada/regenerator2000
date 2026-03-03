@@ -14,6 +14,7 @@ pub enum AppEvent {
     McpError(String),
     Vice(crate::vice::ViceEvent),
     Tick,
+    UpdateAvailable(String),
 }
 
 pub fn run_app<B: Backend>(
@@ -296,6 +297,10 @@ pub fn run_app<B: Backend>(
             }
             AppEvent::Tick => {
                 // Optional tick for animations/time-based updates if needed later
+            }
+            AppEvent::UpdateAvailable(version) => {
+                ui_state.new_version_available = Some(version);
+                should_render = true;
             }
             AppEvent::Crossterm(event) => {
                 match event {
