@@ -56,7 +56,10 @@ impl ServerHandler for RegeneratorOps {
         _context: RequestContext<RoleServer>,
     ) -> Result<InitializeResult, rmcp::ErrorData> {
         match self
-            .send_request("initialize", serde_json::to_value(request).unwrap())
+            .send_request(
+                "initialize",
+                serde_json::to_value(request).unwrap_or(Value::Null),
+            )
             .await
         {
             Ok(val) => {

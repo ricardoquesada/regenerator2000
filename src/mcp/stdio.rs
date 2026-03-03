@@ -12,7 +12,7 @@ pub async fn run_stdio_loop(sender: Sender<McpRequest>) {
     let mut reader = stdin.lock();
     let mut line = String::new();
 
-    while reader.read_line(&mut line).unwrap() > 0 {
+    while reader.read_line(&mut line).unwrap_or(0) > 0 {
         let payload: Value = match serde_json::from_str(&line) {
             Ok(v) => v,
             Err(_) => {
@@ -57,7 +57,7 @@ pub async fn run_stdio_loop(sender: Sender<McpRequest>) {
                     })
                 };
                 println!("{}", json_resp);
-                io::stdout().flush().unwrap();
+                let _ = io::stdout().flush();
             }
         }
         line.clear();
@@ -70,7 +70,7 @@ pub async fn run_headless_stdio_loop(mut app_state: AppState, mut ui_state: UISt
     let mut reader = stdin.lock();
     let mut line = String::new();
 
-    while reader.read_line(&mut line).unwrap() > 0 {
+    while reader.read_line(&mut line).unwrap_or(0) > 0 {
         let payload: Value = match serde_json::from_str(&line) {
             Ok(v) => v,
             Err(_) => {
@@ -116,7 +116,7 @@ pub async fn run_headless_stdio_loop(mut app_state: AppState, mut ui_state: UISt
                 })
             };
             println!("{}", json_resp);
-            io::stdout().flush().unwrap();
+            let _ = io::stdout().flush();
         }
         line.clear();
     }

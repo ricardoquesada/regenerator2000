@@ -375,7 +375,7 @@ fn handle_tool_call_internal(
             Ok(json!({
                 "content": [{
                     "type": "text",
-                    "text": serde_json::to_string_pretty(&results).unwrap()
+                    "text": serde_json::to_string_pretty(&results).unwrap_or_default()
                 }]
             }))
         }
@@ -548,7 +548,7 @@ fn handle_tool_call_internal(
                         "platform": platform,
                         "filename": filename,
                         "description": app_state.settings.description
-                    })).unwrap()
+                    })).unwrap_or_default()
                 }]
             }))
         }
@@ -559,7 +559,7 @@ fn handle_tool_call_internal(
             Ok(json!({
                 "content": [{
                     "type": "text",
-                    "text": serde_json::to_string_pretty(&blocks).unwrap()
+                    "text": serde_json::to_string_pretty(&blocks).unwrap_or_default()
                 }]
             }))
         }
@@ -570,7 +570,7 @@ fn handle_tool_call_internal(
             Ok(json!({
                 "content": [{
                     "type": "text",
-                    "text": serde_json::to_string_pretty(&details).unwrap()
+                    "text": serde_json::to_string_pretty(&details).unwrap_or_default()
                 }]
             }))
         }
@@ -634,7 +634,7 @@ fn handle_tool_call_internal(
             Ok(json!({
                 "content": [{
                     "type": "text",
-                    "text": serde_json::to_string_pretty(&matches).unwrap()
+                    "text": serde_json::to_string_pretty(&matches).unwrap_or_default()
                 }]
             }))
         }
@@ -645,7 +645,7 @@ fn handle_tool_call_internal(
             Ok(json!({
                 "content": [{
                     "type": "text",
-                    "text": serde_json::to_string_pretty(&refs).unwrap()
+                    "text": serde_json::to_string_pretty(&refs).unwrap_or_default()
                 }]
             }))
         }
@@ -676,7 +676,7 @@ fn handle_tool_call_internal(
             Ok(json!({
                 "content": [{
                     "type": "text",
-                    "text": serde_json::to_string_pretty(&symbols).unwrap()
+                    "text": serde_json::to_string_pretty(&symbols).unwrap_or_default()
                 }]
             }))
         }
@@ -686,7 +686,7 @@ fn handle_tool_call_internal(
             Ok(json!({
                 "content": [{
                     "type": "text",
-                    "text": serde_json::to_string_pretty(&comments).unwrap()
+                    "text": serde_json::to_string_pretty(&comments).unwrap_or_default()
                 }]
             }))
         }
@@ -709,7 +709,7 @@ fn handle_tool_call_internal(
             Ok(json!({
                 "content": [{
                     "type": "text",
-                    "text": format!("Project saved to {}", app_state.project_path.as_ref().unwrap().display())
+                    "text": format!("Project saved to {}", app_state.project_path.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "<unknown>".to_string()))
                 }]
             }))
         }
@@ -1205,8 +1205,8 @@ fn get_symbol_table_impl(app_state: &AppState) -> Vec<Value> {
     }
     // Sort by address
     symbols.sort_by(|a, b| {
-        let addr_a = a["address"].as_u64().unwrap();
-        let addr_b = b["address"].as_u64().unwrap();
+        let addr_a = a["address"].as_u64().unwrap_or(0);
+        let addr_b = b["address"].as_u64().unwrap_or(0);
         addr_a.cmp(&addr_b)
     });
     symbols
@@ -1233,8 +1233,8 @@ fn get_all_comments_impl(app_state: &AppState) -> Vec<Value> {
 
     // Sort by address
     comments.sort_by(|a, b| {
-        let addr_a = a["address"].as_u64().unwrap();
-        let addr_b = b["address"].as_u64().unwrap();
+        let addr_a = a["address"].as_u64().unwrap_or(0);
+        let addr_b = b["address"].as_u64().unwrap_or(0);
         addr_a.cmp(&addr_b)
     });
 

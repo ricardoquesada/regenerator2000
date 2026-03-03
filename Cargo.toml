@@ -42,3 +42,9 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 anyhow = "1.0"
 vergen = "9.1.0"
 vergen-gitcl = "9.1.0"
+
+[lints.clippy]
+# Stability: flag panic-inducing patterns during development
+unwrap_used = "warn"
+panic = "warn"
+expect_used = "warn"

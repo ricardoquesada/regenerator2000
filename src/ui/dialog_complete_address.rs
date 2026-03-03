@@ -42,6 +42,10 @@ impl CompleteAddressDialog {
     }
 
     fn get_display_text(&self) -> String {
+        // Helper: safely get nth char from a string, or '?' if out of bounds
+        let nth = |s: &str, n: usize| -> char { s.chars().nth(n).unwrap_or('?') };
+        let known_hex = format!("{:02X}", self.known_byte);
+
         if self.lo_first {
             // Known byte is low, asking for high
             // Display: $__XX where XX is known low byte
@@ -50,32 +54,32 @@ impl CompleteAddressDialog {
                 if self.input.is_empty() {
                     '_'
                 } else {
-                    self.input.chars().nth(0).unwrap()
+                    nth(&self.input, 0)
                 },
                 if self.input.len() < 2 {
                     '_'
                 } else {
-                    self.input.chars().nth(1).unwrap()
+                    nth(&self.input, 1)
                 },
-                format!("{:02X}", self.known_byte).chars().nth(0).unwrap(),
-                format!("{:02X}", self.known_byte).chars().nth(1).unwrap()
+                nth(&known_hex, 0),
+                nth(&known_hex, 1)
             )
         } else {
             // Known byte is high, asking for low
             // Display: $XX__ where XX is known high byte
             format!(
                 "Hi/Lo Address: ${}{}{}{}",
-                format!("{:02X}", self.known_byte).chars().nth(0).unwrap(),
-                format!("{:02X}", self.known_byte).chars().nth(1).unwrap(),
+                nth(&known_hex, 0),
+                nth(&known_hex, 1),
                 if self.input.is_empty() {
                     '_'
                 } else {
-                    self.input.chars().nth(0).unwrap()
+                    nth(&self.input, 0)
                 },
                 if self.input.len() < 2 {
                     '_'
                 } else {
-                    self.input.chars().nth(1).unwrap()
+                    nth(&self.input, 1)
                 }
             )
         }

@@ -1,3 +1,5 @@
+#![deny(clippy::unwrap_used, clippy::panic)]
+
 use regenerator2000::events;
 use regenerator2000::state::AppState;
 use regenerator2000::ui_state::UIState;
@@ -408,7 +410,7 @@ fn main() -> Result<()> {
         let use_stdio = args.iter().any(|a| a == "--mcp-server-stdio");
 
         if use_stdio {
-            let rt = tokio::runtime::Runtime::new().unwrap();
+            let rt = tokio::runtime::Runtime::new()?;
             let theme = regenerator2000::theme::Theme::from_name(&app_state.system_config.theme);
             let ui_state = UIState::new(theme);
             rt.block_on(async {
@@ -421,7 +423,7 @@ fn main() -> Result<()> {
             let mut ui_state = UIState::new(theme);
             let (mcp_req_tx, mut mcp_req_rx) = tokio::sync::mpsc::channel(100);
 
-            let rt = tokio::runtime::Runtime::new().unwrap();
+            let rt = tokio::runtime::Runtime::new()?;
             rt.block_on(async {
                 tokio::spawn(async move {
                     if let Err(e) = regenerator2000::mcp::http::run_server(3000, mcp_req_tx).await {
@@ -538,7 +540,9 @@ fn main() -> Result<()> {
     if app_state.system_config.check_for_updates {
         let update_tx = event_tx.clone();
         std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
+            let Ok(rt) = tokio::runtime::Runtime::new() else {
+                return;
+            };
             rt.block_on(async {
                 if let Some(version) = check_for_new_version().await {
                     let _ = update_tx.send(events::AppEvent::UpdateAvailable(version));
@@ -553,7 +557,9 @@ fn main() -> Result<()> {
         let mcp_bridge_tx = event_tx.clone();
 
         std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new().unwrap();
+            let Ok(rt) = tokio::runtime::Runtime::new() else {
+                return;
+            };
             rt.block_on(async {
                 // Spawn the actual server
                 let server_tx = mcp_req_tx.clone();
