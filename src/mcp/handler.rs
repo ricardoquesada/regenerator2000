@@ -223,8 +223,8 @@ fn list_tools() -> Result<Value, McpError> {
                         },
                         "encoding": {
                             "type": "string",
-                            "enum": ["ascii", "petscii", "screencode", "hex"],
-                            "description": "Encoding for the query. Defaults to 'hex' if query looks like hex bytes, otherwise 'ascii'."
+                            "enum": ["text", "hex"],
+                            "description": "Encoding for the query. 'text' searches both PETSCII and Screencode. 'hex' for raw byte patterns. Defaults to 'hex' if query looks like hex bytes, otherwise 'text'."
                         }
                     },
                     "required": ["query"]

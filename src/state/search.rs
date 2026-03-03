@@ -385,8 +385,6 @@ pub fn search_memory_raw(
     encoding: Option<&str>,
     max_results: usize,
 ) -> Result<Vec<u16>, String> {
-    let mut search_bytes = Vec::new();
-
     // Determine mode
     let mode = if let Some(enc) = encoding {
         enc
@@ -399,64 +397,71 @@ pub fn search_memory_raw(
         {
             "hex"
         } else {
-            "ascii"
+            "text"
         }
     };
 
-    match mode {
+    // Build one or more byte-patterns to scan for.
+    let patterns: Vec<Vec<u8>> = match mode {
         "hex" => {
+            let mut bytes = Vec::new();
             for part in query.split_whitespace() {
-                // Remove $ or 0x prefix if present
                 let clean_part = part
                     .trim_start_matches("0x")
                     .trim_start_matches("0X")
                     .trim_start_matches('$');
                 if let Ok(b) = u8::from_str_radix(clean_part, 16) {
-                    search_bytes.push(b);
+                    bytes.push(b);
                 }
             }
+            vec![bytes]
         }
-        "ascii" => {
-            search_bytes = query.as_bytes().to_vec();
-        }
-        "petscii" => {
-            for c in query.chars() {
-                search_bytes.push(ascii_char_to_petscii(c));
-            }
-        }
-        "screencode" => {
-            for c in query.chars() {
-                let p = ascii_char_to_petscii(c);
-                search_bytes.push(petscii_to_screencode_simple(p));
+        "text" => {
+            // Search both PETSCII and Screencode encodings.
+            let petscii_bytes: Vec<u8> = query.chars().map(ascii_char_to_petscii).collect();
+            let screencode_bytes: Vec<u8> = petscii_bytes
+                .iter()
+                .map(|&p| petscii_to_screencode_simple(p))
+                .collect();
+            if petscii_bytes == screencode_bytes {
+                vec![petscii_bytes]
+            } else {
+                vec![petscii_bytes, screencode_bytes]
             }
         }
         _ => {
             return Err(format!("Unknown encoding: {}", mode));
         }
-    }
+    };
 
-    if search_bytes.is_empty() {
+    if patterns.iter().all(|p| p.is_empty()) {
         return Ok(Vec::new());
     }
 
-    let mut found_addresses = Vec::new();
     let data = &app_state.raw_data;
     let origin = app_state.origin;
 
-    if data.len() < search_bytes.len() {
-        return Ok(Vec::new());
-    }
+    // Collect matching addresses from all patterns, deduplicated and sorted.
+    let mut found_set = std::collections::BTreeSet::new();
 
-    for i in 0..=data.len() - search_bytes.len() {
-        if data[i..i + search_bytes.len()] == search_bytes[..] {
-            found_addresses.push(origin.wrapping_add(i as u16));
-            if found_addresses.len() >= max_results {
-                break;
+    for pattern in &patterns {
+        if pattern.is_empty() || data.len() < pattern.len() {
+            continue;
+        }
+        for i in 0..=data.len() - pattern.len() {
+            if data[i..i + pattern.len()] == pattern[..] {
+                found_set.insert(origin.wrapping_add(i as u16));
+                if found_set.len() >= max_results {
+                    break;
+                }
             }
+        }
+        if found_set.len() >= max_results {
+            break;
         }
     }
 
-    Ok(found_addresses)
+    Ok(found_set.into_iter().collect())
 }
 
 // ---------------------------------------------------------------------------

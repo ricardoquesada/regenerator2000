@@ -363,7 +363,7 @@ Search for a sequence of bytes or a text string in the memory. Returns a list of
 
 | Name       | Type     | Description                                                                                 | Required |
 | :--------- | :------- | :------------------------------------------------------------------------------------------ | :------: |
-| `encoding` | `string` | Encoding for the query. Defaults to 'hex' if query looks like hex bytes, otherwise 'ascii'. |    No    |
+| `encoding` | `string` | Encoding for the query. 'text' searches both PETSCII and Screencode. 'hex' for raw byte patterns. Defaults to 'hex' if query looks like hex bytes, otherwise 'text'. |    No    |
 | `query`    | `string` | The search query. For hex: space-separated bytes, e.g. 'A9 00'. For text: plain string.     |   Yes    |
 
 ### `r2000_set_comment`
