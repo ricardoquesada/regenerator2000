@@ -34,7 +34,7 @@ Once connected, the Debugger panel shows connection status and, when the emulato
 - **Live disassembly**: When stopped, a small window of disassembly around the current PC, with the current instruction highlighted.
 - **Registers**: A, X, Y, SP, and P (status) when available.
 - **Breakpoints**: List of breakpoints set in VICE.
-- **Watchpoints**: List of watchpoins set in VICE.
+- **Watchpoints**: List of watchpoints set in VICE.
 
 ![Debugger Only](regenerator2000_debugger_screenshot_only.png)
 

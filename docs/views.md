@@ -73,7 +73,7 @@ This bird's-eye view is essential for understanding the overall structure of the
 
 | Action                     | Shortcut   |
 | :------------------------- | :--------- |
-| **Toogle view**            | ++alt+1++  |
+| **Toggle view**            | ++alt+1++  |
 | **Toggle Collapsed Block** | ++ctrl+k++ |
 | **Jump to Disassembly**    | ++enter++  |
 
@@ -88,9 +88,9 @@ This view supports different text decoding modes to help you spot strings in sta
 The Hex Dump view consists of:
 
 - **a**: The address
-- **b**: 16 byes of hex dump
+- **b**: 16 bytes of hex dump
 - **c**: The text representation, that can be any of: "Screencode shifted", "Screencode unshifted", "PETSCII shifted", "PETSCII unshifted".
-- **d**: The entropy of the data. The higher the value, the more randon it is.
+- **d**: The entropy of the data. The higher the value, the more random it is.
 
 ![Hexdump Only](regenerator2000_hexdump_only.png)
 
@@ -108,7 +108,7 @@ And entropy is calculated in 1024-bytes blocks. So the character shown is the en
 
 | Action                                  | Shortcut    |
 | :-------------------------------------- | :---------- |
-| **Toogle view**                         | ++alt+2++   |
+| **Toggle view**                         | ++alt+2++   |
 | **Convert to Byte**                     | ++b++       |
 | **Next Text Mode** (Screencode/PETSCII) | ++m++       |
 | **Previous Text Mode**                  | ++shift+m++ |
@@ -128,7 +128,7 @@ The Sprites View helps you find and analyze sprite data (hardware sprites).
 
 | Action                  | Shortcut  |
 | :---------------------- | :-------- |
-| **Toogle view**         | ++alt+3++ |
+| **Toggle view**         | ++alt+3++ |
 | **Convert to Byte**     | ++b++     |
 | **Toggle Multicolor**   | ++m++     |
 | **Jump to Disassembly** | ++enter++ |
@@ -146,7 +146,7 @@ The Charset View allows you to inspect memory as if it were a C64 character set 
 
 | Action                  | Shortcut  |
 | :---------------------- | :-------- |
-| **Toogle view**         | ++alt+4++ |
+| **Toggle view**         | ++alt+4++ |
 | **Convert to Byte**     | ++b++     |
 | **Toggle Multicolor**   | ++m++     |
 | **Jump to Disassembly** | ++enter++ |
@@ -167,7 +167,7 @@ The Bitmap View renders memory as a bitmap image, allowing you to visualize larg
 
 The Bitmap View consists of:
 
-- **a**: Bitmap mode (Multicolor or High-des) and how the bitmap is being rendered (HalBlocks, iTerm2)
+- **a**: Bitmap mode (Multicolor or High-Res) and how the bitmap is being rendered (HalfBlocks, iTerm2)
 - **b**: The bitmap and screen RAM addresses. For multi-color mode, the Color RAM is fixed.
 - **c**: The bitmap itself
 - **d**: Screen RAM cycle indicator
@@ -178,7 +178,7 @@ The Bitmap View consists of:
 
 | Action                      | Shortcut    |
 | :-------------------------- | :---------- |
-| **Toogle view**             | ++alt+5++   |
+| **Toggle view**             | ++alt+5++   |
 | **Convert to Byte**         | ++b++       |
 | **Toggle Multicolor**       | ++m++       |
 | **Next Screen RAM**         | ++s++       |
@@ -210,7 +210,7 @@ For more details on connecting to VICE and using the debugger, see [Debugger (VI
 
 | Action                   | Shortcut     |
 | :----------------------- | :----------- |
-| **Toogle view**          | ++alt+6++    |
+| **Toggle view**          | ++alt+6++    |
 | **Toggle Breakpoint**    | ++f2++       |
 | **Toggle Breakpoint...** | ++shift+f2++ |
 | **Run to Cursor**        | ++f4++       |
