@@ -17,11 +17,9 @@ use crate::ui::widget::{Widget, WidgetResult};
 pub struct SearchFilters {
     pub labels: bool,
     pub comments: bool,
-    pub opcodes: bool,
-    pub addresses: bool,
+    pub instructions: bool,
     pub hex_bytes: bool,
-    pub petscii_text: bool,
-    pub screencode_text: bool,
+    pub text: bool,
 }
 
 impl Default for SearchFilters {
@@ -29,25 +27,21 @@ impl Default for SearchFilters {
         Self {
             labels: true,
             comments: true,
-            opcodes: true,
-            addresses: true,
+            instructions: true,
             hex_bytes: true,
-            petscii_text: true,
-            screencode_text: true,
+            text: true,
         }
     }
 }
 
 impl SearchFilters {
-    fn as_array(&self) -> [bool; 7] {
+    fn as_array(&self) -> [bool; 5] {
         [
             self.labels,
             self.comments,
-            self.opcodes,
-            self.addresses,
+            self.instructions,
             self.hex_bytes,
-            self.petscii_text,
-            self.screencode_text,
+            self.text,
         ]
     }
 
@@ -55,11 +49,9 @@ impl SearchFilters {
         match index {
             0 => self.labels = !self.labels,
             1 => self.comments = !self.comments,
-            2 => self.opcodes = !self.opcodes,
-            3 => self.addresses = !self.addresses,
-            4 => self.hex_bytes = !self.hex_bytes,
-            5 => self.petscii_text = !self.petscii_text,
-            6 => self.screencode_text = !self.screencode_text,
+            2 => self.instructions = !self.instructions,
+            3 => self.hex_bytes = !self.hex_bytes,
+            4 => self.text = !self.text,
             _ => {}
         }
     }
@@ -85,17 +77,15 @@ impl SearchDialog {
 
 use crossterm::event::KeyModifiers;
 
-const FILTER_COUNT: usize = 7;
+const FILTER_COUNT: usize = 5;
 
 // Each entry: (label_text, shortcut_char, shortcut_position_in_label)
 const FILTER_INFO: [(&str, char, usize); FILTER_COUNT] = [
     ("Labels", 'l', 0),
     ("Comments", 'c', 0),
-    ("Opcodes", 'o', 0),
-    ("Addresses", 'a', 0),
+    ("Instructions", 'i', 0),
     ("Hex bytes", 'h', 0),
-    ("PETSCII", 'p', 0),
-    ("Screencode", 's', 0),
+    ("Text (PETSCII, Screencode)", 't', 0),
 ];
 
 impl Widget for SearchDialog {
@@ -103,8 +93,8 @@ impl Widget for SearchDialog {
         let theme = &ui_state.theme;
 
         // Create a proper centered modal dialog
-        // Height: 2 (border) + 3 (input w/ border) + 1 (filters label) + 7 (filters) + 1 (help) = 14
-        let dialog_area = crate::utils::centered_rect_adaptive(50, 40, 50, 14, area);
+        // Height: 2 (border) + 3 (input w/ border) + 1 (filters label) + 5 (filters) + 1 (help) = 12
+        let dialog_area = crate::utils::centered_rect_adaptive(50, 40, 50, 12, area);
         ui_state.active_dialog_area = dialog_area;
 
         f.render_widget(ratatui::widgets::Clear, dialog_area);
@@ -485,10 +475,6 @@ fn match_instruction_content(
     query_lower: &str,
     filters: &SearchFilters,
 ) -> bool {
-    if filters.addresses && format!("{:04x}", line.address).contains(query_lower) {
-        return true;
-    }
-
     if filters.hex_bytes {
         let bytes_hex = line
             .bytes
@@ -513,11 +499,11 @@ fn match_instruction_content(
         }
     }
 
-    if filters.opcodes && line.mnemonic.to_lowercase().contains(query_lower) {
+    if filters.instructions && line.mnemonic.to_lowercase().contains(query_lower) {
         return true;
     }
 
-    if filters.opcodes && line.operand.to_lowercase().contains(query_lower) {
+    if filters.instructions && line.operand.to_lowercase().contains(query_lower) {
         return true;
     }
 
@@ -781,39 +767,39 @@ fn check_string_pattern(
         return false;
     }
 
-    // Check PETSCII encoding (both shifted and unshifted)
-    if filters.petscii_text {
-        let petscii_match = (0..=1).any(|shift| {
-            let shifted = shift == 1;
-            query_chars.iter().enumerate().all(|(i, &query_char)| {
-                let idx = start_offset + i;
-                let byte = app_state.raw_data[idx];
-                let petscii_char = petscii_to_unicode(byte, shifted);
-                petscii_char.eq_ignore_ascii_case(&query_char)
-            })
-        });
+    if !filters.text {
+        return false;
+    }
 
-        if petscii_match {
-            return true;
-        }
+    // Check PETSCII encoding (both shifted and unshifted)
+    let petscii_match = (0..=1).any(|shift| {
+        let shifted = shift == 1;
+        query_chars.iter().enumerate().all(|(i, &query_char)| {
+            let idx = start_offset + i;
+            let byte = app_state.raw_data[idx];
+            let petscii_char = petscii_to_unicode(byte, shifted);
+            petscii_char.eq_ignore_ascii_case(&query_char)
+        })
+    });
+
+    if petscii_match {
+        return true;
     }
 
     // Check Screencode encoding (convert to PETSCII first, then to Unicode)
-    if filters.screencode_text {
-        let screencode_match = (0..=1).any(|shift| {
-            let shifted = shift == 1;
-            query_chars.iter().enumerate().all(|(i, &query_char)| {
-                let idx = start_offset + i;
-                let screencode_byte = app_state.raw_data[idx];
-                let petscii_byte = screencode_to_petscii(screencode_byte);
-                let sc_char = petscii_to_unicode(petscii_byte, shifted);
-                sc_char.eq_ignore_ascii_case(&query_char)
-            })
-        });
+    let screencode_match = (0..=1).any(|shift| {
+        let shifted = shift == 1;
+        query_chars.iter().enumerate().all(|(i, &query_char)| {
+            let idx = start_offset + i;
+            let screencode_byte = app_state.raw_data[idx];
+            let petscii_byte = screencode_to_petscii(screencode_byte);
+            let sc_char = petscii_to_unicode(petscii_byte, shifted);
+            sc_char.eq_ignore_ascii_case(&query_char)
+        })
+    });
 
-        if screencode_match {
-            return true;
-        }
+    if screencode_match {
+        return true;
     }
 
     false
