@@ -47,6 +47,22 @@ impl SearchFilters {
             _ => {}
         }
     }
+
+    pub fn set_all(&mut self) {
+        self.labels = true;
+        self.comments = true;
+        self.instructions = true;
+        self.hex_bytes = true;
+        self.text = true;
+    }
+
+    pub fn set_none(&mut self) {
+        self.labels = false;
+        self.comments = false;
+        self.instructions = false;
+        self.hex_bytes = false;
+        self.text = false;
+    }
 }
 
 // ---------------------------------------------------------------------------

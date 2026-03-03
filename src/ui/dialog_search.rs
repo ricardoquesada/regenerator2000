@@ -166,9 +166,10 @@ impl Widget for SearchDialog {
             );
         }
 
-        let help =
-            Paragraph::new(" Tab: filters │ Space: toggle │ Alt+Key: toggle │ Enter: search")
-                .style(Style::default().fg(theme.comment));
+        let help = Paragraph::new(
+            " Tab: filters │ Space: toggle │ Alt+Key: toggle │ Alt+A/N: all/none │ Enter: search",
+        )
+        .style(Style::default().fg(theme.comment));
         f.render_widget(help, help_area);
     }
 
@@ -182,10 +183,22 @@ impl Widget for SearchDialog {
         if key.modifiers.contains(KeyModifiers::ALT)
             && let KeyCode::Char(c) = key.code
         {
-            for (i, (_, shortcut_char, _)) in FILTER_INFO.iter().enumerate() {
-                if c == *shortcut_char {
-                    self.filters.toggle(i);
+            match c {
+                'a' => {
+                    self.filters.set_all();
                     return WidgetResult::Handled;
+                }
+                'n' => {
+                    self.filters.set_none();
+                    return WidgetResult::Handled;
+                }
+                _ => {
+                    for (i, (_, shortcut_char, _)) in FILTER_INFO.iter().enumerate() {
+                        if c == *shortcut_char {
+                            self.filters.toggle(i);
+                            return WidgetResult::Handled;
+                        }
+                    }
                 }
             }
         }
