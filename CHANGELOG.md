@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] - 2026-03-03
+
+### Features
+
+- Feature: **Search**: Added filter checkboxes to the search dialog for granular control.
+- Feature: **Analyzer**: Added analysis hints with cross-instruction pattern detection.
+- Feature: **Export**: Added roundtrip export verification (export → assemble → diff).
+- Feature: **UI**: Check for new version and display it in the top-right corner.
+
+### Fixes
+
+- Fix: **Stability**: Eliminated all `unwrap`/`panic` from production code, added parser fuzz tests.
+
+### Refactor / Internal
+
+- Refactor: **Search**: Centralized search logic into `state/search.rs`.
+- MCP: Simplified search encoding to `text` and `hex`.
+
+### Documentation
+
+- Docs: FAQ and tutorial heavily improved.
+
 ## [0.8.3] - 2026-03-01
 
 ### Features
