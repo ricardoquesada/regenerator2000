@@ -7,68 +7,215 @@ use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
+    text::{Line, Span},
     widgets::Paragraph,
 };
 
 use crate::ui::widget::{Widget, WidgetResult};
 
-pub struct SearchDialog {
-    pub input: String,
+#[derive(Debug, Clone)]
+pub struct SearchFilters {
+    pub labels: bool,
+    pub comments: bool,
+    pub opcodes: bool,
+    pub addresses: bool,
+    pub hex_bytes: bool,
+    pub petscii_text: bool,
+    pub screencode_text: bool,
 }
 
-impl SearchDialog {
-    pub fn new(initial_query: String) -> Self {
+impl Default for SearchFilters {
+    fn default() -> Self {
         Self {
-            input: initial_query,
+            labels: true,
+            comments: true,
+            opcodes: true,
+            addresses: true,
+            hex_bytes: true,
+            petscii_text: true,
+            screencode_text: true,
         }
     }
 }
 
+impl SearchFilters {
+    fn as_array(&self) -> [bool; 7] {
+        [
+            self.labels,
+            self.comments,
+            self.opcodes,
+            self.addresses,
+            self.hex_bytes,
+            self.petscii_text,
+            self.screencode_text,
+        ]
+    }
+
+    fn toggle(&mut self, index: usize) {
+        match index {
+            0 => self.labels = !self.labels,
+            1 => self.comments = !self.comments,
+            2 => self.opcodes = !self.opcodes,
+            3 => self.addresses = !self.addresses,
+            4 => self.hex_bytes = !self.hex_bytes,
+            5 => self.petscii_text = !self.petscii_text,
+            6 => self.screencode_text = !self.screencode_text,
+            _ => {}
+        }
+    }
+}
+
+pub struct SearchDialog {
+    pub input: String,
+    pub editing_filters: bool,
+    pub selected_filter: usize,
+    pub filters: SearchFilters,
+}
+
+impl SearchDialog {
+    pub fn new(initial_query: String, filters: SearchFilters) -> Self {
+        Self {
+            input: initial_query,
+            editing_filters: false,
+            selected_filter: 0,
+            filters,
+        }
+    }
+}
+
+use crossterm::event::KeyModifiers;
+
+const FILTER_COUNT: usize = 7;
+
+// Each entry: (label_text, shortcut_char, shortcut_position_in_label)
+const FILTER_INFO: [(&str, char, usize); FILTER_COUNT] = [
+    ("Labels", 'l', 0),
+    ("Comments", 'c', 0),
+    ("Opcodes", 'o', 0),
+    ("Addresses", 'a', 0),
+    ("Hex bytes", 'h', 0),
+    ("PETSCII", 'p', 0),
+    ("Screencode", 's', 0),
+];
+
 impl Widget for SearchDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(" Search ", theme);
 
+        // Create a proper centered modal dialog
+        // Height: 2 (border) + 3 (input w/ border) + 1 (filters label) + 7 (filters) + 1 (help) = 14
+        let dialog_area = crate::utils::centered_rect_adaptive(50, 40, 50, 14, area);
+        ui_state.active_dialog_area = dialog_area;
+
+        f.render_widget(ratatui::widgets::Clear, dialog_area);
+
+        let block = crate::ui::widget::create_dialog_block(" Search ", theme);
+        f.render_widget(block.clone(), dialog_area);
+
+        let inner = block.inner(dialog_area);
+
+        let filter_rows = FILTER_COUNT as u16;
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Fill(1),
-                Constraint::Length(3),
-                Constraint::Length(1),
-                Constraint::Fill(1),
+                Constraint::Length(3),           // search input (with border)
+                Constraint::Length(1),           // filters label / separator
+                Constraint::Length(filter_rows), // filter checkboxes
+                Constraint::Length(1),           // help text
             ])
-            .split(area);
+            .split(inner);
 
-        let area = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(20),
-                Constraint::Percentage(60),
-                Constraint::Percentage(20),
-            ])
-            .split(layout[1])[1];
+        let input_area = layout[0];
+        let label_area = layout[1];
+        let filter_area = Rect::new(
+            inner.x + 2,
+            layout[2].y,
+            inner.width.saturating_sub(4),
+            filter_rows,
+        );
+        let help_area = layout[3];
 
-        let help_area = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(20),
-                Constraint::Percentage(60),
-                Constraint::Percentage(20),
-            ])
-            .split(layout[2])[1];
+        // Search input with a bordered sub-block and background
+        let is_input_focused = !self.editing_filters;
+        let input_border_style = if is_input_focused {
+            Style::default().fg(theme.highlight_fg)
+        } else {
+            Style::default().fg(theme.dialog_border)
+        };
+        let input_block = ratatui::widgets::Block::default()
+            .borders(ratatui::widgets::Borders::ALL)
+            .border_style(input_border_style)
+            .style(Style::default().bg(theme.highlight_bg));
 
-        ui_state.active_dialog_area = area;
-        f.render_widget(ratatui::widgets::Clear, area);
-
-        let input = Paragraph::new(self.input.clone()).block(block).style(
+        let input_style = if is_input_focused {
             Style::default()
                 .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD),
-        );
-        f.render_widget(input, area);
+                .bg(theme.highlight_bg)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(theme.dialog_fg).bg(theme.highlight_bg)
+        };
+        let input = Paragraph::new(self.input.clone())
+            .block(input_block)
+            .style(input_style);
+        f.render_widget(input, input_area);
+
+        // Filters section label with separator
+        let label_style = Style::default()
+            .fg(theme.dialog_fg)
+            .add_modifier(Modifier::DIM);
+        let separator_width = inner.width.saturating_sub(11) as usize; // " Filters " + padding
+        let label_line = Line::from(vec![
+            Span::styled(" Filters ", label_style),
+            Span::styled(
+                "─".repeat(separator_width),
+                Style::default()
+                    .fg(theme.dialog_border)
+                    .add_modifier(Modifier::DIM),
+            ),
+        ]);
+        f.render_widget(Paragraph::new(label_line), label_area);
+
+        // Render filter checkboxes vertically
+        let filter_values = self.filters.as_array();
+        for (i, (label, shortcut_char, shortcut_pos)) in FILTER_INFO.iter().enumerate() {
+            let check = if filter_values[i] { "[X]" } else { "[ ]" };
+            let is_selected = self.editing_filters && self.selected_filter == i;
+
+            // Build spans with the shortcut letter underlined
+            let base_style = if is_selected {
+                Style::default()
+                    .fg(theme.highlight_fg)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.dialog_fg)
+            };
+            let shortcut_style = base_style.add_modifier(Modifier::UNDERLINED);
+
+            // Split the label around the shortcut character
+            let before = &label[..*shortcut_pos];
+            let sc = &shortcut_char.to_uppercase().to_string();
+            let after = &label[shortcut_pos + shortcut_char.len_utf8()..];
+
+            let line = Line::from(vec![
+                Span::styled(format!("{} ", check), base_style),
+                Span::styled(before.to_string(), base_style),
+                Span::styled(sc.clone(), shortcut_style),
+                Span::styled(after.to_string(), base_style),
+            ]);
+            f.render_widget(
+                Paragraph::new(line),
+                Rect::new(
+                    filter_area.x,
+                    filter_area.y + i as u16,
+                    filter_area.width,
+                    1,
+                ),
+            );
+        }
 
         let help =
-            Paragraph::new(" Opcodes, Labels, Comments, Hex (A9 ??), Strings (PETSCII/Screencode)")
+            Paragraph::new(" Tab: filters │ Space: toggle │ Alt+Key: toggle │ Enter: search")
                 .style(Style::default().fg(theme.comment));
         f.render_widget(help, help_area);
     }
@@ -79,6 +226,18 @@ impl Widget for SearchDialog {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
+        // Alt+key shortcuts work in both input and filter mode
+        if key.modifiers.contains(KeyModifiers::ALT)
+            && let KeyCode::Char(c) = key.code
+        {
+            for (i, (_, shortcut_char, _)) in FILTER_INFO.iter().enumerate() {
+                if c == *shortcut_char {
+                    self.filters.toggle(i);
+                    return WidgetResult::Handled;
+                }
+            }
+        }
+
         match key.code {
             KeyCode::Esc => {
                 ui_state.set_status_message("Ready");
@@ -86,8 +245,32 @@ impl Widget for SearchDialog {
             }
             KeyCode::Enter => {
                 ui_state.last_search_query = self.input.clone();
+                ui_state.search_filters = self.filters.clone();
                 perform_search(app_state, ui_state, true);
                 WidgetResult::Close
+            }
+            KeyCode::Tab | KeyCode::BackTab => {
+                self.editing_filters = !self.editing_filters;
+                WidgetResult::Handled
+            }
+            _ if self.editing_filters => {
+                match key.code {
+                    KeyCode::Up | KeyCode::Left => {
+                        if self.selected_filter == 0 {
+                            self.selected_filter = FILTER_COUNT - 1;
+                        } else {
+                            self.selected_filter -= 1;
+                        }
+                    }
+                    KeyCode::Down | KeyCode::Right => {
+                        self.selected_filter = (self.selected_filter + 1) % FILTER_COUNT;
+                    }
+                    KeyCode::Char(' ') => {
+                        self.filters.toggle(self.selected_filter);
+                    }
+                    _ => {}
+                }
+                WidgetResult::Handled
             }
             KeyCode::Backspace => {
                 self.input.pop();
@@ -119,11 +302,22 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
     let mut found_idx = None;
     let mut found_sub_idx = 0;
 
-    let hex_pattern = parse_hex_pattern(query);
+    let hex_pattern = if ui_state.search_filters.hex_bytes {
+        parse_hex_pattern(query)
+    } else {
+        None
+    };
+    let filters = &ui_state.search_filters;
 
     // Check current line first for subsequent matches
     if let Some(line) = app_state.disassembly.get(start_idx) {
-        let matches = get_line_matches(line, app_state, &query_lower, hex_pattern.as_deref());
+        let matches = get_line_matches(
+            line,
+            app_state,
+            &query_lower,
+            hex_pattern.as_deref(),
+            filters,
+        );
 
         let candidate = if forward {
             matches
@@ -161,7 +355,13 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
         };
 
         if let Some(line) = app_state.disassembly.get(idx) {
-            let matches = get_line_matches(line, app_state, &query_lower, hex_pattern.as_deref());
+            let matches = get_line_matches(
+                line,
+                app_state,
+                &query_lower,
+                hex_pattern.as_deref(),
+                filters,
+            );
             if !matches.is_empty() {
                 found_idx = Some(idx);
                 found_sub_idx = if forward {
@@ -186,6 +386,7 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
                         end,
                         &query_lower,
                         hex_pattern.as_deref(),
+                        filters,
                     )
                 })
             {
@@ -214,6 +415,7 @@ fn get_line_matches(
     app_state: &AppState,
     query_lower: &str,
     hex_pattern: Option<&[Option<u8>]>,
+    filters: &SearchFilters,
 ) -> Vec<usize> {
     let mut matches = Vec::new();
     let mut current_sub = 0;
@@ -224,9 +426,10 @@ fn get_line_matches(
             let mid_addr = line.address.wrapping_add(offset as u16);
             if let Some(labels) = app_state.labels.get(&mid_addr) {
                 for _ in labels {
-                    if labels
-                        .iter()
-                        .any(|l| l.name.to_lowercase().contains(query_lower))
+                    if filters.labels
+                        && labels
+                            .iter()
+                            .any(|l| l.name.to_lowercase().contains(query_lower))
                     {
                         matches.push(current_sub);
                     }
@@ -239,7 +442,7 @@ fn get_line_matches(
     // 2. Line Comment
     if let Some(lc) = &line.line_comment {
         for comment_line in lc.lines() {
-            if comment_line.to_lowercase().contains(query_lower) {
+            if filters.comments && comment_line.to_lowercase().contains(query_lower) {
                 matches.push(current_sub);
             }
             current_sub += 1;
@@ -247,7 +450,7 @@ fn get_line_matches(
     }
 
     // 3. Instruction Content
-    let mut instruction_match = match_instruction_content(line, query_lower);
+    let mut instruction_match = match_instruction_content(line, query_lower, filters);
 
     // 4. Hex pattern search and String pattern search
     if !instruction_match {
@@ -263,7 +466,7 @@ fn get_line_matches(
             }
 
             // String pattern search (PETSCII / Screencode)
-            if check_string_pattern(addr, query_lower, app_state) {
+            if check_string_pattern(addr, query_lower, app_state, filters) {
                 instruction_match = true;
                 break;
             }
@@ -280,46 +483,50 @@ fn get_line_matches(
 fn match_instruction_content(
     line: &crate::disassembler::DisassemblyLine,
     query_lower: &str,
+    filters: &SearchFilters,
 ) -> bool {
-    if format!("{:04x}", line.address).contains(query_lower) {
+    if filters.addresses && format!("{:04x}", line.address).contains(query_lower) {
         return true;
     }
 
-    let bytes_hex = line
-        .bytes
-        .iter()
-        .map(|b| format!("{:02x}", b))
-        .collect::<String>();
-    if bytes_hex
-        .match_indices(query_lower)
-        .any(|(idx, _)| idx % 2 == 0)
-    {
+    if filters.hex_bytes {
+        let bytes_hex = line
+            .bytes
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<String>();
+        if bytes_hex
+            .match_indices(query_lower)
+            .any(|(idx, _)| idx % 2 == 0)
+        {
+            return true;
+        }
+
+        let bytes_hex_spaces = line
+            .bytes
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join(" ");
+        if bytes_hex_spaces.contains(query_lower) {
+            return true;
+        }
+    }
+
+    if filters.opcodes && line.mnemonic.to_lowercase().contains(query_lower) {
         return true;
     }
 
-    let bytes_hex_spaces = line
-        .bytes
-        .iter()
-        .map(|b| format!("{:02x}", b))
-        .collect::<Vec<_>>()
-        .join(" ");
-    if bytes_hex_spaces.contains(query_lower) {
+    if filters.opcodes && line.operand.to_lowercase().contains(query_lower) {
         return true;
     }
 
-    if line.mnemonic.to_lowercase().contains(query_lower) {
+    if filters.comments && line.comment.to_lowercase().contains(query_lower) {
         return true;
     }
 
-    if line.operand.to_lowercase().contains(query_lower) {
-        return true;
-    }
-
-    if line.comment.to_lowercase().contains(query_lower) {
-        return true;
-    }
-
-    if let Some(lbl) = &line.label
+    if filters.labels
+        && let Some(lbl) = &line.label
         && lbl.to_lowercase().contains(query_lower)
     {
         return true;
@@ -334,6 +541,7 @@ fn search_collapsed_content(
     end: usize,
     query_lower: &str,
     hex_pattern: Option<&[Option<u8>]>,
+    filters: &SearchFilters,
 ) -> bool {
     if start >= app_state.raw_data.len() || end >= app_state.raw_data.len() {
         return false;
@@ -365,7 +573,7 @@ fn search_collapsed_content(
     let expanded_lines = app_state.disassembler.disassemble_ctx(&ctx);
 
     for line in expanded_lines {
-        if !get_line_matches(&line, app_state, query_lower, hex_pattern).is_empty() {
+        if !get_line_matches(&line, app_state, query_lower, hex_pattern, filters).is_empty() {
             return true;
         }
     }
@@ -395,10 +603,18 @@ mod tests {
         };
 
         // "d020" is in "8d0208" starting at index 1 -> Should FAIL
-        assert!(!match_instruction_content(&line, "d020"));
+        assert!(!match_instruction_content(
+            &line,
+            "d020",
+            &SearchFilters::default()
+        ));
 
         // "8d02" is in "8d0208" starting at index 0 -> Should PASS
-        assert!(match_instruction_content(&line, "8d02"));
+        assert!(match_instruction_content(
+            &line,
+            "8d02",
+            &SearchFilters::default()
+        ));
     }
 
     #[test]
@@ -438,21 +654,37 @@ mod tests {
         // 4: Instruction (LDA #$00 ; side comment)
 
         // Test label match
-        let matches = get_line_matches(&line, &app_state, "mid_label", None);
+        let filters = SearchFilters::default();
+        let matches = get_line_matches(&line, &app_state, "mid_label", None, &filters);
         assert_eq!(matches, vec![0]);
 
         // Test line comment matches
-        assert_eq!(get_line_matches(&line, &app_state, "line 1", None), vec![1]);
-        assert_eq!(get_line_matches(&line, &app_state, "line 2", None), vec![2]);
-        assert_eq!(get_line_matches(&line, &app_state, "line 3", None), vec![3]);
+        assert_eq!(
+            get_line_matches(&line, &app_state, "line 1", None, &filters),
+            vec![1]
+        );
+        assert_eq!(
+            get_line_matches(&line, &app_state, "line 2", None, &filters),
+            vec![2]
+        );
+        assert_eq!(
+            get_line_matches(&line, &app_state, "line 3", None, &filters),
+            vec![3]
+        );
 
         // Test instruction matches
-        assert_eq!(get_line_matches(&line, &app_state, "lda", None), vec![4]);
-        assert_eq!(get_line_matches(&line, &app_state, "side", None), vec![4]);
+        assert_eq!(
+            get_line_matches(&line, &app_state, "lda", None, &filters),
+            vec![4]
+        );
+        assert_eq!(
+            get_line_matches(&line, &app_state, "side", None, &filters),
+            vec![4]
+        );
 
         // Test multiple matches (e.g. "line" matches all comment lines)
         assert_eq!(
-            get_line_matches(&line, &app_state, "line", None),
+            get_line_matches(&line, &app_state, "line", None, &filters),
             vec![1, 2, 3]
         );
     }
@@ -525,7 +757,12 @@ fn check_hex_pattern(address: u16, pattern: &[Option<u8>], app_state: &AppState)
 
 /// Check if the query string matches the raw bytes at the given address.
 /// Checks both PETSCII and Screencode encodings, case-insensitively.
-fn check_string_pattern(address: u16, query: &str, app_state: &AppState) -> bool {
+fn check_string_pattern(
+    address: u16,
+    query: &str,
+    app_state: &AppState,
+    filters: &SearchFilters,
+) -> bool {
     let raw_len = app_state.raw_data.len();
     if raw_len == 0 || query.is_empty() {
         return false;
@@ -545,31 +782,41 @@ fn check_string_pattern(address: u16, query: &str, app_state: &AppState) -> bool
     }
 
     // Check PETSCII encoding (both shifted and unshifted)
-    let petscii_match = (0..=1).any(|shift| {
-        let shifted = shift == 1;
-        query_chars.iter().enumerate().all(|(i, &query_char)| {
-            let idx = start_offset + i;
-            let byte = app_state.raw_data[idx];
-            let petscii_char = petscii_to_unicode(byte, shifted);
-            petscii_char.eq_ignore_ascii_case(&query_char)
-        })
-    });
+    if filters.petscii_text {
+        let petscii_match = (0..=1).any(|shift| {
+            let shifted = shift == 1;
+            query_chars.iter().enumerate().all(|(i, &query_char)| {
+                let idx = start_offset + i;
+                let byte = app_state.raw_data[idx];
+                let petscii_char = petscii_to_unicode(byte, shifted);
+                petscii_char.eq_ignore_ascii_case(&query_char)
+            })
+        });
 
-    if petscii_match {
-        return true;
+        if petscii_match {
+            return true;
+        }
     }
 
     // Check Screencode encoding (convert to PETSCII first, then to Unicode)
-    (0..=1).any(|shift| {
-        let shifted = shift == 1;
-        query_chars.iter().enumerate().all(|(i, &query_char)| {
-            let idx = start_offset + i;
-            let screencode_byte = app_state.raw_data[idx];
-            let petscii_byte = screencode_to_petscii(screencode_byte);
-            let sc_char = petscii_to_unicode(petscii_byte, shifted);
-            sc_char.eq_ignore_ascii_case(&query_char)
-        })
-    })
+    if filters.screencode_text {
+        let screencode_match = (0..=1).any(|shift| {
+            let shifted = shift == 1;
+            query_chars.iter().enumerate().all(|(i, &query_char)| {
+                let idx = start_offset + i;
+                let screencode_byte = app_state.raw_data[idx];
+                let petscii_byte = screencode_to_petscii(screencode_byte);
+                let sc_char = petscii_to_unicode(petscii_byte, shifted);
+                sc_char.eq_ignore_ascii_case(&query_char)
+            })
+        });
+
+        if screencode_match {
+            return true;
+        }
+    }
+
+    false
 }
 
 #[cfg(test)]
@@ -618,18 +865,19 @@ mod tests_string {
         app_state.origin = 0x1000;
 
         // 1. PETSCII match (unshifted)
-        assert!(check_string_pattern(0x1000, "HELLO", &app_state));
-        assert!(check_string_pattern(0x1000, "hello", &app_state)); // Case-insensitive
-        assert!(check_string_pattern(0x1000, "HellO", &app_state));
+        let filters = SearchFilters::default();
+        assert!(check_string_pattern(0x1000, "HELLO", &app_state, &filters));
+        assert!(check_string_pattern(0x1000, "hello", &app_state, &filters)); // Case-insensitive
+        assert!(check_string_pattern(0x1000, "HellO", &app_state, &filters));
 
         // 2. Screencode match
         // Note: screencode_to_petscii(0x08) -> 0x48 ('H' or 'h' shifted)
-        assert!(check_string_pattern(0x1005, "hello", &app_state));
-        assert!(check_string_pattern(0x1005, "HELLO", &app_state));
+        assert!(check_string_pattern(0x1005, "hello", &app_state, &filters));
+        assert!(check_string_pattern(0x1005, "HELLO", &app_state, &filters));
 
         // 3. No match
-        assert!(!check_string_pattern(0x1000, "WORLD", &app_state));
-        assert!(!check_string_pattern(0x1008, "HELLO", &app_state)); // Out of bounds/Too long
+        assert!(!check_string_pattern(0x1000, "WORLD", &app_state, &filters));
+        assert!(!check_string_pattern(0x1008, "HELLO", &app_state, &filters)); // Out of bounds/Too long
     }
 
     #[test]
@@ -659,7 +907,8 @@ mod tests_string {
 
         // This is what get_line_matches CURRENTLY does (simplified)
         let query = "landing";
-        let found_at_start = check_string_pattern(line.address, query, &app_state);
+        let filters = SearchFilters::default();
+        let found_at_start = check_string_pattern(line.address, query, &app_state, &filters);
         assert!(
             !found_at_start,
             "Should not find at start due to leading 0x00"
@@ -668,7 +917,7 @@ mod tests_string {
         // The bug is that we don't check offsets. This test will help me verify the fix.
         let mut found_at_any_offset = false;
         for offset in 0..line.bytes.len() {
-            if check_string_pattern(line.address + offset as u16, query, &app_state) {
+            if check_string_pattern(line.address + offset as u16, query, &app_state, &filters) {
                 found_at_any_offset = true;
                 break;
             }

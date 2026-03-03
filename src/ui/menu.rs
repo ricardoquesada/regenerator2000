@@ -1364,6 +1364,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         MenuAction::Search => {
             ui_state.active_dialog = Some(Box::new(crate::ui::dialog_search::SearchDialog::new(
                 ui_state.last_search_query.clone(),
+                ui_state.search_filters.clone(),
             )));
             ui_state.set_status_message("Search...");
         }
