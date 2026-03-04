@@ -290,8 +290,15 @@ impl Formatter for AcmeFormatter {
         s
     }
 
-    fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String {
-        let operand = if is_zp && value <= 0xFF {
+    fn format_definition(&self, name: &str, value: u16, _is_zp: bool) -> String {
+        // In ACME, defining a symbol with leading zeros (e.g., $00c5) sets the
+        // "force absolute" flag on that symbol, causing ALL references to use
+        // 3-byte absolute addressing even when the original code used 2-byte
+        // zero-page addressing.  To avoid this, we always use the shortest hex
+        // representation: $xx for values <= $FF, $xxxx otherwise.  The +2
+        // mnemonic suffix already forces absolute on a per-instruction basis
+        // where needed (see format_instruction).
+        let operand = if value <= 0xFF {
             format!("${:02x}", value)
         } else {
             format!("${:04x}", value)
