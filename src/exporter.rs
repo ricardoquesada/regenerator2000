@@ -512,9 +512,13 @@ fn run_assembler(
         }
         Assembler::Kick => {
             // KickAssembler: java -jar KickAss.jar input.asm -o output.prg
+            // Use KICKASS_JAR env var for the absolute path to the jar file,
+            // since current_dir is set to a temp directory.
+            let jar_path =
+                std::env::var("KICKASS_JAR").unwrap_or_else(|_| "KickAss.jar".to_string());
             Command::new("java")
                 .arg("-jar")
-                .arg("KickAss.jar")
+                .arg(&jar_path)
                 .arg(asm_path)
                 .arg("-o")
                 .arg(prg_path)
