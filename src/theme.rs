@@ -121,13 +121,21 @@ impl Dracula {
     const YELLOW: Color = Color::Rgb(241, 250, 140);
 }
 
-// Gruvbox Dark Palette
+// Gruvbox Palette
 struct Gruvbox;
 impl Gruvbox {
+    // Dark base colors
     const BG0: Color = Color::Rgb(40, 40, 40);
     const BG1: Color = Color::Rgb(60, 56, 54);
     const FG: Color = Color::Rgb(235, 219, 178);
     const GRAY: Color = Color::Rgb(146, 131, 116);
+
+    // Light base colors
+    const BG0_LIGHT: Color = Color::Rgb(251, 241, 199);
+    const BG1_LIGHT: Color = Color::Rgb(235, 219, 178);
+    const FG_LIGHT: Color = Color::Rgb(60, 56, 54);
+
+    // Shared accent colors (same for dark and light)
     const RED: Color = Color::Rgb(251, 73, 52);
     const GREEN: Color = Color::Rgb(184, 187, 38);
     const YELLOW: Color = Color::Rgb(250, 189, 47);
@@ -157,6 +165,7 @@ impl Theme {
             "Solarized Light" => Self::light(),
             "Dracula" => Self::dracula(),
             "Gruvbox Dark" => Self::gruvbox_dark(),
+            "Gruvbox Light" => Self::gruvbox_light(),
             "Monokai" => Self::monokai(),
             _ => Self::dark(),
         }
@@ -312,6 +321,7 @@ impl Theme {
             "Solarized Light",
             "Dracula",
             "Gruvbox Dark",
+            "Gruvbox Light",
             "Monokai",
         ]
     }
@@ -455,6 +465,78 @@ impl Theme {
             block_undefined_bg: Gruvbox::BG0,
             block_splitter_fg: Gruvbox::GRAY,
             block_splitter_bg: Gruvbox::BG0,
+        }
+    }
+
+    pub fn gruvbox_light() -> Self {
+        Self {
+            name: "Gruvbox Light",
+            background: Gruvbox::BG0_LIGHT,
+            foreground: Gruvbox::FG_LIGHT,
+            border_active: Gruvbox::ORANGE,
+            border_inactive: Gruvbox::BG1_LIGHT,
+            selection_bg: Gruvbox::BG1_LIGHT,
+            selection_fg: Gruvbox::FG_LIGHT,
+            status_bar_bg: Gruvbox::BG1_LIGHT,
+            status_bar_fg: Gruvbox::FG_LIGHT,
+            block_selection_bg: Gruvbox::GRAY, // Higher contrast on light bg
+            block_selection_fg: Gruvbox::BG0_LIGHT, // Higher contrast on light bg
+
+            address: Gruvbox::YELLOW,
+            bytes: Gruvbox::GRAY,
+            mnemonic: Gruvbox::RED,
+            operand: Gruvbox::FG_LIGHT,
+            label: Gruvbox::AQUA,
+            label_def: Gruvbox::AQUA,
+            comment: Gruvbox::GRAY,
+            arrow: Gruvbox::GRAY,
+            collapsed_block: Gruvbox::ORANGE,
+            collapsed_block_bg: Gruvbox::BG0_LIGHT,
+
+            hex_bytes: Gruvbox::FG_LIGHT,
+            hex_ascii: Gruvbox::AQUA,
+
+            dialog_bg: Gruvbox::BG1_LIGHT,
+            dialog_fg: Gruvbox::FG_LIGHT,
+            dialog_border: Gruvbox::ORANGE,
+            menu_bg: Gruvbox::BG0_LIGHT,
+            menu_fg: Gruvbox::FG_LIGHT,
+            menu_selected_bg: Gruvbox::BG1_LIGHT,
+            menu_selected_fg: Gruvbox::ORANGE,
+            menu_disabled_fg: Gruvbox::GRAY,
+
+            sprite_multicolor_1: Gruvbox::RED,
+            sprite_multicolor_2: Gruvbox::PURPLE,
+            charset_multicolor_1: Gruvbox::YELLOW,
+            charset_multicolor_2: Gruvbox::GREEN,
+
+            highlight_fg: Gruvbox::ORANGE,
+            highlight_bg: Gruvbox::BG1_LIGHT,
+            error_fg: Gruvbox::RED,
+
+            // Blocks - Light (Bg uses slightly darker base)
+            block_code_fg: Gruvbox::RED,
+            block_code_bg: Gruvbox::BG1_LIGHT,
+            block_data_byte_fg: Gruvbox::PURPLE,
+            block_data_byte_bg: Gruvbox::BG1_LIGHT,
+            block_data_word_fg: Gruvbox::BLUE,
+            block_data_word_bg: Gruvbox::BG1_LIGHT,
+            block_address_fg: Gruvbox::YELLOW,
+            block_address_bg: Gruvbox::BG1_LIGHT,
+            block_petscii_text_fg: Gruvbox::GREEN,
+            block_petscii_text_bg: Gruvbox::BG1_LIGHT,
+            block_screencode_text_fg: Gruvbox::AQUA,
+            block_screencode_text_bg: Gruvbox::BG1_LIGHT,
+            block_lohi_fg: Gruvbox::ORANGE,
+            block_lohi_bg: Gruvbox::BG1_LIGHT,
+            block_hilo_fg: Gruvbox::ORANGE,
+            block_hilo_bg: Gruvbox::BG1_LIGHT,
+            block_external_file_fg: Gruvbox::GRAY,
+            block_external_file_bg: Gruvbox::BG1_LIGHT,
+            block_undefined_fg: Gruvbox::GRAY,
+            block_undefined_bg: Gruvbox::BG1_LIGHT,
+            block_splitter_fg: Gruvbox::GRAY,
+            block_splitter_bg: Gruvbox::BG1_LIGHT,
         }
     }
 

@@ -1,6 +1,6 @@
 # Themes
 
-Regenerator 2000 ships with **5 built-in color themes**. You can switch between them in **File → Settings**
+Regenerator 2000 ships with **6 built-in color themes**. You can switch between them in **File → Settings**
 (++alt+o++ or ++ctrl+comma++) under the **Theme** option.
 
 ## Available Themes
@@ -28,6 +28,12 @@ Regenerator 2000 ships with **5 built-in color themes**. You can switch between 
     A retro-groove color scheme with warm, earthy tones (orange, yellow, aqua).
 
     ![Gruvbox Dark](theme_gruvbox_dark.png)
+
+=== "Gruvbox Light"
+
+    The light variant of Gruvbox. A warm, creamy background with the same earthy accent colors. Great for bright environments.
+
+    ![Gruvbox Light](theme_gruvbox_light.png)
 
 === "Monokai"
 
