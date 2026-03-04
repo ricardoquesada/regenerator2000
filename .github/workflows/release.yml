@@ -18,6 +18,9 @@ jobs:
           - os: ubuntu-latest
             artifact_name: regenerator2000
             asset_name: regenerator2000-linux-amd64
+          - os: ubuntu-24.04-arm
+            artifact_name: regenerator2000
+            asset_name: regenerator2000-linux-arm64
           - os: windows-latest
             artifact_name: regenerator2000.exe
             asset_name: regenerator2000-windows-amd64
@@ -110,7 +113,7 @@ jobs:
 
       # 5. Package (Linux)
       - name: Package (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: startsWith(matrix.os, 'ubuntu')
         run: |
           tar -czf ${{ matrix.asset_name }}.tar.gz target/release/${{ matrix.artifact_name }}
 
