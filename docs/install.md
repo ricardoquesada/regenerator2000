@@ -48,6 +48,7 @@ regenerator2000 [OPTIONS] [FILE]
 - `--import_lbl <PATH>`: Import VICE labels from the specified file.
 - `--export_lbl <PATH>`: Export labels to the specified file (after analysis/import).
 - `--export_asm <PATH>`: Export assembly to the specified file (after analysis/import).
+- `--assembler <NAME>`: Override the assembler format used for export. Valid values: `64tass`, `acme`, `ca65`, `kick`. If omitted, the project's saved setting is used.
 - `--headless`: Run in headless mode (no TUI), useful for batch processing.
 - `--verify`: Verify export roundtrip (export → assemble → diff) for all 4 assemblers. Requires `--headless` (implied automatically). See [Assemblers](assemblers.md) for details.
 - `--mcp-server`: Run MCP server (HTTP on port 3000). See [MCP Integration](mcp.md) for details.

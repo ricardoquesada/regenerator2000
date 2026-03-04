@@ -80,6 +80,7 @@ fn main() -> Result<()> {
     let mut export_lbl_path = None;
     let mut export_asm_path = None;
     let mut verify = false;
+    let mut assembler_override = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -106,6 +107,9 @@ fn main() -> Result<()> {
                 );
                 println!(
                     "    --export_asm <PATH>       Export assembly to the specified file (after analysis/import)"
+                );
+                println!(
+                    "    --assembler <NAME>        Override assembler format (64tass, acme, ca65, kick)"
                 );
                 println!("    --headless                Run in headless mode (no TUI)");
                 println!("                              Only .regen2000proj files supported");
@@ -165,6 +169,15 @@ fn main() -> Result<()> {
                 verify = true;
                 headless = true; // verify implies headless
                 i += 1;
+            }
+            "--assembler" => {
+                if i + 1 < args.len() {
+                    assembler_override = Some(args[i + 1].clone());
+                    i += 2;
+                } else {
+                    eprintln!("Error: --assembler requires a name (64tass, acme, ca65, kick)");
+                    std::process::exit(1);
+                }
             }
             arg if arg.starts_with('-') => {
                 eprintln!("Error: Invalid command line option: {}", arg);
@@ -342,6 +355,27 @@ fn main() -> Result<()> {
                     std::process::exit(1);
                 }
             }
+        }
+    }
+
+    // Apply assembler override (before export or verify)
+    if let Some(ref name) = assembler_override {
+        let assembler = match name.to_ascii_lowercase().as_str() {
+            "64tass" | "tass64" | "tass" => regenerator2000::state::Assembler::Tass64,
+            "acme" => regenerator2000::state::Assembler::Acme,
+            "ca65" | "cc65" => regenerator2000::state::Assembler::Ca65,
+            "kick" | "kickassembler" | "kickasm" => regenerator2000::state::Assembler::Kick,
+            _ => {
+                eprintln!(
+                    "Error: Unknown assembler '{}'. Valid values: 64tass, acme, ca65, kick",
+                    name
+                );
+                std::process::exit(1);
+            }
+        };
+        app_state.settings.assembler = assembler;
+        if headless && !mcp_server {
+            println!("Assembler overridden to: {}", assembler);
         }
     }
 

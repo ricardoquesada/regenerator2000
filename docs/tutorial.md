@@ -282,6 +282,9 @@ For scripting and automation, you can run Regenerator 2000 without the TUI:
 # Load, auto-analyze, and export — all from the command line
 regenerator2000 --headless --export_asm output.asm my_game.prg
 
+# Override the assembler format (64tass, acme, ca65, kick)
+regenerator2000 --headless --assembler acme --export_asm output.asm my_game.regen2000proj
+
 # Import VICE labels and export
 regenerator2000 --headless --import_lbl labels.lbl --export_asm output.asm my_game.prg
 ```

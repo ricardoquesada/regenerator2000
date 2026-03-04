@@ -228,6 +228,9 @@ You can also export from the command line:
 
 ```bash
 regenerator2000 --headless --export_asm output.asm my_file.prg
+
+# Override assembler format:
+regenerator2000 --headless --assembler acme --export_asm output.asm my_file.regen2000proj
 ```
 
 ### Can I export VICE labels?
