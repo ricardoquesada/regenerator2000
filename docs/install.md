@@ -49,6 +49,7 @@ regenerator2000 [OPTIONS] [FILE]
 - `--export_lbl <PATH>`: Export labels to the specified file (after analysis/import).
 - `--export_asm <PATH>`: Export assembly to the specified file (after analysis/import).
 - `--headless`: Run in headless mode (no TUI), useful for batch processing.
+- `--verify`: Verify export roundtrip (export → assemble → diff) for all 4 assemblers. Requires `--headless` (implied automatically). See [Assemblers](assemblers.md) for details.
 - `--mcp-server`: Run MCP server (HTTP on port 3000). See [MCP Integration](mcp.md) for details.
 - `--mcp-server-stdio`: Run MCP server via stdio (headless mode).
 
