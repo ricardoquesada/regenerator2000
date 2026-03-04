@@ -52,6 +52,28 @@ java -jar kickass.jar input.asm
 
 KickAssembler automatically produces a `.prg` file by default.
 
+!!! tip "Environment Variable"
+
+    Because KickAssembler is a `.jar` file (not a standalone binary), `--verify` needs to know its
+    absolute path. Set the **`KICKASS_JAR`** environment variable to the full path of the jar:
+
+    === "macOS / Linux"
+
+        ```bash
+        export KICKASS_JAR="$HOME/bin/KickAss.jar"
+        ```
+
+        Add the line above to your `~/.zshrc`, `~/.bashrc`, or equivalent to make it permanent.
+
+    === "Windows"
+
+        ```powershell
+        setx KICKASS_JAR "C:\Tools\KickAssembler\KickAss.jar"
+        ```
+
+    If `KICKASS_JAR` is not set, Regenerator 2000 falls back to `KickAss.jar` in the working
+    directory.
+
 ## ca65
 
 **ca65** is the macro assembler included with the **cc65** compiler suite. It is a powerful tool often used for larger projects requiring linking.
@@ -103,3 +125,46 @@ in the [cc65 documentation][cc65-docs].
 
 [c64-asm.cfg]: https://github.com/cc65/cc65/blob/master/cfg/c64-asm.cfg
 [cc65-docs]: https://cc65.github.io/doc/ld65.html#s5
+
+---
+
+## Verifying Exports
+
+Regenerator 2000 includes a **roundtrip verification** mode that exports your project to all four assemblers,
+assembles each output, and compares the result byte-for-byte against the original binary. This ensures your
+disassembly is accurate and complete.
+
+### Usage
+
+```bash
+regenerator2000 --verify my_project.regen2000proj
+```
+
+The `--verify` flag implies `--headless` (no TUI is started). Only `.regen2000proj` files are supported.
+
+### Requirements
+
+All four assemblers must be installed and available in your `PATH`:
+
+| Assembler      | Binary / Command | Notes                                                    |
+| :------------- | :--------------- | :------------------------------------------------------- |
+| 64tass         | `64tass`         | Must be in `PATH`                                        |
+| ACME           | `acme`           | Must be in `PATH`                                        |
+| ca65 (cc65)    | `cl65`           | Must be in `PATH`                                        |
+| KickAssembler  | `java -jar ...`  | Requires `KICKASS_JAR` env var (see [above](#kickassembler)) |
+
+If an assembler is not found, it is **skipped** (not counted as a failure). At least one assembler must
+be available for verification to succeed.
+
+### Example Output
+
+```text
+Roundtrip Export Verification
+=============================
+  ✓ 64tass — byte-identical (2049 bytes)
+  ✓ ACME — byte-identical (2049 bytes)
+  ✓ ca65 — byte-identical (2049 bytes)
+  ✓ KickAssembler — byte-identical (2049 bytes)
+
+✓ All roundtrip verifications passed.
+```
