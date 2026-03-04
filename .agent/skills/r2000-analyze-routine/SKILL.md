@@ -9,9 +9,10 @@ Use this skill when the user asks to "analyze this routine" or "what does this f
 
 ## 1. Determine Platform & Context
 
-- Use `r2000_get_binary_info` to get the **platform**, **filename**, and **description**.
+- Use `r2000_get_binary_info` to get the **platform**, **filename**, **description**, and **`may_contain_undocumented_opcodes`** hint.
 - **CRITICAL**: The `platform` field tells you the target computer (e.g., Commodore 64, VIC-20). You **MUST** become an expert in that specific target computer's memory map, hardware registers, and KERNAL routines.
 - **CONTEXT**: The `filename` and `description` tell you the specific software being analyzed. Use this to identify standard libraries (e.g., "Hubbard music driver", "Exomizer decompressor") and to understand the likely purpose of routines based on the game's genre (e.g., "check_collision" in a shooter).
+- **UNDOCUMENTED OPCODES**: If `may_contain_undocumented_opcodes` is `true`, expect illegal/undocumented MOS 6502 opcodes (e.g., `LAX`, `SAX`, `SLO`, `DCP`, `ISC`) within routines. These are valid instructions — do not treat them as disassembly errors.
 
 ## 2. Identify the Bounds
 
@@ -144,7 +145,7 @@ To document the routine, use:
 2. **Tail calls**: A `JMP sub_routine` at the end is a tail call — the routine _ends_ there. Do not include the target routine's body in this routine's analysis.
 3. **Shared epilogue**: Multiple routines may converge to a single `RTS`. The epilogue belongs to none of them specifically; note this in the comment.
 4. **Indirect dispatch targets**: A routine with no callers may still be active — it could be referenced by a pointer in a jump table. Check nearby data blocks for address tables.
-5. **Undocumented opcodes**: Some C64 programs use illegal opcodes (`LAX`, `SAX`, `SLO`, etc.). These are valid code — don't stop disassembly at them.
+5. **Undocumented opcodes**: Some programs use illegal/undocumented opcodes (`LAX`, `SAX`, `SLO`, etc.). Check the `may_contain_undocumented_opcodes` hint from `r2000_get_binary_info`. If `true`, these are expected — don't stop disassembly at them. Even if `false`, remain aware of their existence.
 6. **IRQ re-entrancy confusion**: If an IRQ handler calls `JSR` routines, those routines may share Zero Page with the main program — context is IRQ-relative.
 
 ---

@@ -13,6 +13,7 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 - **Get the Platform**: Use `r2000_get_binary_info`.
   - **CRITICAL**: Knowing the platform (e.g., C64, VIC-20) is essential for identifying hardware registers (VIC-II, SID, CIA, VIA).
   - **CONTEXT**: Use the `filename` response and `description` (if provided) to identify the specific game or program. This allows you to infer domain-specific labels (e.g., "lap_counter" for a racing game, "lives" for a platformer) and look up known memory maps for popular titles.
+  - **UNDOCUMENTED OPCODES**: If `may_contain_undocumented_opcodes` is `true`, the binary may use illegal/undocumented MOS 6502 opcodes. When tracing cross-references, be aware that instructions like `LAX`, `SAX`, `DCP`, etc. are valid and their read/write side effects must be considered in the data flow analysis.
 
 ## 2. Gather Usage Data
 

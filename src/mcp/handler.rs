@@ -168,7 +168,7 @@ fn list_tools() -> Result<Value, McpError> {
             },
             {
                 "name": "r2000_get_binary_info",
-                "description": "Returns the origin address, size in bytes, target platform (e.g. 'Commodore 64'), filename, and user-provided description of the loaded binary.",
+                "description": "Returns the origin address, size in bytes, target platform (e.g. 'Commodore 64'), filename, user-provided description, and whether the binary may contain undocumented opcodes (a hint, not guaranteed).",
                 "inputSchema": { "type": "object", "properties": {} }
             },
             {
@@ -547,7 +547,8 @@ fn handle_tool_call_internal(
                         "size": size,
                         "platform": platform,
                         "filename": filename,
-                        "description": app_state.settings.description
+                        "description": app_state.settings.description,
+                        "may_contain_undocumented_opcodes": app_state.settings.use_illegal_opcodes
                     })).unwrap_or_default()
                 }]
             }))

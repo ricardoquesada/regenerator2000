@@ -40,9 +40,10 @@ Use `r2000_set_data_type` with the `data_type` enum value from the right column.
 ### 1. Determine Scope
 
 - Ask the user what range to analyze, or default to the **entire binary**.
-- Use `r2000_get_binary_info` to get the origin address, size, **platform**, and **description**.
+- Use `r2000_get_binary_info` to get the origin address, size, **platform**, **description**, and **`may_contain_undocumented_opcodes`** hint.
   - **CRITICAL**: The `platform` field tells you the target computer (e.g., C64, VIC-20). You **MUST** become an expert in that specific target computer's memory map, hardware registers, and KERNAL routines for the duration of the analysis.
   - **CONTEXT**: The `filename` field (e.g., "burnin_rubber.prg", "turrican.d64") and `description` (if provided by the user) give you the specific software context. Use this to search for known memory maps, common drivers (music, compression), and game-specific variables.
+  - **UNDOCUMENTED OPCODES**: If `may_contain_undocumented_opcodes` is `true`, the binary may use illegal/undocumented MOS 6502 opcodes (e.g., `LAX`, `SAX`, `SLO`, `DCP`, `ISC`). Do **NOT** misclassify these instructions as data — they are valid code. This is a hint set by the user; it is not guaranteed, but you should be prepared to encounter them.
 - Use `r2000_get_analyzed_blocks` to see what has already been classified.
 - If the user says "the whole thing" or "entire binary", work in chunks of **~256–512 bytes** to avoid overwhelming context windows.
 
@@ -236,7 +237,7 @@ This avoids making dozens of individual round-trip tool calls.
 3. **Forgetting splitters**: Two adjacent byte tables will auto-merge into one. Use `r2000_toggle_splitter` at the boundary.
 4. **Lo/Hi table half-size errors**: Lo/Hi and Hi/Lo tables _must_ have an even total byte count. Verify the halves are equal-sized.
 5. **Text encoding confusion**: PETSCII ≠ Screencode. If copied to $0400, it's screencode. If passed to CHROUT ($FFD2), it's PETSCII.
-6. **Undocumented opcodes**: Some C64 programs use illegal opcodes (e.g., `LAX`, `SAX`, `SLO`). These are valid code — don't misclassify them as data.
+6. **Undocumented opcodes**: Some programs use illegal/undocumented opcodes (e.g., `LAX`, `SAX`, `SLO`). Check the `may_contain_undocumented_opcodes` hint from `r2000_get_binary_info`. If `true`, be extra cautious about classifying unfamiliar instruction sequences as data — they may be valid code using undocumented opcodes. Even if `false`, some programs still use them, so remain vigilant.
 
 ---
 

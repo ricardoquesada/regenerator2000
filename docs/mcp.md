@@ -285,7 +285,9 @@ Returns the list of memory blocks as analyzed, including their range and type. R
 
 ### `r2000_get_binary_info`
 
-Returns the origin address, size in bytes, target platform (e.g. 'Commodore 64'), filename, and user-provided description of the loaded binary.
+Returns the origin address, size in bytes, target platform (e.g. 'Commodore 64'), filename, user-provided description, and whether the binary may contain undocumented opcodes of the loaded binary.
+
+The response includes a `may_contain_undocumented_opcodes` boolean field. When `true`, it is a **hint** that the binary might use undocumented/illegal MOS 6502 opcodes (e.g., `LAX`, `SAX`, `SLO`). This flag is set by the user in the Document Settings dialog ("Use Illegal Opcodes"). It is not a guarantee — treat it as guidance for the analysis.
 
 _No arguments._
 
