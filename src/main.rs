@@ -20,6 +20,51 @@ use simplelog::*;
 use std::fs::File;
 use std::panic;
 
+use clap::Parser;
+
+/// An interactive disassembler for the MOS 6502, focused on Commodore 8-bit computers.
+#[derive(Parser)]
+#[command(
+    version,
+    after_help = "Supported file types: .prg, .crt, .t64, .d64, .d71, .d81, .vsf, .bin, .raw, .regen2000proj"
+)]
+struct Cli {
+    /// File to load (.prg, .crt, .d64, .d71, .d81, .t64, .vsf, .bin, .raw, .regen2000proj)
+    file: Option<String>,
+
+    /// Import VICE labels from the specified file
+    #[arg(long = "import_lbl", value_name = "PATH")]
+    import_lbl: Option<String>,
+
+    /// Export labels to the specified file (after analysis/import)
+    #[arg(long = "export_lbl", value_name = "PATH")]
+    export_lbl: Option<String>,
+
+    /// Export assembly to the specified file (after analysis/import)
+    #[arg(long = "export_asm", value_name = "PATH")]
+    export_asm: Option<String>,
+
+    /// Override assembler format (64tass, acme, ca65, kick)
+    #[arg(long, value_name = "NAME")]
+    assembler: Option<String>,
+
+    /// Run in headless mode (no TUI, only .regen2000proj files supported)
+    #[arg(long)]
+    headless: bool,
+
+    /// Verify export roundtrip (export → assemble → diff). Implies --headless
+    #[arg(long)]
+    verify: bool,
+
+    /// Run MCP server (HTTP port 3000)
+    #[arg(long = "mcp-server")]
+    mcp_server: bool,
+
+    /// Run MCP server (stdio, headless)
+    #[arg(long = "mcp-server-stdio")]
+    mcp_server_stdio: bool,
+}
+
 async fn check_for_new_version() -> Option<String> {
     const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
     const API_URL: &str =
@@ -69,126 +114,18 @@ fn main() -> Result<()> {
     );
     log::info!("Regenerator 2000 started");
 
-    // Check args and load initial project/file
-    let args: Vec<String> = std::env::args().collect();
+    // Parse command-line arguments
+    let cli = Cli::parse();
 
-    let mut file_to_load = None;
-    let mut labels_to_import = None;
-
-    let mut headless = false;
-    let mut mcp_server = false;
-    let mut export_lbl_path = None;
-    let mut export_asm_path = None;
-    let mut verify = false;
-    let mut assembler_override = None;
-
-    let mut i = 1;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--version" => {
-                println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-                return Ok(());
-            }
-            "--help" => {
-                println!("Usage: {} [OPTIONS] [FILE]", env!("CARGO_PKG_NAME"));
-                println!();
-                println!(
-                    "Supported file types: .prg, .crt, .t64, .d64, .d71, .d81, .vsf, .bin, .raw, .regen2000proj"
-                );
-                println!();
-                println!("Options:");
-                println!("    --help                    Print this help message");
-                println!("    --version                 Print version information");
-                println!(
-                    "    --import_lbl <PATH>       Import VICE labels from the specified file"
-                );
-                println!(
-                    "    --export_lbl <PATH>       Export labels to the specified file (after analysis/import)"
-                );
-                println!(
-                    "    --export_asm <PATH>       Export assembly to the specified file (after analysis/import)"
-                );
-                println!(
-                    "    --assembler <NAME>        Override assembler format (64tass, acme, ca65, kick)"
-                );
-                println!("    --headless                Run in headless mode (no TUI)");
-                println!("                              Only .regen2000proj files supported");
-                println!(
-                    "    --verify                  Verify export roundtrip (export → assemble → diff)"
-                );
-                println!(
-                    "                              Tests all 4 assemblers. Requires --headless"
-                );
-                println!("    --mcp-server              Run MCP server (HTTP port 3000)");
-                println!("    --mcp-server-stdio        Run MCP server (stdio)");
-                return Ok(());
-            }
-            "--mcp-server" => {
-                mcp_server = true;
-                i += 1;
-            }
-            "--mcp-server-stdio" => {
-                mcp_server = true;
-                headless = true; // stdio MCP is always headless
-                i += 1;
-                // We'll need a special mode for this
-                // Let's use a local flag
-            }
-            "--import_lbl" => {
-                if i + 1 < args.len() {
-                    labels_to_import = Some(args[i + 1].clone());
-                    i += 2;
-                } else {
-                    eprintln!("Error: --import_lbl requires a file path");
-                    std::process::exit(1);
-                }
-            }
-            "--export_lbl" => {
-                if i + 1 < args.len() {
-                    export_lbl_path = Some(args[i + 1].clone());
-                    i += 2;
-                } else {
-                    eprintln!("Error: --export_lbl requires a file path");
-                    std::process::exit(1);
-                }
-            }
-            "--export_asm" => {
-                if i + 1 < args.len() {
-                    export_asm_path = Some(args[i + 1].clone());
-                    i += 2;
-                } else {
-                    eprintln!("Error: --export_asm requires a file path");
-                    std::process::exit(1);
-                }
-            }
-            "--headless" => {
-                headless = true;
-                i += 1;
-            }
-            "--verify" => {
-                verify = true;
-                headless = true; // verify implies headless
-                i += 1;
-            }
-            "--assembler" => {
-                if i + 1 < args.len() {
-                    assembler_override = Some(args[i + 1].clone());
-                    i += 2;
-                } else {
-                    eprintln!("Error: --assembler requires a name (64tass, acme, ca65, kick)");
-                    std::process::exit(1);
-                }
-            }
-            arg if arg.starts_with('-') => {
-                eprintln!("Error: Invalid command line option: {}", arg);
-                std::process::exit(1);
-            }
-            arg => {
-                file_to_load = Some(arg.to_string());
-                i += 1;
-            }
-        }
-    }
+    let file_to_load = cli.file;
+    let labels_to_import = cli.import_lbl;
+    let export_lbl_path = cli.export_lbl;
+    let export_asm_path = cli.export_asm;
+    let assembler_override = cli.assembler;
+    let verify = cli.verify;
+    let mcp_server_stdio = cli.mcp_server_stdio;
+    let headless = cli.headless || cli.verify || cli.mcp_server_stdio;
+    let mcp_server = cli.mcp_server || cli.mcp_server_stdio;
 
     // Validate headless mode restrictions
     if headless && let Some(file_str) = &file_to_load {
@@ -440,8 +377,7 @@ fn main() -> Result<()> {
     if headless && mcp_server {
         // Run as standalone MCP server (stdio or HTTP without TUI)
         // Check if stdout is being redirected or if we want stdio mode
-        let args: Vec<String> = std::env::args().collect();
-        let use_stdio = args.iter().any(|a| a == "--mcp-server-stdio");
+        let use_stdio = mcp_server_stdio;
 
         if use_stdio {
             let rt = tokio::runtime::Runtime::new()?;
