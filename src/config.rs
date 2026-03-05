@@ -96,10 +96,6 @@ impl SystemConfig {
                             backup_path,
                             e
                         );
-                        eprintln!(
-                            "Warning: Config file corrupted. Resetting to defaults. Backup created at {:?}",
-                            backup_path
-                        );
                     }
                 }
             }
