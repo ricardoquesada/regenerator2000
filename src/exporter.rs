@@ -11,7 +11,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         .and_then(|s| s.to_str())
         .unwrap_or("export");
 
-    output.push_str(&formatter.format_file_header(base_name));
+    output.push_str(&formatter.format_file_header(base_name, state.settings.use_illegal_opcodes));
 
     let mut origin_printed = false;
 
@@ -347,7 +347,13 @@ pub fn verify_roundtrip(
     }
 
     // 2. Assemble
-    let assemble_result = run_assembler(assembler, &asm_file, &prg_file, &dir);
+    let assemble_result = run_assembler(
+        assembler,
+        &asm_file,
+        &prg_file,
+        &dir,
+        state.settings.use_illegal_opcodes,
+    );
     match assemble_result {
         Err(e) => {
             let _ = std::fs::remove_dir_all(&dir);
@@ -474,6 +480,7 @@ fn run_assembler(
     asm_file: &std::path::Path,
     prg_file: &std::path::Path,
     work_dir: &std::path::Path,
+    use_illegal_opcodes: bool,
 ) -> Result<String, String> {
     use crate::state::Assembler;
     use std::process::Command;
@@ -482,27 +489,39 @@ fn run_assembler(
     let prg_path = prg_file.to_str().unwrap_or("verify.prg");
 
     let output = match assembler {
-        Assembler::Tass64 => Command::new("64tass")
-            .arg("-o")
-            .arg(prg_path)
-            .arg(asm_path)
-            .current_dir(work_dir)
-            .output(),
-        Assembler::Acme => Command::new("acme")
-            .arg("--format")
-            .arg("cbm")
-            .arg("-o")
-            .arg(prg_path)
-            .arg(asm_path)
-            .current_dir(work_dir)
-            .output(),
+        Assembler::Tass64 => {
+            let mut cmd = Command::new("64tass");
+            if use_illegal_opcodes {
+                cmd.arg("-i");
+            }
+            cmd.arg("-o")
+                .arg(prg_path)
+                .arg(asm_path)
+                .current_dir(work_dir)
+                .output()
+        }
+        Assembler::Acme => {
+            let mut cmd = Command::new("acme");
+            if use_illegal_opcodes {
+                cmd.arg("--cpu").arg("6510");
+            }
+            cmd.arg("--format")
+                .arg("cbm")
+                .arg("-o")
+                .arg(prg_path)
+                .arg(asm_path)
+                .current_dir(work_dir)
+                .output()
+        }
         Assembler::Ca65 => {
             // ca65 requires a two-step process: assemble then link
             // cl65 wraps both steps
-            Command::new("cl65")
-                .arg("-t")
-                .arg("c64")
-                .arg("-C")
+            let mut cmd = Command::new("cl65");
+            cmd.arg("-t").arg("c64");
+            if use_illegal_opcodes {
+                cmd.arg("--cpu").arg("6502X");
+            }
+            cmd.arg("-C")
                 .arg("c64-asm.cfg")
                 .arg(asm_path)
                 .arg("-o")

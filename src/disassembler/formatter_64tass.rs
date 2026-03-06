@@ -272,7 +272,7 @@ impl Formatter for TassFormatter {
         format!("* = ${:04x}", origin)
     }
 
-    fn format_file_header(&self, file_name: &str) -> String {
+    fn format_file_header(&self, file_name: &str, use_illegal_opcodes: bool) -> String {
         let mut s = String::new();
         s.push_str(
             ";=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n",
@@ -282,9 +282,10 @@ impl Formatter for TassFormatter {
         s.push_str("; https://github.com/ricardoquesada/regenerator2000\n");
         s.push_str(";\n");
         s.push_str("; Assemble with:\n");
+        let illegal_flag = if use_illegal_opcodes { "-i " } else { "" };
         s.push_str(&format!(
-            ";   64tass -o {}.prg {}.asm\n",
-            file_name, file_name
+            ";   64tass {}-o {}.prg {}.asm\n",
+            illegal_flag, file_name, file_name
         ));
         s.push_str(";\n");
         s.push_str(

@@ -269,7 +269,7 @@ impl Formatter for AcmeFormatter {
         format!("* = ${:04x}", origin)
     }
 
-    fn format_file_header(&self, file_name: &str) -> String {
+    fn format_file_header(&self, file_name: &str, use_illegal_opcodes: bool) -> String {
         let mut s = String::new();
         s.push_str(
             ";=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n",
@@ -279,9 +279,14 @@ impl Formatter for AcmeFormatter {
         s.push_str("; https://github.com/ricardoquesada/regenerator2000\n");
         s.push_str(";\n");
         s.push_str("; Assemble with:\n");
+        let cpu_flag = if use_illegal_opcodes {
+            "--cpu 6510 "
+        } else {
+            ""
+        };
         s.push_str(&format!(
-            "; acme --format cbm -o {}.prg {}.asm\n",
-            file_name, file_name
+            "; acme {}--format cbm -o {}.prg {}.asm\n",
+            cpu_flag, file_name, file_name
         ));
         s.push_str(";\n");
         s.push_str(
@@ -312,7 +317,15 @@ impl Formatter for AcmeFormatter {
         let _address = ctx.address;
         let settings = ctx.settings;
 
-        let mnemonic = self.format_mnemonic(opcode.mnemonic);
+        // ACME uses "lxa" for opcode $AB (LAX immediate), not "lax"
+        let mnemonic = if opcode.illegal
+            && opcode.mnemonic == "LAX"
+            && opcode.mode == AddressingMode::Immediate
+        {
+            "lxa".to_string()
+        } else {
+            self.format_mnemonic(opcode.mnemonic)
+        };
         let operand = self.format_operand(ctx);
 
         // Check if we need to force 16-bit addressing with +2

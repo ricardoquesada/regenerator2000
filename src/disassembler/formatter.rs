@@ -49,8 +49,9 @@ pub trait Formatter {
     fn format_screencode(&self, fragments: &[TextFragment]) -> Vec<(String, String, bool)>;
     fn format_screencode_post(&self) -> Vec<(String, String)>;
     fn format_header_origin(&self, origin: u16) -> String;
-    fn format_file_header(&self, file_name: &str) -> String {
+    fn format_file_header(&self, file_name: &str, use_illegal_opcodes: bool) -> String {
         let _ = file_name;
+        let _ = use_illegal_opcodes;
         String::new()
     }
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String;

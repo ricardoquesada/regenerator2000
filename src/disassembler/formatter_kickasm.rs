@@ -305,7 +305,7 @@ impl Formatter for KickAsmFormatter {
         format!("*=${:04x}", origin)
     }
 
-    fn format_file_header(&self, file_name: &str) -> String {
+    fn format_file_header(&self, file_name: &str, _use_illegal_opcodes: bool) -> String {
         let mut s = String::new();
         s.push_str(
             "//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n",
