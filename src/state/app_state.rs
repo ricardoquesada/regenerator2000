@@ -1,6 +1,6 @@
 use super::project::{
-    Block, Label, LoadedProjectData, ProjectSaveContext, ProjectState, compress_block_types,
-    decode_raw_data_from_base64, encode_raw_data_to_base64, expand_blocks,
+    Block, Label, LoadedProjectData, PROJECT_FORMAT_VERSION, ProjectSaveContext, ProjectState,
+    compress_block_types, decode_raw_data_from_base64, encode_raw_data_to_base64, expand_blocks,
 };
 use super::settings::DocumentSettings;
 use super::types::{
@@ -359,6 +359,21 @@ impl AppState {
         let data = std::fs::read_to_string(&path)?;
         let project: ProjectState = serde_json::from_str(&data)?;
 
+        // Reject project files from newer versions we don't understand
+        if project.version > PROJECT_FORMAT_VERSION {
+            return Err(anyhow::anyhow!(
+                "Project was saved by a newer version (format v{}). \
+                 This build only supports up to format v{}. \
+                 Please update Regenerator 2000.",
+                project.version,
+                PROJECT_FORMAT_VERSION
+            ));
+        }
+
+        // Run version migrations (currently none, but the framework is ready).
+        // When PROJECT_FORMAT_VERSION is bumped to 2, add:
+        //   if project.version < 2 { /* migrate v1 → v2 */ }
+
         self.project_path = Some(path);
         self.origin = project.origin;
 
@@ -431,6 +446,7 @@ impl AppState {
     ) -> anyhow::Result<()> {
         if let Some(path) = &self.project_path {
             let project = ProjectState {
+                version: PROJECT_FORMAT_VERSION,
                 origin: self.origin,
                 raw_data: encode_raw_data_to_base64(&self.raw_data)?,
                 blocks: compress_block_types(&self.block_types, &self.collapsed_blocks),

@@ -8,6 +8,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{Read, Write};
 
+/// Current project file format version.
+/// Increment this when making breaking changes to the project file format,
+/// and add a corresponding migration in `AppState::migrate_project()`.
+pub const PROJECT_FORMAT_VERSION: u32 = 1;
+
+fn default_project_version() -> u32 {
+    1
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Label {
     pub name: String,
@@ -29,6 +38,8 @@ pub struct Block {
 // project file content remains stable across save/load cycles.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectState {
+    #[serde(default = "default_project_version")]
+    pub version: u32,
     pub origin: u16,
     #[serde(rename = "raw_data_base64")]
     pub raw_data: String,

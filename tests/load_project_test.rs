@@ -20,6 +20,7 @@ mod tests {
             regenerator2000::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
 
         let project = ProjectState {
+            version: 1,
             origin: 0x1000,
             raw_data: raw_data_base64,
             blocks: vec![Block {

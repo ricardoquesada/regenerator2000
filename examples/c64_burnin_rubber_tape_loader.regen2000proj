@@ -1,4 +1,5 @@
 {
+  "version": 1,
   "origin": 804,
   "raw_data_base64": "H4sIAAAAAAAA/wHcACP/V/HsA+32PvEv82b+N/g3+AAAAAAAAAAAWFMgpfSlkCm/0AFg6urqzgSATOL8qfGNJwOpyo0mA6kBqqAAIAD+hLeEnYTDogiGxJggPgN4qb+FZKmPhWKgAIRhhGOxYTjtPANNPQORY8jQ8sZkxmKlZMl/0OipV4VkqU+FYrFhOO3GA03HA5FjyNDyxmTGYqVkyQ/Q6KlTjRUDqZiNFANYTPQDUk/q6uqpAIWyqZCFs6mAjZECqeWNKAOpA40pA0xRA6n/hZFM7fat/wPQ2UzK8aWQKb/QA0wAGExLAzq3Cm3cAAAA",
   "blocks": [
@@ -139,7 +140,8 @@
     "addresses_per_line": 5,
     "bytes_per_line": 8,
     "enabled_features": {},
-    "description": ""
+    "description": "",
+    "show_analysis_hints": true
   },
   "immediate_value_formats": {
     "849": {
@@ -164,12 +166,12 @@
   "bookmarks": {},
   "cursor_address": 806,
   "hex_dump_cursor_address": 800,
-  "sprites_cursor_address": 960,
+  "sprites_cursor_address": 1024,
   "charset_cursor_address": 0,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 32768,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
