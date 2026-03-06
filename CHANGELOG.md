@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.5] - 2026-03-05
+
+### Features
+
+- Feature: **Export**: Support for undocumented (illegal) opcodes in export and verify.
+- Feature: **CLI**: Added `--assembler` flag to override assembler format in headless mode.
+- Feature: **CLI**: Integrated `clap` crate for robust command-line argument parsing with `--help` and shell completions.
+- Feature: **MCP**: `get_binary_info` tool now hints whether the binary uses undocumented opcodes.
+- Feature: **UI**: Added Gruvbox Light theme.
+- Feature: **Release**: Added Linux ARM64 (aarch64) binary builds.
+
+### Fixes
+
+- Fix: **ACME Exporter**: Fixed zero-page address handling that caused byte mismatches during roundtrip verification.
+- Fix: **ACME Exporter**: Fixed illegal opcode mnemonics for ACME assembler compatibility.
+- Fix: **Stability**: Replaced `println!`/`eprintln!` with logging macros to prevent TUI corruption.
+
+### Documentation
+
+- Docs: Added themes documentation page with screenshots.
+- Docs: Documented `--verify` CLI option and assembler setup requirements.
+- Docs: Added KickAssembler `KICKASS_JAR` environment variable instructions.
+
+### Changes
+
+- Chore: Track `Cargo.lock` for reproducible binary builds.
+
 ## [0.8.4] - 2026-03-03
 
 ### Features
