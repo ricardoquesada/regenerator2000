@@ -39,7 +39,7 @@ fn default_false() -> bool {
 }
 
 fn default_theme() -> String {
-    "Solarized Dark".to_string()
+    "Dracula".to_string()
 }
 
 fn default_entropy_threshold() -> f32 {
@@ -51,7 +51,7 @@ impl Default for SystemConfig {
         Self {
             open_last_project: true,
             last_project_path: None,
-            theme: "Solarized Dark".to_string(),
+            theme: "Dracula".to_string(),
             sync_blocks_view: true,
             auto_analyze: true,
             sync_hex_dump: true,

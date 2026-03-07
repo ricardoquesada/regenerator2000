@@ -223,10 +223,18 @@ impl Widget for SettingsDialog {
                     app_state.system_config.entropy_threshold =
                         (app_state.system_config.entropy_threshold - 0.1).max(0.0);
                     let _ = app_state.system_config.save();
-                    WidgetResult::Handled
-                } else {
-                    WidgetResult::Handled
+                } else if !self.is_selecting_theme && self.selected_index == 9 {
+                    // Previous theme
+                    let themes = crate::theme::Theme::all_names();
+                    let current = app_state.system_config.theme.as_str();
+                    let idx = themes.iter().position(|t| *t == current).unwrap_or(0);
+                    let new_idx = if idx == 0 { themes.len() - 1 } else { idx - 1 };
+                    let new_theme = themes[new_idx].to_string();
+                    app_state.system_config.theme = new_theme.clone();
+                    ui_state.theme = crate::theme::Theme::from_name(&new_theme);
+                    let _ = app_state.system_config.save();
                 }
+                WidgetResult::Handled
             }
             KeyCode::Right => {
                 if !self.is_selecting_theme && self.selected_index == 8 {
@@ -234,10 +242,18 @@ impl Widget for SettingsDialog {
                     app_state.system_config.entropy_threshold =
                         (app_state.system_config.entropy_threshold + 0.1).min(8.0);
                     let _ = app_state.system_config.save();
-                    WidgetResult::Handled
-                } else {
-                    WidgetResult::Handled
+                } else if !self.is_selecting_theme && self.selected_index == 9 {
+                    // Next theme
+                    let themes = crate::theme::Theme::all_names();
+                    let current = app_state.system_config.theme.as_str();
+                    let idx = themes.iter().position(|t| *t == current).unwrap_or(0);
+                    let new_idx = (idx + 1) % themes.len();
+                    let new_theme = themes[new_idx].to_string();
+                    app_state.system_config.theme = new_theme.clone();
+                    ui_state.theme = crate::theme::Theme::from_name(&new_theme);
+                    let _ = app_state.system_config.save();
                 }
+                WidgetResult::Handled
             }
             KeyCode::Enter | KeyCode::Char(' ') => {
                 if self.is_selecting_theme {
