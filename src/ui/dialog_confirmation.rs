@@ -43,9 +43,11 @@ impl Widget for ConfirmationDialog {
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
+                Constraint::Min(0),    // Top padding (flexible)
                 Constraint::Length(1), // Message
                 Constraint::Length(1), // Gap
                 Constraint::Length(1), // Instructions
+                Constraint::Min(0),    // Bottom padding (flexible)
             ])
             .split(inner);
 
@@ -57,13 +59,13 @@ impl Widget for ConfirmationDialog {
                     .add_modifier(Modifier::BOLD),
             );
 
-        f.render_widget(message, layout[0]);
+        f.render_widget(message, layout[1]);
 
         let instructions = Paragraph::new("Enter: Proceed  |  Esc: Cancel")
             .alignment(ratatui::layout::Alignment::Center)
             .style(Style::default().fg(theme.highlight_fg));
 
-        f.render_widget(instructions, layout[2]);
+        f.render_widget(instructions, layout[3]);
     }
 
     fn handle_input(
