@@ -8,7 +8,7 @@ use ratatui::{
     text::{Line as TextLine, Span},
     widgets::Paragraph,
 };
-use tui_textarea::{CursorMove, TextArea};
+use ratatui_textarea::{CursorMove, TextArea};
 
 use crate::ui::widget::{Widget, WidgetResult};
 
