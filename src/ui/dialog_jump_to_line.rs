@@ -5,7 +5,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     widgets::Paragraph,
 };
 
@@ -34,22 +34,13 @@ impl Widget for JumpToLineDialog {
         let theme = &ui_state.theme;
         let block = crate::ui::widget::create_dialog_block(" Jump To Line ", theme);
 
-        // let layout = Layout::default()
-        //     .direction(Direction::Vertical)
-        //     .constraints([
-        //         Constraint::Fill(1),
-        //         Constraint::Length(3),
-        //         Constraint::Fill(1),
-        //     ])
-        //     .split(area);
-
         let area = crate::utils::centered_rect_adaptive(30, 40, 0, 3, area);
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 
         let input = Paragraph::new(self.input.clone()).block(block).style(
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD),
         );
         f.render_widget(input, area);

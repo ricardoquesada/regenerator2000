@@ -1,13 +1,12 @@
 use crate::state::AppState;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
-// use crate::utils::centered_rect;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
-    widgets::{Block, Borders, Clear, Paragraph},
+    widgets::{Clear, Paragraph},
 };
 
 pub struct WarningDialog {
@@ -41,11 +40,7 @@ impl Widget for WarningDialog {
         let theme = &ui_state.theme;
         let title = format!(" {} ", self.title);
 
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title(title)
-            .title_alignment(Alignment::Center)
-            .style(Style::default().fg(theme.dialog_fg).bg(theme.dialog_bg));
+        let block = crate::ui::widget::create_dialog_block(&title, theme);
 
         let area = crate::utils::centered_rect_adaptive(50, 40, 20, 6, area);
         ui_state.active_dialog_area = area;

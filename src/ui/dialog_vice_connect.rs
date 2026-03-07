@@ -5,7 +5,7 @@ use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
     layout::Rect,
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     widgets::Paragraph,
 };
 
@@ -38,7 +38,7 @@ impl Widget for ViceConnectDialog {
 
         let input = Paragraph::new(self.input.clone()).block(block).style(
             Style::default()
-                .fg(Color::Yellow)
+                .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD),
         );
         f.render_widget(input, area);

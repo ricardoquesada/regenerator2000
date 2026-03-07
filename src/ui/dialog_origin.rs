@@ -3,7 +3,7 @@ use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::Rect,
     style::{Modifier, Style},
     widgets::Paragraph,
 };
@@ -27,24 +27,7 @@ impl Widget for OriginDialog {
         let theme = &ui_state.theme;
         let block = crate::ui::widget::create_dialog_block(" Change Origin (Hex) ", theme);
 
-        // Fixed height of 3 (Border + Input + Border)
-        let layout = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Fill(1),
-                Constraint::Length(3),
-                Constraint::Fill(1),
-            ])
-            .split(area);
-
-        let area = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(30),
-                Constraint::Percentage(40),
-                Constraint::Percentage(30),
-            ])
-            .split(layout[1])[1];
+        let area = crate::utils::centered_rect_adaptive(40, 40, 0, 3, area);
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 

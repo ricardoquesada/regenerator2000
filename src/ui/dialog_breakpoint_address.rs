@@ -10,6 +10,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::Paragraph,
 };
+// Note: Color::Red is intentionally kept for the warning indicator (semantic alert color)
 
 pub struct BreakpointAddressDialog {
     pub input: String,
@@ -47,7 +48,7 @@ impl Widget for BreakpointAddressDialog {
 
         let dollar = Style::default().fg(theme.comment);
         let addr_style = Style::default()
-            .fg(Color::Yellow)
+            .fg(theme.highlight_fg)
             .add_modifier(Modifier::BOLD);
         let dim = Style::default().fg(theme.comment);
         let warn = Style::default().fg(Color::Red).add_modifier(Modifier::BOLD);

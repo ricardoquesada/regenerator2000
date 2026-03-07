@@ -58,13 +58,15 @@ impl Widget for WatchpointAddressDialog {
 
         let dollar = Style::default().fg(theme.comment);
         let addr_style = Style::default()
-            .fg(Color::Yellow)
+            .fg(theme.highlight_fg)
             .add_modifier(Modifier::BOLD);
         let dim = Style::default().fg(theme.comment);
         let sel = Style::default()
-            .fg(Color::Yellow)
+            .fg(theme.highlight_fg)
             .add_modifier(Modifier::BOLD);
-        let unsel = Style::default().fg(Color::DarkGray);
+        let unsel = Style::default()
+            .fg(theme.comment)
+            .add_modifier(Modifier::DIM);
         let warn = Style::default().fg(Color::Red).add_modifier(Modifier::BOLD);
 
         let addr_line = Line::from(vec![

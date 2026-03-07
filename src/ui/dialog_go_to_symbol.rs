@@ -3,7 +3,7 @@ use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     widgets::{List, ListItem, Paragraph},
 };
@@ -64,51 +64,97 @@ impl Widget for GoToSymbolDialog {
         let theme = &ui_state.theme;
         let block = crate::ui::widget::create_dialog_block(" Go to Symbol ", theme);
 
-        // Dialog layout:
         // Use adaptive centered rect for the main container
-        let area = crate::utils::centered_rect_adaptive(60, 60, 60, 10, area);
+        let area = crate::utils::centered_rect_adaptive(60, 60, 60, 12, area);
         ui_state.active_dialog_area = area;
 
         f.render_widget(ratatui::widgets::Clear, area);
+        f.render_widget(block.clone(), area);
 
-        // Split into Search (top) and Results (bottom)
+        let inner = block.inner(area);
+
+        // Split into: Search input | Results list | Help text
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3), // Search box
-                Constraint::Min(1),    // Results
+                Constraint::Length(3), // Search input (with border)
+                Constraint::Min(1),    // Results list
+                Constraint::Length(1), // Help / status line
             ])
-            .split(area);
+            .split(inner);
 
-        let input_widget = Paragraph::new(self.input.clone()).block(block).style(
+        // --- Search input with bordered sub-block ---
+        let input_block = ratatui::widgets::Block::default()
+            .borders(ratatui::widgets::Borders::ALL)
+            .border_style(Style::default().fg(theme.highlight_fg))
+            .style(Style::default().bg(theme.highlight_bg));
+
+        let input_widget = Paragraph::new(self.input.clone()).block(input_block).style(
             Style::default()
                 .fg(theme.highlight_fg)
+                .bg(theme.highlight_bg)
                 .add_modifier(Modifier::BOLD),
         );
         f.render_widget(input_widget, layout[0]);
 
-        let items: Vec<ListItem> = self
-            .filtered_symbols
-            .iter()
-            .enumerate()
-            .map(|(i, (addr, name))| {
-                let style = if i == self.selected_index {
-                    Style::default()
-                        .bg(theme.selection_bg)
-                        .fg(theme.selection_fg)
-                } else {
-                    Style::default().fg(theme.foreground)
-                };
-                ListItem::new(format!("${:04X}  {}", addr, name)).style(style)
-            })
-            .collect();
+        // Blinking cursor at end of input
+        f.set_cursor_position((layout[0].x + 1 + self.input.len() as u16, layout[0].y + 1));
 
-        let list = List::new(items).block(
-            ratatui::widgets::Block::default()
-                .borders(ratatui::widgets::Borders::ALL)
-                .border_style(Style::default().fg(theme.dialog_border)),
+        // --- Results list ---
+        if self.filtered_symbols.is_empty() {
+            let msg = if self.input.is_empty() {
+                "No symbols defined"
+            } else {
+                "No matching symbols"
+            };
+            let empty = Paragraph::new(msg)
+                .style(
+                    Style::default()
+                        .fg(theme.comment)
+                        .add_modifier(Modifier::ITALIC),
+                )
+                .alignment(Alignment::Center);
+
+            // Vertically center the message
+            let v_layout = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Fill(1),
+                    Constraint::Length(1),
+                    Constraint::Fill(1),
+                ])
+                .split(layout[1]);
+            f.render_widget(empty, v_layout[1]);
+        } else {
+            let items: Vec<ListItem> = self
+                .filtered_symbols
+                .iter()
+                .enumerate()
+                .map(|(i, (addr, name))| {
+                    let style = if i == self.selected_index {
+                        Style::default()
+                            .bg(theme.selection_bg)
+                            .fg(theme.selection_fg)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        Style::default().fg(theme.foreground)
+                    };
+                    ListItem::new(format!("${:04X}  {}", addr, name)).style(style)
+                })
+                .collect();
+
+            let list = List::new(items).highlight_symbol(">> ");
+            f.render_widget(list, layout[1]);
+        }
+
+        // --- Help / status line ---
+        let count_text = format!(
+            " {} of {} symbols │ ↑↓: select │ Enter: go │ Esc: close",
+            self.filtered_symbols.len(),
+            self.all_symbols.len()
         );
-        f.render_widget(list, layout[1]);
+        let help = Paragraph::new(count_text).style(Style::default().fg(theme.comment));
+        f.render_widget(help, layout[2]);
     }
 
     fn handle_input(
