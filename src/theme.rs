@@ -159,6 +159,91 @@ impl Monokai {
     const PURPLE: Color = Color::Rgb(174, 129, 255);
 }
 
+// Nord Palette
+#[allow(dead_code)]
+struct Nord;
+#[allow(dead_code)]
+impl Nord {
+    // Polar Night (dark backgrounds)
+    const NORD0: Color = Color::Rgb(46, 52, 64);
+    const NORD1: Color = Color::Rgb(59, 66, 82);
+    const NORD2: Color = Color::Rgb(67, 76, 94);
+    const NORD3: Color = Color::Rgb(76, 86, 106);
+
+    // Snow Storm (light foregrounds)
+    const NORD4: Color = Color::Rgb(216, 222, 233);
+    const NORD5: Color = Color::Rgb(229, 233, 240);
+    const NORD6: Color = Color::Rgb(236, 239, 244);
+
+    // Frost (blue accents)
+    const NORD7: Color = Color::Rgb(143, 188, 187);
+    const NORD8: Color = Color::Rgb(136, 192, 208);
+    const NORD9: Color = Color::Rgb(129, 161, 193);
+    const NORD10: Color = Color::Rgb(94, 129, 172);
+
+    // Aurora (accent colors)
+    const NORD11: Color = Color::Rgb(191, 97, 106); // Red
+    const NORD12: Color = Color::Rgb(208, 135, 112); // Orange
+    const NORD13: Color = Color::Rgb(235, 203, 139); // Yellow
+    const NORD14: Color = Color::Rgb(163, 190, 140); // Green
+    const NORD15: Color = Color::Rgb(180, 142, 173); // Purple
+}
+
+// Catppuccin Mocha Palette (darkest flavor)
+#[allow(dead_code)]
+struct CatppuccinMocha;
+#[allow(dead_code)]
+impl CatppuccinMocha {
+    const BASE: Color = Color::Rgb(30, 30, 46);
+    const MANTLE: Color = Color::Rgb(24, 24, 37);
+    const SURFACE0: Color = Color::Rgb(49, 50, 68);
+    const SURFACE1: Color = Color::Rgb(69, 71, 90);
+    const OVERLAY0: Color = Color::Rgb(108, 112, 134);
+    const TEXT: Color = Color::Rgb(205, 214, 244);
+    const SUBTEXT0: Color = Color::Rgb(166, 173, 200);
+    const ROSEWATER: Color = Color::Rgb(245, 224, 220);
+    const FLAMINGO: Color = Color::Rgb(242, 205, 205);
+    const PINK: Color = Color::Rgb(245, 194, 231);
+    const MAUVE: Color = Color::Rgb(203, 166, 247);
+    const RED: Color = Color::Rgb(243, 139, 168);
+    const MAROON: Color = Color::Rgb(235, 160, 172);
+    const PEACH: Color = Color::Rgb(250, 179, 135);
+    const YELLOW: Color = Color::Rgb(249, 226, 175);
+    const GREEN: Color = Color::Rgb(166, 227, 161);
+    const TEAL: Color = Color::Rgb(148, 226, 213);
+    const SKY: Color = Color::Rgb(137, 220, 235);
+    const SAPPHIRE: Color = Color::Rgb(116, 199, 236);
+    const BLUE: Color = Color::Rgb(137, 180, 250);
+    const LAVENDER: Color = Color::Rgb(180, 190, 254);
+}
+
+// Catppuccin Latte Palette (light flavor)
+#[allow(dead_code)]
+struct CatppuccinLatte;
+#[allow(dead_code)]
+impl CatppuccinLatte {
+    const BASE: Color = Color::Rgb(239, 241, 245);
+    const MANTLE: Color = Color::Rgb(230, 233, 239);
+    const CRUST: Color = Color::Rgb(220, 224, 232);
+    const SURFACE0: Color = Color::Rgb(204, 208, 218);
+    const SURFACE1: Color = Color::Rgb(188, 192, 204);
+    const OVERLAY0: Color = Color::Rgb(156, 160, 176);
+    const TEXT: Color = Color::Rgb(76, 79, 105);
+    const SUBTEXT0: Color = Color::Rgb(108, 111, 133);
+    const PINK: Color = Color::Rgb(234, 118, 203);
+    const MAUVE: Color = Color::Rgb(136, 57, 239);
+    const RED: Color = Color::Rgb(210, 15, 57);
+    const MAROON: Color = Color::Rgb(230, 69, 83);
+    const PEACH: Color = Color::Rgb(254, 100, 11);
+    const YELLOW: Color = Color::Rgb(223, 142, 29);
+    const GREEN: Color = Color::Rgb(64, 160, 43);
+    const TEAL: Color = Color::Rgb(23, 146, 153);
+    const SKY: Color = Color::Rgb(4, 165, 229);
+    const SAPPHIRE: Color = Color::Rgb(32, 159, 181);
+    const BLUE: Color = Color::Rgb(30, 102, 245);
+    const LAVENDER: Color = Color::Rgb(114, 135, 253);
+}
+
 impl Theme {
     pub fn from_name(name: &str) -> Self {
         match name {
@@ -167,6 +252,9 @@ impl Theme {
             "Gruvbox Dark" => Self::gruvbox_dark(),
             "Gruvbox Light" => Self::gruvbox_light(),
             "Monokai" => Self::monokai(),
+            "Nord" => Self::nord(),
+            "Catppuccin Mocha" => Self::catppuccin_mocha(),
+            "Catppuccin Latte" => Self::catppuccin_latte(),
             _ => Self::dark(),
         }
     }
@@ -323,6 +411,9 @@ impl Theme {
             "Gruvbox Dark",
             "Gruvbox Light",
             "Monokai",
+            "Nord",
+            "Catppuccin Mocha",
+            "Catppuccin Latte",
         ]
     }
 
@@ -608,6 +699,219 @@ impl Theme {
             block_undefined_bg: Monokai::BACKGROUND,
             block_splitter_fg: Monokai::COMMENT,
             block_splitter_bg: Monokai::BACKGROUND,
+        }
+    }
+
+    pub fn nord() -> Self {
+        Self {
+            name: "Nord",
+            background: Nord::NORD0,
+            foreground: Nord::NORD4,
+            border_active: Nord::NORD8,
+            border_inactive: Nord::NORD3,
+            selection_bg: Nord::NORD2,
+            selection_fg: Nord::NORD6,
+            status_bar_bg: Nord::NORD1,
+            status_bar_fg: Nord::NORD8,
+            block_selection_bg: Nord::NORD2,
+            block_selection_fg: Nord::NORD6,
+
+            address: Nord::NORD13,
+            bytes: Nord::NORD3,
+            mnemonic: Nord::NORD9,
+            operand: Nord::NORD4,
+            label: Nord::NORD7,
+            label_def: Nord::NORD7,
+            comment: Nord::NORD3,
+            arrow: Nord::NORD3,
+            collapsed_block: Nord::NORD13,
+            collapsed_block_bg: Nord::NORD0,
+
+            hex_bytes: Nord::NORD4,
+            hex_ascii: Nord::NORD8,
+
+            dialog_bg: Nord::NORD1,
+            dialog_fg: Nord::NORD4,
+            dialog_border: Nord::NORD8,
+            menu_bg: Nord::NORD0,
+            menu_fg: Nord::NORD4,
+            menu_selected_bg: Nord::NORD2,
+            menu_selected_fg: Nord::NORD8,
+            menu_disabled_fg: Nord::NORD3,
+
+            sprite_multicolor_1: Nord::NORD11,
+            sprite_multicolor_2: Nord::NORD10,
+            charset_multicolor_1: Nord::NORD12,
+            charset_multicolor_2: Nord::NORD14,
+
+            highlight_fg: Nord::NORD12,
+            highlight_bg: Nord::NORD1,
+            error_fg: Nord::NORD11,
+
+            block_code_fg: Nord::NORD9,
+            block_code_bg: Nord::NORD0,
+            block_data_byte_fg: Nord::NORD8,
+            block_data_byte_bg: Nord::NORD0,
+            block_data_word_fg: Nord::NORD15,
+            block_data_word_bg: Nord::NORD0,
+            block_address_fg: Nord::NORD13,
+            block_address_bg: Nord::NORD0,
+            block_petscii_text_fg: Nord::NORD14,
+            block_petscii_text_bg: Nord::NORD0,
+            block_screencode_text_fg: Nord::NORD12,
+            block_screencode_text_bg: Nord::NORD0,
+            block_lohi_fg: Nord::NORD11,
+            block_lohi_bg: Nord::NORD0,
+            block_hilo_fg: Nord::NORD11,
+            block_hilo_bg: Nord::NORD0,
+            block_external_file_fg: Nord::NORD3,
+            block_external_file_bg: Nord::NORD0,
+            block_undefined_fg: Nord::NORD3,
+            block_undefined_bg: Nord::NORD0,
+            block_splitter_fg: Nord::NORD3,
+            block_splitter_bg: Nord::NORD0,
+        }
+    }
+
+    pub fn catppuccin_mocha() -> Self {
+        Self {
+            name: "Catppuccin Mocha",
+            background: CatppuccinMocha::BASE,
+            foreground: CatppuccinMocha::TEXT,
+            border_active: CatppuccinMocha::MAUVE,
+            border_inactive: CatppuccinMocha::SURFACE1,
+            selection_bg: CatppuccinMocha::SURFACE1,
+            selection_fg: CatppuccinMocha::TEXT,
+            status_bar_bg: CatppuccinMocha::MANTLE,
+            status_bar_fg: CatppuccinMocha::SUBTEXT0,
+            block_selection_bg: CatppuccinMocha::SURFACE1,
+            block_selection_fg: CatppuccinMocha::TEXT,
+
+            address: CatppuccinMocha::YELLOW,
+            bytes: CatppuccinMocha::OVERLAY0,
+            mnemonic: CatppuccinMocha::BLUE,
+            operand: CatppuccinMocha::TEXT,
+            label: CatppuccinMocha::TEAL,
+            label_def: CatppuccinMocha::TEAL,
+            comment: CatppuccinMocha::OVERLAY0,
+            arrow: CatppuccinMocha::OVERLAY0,
+            collapsed_block: CatppuccinMocha::YELLOW,
+            collapsed_block_bg: CatppuccinMocha::BASE,
+
+            hex_bytes: CatppuccinMocha::TEXT,
+            hex_ascii: CatppuccinMocha::SKY,
+
+            dialog_bg: CatppuccinMocha::SURFACE0,
+            dialog_fg: CatppuccinMocha::TEXT,
+            dialog_border: CatppuccinMocha::MAUVE,
+            menu_bg: CatppuccinMocha::BASE,
+            menu_fg: CatppuccinMocha::TEXT,
+            menu_selected_bg: CatppuccinMocha::SURFACE1,
+            menu_selected_fg: CatppuccinMocha::ROSEWATER,
+            menu_disabled_fg: CatppuccinMocha::OVERLAY0,
+
+            sprite_multicolor_1: CatppuccinMocha::PEACH,
+            sprite_multicolor_2: CatppuccinMocha::PINK,
+            charset_multicolor_1: CatppuccinMocha::YELLOW,
+            charset_multicolor_2: CatppuccinMocha::GREEN,
+
+            highlight_fg: CatppuccinMocha::PEACH,
+            highlight_bg: CatppuccinMocha::SURFACE0,
+            error_fg: CatppuccinMocha::RED,
+
+            block_code_fg: CatppuccinMocha::BLUE,
+            block_code_bg: CatppuccinMocha::BASE,
+            block_data_byte_fg: CatppuccinMocha::SKY,
+            block_data_byte_bg: CatppuccinMocha::BASE,
+            block_data_word_fg: CatppuccinMocha::MAUVE,
+            block_data_word_bg: CatppuccinMocha::BASE,
+            block_address_fg: CatppuccinMocha::YELLOW,
+            block_address_bg: CatppuccinMocha::BASE,
+            block_petscii_text_fg: CatppuccinMocha::GREEN,
+            block_petscii_text_bg: CatppuccinMocha::BASE,
+            block_screencode_text_fg: CatppuccinMocha::PEACH,
+            block_screencode_text_bg: CatppuccinMocha::BASE,
+            block_lohi_fg: CatppuccinMocha::RED,
+            block_lohi_bg: CatppuccinMocha::BASE,
+            block_hilo_fg: CatppuccinMocha::MAROON,
+            block_hilo_bg: CatppuccinMocha::BASE,
+            block_external_file_fg: CatppuccinMocha::OVERLAY0,
+            block_external_file_bg: CatppuccinMocha::BASE,
+            block_undefined_fg: CatppuccinMocha::OVERLAY0,
+            block_undefined_bg: CatppuccinMocha::BASE,
+            block_splitter_fg: CatppuccinMocha::OVERLAY0,
+            block_splitter_bg: CatppuccinMocha::BASE,
+        }
+    }
+
+    pub fn catppuccin_latte() -> Self {
+        Self {
+            name: "Catppuccin Latte",
+            background: CatppuccinLatte::BASE,
+            foreground: CatppuccinLatte::TEXT,
+            border_active: CatppuccinLatte::MAUVE,
+            border_inactive: CatppuccinLatte::SURFACE1,
+            selection_bg: CatppuccinLatte::SURFACE0,
+            selection_fg: CatppuccinLatte::TEXT,
+            status_bar_bg: CatppuccinLatte::MANTLE,
+            status_bar_fg: CatppuccinLatte::SUBTEXT0,
+            block_selection_bg: CatppuccinLatte::SURFACE1,
+            block_selection_fg: CatppuccinLatte::TEXT,
+
+            address: CatppuccinLatte::YELLOW,
+            bytes: CatppuccinLatte::OVERLAY0,
+            mnemonic: CatppuccinLatte::BLUE,
+            operand: CatppuccinLatte::TEXT,
+            label: CatppuccinLatte::TEAL,
+            label_def: CatppuccinLatte::TEAL,
+            comment: CatppuccinLatte::OVERLAY0,
+            arrow: CatppuccinLatte::OVERLAY0,
+            collapsed_block: CatppuccinLatte::MAUVE,
+            collapsed_block_bg: CatppuccinLatte::BASE,
+
+            hex_bytes: CatppuccinLatte::TEXT,
+            hex_ascii: CatppuccinLatte::SKY,
+
+            dialog_bg: CatppuccinLatte::MANTLE,
+            dialog_fg: CatppuccinLatte::TEXT,
+            dialog_border: CatppuccinLatte::MAUVE,
+            menu_bg: CatppuccinLatte::BASE,
+            menu_fg: CatppuccinLatte::TEXT,
+            menu_selected_bg: CatppuccinLatte::SURFACE0,
+            menu_selected_fg: CatppuccinLatte::MAUVE,
+            menu_disabled_fg: CatppuccinLatte::OVERLAY0,
+
+            sprite_multicolor_1: CatppuccinLatte::RED,
+            sprite_multicolor_2: CatppuccinLatte::BLUE,
+            charset_multicolor_1: CatppuccinLatte::PEACH,
+            charset_multicolor_2: CatppuccinLatte::GREEN,
+
+            highlight_fg: CatppuccinLatte::PEACH,
+            highlight_bg: CatppuccinLatte::SURFACE0,
+            error_fg: CatppuccinLatte::RED,
+
+            block_code_fg: CatppuccinLatte::BLUE,
+            block_code_bg: CatppuccinLatte::CRUST,
+            block_data_byte_fg: CatppuccinLatte::SKY,
+            block_data_byte_bg: CatppuccinLatte::CRUST,
+            block_data_word_fg: CatppuccinLatte::MAUVE,
+            block_data_word_bg: CatppuccinLatte::CRUST,
+            block_address_fg: CatppuccinLatte::YELLOW,
+            block_address_bg: CatppuccinLatte::CRUST,
+            block_petscii_text_fg: CatppuccinLatte::GREEN,
+            block_petscii_text_bg: CatppuccinLatte::CRUST,
+            block_screencode_text_fg: CatppuccinLatte::PEACH,
+            block_screencode_text_bg: CatppuccinLatte::CRUST,
+            block_lohi_fg: CatppuccinLatte::RED,
+            block_lohi_bg: CatppuccinLatte::CRUST,
+            block_hilo_fg: CatppuccinLatte::MAROON,
+            block_hilo_bg: CatppuccinLatte::CRUST,
+            block_external_file_fg: CatppuccinLatte::OVERLAY0,
+            block_external_file_bg: CatppuccinLatte::CRUST,
+            block_undefined_fg: CatppuccinLatte::OVERLAY0,
+            block_undefined_bg: CatppuccinLatte::CRUST,
+            block_splitter_fg: CatppuccinLatte::OVERLAY0,
+            block_splitter_bg: CatppuccinLatte::CRUST,
         }
     }
 }

@@ -136,7 +136,7 @@ impl Widget for SettingsDialog {
 
         // Theme Selection Popup
         if self.is_selecting_theme {
-            let popup_area = crate::utils::centered_rect_adaptive(40, 30, 30, 10, area);
+            let popup_area = crate::utils::centered_rect_adaptive(40, 30, 30, 13, area);
             f.render_widget(Clear, popup_area);
             let block = crate::ui::widget::create_dialog_block(" Select Theme ", theme);
 
