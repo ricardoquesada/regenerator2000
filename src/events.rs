@@ -140,6 +140,30 @@ pub fn run_app<B: Backend>(
                                         ui_state.scroll_sub_index = sub_idx;
                                     }
 
+                                    // Cross-reference PC against breakpoints/watchpoints
+                                    // to build a descriptive stop_reason.
+                                    let stop_reason = app_state
+                                        .vice_state
+                                        .breakpoints
+                                        .iter()
+                                        .find(|bp| bp.address == pc)
+                                        .map(|bp| {
+                                            if bp.kind == crate::vice::state::BreakpointKind::Exec {
+                                                format!(
+                                                    "Breakpoint #{} at ${:04X}",
+                                                    bp.id, bp.address
+                                                )
+                                            } else {
+                                                format!(
+                                                    "Watchpoint #{} at ${:04X} [{}]",
+                                                    bp.id,
+                                                    bp.address,
+                                                    bp.kind.label()
+                                                )
+                                            }
+                                        });
+                                    app_state.vice_state.stop_reason = stop_reason;
+
                                     // Request live memory around the PC for live disassembly.
                                     // Fetch 32 bytes before PC and 96 bytes after (128 total window).
                                     // This covers roughly 40+ instructions around the current PC.
@@ -258,8 +282,13 @@ pub fn run_app<B: Backend>(
                             app_state.vice_state.breakpoints.clear();
                         } else if msg.command == crate::vice::ViceCommand::RESUMED {
                             app_state.vice_state.running = true;
+                            app_state.vice_state.stop_reason = None;
+                            ui_state.debugger_flash_remaining = 0;
                         } else if msg.command == crate::vice::ViceCommand::STOPPED {
                             app_state.vice_state.running = false;
+
+                            // Start flash countdown for the debugger status line
+                            ui_state.debugger_flash_remaining = 8;
 
                             if let Some(client) = &app_state.vice_client {
                                 // If we had any pending temporary breakpoints, delete them.

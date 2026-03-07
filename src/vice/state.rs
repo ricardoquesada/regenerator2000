@@ -65,6 +65,10 @@ pub struct ViceState {
     // Tracks temporary breakpoints (like run-to-cursor) so we can clear them
     // if the CPU stops before reaching them.
     pub temporary_breakpoints: Vec<u32>,
+
+    // Human-readable reason the CPU stopped (e.g. "Breakpoint #2 at $C123")
+    // Set when a checkpoint is hit, cleared on resume.
+    pub stop_reason: Option<String>,
 }
 
 impl ViceState {
@@ -87,6 +91,7 @@ impl ViceState {
             vectors: None,
             breakpoints: Vec::new(),
             temporary_breakpoints: Vec::new(),
+            stop_reason: None,
         }
     }
 
@@ -106,6 +111,7 @@ impl ViceState {
         self.vectors = None;
         self.breakpoints.clear();
         self.temporary_breakpoints.clear();
+        self.stop_reason = None;
     }
 
     /// Returns true if there is a persistent breakpoint at `addr`.

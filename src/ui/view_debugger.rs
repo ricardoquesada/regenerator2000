@@ -39,21 +39,36 @@ impl Widget for DebuggerView {
         let (status_text, status_style) = if vs.connected {
             if vs.running {
                 (
-                    "▶ RUNNING",
+                    "▶ RUNNING".to_string(),
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::BOLD),
                 )
             } else {
-                (
-                    "⏸ PAUSED",
+                // Build status text with optional stop reason
+                let text = match &vs.stop_reason {
+                    Some(reason) => format!("⏸ PAUSED ← {}", reason),
+                    None => "⏸ PAUSED".to_string(),
+                };
+                let style = if ui_state.debugger_flash_remaining > 0 {
+                    ui_state.debugger_flash_remaining -= 1;
+                    // Attention-grabbing flash: red background
+                    Style::default()
+                        .fg(Color::White)
+                        .bg(Color::Red)
+                        .add_modifier(Modifier::BOLD)
+                } else {
                     Style::default()
                         .fg(Color::Yellow)
-                        .add_modifier(Modifier::BOLD),
-                )
+                        .add_modifier(Modifier::BOLD)
+                };
+                (text, style)
             }
         } else {
-            ("○ Offline", Style::default().fg(Color::DarkGray))
+            (
+                "○ Offline".to_string(),
+                Style::default().fg(Color::DarkGray),
+            )
         };
 
         // ---- Live Disassembly Panel (if connected and we have memory) ----

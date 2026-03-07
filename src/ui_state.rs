@@ -109,6 +109,10 @@ pub struct UIState {
     // Version update notification
     pub new_version_available: Option<String>,
 
+    // Flash countdown for debugger status line when breakpoint/watchpoint is hit.
+    // Decremented each render frame; while > 0, renders with attention-grabbing style.
+    pub debugger_flash_remaining: u8,
+
     // Layout Areas for Mouse Interaction
     pub menu_area: ratatui::layout::Rect,
     pub main_area: ratatui::layout::Rect,
@@ -167,6 +171,7 @@ impl UIState {
             theme,
 
             new_version_available: None,
+            debugger_flash_remaining: 0,
 
             menu_area: ratatui::layout::Rect::default(),
             main_area: ratatui::layout::Rect::default(),
