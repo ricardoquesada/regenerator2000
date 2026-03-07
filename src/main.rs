@@ -63,6 +63,10 @@ struct Cli {
     /// Run MCP server (stdio, headless)
     #[arg(long = "mcp-server-stdio")]
     mcp_server_stdio: bool,
+
+    /// Auto-connect to VICE binary monitor at HOST:PORT (e.g. localhost:6502)
+    #[arg(long, value_name = "HOST:PORT")]
+    vice: Option<String>,
 }
 
 async fn check_for_new_version() -> Option<String> {
@@ -548,6 +552,22 @@ fn main() -> Result<()> {
                 }
             });
         });
+    }
+
+    // Auto-connect to VICE if --vice flag provided
+    if let Some(ref vice_addr) = cli.vice {
+        match regenerator2000::vice::ViceClient::connect(vice_addr, event_tx.clone()) {
+            Ok(client) => {
+                app_state.vice_client = Some(client);
+                ui_state.set_status_message(format!("Connecting to VICE at {}...", vice_addr));
+            }
+            Err(e) => {
+                ui_state.set_status_message(format!(
+                    "Failed to connect to VICE at {}: {}",
+                    vice_addr, e
+                ));
+            }
+        }
     }
 
     // Run app
