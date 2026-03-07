@@ -112,6 +112,11 @@ impl Widget for SearchDialog {
             .style(input_style);
         f.render_widget(input, input_area);
 
+        // Show blinking cursor at end of input when focused
+        if is_input_focused {
+            f.set_cursor_position((input_area.x + 1 + self.input.len() as u16, input_area.y + 1));
+        }
+
         // Filters section label with separator
         let label_style = Style::default()
             .fg(theme.dialog_fg)

@@ -110,12 +110,16 @@ impl Widget for CompleteAddressDialog {
         f.render_widget(ratatui::widgets::Clear, area);
 
         let display_text = self.get_display_text();
+        let cursor_offset = display_text.len() as u16;
         let input = Paragraph::new(display_text).block(block).style(
             Style::default()
                 .fg(Color::Yellow)
                 .add_modifier(Modifier::BOLD),
         );
         f.render_widget(input, area);
+
+        // Show blinking cursor at end of display text
+        f.set_cursor_position((area.x + 1 + cursor_offset, area.y + 1));
     }
 
     fn handle_input(

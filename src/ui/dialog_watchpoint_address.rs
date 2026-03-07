@@ -113,6 +113,9 @@ impl Widget for WatchpointAddressDialog {
 
         let para = Paragraph::new(vec![addr_line, status_line]).block(block);
         f.render_widget(para, area);
+
+        // Show blinking cursor at end of input (after "$" prefix)
+        f.set_cursor_position((area.x + 1 + 1 + self.input.len() as u16, area.y + 1));
     }
 
     fn handle_input(

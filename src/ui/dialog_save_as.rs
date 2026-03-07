@@ -77,6 +77,12 @@ impl Widget for SaveAsDialog {
             );
         f.render_widget(input, input_layout[0]);
 
+        // Show blinking cursor at end of input
+        f.set_cursor_position((
+            input_layout[0].x + self.input.len() as u16,
+            input_layout[0].y,
+        ));
+
         let extension = Paragraph::new(".regen2000proj").style(Style::default().fg(Color::Gray));
         f.render_widget(extension, input_layout[1]);
     }

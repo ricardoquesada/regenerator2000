@@ -42,6 +42,9 @@ impl Widget for ViceConnectDialog {
                 .add_modifier(Modifier::BOLD),
         );
         f.render_widget(input, area);
+
+        // Show blinking cursor at end of input
+        f.set_cursor_position((area.x + 1 + self.input.len() as u16, area.y + 1));
     }
 
     fn handle_input(
