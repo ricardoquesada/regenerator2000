@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.6] - 2026-03-06
+
+### Features
+
+- Feature: **Themes**: Added Nord, Catppuccin Mocha, and Catppuccin Latte themes.
+- Feature: **Themes**: Default theme changed to Dracula; added left/right arrow cycling in theme selector.
+- Feature: **UI**: Added blinking cursor to all input dialogs.
+- Feature: **Project**: Added version field and migration logic to `.regen2000proj` file format.
+
+### Fixes
+
+- Fix: **UI**: Improved dialog UX consistency (theming, centering, dead code cleanup).
+- Fix: **UI**: Added `$` prefix to Jump To Address dialog for hex clarity.
+
+### Changes
+
+- Chore: Migrated to ratatui 0.30.0.
+
+### Documentation
+
+- Docs: Updated themes and settings documentation for 9 themes, Dracula default, and new UX features.
+- Docs: Updated CLI section in README.
+
 ## [0.8.5] - 2026-03-05
 
 ### Features

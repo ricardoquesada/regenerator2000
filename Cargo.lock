@@ -2660,7 +2660,7 @@ dependencies = [
 
 [[package]]
 name = "regenerator2000"
-version = "0.8.5"
+version = "0.8.6"
 dependencies = [
  "anyhow",
  "axum",
