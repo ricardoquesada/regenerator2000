@@ -19,8 +19,9 @@ The Settings dialog allows you to configure global preferences for the applicati
 │  [ ] Sync Sprites View                           │
 │  [ ] Sync Bitmap View                            │
 │  [X] Sync Blocks View                            │
+│  [X] Check for updates                           │
 │  Entropy Warning Threshold: < 6.9 >              │
-│  Theme: < Solarized Dark >                       │
+│  Theme: < Dracula >                              │
 │                                                  │
 └──────────────────────────────────────────────────┘
 ```
@@ -48,15 +49,25 @@ The Settings dialog allows you to configure global preferences for the applicati
        - **Sync Bitmap View**: Synchronizes the Bitmap view.
        - **Sync Blocks View**: Synchronizes the Blocks view.
 
-4. **Entropy Warning Threshold**
+4. **Check for updates**
+       - **Description**: When enabled, the application checks for new releases on startup and displays
+         the latest available version in the top-right corner if an update is available.
+
+5. **Entropy Warning Threshold**
        - **Description**: Sets the Shannon entropy value above which a memory region is
          flagged as potentially encrypted or compressed. Use `Left`/`Right` to decrease/increase
          the value in 0.1 increments (range 0.0–8.0).
 
-5. **Theme**
+6. **Theme**
        - **Description**: Allows you to choose the visual theme of the application.
-         Press `Enter` on this option to open a sub-menu where you can select from
-         available themes (e.g., `Solarized Dark`, `Solarized Light`, etc.).
+         There are 9 built-in themes available. You can change themes in two ways:
+
+         - **Quick cycle**: Press `Left`/`Right` to cycle through themes with instant live preview.
+         - **Full list**: Press `Enter` to open the theme selector popup and pick from the list.
+
+         Available themes: Solarized Dark, Solarized Light, Dracula (default), Gruvbox Dark,
+         Gruvbox Light, Monokai, Nord, Catppuccin Mocha, Catppuccin Latte.
+         See [Themes](themes.md) for screenshots and details.
 
 ## Document Settings
 

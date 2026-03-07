@@ -1,13 +1,19 @@
 # Themes
 
-Regenerator 2000 ships with **6 built-in color themes**. You can switch between them in **File → Settings**
+Regenerator 2000 ships with **9 built-in color themes**. You can switch between them in **File → Settings**
 (++alt+o++ or ++ctrl+comma++) under the **Theme** option.
 
 ## Available Themes
 
+=== "Dracula"
+
+    **The default theme.** A dark theme with vibrant accent colors (purple, pink, cyan). Popular across many editors.
+
+    ![Dracula](theme_dracula.png)
+
 === "Solarized Dark"
 
-    **The default theme.** A popular low-contrast dark palette by Ethan Schoonover. Easy on the eyes for long sessions.
+    A popular low-contrast dark palette by Ethan Schoonover. Easy on the eyes for long sessions.
 
     ![Solarized Dark](theme_solarized_dark.png)
 
@@ -16,12 +22,6 @@ Regenerator 2000 ships with **6 built-in color themes**. You can switch between 
     The light variant of Solarized. Good for bright environments or high-ambient-light setups.
 
     ![Solarized Light](theme_solarized_light.png)
-
-=== "Dracula"
-
-    A dark theme with vibrant accent colors (purple, pink, cyan). Popular across many editors.
-
-    ![Dracula](theme_dracula.png)
 
 === "Gruvbox Dark"
 
@@ -41,11 +41,31 @@ Regenerator 2000 ships with **6 built-in color themes**. You can switch between 
 
     ![Monokai](theme_monokai.png)
 
+=== "Nord"
+
+    An arctic, north-bluish color palette. Low contrast with a cool, muted aesthetic inspired by the polar night.
+
+    *Screenshot coming soon.*
+
+=== "Catppuccin Mocha"
+
+    The darkest flavor of Catppuccin — a soothing pastel theme with warm tones on a deep background.
+
+    *Screenshot coming soon.*
+
+=== "Catppuccin Latte"
+
+    The light flavor of Catppuccin — pastel colors on a warm, creamy background. Great for daytime use.
+
+    *Screenshot coming soon.*
+
 ## How to Change the Theme
 
 1. Open **File → Settings** (++alt+o++ or ++ctrl+comma++).
 2. Navigate to the **Theme** option.
-3. Press ++enter++ to open the theme selector.
+3. You can change the theme in two ways:
+    - Press ++left++ / ++right++ to cycle through themes instantly (live preview).
+    - Press ++enter++ to open the theme selector popup and pick from the full list.
 4. Choose a theme and press ++enter++.
 
 The theme is saved globally and persists across sessions and projects.
