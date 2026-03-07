@@ -6,6 +6,7 @@ use ratatui::{
     Frame,
     layout::Rect,
     style::{Modifier, Style},
+    text::{Line, Span},
     widgets::Paragraph,
 };
 
@@ -38,15 +39,20 @@ impl Widget for JumpToAddressDialog {
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 
-        let input = Paragraph::new(self.input.clone()).block(block).style(
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD),
-        );
+        let dollar = Style::default().fg(theme.comment);
+        let addr_style = Style::default()
+            .fg(theme.highlight_fg)
+            .add_modifier(Modifier::BOLD);
+        let addr_line = Line::from(vec![
+            Span::styled("$", dollar),
+            Span::styled(self.input.clone(), addr_style),
+        ]);
+        let input = Paragraph::new(addr_line).block(block);
         f.render_widget(input, area);
 
         // Show blinking cursor at end of input
-        f.set_cursor_position((area.x + 1 + self.input.len() as u16, area.y + 1));
+        // Show blinking cursor at end of input (after "$" prefix)
+        f.set_cursor_position((area.x + 1 + 1 + self.input.len() as u16, area.y + 1));
     }
 
     fn handle_input(
