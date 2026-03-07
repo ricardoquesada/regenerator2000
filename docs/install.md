@@ -53,6 +53,7 @@ regenerator2000 [OPTIONS] [FILE]
 - `--verify`: Verify export roundtrip (export → assemble → diff) for all 4 assemblers. Requires `--headless` (implied automatically). See [Assemblers](assemblers.md) for details.
 - `--mcp-server`: Run MCP server (HTTP on port 3000). See [MCP Integration](mcp.md) for details.
 - `--mcp-server-stdio`: Run MCP server via stdio (headless mode).
+- `--vice <HOST:PORT>`: Auto-connect to the VICE binary monitor at startup (e.g. `--vice localhost:6502`). See [Debugger](debugger.md) for details.
 
 ### Recommended Terminals
 

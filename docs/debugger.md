@@ -24,6 +24,22 @@ step, and run-to-cursor directly from the TUI.
 4. To show the Debugger panel in the right pane, use **View → Toggle Debugger View** (or ++alt+6++ / ++ctrl+6++).
    You can also switch to the Debugger pane with **Tab** when it is visible.
 
+### Auto-connecting via CLI
+
+You can skip the manual connect step by passing `--vice <HOST:PORT>` on the command line. Regenerator 2000 will
+attempt to connect to VICE automatically at startup:
+
+```bash
+# Start VICE
+x64 -binarymonitor my_program.prg
+
+# Start Regenerator 2000 and auto-connect
+regenerator2000 --vice localhost:6502 my_program.prg
+```
+
+The default VICE binary monitor port is **6502**. If you changed it with `-binarymonitoraddress`, pass the
+matching address to `--vice`.
+
 Once connected, the Debugger panel shows connection status and, when the emulator is stopped, live disassembly around the PC, registers, and breakpoints.
 
 ![Debugger View](regenerator2000_debugger_screenshot.png)

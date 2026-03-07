@@ -303,6 +303,16 @@ live debugging.
     ```
 
 2.  **Connect**: In Regenerator 2000, go to **Debugger → Connect to VICE...** (`localhost:6502`).
+
+    !!! tip "Auto-connect with `--vice`"
+
+        You can skip this step by launching Regenerator 2000 with `--vice localhost:6502`. It will connect
+        automatically at startup:
+
+        ```bash
+        regenerator2000 --vice localhost:6502 my_game.prg
+        ```
+
 3.  **View**: Open the **Debugger** panel with ++alt+6++ (or ++ctrl+6++) to see the current PC, registers, and
     breakpoints.
 

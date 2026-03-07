@@ -128,6 +128,7 @@ regenerator2000 [OPTIONS] [path/to/file.prg]
 -   `--verify`: Verify export roundtrip (export → assemble → diff) for all assemblers. Implies `--headless`
 -   `--mcp-server`: Run MCP server (HTTP on port 3000)
 -   `--mcp-server-stdio`: Run MCP server via stdio
+-   `--vice <HOST:PORT>`: Auto-connect to VICE binary monitor at startup (e.g. `--vice localhost:6502`)
 
 Supported file formats: `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, `.bin`, `.raw`, and `.regen2000proj`.
 
