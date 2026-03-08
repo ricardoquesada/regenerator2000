@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] - 2026-03-07
+
+### Features
+
+- Feature: **UI**: Long labels are now rendered on their own line above the instruction to preserve indentation.
+- Feature: **VICE Debugger**: Visual indicators for breakpoints and watchpoints (flashing status line, terminal bell).
+- Feature: **CLI**: Added `--vice` flag to auto-connect to VICE binary monitor on startup.
+
+### Fixes
+
+- Fix: **UI**: Centered text in the unsaved changes confirmation dialog.
+
+### Documentation
+
+- Docs: Documented `--vice` CLI flag in README and `docs/debugger.md`.
+- Docs: Expanded `CONTRIBUTING.md` and added `cargo audit` to CI.
+
+### Refactor / Internal
+
+- Test: Added comprehensive test coverage for parsers, formatters, VICE protocol, themes, and config.
+
 ## [0.8.6] - 2026-03-06
 
 ### Features
