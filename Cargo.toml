@@ -10,6 +10,22 @@ repository = "https://github.com/ricardoquesada/regenerator2000"
 keywords = ["disassembler", "mos6502", "c64", "tui", "commodore"]
 categories = ["development-tools::debugging"]
 readme = "README.md"
+exclude = [
+    "docs/*_screenshot*.png",
+    "docs/*_only.png",
+    "docs/theme_*.png",
+    "docs/regenerator2000_logo_favicon.png",
+    "docs/regenerator2000_logo_noname.png",
+    "tests/6502/*.vsf",
+    "tests/6502/*.d64",
+    "tests/6502/*.d71",
+    "tests/6502/*.d81",
+    "tests/6502/*.crt",
+    "tests/6502/*.t64",
+    ".agent/",
+    ".github/",
+    "site/",
+]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
