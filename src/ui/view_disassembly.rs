@@ -14,6 +14,7 @@ use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui::navigable::{Navigable, handle_nav_input};
 
 const PAGE_SCROLL_AMOUNT: usize = 30;
+const LABEL_COLUMN_WIDTH: usize = 20;
 
 pub struct VisualLineCounts {
     pub labels: usize,
@@ -134,10 +135,19 @@ impl DisassemblyView {
             comments += comment.lines().count();
         }
 
+        // If the label is long, it gets its own line above the instruction
+        let label_own_line = if let Some(label) = &line.label
+            && label.len() >= LABEL_COLUMN_WIDTH
+        {
+            1
+        } else {
+            0
+        };
+
         VisualLineCounts {
             labels,
             comments,
-            instruction: 1,
+            instruction: 1 + label_own_line,
         }
     }
 
@@ -194,6 +204,13 @@ impl DisassemblyView {
         // 2. Line comment
         if let Some(comment) = &line.line_comment {
             sub_index += comment.lines().count();
+        }
+
+        // 2.5. Long label on its own line
+        if let Some(label) = &line.label
+            && label.len() >= LABEL_COLUMN_WIDTH
+        {
+            sub_index += 1;
         }
 
         // 3. Instruction
@@ -1316,11 +1333,31 @@ impl Widget for DisassemblyView {
                         .add_modifier(Modifier::BOLD),
                 ));
             } else {
+                // If the label is too long for the column, put it on its own line
+                let label_on_own_line = label_text.len() >= LABEL_COLUMN_WIDTH;
+                if label_on_own_line && !label_text.is_empty() {
+                    let label_arrow_padding = get_comment_arrow_str(current_inst, None);
+                    parts.push(Line::from(vec![
+                        Span::styled(gutter, gutter_style),
+                        Span::styled(
+                            format!("{:<width$} ", label_arrow_padding, width = arrow_width),
+                            base_style.fg(ui_state.theme.arrow),
+                        ),
+                        Span::styled("                 ".to_string(), base_style),
+                        Span::styled(
+                            label_text.clone(),
+                            base_style
+                                .fg(ui_state.theme.label_def)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                    ]));
+                }
+
                 inst_spans.push(Span::styled(
-                    if label_text.len() < 20 {
-                        format!("{: <20}", label_text)
+                    if label_on_own_line || label_text.is_empty() {
+                        format!("{: <width$}", "", width = LABEL_COLUMN_WIDTH)
                     } else {
-                        format!("{} ", label_text)
+                        format!("{: <width$}", label_text, width = LABEL_COLUMN_WIDTH)
                     },
                     base_style
                         .fg(ui_state.theme.label_def)
