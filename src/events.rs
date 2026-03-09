@@ -216,52 +216,17 @@ fn handle_vice_registers_get(
     app_state: &mut AppState,
     ui_state: &mut UIState,
 ) {
-    let payload = &msg.payload;
-    if payload.len() < 2 {
+    let Some(regs) = crate::vice::parse_registers(&msg.payload) else {
         return;
-    }
+    };
 
-    let ref_count = u16::from_le_bytes([payload[0], payload[1]]);
-    let mut offset = 2;
-    let mut pc_found = None;
+    app_state.vice_state.a = regs.a;
+    app_state.vice_state.x = regs.x;
+    app_state.vice_state.y = regs.y;
+    app_state.vice_state.sp = regs.sp;
+    app_state.vice_state.p = regs.p;
 
-    for _ in 0..ref_count {
-        if offset >= payload.len() {
-            break;
-        }
-        let item_size = payload[offset] as usize;
-        if offset + 1 + item_size > payload.len() {
-            break;
-        }
-
-        let reg_id = payload[offset + 1];
-        match reg_id {
-            0x00 if item_size >= 2 => {
-                app_state.vice_state.a = Some(payload[offset + 2]);
-            }
-            0x01 if item_size >= 2 => {
-                app_state.vice_state.x = Some(payload[offset + 2]);
-            }
-            0x02 if item_size >= 2 => {
-                app_state.vice_state.y = Some(payload[offset + 2]);
-            }
-            0x03 if item_size >= 3 => {
-                let pc_val = u16::from_le_bytes([payload[offset + 2], payload[offset + 3]]);
-                pc_found = Some(pc_val);
-            }
-            0x04 if item_size >= 2 => {
-                app_state.vice_state.sp = Some(payload[offset + 2]);
-            }
-            0x05 if item_size >= 2 => {
-                app_state.vice_state.p = Some(payload[offset + 2]);
-            }
-            _ => {}
-        }
-
-        offset += 1 + item_size;
-    }
-
-    let Some(pc) = pc_found else {
+    let Some(pc) = regs.pc else {
         ui_state.set_status_message("VICE Registers: did not find PC".to_string());
         return;
     };
@@ -335,36 +300,28 @@ fn handle_vice_registers_get(
 }
 
 fn handle_vice_memory_get(msg: &crate::vice::ViceMessage, app_state: &mut AppState) {
-    // MEMORY_GET response payload: length (2 LE) + bytes
-    let payload = &msg.payload;
-    if payload.len() < 2 {
+    let Some(resp) = crate::vice::parse_memory_get(&msg.payload) else {
         return;
-    }
+    };
 
-    let mem_len = u16::from_le_bytes([payload[0], payload[1]]) as usize;
-    if payload.len() < 2 + mem_len || mem_len == 0 {
-        return;
-    }
-
-    let bytes = payload[2..2 + mem_len].to_vec();
     match msg.request_id {
         1 => {
             // Live disassembly window around PC
-            app_state.vice_state.live_memory = Some(bytes);
+            app_state.vice_state.live_memory = Some(resp.bytes);
         }
         2 => {
             // Stack page response ($0100–$01FF)
-            app_state.vice_state.stack_memory = Some(bytes);
+            app_state.vice_state.stack_memory = Some(resp.bytes);
         }
         3 => {
             // I/O block snapshot ($D000–$DFFF)
-            app_state.vice_state.io_memory = Some(bytes);
+            app_state.vice_state.io_memory = Some(resp.bytes);
         }
         4 => {
-            app_state.vice_state.zp00_01 = Some(bytes);
+            app_state.vice_state.zp00_01 = Some(resp.bytes);
         }
         5 => {
-            app_state.vice_state.vectors = Some(bytes);
+            app_state.vice_state.vectors = Some(resp.bytes);
         }
         _ => {}
     }
@@ -382,24 +339,21 @@ fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
     // VICE uses 0x12 for:
     //   - CHECKPOINT_SET acknowledgment in other VICE versions
     // Handling both here makes us robust to all versions.
-    let p = &msg.payload;
-    if p.len() < 13 {
+    let Some(info) = crate::vice::parse_checkpoint_info(&msg.payload) else {
         return;
-    }
+    };
 
-    let id = u32::from_le_bytes([p[0], p[1], p[2], p[3]]);
-    let addr = u16::from_le_bytes([p[5], p[6]]);
-    let enabled = p[10] != 0;
-    // p[11] = cpu_operation (between enabled and temporary)
-    let cpu_op = p[11];
-    let temporary = p[12] != 0;
-    let kind = crate::vice::state::BreakpointKind::from_cpu_op(cpu_op);
+    let kind = crate::vice::state::BreakpointKind::from_cpu_op(info.cpu_op);
 
-    if temporary {
+    if info.temporary {
         // It's a temporary breakpoint (e.g. Run To Cursor). Keep track of it
         // so we can delete it if the emulator stops prematurely.
-        if !app_state.vice_state.temporary_breakpoints.contains(&id) {
-            app_state.vice_state.temporary_breakpoints.push(id);
+        if !app_state
+            .vice_state
+            .temporary_breakpoints
+            .contains(&info.id)
+        {
+            app_state.vice_state.temporary_breakpoints.push(info.id);
         }
     } else {
         // Avoid duplicates (e.g. if both 0x11 and 0x12 arrive for same checkpoint)
@@ -407,15 +361,15 @@ fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
             .vice_state
             .breakpoints
             .iter()
-            .any(|bp| bp.id == id)
+            .any(|bp| bp.id == info.id)
         {
             app_state
                 .vice_state
                 .breakpoints
                 .push(crate::vice::state::ViceBreakpoint {
-                    id,
-                    address: addr,
-                    enabled,
+                    id: info.id,
+                    address: info.address,
+                    enabled: info.enabled,
                     kind,
                 });
         }
