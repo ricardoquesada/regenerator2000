@@ -412,13 +412,7 @@ fn handle_key_event(
                 *should_render = true;
             }
             crate::ui::widget::WidgetResult::Action(action) => {
-                let closes_dialog = matches!(
-                    action,
-                    crate::ui::menu::MenuAction::ViceConnectAddress(_)
-                        | crate::ui::menu::MenuAction::ViceSetWatchpoint { .. }
-                        | crate::ui::menu::MenuAction::ViceSetBreakpointAt { .. }
-                );
-                if !closes_dialog {
+                if !action.closes_dialog() {
                     ui_state.active_dialog = Some(dialog);
                 }
                 *should_render = true;
@@ -581,9 +575,7 @@ fn handle_mouse_dialog(
             *should_render = true;
         }
         crate::ui::widget::WidgetResult::Action(action) => {
-            let is_vice_connect =
-                matches!(action, crate::ui::menu::MenuAction::ViceConnectAddress(_));
-            if !is_vice_connect {
+            if !action.closes_dialog() {
                 ui_state.active_dialog = Some(dialog);
             }
             *should_render = true;

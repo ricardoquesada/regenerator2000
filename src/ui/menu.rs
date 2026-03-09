@@ -121,6 +121,20 @@ impl MenuAction {
                 | MenuAction::ViceToggleWatchpoint
         )
     }
+
+    /// Whether this action should close the dialog that produced it.
+    ///
+    /// Actions like VICE connect, set-breakpoint, and set-watchpoint resolve
+    /// the dialog — the user is done interacting with it once they confirm.
+    #[must_use]
+    pub fn closes_dialog(&self) -> bool {
+        matches!(
+            self,
+            MenuAction::ViceConnectAddress(_)
+                | MenuAction::ViceSetWatchpoint { .. }
+                | MenuAction::ViceSetBreakpointAt { .. }
+        )
+    }
 }
 
 pub struct Menu;
