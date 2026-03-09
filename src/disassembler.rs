@@ -68,6 +68,7 @@ pub fn resolve_label<'a>(
 }
 
 pub use context::DisassemblyContext;
+pub use context::HandleArgs;
 
 #[derive(Debug, Clone)]
 pub struct DisassemblyLine {
@@ -197,174 +198,33 @@ impl Disassembler {
 
             let label_name =
                 self.get_label_name(address, ctx.labels, formatter.as_ref(), ctx.settings);
-            let side_comment = self.get_side_comment(
-                address,
-                ctx.labels,
-                ctx.settings,
-                ctx.system_comments,
-                ctx.user_side_comments,
-                ctx.cross_refs,
-                ctx.analysis_hints,
-                formatter.comment_prefix(),
-            );
+            let side_comment = self.get_side_comment(address, ctx, formatter.comment_prefix());
             let line_comment = ctx.user_line_comments.get(&address).cloned();
 
             let current_type = ctx.block_types.get(pc).copied().unwrap_or(BlockType::Code);
 
+            let args = HandleArgs {
+                pc,
+                address,
+                formatter: formatter.as_ref(),
+                label_name,
+                side_comment,
+                line_comment,
+            };
+
             let (bytes_consumed, new_lines) = match current_type {
-                BlockType::Code => self.handle_code(
-                    pc,
-                    ctx.data,
-                    ctx.block_types,
-                    address,
-                    formatter.as_ref(),
-                    ctx.labels,
-                    ctx.settings,
-                    ctx.origin,
-                    label_name,
-                    side_comment,
-                    line_comment,
-                    ctx.system_comments,
-                    ctx.user_side_comments,
-                    ctx.immediate_value_formats,
-                ),
-                BlockType::DataByte => self.handle_data_byte(
-                    pc,
-                    ctx.data,
-                    ctx.block_types,
-                    address,
-                    formatter.as_ref(),
-                    ctx.labels,
-                    ctx.origin,
-                    label_name,
-                    side_comment,
-                    line_comment,
-                    ctx.splitters,
-                    ctx.settings,
-                    ctx.user_line_comments,
-                ),
-                BlockType::DataWord => self.handle_data_word(
-                    pc,
-                    ctx.data,
-                    ctx.block_types,
-                    address,
-                    formatter.as_ref(),
-                    ctx.labels,
-                    ctx.origin,
-                    label_name,
-                    side_comment,
-                    line_comment,
-                    ctx.splitters,
-                    ctx.settings,
-                    ctx.user_line_comments,
-                ),
-                BlockType::Address => self.handle_address(
-                    pc,
-                    ctx.data,
-                    ctx.block_types,
-                    address,
-                    formatter.as_ref(),
-                    ctx.labels,
-                    ctx.origin,
-                    label_name,
-                    side_comment,
-                    line_comment,
-                    ctx.system_comments,
-                    ctx.user_side_comments,
-                    ctx.splitters,
-                    ctx.settings,
-                    ctx.user_line_comments,
-                ),
-                BlockType::PetsciiText => self.handle_petscii_text(
-                    pc,
-                    ctx.data,
-                    ctx.block_types,
-                    address,
-                    formatter.as_ref(),
-                    ctx.labels,
-                    ctx.origin,
-                    ctx.settings,
-                    label_name,
-                    side_comment,
-                    line_comment,
-                    ctx.splitters,
-                    ctx.user_line_comments,
-                ),
-                BlockType::ScreencodeText => self.handle_screencode_text(
-                    pc,
-                    ctx.data,
-                    ctx.block_types,
-                    address,
-                    formatter.as_ref(),
-                    ctx.labels,
-                    ctx.origin,
-                    ctx.settings,
-                    label_name,
-                    side_comment,
-                    line_comment,
-                    ctx.splitters,
-                    ctx.user_line_comments,
-                ),
-                BlockType::LoHiAddress => handlers::handle_lohi_address(
-                    ctx,
-                    pc,
-                    address,
-                    formatter.as_ref(),
-                    label_name,
-                    side_comment,
-                    line_comment,
-                ),
-                BlockType::HiLoAddress => handlers::handle_hilo_address(
-                    ctx,
-                    pc,
-                    address,
-                    formatter.as_ref(),
-                    label_name,
-                    side_comment,
-                    line_comment,
-                ),
-                BlockType::LoHiWord => handlers::handle_lohi_word(
-                    ctx,
-                    pc,
-                    address,
-                    formatter.as_ref(),
-                    label_name,
-                    side_comment,
-                    line_comment,
-                ),
-                BlockType::HiLoWord => handlers::handle_hilo_word(
-                    ctx,
-                    pc,
-                    address,
-                    formatter.as_ref(),
-                    label_name,
-                    side_comment,
-                    line_comment,
-                ),
-                BlockType::ExternalFile => self.handle_external_file(
-                    pc,
-                    ctx.data,
-                    ctx.block_types,
-                    address,
-                    formatter.as_ref(),
-                    ctx.labels,
-                    ctx.origin,
-                    label_name,
-                    side_comment,
-                    line_comment,
-                    ctx.splitters,
-                    ctx.settings,
-                    ctx.user_line_comments,
-                ),
-                BlockType::Undefined => handlers::handle_undefined_byte(
-                    ctx.data,
-                    pc,
-                    address,
-                    formatter.as_ref(),
-                    label_name,
-                    side_comment,
-                    line_comment,
-                ),
+                BlockType::Code => self.handle_code(ctx, args),
+                BlockType::DataByte => self.handle_data_byte(ctx, args),
+                BlockType::DataWord => self.handle_data_word(ctx, args),
+                BlockType::Address => self.handle_address(ctx, args),
+                BlockType::PetsciiText => self.handle_petscii_text(ctx, args),
+                BlockType::ScreencodeText => self.handle_screencode_text(ctx, args),
+                BlockType::LoHiAddress => handlers::handle_lohi_address(ctx, args),
+                BlockType::HiLoAddress => handlers::handle_hilo_address(ctx, args),
+                BlockType::LoHiWord => handlers::handle_lohi_word(ctx, args),
+                BlockType::HiLoWord => handlers::handle_hilo_word(ctx, args),
+                BlockType::ExternalFile => self.handle_external_file(ctx, args),
+                BlockType::Undefined => handlers::handle_undefined_byte(ctx, args),
             };
             lines.extend(new_lines);
             pc += bytes_consumed;
@@ -461,60 +321,56 @@ impl Disassembler {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn get_side_comment(
         &self,
         address: u16,
-        _labels: &BTreeMap<u16, Vec<Label>>,
-        settings: &DocumentSettings,
-        system_comments: &BTreeMap<u16, String>,
-        user_side_comments: &BTreeMap<u16, String>,
-        cross_refs: &BTreeMap<u16, Vec<u16>>,
-        analysis_hints: &BTreeMap<u16, String>,
+        ctx: &DisassemblyContext,
         comment_prefix: &str,
     ) -> String {
         let mut comment_parts = Vec::new();
 
-        if let Some(user_comment) = user_side_comments.get(&address) {
+        if let Some(user_comment) = ctx.user_side_comments.get(&address) {
             comment_parts.push(user_comment.clone());
-        } else if let Some(sys_comment) = system_comments.get(&address) {
+        } else if let Some(sys_comment) = ctx.system_comments.get(&address) {
             comment_parts.push(sys_comment.clone());
         }
 
         // Analysis hints appear after user/system comments (or standalone if none)
-        if let Some(hint) = analysis_hints.get(&address) {
+        if let Some(hint) = ctx.analysis_hints.get(&address) {
             comment_parts.push(hint.clone());
         }
 
-        if let Some(refs) = cross_refs.get(&address)
+        if let Some(refs) = ctx.cross_refs.get(&address)
             && !refs.is_empty()
-            && settings.max_xref_count > 0
+            && ctx.settings.max_xref_count > 0
         {
-            comment_parts.push(format_cross_references(refs, settings.max_xref_count));
+            comment_parts.push(format_cross_references(refs, ctx.settings.max_xref_count));
         }
 
         let separator = format!(" {comment_prefix} "); // e.g. " ; " or " // "
         comment_parts.join(&separator)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub fn handle_code(
+    fn handle_code(
         &self,
-        pc: usize,
-        data: &[u8],
-        block_types: &[BlockType],
-        address: u16,
-        formatter: &dyn Formatter,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        settings: &DocumentSettings,
-        _origin: u16, // Add origin
-        label_name: Option<String>,
-        mut side_comment: String,
-        line_comment: Option<String>,
-        system_comments: &BTreeMap<u16, String>,
-        user_side_comments: &BTreeMap<u16, String>,
-        immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
+        ctx: &DisassemblyContext,
+        args: HandleArgs,
     ) -> (usize, Vec<DisassemblyLine>) {
+        let HandleArgs {
+            pc,
+            address,
+            formatter,
+            label_name,
+            mut side_comment,
+            line_comment,
+        } = args;
+        let data = ctx.data;
+        let block_types = ctx.block_types;
+        let labels = ctx.labels;
+        let settings = ctx.settings;
+        let system_comments = ctx.system_comments;
+        let user_side_comments = ctx.user_side_comments;
+        let immediate_value_formats = ctx.immediate_value_formats;
         let opcode_byte = data[pc];
         let opcode_opt = &self.opcodes[opcode_byte as usize];
 
@@ -755,24 +611,27 @@ impl Disassembler {
             }],
         )
     }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn handle_data_byte(
+    fn handle_data_byte(
         &self,
-        pc: usize,
-        data: &[u8],
-        block_types: &[BlockType],
-        address: u16,
-        formatter: &dyn Formatter,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        origin: u16,
-        label_name: Option<String>,
-        side_comment: String,
-        line_comment: Option<String>,
-        splitters: &BTreeSet<u16>,
-        settings: &DocumentSettings,
-        user_line_comments: &BTreeMap<u16, String>,
+        ctx: &DisassemblyContext,
+        args: HandleArgs,
     ) -> (usize, Vec<DisassemblyLine>) {
+        let HandleArgs {
+            pc,
+            address: _,
+            formatter,
+            label_name,
+            side_comment,
+            line_comment,
+        } = args;
+        let data = ctx.data;
+        let block_types = ctx.block_types;
+        let labels = ctx.labels;
+        let origin = ctx.origin;
+        let splitters = ctx.splitters;
+        let settings = ctx.settings;
+        let user_line_comments = ctx.user_line_comments;
+        let address = origin.wrapping_add(pc as u16);
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0;
@@ -826,23 +685,26 @@ impl Disassembler {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn handle_data_word(
         &self,
-        pc: usize,
-        data: &[u8],
-        block_types: &[BlockType],
-        address: u16,
-        formatter: &dyn Formatter,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        origin: u16,
-        label_name: Option<String>,
-        side_comment: String,
-        line_comment: Option<String>,
-        splitters: &BTreeSet<u16>,
-        settings: &DocumentSettings,
-        user_line_comments: &BTreeMap<u16, String>,
+        ctx: &DisassemblyContext,
+        args: HandleArgs,
     ) -> (usize, Vec<DisassemblyLine>) {
+        let HandleArgs {
+            pc,
+            address,
+            formatter,
+            label_name,
+            side_comment,
+            line_comment,
+        } = args;
+        let data = ctx.data;
+        let block_types = ctx.block_types;
+        let labels = ctx.labels;
+        let origin = ctx.origin;
+        let splitters = ctx.splitters;
+        let settings = ctx.settings;
+        let user_line_comments = ctx.user_line_comments;
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0; // Number of words
@@ -923,23 +785,27 @@ impl Disassembler {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn handle_external_file(
         &self,
-        pc: usize,
-        data: &[u8],
-        block_types: &[BlockType],
-        address: u16,
-        formatter: &dyn Formatter,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        origin: u16,
-        label_name: Option<String>,
-        side_comment: String,
-        line_comment: Option<String>,
-        splitters: &BTreeSet<u16>,
-        settings: &DocumentSettings,
-        user_line_comments: &BTreeMap<u16, String>,
+        ctx: &DisassemblyContext,
+        args: HandleArgs,
     ) -> (usize, Vec<DisassemblyLine>) {
+        let HandleArgs {
+            pc,
+            address: _,
+            formatter,
+            label_name,
+            side_comment,
+            line_comment,
+        } = args;
+        let data = ctx.data;
+        let block_types = ctx.block_types;
+        let labels = ctx.labels;
+        let origin = ctx.origin;
+        let splitters = ctx.splitters;
+        let settings = ctx.settings;
+        let user_line_comments = ctx.user_line_comments;
+        let address = origin.wrapping_add(pc as u16);
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0;
@@ -992,25 +858,27 @@ impl Disassembler {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn handle_address(
         &self,
-        pc: usize,
-        data: &[u8],
-        block_types: &[BlockType],
-        address: u16,
-        formatter: &dyn Formatter,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        origin: u16,
-        label_name: Option<String>,
-        mut side_comment: String,
-        line_comment: Option<String>,
-        system_comments: &BTreeMap<u16, String>,
-        user_side_comments: &BTreeMap<u16, String>,
-        _splitters: &BTreeSet<u16>,
-        settings: &DocumentSettings,
-        user_line_comments: &BTreeMap<u16, String>,
+        ctx: &DisassemblyContext,
+        args: HandleArgs,
     ) -> (usize, Vec<DisassemblyLine>) {
+        let HandleArgs {
+            pc,
+            address,
+            formatter,
+            label_name,
+            mut side_comment,
+            line_comment,
+        } = args;
+        let data = ctx.data;
+        let block_types = ctx.block_types;
+        let labels = ctx.labels;
+        let origin = ctx.origin;
+        let system_comments = ctx.system_comments;
+        let user_side_comments = ctx.user_side_comments;
+        let settings = ctx.settings;
+        let user_line_comments = ctx.user_line_comments;
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0;
@@ -1099,24 +967,28 @@ impl Disassembler {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn handle_petscii_text(
         &self,
-        pc: usize,
-        data: &[u8],
-        block_types: &[BlockType],
-        address: u16,
-        formatter: &dyn Formatter,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        origin: u16,
-        settings: &DocumentSettings,
-        label_name: Option<String>,
-        side_comment: String,
-        line_comment: Option<String>,
-        splitters: &BTreeSet<u16>,
-        user_line_comments: &BTreeMap<u16, String>,
+        ctx: &DisassemblyContext,
+        args: HandleArgs,
     ) -> (usize, Vec<DisassemblyLine>) {
         use crate::disassembler::formatter::TextFragment;
+
+        let HandleArgs {
+            pc,
+            address,
+            formatter,
+            label_name,
+            side_comment,
+            line_comment,
+        } = args;
+        let data = ctx.data;
+        let block_types = ctx.block_types;
+        let labels = ctx.labels;
+        let origin = ctx.origin;
+        let settings = ctx.settings;
+        let splitters = ctx.splitters;
+        let user_line_comments = ctx.user_line_comments;
 
         let mut fragments = Vec::new();
         let mut current_literal = String::new();
@@ -1239,24 +1111,28 @@ impl Disassembler {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn handle_screencode_text(
         &self,
-        pc: usize,
-        data: &[u8],
-        block_types: &[BlockType],
-        address: u16,
-        formatter: &dyn Formatter,
-        labels: &BTreeMap<u16, Vec<Label>>,
-        origin: u16,
-        settings: &DocumentSettings,
-        label_name: Option<String>,
-        side_comment: String,
-        line_comment: Option<String>,
-        splitters: &BTreeSet<u16>,
-        user_line_comments: &BTreeMap<u16, String>,
+        ctx: &DisassemblyContext,
+        args: HandleArgs,
     ) -> (usize, Vec<DisassemblyLine>) {
         use crate::disassembler::formatter::TextFragment;
+
+        let HandleArgs {
+            pc,
+            address,
+            formatter,
+            label_name,
+            side_comment,
+            line_comment,
+        } = args;
+        let data = ctx.data;
+        let block_types = ctx.block_types;
+        let labels = ctx.labels;
+        let origin = ctx.origin;
+        let settings = ctx.settings;
+        let splitters = ctx.splitters;
+        let user_line_comments = ctx.user_line_comments;
 
         let mut fragments = Vec::new();
         let mut current_literal = String::new();

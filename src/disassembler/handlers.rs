@@ -1,108 +1,50 @@
 use super::DisassemblyLine;
-use super::context::DisassemblyContext;
-use super::formatter::Formatter;
+use super::context::{DisassemblyContext, HandleArgs};
 use crate::state::BlockType;
 
 pub fn handle_lohi_address(
     ctx: &DisassemblyContext,
-    pc: usize,
-    address: u16,
-    formatter: &dyn Formatter,
-    label_name: Option<String>,
-    side_comment: String,
-    line_comment: Option<String>,
+    args: HandleArgs,
 ) -> (usize, Vec<DisassemblyLine>) {
-    handle_split_byte_table(
-        ctx,
-        pc,
-        BlockType::LoHiAddress,
-        false,
-        address,
-        formatter,
-        label_name,
-        side_comment,
-        line_comment,
-    )
+    handle_split_byte_table(ctx, BlockType::LoHiAddress, false, args)
 }
 
 pub fn handle_hilo_address(
     ctx: &DisassemblyContext,
-    pc: usize,
-    address: u16,
-    formatter: &dyn Formatter,
-    label_name: Option<String>,
-    side_comment: String,
-    line_comment: Option<String>,
+    args: HandleArgs,
 ) -> (usize, Vec<DisassemblyLine>) {
-    handle_split_byte_table(
-        ctx,
-        pc,
-        BlockType::HiLoAddress,
-        true,
-        address,
-        formatter,
-        label_name,
-        side_comment,
-        line_comment,
-    )
+    handle_split_byte_table(ctx, BlockType::HiLoAddress, true, args)
 }
 
 pub fn handle_lohi_word(
     ctx: &DisassemblyContext,
-    pc: usize,
-    address: u16,
-    formatter: &dyn Formatter,
-    label_name: Option<String>,
-    side_comment: String,
-    line_comment: Option<String>,
+    args: HandleArgs,
 ) -> (usize, Vec<DisassemblyLine>) {
-    handle_split_byte_table(
-        ctx,
-        pc,
-        BlockType::LoHiWord,
-        false,
-        address,
-        formatter,
-        label_name,
-        side_comment,
-        line_comment,
-    )
+    handle_split_byte_table(ctx, BlockType::LoHiWord, false, args)
 }
 
 pub fn handle_hilo_word(
     ctx: &DisassemblyContext,
-    pc: usize,
-    address: u16,
-    formatter: &dyn Formatter,
-    label_name: Option<String>,
-    side_comment: String,
-    line_comment: Option<String>,
+    args: HandleArgs,
 ) -> (usize, Vec<DisassemblyLine>) {
-    handle_split_byte_table(
-        ctx,
+    handle_split_byte_table(ctx, BlockType::HiLoWord, true, args)
+}
+
+fn handle_split_byte_table(
+    ctx: &DisassemblyContext,
+    target_type: BlockType,
+    hi_first: bool,
+    args: HandleArgs,
+) -> (usize, Vec<DisassemblyLine>) {
+    let HandleArgs {
         pc,
-        BlockType::HiLoWord,
-        true,
         address,
         formatter,
         label_name,
         side_comment,
         line_comment,
-    )
-}
+    } = args;
 
-#[allow(clippy::too_many_arguments)]
-fn handle_split_byte_table(
-    ctx: &DisassemblyContext,
-    pc: usize,
-    target_type: BlockType,
-    hi_first: bool,
-    address: u16,
-    formatter: &dyn Formatter,
-    label_name: Option<String>,
-    side_comment: String,
-    line_comment: Option<String>,
-) -> (usize, Vec<DisassemblyLine>) {
     let mut count = 0;
     // Find extent of block
     while pc + count < ctx.data.len() {
@@ -127,13 +69,15 @@ fn handle_split_byte_table(
     let pair_count = count / 2;
     if pair_count == 0 {
         return handle_undefined_byte(
-            ctx.data,
-            pc,
-            address,
-            formatter,
-            label_name,
-            side_comment,
-            line_comment,
+            ctx,
+            HandleArgs {
+                pc,
+                address,
+                formatter,
+                label_name,
+                side_comment,
+                line_comment,
+            },
         );
     }
 
@@ -252,15 +196,18 @@ fn handle_split_byte_table(
 }
 
 pub fn handle_undefined_byte(
-    data: &[u8],
-    pc: usize,
-    address: u16,
-    formatter: &dyn Formatter,
-    label_name: Option<String>,
-    side_comment: String,
-    line_comment: Option<String>,
+    ctx: &DisassemblyContext,
+    args: HandleArgs,
 ) -> (usize, Vec<DisassemblyLine>) {
-    let b = data[pc];
+    let HandleArgs {
+        pc,
+        address,
+        formatter,
+        label_name,
+        side_comment,
+        line_comment,
+    } = args;
+    let b = ctx.data[pc];
     (
         1,
         vec![DisassemblyLine {

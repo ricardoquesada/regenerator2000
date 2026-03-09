@@ -1,6 +1,8 @@
 use crate::state::{BlockType, DocumentSettings, Label};
 use std::collections::{BTreeMap, BTreeSet};
 
+use super::formatter::Formatter;
+
 /// Context containing all the data needed for disassembly.
 pub struct DisassemblyContext<'a> {
     pub data: &'a [u8],
@@ -16,6 +18,16 @@ pub struct DisassemblyContext<'a> {
     pub analysis_hints: &'a BTreeMap<u16, String>,
     pub collapsed_blocks: &'a [(usize, usize)],
     pub splitters: &'a BTreeSet<u16>,
+}
+
+/// Per-iteration values computed in the disassembly loop and passed to each handler.
+pub struct HandleArgs<'a> {
+    pub pc: usize,
+    pub address: u16,
+    pub formatter: &'a dyn Formatter,
+    pub label_name: Option<String>,
+    pub side_comment: String,
+    pub line_comment: Option<String>,
 }
 
 impl<'a> DisassemblyContext<'a> {

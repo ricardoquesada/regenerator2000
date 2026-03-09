@@ -1,4 +1,3 @@
-use regenerator2000::disassembler::formatter_acme::AcmeFormatter;
 use regenerator2000::disassembler::{Disassembler, DisassemblyLine};
 use regenerator2000::state::{Assembler, BlockType, DocumentSettings};
 use std::collections::{BTreeMap, BTreeSet};
@@ -1571,34 +1570,24 @@ fn test_side_comment_propagation_suppressed_for_code() {
     // $1000: BNE $1000 -> D0 FE
     let data = vec![0xD0, 0xFE];
     let block_types = vec![BlockType::Code; 2];
-    let address = 0x1000;
 
     let disassembler = Disassembler::new();
-    let formatter = AcmeFormatter;
     let settings = DocumentSettings::default();
-    let system_comments = BTreeMap::new();
 
-    // mimic disassemble loop: get comment for current address
-    let side_comment = user_side_comments
-        .get(&address)
-        .cloned()
-        .unwrap_or_default();
-
-    let (_, lines) = disassembler.handle_code(
-        0, // pc relative to data start
+    let lines = disassembler.disassemble(
         &data,
         &block_types,
-        address,
-        &formatter,
         &labels,
+        0x1000,
         &settings,
-        address, // origin added
-        None,
-        side_comment,
-        None,
-        &system_comments,
+        &BTreeMap::new(),
         &user_side_comments,
         &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &[],
+        &BTreeSet::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -1608,34 +1597,30 @@ fn test_side_comment_propagation_suppressed_for_code() {
     // It should NOT be "Loop Start; Loop Start"
 
     // Now test another instruction jumping to it
-    // $1002: JMP $1000 -> 4C 00 10
-    // We need combined data so target is found as Code
     // $1000: BNE $1000 (D0 FE)
     // $1002: JMP $1000 (4C 00 10)
     let full_data = vec![0xD0, 0xFE, 0x4C, 0x00, 0x10];
     let full_block_types = vec![BlockType::Code; 5];
 
-    // Handle JMP at offset 2 ($1002)
-    let (_, lines2) = disassembler.handle_code(
-        2,
+    let lines2 = disassembler.disassemble(
         &full_data,
         &full_block_types,
-        0x1002, // address
-        &formatter,
         &labels,
+        0x1000,
         &settings,
-        0x1000, // origin
-        None,
-        String::new(), // No comment on the JMP itself
-        None,
-        &system_comments,
+        &BTreeMap::new(),
         &user_side_comments,
         &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &[],
+        &BTreeSet::new(),
     );
 
-    assert_eq!(lines2.len(), 1);
-    // Should NOT have propagated comment from $1000 because target ($1000) is Code.
-    assert_eq!(lines2[0].comment, "");
+    assert_eq!(lines2.len(), 2);
+    // The JMP at $1002 should NOT have propagated comment from $1000 because target ($1000) is Code.
+    assert_eq!(lines2[1].comment, "");
 }
 
 #[test]
@@ -1648,28 +1633,24 @@ fn test_side_comment_propagation_allowed_for_data() {
     // Target $2000 is out of bounds of this data block, so is_code_target should be false.
 
     let block_types = vec![BlockType::Code; 3];
-    let address = 0x1000;
 
     let disassembler = Disassembler::new();
-    let formatter = AcmeFormatter;
     let settings = DocumentSettings::default();
-    let system_comments = BTreeMap::new();
 
-    let (_, lines) = disassembler.handle_code(
-        0,
+    let lines = disassembler.disassemble(
         &data,
         &block_types,
-        address,
-        &formatter,
         &labels,
+        0x1000,
         &settings,
-        address, // origin
-        None,
-        String::new(),
-        None,
-        &system_comments,
+        &BTreeMap::new(),
         &user_side_comments,
         &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &[],
+        &BTreeSet::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -2120,26 +2101,29 @@ fn test_bytes_per_line() {
     let data = [0x11, 0x22, 0x33, 0x44, 0x55];
     let block_types = vec![BlockType::DataByte; 5];
     let disassembler = Disassembler::new();
-    let formatter = Box::new(regenerator2000::disassembler::formatter_64tass::TassFormatter);
 
-    let (consumed, lines) = disassembler.handle_data_byte(
-        0,
+    let lines = disassembler.disassemble(
         &data,
         &block_types,
-        0x1000,
-        formatter.as_ref(),
         &BTreeMap::new(),
         0x1000,
-        None,
-        String::new(),
-        None,
-        &BTreeSet::new(),
         &settings,
         &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &BTreeMap::new(),
+        &[],
+        &BTreeSet::new(),
     );
 
-    assert_eq!(consumed, 3);
-    assert_eq!(lines.len(), 1);
+    // With 5 bytes and bytes_per_line=3, disassemble produces 2 lines
+    assert_eq!(lines.len(), 2);
+    // First line should have 3 bytes
     assert_eq!(lines[0].bytes.len(), 3);
     assert_eq!(lines[0].bytes, vec![0x11, 0x22, 0x33]);
+    // Second line should have 2 bytes
+    assert_eq!(lines[1].bytes.len(), 2);
+    assert_eq!(lines[1].bytes, vec![0x44, 0x55]);
 }
