@@ -37,18 +37,20 @@ pub const VIC_II_RGB: [[u8; 3]; 16] = [
 /// # Returns
 /// RGB color as [u8; 3], or black if index is out of range
 #[inline]
+#[must_use]
 pub fn get_vic_color(index: u8) -> [u8; 3] {
     VIC_II_RGB.get(index as usize).copied().unwrap_or([0, 0, 0])
 }
 
-/// Get RGB color from VIC-II palette as image::Rgb
+/// Get RGB color from VIC-II palette as `image::Rgb`
 ///
 /// # Arguments
 /// * `index` - Color index (0-15)
 ///
 /// # Returns
-/// RGB color as image::Rgb<u8>
+/// RGB color as `image::Rgb`<u8>
 #[inline]
+#[must_use]
 pub fn get_vic_color_rgb(index: u8) -> Rgb<u8> {
     Rgb(get_vic_color(index))
 }
@@ -70,6 +72,7 @@ pub fn get_vic_color_rgb(index: u8) -> Rgb<u8> {
 /// # Returns
 /// Color index (0-15)
 #[inline]
+#[must_use]
 pub fn decode_multicolor_pixel(bits: u8, color_byte: u8, bg_color: u8, fg_color: u8) -> u8 {
     match bits & 0b11 {
         0b00 => bg_color,
@@ -90,6 +93,7 @@ pub fn decode_multicolor_pixel(bits: u8, color_byte: u8, bg_color: u8, fg_color:
 /// # Returns
 /// Array of 4 pixel values [leftmost, ..., rightmost]
 #[inline]
+#[must_use]
 pub fn extract_multicolor_pixels(byte: u8) -> [u8; 4] {
     [
         (byte >> 6) & 0b11,
@@ -109,6 +113,7 @@ pub fn extract_multicolor_pixels(byte: u8) -> [u8; 4] {
 /// # Returns
 /// Array of 8 pixel values (0 or 1)
 #[inline]
+#[must_use]
 pub fn extract_hires_pixels(byte: u8) -> [u8; 8] {
     [
         (byte >> 7) & 1,
@@ -133,7 +138,8 @@ pub fn extract_hires_pixels(byte: u8) -> [u8; 8] {
 /// * `scale` - Scaling factor (1 = 24x21, 2 = 48x42, etc.)
 ///
 /// # Returns
-/// DynamicImage containing the rendered sprite
+/// `DynamicImage` containing the rendered sprite
+#[must_use]
 pub fn render_sprite_to_image(
     sprite_data: &[u8],
     multicolor: bool,
@@ -220,7 +226,8 @@ pub fn render_sprite_to_image(
 /// * `scale` - Scaling factor (1 = 8x8, 2 = 16x16, etc.)
 ///
 /// # Returns
-/// DynamicImage containing the rendered character
+/// `DynamicImage` containing the rendered character
+#[must_use]
 pub fn render_char_to_image(
     char_data: &[u8],
     multicolor: bool,

@@ -24,6 +24,7 @@ impl Default for StatusBarState {
 }
 
 impl StatusBarState {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
@@ -73,8 +74,7 @@ impl Widget for StatusBar {
         let cursor_addr = app_state
             .disassembly
             .get(ui_state.cursor_index)
-            .map(|l| l.address)
-            .unwrap_or(0);
+            .map_or(0, |l| l.address);
 
         let block_info =
             if let Some(offset) = (cursor_addr as isize).checked_sub(app_state.origin as isize) {
@@ -108,9 +108,9 @@ impl Widget for StatusBar {
                 .unwrap_or_default(),
             if let Some(start) = ui_state.selection_start {
                 let count = (ui_state.cursor_index as isize - start as isize).abs() + 1;
-                format!(" | Selected: {}", count)
+                format!(" | Selected: {count}")
             } else {
-                "".to_string()
+                String::new()
             }
         );
 

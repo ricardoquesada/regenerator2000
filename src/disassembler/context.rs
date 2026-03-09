@@ -20,6 +20,7 @@ pub struct DisassemblyContext<'a> {
 
 impl<'a> DisassemblyContext<'a> {
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn minimal(
         data: &'a [u8],
         block_types: &'a [BlockType],

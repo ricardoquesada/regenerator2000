@@ -20,6 +20,7 @@ impl Default for ShortcutsDialog {
 }
 
 impl ShortcutsDialog {
+    #[must_use]
     pub fn new() -> Self {
         Self { scroll_offset: 0 }
     }
@@ -164,7 +165,7 @@ impl Widget for ShortcutsDialog {
                             .add_modifier(Modifier::BOLD | Modifier::UNDERLINED),
                     ))
                 } else {
-                    let content = format!("{:<25} {}", key, desc);
+                    let content = format!("{key:<25} {desc}");
                     ListItem::new(content).style(Style::default().fg(theme.dialog_fg))
                 }
             })

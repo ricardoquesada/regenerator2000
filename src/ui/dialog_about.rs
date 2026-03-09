@@ -63,11 +63,11 @@ impl Widget for AboutDialog {
             let font_width = 8.0;
             let font_height = 16.0;
 
-            let native_width_cells = logo.width() as f64 / font_width;
-            let native_height_cells = logo.height() as f64 / font_height;
+            let native_width_cells = f64::from(logo.width()) / font_width;
+            let native_height_cells = f64::from(logo.height()) / font_height;
 
-            let avail_width_cells = img_area.width as f64;
-            let avail_height_cells = img_area.height as f64;
+            let avail_width_cells = f64::from(img_area.width);
+            let avail_height_cells = f64::from(img_area.height);
 
             // Calculate scale to fit
             let scale_w = avail_width_cells / native_width_cells;

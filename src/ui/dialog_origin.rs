@@ -15,9 +15,10 @@ pub struct OriginDialog {
 }
 
 impl OriginDialog {
+    #[must_use]
     pub fn new(current_origin: u16) -> Self {
         Self {
-            input: format!("{:04X}", current_origin),
+            input: format!("{current_origin:04X}"),
         }
     }
 }
@@ -67,8 +68,7 @@ impl Widget for OriginDialog {
                         app_state.push_command(command);
 
                         app_state.disassemble();
-                        ui_state
-                            .set_status_message(format!("Origin changed to ${:04X}", new_origin));
+                        ui_state.set_status_message(format!("Origin changed to ${new_origin:04X}"));
                         WidgetResult::Close
                     } else {
                         ui_state.set_status_message("Error: Origin + Size exceeds $FFFF");

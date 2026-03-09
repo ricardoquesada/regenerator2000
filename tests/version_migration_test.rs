@@ -6,12 +6,11 @@ mod tests {
     fn make_test_json(include_version: Option<u32>) -> String {
         let raw_data_b64 = regenerator2000::state::encode_raw_data_to_base64(&[0xEA]).unwrap();
         let version_part = match include_version {
-            Some(v) => format!("\"version\": {},", v),
+            Some(v) => format!("\"version\": {v},"),
             None => String::new(),
         };
         format!(
-            "{{{} \"origin\": 4096, \"raw_data_base64\": \"{}\", \"blocks\": [{{\"start\":0,\"end\":0,\"type_\":\"Code\"}}]}}",
-            version_part, raw_data_b64
+            "{{{version_part} \"origin\": 4096, \"raw_data_base64\": \"{raw_data_b64}\", \"blocks\": [{{\"start\":0,\"end\":0,\"type_\":\"Code\"}}]}}"
         )
     }
 
@@ -55,8 +54,7 @@ mod tests {
         };
         assert!(
             err_msg.contains("newer version"),
-            "Error should mention newer version: {}",
-            err_msg
+            "Error should mention newer version: {err_msg}"
         );
 
         // Cleanup

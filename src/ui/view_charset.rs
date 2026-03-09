@@ -87,7 +87,7 @@ impl Navigable for CharsetView {
         ui_state.charset_cursor_index = target_char;
     }
 
-    fn item_name(&self) -> &str {
+    fn item_name(&self) -> &'static str {
         "char"
     }
 }
@@ -219,8 +219,7 @@ impl Widget for CharsetView {
 
                 f.render_widget(
                     Paragraph::new(format!(
-                        "Charset  {} / (${:02X}) @ ${:04X}",
-                        charset_num, charset_num, charset_address
+                        "Charset  {charset_num} / (${charset_num:02X}) @ ${charset_address:04X}"
                     ))
                     .style(Style::default().fg(ui_state.theme.comment)),
                     Rect::new(

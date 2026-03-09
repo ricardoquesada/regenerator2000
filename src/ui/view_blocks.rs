@@ -65,7 +65,7 @@ impl Navigable for BlocksView {
         ui_state.blocks_list_state.select(Some(target));
     }
 
-    fn item_name(&self) -> &str {
+    fn item_name(&self) -> &'static str {
         "block"
     }
 }
@@ -180,14 +180,12 @@ impl Widget for BlocksView {
                     };
 
                     let collapse_char = if *collapsed { "+" } else { " " };
-                    let text = format!(
-                        "{} ${:04X} - ${:04X} [{}]",
-                        collapse_char, start_addr, end_addr, type_
-                    );
+                    let text =
+                        format!("{collapse_char} ${start_addr:04X} - ${end_addr:04X} [{type_}]");
                     ListItem::new(Line::from(Span::styled(text, Style::default().fg(color))))
                 }
                 crate::state::BlockItem::Splitter(addr) => {
-                    let text = format!("  ${:04X} -----------------", addr);
+                    let text = format!("  ${addr:04X} -----------------");
                     ListItem::new(Line::from(Span::styled(
                         text,
                         Style::default().fg(ui_state.theme.block_splitter_fg),

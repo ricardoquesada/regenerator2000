@@ -47,7 +47,7 @@ impl Widget for DebuggerView {
             } else {
                 // Build status text with optional stop reason
                 let text = match &vs.stop_reason {
-                    Some(reason) => format!("⏸ PAUSED ← {}", reason),
+                    Some(reason) => format!("⏸ PAUSED ← {reason}"),
                     None => "⏸ PAUSED".to_string(),
                 };
                 let style = if ui_state.debugger_flash_remaining > 0 {
@@ -151,11 +151,11 @@ impl Widget for DebuggerView {
 
             let mut live_rendered: Vec<Line> = Vec::new();
             live_rendered.push(Line::from(Span::styled(
-                format!(" Live @ ${:04X} ─────────────────", pc),
+                format!(" Live @ ${pc:04X} ─────────────────"),
                 header_style,
             )));
 
-            for line in live_lines[start_idx..end_idx].iter() {
+            for line in &live_lines[start_idx..end_idx] {
                 let is_pc_line = line.address == pc;
                 let gutter = if is_pc_line { ">" } else { " " };
                 let row_text = format!(
@@ -165,7 +165,7 @@ impl Widget for DebuggerView {
                     if line.show_bytes {
                         line.bytes
                             .iter()
-                            .map(|b| format!("{:02X}", b))
+                            .map(|b| format!("{b:02X}"))
                             .collect::<Vec<_>>()
                             .join(" ")
                     } else {
@@ -189,13 +189,13 @@ impl Widget for DebuggerView {
 
         let fmt_byte = |v: Option<u8>| -> String {
             match v {
-                Some(b) => format!("${:02X}", b),
+                Some(b) => format!("${b:02X}"),
                 None => "?".to_string(),
             }
         };
         let fmt_word = |v: Option<u16>| -> String {
             match v {
-                Some(w) => format!("${:04X}", w),
+                Some(w) => format!("${w:04X}"),
                 None => "?".to_string(),
             }
         };
@@ -212,7 +212,7 @@ impl Widget for DebuggerView {
             None => "????????".to_string(),
         };
         let p_bits_str = match vs.p {
-            Some(p) => format!("{:08b}", p),
+            Some(p) => format!("{p:08b}"),
             None => "????????".to_string(),
         };
 
@@ -284,7 +284,7 @@ impl Widget for DebuggerView {
                 };
                 let flag = if bp.enabled { "●" } else { "○" };
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {} ", flag), bp_style),
+                    Span::styled(format!("  {flag} "), bp_style),
                     Span::styled(format!("#{:<3}", bp.id), dim_style),
                     Span::styled(format!("${:04X}", bp.address), value_style),
                 ]));
@@ -307,7 +307,7 @@ impl Widget for DebuggerView {
                 };
                 let flag = if bp.enabled { "●" } else { "○" };
                 lines.push(Line::from(vec![
-                    Span::styled(format!("  {} ", flag), bp_style),
+                    Span::styled(format!("  {flag} "), bp_style),
                     Span::styled(format!("#{:<3}", bp.id), dim_style),
                     Span::styled(format!("${:04X}", bp.address), value_style),
                     Span::styled(format!(" [{}]", bp.kind.label()), bp_style),
@@ -320,11 +320,11 @@ impl Widget for DebuggerView {
         lines.push(Line::from(Span::styled("Stack", heading_style)));
 
         if let (Some(sp), Some(stack_mem)) = (vs.sp, &vs.stack_memory) {
-            let sp_addr = 0x0100u16 + sp as u16;
+            let sp_addr = 0x0100u16 + u16::from(sp);
             lines.push(Line::from(vec![
                 Span::styled("  SP  ", label_style),
-                Span::styled(format!("${:02X}", sp), value_style),
-                Span::styled(format!("  →${:04X}", sp_addr), dim_style),
+                Span::styled(format!("${sp:02X}"), value_style),
+                Span::styled(format!("  →${sp_addr:04X}"), dim_style),
             ]));
 
             // Show up to 5 entries above SP (the used stack), from top (SP+1) downward
@@ -342,12 +342,12 @@ impl Widget for DebuggerView {
                     let byte = stack_mem.get(byte_idx).copied();
                     let is_top = i == 0;
                     let addr_span = Span::styled(
-                        format!("  ${:04X}  ", entry_addr),
+                        format!("  ${entry_addr:04X}  "),
                         if is_top { value_style } else { dim_style },
                     );
                     let val_span = match byte {
                         Some(b) => Span::styled(
-                            format!("${:02X}", b),
+                            format!("${b:02X}"),
                             if is_top { value_style } else { dim_style },
                         ),
                         None => Span::styled("??", dim_style),
@@ -438,15 +438,15 @@ impl Widget for DebuggerView {
                 let irq = u16::from_le_bytes([vecs[4], vecs[5]]);
                 right_lines.push(Line::from(vec![
                     Span::styled("  NMI  ", label_style),
-                    Span::styled(format!("${:04X}", nmi), value_style),
+                    Span::styled(format!("${nmi:04X}"), value_style),
                 ]));
                 right_lines.push(Line::from(vec![
                     Span::styled("  RES  ", label_style),
-                    Span::styled(format!("${:04X}", res), value_style),
+                    Span::styled(format!("${res:04X}"), value_style),
                 ]));
                 right_lines.push(Line::from(vec![
                     Span::styled("  IRQ  ", label_style),
-                    Span::styled(format!("${:04X}", irq), value_style),
+                    Span::styled(format!("${irq:04X}"), value_style),
                 ]));
             }
 
@@ -476,10 +476,10 @@ impl Widget for DebuggerView {
                         "HI RAM"
                     };
                     let charen = if reg01 & 0x04 != 0 { "I/O" } else { "CHAR ROM" };
-                    let bits_str = format!("{}|{}|{}", loram, hiram, charen);
+                    let bits_str = format!("{loram}|{hiram}|{charen}");
                     right_lines.push(Line::from(vec![
                         Span::styled("  $01  ", label_style),
-                        Span::styled(format!("${:02X}  ", reg01), value_style),
+                        Span::styled(format!("${reg01:02X}  "), value_style),
                         Span::styled(bits_str, dim_style),
                     ]));
                 }

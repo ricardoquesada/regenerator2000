@@ -18,6 +18,7 @@ pub struct GoToSymbolDialog {
 }
 
 impl GoToSymbolDialog {
+    #[must_use]
     pub fn new(app_state: &AppState) -> Self {
         let mut symbols = Vec::new();
         for (addr, labels) in &app_state.labels {
@@ -139,7 +140,7 @@ impl Widget for GoToSymbolDialog {
                     } else {
                         Style::default().fg(theme.foreground)
                     };
-                    ListItem::new(format!("${:04X}  {}", addr, name)).style(style)
+                    ListItem::new(format!("${addr:04X}  {name}")).style(style)
                 })
                 .collect();
 

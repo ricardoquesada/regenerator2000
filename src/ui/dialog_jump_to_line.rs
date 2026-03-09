@@ -22,6 +22,7 @@ impl Default for JumpToLineDialog {
 }
 
 impl JumpToLineDialog {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             input: String::new(),
@@ -73,7 +74,7 @@ impl Widget for JumpToLineDialog {
                             crate::ui_state::NavigationTarget::Index(ui_state.cursor_index),
                         ));
                         ui_state.cursor_index = target_idx;
-                        ui_state.set_status_message(format!("Jumped to visual line {}", line_num));
+                        ui_state.set_status_message(format!("Jumped to visual line {line_num}"));
                     } else {
                         ui_state.set_status_message("Line number out of range");
                     }

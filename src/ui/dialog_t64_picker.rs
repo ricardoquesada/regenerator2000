@@ -28,6 +28,7 @@ pub struct T64FilePickerDialog {
 }
 
 impl T64FilePickerDialog {
+    #[must_use]
     pub fn new(files: Vec<T64Entry>, disk_data: Vec<u8>, disk_path: PathBuf) -> Self {
         let entries = files
             .into_iter()
@@ -38,10 +39,10 @@ impl T64FilePickerDialog {
                 // Extract to calculate entropy and size
                 // T64 file type 1 is normal file. Others might be special.
                 if let Ok((_start, data)) = crate::parser::t64::extract_file(&disk_data, &entry) {
-                    if !data.is_empty() {
-                        entropy = Some(crate::utils::calculate_entropy(&data));
-                    } else {
+                    if data.is_empty() {
                         entropy = Some(0.0);
+                    } else {
+                        entropy = Some(crate::utils::calculate_entropy(&data));
                     }
                     size = data.len();
                 }
@@ -82,10 +83,7 @@ impl Widget for T64FilePickerDialog {
             .and_then(|n| n.to_str())
             .unwrap_or("Unknown");
 
-        let title = format!(
-            " Select File from {} (Enter: Load, Esc: Cancel) ",
-            disk_name
-        );
+        let title = format!(" Select File from {disk_name} (Enter: Load, Esc: Cancel) ");
         let block = crate::ui::widget::create_dialog_block(&title, theme);
 
         let area = crate::utils::centered_rect_adaptive(80, 60, 80, 14, area);
@@ -106,7 +104,7 @@ impl Widget for T64FilePickerDialog {
                 let addr_str = format!("${:04X}-${:04X}", entry.start_address, entry.end_address);
 
                 let entropy_str = if let Some(e) = picker_entry.entropy {
-                    format!("{:>5.2}", e)
+                    format!("{e:>5.2}")
                 } else {
                     "     ".to_string()
                 };
@@ -117,16 +115,15 @@ impl Widget for T64FilePickerDialog {
                 let type_str = if entry.file_type == 1 { "PRG" } else { "???" };
 
                 let content = format!(
-                    "{:<37} {:>3} {} bytes  {:<11}  {}",
-                    filename, type_str, size_str, addr_str, entropy_str
+                    "{filename:<37} {type_str:>3} {size_str} bytes  {addr_str:<11}  {entropy_str}"
                 );
 
                 let is_supported = entry.file_type == 1;
 
-                let style = if !is_supported {
-                    Style::default().fg(Color::DarkGray)
-                } else {
+                let style = if is_supported {
                     Style::default()
+                } else {
+                    Style::default().fg(Color::DarkGray)
                 };
 
                 ListItem::new(Line::from(Span::styled(content, style)))
@@ -226,13 +223,13 @@ impl Widget for T64FilePickerDialog {
                                 WidgetResult::Close
                             }
                             Err(e) => {
-                                ui_state.set_status_message(format!("Error loading file: {}", e));
+                                ui_state.set_status_message(format!("Error loading file: {e}"));
                                 WidgetResult::Handled
                             }
                         }
                     }
                     Err(e) => {
-                        ui_state.set_status_message(format!("Error loading file: {}", e));
+                        ui_state.set_status_message(format!("Error loading file: {e}"));
                         WidgetResult::Handled
                     }
                 }

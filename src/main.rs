@@ -16,7 +16,7 @@ use crossterm::{
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::io;
 
-use simplelog::*;
+use simplelog::{Config, LevelFilter, WriteLogger};
 use std::fs::File;
 use std::panic;
 
@@ -138,7 +138,7 @@ fn main() -> Result<()> {
             && !ext.eq_ignore_ascii_case("regen2000proj")
         {
             eprintln!("Error: Headless mode only supports .regen2000proj files");
-            eprintln!("File provided: {}", file_str);
+            eprintln!("File provided: {file_str}");
             eprintln!("Reason: Other formats require interactive UI for configuration");
             eprintln!("Solution: Load file in UI mode, configure, then save as .regen2000proj");
             std::process::exit(1);
@@ -182,14 +182,14 @@ fn main() -> Result<()> {
                         disk_image_data = Some((files, data, path));
                     }
                     Err(e) => {
-                        eprintln!("Error parsing D64/D71/D81 file: {}", e);
+                        eprintln!("Error parsing D64/D71/D81 file: {e}");
                         if headless {
                             std::process::exit(1);
                         }
                     }
                 },
                 Err(e) => {
-                    eprintln!("Error reading file: {}", e);
+                    eprintln!("Error reading file: {e}");
                     if headless {
                         std::process::exit(1);
                     }
@@ -205,14 +205,14 @@ fn main() -> Result<()> {
                         tape_image_data = Some((files, data, path));
                     }
                     Err(e) => {
-                        eprintln!("Error parsing T64 file: {}", e);
+                        eprintln!("Error parsing T64 file: {e}");
                         if headless {
                             std::process::exit(1);
                         }
                     }
                 },
                 Err(e) => {
-                    eprintln!("Error reading file: {}", e);
+                    eprintln!("Error reading file: {e}");
                     if headless {
                         std::process::exit(1);
                     }
@@ -228,14 +228,14 @@ fn main() -> Result<()> {
                         cart_image_data = Some((chips, path));
                     }
                     Err(e) => {
-                        eprintln!("Error parsing CRT file: {}", e);
+                        eprintln!("Error parsing CRT file: {e}");
                         if headless {
                             std::process::exit(1);
                         }
                     }
                 },
                 Err(e) => {
-                    eprintln!("Error reading file: {}", e);
+                    eprintln!("Error reading file: {e}");
                     if headless {
                         std::process::exit(1);
                     }
@@ -250,11 +250,11 @@ fn main() -> Result<()> {
             match result {
                 Ok((_, path)) => {
                     if headless && !mcp_server {
-                        println!("Loaded: {:?}", path);
+                        println!("Loaded: {path:?}");
                     }
                 }
                 Err(e) => {
-                    eprintln!("Error loading file: {}", e);
+                    eprintln!("Error loading file: {e}");
                     // In headless mode or if explicit file failed, we should exit
                     if headless || file_to_load.is_some() {
                         std::process::exit(1);
@@ -269,11 +269,11 @@ fn main() -> Result<()> {
         match app_state.import_vice_labels(std::path::PathBuf::from(lbl_path)) {
             Ok(msg) => {
                 if headless && !mcp_server {
-                    println!("{}", msg);
+                    println!("{msg}");
                 }
             }
             Err(e) => {
-                eprintln!("Error importing labels: {}", e);
+                eprintln!("Error importing labels: {e}");
                 if headless {
                     std::process::exit(1);
                 }
@@ -287,11 +287,11 @@ fn main() -> Result<()> {
         match app_state.export_vice_labels(path) {
             Ok(msg) => {
                 if headless && !mcp_server {
-                    println!("{}", msg);
+                    println!("{msg}");
                 }
             }
             Err(e) => {
-                eprintln!("Error exporting labels: {}", e);
+                eprintln!("Error exporting labels: {e}");
                 if headless {
                     std::process::exit(1);
                 }
@@ -308,15 +308,14 @@ fn main() -> Result<()> {
             "kick" | "kickassembler" | "kickasm" => regenerator2000::state::Assembler::Kick,
             _ => {
                 eprintln!(
-                    "Error: Unknown assembler '{}'. Valid values: 64tass, acme, ca65, kick",
-                    name
+                    "Error: Unknown assembler '{name}'. Valid values: 64tass, acme, ca65, kick"
                 );
                 std::process::exit(1);
             }
         };
         app_state.settings.assembler = assembler;
         if headless && !mcp_server {
-            println!("Assembler overridden to: {}", assembler);
+            println!("Assembler overridden to: {assembler}");
         }
     }
 
@@ -324,13 +323,13 @@ fn main() -> Result<()> {
     if let Some(path_str) = export_asm_path {
         let path = std::path::PathBuf::from(path_str);
         match regenerator2000::exporter::export_asm(&app_state, &path) {
-            Ok(_) => {
+            Ok(()) => {
                 if headless && !mcp_server {
-                    println!("Assembly exported to {:?}", path);
+                    println!("Assembly exported to {path:?}");
                 }
             }
             Err(e) => {
-                eprintln!("Error exporting assembly: {}", e);
+                eprintln!("Error exporting assembly: {e}");
                 if headless {
                     std::process::exit(1);
                 }
@@ -346,8 +345,10 @@ fn main() -> Result<()> {
         let mut all_passed = true;
         let mut any_ran = false;
         for r in &results {
-            println!("{}", r);
-            if !r.success {
+            println!("{r}");
+            if r.success {
+                any_ran = true;
+            } else {
                 // "not found in PATH" means the assembler simply isn't installed — not a failure
                 if !r.message.contains("not found in PATH") {
                     all_passed = false;
@@ -357,8 +358,6 @@ fn main() -> Result<()> {
                 } else {
                     any_ran = true;
                 }
-            } else {
-                any_ran = true;
             }
         }
         if !any_ran {
@@ -401,7 +400,7 @@ fn main() -> Result<()> {
             rt.block_on(async {
                 tokio::spawn(async move {
                     if let Err(e) = regenerator2000::mcp::http::run_server(3000, mcp_req_tx).await {
-                        eprintln!("Failed to start MCP server: {}", e);
+                        eprintln!("Failed to start MCP server: {e}");
                         std::process::exit(1);
                     }
                 });
@@ -431,10 +430,10 @@ fn main() -> Result<()> {
         let _ = execute!(io::stdout(), PopKeyboardEnhancementFlags);
 
         // Log the panic
-        log::error!("Panic: {:?}", info);
+        log::error!("Panic: {info:?}");
 
         // Print to stderr
-        eprintln!("Panic: {:?}", info);
+        eprintln!("Panic: {info:?}");
 
         default_hook(info);
     }));
@@ -472,7 +471,7 @@ fn main() -> Result<()> {
 
     // Report keyboard enhancement error if any
     if let Err(ref e) = keyboard_enhancement_result {
-        let error_msg = format!("Warning: Keyboard enhancement failed: {}", e);
+        let error_msg = format!("Warning: Keyboard enhancement failed: {e}");
         ui_state.set_status_message(error_msg);
     }
 
@@ -482,15 +481,15 @@ fn main() -> Result<()> {
             Ok((loaded_data, path)) => {
                 ui_state.restore_session(&loaded_data, &app_state);
                 if file_to_load.is_none() {
-                    ui_state.set_status_message(format!("Loaded recent project: {:?}", path));
+                    ui_state.set_status_message(format!("Loaded recent project: {path:?}"));
                 }
             }
             Err(e) => {
                 if file_to_load.is_some() {
                     // We already printed to stderr above, but UI needs feedback too
-                    ui_state.set_status_message(format!("Error loading file: {}", e));
+                    ui_state.set_status_message(format!("Error loading file: {e}"));
                 } else {
-                    ui_state.set_status_message(format!("Failed to load recent: {}", e));
+                    ui_state.set_status_message(format!("Failed to load recent: {e}"));
                 }
             }
         }
@@ -559,13 +558,11 @@ fn main() -> Result<()> {
         match regenerator2000::vice::ViceClient::connect(vice_addr, event_tx.clone()) {
             Ok(client) => {
                 app_state.vice_client = Some(client);
-                ui_state.set_status_message(format!("Connecting to VICE at {}...", vice_addr));
+                ui_state.set_status_message(format!("Connecting to VICE at {vice_addr}..."));
             }
             Err(e) => {
-                ui_state.set_status_message(format!(
-                    "Failed to connect to VICE at {}: {}",
-                    vice_addr, e
-                ));
+                ui_state
+                    .set_status_message(format!("Failed to connect to VICE at {vice_addr}: {e}"));
             }
         }
     }
@@ -587,7 +584,7 @@ fn main() -> Result<()> {
     terminal.show_cursor()?;
 
     if let Err(err) = res {
-        println!("{:?}", err);
+        println!("{err:?}");
     }
 
     Ok(())

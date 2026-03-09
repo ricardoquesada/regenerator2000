@@ -18,11 +18,11 @@ impl Formatter for KickAsmFormatter {
     }
 
     fn format_byte(&self, byte: u8) -> String {
-        format!("${:02x}", byte)
+        format!("${byte:02x}")
     }
 
     fn format_address(&self, address: u16) -> String {
-        format!("${:04x}", address)
+        format!("${address:04x}")
     }
 
     fn format_operand(&self, ctx: &super::formatter::FormatContext) -> String {
@@ -47,11 +47,11 @@ impl Formatter for KickAsmFormatter {
                     Some(crate::state::ImmediateFormat::InvertedHex) => {
                         format!("#~${:02x}", !val)
                     }
-                    Some(crate::state::ImmediateFormat::Decimal) => format!("#{}", val),
+                    Some(crate::state::ImmediateFormat::Decimal) => format!("#{val}"),
                     Some(crate::state::ImmediateFormat::NegativeDecimal) => {
                         format!("#{}", val as i8)
                     }
-                    Some(crate::state::ImmediateFormat::Binary) => format!("#%{:08b}", val),
+                    Some(crate::state::ImmediateFormat::Binary) => format!("#%{val:08b}"),
                     Some(crate::state::ImmediateFormat::InvertedBinary) => {
                         format!("#~%{:08b}", !val)
                     }
@@ -59,49 +59,49 @@ impl Formatter for KickAsmFormatter {
                         let name =
                             get_label(*target, LabelType::AbsoluteAddress).unwrap_or_else(|| {
                                 if *target <= 0xFF {
-                                    format!("${:02x}", target)
+                                    format!("${target:02x}")
                                 } else {
-                                    format!("${:04x}", target)
+                                    format!("${target:04x}")
                                 }
                             });
-                        format!("#<{}", name)
+                        format!("#<{name}")
                     }
                     Some(crate::state::ImmediateFormat::HighByte(target)) => {
                         let name =
                             get_label(*target, LabelType::AbsoluteAddress).unwrap_or_else(|| {
                                 if *target <= 0xFF {
-                                    format!("${:02x}", target)
+                                    format!("${target:02x}")
                                 } else {
-                                    format!("${:04x}", target)
+                                    format!("${target:04x}")
                                 }
                             });
-                        format!("#>{}", name)
+                        format!("#>{name}")
                     }
-                    _ => format!("#${:02x}", val),
+                    _ => format!("#${val:02x}"),
                 }
             }
             AddressingMode::ZeroPage => {
-                let addr = operands[0] as u16;
+                let addr = u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::ZeroPageAbsoluteAddress) {
                     name
                 } else {
-                    format!("${:02x}", addr)
+                    format!("${addr:02x}")
                 }
             }
             AddressingMode::ZeroPageX => {
-                let addr = operands[0] as u16;
+                let addr = u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{},x", name)
+                    format!("{name},x")
                 } else {
-                    format!("${:02x},x", addr)
+                    format!("${addr:02x},x")
                 }
             }
             AddressingMode::ZeroPageY => {
-                let addr = operands[0] as u16;
+                let addr = u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{},y", name)
+                    format!("{name},y")
                 } else {
-                    format!("${:02x},y", addr)
+                    format!("${addr:02x},y")
                 }
             }
             AddressingMode::Relative => {
@@ -110,11 +110,11 @@ impl Formatter for KickAsmFormatter {
                 if let Some(name) = get_label(target, LabelType::Branch) {
                     name
                 } else {
-                    format!("${:04x}", target)
+                    format!("${target:04x}")
                 }
             }
             AddressingMode::Absolute => {
-                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
                 let l_type = if opcode.mnemonic == "JSR" {
                     LabelType::Subroutine
                 } else if opcode.mnemonic == "JMP" {
@@ -126,48 +126,48 @@ impl Formatter for KickAsmFormatter {
                 if let Some(name) = get_label(addr, l_type) {
                     name
                 } else {
-                    format!("${:04x}", addr)
+                    format!("${addr:04x}")
                 }
             }
             AddressingMode::AbsoluteX => {
-                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{},x", name)
+                    format!("{name},x")
                 } else {
-                    format!("${:04x},x", addr)
+                    format!("${addr:04x},x")
                 }
             }
             AddressingMode::AbsoluteY => {
-                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{},y", name)
+                    format!("{name},y")
                 } else {
-                    format!("${:04x},y", addr)
+                    format!("${addr:04x},y")
                 }
             }
 
             AddressingMode::Indirect => {
-                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::Pointer) {
-                    format!("({})", name)
+                    format!("({name})")
                 } else {
-                    format!("(${:04x})", addr)
+                    format!("(${addr:04x})")
                 }
             }
             AddressingMode::IndirectX => {
-                let addr = operands[0] as u16;
+                let addr = u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({},x)", name)
+                    format!("({name},x)")
                 } else {
-                    format!("(${:02x},x)", addr)
+                    format!("(${addr:02x},x)")
                 }
             }
             AddressingMode::IndirectY => {
-                let addr = operands[0] as u16;
+                let addr = u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({}),y", name)
+                    format!("({name}),y")
                 } else {
-                    format!("(${:02x}),y", addr)
+                    format!("(${addr:02x}),y")
                 }
             }
 
@@ -184,7 +184,7 @@ impl Formatter for KickAsmFormatter {
     }
 
     fn format_label_definition(&self, name: &str) -> String {
-        format!("{}:", name)
+        format!("{name}:")
     }
 
     fn format_text(
@@ -223,7 +223,7 @@ impl Formatter for KickAsmFormatter {
                         lines.push((".text".to_string(), current_text_parts.join(", "), true));
                         current_text_parts.clear();
                     }
-                    current_byte_parts.push(format!("${:02x}", b));
+                    current_byte_parts.push(format!("${b:02x}"));
                 }
             }
         }
@@ -281,7 +281,7 @@ impl Formatter for KickAsmFormatter {
                         lines.push((".text".to_string(), current_text_parts.join(", "), true));
                         current_text_parts.clear();
                     }
-                    current_byte_parts.push(format!("${:02x}", b));
+                    current_byte_parts.push(format!("${b:02x}"));
                 }
             }
         }
@@ -302,7 +302,7 @@ impl Formatter for KickAsmFormatter {
     }
 
     fn format_header_origin(&self, origin: u16) -> String {
-        format!("*=${:04x}", origin)
+        format!("*=${origin:04x}")
     }
 
     fn format_file_header(&self, file_name: &str, _use_illegal_opcodes: bool) -> String {
@@ -315,7 +315,7 @@ impl Formatter for KickAsmFormatter {
         s.push_str("// https://github.com/ricardoquesada/regenerator2000\n");
         s.push_str("//\n");
         s.push_str("// Assemble with:\n");
-        s.push_str(&format!("//   java -jar KickAss.jar {}.asm\n", file_name));
+        s.push_str(&format!("//   java -jar KickAss.jar {file_name}.asm\n"));
         s.push_str("//\n");
         s.push_str(
             "//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n",
@@ -325,11 +325,11 @@ impl Formatter for KickAsmFormatter {
 
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String {
         let operand = if is_zp && value <= 0xFF {
-            format!("${:02x}", value)
+            format!("${value:02x}")
         } else {
-            format!("${:04x}", value)
+            format!("${value:04x}")
         };
-        format!(".const {} = {}", name, operand)
+        format!(".const {name} = {operand}")
     }
 
     fn format_relative_label(&self, name: &str, offset: usize) -> String {
@@ -343,26 +343,24 @@ impl Formatter for KickAsmFormatter {
 
         // Check for forced absolute addressing
         // If mode is Absolute*, but value fits in ZP, we force .abs suffix
-        let val = if !ctx.operands.is_empty() {
-            if ctx.operands.len() >= 2 {
-                (ctx.operands[1] as u16) << 8 | (ctx.operands[0] as u16)
-            } else {
-                ctx.operands[0] as u16
-            }
-        } else {
+        let val = if ctx.operands.is_empty() {
             0
+        } else if ctx.operands.len() >= 2 {
+            u16::from(ctx.operands[1]) << 8 | u16::from(ctx.operands[0])
+        } else {
+            u16::from(ctx.operands[0])
         };
 
         if val <= 0xFF && ctx.settings.preserve_long_bytes {
             match ctx.opcode.mode {
                 AddressingMode::Absolute => {
-                    return (format!("{}.abs", mnemonic), operand);
+                    return (format!("{mnemonic}.abs"), operand);
                 }
                 AddressingMode::AbsoluteX => {
-                    return (format!("{}.abs", mnemonic), operand);
+                    return (format!("{mnemonic}.abs"), operand);
                 }
                 AddressingMode::AbsoluteY => {
-                    return (format!("{}.abs", mnemonic), operand);
+                    return (format!("{mnemonic}.abs"), operand);
                 }
                 _ => {}
             }
@@ -377,11 +375,11 @@ impl KickAsmFormatter {
         // KickAssembler uses @ prefix to enable escape sequences.
         // If the string contains quotes or control characters, we need to escape it and use @.
         // Otherwise, we can use a plain string.
-        if s.contains('"') || s.chars().any(|c| c.is_control()) || s.contains('\\') {
+        if s.contains('"') || s.chars().any(char::is_control) || s.contains('\\') {
             let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
-            format!("@\"{}\"", escaped)
+            format!("@\"{escaped}\"")
         } else {
-            format!("\"{}\"", s)
+            format!("\"{s}\"")
         }
     }
 }

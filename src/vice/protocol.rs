@@ -40,6 +40,7 @@ impl ViceCommand {
 }
 
 impl ViceMessage {
+    #[must_use]
     pub fn new(command: u8, payload: Vec<u8>) -> Self {
         Self {
             command,
@@ -49,6 +50,7 @@ impl ViceMessage {
         }
     }
 
+    #[must_use]
     pub fn with_id(command: u8, payload: Vec<u8>, request_id: u32) -> Self {
         Self {
             command,
@@ -58,6 +60,7 @@ impl ViceMessage {
         }
     }
 
+    #[must_use]
     pub fn encode(&self) -> Vec<u8> {
         let length = self.payload.len() as u32;
         let mut buf = Vec::with_capacity(11 + length as usize);

@@ -33,6 +33,7 @@ pub trait Widget {
     }
 }
 
+#[must_use]
 pub fn create_dialog_block<'a>(
     title: &'a str,
     theme: &crate::theme::Theme,

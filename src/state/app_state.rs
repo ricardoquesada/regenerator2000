@@ -66,6 +66,7 @@ impl Default for AppState {
 }
 
 impl AppState {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             file_path: None,
@@ -101,6 +102,7 @@ impl AppState {
         }
     }
 
+    #[must_use]
     pub fn get_compressed_blocks(&self) -> Vec<Block> {
         compress_block_types(&self.block_types, &self.collapsed_blocks)
     }
@@ -130,10 +132,12 @@ impl AppState {
         self.excluded_addresses = excludes.into_iter().collect();
     }
 
+    #[must_use]
     pub fn get_formatter(&self) -> Box<dyn crate::disassembler::formatter::Formatter> {
         Disassembler::create_formatter(self.settings.assembler)
     }
 
+    #[must_use]
     pub fn get_block_range(&self, address: u16) -> Option<(u16, u16)> {
         let origin = self.origin;
         if address < origin {
@@ -212,22 +216,22 @@ impl AppState {
             }
 
             if ext.eq_ignore_ascii_case("prg") && data.len() >= 2 {
-                self.origin = (data[1] as u16) << 8 | (data[0] as u16);
+                self.origin = u16::from(data[1]) << 8 | u16::from(data[0]);
                 self.raw_data = data[2..].to_vec();
             } else if ext.eq_ignore_ascii_case("crt") {
                 let (origin, raw_data) = crate::parser::crt::parse_crt(&data)
-                    .map_err(|e| anyhow::anyhow!("Failed to parse CRT: {}", e))?;
+                    .map_err(|e| anyhow::anyhow!("Failed to parse CRT: {e}"))?;
                 self.origin = origin;
                 self.raw_data = raw_data;
             } else if ext.eq_ignore_ascii_case("vsf") {
                 let vsf_data = crate::parser::vice_vsf::parse_vsf(&data)
-                    .map_err(|e| anyhow::anyhow!("Failed to parse VSF: {}", e))?;
+                    .map_err(|e| anyhow::anyhow!("Failed to parse VSF: {e}"))?;
                 self.origin = 0;
                 self.raw_data = vsf_data.memory;
                 cursor_start = vsf_data.start_address;
             } else if ext.eq_ignore_ascii_case("t64") {
                 let (load_address, raw_data) = crate::parser::t64::parse_t64(&data)
-                    .map_err(|e| anyhow::anyhow!("Failed to parse T64: {}", e))?;
+                    .map_err(|e| anyhow::anyhow!("Failed to parse T64: {e}"))?;
                 self.origin = load_address;
                 self.raw_data = raw_data;
             } else if ext.eq_ignore_ascii_case("bin") || ext.eq_ignore_ascii_case("raw") {
@@ -235,8 +239,7 @@ impl AppState {
                 self.raw_data = data;
             } else {
                 return Err(anyhow::anyhow!(
-                    "Unsupported file extension: .{}\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .regen2000proj",
-                    ext
+                    "Unsupported file extension: .{ext}\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .regen2000proj"
                 ));
             }
         } else {
@@ -531,7 +534,7 @@ impl AppState {
     pub fn import_vice_labels(&mut self, path: PathBuf) -> anyhow::Result<String> {
         let content = std::fs::read_to_string(path)?;
         let parsed = crate::parser::vice_lbl::parse_vice_labels(&content)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
 
         let mut new_labels_vec = Vec::new();
         let mut old_labels_map = BTreeMap::new();
@@ -576,7 +579,7 @@ impl AppState {
         }
         let content = crate::parser::vice_lbl::generate_vice_labels(&export_list);
         std::fs::write(&path, content)?;
-        Ok(format!("Labels exported to {:?}", path))
+        Ok(format!("Labels exported to {path:?}"))
     }
 
     pub fn set_block_type_region(
@@ -683,6 +686,7 @@ impl AppState {
         msg
     }
 
+    #[must_use]
     pub fn is_external(&self, addr: u16) -> bool {
         let len = self.raw_data.len();
         let end = self.origin.wrapping_add(len as u16);
@@ -693,6 +697,7 @@ impl AppState {
         }
     }
 
+    #[must_use]
     pub fn get_external_label_definitions(&self) -> Vec<DisassemblyLine> {
         let mut candidates: Vec<(u16, LabelType, &String)> = Vec::new();
 
@@ -943,6 +948,7 @@ impl AppState {
         self.cached_arrows = arrows;
     }
 
+    #[must_use]
     pub fn get_line_index_for_address(&self, address: u16) -> Option<usize> {
         // First pass: try to find exact match with content (bytes not empty)
         // This avoids matching external label headers that might be at the same address (e.g. 0)
@@ -977,6 +983,7 @@ impl AppState {
             .position(|line| line.address >= address)
     }
 
+    #[must_use]
     pub fn get_line_index_containing_address(&self, address: u16) -> Option<usize> {
         // Check if address is in a collapsed block
         for (start_idx, end_idx) in &self.collapsed_blocks {
@@ -1019,6 +1026,7 @@ impl AppState {
         })
     }
 
+    #[must_use]
     pub fn is_dirty(&self) -> bool {
         self.undo_stack.get_pointer() != self.last_saved_pointer
     }
@@ -1040,6 +1048,7 @@ impl AppState {
         self.undo_stack.push(command);
     }
 
+    #[must_use]
     pub fn get_blocks_view_items(&self) -> Vec<BlockItem> {
         let compressed_blocks = self.get_compressed_blocks();
         let mut items = Vec::new();
@@ -1100,6 +1109,7 @@ impl AppState {
         items
     }
 
+    #[must_use]
     pub fn get_block_index_for_address(&self, address: u16) -> Option<usize> {
         let items = self.get_blocks_view_items();
         items.iter().position(|item| match item {
@@ -1295,8 +1305,8 @@ mod cursor_tests {
             address: 0,
             bytes: vec![],
             mnemonic: "; EXTERNAL".to_string(),
-            operand: "".to_string(),
-            comment: "".to_string(),
+            operand: String::new(),
+            comment: String::new(),
             line_comment: None,
             label: None,
             opcode: None,
@@ -1311,8 +1321,8 @@ mod cursor_tests {
             address: 0x1000,
             bytes: vec![0xEA],
             mnemonic: "NOP".to_string(),
-            operand: "".to_string(),
-            comment: "".to_string(),
+            operand: String::new(),
+            comment: String::new(),
             line_comment: None,
             label: None,
             opcode: None,
@@ -1334,8 +1344,8 @@ mod cursor_tests {
             address: 0,
             bytes: vec![],
             mnemonic: "ExtLabel".to_string(),
-            operand: "".to_string(),
-            comment: "".to_string(),
+            operand: String::new(),
+            comment: String::new(),
             line_comment: None,
             label: None,
             opcode: None,
@@ -1350,8 +1360,8 @@ mod cursor_tests {
             address: 0,
             bytes: vec![0xEA],
             mnemonic: "NOP".to_string(),
-            operand: "".to_string(),
-            comment: "".to_string(),
+            operand: String::new(),
+            comment: String::new(),
             line_comment: None,
             label: None,
             opcode: None,
@@ -1617,7 +1627,7 @@ mod config_tests {
             file,
             r#"{{
             "origin": 2048,
-            "raw_data_base64": "{}",
+            "raw_data_base64": "{valid_base64}",
             "blocks": [],
             "labels": {{}},
             "user_side_comments": {{}},
@@ -1641,8 +1651,7 @@ mod config_tests {
             "hexdump_view_mode": "ScreencodeShifted",
             "splitters": [],
             "blocks_view_cursor": 0
-         }}"#,
-            valid_base64
+         }}"#
         )
         .unwrap();
         drop(file);
@@ -1666,8 +1675,7 @@ mod config_tests {
 
         assert!(
             stored_path.is_absolute(),
-            "last_project_path should be absolute, got: {:?}",
-            stored_path
+            "last_project_path should be absolute, got: {stored_path:?}"
         );
 
         // Verify it is canonicalized

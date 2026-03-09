@@ -18,6 +18,7 @@ pub struct FormatContext<'a> {
 }
 
 impl<'a> FormatContext<'a> {
+    #[must_use]
     pub fn resolve_label(&self, address: u16) -> Option<&'a Label> {
         if let Some(v) = self.labels.get(&address) {
             crate::disassembler::resolve_label(v, address, self.settings)

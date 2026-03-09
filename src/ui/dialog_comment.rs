@@ -26,6 +26,7 @@ pub struct CommentDialog {
 }
 
 impl CommentDialog {
+    #[must_use]
     pub fn new(current_comment: Option<&str>, comment_type: CommentType) -> Self {
         let textarea = if let Some(comment) = current_comment {
             let mut t = TextArea::from(comment.lines());
@@ -68,8 +69,7 @@ impl CommentDialog {
             .textarea
             .lines()
             .get(row)
-            .map(|l| l.is_empty())
-            .unwrap_or(true);
+            .is_none_or(std::string::String::is_empty);
 
         if current_line_empty {
             // Replace the empty line: just insert the text here.

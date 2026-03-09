@@ -1,6 +1,10 @@
 use rmcp::{
     ServerHandler,
-    model::*,
+    model::{
+        CallToolRequestParams, CallToolResult, InitializeRequestParams, InitializeResult,
+        ListResourcesResult, ListToolsResult, PaginatedRequestParams, ReadResourceRequestParams,
+        ReadResourceResult,
+    },
     service::{RequestContext, RoleServer},
     transport::streamable_http_server::{StreamableHttpServerConfig, StreamableHttpService},
 };
@@ -19,6 +23,7 @@ pub struct RegeneratorOps {
 }
 
 impl RegeneratorOps {
+    #[must_use]
     pub fn new(sender: Sender<McpRequest>) -> Self {
         Self { sender }
     }
@@ -34,11 +39,11 @@ impl RegeneratorOps {
         self.sender
             .send(request)
             .await
-            .map_err(|e| format!("Failed to send request: {}", e))?;
+            .map_err(|e| format!("Failed to send request: {e}"))?;
 
         let response = rx
             .await
-            .map_err(|e| format!("Failed to receive response: {}", e))?;
+            .map_err(|e| format!("Failed to receive response: {e}"))?;
 
         if let Some(error) = response.error {
             Err(error.message)
@@ -65,7 +70,7 @@ impl ServerHandler for RegeneratorOps {
             Ok(val) => {
                 let result: InitializeResult = serde_json::from_value(val).map_err(|e| {
                     rmcp::ErrorData::internal_error(
-                        format!("Failed to parse initialize result: {}", e),
+                        format!("Failed to parse initialize result: {e}"),
                         None,
                     )
                 })?;
@@ -83,7 +88,7 @@ impl ServerHandler for RegeneratorOps {
         let params = serde_json::to_value(request).unwrap_or(Value::Null);
         match self.send_request("tools/list", params).await {
             Ok(val) => serde_json::from_value(val).map_err(|e| {
-                rmcp::ErrorData::internal_error(format!("Failed to parse tools list: {}", e), None)
+                rmcp::ErrorData::internal_error(format!("Failed to parse tools list: {e}"), None)
             }),
             Err(e) => Err(rmcp::ErrorData::internal_error(e, None)),
         }
@@ -101,7 +106,7 @@ impl ServerHandler for RegeneratorOps {
 
         match self.send_request("tools/call", params).await {
             Ok(val) => serde_json::from_value(val).map_err(|e| {
-                rmcp::ErrorData::internal_error(format!("Failed to parse tool result: {}", e), None)
+                rmcp::ErrorData::internal_error(format!("Failed to parse tool result: {e}"), None)
             }),
             Err(e) => Err(rmcp::ErrorData::internal_error(e, None)),
         }
@@ -116,7 +121,7 @@ impl ServerHandler for RegeneratorOps {
         match self.send_request("resources/list", params).await {
             Ok(val) => serde_json::from_value(val).map_err(|e| {
                 rmcp::ErrorData::internal_error(
-                    format!("Failed to parse resources list: {}", e),
+                    format!("Failed to parse resources list: {e}"),
                     None,
                 )
             }),
@@ -133,7 +138,7 @@ impl ServerHandler for RegeneratorOps {
         match self.send_request("resources/read", params).await {
             Ok(val) => serde_json::from_value(val).map_err(|e| {
                 rmcp::ErrorData::internal_error(
-                    format!("Failed to parse read resource result: {}", e),
+                    format!("Failed to parse read resource result: {e}"),
                     None,
                 )
             }),
@@ -169,7 +174,7 @@ pub async fn run_server(port: u16, sender: Sender<McpRequest>) -> std::io::Resul
 
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    log::info!("MCP Live Server active on http://127.0.0.1:{}/mcp", port);
+    log::info!("MCP Live Server active on http://127.0.0.1:{port}/mcp");
 
     axum::serve(listener, app).await?;
 

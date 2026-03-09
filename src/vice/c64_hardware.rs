@@ -18,6 +18,7 @@ pub struct Vic2State {
 }
 
 impl Vic2State {
+    #[must_use]
     pub fn decode(io_mem: &[u8]) -> Self {
         if io_mem.len() < 0x40 {
             return Self::default();
@@ -31,7 +32,7 @@ impl Vic2State {
         let d020 = io_mem[0x20];
         let d021 = io_mem[0x21];
 
-        let raster_line = (((d011 as u16) & 0x80) << 1) | (d012 as u16);
+        let raster_line = ((u16::from(d011) & 0x80) << 1) | u16::from(d012);
         let blanking = (d011 & 0x10) == 0;
         let extended_bg_color = (d011 & 0x40) != 0;
         let bitmap_mode = (d011 & 0x20) != 0;
@@ -42,9 +43,9 @@ impl Vic2State {
         let x_scroll = d016 & 0x07;
         let multicolor_mode = (d016 & 0x10) != 0;
 
-        let screen_mem_address = ((d018 & 0xF0) as u16) << 6;
-        let charset_address = ((d018 & 0x0E) as u16) << 10;
-        let bitmap_address = ((d018 & 0x08) as u16) << 10;
+        let screen_mem_address = u16::from(d018 & 0xF0) << 6;
+        let charset_address = u16::from(d018 & 0x0E) << 10;
+        let bitmap_address = u16::from(d018 & 0x08) << 10;
         let text_mode = !bitmap_mode;
 
         Self {
@@ -102,6 +103,7 @@ pub struct CiaState {
 }
 
 impl CiaState {
+    #[must_use]
     pub fn decode(io_mem: &[u8], offset: usize) -> Self {
         if io_mem.len() < offset + 16 {
             return Self::default();
@@ -110,8 +112,8 @@ impl CiaState {
         let prb = io_mem[offset + 0x01];
         let ddra = io_mem[offset + 0x02];
         let ddrb = io_mem[offset + 0x03];
-        let timer_a = (io_mem[offset + 0x04] as u16) | ((io_mem[offset + 0x05] as u16) << 8);
-        let timer_b = (io_mem[offset + 0x06] as u16) | ((io_mem[offset + 0x07] as u16) << 8);
+        let timer_a = u16::from(io_mem[offset + 0x04]) | (u16::from(io_mem[offset + 0x05]) << 8);
+        let timer_b = u16::from(io_mem[offset + 0x06]) | (u16::from(io_mem[offset + 0x07]) << 8);
 
         Self {
             pra,

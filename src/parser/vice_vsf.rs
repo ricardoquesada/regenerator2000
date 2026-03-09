@@ -81,7 +81,7 @@ pub fn parse_vsf(data: &[u8]) -> Result<VsfData> {
 
         // Ensure we don't go out of bounds
         if current_offset + size > data.len() {
-            return Err(anyhow!("Module {} truncated", module_name_trimmed));
+            return Err(anyhow!("Module {module_name_trimmed} truncated"));
         }
 
         let module_data = &data[current_offset + 22..current_offset + size];
@@ -124,7 +124,7 @@ pub fn parse_vsf(data: &[u8]) -> Result<VsfData> {
                 // 13: PC Hi
                 let pc_lo = module_data[12];
                 let pc_hi = module_data[13];
-                let pc_val = (pc_hi as u16) << 8 | (pc_lo as u16);
+                let pc_val = u16::from(pc_hi) << 8 | u16::from(pc_lo);
                 pc = Some(pc_val);
             }
         } else if module_name_trimmed == "CARTGENERIC" {
@@ -220,7 +220,7 @@ mod tests {
             let addr = 0x8BDC;
             if addr + 4 <= vsf.memory.len() {
                 let actual = &vsf.memory[addr..addr + 4];
-                println!("Content at PC {:04X}: {:02X?}", addr, actual);
+                println!("Content at PC {addr:04X}: {actual:02X?}");
             }
         } else {
             // Test is skipped if file not found

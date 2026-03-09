@@ -28,11 +28,12 @@ pub fn parse_vice_labels(content: &str) -> Result<Vec<(u16, String)>, String> {
     Ok(labels)
 }
 
+#[must_use]
 pub fn generate_vice_labels(labels: &[(u16, String)]) -> String {
     let mut content = String::new();
     for (addr, name) in labels {
         // format: al C:address .label
-        content.push_str(&format!("al C:{:04x} .{}\n", addr, name));
+        content.push_str(&format!("al C:{addr:04x} .{name}\n"));
     }
     content
 }
@@ -43,12 +44,12 @@ mod tests {
 
     #[test]
     fn test_parse_vice_labels() {
-        let content = r#"
+        let content = r"
 al $1000 .start
 al $1003 .loop
 al C:2000 .data_start
 al $3000 no_dot_label
-"#;
+";
         let labels = parse_vice_labels(content).unwrap();
         assert_eq!(labels.len(), 4);
         assert_eq!(labels[0], (0x1000, "start".to_string()));

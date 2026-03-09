@@ -27,6 +27,7 @@ impl Default for SearchFilters {
 }
 
 impl SearchFilters {
+    #[must_use]
     pub fn as_array(&self) -> [bool; 5] {
         [
             self.labels,
@@ -69,6 +70,7 @@ impl SearchFilters {
 // Hex pattern helpers
 // ---------------------------------------------------------------------------
 
+#[must_use]
 pub fn parse_hex_pattern(query: &str) -> Option<Vec<Option<u8>>> {
     let mut pattern = Vec::new();
 
@@ -105,6 +107,7 @@ pub fn parse_hex_pattern(query: &str) -> Option<Vec<Option<u8>>> {
     Some(pattern)
 }
 
+#[must_use]
 pub fn check_hex_pattern(address: u16, pattern: &[Option<u8>], app_state: &AppState) -> bool {
     let raw_len = app_state.raw_data.len();
     if raw_len == 0 {
@@ -140,6 +143,7 @@ pub fn check_hex_pattern(address: u16, pattern: &[Option<u8>], app_state: &AppSt
 
 /// Check if the query string matches the raw bytes at the given address.
 /// Checks both PETSCII and Screencode encodings, case-insensitively.
+#[must_use]
 pub fn check_string_pattern(
     address: u16,
     query: &str,
@@ -206,6 +210,7 @@ pub fn check_string_pattern(
 // Instruction / disassembly-line matching
 // ---------------------------------------------------------------------------
 
+#[must_use]
 pub fn match_instruction_content(
     line: &crate::disassembler::DisassemblyLine,
     query_lower: &str,
@@ -215,7 +220,7 @@ pub fn match_instruction_content(
         let bytes_hex = line
             .bytes
             .iter()
-            .map(|b| format!("{:02x}", b))
+            .map(|b| format!("{b:02x}"))
             .collect::<String>();
         if bytes_hex
             .match_indices(query_lower)
@@ -227,7 +232,7 @@ pub fn match_instruction_content(
         let bytes_hex_spaces = line
             .bytes
             .iter()
-            .map(|b| format!("{:02x}", b))
+            .map(|b| format!("{b:02x}"))
             .collect::<Vec<_>>()
             .join(" ");
         if bytes_hex_spaces.contains(query_lower) {
@@ -257,6 +262,7 @@ pub fn match_instruction_content(
     false
 }
 
+#[must_use]
 pub fn get_line_matches(
     line: &crate::disassembler::DisassemblyLine,
     app_state: &AppState,
@@ -327,6 +333,7 @@ pub fn get_line_matches(
     matches
 }
 
+#[must_use]
 pub fn search_collapsed_content(
     app_state: &AppState,
     start: usize,
@@ -430,11 +437,11 @@ pub fn search_memory_raw(
             }
         }
         _ => {
-            return Err(format!("Unknown encoding: {}", mode));
+            return Err(format!("Unknown encoding: {mode}"));
         }
     };
 
-    if patterns.iter().all(|p| p.is_empty()) {
+    if patterns.iter().all(std::vec::Vec::is_empty) {
         return Ok(Vec::new());
     }
 

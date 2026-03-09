@@ -26,6 +26,7 @@ fn is_zp_style(t: LabelType) -> bool {
     )
 }
 
+#[must_use]
 pub fn analyze(state: &AppState) -> AnalysisResult {
     // We want to track ALL usages, illegal or not, and then pick the best ones.
     // Map: Address -> Set of used LabelTypes
@@ -83,7 +84,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                 if pc + 2 <= data_len {
                     let low = state.raw_data[pc];
                     let high = state.raw_data[pc + 1];
-                    let val = (high as u16) << 8 | (low as u16);
+                    let val = u16::from(high) << 8 | u16::from(low);
                     update_usage(
                         &mut usage_map,
                         val,
@@ -112,7 +113,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                         if pc + i < data_len && pc + split_offset + i < data_len {
                             let lo = state.raw_data[pc + i];
                             let hi = state.raw_data[pc + split_offset + i];
-                            let val = (hi as u16) << 8 | (lo as u16);
+                            let val = u16::from(hi) << 8 | u16::from(lo);
                             update_usage(
                                 &mut usage_map,
                                 val,
@@ -139,7 +140,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                         if pc + i < data_len && pc + split_offset + i < data_len {
                             let hi = state.raw_data[pc + i];
                             let lo = state.raw_data[pc + split_offset + i];
-                            let val = (hi as u16) << 8 | (lo as u16);
+                            let val = u16::from(hi) << 8 | u16::from(lo);
                             update_usage(
                                 &mut usage_map,
                                 val,
@@ -322,14 +323,14 @@ fn analyze_instruction(
         AddressingMode::Implied | AddressingMode::Accumulator | AddressingMode::Immediate => {}
         AddressingMode::ZeroPage => {
             if !operands.is_empty() {
-                let addr = operands[0] as u16;
+                let addr = u16::from(operands[0]);
                 // "a: Zero Page Address"
                 update_usage(usage_map, addr, LabelType::ZeroPageAbsoluteAddress, address);
             }
         }
         AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
             if !operands.is_empty() {
-                let addr = operands[0] as u16;
+                let addr = u16::from(operands[0]);
                 // Indexed zero page often used for arrays/fields
                 update_usage(usage_map, addr, LabelType::ZeroPageField, address);
             }
@@ -344,7 +345,7 @@ fn analyze_instruction(
         }
         AddressingMode::Absolute => {
             if operands.len() >= 2 {
-                let target = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let target = u16::from(operands[1]) << 8 | u16::from(operands[0]);
 
                 if opcode.mnemonic == "JSR" {
                     update_usage(usage_map, target, LabelType::Subroutine, address);
@@ -358,14 +359,14 @@ fn analyze_instruction(
         }
         AddressingMode::AbsoluteX | AddressingMode::AbsoluteY => {
             if operands.len() >= 2 {
-                let target = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let target = u16::from(operands[1]) << 8 | u16::from(operands[0]);
                 // Indexed absolute is also "absolute address" usage
                 update_usage(usage_map, target, LabelType::Field, address);
             }
         }
         AddressingMode::Indirect => {
             if operands.len() >= 2 {
-                let pointer_addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let pointer_addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
                 // "p: if this is a pointer"
                 // The address `pointer_addr` is BEING USED a pointer.
                 update_usage(usage_map, pointer_addr, LabelType::Pointer, address);
@@ -373,7 +374,7 @@ fn analyze_instruction(
         }
         AddressingMode::IndirectX => {
             if !operands.is_empty() {
-                let base = operands[0] as u16;
+                let base = u16::from(operands[0]);
                 // (base, X) -> points to a table of pointers in ZP? Or just ZP pointer?
                 // It is "Indirect" X. The address `base` (and base+1) holds the address.
                 // So `base` is a pointer.
@@ -382,7 +383,7 @@ fn analyze_instruction(
         }
         AddressingMode::IndirectY => {
             if !operands.is_empty() {
-                let base = operands[0] as u16;
+                let base = u16::from(operands[0]);
                 // (base), Y -> base is a ZP pointer.
                 update_usage(usage_map, base, LabelType::ZeroPagePointer, address);
             }
@@ -418,10 +419,10 @@ fn update_usage(
             } else {
                 None
             };
-            let abs = if !is_zp_style(priority) {
-                Some(priority)
-            } else {
+            let abs = if is_zp_style(priority) {
                 None
+            } else {
+                Some(priority)
             };
             (types, refs, priority, zp, abs)
         });
@@ -482,7 +483,7 @@ fn follow_indirect_jumps(
         }
 
         let jmp_addr = origin.wrapping_add(pc as u16);
-        let pointer_addr = (data[pc + 2] as u16) << 8 | (data[pc + 1] as u16);
+        let pointer_addr = u16::from(data[pc + 2]) << 8 | u16::from(data[pc + 1]);
 
         // Check if pointer_addr is inside our binary
         let is_internal = if origin < end_addr {
@@ -500,7 +501,7 @@ fn follow_indirect_jumps(
 
             if is_address_block {
                 // Read the target address from the jump table
-                let target = (data[ptr_offset + 1] as u16) << 8 | (data[ptr_offset] as u16);
+                let target = u16::from(data[ptr_offset + 1]) << 8 | u16::from(data[ptr_offset]);
 
                 // Add label for the target
                 let is_target_external = state.is_external(target);
@@ -515,8 +516,7 @@ fn follow_indirect_jumps(
                 // Only add if no user label already exists at target
                 let existing = labels.get(&target);
                 let has_user_label = existing
-                    .map(|v| v.iter().any(|l| l.kind == crate::state::LabelKind::User))
-                    .unwrap_or(false);
+                    .is_some_and(|v| v.iter().any(|l| l.kind == crate::state::LabelKind::User));
 
                 if !has_user_label && !state.excluded_addresses.contains(&target) {
                     labels.entry(target).or_default().push(crate::state::Label {
@@ -533,8 +533,7 @@ fn follow_indirect_jumps(
                 hints.insert(
                     jmp_addr,
                     format!(
-                        "[Jump Table] Indirect JMP via ${:04X} -> target ${:04X}",
-                        pointer_addr, target
+                        "[Jump Table] Indirect JMP via ${pointer_addr:04X} -> target ${target:04X}"
                     ),
                 );
             } else {
@@ -542,8 +541,7 @@ fn follow_indirect_jumps(
                 hints.insert(
                     jmp_addr,
                     format!(
-                        "[Jump Table] JMP (${:04X}) - pointer in binary, consider marking as Address",
-                        pointer_addr
+                        "[Jump Table] JMP (${pointer_addr:04X}) - pointer in binary, consider marking as Address"
                     ),
                 );
             }
@@ -624,11 +622,11 @@ fn detect_patterns(state: &AppState, hints: &mut BTreeMap<u16, String>) {
         // SID init/play routines based on aggregated register access patterns.
         // System comments only annotate individual register addresses, not routine roles.
         if is_c64_c128 && opcode.mnemonic == "JSR" && opcode.size == 3 {
-            let target = (data[pc + 2] as u16) << 8 | (data[pc + 1] as u16);
+            let target = u16::from(data[pc + 2]) << 8 | u16::from(data[pc + 1]);
             if let Some(role) = sid_routines.get(&target) {
                 hints
                     .entry(addr)
-                    .or_insert_with(|| format!("[SID Player] JSR to {} routine", role));
+                    .or_insert_with(|| format!("[SID Player] JSR to {role} routine"));
             }
         }
 
@@ -668,7 +666,7 @@ fn find_sid_routines(state: &AppState) -> BTreeMap<u16, String> {
             if let Some(opcode) = &state.disassembler.opcodes[data[pc] as usize] {
                 if !opcode.illegal || state.settings.use_illegal_opcodes {
                     if opcode.mnemonic == "JSR" && opcode.size == 3 && pc + 3 <= data_len {
-                        let target = (data[pc + 2] as u16) << 8 | (data[pc + 1] as u16);
+                        let target = u16::from(data[pc + 2]) << 8 | u16::from(data[pc + 1]);
                         if !state.is_external(target) {
                             jsr_targets.push(target);
                         }
@@ -719,7 +717,7 @@ fn find_sid_routines(state: &AppState) -> BTreeMap<u16, String> {
                     && op.size == 3
                     && scan_pc + 3 <= data_len
                 {
-                    let t = (data[scan_pc + 2] as u16) << 8 | (data[scan_pc + 1] as u16);
+                    let t = u16::from(data[scan_pc + 2]) << 8 | u16::from(data[scan_pc + 1]);
                     if (SID_BASE..=SID_END).contains(&t) {
                         sid_write_count += 1;
                     }
@@ -773,7 +771,7 @@ fn has_irq_setup_nearby(state: &AppState, start_pc: usize, is_c64_c128: bool) ->
                 && op.size == 3
                 && pc + 3 <= data_len
             {
-                let t = (data[pc + 2] as u16) << 8 | (data[pc + 1] as u16);
+                let t = u16::from(data[pc + 2]) << 8 | u16::from(data[pc + 1]);
                 // Universal: HW IRQ vectors
                 if t == HW_IRQ_LO || t == HW_IRQ_HI {
                     return true;
@@ -849,7 +847,7 @@ fn detect_self_modifying_code(state: &AppState, hints: &mut BTreeMap<u16, String
             )
             && opcode.size == 3
         {
-            let target = (data[pc + 2] as u16) << 8 | (data[pc + 1] as u16);
+            let target = u16::from(data[pc + 2]) << 8 | u16::from(data[pc + 1]);
 
             // Check if target is inside our binary
             let is_internal = if origin < end_addr {

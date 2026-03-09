@@ -79,6 +79,7 @@ impl SystemConfig {
         self.recent_projects.retain(|p| p != &canon);
     }
 
+    #[must_use]
     pub fn load() -> Self {
         if let Some(proj_dirs) = ProjectDirs::from("", "", "regenerator2000") {
             let config_path = proj_dirs.config_dir().join("config.json");

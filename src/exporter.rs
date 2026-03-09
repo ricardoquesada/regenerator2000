@@ -96,7 +96,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 .and_then(|s| s.to_str())
                 .unwrap_or("export");
 
-            let bin_filename = format!("{}_{:04x}_{:04x}.bin", base_name, start_addr, end_addr);
+            let bin_filename = format!("{base_name}_{start_addr:04x}_{end_addr:04x}.bin");
 
             // Allow override of path directory? Use same dir as asm file
             let bin_path = path
@@ -108,8 +108,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 // Determine how to report error? For now print to stdout or just panic?
                 // Returning Result is better.
                 return Err(std::io::Error::other(format!(
-                    "Failed to write external binary {}: {}",
-                    bin_filename, e
+                    "Failed to write external binary {bin_filename}: {e}"
                 )));
             }
 
@@ -119,16 +118,16 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             // We need to check assembler settings.
             match state.settings.assembler {
                 crate::state::Assembler::Tass64 => {
-                    output.push_str(&format!(".binary \"{}\"\n", bin_filename));
+                    output.push_str(&format!(".binary \"{bin_filename}\"\n"));
                 }
                 crate::state::Assembler::Acme => {
-                    output.push_str(&format!("!binary \"{}\"\n", bin_filename));
+                    output.push_str(&format!("!binary \"{bin_filename}\"\n"));
                 }
                 crate::state::Assembler::Ca65 => {
-                    output.push_str(&format!(".incbin \"{}\"\n", bin_filename));
+                    output.push_str(&format!(".incbin \"{bin_filename}\"\n"));
                 }
                 crate::state::Assembler::Kick => {
-                    output.push_str(&format!(".import binary \"{}\"\n", bin_filename));
+                    output.push_str(&format!(".import binary \"{bin_filename}\"\n"));
                 }
             }
 
@@ -240,20 +239,20 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         };
 
         let line_out = if label_part.len() < 24 {
-            format!("{:<24}{}", label_part, instruction_part)
+            format!("{label_part:<24}{instruction_part}")
         } else {
-            format!("{} {}", label_part, instruction_part)
+            format!("{label_part} {instruction_part}")
         };
 
-        if !line.comment.is_empty() {
+        if line.comment.is_empty() {
+            output.push_str(&format!("{line_out}\n"));
+        } else {
             output.push_str(&format!(
                 "{:<40} {} {}\n",
                 line_out,
                 formatter.comment_prefix(),
                 line.comment
             ));
-        } else {
-            output.push_str(&format!("{}\n", line_out));
         }
 
         i += 1;
@@ -327,8 +326,8 @@ pub fn verify_roundtrip(
     let _ = std::fs::create_dir_all(&dir);
 
     let asm_stem = format!("verify_{}", assembler_file_suffix(assembler));
-    let asm_file = dir.join(format!("{}.asm", asm_stem));
-    let prg_file = dir.join(format!("{}.prg", asm_stem));
+    let asm_file = dir.join(format!("{asm_stem}.asm"));
+    let prg_file = dir.join(format!("{asm_stem}.prg"));
 
     // Cleanup any previous run artifacts
     let _ = std::fs::remove_file(&asm_file);
@@ -340,7 +339,7 @@ pub fn verify_roundtrip(
         return VerifyResult {
             assembler,
             success: false,
-            message: format!("export failed: {}", e),
+            message: format!("export failed: {e}"),
             diff_count: 0,
             total_bytes: state.raw_data.len(),
         };
@@ -360,14 +359,14 @@ pub fn verify_roundtrip(
             return VerifyResult {
                 assembler,
                 success: false,
-                message: e.to_string(),
+                message: e.clone(),
                 diff_count: 0,
                 total_bytes: state.raw_data.len(),
             };
         }
         Ok(stderr) => {
             if !stderr.is_empty() {
-                log::debug!("Assembler stderr for {}: {}", assembler, stderr);
+                log::debug!("Assembler stderr for {assembler}: {stderr}");
             }
         }
     }
@@ -409,7 +408,7 @@ pub fn verify_roundtrip(
                         msg.push_str("; ");
                     }
                     let compare_len = total.min(payload.len());
-                    msg.push_str(&format!("{} of {} bytes differ", diff_count, compare_len));
+                    msg.push_str(&format!("{diff_count} of {compare_len} bytes differ"));
 
                     // Show first few diffs for debugging
                     let mut shown = 0;
@@ -418,8 +417,7 @@ pub fn verify_roundtrip(
                             if shown < 5 {
                                 let addr = state.origin.wrapping_add(i as u16);
                                 msg.push_str(&format!(
-                                    "\n    ${:04x}: expected ${:02x}, got ${:02x}",
-                                    addr, a, b
+                                    "\n    ${addr:04x}: expected ${a:02x}, got ${b:02x}"
                                 ));
                             }
                             shown += 1;
@@ -441,7 +439,7 @@ pub fn verify_roundtrip(
         Err(e) => VerifyResult {
             assembler,
             success: false,
-            message: format!("could not read assembled output: {}", e),
+            message: format!("could not read assembled output: {e}"),
             diff_count: 0,
             total_bytes: state.raw_data.len(),
         },
@@ -454,6 +452,7 @@ pub fn verify_roundtrip(
 }
 
 /// Verify roundtrip for all 4 assemblers. Returns results for each.
+#[must_use]
 pub fn verify_all_assemblers(state: &crate::state::AppState) -> Vec<VerifyResult> {
     use crate::state::Assembler;
     Assembler::all()
@@ -557,7 +556,7 @@ fn run_assembler(
                 if stderr.contains("Unable to access jarfile")
                     || stdout.contains("Unable to access jarfile")
                 {
-                    return Err(format!("{} not found in PATH (skipped)", assembler));
+                    return Err(format!("{assembler} not found in PATH (skipped)"));
                 }
                 Err(format!(
                     "assembler exited with {}\nstdout: {}\nstderr: {}",
@@ -567,16 +566,16 @@ fn run_assembler(
         }
         Err(e) => {
             if e.kind() == std::io::ErrorKind::NotFound {
-                Err(format!("{} not found in PATH (skipped)", assembler))
+                Err(format!("{assembler} not found in PATH (skipped)"))
             } else {
-                Err(format!("failed to execute {}: {}", assembler, e))
+                Err(format!("failed to execute {assembler}: {e}"))
             }
         }
     }
 }
 
-/// Create a lightweight clone of AppState suitable for roundtrip verification.
-/// Only copies the fields needed for export_asm.
+/// Create a lightweight clone of `AppState` suitable for roundtrip verification.
+/// Only copies the fields needed for `export_asm`.
 fn clone_state_for_verify(state: &crate::state::AppState) -> crate::state::AppState {
     let mut clone = crate::state::AppState::new();
     clone.origin = state.origin;
@@ -638,9 +637,9 @@ mod tests {
         state.disassembly.push(DisassemblyLine {
             address: 0x1000,
             mnemonic: "NOP".to_string(),
-            operand: "".to_string(),
+            operand: String::new(),
             bytes: vec![0xEA],
-            comment: "".to_string(),
+            comment: String::new(),
             line_comment: None,
             label: None,
             opcode: None,
@@ -654,7 +653,7 @@ mod tests {
             mnemonic: ".BYTE".to_string(),
             operand: "$11".to_string(),
             bytes: vec![0x11],
-            comment: "".to_string(),
+            comment: String::new(),
             line_comment: None,
             label: None,
             opcode: None,
@@ -668,7 +667,7 @@ mod tests {
             mnemonic: ".BYTE".to_string(),
             operand: "$22".to_string(),
             bytes: vec![0x22],
-            comment: "".to_string(),
+            comment: String::new(),
             line_comment: None,
             label: None,
             opcode: None,
@@ -680,9 +679,9 @@ mod tests {
         state.disassembly.push(DisassemblyLine {
             address: 0x1003,
             mnemonic: "RTS".to_string(),
-            operand: "".to_string(),
+            operand: String::new(),
             bytes: vec![0x60],
-            comment: "".to_string(),
+            comment: String::new(),
             line_comment: None,
             label: None,
             opcode: None,
@@ -709,7 +708,7 @@ mod tests {
         assert!(res.is_ok());
 
         let content = std::fs::read_to_string(&path).unwrap();
-        println!("Content:\n{}", content);
+        println!("Content:\n{content}");
 
         // Check for .binary directive
         // Filename: test_export_external_1001_1002.bin
@@ -779,7 +778,7 @@ mod tests {
         state.disassembly.push(DisassemblyLine {
             address: 0x1005,
             mnemonic: "RTS".to_string(),
-            operand: "".to_string(),
+            operand: String::new(),
             bytes: vec![0x60],
             comment: String::new(),
             line_comment: None,
@@ -813,14 +812,12 @@ mod tests {
             Ok(output) => {
                 let stdout = String::from_utf8_lossy(&output.stdout);
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                println!("stdout: {}", stdout);
-                println!("stderr: {}", stderr);
+                println!("stdout: {stdout}");
+                println!("stderr: {stderr}");
 
                 assert!(
                     output.status.success(),
-                    "64tass compilation failed. \nStdout: {}\nStderr: {}",
-                    stdout,
-                    stderr
+                    "64tass compilation failed. \nStdout: {stdout}\nStderr: {stderr}"
                 );
             }
             Err(e) => {
@@ -829,9 +826,8 @@ mod tests {
                     // Cleanup and return success
                     let _ = std::fs::remove_file(&path);
                     return;
-                } else {
-                    panic!("Failed to execute 64tass: {}", e);
                 }
+                panic!("Failed to execute 64tass: {e}");
             }
         }
 
@@ -899,7 +895,7 @@ mod tests {
         assert!(res.is_ok());
 
         let content = std::fs::read_to_string(&path).unwrap();
-        println!("Content:\n{}", content);
+        println!("Content:\n{content}");
 
         // Verify output contains the mid-instruction labels
         assert!(content.contains("aC001 =*+$01"));
@@ -947,7 +943,7 @@ mod tests {
         assert!(res.is_ok());
 
         let content = std::fs::read_to_string(&path).unwrap();
-        println!("Content:\n{}", content);
+        println!("Content:\n{content}");
 
         // Check for padding. MyLabel is 7 chars (MyLabel).
         // Format is {:-24} {Instruction}
@@ -1002,7 +998,7 @@ mod tests {
         state.disassembly.push(DisassemblyLine {
             address: 0x1000,
             mnemonic: "NOP".to_string(),
-            operand: "".to_string(),
+            operand: String::new(),
             bytes: vec![0xEA],
             comment: String::new(),
             line_comment: None,
@@ -1028,7 +1024,7 @@ mod tests {
         assert!(res.is_ok());
 
         let content = std::fs::read_to_string(&path).unwrap();
-        println!("Content:\n{}", content);
+        println!("Content:\n{content}");
 
         // These assertions should currently FAIL because they don't start with 'e'
         assert!(content.contains("f0002 = $02")); // Now it should be $02 for ZP
@@ -1046,9 +1042,9 @@ mod tests {
         state.disassembly.push(DisassemblyLine {
             address: 0x1000,
             mnemonic: "NOP".to_string(),
-            operand: "".to_string(),
+            operand: String::new(),
             bytes: vec![0xEA],
-            comment: "".to_string(),
+            comment: String::new(),
             line_comment: None,
             label: None,
             opcode: None,
@@ -1068,7 +1064,7 @@ mod tests {
         assert!(res.is_ok());
 
         let content = std::fs::read_to_string(&path).unwrap();
-        println!("Content:\n{}", content);
+        println!("Content:\n{content}");
 
         assert!(content.contains(
             ";=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
@@ -1094,9 +1090,9 @@ mod tests {
         state.disassembly.push(DisassemblyLine {
             address: 0x1000,
             mnemonic: "NOP".to_string(),
-            operand: "".to_string(),
+            operand: String::new(),
             bytes: vec![0xEA],
-            comment: "".to_string(),
+            comment: String::new(),
             line_comment: None,
             label: None,
             opcode: None,
@@ -1271,7 +1267,7 @@ mod tests {
         assert!(res.is_ok());
 
         let content = std::fs::read_to_string(&path).unwrap();
-        println!("Content:\n{}", content);
+        println!("Content:\n{content}");
 
         let lines: Vec<&str> = content.lines().collect();
         // Check order of lines before "* = $C000"
@@ -1370,7 +1366,7 @@ mod tests {
         state.disassembly.push(DisassemblyLine {
             address: 0x1000,
             mnemonic: "NOP".to_string(),
-            operand: "".to_string(),
+            operand: String::new(),
             bytes: vec![0xEA],
             comment: String::new(),
             line_comment: None,
@@ -1463,18 +1459,16 @@ mod tests {
         assert!(res.is_ok());
 
         let content = std::fs::read_to_string(&path).unwrap();
-        println!("Content:\n{}", content);
+        println!("Content:\n{content}");
 
         // Verify Exporter preserves the @w prefix
         assert!(
             content.contains("lda @w $0012"),
-            "Output missing @w prefix for Absolute ZP target. content: {}",
-            content
+            "Output missing @w prefix for Absolute ZP target. content: {content}"
         );
         assert!(
             content.contains("lda @w $0012,x"),
-            "Output missing @w prefix for AbsoluteX ZP target. content: {}",
-            content
+            "Output missing @w prefix for AbsoluteX ZP target. content: {content}"
         );
 
         let _ = std::fs::remove_file(&path);
@@ -1512,7 +1506,7 @@ mod tests {
         assert!(res.is_ok());
 
         let content = std::fs::read_to_string(&path).unwrap();
-        println!("Content:\n{}", content);
+        println!("Content:\n{content}");
 
         // Export should regenerate WITHOUT collapsed blocks, so we expect 3 NOPs.
         // It should NOT contain "Collapsed"
@@ -1605,7 +1599,7 @@ mod tests {
         assert!(res.is_ok());
 
         let content = std::fs::read_to_string(&path).unwrap();
-        println!("Content:\n{}", content);
+        println!("Content:\n{content}");
 
         // Expected usage:
         // ; Line 1
@@ -1622,8 +1616,7 @@ mod tests {
             if line.contains("Line ") {
                 assert!(
                     line.trim().starts_with(';'),
-                    "Line should start with comment prefix: {}",
-                    line
+                    "Line should start with comment prefix: {line}"
                 );
             }
         }
@@ -1762,7 +1755,7 @@ mod tests {
         }
     }
 
-    /// Labels defined inside an ExternalFile block must appear in the exported
+    /// Labels defined inside an `ExternalFile` block must appear in the exported
     /// ASM as constant definitions (under "EXTERNAL FILE LABELS"), since the
     /// exporter replaces those bytes with a .binary directive and the label
     /// definitions are never written inline.

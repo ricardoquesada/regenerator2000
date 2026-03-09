@@ -113,7 +113,7 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         RightPane::Bitmap => view_bitmap::BitmapView.render(f, layout[1], app_state, ui_state),
         RightPane::Blocks => view_blocks::BlocksView.render(f, layout[1], app_state, ui_state),
         RightPane::Debugger => {
-            view_debugger::DebuggerView.render(f, layout[1], app_state, ui_state)
+            view_debugger::DebuggerView.render(f, layout[1], app_state, ui_state);
         }
     }
 }

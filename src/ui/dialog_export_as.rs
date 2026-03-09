@@ -22,6 +22,7 @@ impl Default for ExportAsDialog {
 }
 
 impl ExportAsDialog {
+    #[must_use]
     pub fn new(initial_filename: Option<String>) -> Self {
         Self {
             input: initial_filename.unwrap_or_default(),
@@ -100,23 +101,23 @@ impl Widget for ExportAsDialog {
             }
             KeyCode::Enter => {
                 let filename = self.input.clone();
-                if !filename.is_empty() {
+                if filename.is_empty() {
+                    WidgetResult::Handled
+                } else {
                     let mut path = ui_state.file_dialog_current_dir.join(&filename);
                     if path.extension().is_none() {
                         path.set_extension("asm");
                     }
                     app_state.export_path = Some(path.clone());
                     if let Err(e) = crate::exporter::export_asm(app_state, &path) {
-                        ui_state.set_status_message(format!("Error exporting: {}", e));
+                        ui_state.set_status_message(format!("Error exporting: {e}"));
                         WidgetResult::Handled
                     } else {
                         app_state.last_export_asm_filename = Some(filename.clone());
                         let saved_filename = path.file_name().unwrap_or_default().to_string_lossy();
-                        ui_state.set_status_message(format!("Exported: {}", saved_filename));
+                        ui_state.set_status_message(format!("Exported: {saved_filename}"));
                         WidgetResult::Close
                     }
-                } else {
-                    WidgetResult::Handled
                 }
             }
             KeyCode::Backspace => {

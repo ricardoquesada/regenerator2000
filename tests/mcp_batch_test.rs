@@ -61,7 +61,7 @@ mod tests {
         let content = result.get("content").unwrap().as_array().unwrap();
         let text_result = content[0].get("text").unwrap().as_str().unwrap();
 
-        println!("Batch Result JSON:\n{}", text_result);
+        println!("Batch Result JSON:\n{text_result}");
 
         // Parse the inner JSON result
         let batch_results: serde_json::Value = serde_json::from_str(text_result).unwrap();

@@ -138,9 +138,9 @@ pub fn jump_to_disassembly_at_address(
         ui_state.scroll_index = line_idx;
         ui_state.scroll_sub_index = 0;
 
-        ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
+        ui_state.set_status_message(format!("Jumped to ${target_addr:04X}"));
     } else {
-        ui_state.set_status_message(format!("Address ${:04X} not found", target_addr));
+        ui_state.set_status_message(format!("Address ${target_addr:04X} not found"));
     }
     WidgetResult::Handled
 }

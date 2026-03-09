@@ -123,6 +123,7 @@ pub struct UIState {
 }
 
 impl UIState {
+    #[must_use]
     pub fn new(theme: Theme) -> Self {
         Self {
             active_dialog: None,

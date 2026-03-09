@@ -22,6 +22,7 @@ impl Default for SaveAsDialog {
 }
 
 impl SaveAsDialog {
+    #[must_use]
     pub fn new(initial_filename: Option<String>) -> Self {
         Self {
             input: initial_filename.unwrap_or_default(),
@@ -100,7 +101,9 @@ impl Widget for SaveAsDialog {
             }
             KeyCode::Enter => {
                 let filename = self.input.clone();
-                if !filename.is_empty() {
+                if filename.is_empty() {
+                    WidgetResult::Handled
+                } else {
                     // Determine path relative to open dialog's current directory
                     let mut path = ui_state.file_dialog_current_dir.join(&filename);
                     if path.extension().is_none() {
@@ -119,39 +122,41 @@ impl Widget for SaveAsDialog {
                         .get(ui_state.cursor_index)
                         .map(|l| l.address);
 
-                    let hex_addr = if !app_state.raw_data.is_empty() {
+                    let hex_addr = if app_state.raw_data.is_empty() {
+                        None
+                    } else {
                         let origin = app_state.origin as usize;
                         let alignment_padding = origin % 16;
                         let aligned_origin = origin - alignment_padding;
                         let row_start_offset = ui_state.hex_cursor_index * 16;
                         let addr = aligned_origin + row_start_offset;
                         Some(addr as u16)
-                    } else {
-                        None
                     };
 
-                    let sprites_addr = if !app_state.raw_data.is_empty() {
+                    let sprites_addr = if app_state.raw_data.is_empty() {
+                        None
+                    } else {
                         let origin = app_state.origin as usize;
                         let padding = (64 - (origin % 64)) % 64;
                         let sprite_offset = ui_state.sprites_cursor_index * 64;
                         let addr = origin + padding + sprite_offset;
                         Some(addr as u16)
-                    } else {
-                        None
                     };
 
-                    let charset_addr = if !app_state.raw_data.is_empty() {
+                    let charset_addr = if app_state.raw_data.is_empty() {
+                        None
+                    } else {
                         let origin = app_state.origin as usize;
                         let base_alignment = 0x400;
                         let aligned_start_addr = (origin / base_alignment) * base_alignment;
                         let char_offset = ui_state.charset_cursor_index * 8;
                         let addr = aligned_start_addr + char_offset;
                         Some(addr as u16)
-                    } else {
-                        None
                     };
 
-                    let bitmap_addr = if !app_state.raw_data.is_empty() {
+                    let bitmap_addr = if app_state.raw_data.is_empty() {
+                        None
+                    } else {
                         let origin = app_state.origin as usize;
                         // Bitmaps must be aligned to 8192-byte boundaries
                         let first_aligned_addr = ((origin / 8192) * 8192)
@@ -159,8 +164,6 @@ impl Widget for SaveAsDialog {
                         let bitmap_addr =
                             first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
                         Some(bitmap_addr as u16)
-                    } else {
-                        None
                     };
 
                     let right_pane_str = format!("{:?}", ui_state.right_pane);
@@ -183,15 +186,13 @@ impl Widget for SaveAsDialog {
                         },
                         true,
                     ) {
-                        ui_state.set_status_message(format!("Error saving: {}", e));
+                        ui_state.set_status_message(format!("Error saving: {e}"));
                         WidgetResult::Handled
                     } else {
                         app_state.last_save_as_filename = Some(filename.clone());
-                        ui_state.set_status_message(format!("Project saved: {}", saved_filename));
+                        ui_state.set_status_message(format!("Project saved: {saved_filename}"));
                         WidgetResult::Close
                     }
-                } else {
-                    WidgetResult::Handled
                 }
             }
             KeyCode::Backspace => {

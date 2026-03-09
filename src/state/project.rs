@@ -129,6 +129,7 @@ pub fn decode_raw_data_from_base64(data: &str) -> anyhow::Result<Vec<u8>> {
     Ok(raw_data)
 }
 
+#[must_use]
 pub fn compress_block_types(
     types: &[BlockType],
     collapsed_ranges: &[(usize, usize)],
@@ -171,6 +172,7 @@ pub fn compress_block_types(
     ranges
 }
 
+#[must_use]
 pub fn expand_blocks(ranges: &[Block], len: usize) -> (Vec<BlockType>, Vec<(usize, usize)>) {
     let mut types = vec![BlockType::Code; len];
     let mut collapsed_ranges = Vec::new();

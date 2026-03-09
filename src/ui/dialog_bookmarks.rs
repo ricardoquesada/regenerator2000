@@ -81,7 +81,7 @@ impl Widget for BookmarksDialog {
                     // If name is empty, we can just show address.
                     let display_name = if name.is_empty() { "Bookmark" } else { name };
 
-                    ListItem::new(format!("${:04X} - {}{}", addr, display_name, label))
+                    ListItem::new(format!("${addr:04X} - {display_name}{label}"))
                 })
                 .collect();
 
@@ -177,7 +177,7 @@ impl Widget for BookmarksDialog {
                         ui_state.bookmarks_list_state.select(None);
                     }
 
-                    ui_state.set_status_message(format!("Bookmark at ${:04X} removed", addr));
+                    ui_state.set_status_message(format!("Bookmark at ${addr:04X} removed"));
                 }
                 WidgetResult::Handled
             }

@@ -29,6 +29,7 @@ pub struct D64FilePickerDialog {
 }
 
 impl D64FilePickerDialog {
+    #[must_use]
     pub fn new(files: Vec<D64FileEntry>, disk_data: Vec<u8>, disk_path: PathBuf) -> Self {
         let entries = files
             .into_iter()
@@ -41,13 +42,13 @@ impl D64FilePickerDialog {
                     && let Ok((start, data)) = crate::parser::d64::extract_file(&disk_data, &entry)
                 {
                     start_addr = Some(start);
-                    if !data.is_empty() {
-                        end_addr = Some(start.wrapping_add(data.len() as u16).wrapping_sub(1));
-                        entropy = Some(crate::utils::calculate_entropy(&data));
-                    } else {
+                    if data.is_empty() {
                         // Empty file (just load address?)
                         end_addr = Some(start);
                         entropy = Some(0.0);
+                    } else {
+                        end_addr = Some(start.wrapping_add(data.len() as u16).wrapping_sub(1));
+                        entropy = Some(crate::utils::calculate_entropy(&data));
                     }
                 }
 
@@ -90,7 +91,7 @@ impl Widget for D64FilePickerDialog {
             .and_then(|n| n.to_str())
             .unwrap_or("Unknown");
 
-        let title = format!(" Select PRG from {} (Enter: Load, Esc: Cancel) ", disk_name);
+        let title = format!(" Select PRG from {disk_name} (Enter: Load, Esc: Cancel) ");
         let block = crate::ui::widget::create_dialog_block(&title, theme);
 
         let area = crate::utils::centered_rect_adaptive(80, 60, 80, 14, area);
@@ -111,13 +112,13 @@ impl Widget for D64FilePickerDialog {
                 let addr_str = if let (Some(start), Some(end)) =
                     (picker_entry.start_addr, picker_entry.end_addr)
                 {
-                    format!("${:04X}-${:04X}", start, end)
+                    format!("${start:04X}-${end:04X}")
                 } else {
                     String::new()
                 };
 
                 let entropy_str = if let Some(e) = picker_entry.entropy {
-                    format!("{:>5.2}", e)
+                    format!("{e:>5.2}")
                 } else {
                     "     ".to_string()
                 };
@@ -134,10 +135,10 @@ impl Widget for D64FilePickerDialog {
                 let is_prg = entry.file_type == FileType::PRG;
 
                 // Dim non-PRG files when not selected (selection style handles the rest)
-                let style = if !is_prg {
-                    Style::default().fg(Color::DarkGray)
-                } else {
+                let style = if is_prg {
                     Style::default()
+                } else {
+                    Style::default().fg(Color::DarkGray)
                 };
 
                 ListItem::new(Line::from(Span::styled(content, style)))
@@ -238,13 +239,13 @@ impl Widget for D64FilePickerDialog {
                                 WidgetResult::Close
                             }
                             Err(e) => {
-                                ui_state.set_status_message(format!("Error loading file: {}", e));
+                                ui_state.set_status_message(format!("Error loading file: {e}"));
                                 WidgetResult::Handled
                             }
                         }
                     }
                     Err(e) => {
-                        ui_state.set_status_message(format!("Error loading file: {}", e));
+                        ui_state.set_status_message(format!("Error loading file: {e}"));
                         WidgetResult::Handled
                     }
                 }

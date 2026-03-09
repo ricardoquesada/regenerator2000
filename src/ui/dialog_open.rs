@@ -25,6 +25,7 @@ pub struct OpenDialog {
 }
 
 impl OpenDialog {
+    #[must_use]
     pub fn new(current_dir: PathBuf) -> Self {
         let mut dialog = Self {
             current_dir,
@@ -48,12 +49,12 @@ impl OpenDialog {
         dialog
     }
 
+    #[must_use]
     pub fn new_import_vice_labels(current_dir: PathBuf, last_path: Option<PathBuf>) -> Self {
         let mut dialog = Self {
             current_dir: if let Some(path) = &last_path {
                 path.parent()
-                    .map(|p| p.to_path_buf())
-                    .unwrap_or(current_dir)
+                    .map_or(current_dir, std::path::Path::to_path_buf)
             } else {
                 current_dir
             },
@@ -136,7 +137,7 @@ impl Widget for OpenDialog {
             .map(|path| {
                 let name = path.file_name().unwrap_or_default().to_string_lossy();
                 let name = if path.is_dir() {
-                    format!("{}/", name)
+                    format!("{name}/")
                 } else {
                     name.to_string()
                 };
@@ -200,7 +201,7 @@ impl Widget for OpenDialog {
             }
             KeyCode::Backspace => {
                 // Go to parent dir
-                if let Some(parent) = self.current_dir.parent().map(|p| p.to_path_buf()) {
+                if let Some(parent) = self.current_dir.parent().map(std::path::Path::to_path_buf) {
                     self.current_dir = parent;
                     self.refresh_files();
                     self.selected_index = 0;
@@ -210,7 +211,9 @@ impl Widget for OpenDialog {
                 WidgetResult::Handled
             }
             KeyCode::Enter => {
-                if !self.files.is_empty() {
+                if self.files.is_empty() {
+                    WidgetResult::Handled
+                } else {
                     let selected_path = self.files[self.selected_index].clone();
                     if selected_path.is_dir() {
                         self.current_dir = selected_path;
@@ -222,25 +225,20 @@ impl Widget for OpenDialog {
                     } else {
                         match self.mode {
                             OpenMode::ViceLabels => {
-                                match app_state.import_vice_labels(selected_path.clone()) {
-                                    Err(e) => {
-                                        ui_state.set_status_message(format!(
-                                            "Error importing labels: {}",
-                                            e
-                                        ));
-                                        WidgetResult::Handled
-                                    }
-                                    Ok(_) => {
-                                        let filename = selected_path
-                                            .file_name()
-                                            .unwrap_or_default()
-                                            .to_string_lossy()
-                                            .to_string();
-                                        app_state.last_import_labels_path = Some(selected_path);
-                                        ui_state
-                                            .set_status_message(format!("Imported: {}", filename));
-                                        WidgetResult::Close
-                                    }
+                                if let Err(e) = app_state.import_vice_labels(selected_path.clone())
+                                {
+                                    ui_state
+                                        .set_status_message(format!("Error importing labels: {e}"));
+                                    WidgetResult::Handled
+                                } else {
+                                    let filename = selected_path
+                                        .file_name()
+                                        .unwrap_or_default()
+                                        .to_string_lossy()
+                                        .to_string();
+                                    app_state.last_import_labels_path = Some(selected_path);
+                                    ui_state.set_status_message(format!("Imported: {filename}"));
+                                    WidgetResult::Close
                                 }
                             }
                             OpenMode::ProjectOrFile => {
@@ -248,8 +246,7 @@ impl Widget for OpenDialog {
                                 if selected_path
                                     .extension()
                                     .and_then(|e| e.to_str())
-                                    .map(|e| e.eq_ignore_ascii_case("t64"))
-                                    .unwrap_or(false)
+                                    .is_some_and(|e| e.eq_ignore_ascii_case("t64"))
                                 {
                                     match std::fs::read(&selected_path) {
                                         Ok(tape_data) => {
@@ -275,8 +272,7 @@ impl Widget for OpenDialog {
                                                 }
                                                 Err(e) => {
                                                     ui_state.set_status_message(format!(
-                                                        "Error parsing T64: {}",
-                                                        e
+                                                        "Error parsing T64: {e}"
                                                     ));
                                                     return WidgetResult::Handled;
                                                 }
@@ -284,8 +280,7 @@ impl Widget for OpenDialog {
                                         }
                                         Err(e) => {
                                             ui_state.set_status_message(format!(
-                                                "Error reading file: {}",
-                                                e
+                                                "Error reading file: {e}"
                                             ));
                                             return WidgetResult::Handled;
                                         }
@@ -296,12 +291,11 @@ impl Widget for OpenDialog {
                                 if selected_path
                                     .extension()
                                     .and_then(|e| e.to_str())
-                                    .map(|e| {
+                                    .is_some_and(|e| {
                                         e.eq_ignore_ascii_case("d64")
                                             || e.eq_ignore_ascii_case("d71")
                                             || e.eq_ignore_ascii_case("d81")
                                     })
-                                    .unwrap_or(false)
                                 {
                                     match std::fs::read(&selected_path) {
                                         Ok(disk_data) => {
@@ -336,8 +330,7 @@ impl Widget for OpenDialog {
                                                 }
                                                 Err(e) => {
                                                     ui_state.set_status_message(format!(
-                                                        "Error parsing D64/D71: {}",
-                                                        e
+                                                        "Error parsing D64/D71: {e}"
                                                     ));
                                                     return WidgetResult::Handled;
                                                 }
@@ -345,8 +338,7 @@ impl Widget for OpenDialog {
                                         }
                                         Err(e) => {
                                             ui_state.set_status_message(format!(
-                                                "Error reading file: {}",
-                                                e
+                                                "Error reading file: {e}"
                                             ));
                                             return WidgetResult::Handled;
                                         }
@@ -355,10 +347,8 @@ impl Widget for OpenDialog {
 
                                 match app_state.load_file(selected_path.clone()) {
                                     Err(e) => {
-                                        ui_state.set_status_message(format!(
-                                            "Error loading file: {}",
-                                            e
-                                        ));
+                                        ui_state
+                                            .set_status_message(format!("Error loading file: {e}"));
                                         WidgetResult::Handled // Or close? User might want to retry
                                     }
                                     Ok(loaded_data) => {
@@ -366,8 +356,7 @@ impl Widget for OpenDialog {
                                             .file_name()
                                             .unwrap_or_default()
                                             .to_string_lossy();
-                                        ui_state
-                                            .set_status_message(format!("Loaded: {}", filename));
+                                        ui_state.set_status_message(format!("Loaded: {filename}"));
 
                                         let loaded_cursor = loaded_data.cursor_address;
                                         let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;
@@ -392,8 +381,9 @@ impl Widget for OpenDialog {
                                         let is_project = selected_path
                                             .extension()
                                             .and_then(|e| e.to_str())
-                                            .map(|e| e.eq_ignore_ascii_case("regen2000proj"))
-                                            .unwrap_or(false);
+                                            .is_some_and(|e| {
+                                                e.eq_ignore_ascii_case("regen2000proj")
+                                            });
 
                                         if !is_project {
                                             app_state.perform_analysis();
@@ -451,23 +441,23 @@ impl Widget for OpenDialog {
                                             match pane_str.as_str() {
                                                 "HexDump" => {
                                                     ui_state.right_pane =
-                                                        crate::ui_state::RightPane::HexDump
+                                                        crate::ui_state::RightPane::HexDump;
                                                 }
                                                 "Sprites" => {
                                                     ui_state.right_pane =
-                                                        crate::ui_state::RightPane::Sprites
+                                                        crate::ui_state::RightPane::Sprites;
                                                 }
                                                 "Charset" => {
                                                     ui_state.right_pane =
-                                                        crate::ui_state::RightPane::Charset
+                                                        crate::ui_state::RightPane::Charset;
                                                 }
                                                 "Blocks" => {
                                                     ui_state.right_pane =
-                                                        crate::ui_state::RightPane::Blocks
+                                                        crate::ui_state::RightPane::Blocks;
                                                 }
                                                 "None" => {
                                                     ui_state.right_pane =
-                                                        crate::ui_state::RightPane::None
+                                                        crate::ui_state::RightPane::None;
                                                 }
                                                 _ => {}
                                             }
@@ -494,7 +484,9 @@ impl Widget for OpenDialog {
                                         }
 
                                         // Validate Hex Cursor Bounds
-                                        if !app_state.raw_data.is_empty() {
+                                        if app_state.raw_data.is_empty() {
+                                            ui_state.hex_cursor_index = 0;
+                                        } else {
                                             let origin = app_state.origin as usize;
                                             let alignment_padding = origin % 16;
                                             let total_len =
@@ -503,8 +495,6 @@ impl Widget for OpenDialog {
                                             if ui_state.hex_cursor_index >= max_rows {
                                                 ui_state.hex_cursor_index = 0;
                                             }
-                                        } else {
-                                            ui_state.hex_cursor_index = 0;
                                         }
 
                                         // Check for entropy
@@ -519,8 +509,6 @@ impl Widget for OpenDialog {
                             }
                         }
                     }
-                } else {
-                    WidgetResult::Handled
                 }
             }
             _ => WidgetResult::Handled,

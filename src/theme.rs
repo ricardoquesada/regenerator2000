@@ -245,6 +245,7 @@ impl CatppuccinLatte {
 }
 
 impl Theme {
+    #[must_use]
     pub fn from_name(name: &str) -> Self {
         match name {
             "Solarized Light" => Self::light(),
@@ -259,6 +260,7 @@ impl Theme {
         }
     }
 
+    #[must_use]
     pub fn dark() -> Self {
         Self {
             name: "Solarized Dark",
@@ -331,6 +333,7 @@ impl Theme {
         }
     }
 
+    #[must_use]
     pub fn light() -> Self {
         Self {
             name: "Solarized Light",
@@ -403,6 +406,7 @@ impl Theme {
         }
     }
 
+    #[must_use]
     pub fn all_names() -> Vec<&'static str> {
         vec![
             "Solarized Dark",
@@ -417,6 +421,7 @@ impl Theme {
         ]
     }
 
+    #[must_use]
     pub fn dracula() -> Self {
         Self {
             name: "Dracula",
@@ -488,6 +493,7 @@ impl Theme {
         }
     }
 
+    #[must_use]
     pub fn gruvbox_dark() -> Self {
         Self {
             name: "Gruvbox Dark",
@@ -559,6 +565,7 @@ impl Theme {
         }
     }
 
+    #[must_use]
     pub fn gruvbox_light() -> Self {
         Self {
             name: "Gruvbox Light",
@@ -631,6 +638,7 @@ impl Theme {
         }
     }
 
+    #[must_use]
     pub fn monokai() -> Self {
         Self {
             name: "Monokai",
@@ -702,6 +710,7 @@ impl Theme {
         }
     }
 
+    #[must_use]
     pub fn nord() -> Self {
         Self {
             name: "Nord",
@@ -773,6 +782,7 @@ impl Theme {
         }
     }
 
+    #[must_use]
     pub fn catppuccin_mocha() -> Self {
         Self {
             name: "Catppuccin Mocha",
@@ -844,6 +854,7 @@ impl Theme {
         }
     }
 
+    #[must_use]
     pub fn catppuccin_latte() -> Self {
         Self {
             name: "Catppuccin Latte",

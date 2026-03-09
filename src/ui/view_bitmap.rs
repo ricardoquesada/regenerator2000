@@ -81,7 +81,7 @@ impl Navigable for BitmapView {
         ui_state.bitmap_cursor_index = target;
     }
 
-    fn item_name(&self) -> &str {
+    fn item_name(&self) -> &'static str {
         "bitmap"
     }
 }
@@ -137,9 +137,9 @@ impl Widget for BitmapView {
         };
 
         let title = if ui_state.bitmap_multicolor_mode {
-            format!(" Bitmap (Multicolor 160×200) [{}] ", protocol_name)
+            format!(" Bitmap (Multicolor 160×200) [{protocol_name}] ")
         } else {
-            format!(" Bitmap (High-Res 320×200) [{}] ", protocol_name)
+            format!(" Bitmap (High-Res 320×200) [{protocol_name}] ")
         };
 
         let block = Block::default()
@@ -189,18 +189,11 @@ impl Widget for BitmapView {
             calculate_screen_ram_addr(bitmap_addr, ui_state.bitmap_screen_ram_mode);
         let sub_header = if padding_bytes > 0 {
             format!(
-                "Bitmap @ ${:04X} (aligned ${:04X}, {} bytes: {} padded + {} data), Screen RAM @ ${:04X}",
-                display_addr,
-                bitmap_addr,
-                total_bytes,
-                padding_bytes,
-                actual_bytes,
-                screen_ram_addr
+                "Bitmap @ ${display_addr:04X} (aligned ${bitmap_addr:04X}, {total_bytes} bytes: {padding_bytes} padded + {actual_bytes} data), Screen RAM @ ${screen_ram_addr:04X}"
             )
         } else {
             format!(
-                "Bitmap @ ${:04X} ({} bytes), Screen RAM @ ${:04X}",
-                display_addr, total_bytes, screen_ram_addr
+                "Bitmap @ ${display_addr:04X} ({total_bytes} bytes), Screen RAM @ ${screen_ram_addr:04X}"
             )
         };
 
@@ -213,7 +206,7 @@ impl Widget for BitmapView {
         // For H rows displaying 200 logical pixels, we need W columns displaying 320 logical pixels
         // Terminal cells are roughly 1:2 (width:height), so W = H * (320/200) * 2 = H * 3.2
         let image_height = inner_area.height.saturating_sub(6);
-        let image_width = ((image_height as f32) * 3.2) as u16;
+        let image_width = (f32::from(image_height) * 3.2) as u16;
         let image_width = image_width.min(inner_area.width);
         let image_area = Rect::new(inner_area.x, inner_area.y + 2, image_width, image_height);
 
@@ -221,13 +214,12 @@ impl Widget for BitmapView {
         let vic_bank = (bitmap_addr / 0x4000) * 0x4000;
         let selector_text = match ui_state.bitmap_screen_ram_mode {
             ScreenRamMode::AfterBitmap => {
-                format!("Screen RAM: ◄ After Bitmap (${:04X}) ►", screen_ram_addr)
+                format!("Screen RAM: ◄ After Bitmap (${screen_ram_addr:04X}) ►")
             }
             ScreenRamMode::BankOffset(offset) => {
                 let offset_hex = offset as usize * 0x0400;
                 format!(
-                    "Screen RAM: ◄ ${:04X} (Bank ${:04X}+${:04X}) ►",
-                    screen_ram_addr, vic_bank, offset_hex
+                    "Screen RAM: ◄ ${screen_ram_addr:04X} (Bank ${vic_bank:04X}+${offset_hex:04X}) ►"
                 )
             }
         };

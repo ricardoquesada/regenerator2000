@@ -29,9 +29,10 @@ fn test_export_all_labels_disabled() {
     // And headers like `; ZP FIELDS`
     // We iterate and ensure none of that is there.
     for line in &state.disassembly {
-        if line.mnemonic.contains("ZP FIELDS") || line.mnemonic.contains("f10 =") {
-            panic!("Disassembly contained external label definition but 'all_labels' is false!");
-        }
+        assert!(
+            !(line.mnemonic.contains("ZP FIELDS") || line.mnemonic.contains("f10 =")),
+            "Disassembly contained external label definition but 'all_labels' is false!"
+        );
     }
 
     // Now Export

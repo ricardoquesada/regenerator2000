@@ -7,6 +7,7 @@ pub enum BreakpointKind {
 }
 
 impl BreakpointKind {
+    #[must_use]
     pub fn from_cpu_op(op: u8) -> Self {
         match op {
             0x01 => BreakpointKind::Load,
@@ -16,6 +17,7 @@ impl BreakpointKind {
         }
     }
 
+    #[must_use]
     pub fn label(&self) -> &'static str {
         match self {
             BreakpointKind::Exec => "X",
@@ -72,6 +74,7 @@ pub struct ViceState {
 }
 
 impl ViceState {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             connected: false,
@@ -115,6 +118,7 @@ impl ViceState {
     }
 
     /// Returns true if there is a persistent breakpoint at `addr`.
+    #[must_use]
     pub fn has_breakpoint_at(&self, addr: u16) -> bool {
         self.breakpoints.iter().any(|bp| bp.address == addr)
     }

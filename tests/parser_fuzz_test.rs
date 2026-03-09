@@ -144,10 +144,10 @@ fn test_t64_entry_offset_out_of_bounds() {
     let entries = t64::parse_t64_directory(&data);
     assert!(entries.is_ok());
     // extract_file should fail
-    if let Ok(e) = entries {
-        if let Some(entry) = e.first() {
-            assert!(t64::extract_file(&data, entry).is_err());
-        }
+    if let Ok(e) = entries
+        && let Some(entry) = e.first()
+    {
+        assert!(t64::extract_file(&data, entry).is_err());
     }
 }
 
@@ -195,7 +195,7 @@ fn test_d64_dir_chain_loop() {
     // Track 18, Sector 1 is the first directory sector.
     // We manually compute offset based on D64 geometry.
     // Tracks 1-17 = 17*21*256 = 91392 bytes, Sector 1 of Track 18 = +256
-    let dir_offset = 17 * 21 * 256 + 1 * 256;
+    let dir_offset = 17 * 21 * 256 + 256;
     data[dir_offset] = 18; // next_track = 18 (same track!)
     data[dir_offset + 1] = 1; // next_sector = 1 (same sector!)
     // Add a valid entry so we don't skip
@@ -214,7 +214,7 @@ fn test_d64_dir_chain_loop() {
 fn test_d64_corrupt_file_chain() {
     // Corrupt sector chain in a file
     let mut data = vec![0u8; 174_848];
-    let dir_offset = 17 * 21 * 256 + 1 * 256;
+    let dir_offset = 17 * 21 * 256 + 256;
     data[dir_offset] = 0; // no next dir sector
     data[dir_offset + 1] = 255;
     // Valid entry pointing to track 1, sector 0
@@ -230,10 +230,10 @@ fn test_d64_corrupt_file_chain() {
     data[1] = 0;
     let files = d64::parse_d64_directory(&data);
     assert!(files.is_ok());
-    if let Ok(f) = files {
-        if let Some(entry) = f.first() {
-            assert!(d64::extract_file(&data, entry).is_err());
-        }
+    if let Ok(f) = files
+        && let Some(entry) = f.first()
+    {
+        assert!(d64::extract_file(&data, entry).is_err());
     }
 }
 

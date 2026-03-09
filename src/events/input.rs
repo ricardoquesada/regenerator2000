@@ -166,7 +166,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         }
         // Global Shortcuts
         KeyCode::Char('o') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Open)
+            handle_menu_action(app_state, ui_state, crate::ui_state::MenuAction::Open);
         }
         KeyCode::Char('o')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 pub type Platform = String;
 
+#[must_use]
 pub fn default_platform() -> Platform {
     "Commodore 64".to_string()
 }
@@ -36,6 +37,7 @@ impl std::fmt::Display for Assembler {
 }
 
 impl Assembler {
+    #[must_use]
     pub fn all() -> &'static [Assembler] {
         &[
             Assembler::Tass64,
@@ -109,6 +111,7 @@ pub enum LabelType {
 }
 
 impl LabelType {
+    #[must_use]
     pub fn prefix(&self) -> char {
         match self {
             LabelType::ZeroPageField => 'f',
@@ -129,11 +132,12 @@ impl LabelType {
     /// Formats a label name for the given address and label type.
     ///
     /// For zero-page addresses (0x00-0xFF):
-    /// - ExternalJump, AbsoluteAddress, Field, Pointer use 4 hex digits (e.g., "a00FF")
+    /// - `ExternalJump`, `AbsoluteAddress`, Field, Pointer use 4 hex digits (e.g., "a00FF")
     /// - Other types use 2 hex digits (e.g., "aFF")
     ///
     /// For non-zero-page addresses (0x100+):
     /// - All types use 4 hex digits (e.g., "a1234")
+    #[must_use]
     pub fn format_label(&self, addr: u16) -> String {
         let prefix = self.prefix();
 
@@ -145,16 +149,16 @@ impl LabelType {
                 | LabelType::Field
                 | LabelType::Pointer => {
                     // Force 4 digits for these types even in zero page
-                    format!("{}{:04X}", prefix, addr)
+                    format!("{prefix}{addr:04X}")
                 }
                 _ => {
                     // Use 2 digits for zero page types
-                    format!("{}{:02X}", prefix, addr)
+                    format!("{prefix}{addr:02X}")
                 }
             }
         } else {
             // Non-zero page: always use 4 digits
-            format!("{}{:04X}", prefix, addr)
+            format!("{prefix}{addr:04X}")
         }
     }
 }

@@ -18,11 +18,11 @@ impl Formatter for AcmeFormatter {
     }
 
     fn format_byte(&self, byte: u8) -> String {
-        format!("${:02x}", byte)
+        format!("${byte:02x}")
     }
 
     fn format_address(&self, address: u16) -> String {
-        format!("${:04x}", address)
+        format!("${address:04x}")
     }
 
     fn format_operand(&self, ctx: &super::formatter::FormatContext) -> String {
@@ -47,11 +47,11 @@ impl Formatter for AcmeFormatter {
                     Some(crate::state::ImmediateFormat::InvertedHex) => {
                         format!("#~${:02x}", !val)
                     }
-                    Some(crate::state::ImmediateFormat::Decimal) => format!("#{}", val),
+                    Some(crate::state::ImmediateFormat::Decimal) => format!("#{val}"),
                     Some(crate::state::ImmediateFormat::NegativeDecimal) => {
                         format!("#{}", val as i8)
                     }
-                    Some(crate::state::ImmediateFormat::Binary) => format!("#%{:08b}", val),
+                    Some(crate::state::ImmediateFormat::Binary) => format!("#%{val:08b}"),
                     Some(crate::state::ImmediateFormat::InvertedBinary) => {
                         format!("#~%{:08b}", !val)
                     }
@@ -59,49 +59,49 @@ impl Formatter for AcmeFormatter {
                         let name =
                             get_label(*target, LabelType::AbsoluteAddress).unwrap_or_else(|| {
                                 if *target <= 0xFF {
-                                    format!("${:02x}", target)
+                                    format!("${target:02x}")
                                 } else {
-                                    format!("${:04x}", target)
+                                    format!("${target:04x}")
                                 }
                             });
-                        format!("#<{}", name)
+                        format!("#<{name}")
                     }
                     Some(crate::state::ImmediateFormat::HighByte(target)) => {
                         let name =
                             get_label(*target, LabelType::AbsoluteAddress).unwrap_or_else(|| {
                                 if *target <= 0xFF {
-                                    format!("${:02x}", target)
+                                    format!("${target:02x}")
                                 } else {
-                                    format!("${:04x}", target)
+                                    format!("${target:04x}")
                                 }
                             });
-                        format!("#>{}", name)
+                        format!("#>{name}")
                     }
-                    _ => format!("#${:02x}", val),
+                    _ => format!("#${val:02x}"),
                 }
             }
             AddressingMode::ZeroPage => {
-                let addr = operands[0] as u16;
+                let addr = u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::ZeroPageAbsoluteAddress) {
                     name
                 } else {
-                    format!("${:02x}", addr)
+                    format!("${addr:02x}")
                 }
             }
             AddressingMode::ZeroPageX => {
-                let addr = operands[0] as u16;
+                let addr = u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{},x", name) // ACME is case insensitive but often convention is lowercase regs
+                    format!("{name},x") // ACME is case insensitive but often convention is lowercase regs
                 } else {
-                    format!("${:02x},x", addr)
+                    format!("${addr:02x},x")
                 }
             }
             AddressingMode::ZeroPageY => {
-                let addr = operands[0] as u16;
+                let addr = u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
-                    format!("{},y", name)
+                    format!("{name},y")
                 } else {
-                    format!("${:02x},y", addr)
+                    format!("${addr:02x},y")
                 }
             }
             AddressingMode::Relative => {
@@ -110,11 +110,11 @@ impl Formatter for AcmeFormatter {
                 if let Some(name) = get_label(target, LabelType::Branch) {
                     name
                 } else {
-                    format!("${:04x}", target)
+                    format!("${target:04x}")
                 }
             }
             AddressingMode::Absolute => {
-                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
                 let l_type = if opcode.mnemonic == "JSR" {
                     LabelType::Subroutine
                 } else if opcode.mnemonic == "JMP" {
@@ -126,48 +126,48 @@ impl Formatter for AcmeFormatter {
                 if let Some(name) = get_label(addr, l_type) {
                     name
                 } else {
-                    format!("${:04x}", addr)
+                    format!("${addr:04x}")
                 }
             }
             AddressingMode::AbsoluteX => {
-                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{},x", name)
+                    format!("{name},x")
                 } else {
-                    format!("${:04x},x", addr)
+                    format!("${addr:04x},x")
                 }
             }
             AddressingMode::AbsoluteY => {
-                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::Field) {
-                    format!("{},y", name)
+                    format!("{name},y")
                 } else {
-                    format!("${:04x},y", addr)
+                    format!("${addr:04x},y")
                 }
             }
 
             AddressingMode::Indirect => {
-                let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::Pointer) {
-                    format!("({})", name)
+                    format!("({name})")
                 } else {
-                    format!("(${:04x})", addr)
+                    format!("(${addr:04x})")
                 }
             }
             AddressingMode::IndirectX => {
-                let addr = operands[0] as u16;
+                let addr = u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({},x)", name)
+                    format!("({name},x)")
                 } else {
-                    format!("(${:02x},x)", addr)
+                    format!("(${addr:02x},x)")
                 }
             }
             AddressingMode::IndirectY => {
-                let addr = operands[0] as u16;
+                let addr = u16::from(operands[0]);
                 if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
-                    format!("({}),y", name)
+                    format!("({name}),y")
                 } else {
-                    format!("(${:02x}),y", addr)
+                    format!("(${addr:02x}),y")
                 }
             }
 
@@ -199,9 +199,9 @@ impl Formatter for AcmeFormatter {
             match fragment {
                 TextFragment::Text(s) => {
                     let escaped = s.replace('\\', "\\\\").replace('"', "\\\"");
-                    parts.push(format!("\"{}\"", escaped))
+                    parts.push(format!("\"{escaped}\""));
                 }
-                TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
+                TextFragment::Byte(b) => parts.push(format!("${b:02x}")),
             }
         }
         vec![("!text".to_string(), parts.join(", "), true)]
@@ -226,7 +226,7 @@ impl Formatter for AcmeFormatter {
                             if !current_literal.is_empty() {
                                 let escaped =
                                     current_literal.replace('\\', "\\\\").replace('"', "\\\"");
-                                parts.push(format!("\"{}\"", escaped));
+                                parts.push(format!("\"{escaped}\""));
                                 current_literal.clear();
                             }
                             // Output as hex
@@ -252,10 +252,10 @@ impl Formatter for AcmeFormatter {
                     }
                     if !current_literal.is_empty() {
                         let escaped = current_literal.replace('\\', "\\\\").replace('"', "\\\"");
-                        parts.push(format!("\"{}\"", escaped));
+                        parts.push(format!("\"{escaped}\""));
                     }
                 }
-                TextFragment::Byte(b) => parts.push(format!("${:02x}", b)),
+                TextFragment::Byte(b) => parts.push(format!("${b:02x}")),
             }
         }
         vec![("!scr".to_string(), parts.join(", "), true)]
@@ -266,7 +266,7 @@ impl Formatter for AcmeFormatter {
     }
 
     fn format_header_origin(&self, origin: u16) -> String {
-        format!("* = ${:04x}", origin)
+        format!("* = ${origin:04x}")
     }
 
     fn format_file_header(&self, file_name: &str, use_illegal_opcodes: bool) -> String {
@@ -285,8 +285,7 @@ impl Formatter for AcmeFormatter {
             ""
         };
         s.push_str(&format!(
-            "; acme {}--format cbm -o {}.prg {}.asm\n",
-            cpu_flag, file_name, file_name
+            "; acme {cpu_flag}--format cbm -o {file_name}.prg {file_name}.asm\n"
         ));
         s.push_str(";\n");
         s.push_str(
@@ -304,11 +303,11 @@ impl Formatter for AcmeFormatter {
         // mnemonic suffix already forces absolute on a per-instruction basis
         // where needed (see format_instruction).
         let operand = if value <= 0xFF {
-            format!("${:02x}", value)
+            format!("${value:02x}")
         } else {
-            format!("${:04x}", value)
+            format!("${value:04x}")
         };
-        format!("{} = {}", name, operand)
+        format!("{name} = {operand}")
     }
 
     fn format_instruction(&self, ctx: &super::formatter::FormatContext) -> (String, String) {
@@ -337,7 +336,7 @@ impl Formatter for AcmeFormatter {
                 | AddressingMode::AbsoluteX
                 | AddressingMode::AbsoluteY => {
                     if operands.len() >= 2 {
-                        let addr = (operands[1] as u16) << 8 | (operands[0] as u16);
+                        let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
                         addr <= 0xFF
                     } else {
                         false
@@ -347,7 +346,7 @@ impl Formatter for AcmeFormatter {
             };
 
             if should_force {
-                return (format!("{}+2", mnemonic), operand);
+                return (format!("{mnemonic}+2"), operand);
             }
         }
 

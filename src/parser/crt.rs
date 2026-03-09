@@ -19,6 +19,7 @@ pub struct CrtHeader {
 }
 
 impl CrtHeader {
+    #[must_use]
     pub fn get_hardware_name(&self) -> String {
         match self.hardware_type {
             0 => "Normal Cartridge".to_string(),
@@ -101,8 +102,7 @@ pub fn parse_crt_chips(data: &[u8]) -> Result<CrtHeader> {
 
         if packet_len < 0x10 {
             return Err(anyhow!(
-                "Invalid CHIP packet length at offset {:x}",
-                current_offset
+                "Invalid CHIP packet length at offset {current_offset:x}"
             ));
         }
 
@@ -124,8 +124,7 @@ pub fn parse_crt_chips(data: &[u8]) -> Result<CrtHeader> {
         let rom_data_offset = current_offset + 0x10;
         if rom_data_offset + rom_size > data.len() {
             return Err(anyhow!(
-                "CHIP packet data truncated at offset {:x}",
-                current_offset
+                "CHIP packet data truncated at offset {current_offset:x}"
             ));
         }
 

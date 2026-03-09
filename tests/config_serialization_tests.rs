@@ -1,6 +1,6 @@
 /// Config serialization tests
 ///
-/// Verifies that SystemConfig serializes/deserializes correctly,
+/// Verifies that `SystemConfig` serializes/deserializes correctly,
 /// handles missing fields with defaults, and survives round-trips.
 use regenerator2000::config::SystemConfig;
 use std::path::PathBuf;
@@ -158,7 +158,7 @@ fn add_recent_project_keeps_most_recent_first() {
 fn add_recent_project_truncates_at_20() {
     let mut config = SystemConfig::default();
     for i in 0..25 {
-        let path = std::env::temp_dir().join(format!("proj_{}.regen2000proj", i));
+        let path = std::env::temp_dir().join(format!("proj_{i}.regen2000proj"));
         config.add_recent_project(path);
     }
     assert!(config.recent_projects.len() <= 20);

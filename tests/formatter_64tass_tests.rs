@@ -1,6 +1,6 @@
 /// 64tass formatter tests — instruction formatting, directives, text/screencode encoding
 ///
-/// Mirrors the test structure of formatter_ca65_tests.rs and formatter_kickasm_tests.rs,
+/// Mirrors the test structure of `formatter_ca65_tests.rs` and `formatter_kickasm_tests.rs`,
 /// providing equivalent coverage for the 64tass assembler output.
 use regenerator2000::disassembler::Disassembler;
 use regenerator2000::state::{Assembler, DocumentSettings};

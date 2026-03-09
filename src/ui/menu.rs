@@ -99,6 +99,7 @@ pub enum MenuAction {
 }
 
 impl MenuAction {
+    #[must_use]
     pub fn requires_document(&self) -> bool {
         !matches!(
             self,
@@ -178,8 +179,8 @@ impl Widget for Menu {
             let mut max_shortcut_len = 0;
             for item in &category.items {
                 max_name_len = max_name_len.max(item.name.len());
-                max_shortcut_len =
-                    max_shortcut_len.max(item.shortcut.as_ref().map(|s| s.len()).unwrap_or(0));
+                max_shortcut_len = max_shortcut_len
+                    .max(item.shortcut.as_ref().map_or(0, std::string::String::len));
             }
             let content_width = max_name_len + 2 + max_shortcut_len;
             let width = (content_width as u16 + 2).max(20);
@@ -329,7 +330,10 @@ impl Widget for Menu {
                     let category_idx = ui_state.menu.selected_category;
                     let item = &ui_state.menu.categories[category_idx].items[item_idx];
 
-                    if !item.disabled {
+                    if item.disabled {
+                        // Optional: Feedback that it's disabled
+                        ui_state.set_status_message("Item is disabled");
+                    } else {
                         let action = item.action.clone();
                         if let Some(action) = action {
                             // Close menu after valid action
@@ -337,9 +341,6 @@ impl Widget for Menu {
                             ui_state.menu.selected_item = None;
                             return WidgetResult::Action(action);
                         }
-                    } else {
-                        // Optional: Feedback that it's disabled
-                        ui_state.set_status_message("Item is disabled");
                     }
                 } else {
                     // Enter on category -> open first item?
@@ -361,6 +362,7 @@ pub struct MenuState {
 }
 
 impl MenuState {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             active: false,
@@ -825,16 +827,18 @@ pub struct MenuItem {
 }
 
 impl MenuItem {
+    #[must_use]
     pub fn new(name: &str, shortcut: Option<&str>, action: Option<MenuAction>) -> Self {
         Self {
             name: name.to_string(),
-            shortcut: shortcut.map(|s| s.to_string()),
+            shortcut: shortcut.map(std::string::ToString::to_string),
             is_separator: false,
             action,
             disabled: false,
         }
     }
 
+    #[must_use]
     pub fn separator() -> Self {
         Self {
             name: String::new(),
@@ -907,7 +911,7 @@ pub fn render_menu(
 
     // Render version update badge on the right side of the menu bar
     if let Some(version) = new_version {
-        let badge_text = format!(" New version {} available ", version);
+        let badge_text = format!(" New version {version} available ");
         let badge_width = badge_text.len() as u16;
         if area.width > badge_width {
             let badge_area = Rect::new(area.x + area.width - badge_width, area.y, badge_width, 1);
@@ -945,7 +949,7 @@ pub fn render_menu_popup(
     for item in &category.items {
         max_name_len = max_name_len.max(item.name.len());
         max_shortcut_len =
-            max_shortcut_len.max(item.shortcut.as_ref().map(|s| s.len()).unwrap_or(0));
+            max_shortcut_len.max(item.shortcut.as_ref().map_or(0, std::string::String::len));
     }
 
     // Width = name + spacing + shortcut + borders/padding
@@ -992,13 +996,7 @@ pub fn render_menu_popup(
             let shortcut = item.shortcut.clone().unwrap_or_default();
             let name = &item.name;
             // Dynamic formatting
-            let content = format!(
-                "{:<name_w$}  {:>short_w$}",
-                name,
-                shortcut,
-                name_w = max_name_len,
-                short_w = max_shortcut_len
-            );
+            let content = format!("{name:<max_name_len$}  {shortcut:>max_shortcut_len$}");
             ListItem::new(content).style(style)
         })
         .collect();
@@ -1023,7 +1021,7 @@ fn get_default_filename_stem(app_state: &AppState) -> Option<String> {
         .or(app_state.file_path.as_ref())?;
     path.file_stem()
         .and_then(|s| s.to_str())
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
 }
 
 fn vice_open_breakpoint_dialog(app_state: &AppState, ui_state: &mut UIState) {
@@ -1044,10 +1042,10 @@ fn vice_toggle_breakpoint_at(app_state: &mut AppState, ui_state: &mut UIState, a
             let id = app_state.vice_state.breakpoints[pos].id;
             client.send_checkpoint_delete(id);
             app_state.vice_state.breakpoints.remove(pos);
-            ui_state.set_status_message(format!("Breakpoint removed at ${:04X}", addr));
+            ui_state.set_status_message(format!("Breakpoint removed at ${addr:04X}"));
         } else {
             client.send_checkpoint_set_exec(addr);
-            ui_state.set_status_message(format!("Breakpoint set at ${:04X}", addr));
+            ui_state.set_status_message(format!("Breakpoint set at ${addr:04X}"));
         }
     } else {
         ui_state.set_status_message("Not connected to VICE");
@@ -1090,7 +1088,7 @@ fn vice_toggle_watchpoint(
                 crate::vice::state::BreakpointKind::Load => client.send_checkpoint_set_load(addr),
                 crate::vice::state::BreakpointKind::Store => client.send_checkpoint_set_store(addr),
                 crate::vice::state::BreakpointKind::LoadStore => {
-                    client.send_checkpoint_set_load_store(addr)
+                    client.send_checkpoint_set_load_store(addr);
                 }
                 crate::vice::state::BreakpointKind::Exec => {}
             }
@@ -1139,7 +1137,7 @@ pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, acti
 }
 
 pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: MenuAction) {
-    ui_state.set_status_message(format!("Action: {:?}", action));
+    ui_state.set_status_message(format!("Action: {action:?}"));
 
     match action {
         MenuAction::Exit => ui_state.should_quit = true,
@@ -1179,7 +1177,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             if app_state.project_path.is_some() {
                 let context = create_save_context(app_state, ui_state);
                 if let Err(e) = app_state.save_project(context, true) {
-                    ui_state.set_status_message(format!("Error saving: {}", e));
+                    ui_state.set_status_message(format!("Error saving: {e}"));
                 } else {
                     let filename = app_state
                         .project_path
@@ -1187,7 +1185,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                         .and_then(|p| p.file_name())
                         .unwrap_or_default()
                         .to_string_lossy();
-                    ui_state.set_status_message(format!("Saved: {}", filename));
+                    ui_state.set_status_message(format!("Saved: {filename}"));
                 }
             } else {
                 let initial = app_state
@@ -1213,10 +1211,10 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         MenuAction::ExportProject => {
             if let Some(path) = &app_state.export_path {
                 if let Err(e) = crate::exporter::export_asm(app_state, path) {
-                    ui_state.set_status_message(format!("Error exporting: {}", e));
+                    ui_state.set_status_message(format!("Error exporting: {e}"));
                 } else {
                     let filename = path.file_name().unwrap_or_default().to_string_lossy();
-                    ui_state.set_status_message(format!("Exported: {}", filename));
+                    ui_state.set_status_message(format!("Exported: {filename}"));
                 }
             } else {
                 let initial = app_state
@@ -1304,10 +1302,9 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     app_state.push_command(command);
 
                     if is_bookmarked {
-                        ui_state
-                            .set_status_message(format!("Bookmark removed at ${:04X}", address));
+                        ui_state.set_status_message(format!("Bookmark removed at ${address:04X}"));
                     } else {
-                        ui_state.set_status_message(format!("Bookmark set at ${:04X}", address));
+                        ui_state.set_status_message(format!("Bookmark set at ${address:04X}"));
                     }
                 }
             }
@@ -1329,25 +1326,25 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
 
         MenuAction::Code => apply_block_type(app_state, ui_state, crate::state::BlockType::Code),
         MenuAction::Byte => {
-            apply_block_type(app_state, ui_state, crate::state::BlockType::DataByte)
+            apply_block_type(app_state, ui_state, crate::state::BlockType::DataByte);
         }
         MenuAction::Word => {
-            apply_block_type(app_state, ui_state, crate::state::BlockType::DataWord)
+            apply_block_type(app_state, ui_state, crate::state::BlockType::DataWord);
         }
         MenuAction::SetExternalFile => {
-            apply_block_type(app_state, ui_state, crate::state::BlockType::ExternalFile)
+            apply_block_type(app_state, ui_state, crate::state::BlockType::ExternalFile);
         }
         MenuAction::Address => {
-            apply_block_type(app_state, ui_state, crate::state::BlockType::Address)
+            apply_block_type(app_state, ui_state, crate::state::BlockType::Address);
         }
         MenuAction::PetsciiText => {
-            apply_block_type(app_state, ui_state, crate::state::BlockType::PetsciiText)
+            apply_block_type(app_state, ui_state, crate::state::BlockType::PetsciiText);
         }
         MenuAction::ScreencodeText => {
-            apply_block_type(app_state, ui_state, crate::state::BlockType::ScreencodeText)
+            apply_block_type(app_state, ui_state, crate::state::BlockType::ScreencodeText);
         }
         MenuAction::Undefined => {
-            apply_block_type(app_state, ui_state, crate::state::BlockType::Undefined)
+            apply_block_type(app_state, ui_state, crate::state::BlockType::Undefined);
         }
         MenuAction::JumpToAddress => {
             ui_state.active_dialog = Some(Box::new(
@@ -1418,7 +1415,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.active_dialog = Some(Box::new(
                     crate::ui::dialog_find_references::FindReferencesDialog::new(app_state, addr),
                 ));
-                ui_state.set_status_message(format!("References to ${:04X}", addr));
+                ui_state.set_status_message(format!("References to ${addr:04X}"));
             } else {
                 ui_state.set_status_message("No address selected");
             }
@@ -1438,7 +1435,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     let offset = target - aligned_origin;
                     let row = offset / 16;
                     ui_state.hex_cursor_index = row;
-                    ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
+                    ui_state.set_status_message(format!("Jumped to ${target_addr:04X}"));
                 } else {
                     ui_state.set_status_message("Address out of range");
                 }
@@ -1454,8 +1451,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     let offset = target - aligned_start;
                     let sprite_idx = offset / 64;
                     ui_state.sprites_cursor_index = sprite_idx;
-                    ui_state
-                        .set_status_message(format!("Jumped to sprite at ${:04X}", target_addr));
+                    ui_state.set_status_message(format!("Jumped to sprite at ${target_addr:04X}"));
                 } else {
                     ui_state.set_status_message("Address out of range or unaligned");
                 }
@@ -1471,7 +1467,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     let offset = target - aligned_start_addr;
                     let char_idx = offset / 8;
                     ui_state.charset_cursor_index = char_idx;
-                    ui_state.set_status_message(format!("Jumped to char at ${:04X}", target_addr));
+                    ui_state.set_status_message(format!("Jumped to char at ${target_addr:04X}"));
                 } else {
                     ui_state.set_status_message("Address out of range");
                 }
@@ -1517,7 +1513,10 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                                 | AddressingMode::AbsoluteX
                                 | AddressingMode::AbsoluteY => {
                                     if line.bytes.len() >= 3 {
-                                        Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                                        Some(
+                                            u16::from(line.bytes[2]) << 8
+                                                | u16::from(line.bytes[1]),
+                                        )
                                     } else {
                                         None
                                     }
@@ -1525,7 +1524,10 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                                 AddressingMode::Indirect => {
                                     // JMP ($1234) -> target is $1234
                                     if line.bytes.len() >= 3 {
-                                        Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                                        Some(
+                                            u16::from(line.bytes[2]) << 8
+                                                | u16::from(line.bytes[1]),
+                                        )
                                     } else {
                                         None
                                     }
@@ -1549,7 +1551,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                                 | AddressingMode::IndirectX
                                 | AddressingMode::IndirectY => {
                                     if line.bytes.len() >= 2 {
-                                        Some(line.bytes[1] as u16)
+                                        Some(u16::from(line.bytes[1]))
                                     } else {
                                         None
                                     }
@@ -1666,7 +1668,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     let command = crate::commands::Command::ToggleSplitter { address: addr };
                     command.apply(app_state);
                     app_state.push_command(command);
-                    ui_state.set_status_message(format!("Removed splitter at ${:04X}", addr));
+                    ui_state.set_status_message(format!("Removed splitter at ${addr:04X}"));
                 }
             } else if ui_state.active_pane == ActivePane::Disassembly {
                 let addr_to_toggle = app_state
@@ -1678,7 +1680,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     let command = crate::commands::Command::ToggleSplitter { address: addr };
                     command.apply(app_state);
                     app_state.push_command(command);
-                    ui_state.set_status_message(format!("Toggled splitter at ${:04X}", addr));
+                    ui_state.set_status_message(format!("Toggled splitter at ${addr:04X}"));
                 }
             }
         }
@@ -1705,16 +1707,16 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             apply_lo_hi_packing(app_state, ui_state, false);
         }
         MenuAction::SetLoHiAddress => {
-            apply_block_type(app_state, ui_state, crate::state::BlockType::LoHiAddress)
+            apply_block_type(app_state, ui_state, crate::state::BlockType::LoHiAddress);
         }
         MenuAction::SetHiLoAddress => {
-            apply_block_type(app_state, ui_state, crate::state::BlockType::HiLoAddress)
+            apply_block_type(app_state, ui_state, crate::state::BlockType::HiLoAddress);
         }
         MenuAction::SetLoHiWord => {
-            apply_block_type(app_state, ui_state, crate::state::BlockType::LoHiWord)
+            apply_block_type(app_state, ui_state, crate::state::BlockType::LoHiWord);
         }
         MenuAction::SetHiLoWord => {
-            apply_block_type(app_state, ui_state, crate::state::BlockType::HiLoWord)
+            apply_block_type(app_state, ui_state, crate::state::BlockType::HiLoWord);
         }
         MenuAction::SideComment => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
@@ -1722,13 +1724,13 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 let current_comment = app_state
                     .user_side_comments
                     .get(&address)
-                    .map(|s| s.as_str());
+                    .map(std::string::String::as_str);
                 ui_state.active_dialog =
                     Some(Box::new(crate::ui::dialog_comment::CommentDialog::new(
                         current_comment,
                         crate::ui::dialog_comment::CommentType::Side,
                     )));
-                ui_state.set_status_message(format!("Edit Side Comment at ${:04X}", address));
+                ui_state.set_status_message(format!("Edit Side Comment at ${address:04X}"));
             }
         }
         MenuAction::LineComment => {
@@ -1737,13 +1739,13 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 let current_comment = app_state
                     .user_line_comments
                     .get(&address)
-                    .map(|s| s.as_str());
+                    .map(std::string::String::as_str);
                 ui_state.active_dialog =
                     Some(Box::new(crate::ui::dialog_comment::CommentDialog::new(
                         current_comment,
                         crate::ui::dialog_comment::CommentType::Line,
                     )));
-                ui_state.set_status_message(format!("Edit Line Comment at ${:04X}", address));
+                ui_state.set_status_message(format!("Edit Line Comment at ${address:04X}"));
             }
         }
         MenuAction::ToggleHexDump => {
@@ -1914,7 +1916,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     client.send_checkpoint_set_exec_temp(addr);
                     client.send_continue();
                     app_state.vice_state.running = true;
-                    ui_state.set_status_message(format!("VICE: Running to ${:04X}...", addr));
+                    ui_state.set_status_message(format!("VICE: Running to ${addr:04X}..."));
                 }
             } else {
                 ui_state.set_status_message("Not connected to VICE");
@@ -1933,10 +1935,10 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                         let id = app_state.vice_state.breakpoints[pos].id;
                         client.send_checkpoint_delete(id);
                         app_state.vice_state.breakpoints.remove(pos);
-                        ui_state.set_status_message(format!("Breakpoint removed at ${:04X}", addr));
+                        ui_state.set_status_message(format!("Breakpoint removed at ${addr:04X}"));
                     } else {
                         client.send_checkpoint_set_exec(addr);
-                        ui_state.set_status_message(format!("Breakpoint set at ${:04X}", addr));
+                        ui_state.set_status_message(format!("Breakpoint set at ${addr:04X}"));
                     }
                 }
             } else {
@@ -2210,8 +2212,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 let cursor_addr = app_state
                     .disassembly
                     .get(ui_state.cursor_index)
-                    .map(|line| line.address)
-                    .unwrap_or(0);
+                    .map_or(0, |line| line.address);
 
                 // First check if we are ON a collapsed block placeholder (Uncollapse case)
                 if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
@@ -2339,7 +2340,7 @@ fn apply_lo_hi_packing(app_state: &mut AppState, ui_state: &mut UIState, lo_firs
 
             if let Some((match_idx, idx2, val2)) = found_match {
                 let (lo, hi) = if lo_first { (val1, val2) } else { (val2, val1) };
-                let target = ((hi as u16) << 8) | (lo as u16);
+                let target = (u16::from(hi) << 8) | u16::from(lo);
 
                 // Create label if needed (removed explicit label creation, relying on analyzer)
                 // BUT user earlier asked for Analyzer to do it.
@@ -2377,7 +2378,7 @@ fn apply_lo_hi_packing(app_state: &mut AppState, ui_state: &mut UIState, lo_firs
                     old_format: old_fmt2,
                 });
 
-                ui_state.set_status_message(format!("Packed Lo/Hi address for ${:04X}", target));
+                ui_state.set_status_message(format!("Packed Lo/Hi address for ${target:04X}"));
 
                 // Advance past the pair
                 i = match_idx + 1;
@@ -2450,13 +2451,12 @@ fn apply_block_type(
             let len = (end as usize) - (start as usize) + 1;
             if needs_even && !len.is_multiple_of(2) {
                 ui_state.set_status_message(format!(
-                    "Error: {} requires even number of bytes",
-                    block_type
+                    "Error: {block_type} requires even number of bytes"
                 ));
                 return;
             }
             app_state.set_block_type_region(block_type, Some(start as usize), end as usize);
-            ui_state.set_status_message(format!("Set block type to {}", block_type));
+            ui_state.set_status_message(format!("Set block type to {block_type}"));
         }
     } else if let Some(start_index) = ui_state.selection_start {
         let start = start_index.min(ui_state.cursor_index);
@@ -2464,10 +2464,8 @@ fn apply_block_type(
         let len = end - start + 1;
 
         if needs_even && len % 2 != 0 {
-            ui_state.set_status_message(format!(
-                "Error: {} requires even number of bytes",
-                block_type
-            ));
+            ui_state
+                .set_status_message(format!("Error: {block_type} requires even number of bytes"));
             return;
         }
 
@@ -2487,14 +2485,12 @@ fn apply_block_type(
             ui_state.cursor_index = idx;
         }
 
-        ui_state.set_status_message(format!("Set block type to {}", block_type));
+        ui_state.set_status_message(format!("Set block type to {block_type}"));
     } else {
         // Single line
         if needs_even {
-            ui_state.set_status_message(format!(
-                "Error: {} requires even number of bytes",
-                block_type
-            ));
+            ui_state
+                .set_status_message(format!("Error: {block_type} requires even number of bytes"));
             return;
         }
 
@@ -2508,7 +2504,7 @@ fn apply_block_type(
             ui_state.selection_start,
             ui_state.cursor_index,
         );
-        ui_state.set_status_message(format!("Set block type to {}", block_type));
+        ui_state.set_status_message(format!("Set block type to {block_type}"));
 
         if let Some(addr) = current_addr {
             if let Some(idx) = app_state.get_line_index_containing_address(addr) {
@@ -2529,47 +2525,47 @@ fn create_save_context(
         .get(ui_state.cursor_index)
         .map(|l| l.address);
 
-    let hex_addr = if !app_state.raw_data.is_empty() {
+    let hex_addr = if app_state.raw_data.is_empty() {
+        None
+    } else {
         let origin = app_state.origin as usize;
         let alignment_padding = origin % 16;
         let aligned_origin = origin - alignment_padding;
         let row_start_offset = ui_state.hex_cursor_index * 16;
         let addr = aligned_origin + row_start_offset;
         Some(addr as u16)
-    } else {
-        None
     };
 
-    let sprites_addr = if !app_state.raw_data.is_empty() {
+    let sprites_addr = if app_state.raw_data.is_empty() {
+        None
+    } else {
         let origin = app_state.origin as usize;
         let padding = (64 - (origin % 64)) % 64;
         let sprite_offset = ui_state.sprites_cursor_index * 64;
         let addr = origin + padding + sprite_offset;
         Some(addr as u16)
-    } else {
-        None
     };
 
-    let charset_addr = if !app_state.raw_data.is_empty() {
+    let charset_addr = if app_state.raw_data.is_empty() {
+        None
+    } else {
         let origin = app_state.origin as usize;
         let base_alignment = 0x400;
         let aligned_start_addr = (origin / base_alignment) * base_alignment;
         let char_offset = ui_state.charset_cursor_index * 8;
         let addr = aligned_start_addr + char_offset;
         Some(addr as u16)
-    } else {
-        None
     };
 
-    let bitmap_addr = if !app_state.raw_data.is_empty() {
+    let bitmap_addr = if app_state.raw_data.is_empty() {
+        None
+    } else {
         let origin = app_state.origin as usize;
         // Bitmaps must be aligned to 8192-byte boundaries
         let first_aligned_addr =
             ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
         let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
         Some(bitmap_addr as u16)
-    } else {
-        None
     };
 
     let right_pane_str = format!("{:?}", ui_state.right_pane);
@@ -2598,7 +2594,7 @@ fn update_hexdump_status(ui_state: &mut UIState, mode: crate::state::HexdumpView
         crate::state::HexdumpViewMode::ScreencodeShifted => "Shifted (Screencode)",
         crate::state::HexdumpViewMode::ScreencodeUnshifted => "Unshifted (Screencode)",
     };
-    ui_state.set_status_message(format!("Hex Dump: {}", status));
+    ui_state.set_status_message(format!("Hex Dump: {status}"));
 }
 
 pub fn perform_jump_to_address(app_state: &AppState, ui_state: &mut UIState, target_addr: u16) {
@@ -2657,9 +2653,9 @@ pub fn perform_jump_to_address_no_history(
         // Ensure active pane is Disassembly (important for MCP calls)
         ui_state.active_pane = ActivePane::Disassembly;
 
-        ui_state.set_status_message(format!("Jumped to ${:04X}", target_addr));
+        ui_state.set_status_message(format!("Jumped to ${target_addr:04X}"));
     } else if !app_state.disassembly.is_empty() {
-        ui_state.set_status_message(format!("Address ${:04X} not found", target_addr));
+        ui_state.set_status_message(format!("Address ${target_addr:04X} not found"));
     }
 }
 

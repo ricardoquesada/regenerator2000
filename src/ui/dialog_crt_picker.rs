@@ -27,6 +27,7 @@ pub struct CrtBankPickerDialog {
 }
 
 impl CrtBankPickerDialog {
+    #[must_use]
     pub fn new(crt_header: CrtHeader, file_path: PathBuf) -> Self {
         let entries = crt_header
             .chips
@@ -71,10 +72,8 @@ impl Widget for CrtBankPickerDialog {
             .unwrap_or("Unknown");
 
         let hardware_name = self.crt_header.get_hardware_name();
-        let title = format!(
-            " Select Bank from {} [{}] (Enter: Load, Esc: Cancel) ",
-            file_name, hardware_name
-        );
+        let title =
+            format!(" Select Bank from {file_name} [{hardware_name}] (Enter: Load, Esc: Cancel) ");
         let block = crate::ui::widget::create_dialog_block(&title, theme);
 
         let area = crate::utils::centered_rect_adaptive(80, 60, 80, 14, area);
@@ -89,15 +88,14 @@ impl Widget for CrtBankPickerDialog {
                 let start = chip.load_address;
                 let end = start.wrapping_add(chip.data.len() as u16).wrapping_sub(1);
 
-                let addr_str = format!("${:04X}-${:04X}", start, end);
+                let addr_str = format!("${start:04X}-${end:04X}");
                 let entropy_str = format!("{:>5.2}", picker_entry.entropy);
                 let size_str = format!("${:04X}", chip.data.len());
                 let bank_str = format!("Bank {:02}", chip.bank);
                 let type_str = format!("Type {:02}", chip.chip_type);
 
                 let content = format!(
-                    "{:<10} {:<10} {:<11} Size: {:<6} {}",
-                    bank_str, type_str, addr_str, size_str, entropy_str
+                    "{bank_str:<10} {type_str:<10} {addr_str:<11} Size: {size_str:<6} {entropy_str}"
                 );
 
                 let style = Style::default();
@@ -191,7 +189,7 @@ impl Widget for CrtBankPickerDialog {
                             WidgetResult::Close
                         }
                         Err(e) => {
-                            ui_state.set_status_message(format!("Error loading bank: {}", e));
+                            ui_state.set_status_message(format!("Error loading bank: {e}"));
                             WidgetResult::Handled
                         }
                     }

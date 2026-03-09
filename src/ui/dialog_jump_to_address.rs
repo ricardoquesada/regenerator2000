@@ -23,6 +23,7 @@ impl Default for JumpToAddressDialog {
 }
 
 impl JumpToAddressDialog {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             input: String::new(),

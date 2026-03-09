@@ -23,7 +23,7 @@ pub fn parse_t64_directory(data: &[u8]) -> Result<Vec<T64Entry>> {
     // Check signature
     let signature = String::from_utf8_lossy(&data[0..32]);
     if !signature.starts_with("C64") {
-        return Err(anyhow!("Invalid T64 signature: {}", signature));
+        return Err(anyhow!("Invalid T64 signature: {signature}"));
     }
 
     // Read number of entries

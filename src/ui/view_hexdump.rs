@@ -15,7 +15,7 @@ use crate::ui::navigable::{Navigable, handle_nav_input};
 use crate::ui::view_disassembly::DisassemblyView;
 
 /// Immediately mirror the hex cursor / selection into the disassembly view's
-/// cursor_index / selection_start.  Called eagerly from every input handler so
+/// `cursor_index` / `selection_start`.  Called eagerly from every input handler so
 /// both views are consistent within the same render frame.
 fn sync_hex_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
     if app_state.raw_data.is_empty() || app_state.disassembly.is_empty() {
@@ -127,7 +127,7 @@ impl Navigable for HexDumpView {
         ui_state.hex_cursor_index = target;
     }
 
-    fn item_name(&self) -> &str {
+    fn item_name(&self) -> &'static str {
         "row"
     }
 }
@@ -335,13 +335,13 @@ impl Widget for HexDumpView {
                 let start_addr = app_state
                     .disassembly
                     .get(s_idx)
-                    .map(|l| l.address as usize)
-                    .unwrap_or(dline.address as usize);
+                    .map_or(dline.address as usize, |l| l.address as usize);
                 let end_addr = app_state
                     .disassembly
                     .get(e_idx)
-                    .map(|l| l.address as usize + l.bytes.len().saturating_sub(1))
-                    .unwrap_or(dline.address as usize);
+                    .map_or(dline.address as usize, |l| {
+                        l.address as usize + l.bytes.len().saturating_sub(1)
+                    });
                 (start_addr, end_addr)
             } else {
                 let addr = dline.address as usize;
@@ -366,7 +366,7 @@ impl Widget for HexDumpView {
                 let mut spans: Vec<Span> = Vec::with_capacity(2 + bytes_per_row * 2 + 4);
 
                 spans.push(Span::styled(
-                    format!("${:04X}  ", row_start_addr),
+                    format!("${row_start_addr:04X}  "),
                     Style::default().fg(ui_state.theme.address),
                 ));
 
@@ -388,7 +388,7 @@ impl Widget for HexDumpView {
                         } else {
                             Style::default().fg(ui_state.theme.hex_bytes)
                         };
-                        spans.push(Span::styled(format!("{:02X} ", b), hex_style));
+                        spans.push(Span::styled(format!("{b:02X} "), hex_style));
 
                         let char_to_render = match ui_state.hexdump_view_mode {
                             HexdumpViewMode::PETSCIIShifted => {

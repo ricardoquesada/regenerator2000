@@ -4,6 +4,7 @@ use ratatui_image::picker::Picker;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[must_use]
 pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
@@ -24,6 +25,7 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+#[must_use]
 pub fn centered_rect_adaptive(
     percent_x: u16,
     width_min: u16,
@@ -40,6 +42,7 @@ pub fn centered_rect_adaptive(
     Rect::new(r.x + x, r.y + y, width, height)
 }
 
+#[must_use]
 pub fn list_files(dir: &Path, extensions: &[String]) -> Vec<PathBuf> {
     let mut files = Vec::new();
 
@@ -73,6 +76,7 @@ pub fn list_files(dir: &Path, extensions: &[String]) -> Vec<PathBuf> {
     files
 }
 
+#[must_use]
 pub fn calculate_entropy(data: &[u8]) -> f32 {
     if data.is_empty() {
         return 0.0;
@@ -96,6 +100,7 @@ pub fn calculate_entropy(data: &[u8]) -> f32 {
     entropy
 }
 
+#[must_use]
 pub fn load_logo() -> Option<DynamicImage> {
     let logo_bytes = include_bytes!("../docs/regenerator2000_logo.png");
     if let Ok(img) = image::load_from_memory(logo_bytes) {
@@ -103,6 +108,7 @@ pub fn load_logo() -> Option<DynamicImage> {
     }
     None
 }
+#[must_use]
 pub fn create_picker() -> Option<Picker> {
     let font_size = (8, 16);
     // Force Kitty protocol for Ghostty if autodetection fails/blurs.
@@ -120,6 +126,7 @@ pub fn create_picker() -> Option<Picker> {
     Some(picker)
 }
 
+#[must_use]
 pub fn screencode_to_petscii(byte: u8) -> u8 {
     // Basic Screencode to PETSCII mapping
     // This is a simplification, but covers the main displayable range
@@ -181,6 +188,7 @@ pub fn screencode_to_petscii(byte: u8) -> u8 {
     }
 }
 
+#[must_use]
 pub fn petscii_to_unicode(byte: u8, shifted: bool) -> char {
     let (unshifted_char, shifted_char) = PETSCII_MAP[byte as usize];
     if shifted {

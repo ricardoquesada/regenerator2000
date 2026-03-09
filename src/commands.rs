@@ -332,6 +332,7 @@ impl Default for UndoStack {
 }
 
 impl UndoStack {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             commands: Vec::new(),
@@ -373,14 +374,17 @@ impl UndoStack {
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn can_undo(&self) -> bool {
         self.pointer > 0
     }
 
     #[allow(dead_code)]
+    #[must_use]
     pub fn can_redo(&self) -> bool {
         self.pointer < self.commands.len()
     }
+    #[must_use]
     pub fn get_pointer(&self) -> usize {
         self.pointer
     }
@@ -461,7 +465,7 @@ mod tests {
         app_state.undo_stack.push(command);
 
         assert_eq!(
-            app_state.labels.get(&address).map(|v| v.as_slice()),
+            app_state.labels.get(&address).map(std::vec::Vec::as_slice),
             Some(vec![label.clone()].as_slice())
         );
 
@@ -478,7 +482,7 @@ mod tests {
         app_state.undo_stack = stack;
 
         assert_eq!(
-            app_state.labels.get(&address).map(|v| v.as_slice()),
+            app_state.labels.get(&address).map(std::vec::Vec::as_slice),
             Some(vec![label.clone()].as_slice())
         );
     }

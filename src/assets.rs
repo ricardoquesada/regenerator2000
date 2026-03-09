@@ -32,7 +32,7 @@ struct SystemData {
 }
 
 fn get_system_file_content(platform: &str) -> Option<&'static str> {
-    let filename = format!("system-{}.json", platform);
+    let filename = format!("system-{platform}.json");
 
     if let Some(file) = SYSTEMS_DIR.get_file(&filename) {
         return file.contents_utf8();
@@ -41,7 +41,7 @@ fn get_system_file_content(platform: &str) -> Option<&'static str> {
     // Fallback: Try normalized filename (lowercase, spaces to underscores)
     let normalized = platform.to_lowercase().replace(' ', "_");
     if normalized != platform {
-        let normalized_filename = format!("system-{}.json", normalized);
+        let normalized_filename = format!("system-{normalized}.json");
         if let Some(file) = SYSTEMS_DIR.get_file(&normalized_filename) {
             return file.contents_utf8();
         }
@@ -50,6 +50,7 @@ fn get_system_file_content(platform: &str) -> Option<&'static str> {
     None
 }
 
+#[must_use]
 pub fn get_available_platforms() -> Vec<String> {
     let mut platforms = Vec::new();
 
@@ -69,6 +70,7 @@ pub fn get_available_platforms() -> Vec<String> {
     platforms
 }
 
+#[must_use]
 pub fn load_system_config(platform: &str) -> SystemConfig {
     let mut features = Vec::new();
 
@@ -98,6 +100,7 @@ pub fn load_system_config(platform: &str) -> SystemConfig {
     SystemConfig { features }
 }
 
+#[must_use]
 pub fn load_comments(platform: &str) -> BTreeMap<u16, String> {
     let mut comments = BTreeMap::new();
 
@@ -116,6 +119,7 @@ pub fn load_comments(platform: &str) -> BTreeMap<u16, String> {
     comments
 }
 
+#[must_use]
 pub fn load_labels(
     platform: &str,
     enabled_features: Option<&HashMap<String, bool>>,
@@ -161,6 +165,7 @@ pub fn load_labels(
     labels
 }
 
+#[must_use]
 pub fn load_excludes(platform: &str) -> Vec<u16> {
     let mut excludes = Vec::new();
 
@@ -198,7 +203,7 @@ mod tests {
     fn test_assets_load() {
         // Smoke test to ensure we can list platforms
         let platforms = get_available_platforms();
-        println!("Platforms: {:?}", platforms);
+        println!("Platforms: {platforms:?}");
         assert!(!platforms.is_empty(), "Should have at least one platform");
     }
 

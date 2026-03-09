@@ -53,10 +53,11 @@ impl FileType {
             2 => Ok(FileType::PRG),
             3 => Ok(FileType::USR),
             4 => Ok(FileType::REL),
-            _ => Err(anyhow!("Unknown file type: {}", byte)),
+            _ => Err(anyhow!("Unknown file type: {byte}")),
         }
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &str {
         match self {
             FileType::DEL => "DEL",
@@ -73,10 +74,10 @@ fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize>
     match disk_type {
         DiskType::D81 => {
             if !(1..=80).contains(&track) {
-                return Err(anyhow!("Invalid track: {}", track));
+                return Err(anyhow!("Invalid track: {track}"));
             }
             if sector >= 40 {
-                return Err(anyhow!("Invalid sector {} for track {}", sector, track));
+                return Err(anyhow!("Invalid sector {sector} for track {track}"));
             }
             // D81: 40 sectors per track, standard layout
             // Track 1 is at 0
@@ -84,7 +85,7 @@ fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize>
         }
         DiskType::D64 | DiskType::D71 => {
             if track == 0 || track > 70 {
-                return Err(anyhow!("Invalid track: {}", track));
+                return Err(anyhow!("Invalid track: {track}"));
             }
 
             // Handle D71 second side (Tracks 36-70)
@@ -99,7 +100,7 @@ fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize>
                 18..=24 => 19,
                 25..=30 => 18,
                 31..=40 => 17, // 40-track D64 support
-                _ => return Err(anyhow!("Invalid track: {}", track)),
+                _ => return Err(anyhow!("Invalid track: {track}")),
             };
 
             if sector >= max_sector {
@@ -154,8 +155,7 @@ pub fn parse_d64_directory(data: &[u8]) -> Result<Vec<D64FileEntry>> {
 
     if !is_valid_d64 && !is_valid_d71 && !is_valid_d81 {
         return Err(anyhow!(
-            "Invalid disk image size: {} (expected D64/D71/D81)",
-            size
+            "Invalid disk image size: {size} (expected D64/D71/D81)"
         ));
     }
 
@@ -301,12 +301,11 @@ pub fn extract_file(data: &[u8], entry: &D64FileEntry) -> Result<(u16, Vec<u8>)>
                 file_data.extend_from_slice(&sector_data[2..2 + bytes_to_read]);
             }
             break;
-        } else {
-            // Not the last sector, read all data bytes (254 bytes, skip first two)
-            file_data.extend_from_slice(&sector_data[2..]);
-            current_track = next_track;
-            current_sector = next_sector;
         }
+        // Not the last sector, read all data bytes (254 bytes, skip first two)
+        file_data.extend_from_slice(&sector_data[2..]);
+        current_track = next_track;
+        current_sector = next_sector;
 
         // Safety check
         if file_data.len() > 1_000_000 {

@@ -27,6 +27,7 @@ pub struct SearchDialog {
 }
 
 impl SearchDialog {
+    #[must_use]
     pub fn new(initial_query: String, filters: SearchFilters) -> Self {
         Self {
             input: initial_query,
@@ -155,7 +156,7 @@ impl Widget for SearchDialog {
             let after = &label[shortcut_pos + shortcut_char.len_utf8()..];
 
             let line = Line::from(vec![
-                Span::styled(format!("{} ", check), base_style),
+                Span::styled(format!("{check} "), base_style),
                 Span::styled(before.to_string(), base_style),
                 Span::styled(sc.clone(), shortcut_style),
                 Span::styled(after.to_string(), base_style),
@@ -306,7 +307,7 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
                 crate::ui_state::NavigationTarget::Index(ui_state.cursor_index),
             ));
             ui_state.sub_cursor_index = sub;
-            ui_state.set_status_message(format!("Found '{}'", query));
+            ui_state.set_status_message(format!("Found '{query}'"));
             return;
         }
     }
@@ -374,8 +375,8 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
         ));
         ui_state.cursor_index = idx;
         ui_state.sub_cursor_index = found_sub_idx;
-        ui_state.set_status_message(format!("Found '{}'", query));
+        ui_state.set_status_message(format!("Found '{query}'"));
     } else {
-        ui_state.set_status_message(format!("'{}' not found", query));
+        ui_state.set_status_message(format!("'{query}' not found"));
     }
 }

@@ -137,14 +137,14 @@ impl Widget for OpenRecentDialog {
                         // Open the project
                         match app_state.load_file(path.clone()) {
                             Err(e) => {
-                                ui_state.set_status_message(format!("Error loading file: {}", e));
+                                ui_state.set_status_message(format!("Error loading file: {e}"));
                                 app_state.system_config.remove_recent_project(&path);
                                 let _ = app_state.system_config.save();
                             }
                             Ok(loaded_data) => {
                                 let filename =
                                     path.file_name().unwrap_or_default().to_string_lossy();
-                                ui_state.set_status_message(format!("Loaded: {}", filename));
+                                ui_state.set_status_message(format!("Loaded: {filename}"));
                                 ui_state.restore_session(&loaded_data, app_state);
                                 crate::ui::dialog_warning::WarningDialog::show_if_needed(
                                     loaded_data.entropy_warning,

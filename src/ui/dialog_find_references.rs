@@ -18,6 +18,7 @@ pub struct FindReferencesDialog {
 }
 
 impl FindReferencesDialog {
+    #[must_use]
     pub fn new(app_state: &AppState, target_address: u16) -> Self {
         let mut refs = app_state
             .cross_refs
@@ -34,7 +35,7 @@ impl FindReferencesDialog {
             list_items.push("No references found".to_string());
         } else {
             for ref_addr in &refs {
-                let mut text = format!("${:04X}", ref_addr);
+                let mut text = format!("${ref_addr:04X}");
 
                 // Find line to get instruction details
                 if let Some(idx) = app_state.get_line_index_for_address(*ref_addr) {

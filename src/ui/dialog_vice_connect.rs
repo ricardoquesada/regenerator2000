@@ -20,6 +20,7 @@ impl Default for ViceConnectDialog {
 }
 
 impl ViceConnectDialog {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             input: "localhost:6502".to_string(),
@@ -60,10 +61,10 @@ impl Widget for ViceConnectDialog {
             }
             KeyCode::Enter => {
                 let input = self.input.clone();
-                if !input.is_empty() {
-                    WidgetResult::Action(crate::ui::menu::MenuAction::ViceConnectAddress(input))
-                } else {
+                if input.is_empty() {
                     WidgetResult::Close
+                } else {
+                    WidgetResult::Action(crate::ui::menu::MenuAction::ViceConnectAddress(input))
                 }
             }
             KeyCode::Backspace => {

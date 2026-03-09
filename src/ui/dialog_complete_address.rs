@@ -18,6 +18,7 @@ pub struct CompleteAddressDialog {
 }
 
 impl CompleteAddressDialog {
+    #[must_use]
     pub fn new(known_byte: u8, lo_first: bool, address: u16) -> Self {
         Self {
             input: String::new(),
@@ -27,6 +28,7 @@ impl CompleteAddressDialog {
         }
     }
 
+    #[must_use]
     pub fn get_complete_address(&self) -> Option<u16> {
         if self.input.len() == 2
             && let Ok(entered_byte) = u8::from_str_radix(&self.input, 16)
@@ -36,7 +38,7 @@ impl CompleteAddressDialog {
             } else {
                 (entered_byte, self.known_byte)
             };
-            return Some(((hi as u16) << 8) | (lo as u16));
+            return Some((u16::from(hi) << 8) | u16::from(lo));
         }
         None
     }
@@ -155,7 +157,7 @@ impl Widget for CompleteAddressDialog {
 
                     app_state.disassemble();
 
-                    ui_state.set_status_message(format!("Set address: ${:04X}", target_address));
+                    ui_state.set_status_message(format!("Set address: ${target_address:04X}"));
                     WidgetResult::Close
                 } else {
                     ui_state.set_status_message("Invalid input - need 2 hex digits");

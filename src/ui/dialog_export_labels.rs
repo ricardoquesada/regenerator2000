@@ -21,6 +21,7 @@ impl Default for ExportLabelsDialog {
 }
 
 impl ExportLabelsDialog {
+    #[must_use]
     pub fn new(initial_filename: Option<String>) -> Self {
         Self {
             input: initial_filename.unwrap_or_default(),
@@ -99,7 +100,9 @@ impl Widget for ExportLabelsDialog {
             }
             KeyCode::Enter => {
                 let filename = self.input.clone();
-                if !filename.is_empty() {
+                if filename.is_empty() {
+                    WidgetResult::Handled
+                } else {
                     let mut path = ui_state.file_dialog_current_dir.join(&filename);
                     if path.extension().is_none() {
                         path.set_extension("lbl");
@@ -111,12 +114,10 @@ impl Widget for ExportLabelsDialog {
                             WidgetResult::Close
                         }
                         Err(e) => {
-                            ui_state.set_status_message(format!("Error exporting labels: {}", e));
+                            ui_state.set_status_message(format!("Error exporting labels: {e}"));
                             WidgetResult::Handled
                         }
                     }
-                } else {
-                    WidgetResult::Handled
                 }
             }
             KeyCode::Backspace => {

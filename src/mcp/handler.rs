@@ -415,7 +415,7 @@ fn handle_tool_call_internal(
             let comment = args
                 .get("comment")
                 .and_then(|v| v.as_str())
-                .map(|s| s.to_string());
+                .map(std::string::ToString::to_string);
             let comment_type = args.get("type").and_then(|v| v.as_str()).unwrap_or("line");
 
             let command = if comment_type == "side" {
@@ -465,7 +465,7 @@ fn handle_tool_call_internal(
                 _ => {
                     return Err(McpError {
                         code: -32602,
-                        message: format!("Unknown data_type: '{}'", data_type_str),
+                        message: format!("Unknown data_type: '{data_type_str}'"),
                         data: None,
                     });
                 }
@@ -537,7 +537,7 @@ fn handle_tool_call_internal(
                 .or(app_state.project_path.as_ref())
                 .and_then(|p| p.file_name())
                 .and_then(|n| n.to_str())
-                .map(|s| s.to_string());
+                .map(std::string::ToString::to_string);
 
             Ok(json!({
                 "content": [{
@@ -613,8 +613,7 @@ fn handle_tool_call_internal(
                 Err(McpError {
                     code: -32602,
                     message: format!(
-                        "Address ${:04X} not found in disassembly (might be hidden or invalid)",
-                        address
+                        "Address ${address:04X} not found in disassembly (might be hidden or invalid)"
                     ),
                     data: None,
                 })
@@ -708,21 +707,21 @@ fn handle_tool_call_internal(
             let ctx = create_save_context(app_state, ui_state);
             app_state.save_project(ctx, true).map_err(|e| McpError {
                 code: -32603,
-                message: format!("Failed to save project: {}", e),
+                message: format!("Failed to save project: {e}"),
                 data: None,
             })?;
 
             Ok(json!({
                 "content": [{
                     "type": "text",
-                    "text": format!("Project saved to {}", app_state.project_path.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "<unknown>".to_string()))
+                    "text": format!("Project saved to {}", app_state.project_path.as_ref().map_or_else(|| "<unknown>".to_string(), |p| p.display().to_string()))
                 }]
             }))
         }
 
         _ => Err(McpError {
             code: -32601,
-            message: format!("Tool not found: {}", name),
+            message: format!("Tool not found: {name}"),
             data: None,
         }),
     }
@@ -752,8 +751,7 @@ fn convert_region(
         return Err(McpError {
             code: -32602,
             message: format!(
-                "Region ${:04X}-${:04X} out of bounds (Origin: ${:04X})",
-                start_addr, end_addr, origin
+                "Region ${start_addr:04X}-${end_addr:04X} out of bounds (Origin: ${origin:04X})"
             ),
             data: None,
         });
@@ -785,7 +783,7 @@ fn convert_region(
 fn get_address(args: &Value, key: &str) -> Result<u16, McpError> {
     let val = args.get(key).ok_or_else(|| McpError {
         code: -32602,
-        message: format!("Missing '{}'", key),
+        message: format!("Missing '{key}'"),
         data: None,
     })?;
 
@@ -802,10 +800,7 @@ fn get_address(args: &Value, key: &str) -> Result<u16, McpError> {
 
     Err(McpError {
         code: -32602,
-        message: format!(
-            "Invalid address format for '{}'. Expected a decimal integer.",
-            key
-        ),
+        message: format!("Invalid address format for '{key}'. Expected a decimal integer."),
         data: None,
     })
 }
@@ -872,21 +867,21 @@ fn handle_resource_read(params: &Value, app_state: &mut AppState) -> Result<Valu
 
 fn get_disassembly_text(app_state: &AppState, start: u16, end: u16) -> String {
     let mut output = String::new();
-    output.push_str(&format!("* = ${:04X}\n", start));
+    output.push_str(&format!("* = ${start:04X}\n"));
 
     for line in &app_state.disassembly {
         if line.address >= start && line.address <= end {
             // Line comments
             if let Some(comment) = &line.line_comment {
                 for line in comment.lines() {
-                    output.push_str(&format!("; {}\n", line));
+                    output.push_str(&format!("; {line}\n"));
                 }
             }
 
             if let Some(label) = &line.label
                 && !label.is_empty()
             {
-                output.push_str(&format!("{}:\n", label));
+                output.push_str(&format!("{label}:\n"));
             }
 
             let instruction = if line.operand.is_empty() {
@@ -896,13 +891,13 @@ fn get_disassembly_text(app_state: &AppState, start: u16, end: u16) -> String {
             };
 
             // Side comments
-            if !line.comment.is_empty() {
+            if line.comment.is_empty() {
+                output.push_str(&format!("${:04X} {}\n", line.address, instruction));
+            } else {
                 output.push_str(&format!(
                     "${:04X} {:<20} ; {}\n",
                     line.address, instruction, line.comment
                 ));
-            } else {
-                output.push_str(&format!("${:04X} {}\n", line.address, instruction));
             }
         }
     }
@@ -1001,9 +996,9 @@ fn get_hexdump_text(app_state: &AppState, start_addr: u16, end_addr: u16) -> Str
             if addr != start_addr {
                 output.push('\n');
             }
-            output.push_str(&format!("${:04X}: ", addr));
+            output.push_str(&format!("${addr:04X}: "));
         }
-        output.push_str(&format!("{:02X} ", byte));
+        output.push_str(&format!("{byte:02X} "));
     }
     output
 }
@@ -1075,7 +1070,7 @@ fn get_analyzed_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec<V
 fn get_cross_references_impl(app_state: &AppState, address: u16) -> Vec<u16> {
     if let Some(refs) = app_state.cross_refs.get(&address) {
         let mut sorted_refs = refs.clone();
-        sorted_refs.sort();
+        sorted_refs.sort_unstable();
         sorted_refs.dedup();
         sorted_refs
     } else {
@@ -1095,7 +1090,7 @@ fn set_operand_format_impl(
         _ => {
             return Err(McpError {
                 code: -32602,
-                message: format!("Unknown format: {}", format_str),
+                message: format!("Unknown format: {format_str}"),
                 data: None,
             });
         }
@@ -1104,7 +1099,7 @@ fn set_operand_format_impl(
     let command = crate::commands::Command::SetImmediateFormat {
         address,
         new_format: Some(format),
-        old_format: app_state.immediate_value_formats.get(&address).cloned(),
+        old_format: app_state.immediate_value_formats.get(&address).copied(),
     };
 
     command.apply(app_state);
@@ -1211,7 +1206,7 @@ fn get_address_details_impl(app_state: &AppState, address: u16) -> Result<Value,
                     | crate::cpu::AddressingMode::AbsoluteX
                     | crate::cpu::AddressingMode::AbsoluteY => {
                         if line.bytes.len() >= 3 {
-                            Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                            Some(u16::from(line.bytes[2]) << 8 | u16::from(line.bytes[1]))
                         } else {
                             None
                         }
@@ -1220,14 +1215,14 @@ fn get_address_details_impl(app_state: &AppState, address: u16) -> Result<Value,
                     | crate::cpu::AddressingMode::ZeroPageX
                     | crate::cpu::AddressingMode::ZeroPageY => {
                         if line.bytes.len() >= 2 {
-                            Some(line.bytes[1] as u16)
+                            Some(u16::from(line.bytes[1]))
                         } else {
                             None
                         }
                     }
                     crate::cpu::AddressingMode::Indirect => {
                         if line.bytes.len() >= 3 {
-                            Some((line.bytes[2] as u16) << 8 | (line.bytes[1] as u16))
+                            Some(u16::from(line.bytes[2]) << 8 | u16::from(line.bytes[1]))
                         } else {
                             None
                         }
@@ -1235,7 +1230,7 @@ fn get_address_details_impl(app_state: &AppState, address: u16) -> Result<Value,
                     crate::cpu::AddressingMode::IndirectX
                     | crate::cpu::AddressingMode::IndirectY => {
                         if line.bytes.len() >= 2 {
-                            Some(line.bytes[1] as u16)
+                            Some(u16::from(line.bytes[1]))
                         } else {
                             None
                         }
@@ -1266,13 +1261,13 @@ fn get_address_details_impl(app_state: &AppState, address: u16) -> Result<Value,
     // 4. Comments
     let mut comments = Vec::new();
     if let Some(c) = app_state.user_line_comments.get(&address) {
-        comments.push(format!("[User Line] {}", c));
+        comments.push(format!("[User Line] {c}"));
     }
     if let Some(c) = app_state.user_side_comments.get(&address) {
-        comments.push(format!("[User Side] {}", c));
+        comments.push(format!("[User Side] {c}"));
     }
     if let Some(c) = app_state.system_comments.get(&address) {
-        comments.push(format!("[System] {}", c));
+        comments.push(format!("[System] {c}"));
     }
     if !comments.is_empty() {
         details["metadata"]["comments"] = json!(comments);

@@ -17,6 +17,7 @@ use formatter_acme::AcmeFormatter;
 use formatter_ca65::Ca65Formatter;
 use formatter_kickasm::KickAsmFormatter;
 
+#[must_use]
 pub fn resolve_label<'a>(
     labels: &'a [Label],
     _address: u16,
@@ -96,12 +97,14 @@ impl Default for Disassembler {
 }
 
 impl Disassembler {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             opcodes: get_opcodes(),
         }
     }
 
+    #[must_use]
     pub fn create_formatter(assembler: Assembler) -> Box<dyn Formatter> {
         match assembler {
             Assembler::Tass64 => Box::new(TassFormatter),
@@ -112,6 +115,7 @@ impl Disassembler {
     }
 
     #[allow(clippy::too_many_arguments)]
+    #[must_use]
     pub fn disassemble(
         &self,
         data: &[u8],
@@ -146,6 +150,7 @@ impl Disassembler {
         self.disassemble_ctx(&ctx)
     }
 
+    #[must_use]
     pub fn disassemble_ctx(&self, ctx: &DisassemblyContext) -> Vec<DisassemblyLine> {
         let formatter = Self::create_formatter(ctx.settings.assembler);
 
@@ -378,7 +383,7 @@ impl Disassembler {
         match opcode.mode {
             AddressingMode::Absolute => {
                 if bytes.len() >= 3 {
-                    Some((bytes[2] as u16) << 8 | (bytes[1] as u16))
+                    Some(u16::from(bytes[2]) << 8 | u16::from(bytes[1]))
                 } else {
                     None
                 }
@@ -397,21 +402,21 @@ impl Disassembler {
 
     /// Returns the address referenced by the instruction, if any.
     /// This is used for looking up comments and X-Refs.
-    /// Unlike get_flow_target_address, this returns a value for memory access instructions like STA, LDA, etc.
+    /// Unlike `get_flow_target_address`, this returns a value for memory access instructions like STA, LDA, etc.
     fn get_referenced_address(&self, opcode: &Opcode, bytes: &[u8], address: u16) -> Option<u16> {
         use crate::cpu::AddressingMode;
 
         match opcode.mode {
             AddressingMode::Absolute | AddressingMode::AbsoluteX | AddressingMode::AbsoluteY => {
                 if bytes.len() >= 3 {
-                    Some((bytes[2] as u16) << 8 | (bytes[1] as u16))
+                    Some(u16::from(bytes[2]) << 8 | u16::from(bytes[1]))
                 } else {
                     None
                 }
             }
             AddressingMode::ZeroPage | AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
                 if bytes.len() >= 2 {
-                    Some(bytes[1] as u16)
+                    Some(u16::from(bytes[1]))
                 } else {
                     None
                 }
@@ -427,7 +432,7 @@ impl Disassembler {
             }
             AddressingMode::Indirect => {
                 if bytes.len() >= 3 {
-                    Some((bytes[2] as u16) << 8 | (bytes[1] as u16))
+                    Some(u16::from(bytes[2]) << 8 | u16::from(bytes[1]))
                 } else {
                     None
                 }
@@ -435,7 +440,7 @@ impl Disassembler {
             // For IndirectX/Y, we could argue it references the Zero Page address given.
             AddressingMode::IndirectX | AddressingMode::IndirectY => {
                 if bytes.len() >= 2 {
-                    Some(bytes[1] as u16)
+                    Some(u16::from(bytes[1]))
                 } else {
                     None
                 }
@@ -488,7 +493,7 @@ impl Disassembler {
             comment_parts.push(format_cross_references(refs, settings.max_xref_count));
         }
 
-        let separator = format!(" {} ", comment_prefix); // e.g. " ; " or " // "
+        let separator = format!(" {comment_prefix} "); // e.g. " ; " or " // "
         comment_parts.join(&separator)
     }
 
@@ -633,17 +638,15 @@ impl Disassembler {
                         // Should we show the user comment?
                         // If it's code, NO (avoids propagation in loops).
                         // If it's data/unknown, YES.
-                        let target_comment = if !is_code_target {
-                            if let Some(c) = user_side_comments.get(&target_addr) {
-                                Some(c)
-                            } else {
-                                system_comments.get(&target_addr)
-                            }
-                        } else {
+                        let target_comment = if is_code_target {
                             // Even if we suppress user comments for code, we might want system comments (e.g. KERNAL)
                             // But usually KERNAL/System targets won't be in our 'data' block types loop unless we disassembled the whole memory.
                             // If they are outside (target_idx >= len), is_code_target is false, so we show them (correct for external system calls).
                             // If they are INSIDE and marked as Code, we suppress user comments (to fix the bug).
+                            system_comments.get(&target_addr)
+                        } else if let Some(c) = user_side_comments.get(&target_addr) {
+                            Some(c)
+                        } else {
                             system_comments.get(&target_addr)
                         };
 
@@ -732,7 +735,7 @@ impl Disassembler {
         // Fallthrough / Invalid instruction
         let mut side_comment_final = "Invalid or partial instruction".to_string();
         if !side_comment.is_empty() {
-            side_comment_final = format!("{}; {}", side_comment, side_comment_final);
+            side_comment_final = format!("{side_comment}; {side_comment_final}");
         }
         (
             1,
@@ -879,7 +882,7 @@ impl Disassembler {
 
             let low = data[current_pc_start];
             let high = data[current_pc_start + 1];
-            let val = (high as u16) << 8 | (low as u16);
+            let val = u16::from(high) << 8 | u16::from(low);
 
             bytes.push(low);
             bytes.push(high);
@@ -1032,7 +1035,7 @@ impl Disassembler {
 
             let low = data[current_pc_start];
             let high = data[current_pc_start + 1];
-            let val = (high as u16) << 8 | (low as u16);
+            let val = u16::from(high) << 8 | u16::from(low);
 
             // START: Append comment for the address value
             let target_comment = if let Some(c) = user_side_comments.get(&val) {
@@ -1427,9 +1430,9 @@ impl Disassembler {
     ) -> (usize, Vec<DisassemblyLine>) {
         if pc < data.len() {
             let b = data[pc];
-            let mut side_comment_final = format!("Partial {}", type_name);
+            let mut side_comment_final = format!("Partial {type_name}");
             if !side_comment.is_empty() {
-                side_comment_final = format!("{}; {}", side_comment, side_comment_final);
+                side_comment_final = format!("{side_comment}; {side_comment_final}");
             }
             (
                 1,
@@ -1456,7 +1459,7 @@ impl Disassembler {
                     address,
                     bytes: vec![],
                     mnemonic: "???".to_string(),
-                    operand: "".to_string(),
+                    operand: String::new(),
                     comment: "Error: Out of bounds".to_string(),
                     line_comment: None,
                     label: None,
@@ -1471,6 +1474,7 @@ impl Disassembler {
     }
 }
 
+#[must_use]
 pub fn format_cross_references(refs: &[u16], max_count: usize) -> String {
     if refs.is_empty() || max_count == 0 {
         return String::new();
@@ -1483,7 +1487,7 @@ pub fn format_cross_references(refs: &[u16], max_count: usize) -> String {
     let refs_str: Vec<String> = all_refs
         .iter()
         .take(max_count)
-        .map(|r| format!("${:04x}", r))
+        .map(|r| format!("${r:04x}"))
         .collect();
 
     let suffix = if all_refs.len() > max_count {

@@ -70,7 +70,7 @@ mod tests {
         let json = format!(
             r#"{{
             "origin": 4096,
-            "raw_data_base64": "{}",
+            "raw_data_base64": "{legacy_raw_data}",
             "blocks": [],
             "labels": {{}},
             "settings": {{
@@ -82,8 +82,7 @@ mod tests {
                 "assembler": "Tass64",
                 "max_xref_count": 5
             }}
-        }}"#,
-            legacy_raw_data
+        }}"#
         );
         // removed "cursor_address" and "hex_dump_cursor_address" fields
 

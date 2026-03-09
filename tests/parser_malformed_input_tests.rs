@@ -35,7 +35,7 @@ mod d64_malformed {
         let res = parse_d64_directory(&data);
         assert!(res.is_err());
         let msg = res.unwrap_err().to_string();
-        assert!(msg.contains("Invalid disk image size"), "Got: {}", msg);
+        assert!(msg.contains("Invalid disk image size"), "Got: {msg}");
     }
 
     #[test]
@@ -95,8 +95,7 @@ mod d64_malformed {
         let msg = res.unwrap_err().to_string();
         assert!(
             msg.contains("too large") || msg.contains("corruption"),
-            "Got: {}",
-            msg
+            "Got: {msg}"
         );
     }
 
@@ -342,16 +341,14 @@ mod t64_malformed {
 mod vsf_malformed {
     use regenerator2000::parser::vice_vsf::parse_vsf;
 
-    /// Helper: assert parse_vsf returns Err and the error message contains `needle`.
+    /// Helper: assert `parse_vsf` returns Err and the error message contains `needle`.
     fn assert_vsf_err(data: &[u8], needle: &str) {
         match parse_vsf(data) {
             Err(e) => assert!(
                 e.to_string().contains(needle),
-                "Expected error containing {:?}, got: {}",
-                needle,
-                e
+                "Expected error containing {needle:?}, got: {e}"
             ),
-            Ok(_) => panic!("Expected error containing {:?}, but got Ok", needle),
+            Ok(_) => panic!("Expected error containing {needle:?}, but got Ok"),
         }
     }
 

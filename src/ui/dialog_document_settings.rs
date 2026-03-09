@@ -33,6 +33,7 @@ impl Default for DocumentSettingsDialog {
 }
 
 impl DocumentSettingsDialog {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             selected_index: 0,
@@ -102,7 +103,7 @@ impl Widget for DocumentSettingsDialog {
             } else {
                 Style::default().fg(theme.dialog_fg)
             };
-            Span::styled(format!("{} {}", check_char, label), style)
+            Span::styled(format!("{check_char} {label}"), style)
         };
 
         let patch_brk_disabled = settings.brk_single_byte
@@ -194,8 +195,8 @@ impl Widget for DocumentSettingsDialog {
                 Constraint::Length(2),                      // Bytes Per Line
                 Constraint::Length(2),                      // Assembler
                 Constraint::Length(2),                      // Platform
-                Constraint::Length(if dynamic_items.is_empty() { 0 } else { 1 }), // System Labels Header
-                Constraint::Length(dynamic_items.len() as u16),                   // Dynamic items
+                Constraint::Length(u16::from(!dynamic_items.is_empty())), // System Labels Header
+                Constraint::Length(dynamic_items.len() as u16), // Dynamic items
             ])
             .split(inner);
 
@@ -293,7 +294,7 @@ impl Widget for DocumentSettingsDialog {
         } else {
             settings.max_xref_count.to_string()
         };
-        let xref_text = format!("Max X-Refs: < {} >", xref_value_str);
+        let xref_text = format!("Max X-Refs: < {xref_value_str} >");
 
         let xref_widget = Paragraph::new(xref_text).style(if xref_selected {
             Style::default()
@@ -315,7 +316,7 @@ impl Widget for DocumentSettingsDialog {
         } else {
             settings.max_arrow_columns.to_string()
         };
-        let arrow_text = format!("Arrow Columns: < {} >", arrow_value_str);
+        let arrow_text = format!("Arrow Columns: < {arrow_value_str} >");
 
         let arrow_widget = Paragraph::new(arrow_text).style(if arrow_selected {
             Style::default()
@@ -337,7 +338,7 @@ impl Widget for DocumentSettingsDialog {
         } else {
             settings.text_char_limit.to_string()
         };
-        let text_limit_text = format!("Text Line Limit: < {} >", text_limit_value_str);
+        let text_limit_text = format!("Text Line Limit: < {text_limit_value_str} >");
 
         let text_limit_widget = Paragraph::new(text_limit_text).style(if text_limit_selected {
             Style::default()
@@ -359,7 +360,7 @@ impl Widget for DocumentSettingsDialog {
         } else {
             settings.addresses_per_line.to_string()
         };
-        let addr_limit_text = format!("Words/Addrs per line: < {} >", addr_limit_value_str);
+        let addr_limit_text = format!("Words/Addrs per line: < {addr_limit_value_str} >");
 
         let addr_limit_widget = Paragraph::new(addr_limit_text).style(if addr_limit_selected {
             Style::default()
@@ -381,7 +382,7 @@ impl Widget for DocumentSettingsDialog {
         } else {
             settings.bytes_per_line.to_string()
         };
-        let bytes_limit_text = format!("Bytes per line: < {} >", bytes_limit_value_str);
+        let bytes_limit_text = format!("Bytes per line: < {bytes_limit_value_str} >");
 
         let bytes_limit_widget = Paragraph::new(bytes_limit_text).style(if bytes_limit_selected {
             Style::default()
@@ -457,7 +458,7 @@ impl Widget for DocumentSettingsDialog {
                     } else {
                         Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
                     };
-                    ListItem::new(p.to_string()).style(style)
+                    ListItem::new(p.clone()).style(style)
                 })
                 .collect();
 
@@ -871,7 +872,7 @@ impl Widget for DocumentSettingsDialog {
                         0 => app_state.settings.all_labels = !app_state.settings.all_labels,
                         1 => {
                             app_state.settings.preserve_long_bytes =
-                                !app_state.settings.preserve_long_bytes
+                                !app_state.settings.preserve_long_bytes;
                         }
                         2 => {
                             app_state.settings.brk_single_byte =
@@ -897,11 +898,11 @@ impl Widget for DocumentSettingsDialog {
                         }
                         4 => {
                             app_state.settings.use_illegal_opcodes =
-                                !app_state.settings.use_illegal_opcodes
+                                !app_state.settings.use_illegal_opcodes;
                         }
                         5 => {
                             app_state.settings.show_analysis_hints =
-                                !app_state.settings.show_analysis_hints
+                                !app_state.settings.show_analysis_hints;
                         }
                         idx if idx >= dynamic_start_idx => {
                             // Dynamic items

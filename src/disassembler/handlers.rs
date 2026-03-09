@@ -147,11 +147,11 @@ fn handle_split_byte_table(
         let val = if hi_first {
             let hi = ctx.data[pc + idx];
             let lo = ctx.data[pc + split_offset + idx];
-            (hi as u16) << 8 | (lo as u16)
+            u16::from(hi) << 8 | u16::from(lo)
         } else {
             let lo = ctx.data[pc + idx];
             let hi = ctx.data[pc + split_offset + idx];
-            (hi as u16) << 8 | (lo as u16)
+            u16::from(hi) << 8 | u16::from(lo)
         };
 
         // Try to resolve label only for Address blocks.
@@ -167,9 +167,9 @@ fn handle_split_byte_table(
         };
 
         if is_lo {
-            format!("<{}", label_part)
+            format!("<{label_part}")
         } else {
-            format!(">{}", label_part)
+            format!(">{label_part}")
         }
     };
 

@@ -59,7 +59,7 @@ mod tests {
         let content = result.get("content").unwrap().as_array().unwrap();
         let text = content[0].get("text").unwrap().as_str().unwrap();
 
-        println!("Selected Text:\n{}", text);
+        println!("Selected Text:\n{text}");
 
         assert!(text.contains("1002"));
         assert!(text.contains("tax"));
@@ -101,7 +101,7 @@ mod tests {
         let content = result.get("content").unwrap().as_array().unwrap();
         let text = content[0].get("text").unwrap().as_str().unwrap();
 
-        println!("Hexdump Text:\n{}", text);
+        println!("Hexdump Text:\n{text}");
 
         assert!(text.contains("1000:"));
         assert!(!text.contains("1010:")); // Should not contain row 2
@@ -123,7 +123,7 @@ mod tests {
             .as_str()
             .unwrap();
 
-        println!("Hexdump Text 2:\n{}", text2);
+        println!("Hexdump Text 2:\n{text2}");
         assert!(text2.contains("1000:"));
         assert!(text2.contains("1010:"));
     }

@@ -16,6 +16,7 @@ pub struct LabelDialog {
 }
 
 impl LabelDialog {
+    #[must_use]
     pub fn new(current_label: Option<&str>, address: u16) -> Self {
         Self {
             input: current_label.unwrap_or("").to_string(),
@@ -97,8 +98,7 @@ impl Widget for LabelDialog {
 
                     if exists {
                         ui_state.set_status_message(format!(
-                            "Error: Label '{}' already exists",
-                            label_name
+                            "Error: Label '{label_name}' already exists"
                         ));
                         // Do not close dialog, let user correct it
                         WidgetResult::Handled
@@ -114,10 +114,10 @@ impl Widget for LabelDialog {
                         };
 
                         // If vector has items, we assume we are editing the first one (as that's what we showed).
-                        if !new_label_vec.is_empty() {
-                            new_label_vec[0] = new_label_entry;
-                        } else {
+                        if new_label_vec.is_empty() {
                             new_label_vec.push(new_label_entry);
+                        } else {
+                            new_label_vec[0] = new_label_entry;
                         }
 
                         let command = crate::commands::Command::SetLabel {

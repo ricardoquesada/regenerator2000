@@ -13,19 +13,18 @@ pub async fn run_stdio_loop(sender: Sender<McpRequest>) {
     let mut line = String::new();
 
     while reader.read_line(&mut line).unwrap_or(0) > 0 {
-        let payload: Value = match serde_json::from_str(&line) {
-            Ok(v) => v,
-            Err(_) => {
-                line.clear();
-                continue;
-            }
+        let payload: Value = if let Ok(v) = serde_json::from_str(&line) {
+            v
+        } else {
+            line.clear();
+            continue;
         };
 
         let id = payload.get("id").cloned().unwrap_or(Value::Null);
         let method = payload
             .get("method")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
         let params = payload.get("params").cloned().unwrap_or(Value::Null);
 
         if let Some(method) = method {
@@ -56,7 +55,7 @@ pub async fn run_stdio_loop(sender: Sender<McpRequest>) {
                         "id": id
                     })
                 };
-                println!("{}", json_resp);
+                println!("{json_resp}");
                 let _ = io::stdout().flush();
             }
         }
@@ -71,19 +70,18 @@ pub async fn run_headless_stdio_loop(mut app_state: AppState, mut ui_state: UISt
     let mut line = String::new();
 
     while reader.read_line(&mut line).unwrap_or(0) > 0 {
-        let payload: Value = match serde_json::from_str(&line) {
-            Ok(v) => v,
-            Err(_) => {
-                line.clear();
-                continue;
-            }
+        let payload: Value = if let Ok(v) = serde_json::from_str(&line) {
+            v
+        } else {
+            line.clear();
+            continue;
         };
 
         let id = payload.get("id").cloned().unwrap_or(Value::Null);
         let method = payload
             .get("method")
             .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+            .map(std::string::ToString::to_string);
         let params = payload.get("params").cloned().unwrap_or(Value::Null);
 
         if let Some(method) = method {
@@ -115,7 +113,7 @@ pub async fn run_headless_stdio_loop(mut app_state: AppState, mut ui_state: UISt
                     "id": id
                 })
             };
-            println!("{}", json_resp);
+            println!("{json_resp}");
             let _ = io::stdout().flush();
         }
         line.clear();

@@ -17,9 +17,10 @@ pub struct BreakpointAddressDialog {
 }
 
 impl BreakpointAddressDialog {
+    #[must_use]
     pub fn new(prefill: Option<u16>) -> Self {
         Self {
-            input: prefill.map(|a| format!("{:04X}", a)).unwrap_or_default(),
+            input: prefill.map(|a| format!("{a:04X}")).unwrap_or_default(),
         }
     }
 

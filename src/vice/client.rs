@@ -58,7 +58,7 @@ impl ViceClient {
                                 Err(e) => {
                                     // Corrupt data, clear buffer
                                     let _ = app_tx_read.send(AppEvent::Vice(
-                                        ViceEvent::Disconnected(format!("Protocol error: {}", e)),
+                                        ViceEvent::Disconnected(format!("Protocol error: {e}")),
                                     ));
                                     return;
                                 }
@@ -111,7 +111,7 @@ impl ViceClient {
     }
 
     /// Step over (next): execute through subroutine calls without stopping inside them.
-    /// step_mode 1 = step-over
+    /// `step_mode` 1 = step-over
     pub fn send_step_over(&self) {
         self.send(ViceMessage::new(
             ViceCommand::ADVANCE_INSTRUCTION,
@@ -134,7 +134,7 @@ impl ViceClient {
         self.send(ViceMessage::new(ViceCommand::CHECKPOINT_LIST, vec![]));
     }
 
-    /// Build a persistent checkpoint payload for any cpu_operation type.
+    /// Build a persistent checkpoint payload for any `cpu_operation` type.
     fn checkpoint_payload(addr: u16, cpu_op: u8) -> Vec<u8> {
         let mut payload = Vec::with_capacity(8);
         payload.extend_from_slice(&addr.to_le_bytes()); // start_addr
@@ -179,7 +179,7 @@ impl ViceClient {
         ));
     }
 
-    /// Delete a checkpoint by its ID (returned in the CHECKPOINT_SET response).
+    /// Delete a checkpoint by its ID (returned in the `CHECKPOINT_SET` response).
     pub fn send_checkpoint_delete(&self, id: u32) {
         self.send(ViceMessage::new(
             ViceCommand::CHECKPOINT_DELETE,
@@ -189,9 +189,9 @@ impl ViceClient {
 
     /// Set a temporary exec-only breakpoint at `addr` and auto-delete it after it's hit.
     /// Used for Run-to-Cursor (F8): set, continue, VICE stops at addr, checkpoint is gone.
-    /// CHECKPOINT_SET payload: start_addr (2 LE), end_addr (2 LE),
-    ///   stop_when_hit (1), enabled (1), cpu_operation (1), temporary (1)
-    /// cpu_operation 0x04 = exec; temporary 1 = auto-delete on hit.
+    /// `CHECKPOINT_SET` payload: `start_addr` (2 LE), `end_addr` (2 LE),
+    ///   `stop_when_hit` (1), enabled (1), `cpu_operation` (1), temporary (1)
+    /// `cpu_operation` 0x04 = exec; temporary 1 = auto-delete on hit.
     pub fn send_checkpoint_set_exec_temp(&self, addr: u16) {
         let mut payload = Vec::with_capacity(8);
         payload.extend_from_slice(&addr.to_le_bytes()); // start_addr

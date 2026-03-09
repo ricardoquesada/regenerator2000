@@ -209,10 +209,7 @@ fn test_all_official_opcodes_are_defined() {
 
     for (opcode, expected_mnemonic, expected_mode) in official_opcodes {
         let op = opcodes[opcode as usize].as_ref().unwrap_or_else(|| {
-            panic!(
-                "Official opcode ${:02X} ({}) is not defined",
-                opcode, expected_mnemonic
-            )
+            panic!("Official opcode ${opcode:02X} ({expected_mnemonic}) is not defined")
         });
 
         assert_eq!(
@@ -227,8 +224,7 @@ fn test_all_official_opcodes_are_defined() {
         );
         assert!(
             !op.illegal,
-            "Official opcode ${:02X} ({}) should not be marked as illegal",
-            opcode, expected_mnemonic
+            "Official opcode ${opcode:02X} ({expected_mnemonic}) should not be marked as illegal"
         );
     }
 }
@@ -244,8 +240,7 @@ fn test_official_opcode_count() {
     // 6502 has 151 documented opcodes
     assert_eq!(
         official_count, 151,
-        "Expected 151 official opcodes, found {}",
-        official_count
+        "Expected 151 official opcodes, found {official_count}"
     );
 }
 
@@ -371,8 +366,7 @@ fn test_all_official_mnemonics_present() {
     for mnemonic in &official_mnemonics {
         assert!(
             found_mnemonics.contains(mnemonic),
-            "Official mnemonic {} is missing from opcode table",
-            mnemonic
+            "Official mnemonic {mnemonic} is missing from opcode table"
         );
     }
 }
@@ -498,10 +492,7 @@ fn test_illegal_opcodes_are_marked() {
 
     for (opcode, expected_mnemonic) in illegal_opcodes {
         let op = opcodes[opcode as usize].as_ref().unwrap_or_else(|| {
-            panic!(
-                "Illegal opcode ${:02X} ({}) should be defined",
-                opcode, expected_mnemonic
-            )
+            panic!("Illegal opcode ${opcode:02X} ({expected_mnemonic}) should be defined")
         });
 
         assert_eq!(
@@ -511,8 +502,7 @@ fn test_illegal_opcodes_are_marked() {
         );
         assert!(
             op.illegal,
-            "Opcode ${:02X} ({}) should be marked as illegal",
-            opcode, expected_mnemonic
+            "Opcode ${opcode:02X} ({expected_mnemonic}) should be marked as illegal"
         );
     }
 }
@@ -529,8 +519,7 @@ fn test_illegal_opcode_count() {
     // SLO(7) + RLA(7) + SRE(7) + RRA(7) + SAX(4) + LAX(7) + DCP(7) + ISC(7) + ANC(2) + ASR(1) + ARR(1) + SBX(1) = 58
     assert_eq!(
         illegal_count, 58,
-        "Expected 58 illegal opcodes, found {}",
-        illegal_count
+        "Expected 58 illegal opcodes, found {illegal_count}"
     );
 }
 
@@ -554,8 +543,7 @@ fn test_illegal_mnemonics_present() {
     for mnemonic in &illegal_mnemonics {
         assert!(
             found_illegal_mnemonics.contains(mnemonic),
-            "Illegal mnemonic {} is missing from opcode table",
-            mnemonic
+            "Illegal mnemonic {mnemonic} is missing from opcode table"
         );
     }
 }
@@ -798,8 +786,7 @@ fn test_all_addressing_modes_used() {
     for mode in expected_modes {
         assert!(
             used_modes.contains(&mode),
-            "Addressing mode {:?} is not used by any opcode",
-            mode
+            "Addressing mode {mode:?} is not used by any opcode"
         );
     }
 }
@@ -840,8 +827,7 @@ fn test_undefined_opcodes_are_none() {
     // 256 total - 151 official - 58 illegal = 47 undefined
     assert_eq!(
         undefined_count, 47,
-        "Expected 47 undefined opcodes, found {}",
-        undefined_count
+        "Expected 47 undefined opcodes, found {undefined_count}"
     );
 }
 
@@ -853,8 +839,7 @@ fn test_total_defined_opcodes() {
     // 151 official + 58 illegal = 209 defined
     assert_eq!(
         defined_count, 209,
-        "Expected 209 defined opcodes, found {}",
-        defined_count
+        "Expected 209 defined opcodes, found {defined_count}"
     );
 }
 

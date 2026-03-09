@@ -31,6 +31,7 @@ pub struct Opcode {
 }
 
 impl Opcode {
+    #[must_use]
     pub const fn new(
         mnemonic: &'static str,
         mode: AddressingMode,
@@ -48,6 +49,7 @@ impl Opcode {
         }
     }
 
+    #[must_use]
     pub const fn new_illegal(
         mnemonic: &'static str,
         mode: AddressingMode,
@@ -76,6 +78,7 @@ impl Opcode {
     /// Excludes:
     /// - JMP Indirect (JMP ($xxxx)) - usually dynamic/computed, harder to draw simple arrows to static target
     /// - RTS, RTI, BRK - no specific target address in instruction
+    #[must_use]
     pub fn is_flow_control_with_target(&self) -> bool {
         // JMP and JSR
         if self.mnemonic == "JMP" || self.mnemonic == "JSR" {
@@ -95,6 +98,7 @@ impl Opcode {
     }
 }
 
+#[must_use]
 pub fn get_opcodes() -> [Option<Opcode>; 256] {
     const UNKNOWN: Option<Opcode> = None;
     let mut opcodes = [UNKNOWN; 256];

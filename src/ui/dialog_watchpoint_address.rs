@@ -17,9 +17,10 @@ pub struct WatchpointAddressDialog {
 }
 
 impl WatchpointAddressDialog {
+    #[must_use]
     pub fn new(prefill: Option<u16>) -> Self {
         Self {
-            input: prefill.map(|a| format!("{:04X}", a)).unwrap_or_default(),
+            input: prefill.map(|a| format!("{a:04X}")).unwrap_or_default(),
             kind: BreakpointKind::Store, // W default
         }
     }
@@ -142,8 +143,7 @@ impl Widget for WatchpointAddressDialog {
                 if let Ok(addr) = u16::from_str_radix(&self.input, 16) {
                     // If a watchpoint already exists, remove it (use its kind to trigger toggle)
                     let kind = Self::existing_watchpoint(&self.input, app_state)
-                        .map(|bp| bp.kind)
-                        .unwrap_or(self.kind);
+                        .map_or(self.kind, |bp| bp.kind);
                     WidgetResult::Action(crate::ui::menu::MenuAction::ViceSetWatchpoint {
                         address: addr,
                         kind,

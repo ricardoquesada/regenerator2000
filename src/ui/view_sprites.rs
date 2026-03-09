@@ -78,7 +78,7 @@ impl Navigable for SpritesView {
         ui_state.sprites_cursor_index = target;
     }
 
-    fn item_name(&self) -> &str {
+    fn item_name(&self) -> &'static str {
         "sprite"
     }
 }
@@ -207,8 +207,7 @@ impl Widget for SpritesView {
             if y_offset < visible_rows {
                 f.render_widget(
                     Paragraph::new(format!(
-                        "Sprite  {:03} / ${:02X} @ ${:04X}",
-                        sprite_num, sprite_num, sprite_address
+                        "Sprite  {sprite_num:03} / ${sprite_num:02X} @ ${sprite_address:04X}"
                     ))
                     .style(style),
                     Rect::new(

@@ -46,7 +46,7 @@ pub fn run_app<B: Backend>(
                 should_render = true;
             }
             AppEvent::McpError(err_msg) => {
-                ui_state.set_status_message(format!("MCP Error: {}", err_msg));
+                ui_state.set_status_message(format!("MCP Error: {err_msg}"));
                 should_render = true;
             }
             AppEvent::Vice(vice_event) => {
@@ -64,7 +64,7 @@ pub fn run_app<B: Backend>(
                     crate::vice::ViceEvent::Disconnected(reason) => {
                         app_state.vice_state.connected = false;
                         app_state.vice_state.reset_registers();
-                        ui_state.set_status_message(format!("Disconnected from VICE: {}", reason));
+                        ui_state.set_status_message(format!("Disconnected from VICE: {reason}"));
                     }
                     crate::vice::ViceEvent::Message(msg) => {
                         // Handle register get to update PC
@@ -116,7 +116,7 @@ pub fn run_app<B: Backend>(
 
                                 if let Some(pc) = pc_found {
                                     app_state.vice_state.pc = Some(pc);
-                                    ui_state.set_status_message(format!("VICE PC: ${:04X}", pc));
+                                    ui_state.set_status_message(format!("VICE PC: ${pc:04X}"));
 
                                     // Jump static disassembly cursor + scroll to PC.
                                     // unwrap_or_else(|i| i-1) finds the containing instruction
@@ -247,7 +247,13 @@ pub fn run_app<B: Backend>(
                                 let temporary = p[12] != 0;
                                 let kind = crate::vice::state::BreakpointKind::from_cpu_op(cpu_op);
                                 // Only track persistent breakpoints (not run-to-cursor temps)
-                                if !temporary {
+                                if temporary {
+                                    // It's a temporary breakpoint (e.g. Run To Cursor). Keep track of it
+                                    // so we can delete it if the emulator stops prematurely.
+                                    if !app_state.vice_state.temporary_breakpoints.contains(&id) {
+                                        app_state.vice_state.temporary_breakpoints.push(id);
+                                    }
+                                } else {
                                     // Avoid duplicates (e.g. if both 0x11 and 0x12 arrive for same checkpoint)
                                     if !app_state
                                         .vice_state
@@ -263,12 +269,6 @@ pub fn run_app<B: Backend>(
                                                 kind,
                                             },
                                         );
-                                    }
-                                } else {
-                                    // It's a temporary breakpoint (e.g. Run To Cursor). Keep track of it
-                                    // so we can delete it if the emulator stops prematurely.
-                                    if !app_state.vice_state.temporary_breakpoints.contains(&id) {
-                                        app_state.vice_state.temporary_breakpoints.push(id);
                                     }
                                 }
                             }
@@ -348,7 +348,7 @@ pub fn run_app<B: Backend>(
                             let result = dialog.handle_input(key, &mut app_state, &mut ui_state);
                             match result {
                                 crate::ui::widget::WidgetResult::Ignored => {
-                                    ui_state.active_dialog = Some(dialog)
+                                    ui_state.active_dialog = Some(dialog);
                                 }
                                 crate::ui::widget::WidgetResult::Handled => {
                                     ui_state.active_dialog = Some(dialog);
@@ -534,7 +534,7 @@ pub fn run_app<B: Backend>(
                                     dialog.handle_mouse(mouse, &mut app_state, &mut ui_state);
                                 match result {
                                     crate::ui::widget::WidgetResult::Ignored => {
-                                        ui_state.active_dialog = Some(dialog)
+                                        ui_state.active_dialog = Some(dialog);
                                     }
                                     crate::ui::widget::WidgetResult::Handled => {
                                         ui_state.active_dialog = Some(dialog);
@@ -639,22 +639,22 @@ pub fn run_app<B: Backend>(
                                 } else if is_inside(ui_state.right_pane_area, col, row) {
                                     match ui_state.right_pane {
                                         crate::ui_state::RightPane::HexDump => {
-                                            ui_state.active_pane = ActivePane::HexDump
+                                            ui_state.active_pane = ActivePane::HexDump;
                                         }
                                         crate::ui_state::RightPane::Sprites => {
-                                            ui_state.active_pane = ActivePane::Sprites
+                                            ui_state.active_pane = ActivePane::Sprites;
                                         }
                                         crate::ui_state::RightPane::Charset => {
-                                            ui_state.active_pane = ActivePane::Charset
+                                            ui_state.active_pane = ActivePane::Charset;
                                         }
                                         crate::ui_state::RightPane::Bitmap => {
-                                            ui_state.active_pane = ActivePane::Bitmap
+                                            ui_state.active_pane = ActivePane::Bitmap;
                                         }
                                         crate::ui_state::RightPane::Blocks => {
-                                            ui_state.active_pane = ActivePane::Blocks
+                                            ui_state.active_pane = ActivePane::Blocks;
                                         }
                                         crate::ui_state::RightPane::Debugger => {
-                                            ui_state.active_pane = ActivePane::Debugger
+                                            ui_state.active_pane = ActivePane::Debugger;
                                         }
                                         _ => {}
                                     }

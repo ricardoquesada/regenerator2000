@@ -10,7 +10,7 @@
 //!   - 64tass
 //!   - ACME
 //!   - ca65 (via cl65)
-//!   - KickAssembler (via java -jar KickAss.jar)
+//!   - `KickAssembler` (via java -jar KickAss.jar)
 //!
 //! If an assembler is not installed, the corresponding test is skipped
 //! (not failed).
@@ -19,8 +19,8 @@ use regenerator2000::exporter::{verify_all_assemblers, verify_roundtrip};
 use regenerator2000::state::{AppState, Assembler};
 use std::path::PathBuf;
 
-/// Helper: Load a PRG file and set up an AppState suitable for verification.
-/// Returns the AppState with disassembly populated.
+/// Helper: Load a PRG file and set up an `AppState` suitable for verification.
+/// Returns the `AppState` with disassembly populated.
 fn load_prg_for_verify(prg_path: &str) -> AppState {
     let mut state = AppState::new();
     // Disable auto-analyze so we get a clean code-only disassembly
@@ -36,7 +36,7 @@ fn load_prg_for_verify(prg_path: &str) -> AppState {
     state
 }
 
-/// Helper: Load a regen2000proj file and set up an AppState for verification.
+/// Helper: Load a regen2000proj file and set up an `AppState` for verification.
 fn load_project_for_verify(proj_path: &str) -> AppState {
     let mut state = AppState::new();
     state.system_config.auto_analyze = true;
@@ -93,7 +93,7 @@ fn test_roundtrip_sprmux32_64tass() {
         return;
     }
 
-    println!("{}", result);
+    println!("{result}");
     assert!(
         result.success,
         "64tass roundtrip failed for sprmux32.prg: {}",
@@ -115,7 +115,7 @@ fn test_roundtrip_sprmux32_acme() {
         return;
     }
 
-    println!("{}", result);
+    println!("{result}");
     // Known issue: ACME interprets labels starting with 'e' (like 'e0000')
     // as scientific notation, causing "Number out of range" errors.
     // This is a pre-existing ACME formatter bug, not a roundtrip issue.
@@ -136,7 +136,7 @@ fn test_roundtrip_project_file_all_assemblers() {
 
     let results = verify_all_assemblers(&state);
     for r in &results {
-        println!("{}", r);
+        println!("{r}");
     }
 
     for r in &results {
@@ -161,7 +161,7 @@ fn test_roundtrip_sprmux32_all_assemblers() {
     let results = verify_all_assemblers(&state);
 
     for r in &results {
-        println!("{}", r);
+        println!("{r}");
     }
 
     for r in &results {
@@ -204,11 +204,11 @@ fn test_roundtrip_synthetic_code() {
         let result = verify_roundtrip(&state, *asm);
 
         if result.message.contains("not found in PATH") {
-            println!("Skipping {}: not installed", asm);
+            println!("Skipping {asm}: not installed");
             continue;
         }
 
-        println!("{}", result);
+        println!("{result}");
         assert!(
             result.success,
             "{} roundtrip failed for synthetic code: {}",
@@ -256,7 +256,7 @@ fn test_roundtrip_synthetic_mixed_code_data() {
         return;
     }
 
-    println!("{}", result);
+    println!("{result}");
     assert!(
         result.success,
         "64tass roundtrip failed for mixed code/data: {}",
@@ -301,7 +301,7 @@ fn test_roundtrip_synthetic_data_words() {
         return;
     }
 
-    println!("{}", result);
+    println!("{result}");
     assert!(
         result.success,
         "64tass roundtrip failed for data words: {}",

@@ -1,7 +1,7 @@
 /// VICE binary protocol unit tests
 ///
 /// Tests the encode/decode round-trip, edge cases, and error handling
-/// for the ViceMessage protocol, as well as ViceState and BreakpointKind logic.
+/// for the `ViceMessage` protocol, as well as `ViceState` and `BreakpointKind` logic.
 
 mod protocol_tests {
     use regenerator2000::vice::protocol::{API_VERSION, STX, ViceCommand, ViceCpuOp, ViceMessage};

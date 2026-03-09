@@ -23,6 +23,7 @@ pub struct VisualLineCounts {
 }
 
 impl VisualLineCounts {
+    #[must_use]
     pub fn total(&self) -> usize {
         self.labels + self.comments + self.instruction
     }
@@ -114,6 +115,7 @@ impl DisassemblyView {
             }
         }
     }
+    #[must_use]
     pub fn get_visual_line_counts(
         line: &crate::disassembler::DisassemblyLine,
         app_state: &AppState,
@@ -151,6 +153,7 @@ impl DisassemblyView {
         }
     }
 
+    #[must_use]
     pub fn get_visual_line_count_for_instruction(
         line: &crate::disassembler::DisassemblyLine,
         app_state: &AppState,
@@ -158,6 +161,7 @@ impl DisassemblyView {
         Self::get_visual_line_counts(line, app_state).total()
     }
 
+    #[must_use]
     pub fn get_index_for_visual_line(app_state: &AppState, target_line: usize) -> Option<usize> {
         let mut current_visual_line = 1;
         for (index, line) in app_state.disassembly.iter().enumerate() {
@@ -175,6 +179,7 @@ impl DisassemblyView {
         None
     }
 
+    #[must_use]
     pub fn get_sub_index_for_address(
         line: &crate::disassembler::DisassemblyLine,
         app_state: &AppState,
@@ -321,7 +326,7 @@ impl Navigable for DisassemblyView {
         // Here we perform the jump.
     }
 
-    fn item_name(&self) -> &str {
+    fn item_name(&self) -> &'static str {
         "visual line"
     }
 }
@@ -609,11 +614,7 @@ impl Widget for DisassemblyView {
                     false
                 };
 
-                let relative_target = if !exact_match {
-                    arrow.target_addr
-                } else {
-                    None
-                };
+                let relative_target = if exact_match { None } else { arrow.target_addr };
 
                 relevant_arrows.push(ArrowInfo {
                     start: src_idx,
@@ -1193,12 +1194,12 @@ impl Widget for DisassemblyView {
                             let mut spans = vec![
                                 Span::styled(gutter, gutter_style),
                                 Span::styled(
-                                    format!("{:<width$} ", arrow_padding, width = arrow_width),
+                                    format!("{arrow_padding:<arrow_width$} "),
                                     base_style.fg(ui_state.theme.arrow),
                                 ),
                                 Span::styled("                 ".to_string(), base_style),
                                 Span::styled(
-                                    format!("{:<36}", label_def),
+                                    format!("{label_def:<36}"),
                                     base_style.fg(ui_state.theme.label_def),
                                 ),
                             ];
@@ -1221,7 +1222,7 @@ impl Widget for DisassemblyView {
                     parts.push(Line::from(vec![
                         Span::styled("     ", base_style.fg(ui_state.theme.bytes)),
                         Span::styled(
-                            format!("{:width$} ", arrow_padding, width = arrow_width),
+                            format!("{arrow_padding:arrow_width$} "),
                             base_style.fg(ui_state.theme.arrow),
                         ),
                         Span::styled("                 ".to_string(), base_style),
@@ -1292,7 +1293,7 @@ impl Widget for DisassemblyView {
             let mut inst_spans = vec![
                 Span::styled(gutter, gutter_style),
                 Span::styled(
-                    format!("{:<width$} ", arrow_padding, width = arrow_width),
+                    format!("{arrow_padding:<arrow_width$} "),
                     base_style.fg(ui_state.theme.arrow),
                 ),
                 Span::styled(
@@ -1327,7 +1328,7 @@ impl Widget for DisassemblyView {
 
             if line.is_collapsed {
                 inst_spans.push(Span::styled(
-                    line.mnemonic.to_string(),
+                    line.mnemonic.clone(),
                     base_style
                         .fg(ui_state.theme.collapsed_block)
                         .add_modifier(Modifier::BOLD),
@@ -1340,7 +1341,7 @@ impl Widget for DisassemblyView {
                     parts.push(Line::from(vec![
                         Span::styled(gutter, gutter_style),
                         Span::styled(
-                            format!("{:<width$} ", label_arrow_padding, width = arrow_width),
+                            format!("{label_arrow_padding:<arrow_width$} "),
                             base_style.fg(ui_state.theme.arrow),
                         ),
                         Span::styled("                 ".to_string(), base_style),
@@ -1357,7 +1358,7 @@ impl Widget for DisassemblyView {
                     if label_on_own_line || label_text.is_empty() {
                         format!("{: <width$}", "", width = LABEL_COLUMN_WIDTH)
                     } else {
-                        format!("{: <width$}", label_text, width = LABEL_COLUMN_WIDTH)
+                        format!("{label_text: <LABEL_COLUMN_WIDTH$}")
                     },
                     base_style
                         .fg(ui_state.theme.label_def)
@@ -1552,11 +1553,10 @@ impl Widget for DisassemblyView {
             }
             KeyCode::Backspace if key.modifiers.is_empty() => {
                 while let Some((pane, _)) = ui_state.navigation_history.last() {
-                    if *pane != ActivePane::Disassembly {
-                        ui_state.navigation_history.pop();
-                    } else {
+                    if *pane == ActivePane::Disassembly {
                         break;
                     }
+                    ui_state.navigation_history.pop();
                 }
 
                 if let Some((pane, target)) = ui_state.navigation_history.pop() {
@@ -1670,9 +1670,8 @@ impl Widget for DisassemblyView {
                 {
                     if key.modifiers.contains(KeyModifiers::SHIFT) {
                         return WidgetResult::Action(MenuAction::ListBookmarks);
-                    } else {
-                        return WidgetResult::Action(MenuAction::ToggleBookmark);
                     }
+                    return WidgetResult::Action(MenuAction::ToggleBookmark);
                 }
 
                 if key.modifiers.contains(KeyModifiers::ALT)
@@ -1739,7 +1738,7 @@ pub fn action_set_label(app_state: &AppState, ui_state: &mut UIState) -> WidgetR
 fn hex_bytes(bytes: &[u8]) -> String {
     bytes
         .iter()
-        .map(|b| format!("{:02X}", b))
+        .map(|b| format!("{b:02X}"))
         .collect::<Vec<_>>()
         .join(" ")
 }
