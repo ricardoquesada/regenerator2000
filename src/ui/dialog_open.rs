@@ -377,18 +377,6 @@ impl Widget for OpenDialog {
                                             ui_state.blocks_list_state.select(Some(idx));
                                         }
 
-                                        // Auto-analyze if it's a binary file (not json)
-                                        let is_project = selected_path
-                                            .extension()
-                                            .and_then(|e| e.to_str())
-                                            .is_some_and(|e| {
-                                                e.eq_ignore_ascii_case("regen2000proj")
-                                            });
-
-                                        if !is_project {
-                                            app_state.perform_analysis();
-                                        }
-
                                         // Move cursor
                                         if let Some(cursor_addr) = loaded_cursor {
                                             if let Some(idx) =

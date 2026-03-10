@@ -591,7 +591,9 @@ impl Widget for DocumentSettingsDialog {
                     let old_sub_cursor = ui_state.sub_cursor_index;
 
                     app_state.load_system_assets();
-                    app_state.perform_analysis();
+                    if app_state.system_config.auto_analyze {
+                        app_state.perform_analysis();
+                    }
                     app_state.disassemble();
 
                     // Restore cursor position
