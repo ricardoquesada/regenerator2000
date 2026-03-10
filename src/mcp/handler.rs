@@ -744,10 +744,9 @@ fn convert_region(
     }
 
     let origin = app_state.origin;
-    let max_len = app_state.block_types.len() as u16;
 
-    // Bounds check
-    if start_addr < origin || end_addr >= origin.wrapping_add(max_len) {
+    // Bounds check — use is_external() which correctly handles wrapping around u16::MAX
+    if app_state.is_external(start_addr) || app_state.is_external(end_addr) {
         return Err(McpError {
             code: -32602,
             message: format!(
@@ -757,8 +756,8 @@ fn convert_region(
         });
     }
 
-    let start_idx = (start_addr - origin) as usize;
-    let end_idx = (end_addr - origin) as usize;
+    let start_idx = (start_addr.wrapping_sub(origin)) as usize;
+    let end_idx = (end_addr.wrapping_sub(origin)) as usize;
 
     // Range is inclusive on both ends, Command::SetBlockType uses start..end+1
     let range = start_idx..(end_idx + 1);
@@ -1328,5 +1327,214 @@ fn create_save_context(
         splitters: app_state.splitters.clone(),
         blocks_view_cursor: ui_state.blocks_list_state.selected(),
         bookmarks: app_state.bookmarks.clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::types::BlockType;
+
+    /// Create a minimal AppState with the given origin and data size.
+    fn make_app_state(origin: u16, size: usize) -> AppState {
+        let mut state = AppState::new();
+        state.origin = origin;
+        state.raw_data = vec![0u8; size];
+        state.block_types = vec![BlockType::Code; size];
+        state.disassemble();
+        state
+    }
+
+    fn make_ui_state() -> UIState {
+        UIState::new(crate::theme::Theme::default())
+    }
+
+    // -----------------------------------------------------------------------
+    // convert_region bounds tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_convert_region_valid_range() {
+        let mut app_state = make_app_state(0x1000, 256);
+        let args = json!({"start_address": 0x1000, "end_address": 0x10FF});
+        let result = convert_region(&mut app_state, &args, BlockType::DataByte);
+        assert!(result.is_ok(), "Expected Ok, got: {result:?}");
+    }
+
+    #[test]
+    fn test_convert_region_single_byte() {
+        let mut app_state = make_app_state(0x1000, 256);
+        let args = json!({"start_address": 0x1000, "end_address": 0x1000});
+        let result = convert_region(&mut app_state, &args, BlockType::DataByte);
+        assert!(result.is_ok(), "Expected Ok, got: {result:?}");
+    }
+
+    #[test]
+    fn test_convert_region_last_byte() {
+        let mut app_state = make_app_state(0x1000, 256);
+        // Last valid address is 0x1000 + 255 = 0x10FF
+        let args = json!({"start_address": 0x10FF, "end_address": 0x10FF});
+        let result = convert_region(&mut app_state, &args, BlockType::DataByte);
+        assert!(result.is_ok(), "Expected Ok, got: {result:?}");
+    }
+
+    #[test]
+    fn test_convert_region_out_of_bounds_below_origin() {
+        let mut app_state = make_app_state(0x1000, 256);
+        let args = json!({"start_address": 0x0FFF, "end_address": 0x1010});
+        let result = convert_region(&mut app_state, &args, BlockType::DataByte);
+        assert!(result.is_err(), "Expected Err for start below origin");
+    }
+
+    #[test]
+    fn test_convert_region_out_of_bounds_above_end() {
+        let mut app_state = make_app_state(0x1000, 256);
+        // 0x1100 is one byte past the end
+        let args = json!({"start_address": 0x1000, "end_address": 0x1100});
+        let result = convert_region(&mut app_state, &args, BlockType::DataByte);
+        assert!(result.is_err(), "Expected Err for end past binary");
+    }
+
+    #[test]
+    fn test_convert_region_completely_outside() {
+        let mut app_state = make_app_state(0x1000, 256);
+        let args = json!({"start_address": 0x2000, "end_address": 0x2010});
+        let result = convert_region(&mut app_state, &args, BlockType::DataByte);
+        assert!(result.is_err(), "Expected Err for range completely outside");
+    }
+
+    #[test]
+    fn test_convert_region_reversed_range() {
+        let mut app_state = make_app_state(0x1000, 256);
+        let args = json!({"start_address": 0x1010, "end_address": 0x1000});
+        let result = convert_region(&mut app_state, &args, BlockType::DataByte);
+        assert!(result.is_err(), "Expected Err for start > end");
+    }
+
+    #[test]
+    fn test_convert_region_wrapping_origin_valid() {
+        // Binary at $FF00, 256 bytes → wraps around to $0000
+        let mut app_state = make_app_state(0xFF00, 256);
+        // Address at the start of the binary
+        let args = json!({"start_address": 0xFF00, "end_address": 0xFF0F});
+        let result = convert_region(&mut app_state, &args, BlockType::DataByte);
+        assert!(
+            result.is_ok(),
+            "Expected Ok for valid range in wrapping binary, got: {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_convert_region_wrapping_origin_outside() {
+        // Binary at $FF00, 256 bytes → valid range $FF00-$FFFF
+        let mut app_state = make_app_state(0xFF00, 256);
+        // $FE00 is before the origin
+        let args = json!({"start_address": 0xFE00, "end_address": 0xFE10});
+        let result = convert_region(&mut app_state, &args, BlockType::DataByte);
+        assert!(
+            result.is_err(),
+            "Expected Err for range before wrapping origin"
+        );
+    }
+
+    #[test]
+    fn test_convert_region_origin_zero_valid() {
+        // Binary loaded at $0000 (e.g. a raw .bin file)
+        let mut app_state = make_app_state(0x0000, 1024);
+        let args = json!({"start_address": 0x0000, "end_address": 0x03FF});
+        let result = convert_region(&mut app_state, &args, BlockType::DataByte);
+        assert!(
+            result.is_ok(),
+            "Expected Ok for origin=0 binary, got: {result:?}"
+        );
+    }
+
+    #[test]
+    fn test_convert_region_applies_block_type() {
+        let mut app_state = make_app_state(0x1000, 256);
+        let args = json!({"start_address": 0x1010, "end_address": 0x101F});
+
+        let result = convert_region(&mut app_state, &args, BlockType::DataByte);
+        assert!(result.is_ok());
+
+        // Verify block types were actually changed
+        for i in 0x10..=0x1F {
+            assert_eq!(app_state.block_types[i], BlockType::DataByte);
+        }
+        // Verify surrounding bytes are untouched
+        assert_eq!(app_state.block_types[0x0F], BlockType::Code);
+        assert_eq!(app_state.block_types[0x20], BlockType::Code);
+    }
+
+    // -----------------------------------------------------------------------
+    // handle_tool_call_internal: set_data_type tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_set_data_type_all_types() {
+        let mut app_state = make_app_state(0x1000, 256);
+        let mut ui_state = make_ui_state();
+
+        let types = [
+            "code",
+            "byte",
+            "word",
+            "address",
+            "petscii",
+            "screencode",
+            "lo_hi_address",
+            "hi_lo_address",
+            "lo_hi_word",
+            "hi_lo_word",
+            "external_file",
+            "undefined",
+        ];
+
+        for data_type in &types {
+            let args = json!({
+                "start_address": 0x1000,
+                "end_address": 0x100F,
+                "data_type": data_type
+            });
+            let result = handle_tool_call_internal(
+                "r2000_set_data_type",
+                args,
+                &mut app_state,
+                &mut ui_state,
+            );
+            assert!(
+                result.is_ok(),
+                "Expected Ok for data_type={data_type}, got: {result:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_set_data_type_unknown_type_returns_error() {
+        let mut app_state = make_app_state(0x1000, 256);
+        let mut ui_state = make_ui_state();
+
+        let args = json!({
+            "start_address": 0x1000,
+            "end_address": 0x100F,
+            "data_type": "invalid_type_xyz"
+        });
+        let result =
+            handle_tool_call_internal("r2000_set_data_type", args, &mut app_state, &mut ui_state);
+        assert!(result.is_err(), "Expected Err for unknown data_type");
+    }
+
+    #[test]
+    fn test_set_data_type_missing_data_type() {
+        let mut app_state = make_app_state(0x1000, 256);
+        let mut ui_state = make_ui_state();
+
+        let args = json!({
+            "start_address": 0x1000,
+            "end_address": 0x100F
+        });
+        let result =
+            handle_tool_call_internal("r2000_set_data_type", args, &mut app_state, &mut ui_state);
+        assert!(result.is_err(), "Expected Err when data_type is missing");
     }
 }
