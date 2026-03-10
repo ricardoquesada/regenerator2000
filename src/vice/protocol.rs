@@ -185,6 +185,9 @@ pub fn parse_registers(payload: &[u8]) -> Option<Registers> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CheckpointInfo {
     pub id: u32,
+    /// True when this checkpoint was the one that just caused the CPU to stop.
+    /// False for regular query/list responses.
+    pub currently_hit: bool,
     pub address: u16,
     pub enabled: bool,
     pub cpu_op: u8,
@@ -194,12 +197,12 @@ pub struct CheckpointInfo {
 /// Parse checkpoint info from a CHECKPOINT_SET (0x12) or CHECKPOINT_GET (0x11) payload.
 ///
 /// Payload format (at least 13 bytes):
-///   `id` (4 LE) `start_addr` (2 LE) `end_addr` (2 LE) `stop` (1)
-///   `enabled` (1) `cpu_op` (1) `temporary` (1) ...
+///   `CN`(4 LE) `CH`(1) `SA`(2 LE) `EA`(2 LE) `ST`(1) `EN`(1) `OP`(1) `TM`(1) ...
 ///
-/// We extract: id (bytes 0..4), start_addr (bytes 4..6 — we read byte 5..7 to
-/// match the original code which skips the first byte of the address pair),
-/// enabled (byte 9→10), cpu_op (byte 10→11), temporary (byte 11→12).
+/// Fields:
+///   CN = checkpoint number (id), CH = currently hit flag,
+///   SA/EA = start/end address, ST = stop when hit, EN = enabled,
+///   OP = cpu operation (exec/load/store), TM = temporary.
 #[must_use]
 pub fn parse_checkpoint_info(payload: &[u8]) -> Option<CheckpointInfo> {
     if payload.len() < 13 {
@@ -207,9 +210,7 @@ pub fn parse_checkpoint_info(payload: &[u8]) -> Option<CheckpointInfo> {
     }
 
     let id = u32::from_le_bytes([payload[0], payload[1], payload[2], payload[3]]);
-    // payload[4..6] = start_addr LE; the original logic reads payload[5],payload[6]
-    // which is the high byte of start_addr and the low byte of end_addr — but in
-    // practice start == end for breakpoints, so payload[4..6] is more correct.
+    let currently_hit = payload[4] != 0;
     let addr = u16::from_le_bytes([payload[5], payload[6]]);
     let enabled = payload[10] != 0;
     let cpu_op = payload[11];
@@ -217,6 +218,7 @@ pub fn parse_checkpoint_info(payload: &[u8]) -> Option<CheckpointInfo> {
 
     Some(CheckpointInfo {
         id,
+        currently_hit,
         address: addr,
         enabled,
         cpu_op,
@@ -441,32 +443,55 @@ mod tests {
     #[test]
     fn parse_checkpoint_info_exec_breakpoint() {
         let mut p = Vec::new();
-        p.extend_from_slice(&1u32.to_le_bytes()); // id = 1
-        p.extend_from_slice(&0xC000u16.to_le_bytes()); // start_addr
-        p.extend_from_slice(&0xC000u16.to_le_bytes()); // end_addr
-        p.push(1); // stop_when_hit    [8]
-        p.push(0); // ???               [9]
-        p.push(1); // enabled           [10]
-        p.push(0x04); // cpu_op = EXEC  [11]
-        p.push(0); // temporary = false  [12]
+        p.extend_from_slice(&1u32.to_le_bytes()); // id = 1           [0..4]
+        p.push(0); // currently_hit = false                            [4]
+        p.extend_from_slice(&0xC000u16.to_le_bytes()); // start_addr   [5..7]
+        p.extend_from_slice(&0xC000u16.to_le_bytes()); // end_addr     [7..9]
+        p.push(1); // stop_when_hit                                    [9]
+        p.push(1); // enabled                                          [10]
+        p.push(0x04); // cpu_op = EXEC                                 [11]
+        p.push(0); // temporary = false                                [12]
 
         let info = parse_checkpoint_info(&p).unwrap();
         assert_eq!(info.id, 1);
+        assert!(!info.currently_hit);
+        assert_eq!(info.address, 0xC000);
         assert!(info.enabled);
         assert_eq!(info.cpu_op, 0x04);
         assert!(!info.temporary);
     }
 
     #[test]
+    fn parse_checkpoint_info_currently_hit() {
+        let mut p = Vec::new();
+        p.extend_from_slice(&3u32.to_le_bytes()); // id = 3           [0..4]
+        p.push(1); // currently_hit = true                             [4]
+        p.extend_from_slice(&0xD015u16.to_le_bytes()); // start_addr   [5..7]
+        p.extend_from_slice(&0xD015u16.to_le_bytes()); // end_addr     [7..9]
+        p.push(1); // stop_when_hit                                    [9]
+        p.push(1); // enabled                                          [10]
+        p.push(0x01); // cpu_op = LOAD (read watchpoint)               [11]
+        p.push(0); // temporary = false                                [12]
+
+        let info = parse_checkpoint_info(&p).unwrap();
+        assert_eq!(info.id, 3);
+        assert!(info.currently_hit);
+        assert_eq!(info.address, 0xD015);
+        assert_eq!(info.cpu_op, 0x01);
+    }
+
+    #[test]
     fn parse_checkpoint_info_temporary() {
         let mut p = vec![0u8; 13];
         p[0..4].copy_from_slice(&7u32.to_le_bytes());
+        // p[4] = 0 (currently_hit = false)
         p[10] = 1; // enabled
         p[11] = 0x04; // cpu_op = EXEC
         p[12] = 1; // temporary
 
         let info = parse_checkpoint_info(&p).unwrap();
         assert_eq!(info.id, 7);
+        assert!(!info.currently_hit);
         assert!(info.temporary);
     }
 

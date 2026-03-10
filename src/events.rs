@@ -173,6 +173,7 @@ fn handle_vice_message(
     } else if msg.command == crate::vice::ViceCommand::RESUMED {
         app_state.vice_state.running = true;
         app_state.vice_state.stop_reason = None;
+        app_state.vice_state.last_hit_checkpoint_id = None;
         ui_state.debugger_flash_remaining = 0;
     } else if msg.command == crate::vice::ViceCommand::STOPPED {
         app_state.vice_state.running = false;
@@ -253,26 +254,32 @@ fn handle_vice_registers_get(
         ui_state.scroll_sub_index = sub_idx;
     }
 
-    // Cross-reference PC against breakpoints/watchpoints
-    // to build a descriptive stop_reason.
-    let stop_reason = app_state
-        .vice_state
-        .breakpoints
-        .iter()
-        .find(|bp| bp.address == pc)
-        .map(|bp| {
-            if bp.kind == crate::vice::state::BreakpointKind::Exec {
-                format!("Breakpoint #{} at ${:04X}", bp.id, bp.address)
-            } else {
-                format!(
-                    "Watchpoint #{} at ${:04X} [{}]",
-                    bp.id,
-                    bp.address,
-                    bp.kind.label()
-                )
-            }
-        });
-    app_state.vice_state.stop_reason = stop_reason;
+    // Build a descriptive stop_reason (if not already set by handle_vice_checkpoint
+    // via the currently_hit flag in the checkpoint response).
+    if app_state.vice_state.stop_reason.is_none() {
+        let hit_id = app_state.vice_state.last_hit_checkpoint_id;
+        app_state.vice_state.stop_reason = app_state
+            .vice_state
+            .breakpoints
+            .iter()
+            .find(|bp| {
+                hit_id.is_some_and(|id| bp.id == id)
+                    || (bp.kind == crate::vice::state::BreakpointKind::Exec && bp.address == pc)
+            })
+            .map(|bp| {
+                if bp.kind == crate::vice::state::BreakpointKind::Exec {
+                    format!("Breakpoint #{} at ${:04X}", bp.id, bp.address)
+                } else {
+                    format!(
+                        "Watchpoint #{} at ${:04X} [{}]",
+                        bp.id,
+                        bp.address,
+                        bp.kind.label()
+                    )
+                }
+            });
+    }
+    app_state.vice_state.last_hit_checkpoint_id = None;
 
     // Request live memory around the PC for live disassembly.
     // Fetch 32 bytes before PC and 96 bytes after (128 total window).
@@ -330,12 +337,12 @@ fn handle_vice_memory_get(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
 fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppState) {
     // CHECKPOINT_SET (0x12) and CHECKPOINT_GET (0x11) both carry the
     // same checkpoint_info body:
-    //   id(4) start(2) end(2) stop(1) enabled(1) cpu_op(1) temporary(1)
-    //   hit_count(4) ignore_count(4) has_cond(1) — 21 bytes total
+    //   CN(4) CH(1) SA(2) EA(2) ST(1) EN(1) OP(1) TM(1) HC(4) IC(4) CE(1) MS(1)
     //
     // VICE uses 0x11 for:
     //   - Individual responses after a CHECKPOINT_LIST request
     //   - CHECKPOINT_SET acknowledgment in some VICE versions
+    //   - Unsolicited notification when a checkpoint is hit (currently_hit=1)
     // VICE uses 0x12 for:
     //   - CHECKPOINT_SET acknowledgment in other VICE versions
     // Handling both here makes us robust to all versions.
@@ -344,6 +351,25 @@ fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
     };
 
     let kind = crate::vice::state::BreakpointKind::from_cpu_op(info.cpu_op);
+
+    // The `currently_hit` flag (byte 4) is set when this checkpoint caused the
+    // CPU to stop. Set `stop_reason` immediately — this is especially important
+    // for watchpoints where the PC differs from the watched address, so the
+    // PC-based fallback in handle_vice_registers_get won't match.
+    if info.currently_hit {
+        app_state.vice_state.last_hit_checkpoint_id = Some(info.id);
+        let reason = if kind == crate::vice::state::BreakpointKind::Exec {
+            format!("Breakpoint #{} at ${:04X}", info.id, info.address)
+        } else {
+            format!(
+                "Watchpoint #{} at ${:04X} [{}]",
+                info.id,
+                info.address,
+                kind.label()
+            )
+        };
+        app_state.vice_state.stop_reason = Some(reason);
+    }
 
     if info.temporary {
         // It's a temporary breakpoint (e.g. Run To Cursor). Keep track of it

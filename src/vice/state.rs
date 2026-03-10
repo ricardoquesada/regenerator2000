@@ -71,6 +71,11 @@ pub struct ViceState {
     // Human-readable reason the CPU stopped (e.g. "Breakpoint #2 at $C123")
     // Set when a checkpoint is hit, cleared on resume.
     pub stop_reason: Option<String>,
+
+    // The checkpoint ID that was last hit (from an unsolicited CHECKPOINT_GET
+    // response). Used to build `stop_reason` for watchpoints, where the PC
+    // differs from the watched address.
+    pub last_hit_checkpoint_id: Option<u32>,
 }
 
 impl ViceState {
@@ -95,6 +100,7 @@ impl ViceState {
             breakpoints: Vec::new(),
             temporary_breakpoints: Vec::new(),
             stop_reason: None,
+            last_hit_checkpoint_id: None,
         }
     }
 
@@ -115,6 +121,7 @@ impl ViceState {
         self.breakpoints.clear();
         self.temporary_breakpoints.clear();
         self.stop_reason = None;
+        self.last_hit_checkpoint_id = None;
     }
 
     /// Returns true if there is a persistent breakpoint at `addr`.
