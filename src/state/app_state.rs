@@ -68,6 +68,18 @@ impl Default for AppState {
 impl AppState {
     #[must_use]
     pub fn new() -> Self {
+        // Use default config with a throwaway save path so that tests never
+        // read or overwrite the real user config file.  Production code in
+        // main.rs replaces system_config with SystemConfig::load() immediately
+        // after construction, which resets config_path_override to None and
+        // therefore uses the real config directory.
+        let default_config = SystemConfig {
+            config_path_override: Some(
+                std::env::temp_dir().join("regenerator2000_test_config.json"),
+            ),
+            ..Default::default()
+        };
+
         Self {
             file_path: None,
             project_path: None,
@@ -87,7 +99,7 @@ impl AppState {
             cross_refs: BTreeMap::new(),
             analysis_hints: BTreeMap::new(),
             bookmarks: BTreeMap::new(),
-            system_config: SystemConfig::load(),
+            system_config: default_config,
             undo_stack: crate::commands::UndoStack::new(),
             last_saved_pointer: 0,
             excluded_addresses: std::collections::HashSet::new(),

@@ -643,8 +643,9 @@ fn main() -> Result<()> {
         validate_headless_mode(file_str);
     }
 
-    // Create AppState
+    // Create AppState and load the real system config from disk
     let mut app_state = AppState::new();
+    app_state.system_config = regenerator2000::config::SystemConfig::load();
 
     // 1. Load file / project based on detected file type
     let mut initial_load_result = None;
