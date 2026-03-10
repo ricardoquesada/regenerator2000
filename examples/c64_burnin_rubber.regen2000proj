@@ -511,7 +511,7 @@
       "start": 18241,
       "end": 18287,
       "type_": "DataByte",
-      "collapsed": false
+      "collapsed": true
     },
     {
       "start": 18288,
@@ -523,7 +523,7 @@
       "start": 18342,
       "end": 18431,
       "type_": "DataByte",
-      "collapsed": false
+      "collapsed": true
     },
     {
       "start": 18432,
@@ -1671,16 +1671,16 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 14725,
-  "hex_dump_cursor_address": 14720,
+  "cursor_address": 20736,
+  "hex_dump_cursor_address": 17776,
   "sprites_cursor_address": 16384,
   "charset_cursor_address": 16320,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
-  "blocks_view_cursor": 0
+  "blocks_view_cursor": 68
 }
