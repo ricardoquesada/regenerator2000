@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] - 2026-03-09
+
+### Features
+
+- Feature: **Settings**: Control automatic analysis via `auto_analyze` setting; removed file-type-based auto-analysis on file open.
+- Feature: **VICE Debugger**: Display watchpoint stop reason in debugger view.
+- Feature: **Events**: Introduce `EventOutcome` enum to control event loop flow with dedicated `KeyEvent` and `MouseEvent` handling.
+
+### Fixes
+
+- Fix: **Testing**: Use default `SystemConfig` in `AppState::new()` to fix test flakiness from environment bleed.
+- Fix: **Security**: Update `quinn-proto` to 0.11.14 to fix RUSTSEC-2026-0037.
+
+### Refactor / Internal
+
+- Refactor: **Events**: Centralize dialog closing logic by adding `closes_dialog` to `MenuAction`.
+- Refactor: **VICE**: Extract VICE message parsing logic into dedicated typed functions and structs in `vice/protocol.rs`.
+- Refactor: **Disassembler**: Simplify handler function signatures with new `HandleArgs` struct.
+- Refactor: **Main**: Add utility functions for file classification, CLI validation, image loading, batch operations, and roundtrip verification.
+- Refactor: Apply widespread code quality improvements and address Clippy warnings.
+- Chore: Exclude docs/tests/agent files not needed for crates.io packaging.
+
 ## [0.8.7] - 2026-03-07
 
 ### Features
