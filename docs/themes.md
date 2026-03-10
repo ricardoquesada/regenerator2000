@@ -45,19 +45,19 @@ Regenerator 2000 ships with **9 built-in color themes**. You can switch between 
 
     An arctic, north-bluish color palette. Low contrast with a cool, muted aesthetic inspired by the polar night.
 
-    *Screenshot coming soon.*
+    ![Nord](theme_nord.png)
 
 === "Catppuccin Mocha"
 
     The darkest flavor of Catppuccin — a soothing pastel theme with warm tones on a deep background.
 
-    *Screenshot coming soon.*
+    ![Catppuccin Mocha](theme_catppuccin_mocha.png)
 
 === "Catppuccin Latte"
 
     The light flavor of Catppuccin — pastel colors on a warm, creamy background. Great for daytime use.
 
-    *Screenshot coming soon.*
+    ![Catppuccin Latte](theme_catppuccin_latte.png)
 
 ## How to Change the Theme
 
