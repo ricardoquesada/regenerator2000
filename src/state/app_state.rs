@@ -4,7 +4,7 @@ use super::project::{
 };
 use super::settings::DocumentSettings;
 use super::types::{
-    BlockType, CachedArrow, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType,
+    BlockType, CachedArrow, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType, Platform,
 };
 use crate::config::SystemConfig;
 use crate::disassembler::{Disassembler, DisassemblyLine};
@@ -409,13 +409,13 @@ impl AppState {
 
         // Migration for legacy platform names
         match self.settings.platform.as_str() {
-            "Commodore64" => self.settings.platform = "Commodore 64".to_string(),
-            "Commodore128" => self.settings.platform = "Commodore 128".to_string(),
-            "Commodore1541" => self.settings.platform = "Commodore 1541".to_string(),
-            "CommodorePET20" => self.settings.platform = "Commodore PET 2.0".to_string(),
-            "CommodorePET40" => self.settings.platform = "Commodore PET 4.0".to_string(),
-            "CommodorePlus4" => self.settings.platform = "Commodore Plus4".to_string(),
-            "CommodoreVIC20" => self.settings.platform = "Commodore VIC-20".to_string(),
+            "Commodore64" => self.settings.platform = Platform::new("Commodore 64"),
+            "Commodore128" => self.settings.platform = Platform::new("Commodore 128"),
+            "Commodore1541" => self.settings.platform = Platform::new("Commodore 1541"),
+            "CommodorePET20" => self.settings.platform = Platform::new("Commodore PET 2.0"),
+            "CommodorePET40" => self.settings.platform = Platform::new("Commodore PET 4.0"),
+            "CommodorePlus4" => self.settings.platform = Platform::new("Commodore Plus4"),
+            "CommodoreVIC20" => self.settings.platform = Platform::new("Commodore VIC-20"),
             _ => {}
         }
 

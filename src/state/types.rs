@@ -1,10 +1,179 @@
 use serde::{Deserialize, Serialize};
 
-pub type Platform = String;
+// =============================================================================
+// Platform newtype
+// =============================================================================
+
+/// A target platform identifier (e.g. "Commodore 64", "NES").
+///
+/// Wraps a `String` to prevent accidentally passing an arbitrary string where
+/// a platform name is expected. Serialises transparently as a plain JSON string
+/// so existing project files keep working.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct Platform(String);
+
+impl Platform {
+    #[must_use]
+    pub fn new(name: impl Into<String>) -> Self {
+        Self(name.into())
+    }
+
+    /// Returns the inner string slice, just like `String::as_str`.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Consumes the wrapper and returns the inner `String`.
+    #[must_use]
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
+impl Default for Platform {
+    fn default() -> Self {
+        default_platform()
+    }
+}
+
+impl std::fmt::Display for Platform {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::ops::Deref for Platform {
+    type Target = str;
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl PartialEq<str> for Platform {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl PartialEq<&str> for Platform {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<String> for Platform {
+    fn eq(&self, other: &String) -> bool {
+        self.0 == *other
+    }
+}
+
+impl From<&str> for Platform {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
+}
+
+impl From<String> for Platform {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
 
 #[must_use]
 pub fn default_platform() -> Platform {
-    "Commodore 64".to_string()
+    Platform::new("Commodore 64")
+}
+
+// =============================================================================
+// Addr newtype
+// =============================================================================
+
+/// A 16-bit address in the 6502 address space.
+///
+/// Wraps a `u16` to distinguish *addresses* from other numeric quantities
+/// (lengths, byte values, indices). Provides wrapping arithmetic methods that
+/// mirror the 6502's 16-bit address bus behaviour.
+///
+/// Serialises transparently as a plain JSON number so existing project files
+/// are fully backward-compatible.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct Addr(u16);
+
+impl Addr {
+    /// Wraps a raw `u16` into an `Addr`.
+    #[must_use]
+    pub const fn new(raw: u16) -> Self {
+        Self(raw)
+    }
+
+    /// Returns the underlying `u16` value.
+    #[must_use]
+    pub const fn raw(self) -> u16 {
+        self.0
+    }
+
+    /// Wrapping addition, matching the 6502's 16-bit address bus.
+    #[must_use]
+    pub const fn wrapping_add(self, rhs: u16) -> Self {
+        Self(self.0.wrapping_add(rhs))
+    }
+
+    /// Wrapping subtraction, matching the 6502's 16-bit address bus.
+    #[must_use]
+    pub const fn wrapping_sub(self, rhs: u16) -> Self {
+        Self(self.0.wrapping_sub(rhs))
+    }
+
+    /// Returns the byte offset from `origin` to `self` as a `usize`.
+    ///
+    /// Uses wrapping subtraction so it works correctly even when the address
+    /// space wraps around $FFFF → $0000.
+    #[must_use]
+    pub const fn offset_from(self, origin: Addr) -> usize {
+        self.0.wrapping_sub(origin.0) as usize
+    }
+
+    /// Zero address constant.
+    pub const ZERO: Addr = Addr(0);
+}
+
+impl Default for Addr {
+    fn default() -> Self {
+        Self::ZERO
+    }
+}
+
+impl std::fmt::Display for Addr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "${:04X}", self.0)
+    }
+}
+
+impl std::fmt::UpperHex for Addr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::UpperHex::fmt(&self.0, f)
+    }
+}
+
+impl std::fmt::LowerHex for Addr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::LowerHex::fmt(&self.0, f)
+    }
+}
+
+impl From<u16> for Addr {
+    fn from(val: u16) -> Self {
+        Self(val)
+    }
+}
+
+impl From<Addr> for u16 {
+    fn from(addr: Addr) -> u16 {
+        addr.0
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

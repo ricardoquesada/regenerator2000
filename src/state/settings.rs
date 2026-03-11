@@ -68,7 +68,7 @@ impl Default for DocumentSettings {
             preserve_long_bytes: true,
             brk_single_byte: true,
             patch_brk: false,
-            platform: super::types::default_platform(),
+            platform: Platform::default(),
             assembler: Assembler::default(),
             max_xref_count: 5,
             max_arrow_columns: 6,

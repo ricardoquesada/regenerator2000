@@ -477,7 +477,7 @@ impl Widget for DocumentSettingsDialog {
             let list_items: Vec<ListItem> = platforms
                 .iter()
                 .map(|p| {
-                    let is_selected = *p == settings.platform;
+                    let is_selected = settings.platform == *p;
                     let style = if is_selected {
                         Style::default()
                             .bg(theme.menu_selected_bg)
@@ -491,7 +491,7 @@ impl Widget for DocumentSettingsDialog {
 
             let selected_idx = platforms
                 .iter()
-                .position(|p| *p == settings.platform)
+                .position(|p| settings.platform == *p)
                 .unwrap_or(0);
 
             let mut list_state = ListState::default();
@@ -655,14 +655,15 @@ impl Widget for DocumentSettingsDialog {
                     if !platforms.is_empty() {
                         let current_idx = platforms
                             .iter()
-                            .position(|p| *p == app_state.settings.platform)
+                            .position(|p| app_state.settings.platform == *p)
                             .unwrap_or(0);
                         let new_idx = if current_idx == 0 {
                             platforms.len() - 1
                         } else {
                             current_idx - 1
                         };
-                        app_state.settings.platform = platforms[new_idx].clone();
+                        app_state.settings.platform =
+                            crate::state::Platform::from(platforms[new_idx].clone());
                         // Reset features when changing platform
                         app_state.settings.enabled_features.clear();
                         // Recalculate idx_platform - actually it is constant now
@@ -745,14 +746,15 @@ impl Widget for DocumentSettingsDialog {
                         if !platforms.is_empty() {
                             let current_idx = platforms
                                 .iter()
-                                .position(|p| *p == app_state.settings.platform)
+                                .position(|p| app_state.settings.platform == *p)
                                 .unwrap_or(0);
                             let new_idx = if current_idx == 0 {
                                 platforms.len() - 1
                             } else {
                                 current_idx - 1
                             };
-                            app_state.settings.platform = platforms[new_idx].clone();
+                            app_state.settings.platform =
+                                crate::state::Platform::from(platforms[new_idx].clone());
                             // Reset features when changing platform
                             app_state.settings.enabled_features.clear();
                             // Recalculate idx_platform - constant
@@ -806,10 +808,11 @@ impl Widget for DocumentSettingsDialog {
                         if !platforms.is_empty() {
                             let current_idx = platforms
                                 .iter()
-                                .position(|p| *p == app_state.settings.platform)
+                                .position(|p| app_state.settings.platform == *p)
                                 .unwrap_or(0);
                             let new_idx = (current_idx + 1) % platforms.len();
-                            app_state.settings.platform = platforms[new_idx].clone();
+                            app_state.settings.platform =
+                                crate::state::Platform::from(platforms[new_idx].clone());
                             // Reset features when changing platform
                             app_state.settings.enabled_features.clear();
                             // Recalculate idx_platform - constant
@@ -825,10 +828,11 @@ impl Widget for DocumentSettingsDialog {
                     if !platforms.is_empty() {
                         let current_idx = platforms
                             .iter()
-                            .position(|p| *p == app_state.settings.platform)
+                            .position(|p| app_state.settings.platform == *p)
                             .unwrap_or(0);
                         let new_idx = (current_idx + 1) % platforms.len();
-                        app_state.settings.platform = platforms[new_idx].clone();
+                        app_state.settings.platform =
+                            crate::state::Platform::from(platforms[new_idx].clone());
                         // Reset features when changing platform
                         app_state.settings.enabled_features.clear();
                         // Recalculate idx_platform - constant
