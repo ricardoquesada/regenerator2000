@@ -15,7 +15,6 @@ pub struct DisassemblyContext<'a> {
     pub user_line_comments: &'a BTreeMap<u16, String>,
     pub immediate_value_formats: &'a BTreeMap<u16, crate::state::ImmediateFormat>,
     pub cross_refs: &'a BTreeMap<u16, Vec<u16>>,
-    pub analysis_hints: &'a BTreeMap<u16, String>,
     pub collapsed_blocks: &'a [(usize, usize)],
     pub splitters: &'a BTreeSet<u16>,
 }
@@ -44,7 +43,6 @@ impl<'a> DisassemblyContext<'a> {
         user_line_comments: &'a BTreeMap<u16, String>,
         immediate_value_formats: &'a BTreeMap<u16, crate::state::ImmediateFormat>,
         cross_refs: &'a BTreeMap<u16, Vec<u16>>,
-        analysis_hints: &'a BTreeMap<u16, String>,
         collapsed_blocks: &'a [(usize, usize)],
         splitters: &'a BTreeSet<u16>,
     ) -> Self {
@@ -59,7 +57,6 @@ impl<'a> DisassemblyContext<'a> {
             user_line_comments,
             immediate_value_formats,
             cross_refs,
-            analysis_hints,
             collapsed_blocks,
             splitters,
         }

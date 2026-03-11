@@ -12,7 +12,6 @@ fn default_config_values() {
     assert!(config.last_project_path.is_none());
     assert_eq!(config.theme, "Dracula");
     assert!(config.sync_blocks_view);
-    assert!(config.auto_analyze);
     assert!(config.sync_hex_dump);
     assert!(!config.sync_charset_view);
     assert!(!config.sync_sprites_view);
@@ -61,7 +60,6 @@ fn missing_fields_use_defaults() {
     let config: SystemConfig = serde_json::from_str(json).unwrap();
     assert_eq!(config.theme, "Dracula");
     assert!(config.sync_blocks_view);
-    assert!(config.auto_analyze);
     assert!(config.sync_hex_dump);
     assert!(!config.sync_charset_view);
     assert!(!config.sync_sprites_view);

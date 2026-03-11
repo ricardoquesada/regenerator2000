@@ -129,7 +129,6 @@ impl Disassembler {
         user_line_comments: &BTreeMap<u16, String>,
         immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
         cross_refs: &BTreeMap<u16, Vec<u16>>,
-        analysis_hints: &BTreeMap<u16, String>,
         collapsed_blocks: &[(usize, usize)],
         splitters: &BTreeSet<u16>,
     ) -> Vec<DisassemblyLine> {
@@ -144,7 +143,6 @@ impl Disassembler {
             user_line_comments,
             immediate_value_formats,
             cross_refs,
-            analysis_hints,
             collapsed_blocks,
             splitters,
         };
@@ -333,11 +331,6 @@ impl Disassembler {
             comment_parts.push(user_comment.clone());
         } else if let Some(sys_comment) = ctx.system_comments.get(&address) {
             comment_parts.push(sys_comment.clone());
-        }
-
-        // Analysis hints appear after user/system comments (or standalone if none)
-        if let Some(hint) = ctx.analysis_hints.get(&address) {
-            comment_parts.push(hint.clone());
         }
 
         if let Some(refs) = ctx.cross_refs.get(&address)

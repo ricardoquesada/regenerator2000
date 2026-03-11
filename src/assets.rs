@@ -16,6 +16,7 @@ pub struct LabelOption {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SystemConfig {
     pub features: Vec<LabelOption>,
+    pub has_comments: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,10 +74,13 @@ pub fn get_available_platforms() -> Vec<String> {
 #[must_use]
 pub fn load_system_config(platform: &str) -> SystemConfig {
     let mut features = Vec::new();
+    let mut has_comments = false;
 
     if let Some(content) = get_system_file_content(platform)
         && let Ok(data) = serde_json::from_str::<SystemData>(content)
     {
+        has_comments = !data.comments.is_empty();
+
         // Convert hashmap keys to features
         let mut keys: Vec<_> = data.labels.keys().collect();
         keys.sort();
@@ -97,7 +101,10 @@ pub fn load_system_config(platform: &str) -> SystemConfig {
         }
     }
 
-    SystemConfig { features }
+    SystemConfig {
+        features,
+        has_comments,
+    }
 }
 
 #[must_use]

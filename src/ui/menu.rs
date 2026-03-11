@@ -2415,7 +2415,6 @@ fn apply_lo_hi_packing(app_state: &mut AppState, ui_state: &mut UIState, lo_firs
         let result = crate::analyzer::analyze(app_state);
         app_state.labels = result.labels;
         app_state.cross_refs = result.cross_refs;
-        app_state.analysis_hints = result.hints;
 
         app_state.disassemble();
     } else if let Some(cursor_idx) = single_cursor_index {

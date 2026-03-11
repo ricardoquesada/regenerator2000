@@ -34,7 +34,6 @@ fn test_system_comments_logic() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
-        &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
     );
@@ -83,7 +82,6 @@ fn test_system_comment_on_sta() {
         origin,
         &settings,
         &system_comments,
-        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),

@@ -22,12 +22,12 @@ impl SettingsDialog {
     }
 
     pub fn next(&mut self) {
-        let max_items = 10;
+        let max_items = 9;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 10;
+        let max_items = 9;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {
@@ -52,14 +52,6 @@ impl Widget for SettingsDialog {
             format!(
                 "{} Open the latest file on startup",
                 if app_state.system_config.open_last_project {
-                    "[X]"
-                } else {
-                    "[ ]"
-                }
-            ),
-            format!(
-                "{} Auto-analyze on load",
-                if app_state.system_config.auto_analyze {
                     "[X]"
                 } else {
                     "[ ]"
@@ -219,12 +211,12 @@ impl Widget for SettingsDialog {
                 WidgetResult::Handled
             }
             KeyCode::Left => {
-                if !self.is_selecting_theme && self.selected_index == 8 {
+                if !self.is_selecting_theme && self.selected_index == 7 {
                     // Decrease entropy threshold
                     app_state.system_config.entropy_threshold =
                         (app_state.system_config.entropy_threshold - 0.1).max(0.0);
                     let _ = app_state.system_config.save();
-                } else if !self.is_selecting_theme && self.selected_index == 9 {
+                } else if !self.is_selecting_theme && self.selected_index == 8 {
                     // Previous theme
                     let themes = crate::theme::Theme::all_names();
                     let current = app_state.system_config.theme.as_str();
@@ -238,12 +230,12 @@ impl Widget for SettingsDialog {
                 WidgetResult::Handled
             }
             KeyCode::Right => {
-                if !self.is_selecting_theme && self.selected_index == 8 {
+                if !self.is_selecting_theme && self.selected_index == 7 {
                     // Increase entropy threshold
                     app_state.system_config.entropy_threshold =
                         (app_state.system_config.entropy_threshold + 0.1).min(8.0);
                     let _ = app_state.system_config.save();
-                } else if !self.is_selecting_theme && self.selected_index == 9 {
+                } else if !self.is_selecting_theme && self.selected_index == 8 {
                     // Next theme
                     let themes = crate::theme::Theme::all_names();
                     let current = app_state.system_config.theme.as_str();
@@ -265,32 +257,29 @@ impl Widget for SettingsDialog {
                         !app_state.system_config.open_last_project;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 1 {
-                    app_state.system_config.auto_analyze = !app_state.system_config.auto_analyze;
-                    let _ = app_state.system_config.save();
-                } else if self.selected_index == 2 {
                     app_state.system_config.sync_hex_dump = !app_state.system_config.sync_hex_dump;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 3 {
+                } else if self.selected_index == 2 {
                     app_state.system_config.sync_charset_view =
                         !app_state.system_config.sync_charset_view;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 4 {
+                } else if self.selected_index == 3 {
                     app_state.system_config.sync_sprites_view =
                         !app_state.system_config.sync_sprites_view;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 5 {
+                } else if self.selected_index == 4 {
                     app_state.system_config.sync_bitmap_view =
                         !app_state.system_config.sync_bitmap_view;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 6 {
+                } else if self.selected_index == 5 {
                     app_state.system_config.sync_blocks_view =
                         !app_state.system_config.sync_blocks_view;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 7 {
+                } else if self.selected_index == 6 {
                     app_state.system_config.check_for_updates =
                         !app_state.system_config.check_for_updates;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 9 {
+                } else if self.selected_index == 8 {
                     self.is_selecting_theme = true;
                 }
                 WidgetResult::Handled

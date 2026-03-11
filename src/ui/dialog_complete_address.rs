@@ -153,7 +153,6 @@ impl Widget for CompleteAddressDialog {
                     let result = crate::analyzer::analyze(app_state);
                     app_state.labels = result.labels;
                     app_state.cross_refs = result.cross_refs;
-                    app_state.analysis_hints = result.hints;
 
                     app_state.disassemble();
 

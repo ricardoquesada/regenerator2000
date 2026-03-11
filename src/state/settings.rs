@@ -32,7 +32,9 @@ pub struct DocumentSettings {
     #[serde(default)]
     pub description: String,
     #[serde(default = "default_true")]
-    pub show_analysis_hints: bool, // default true
+    pub auto_analyze: bool, // default true
+    #[serde(default = "default_true")]
+    pub show_system_comments: bool, // default true
 }
 
 fn default_text_char_limit() -> usize {
@@ -76,7 +78,8 @@ impl Default for DocumentSettings {
             bytes_per_line: 8,
             enabled_features: std::collections::HashMap::new(),
             description: String::new(),
-            show_analysis_hints: true,
+            auto_analyze: true,
+            show_system_comments: true,
         }
     }
 }

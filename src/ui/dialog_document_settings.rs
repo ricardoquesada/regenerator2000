@@ -55,12 +55,12 @@ impl DocumentSettingsDialog {
     }
 
     pub fn next(&mut self) {
-        let max_items = 14;
+        let max_items = 15;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 14;
+        let max_items = 15;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {
@@ -143,8 +143,8 @@ impl Widget for DocumentSettingsDialog {
                 false,
             ),
             checkbox(
-                "Show Analysis Hints",
-                settings.show_analysis_hints,
+                "Auto-generate Labels & Cross-refs",
+                settings.auto_analyze,
                 self.selected_index == 5,
                 false,
             ),
@@ -182,6 +182,9 @@ impl Widget for DocumentSettingsDialog {
         let idx_assembler = fixed_opts_start + 6;
         let idx_platform = fixed_opts_start + 7;
 
+        // System Comments checkbox index (after dynamic label items)
+        let idx_system_comments = dynamic_start_idx + dynamic_items.len();
+
         let layout = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -197,6 +200,8 @@ impl Widget for DocumentSettingsDialog {
                 Constraint::Length(2),                      // Platform
                 Constraint::Length(u16::from(!dynamic_items.is_empty())), // System Labels Header
                 Constraint::Length(dynamic_items.len() as u16), // Dynamic items
+                Constraint::Length(u16::from(system_config.has_comments)), // System Comments Header
+                Constraint::Length(u16::from(system_config.has_comments)), // System Comments checkbox
             ])
             .split(inner);
 
@@ -234,6 +239,28 @@ impl Widget for DocumentSettingsDialog {
                     ),
                 );
             }
+        }
+
+        // Render System Comments section
+        if system_config.has_comments {
+            f.render_widget(
+                Paragraph::new(Span::styled(
+                    "System Comments:",
+                    Style::default().add_modifier(Modifier::BOLD),
+                )),
+                Rect::new(layout[12].x + 2, layout[12].y, layout[12].width - 4, 1),
+            );
+
+            let comments_checkbox = checkbox(
+                "  Show system comments",
+                settings.show_system_comments,
+                self.selected_index == idx_system_comments,
+                false,
+            );
+            f.render_widget(
+                Paragraph::new(comments_checkbox),
+                Rect::new(layout[13].x + 2, layout[13].y, layout[13].width - 4, 1),
+            );
         }
 
         // Description uses layout[2]
@@ -523,7 +550,7 @@ impl Widget for DocumentSettingsDialog {
         let system_config = crate::assets::load_system_config(&app_state.settings.platform);
         let dynamic_items_count = system_config.features.len();
 
-        let base_items_count = 6; // AllLabels, PreserveLongBytes, BrkSingle, PatchBrk, IllegalOpcodes, ShowAnalysisHints
+        let base_items_count = 6; // AllLabels, PreserveLongBytes, BrkSingle, PatchBrk, IllegalOpcodes, AutoAnalyze
 
         let idx_description = base_items_count;
         let idx_xref = base_items_count + 1;
@@ -534,8 +561,13 @@ impl Widget for DocumentSettingsDialog {
         let idx_assembler = base_items_count + 6;
         let idx_platform = base_items_count + 7;
         let dynamic_start_idx = idx_platform + 1;
+        let idx_system_comments = dynamic_start_idx + dynamic_items_count;
 
-        let total_items = dynamic_start_idx + dynamic_items_count;
+        let total_items = if system_config.has_comments {
+            idx_system_comments + 1
+        } else {
+            dynamic_start_idx + dynamic_items_count
+        };
 
         let next = |idx: &mut usize| {
             *idx = (*idx + 1) % total_items;
@@ -591,7 +623,7 @@ impl Widget for DocumentSettingsDialog {
                     let old_sub_cursor = ui_state.sub_cursor_index;
 
                     app_state.load_system_assets();
-                    if app_state.system_config.auto_analyze {
+                    if app_state.settings.auto_analyze {
                         app_state.perform_analysis();
                     }
                     app_state.disassemble();
@@ -903,11 +935,29 @@ impl Widget for DocumentSettingsDialog {
                                 !app_state.settings.use_illegal_opcodes;
                         }
                         5 => {
-                            app_state.settings.show_analysis_hints =
-                                !app_state.settings.show_analysis_hints;
+                            app_state.settings.auto_analyze = !app_state.settings.auto_analyze;
+                            if app_state.settings.auto_analyze {
+                                // Toggled ON: run analysis to regenerate labels & xrefs
+                                app_state.perform_analysis();
+                            } else {
+                                // Toggled OFF: remove auto-generated labels, clear xrefs
+                                for labels_vec in app_state.labels.values_mut() {
+                                    labels_vec.retain(|l| l.kind != crate::state::LabelKind::Auto);
+                                }
+                                app_state.labels.retain(|_, v| !v.is_empty());
+                                app_state.cross_refs.clear();
+                                app_state.disassemble();
+                            }
+                        }
+                        idx if idx == idx_system_comments && system_config.has_comments => {
+                            app_state.settings.show_system_comments =
+                                !app_state.settings.show_system_comments;
+                            // Reload system assets and re-disassemble for immediate feedback
+                            app_state.load_system_assets();
+                            app_state.disassemble();
                         }
                         idx if idx >= dynamic_start_idx => {
-                            // Dynamic items
+                            // Dynamic items (system labels)
                             let system_config =
                                 crate::assets::load_system_config(&app_state.settings.platform);
                             let config_idx = idx - dynamic_start_idx;
@@ -922,6 +972,10 @@ impl Widget for DocumentSettingsDialog {
                                     .settings
                                     .enabled_features
                                     .insert(feature.id.clone(), !current_val);
+
+                                // Reload system labels and re-disassemble for immediate feedback
+                                app_state.load_system_assets();
+                                app_state.disassemble();
                             }
                         }
                         idx if idx == idx_description => {

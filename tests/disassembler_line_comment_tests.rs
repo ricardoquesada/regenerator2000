@@ -31,7 +31,6 @@ fn test_user_line_comments_basic() {
         &user_line_comments,
         &BTreeMap::new(),
         &BTreeMap::new(),
-        &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
     );
@@ -70,7 +69,6 @@ fn test_user_line_and_side_comments_coexist() {
         &BTreeMap::new(),
         &user_side_comments,
         &user_line_comments,
-        &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
         &[],

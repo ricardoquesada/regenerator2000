@@ -11,8 +11,6 @@ pub struct SystemConfig {
     #[serde(default = "default_true")]
     pub sync_blocks_view: bool,
     #[serde(default = "default_true")]
-    pub auto_analyze: bool,
-    #[serde(default = "default_true")]
     pub sync_hex_dump: bool,
     #[serde(default = "default_false")]
     pub sync_charset_view: bool,
@@ -53,7 +51,6 @@ impl Default for SystemConfig {
             last_project_path: None,
             theme: "Dracula".to_string(),
             sync_blocks_view: true,
-            auto_analyze: true,
             sync_hex_dump: true,
             sync_charset_view: false,
             sync_sprites_view: false,

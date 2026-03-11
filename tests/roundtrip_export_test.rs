@@ -24,7 +24,7 @@ use std::path::PathBuf;
 fn load_prg_for_verify(prg_path: &str) -> AppState {
     let mut state = AppState::new();
     // Disable auto-analyze so we get a clean code-only disassembly
-    state.system_config.auto_analyze = true;
+    state.settings.auto_analyze = true;
     let path = PathBuf::from(prg_path);
     let result = state.load_file(path);
     assert!(
@@ -39,7 +39,7 @@ fn load_prg_for_verify(prg_path: &str) -> AppState {
 /// Helper: Load a regen2000proj file and set up an `AppState` for verification.
 fn load_project_for_verify(proj_path: &str) -> AppState {
     let mut state = AppState::new();
-    state.system_config.auto_analyze = true;
+    state.settings.auto_analyze = true;
     let path = PathBuf::from(proj_path);
     let result = state.load_file(path);
     assert!(

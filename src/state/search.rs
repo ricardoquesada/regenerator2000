@@ -365,7 +365,6 @@ pub fn search_collapsed_content(
         user_line_comments: &app_state.user_line_comments,
         immediate_value_formats: &app_state.immediate_value_formats,
         cross_refs: &app_state.cross_refs,
-        analysis_hints: &app_state.analysis_hints,
         collapsed_blocks: &[],
         splitters: &app_state.splitters,
     };

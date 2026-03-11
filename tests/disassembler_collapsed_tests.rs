@@ -27,7 +27,6 @@ fn test_collapsed_block_rendering() {
         &BTreeMap::new(),
         &BTreeMap::new(),
         &BTreeMap::new(),
-        &BTreeMap::new(),
         &collapsed_blocks,
         &std::collections::BTreeSet::new(),
     );
