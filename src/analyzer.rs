@@ -1,18 +1,18 @@
 use crate::cpu::{AddressingMode, Opcode};
-use crate::state::{AppState, BlockType};
+use crate::state::{Addr, AppState, BlockType};
 use std::collections::BTreeMap;
 
 use crate::state::LabelType;
 
 /// Result of the analysis pass.
 pub struct AnalysisResult {
-    pub labels: BTreeMap<u16, Vec<crate::state::Label>>,
-    pub cross_refs: BTreeMap<u16, Vec<u16>>,
+    pub labels: BTreeMap<Addr, Vec<crate::state::Label>>,
+    pub cross_refs: BTreeMap<Addr, Vec<Addr>>,
 }
 
 type UsageData = (
     BTreeMap<LabelType, usize>,
-    Vec<u16>,
+    Vec<Addr>,
     LabelType,         // first overall
     Option<LabelType>, // first ZeroPage style (2-digit)
     Option<LabelType>, // first Absolute style (4-digit)
@@ -32,7 +32,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
     // We also need ref counts.
     // Map: Address -> UsageData
     // storing (counts, refs, first_seen_type)
-    let mut usage_map: BTreeMap<u16, UsageData> = BTreeMap::new();
+    let mut usage_map: BTreeMap<Addr, UsageData> = BTreeMap::new();
     let mut pc = 0;
     let data_len = state.raw_data.len();
     let origin = state.origin;
@@ -83,7 +83,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                 if pc + 2 <= data_len {
                     let low = state.raw_data[pc];
                     let high = state.raw_data[pc + 1];
-                    let val = u16::from(high) << 8 | u16::from(low);
+                    let val = Addr(u16::from(high) << 8 | u16::from(low));
                     update_usage(
                         &mut usage_map,
                         val,
@@ -112,7 +112,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                         if pc + i < data_len && pc + split_offset + i < data_len {
                             let lo = state.raw_data[pc + i];
                             let hi = state.raw_data[pc + split_offset + i];
-                            let val = u16::from(hi) << 8 | u16::from(lo);
+                            let val = Addr(u16::from(hi) << 8 | u16::from(lo));
                             update_usage(
                                 &mut usage_map,
                                 val,
@@ -139,7 +139,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                         if pc + i < data_len && pc + split_offset + i < data_len {
                             let hi = state.raw_data[pc + i];
                             let lo = state.raw_data[pc + split_offset + i];
-                            let val = u16::from(hi) << 8 | u16::from(lo);
+                            let val = Addr(u16::from(hi) << 8 | u16::from(lo));
                             update_usage(
                                 &mut usage_map,
                                 val,
@@ -166,8 +166,8 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
     }
 
     // Generate labels
-    let mut labels: BTreeMap<u16, Vec<crate::state::Label>> = BTreeMap::new();
-    let mut cross_refs: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
+    let mut labels: BTreeMap<Addr, Vec<crate::state::Label>> = BTreeMap::new();
+    let mut cross_refs: BTreeMap<Addr, Vec<Addr>> = BTreeMap::new();
 
     // 0. Pre-populate labels from immediate_value_formats (LoHi/HiLo)
     for (addr, fmt) in &state.immediate_value_formats {
@@ -236,7 +236,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                     && !state.excluded_addresses.contains(&addr)
                 {
                     addr_labels.push(crate::state::Label {
-                        name: l_type.format_label(addr),
+                        name: l_type.format_label(addr.0),
                         label_type: l_type,
                         kind: crate::state::LabelKind::Auto,
                     });
@@ -250,7 +250,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                 // Logic: if usage contains Subroutine, promote to 's'.
                 // Internal: Single canonical label (first_wins)
                 let final_type = first_type;
-                let name = final_type.format_label(addr);
+                let name = final_type.format_label(addr.0);
 
                 addr_labels.push(crate::state::Label {
                     name,
@@ -298,21 +298,21 @@ fn analyze_instruction(
     _state: &AppState,
     opcode: &Opcode,
     operands: &[u8],
-    address: u16,
-    usage_map: &mut BTreeMap<u16, UsageData>,
+    address: Addr,
+    usage_map: &mut BTreeMap<Addr, UsageData>,
 ) {
     match opcode.mode {
         AddressingMode::Implied | AddressingMode::Accumulator | AddressingMode::Immediate => {}
         AddressingMode::ZeroPage => {
             if !operands.is_empty() {
-                let addr = u16::from(operands[0]);
+                let addr = Addr(u16::from(operands[0]));
                 // "a: Zero Page Address"
                 update_usage(usage_map, addr, LabelType::ZeroPageAbsoluteAddress, address);
             }
         }
         AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
             if !operands.is_empty() {
-                let addr = u16::from(operands[0]);
+                let addr = Addr(u16::from(operands[0]));
                 // Indexed zero page often used for arrays/fields
                 update_usage(usage_map, addr, LabelType::ZeroPageField, address);
             }
@@ -320,14 +320,14 @@ fn analyze_instruction(
         AddressingMode::Relative => {
             if !operands.is_empty() {
                 let offset = operands[0] as i8;
-                let target = address.wrapping_add(2).wrapping_add(offset as u16);
+                let target = Addr((address.0.wrapping_add(2)).wrapping_add(offset as u16));
                 // "b: ... branch opcodes"
                 update_usage(usage_map, target, LabelType::Branch, address);
             }
         }
         AddressingMode::Absolute => {
             if operands.len() >= 2 {
-                let target = u16::from(operands[1]) << 8 | u16::from(operands[0]);
+                let target = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
 
                 if opcode.mnemonic == "JSR" {
                     update_usage(usage_map, target, LabelType::Subroutine, address);
@@ -341,14 +341,14 @@ fn analyze_instruction(
         }
         AddressingMode::AbsoluteX | AddressingMode::AbsoluteY => {
             if operands.len() >= 2 {
-                let target = u16::from(operands[1]) << 8 | u16::from(operands[0]);
+                let target = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
                 // Indexed absolute is also "absolute address" usage
                 update_usage(usage_map, target, LabelType::Field, address);
             }
         }
         AddressingMode::Indirect => {
             if operands.len() >= 2 {
-                let pointer_addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
+                let pointer_addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
                 // "p: if this is a pointer"
                 // The address `pointer_addr` is BEING USED a pointer.
                 update_usage(usage_map, pointer_addr, LabelType::Pointer, address);
@@ -356,7 +356,7 @@ fn analyze_instruction(
         }
         AddressingMode::IndirectX => {
             if !operands.is_empty() {
-                let base = u16::from(operands[0]);
+                let base = Addr(u16::from(operands[0]));
                 // (base, X) -> points to a table of pointers in ZP? Or just ZP pointer?
                 // It is "Indirect" X. The address `base` (and base+1) holds the address.
                 // So `base` is a pointer.
@@ -365,7 +365,7 @@ fn analyze_instruction(
         }
         AddressingMode::IndirectY => {
             if !operands.is_empty() {
-                let base = u16::from(operands[0]);
+                let base = Addr(u16::from(operands[0]));
                 // (base), Y -> base is a ZP pointer.
                 update_usage(usage_map, base, LabelType::ZeroPagePointer, address);
             }
@@ -375,10 +375,10 @@ fn analyze_instruction(
 }
 
 fn update_usage(
-    map: &mut BTreeMap<u16, UsageData>,
-    addr: u16,
+    map: &mut BTreeMap<Addr, UsageData>,
+    addr: Addr,
     priority: LabelType,
-    from_addr: u16,
+    from_addr: Addr,
 ) {
     map.entry(addr)
         .and_modify(|(types, refs, _, first_zp, first_abs)| {
@@ -419,8 +419,8 @@ fn update_usage(
 /// it as a jump target label + cross-reference.
 fn follow_indirect_jumps(
     state: &AppState,
-    labels: &mut BTreeMap<u16, Vec<crate::state::Label>>,
-    cross_refs: &mut BTreeMap<u16, Vec<u16>>,
+    labels: &mut BTreeMap<Addr, Vec<crate::state::Label>>,
+    cross_refs: &mut BTreeMap<Addr, Vec<Addr>>,
 ) {
     let data = &state.raw_data;
     let origin = state.origin;
@@ -464,17 +464,17 @@ fn follow_indirect_jumps(
         }
 
         let jmp_addr = origin.wrapping_add(pc as u16);
-        let pointer_addr = u16::from(data[pc + 2]) << 8 | u16::from(data[pc + 1]);
+        let pointer_addr: u16 = u16::from(data[pc + 2]) << 8 | u16::from(data[pc + 1]);
 
         // Check if pointer_addr is inside our binary
         let is_internal = if origin < end_addr {
-            pointer_addr >= origin && pointer_addr < end_addr
+            pointer_addr >= origin.0 && pointer_addr < end_addr.0
         } else {
-            pointer_addr >= origin || pointer_addr < end_addr
+            pointer_addr >= origin.0 || pointer_addr < end_addr.0
         };
 
         if is_internal {
-            let ptr_offset = pointer_addr.wrapping_sub(origin) as usize;
+            let ptr_offset = pointer_addr.wrapping_sub(origin.0) as usize;
 
             // Check if the pointer location is an Address block
             let is_address_block = ptr_offset + 1 < data_len
@@ -482,7 +482,8 @@ fn follow_indirect_jumps(
 
             if is_address_block {
                 // Read the target address from the jump table
-                let target = u16::from(data[ptr_offset + 1]) << 8 | u16::from(data[ptr_offset]);
+                let target =
+                    Addr(u16::from(data[ptr_offset + 1]) << 8 | u16::from(data[ptr_offset]));
 
                 // Add label for the target
                 let is_target_external = state.is_external(target);
@@ -492,7 +493,7 @@ fn follow_indirect_jumps(
                     LabelType::Jump
                 };
 
-                let label_name = label_type.format_label(target);
+                let label_name = label_type.format_label(target.0);
 
                 // Only add if no user label already exists at target
                 let existing = labels.get(&target);
@@ -524,7 +525,7 @@ mod tests {
     #[test]
     fn test_analyze_simple() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         // JMP $1005 (4C 05 10)
         // JSR $1008 (20 08 10)
         // NOP (EA)
@@ -565,7 +566,7 @@ mod tests {
     #[test]
     fn test_priority_override() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         // JMP $2000 (4C 00 20) -> usage j2000 -> external e2000
         // JSR $2000 (20 00 20) -> usage s2000 -> external e2000
         // Since both are external, and both allow external prefix, result is e2000.
@@ -588,7 +589,7 @@ mod tests {
     #[test]
     fn test_access_types_zp() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         // LDA $10 (ZP) -> A5 10
         let data = vec![0xA5, 0x10];
         state.raw_data = data;
@@ -609,7 +610,7 @@ mod tests {
     #[test]
     fn test_zp_field() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         // LDA $50, X (B5 50) -> Field usage, ZP address
         let data = vec![0xB5, 0x50];
         state.raw_data = data;
@@ -630,7 +631,7 @@ mod tests {
     #[test]
     fn test_external() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         // JMP $0010 (External, out of range [1000..1003])
         let data = vec![0x4C, 0x10, 0x00];
         state.raw_data = data;
@@ -657,7 +658,7 @@ mod tests {
     #[test]
     fn test_data_word_vs_address() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         // $1000: DataWord ($2000) -> 00 20
         // $1002: Address ($1000) -> 00 10 (Internal)
         let data = vec![0x00, 0x20, 0x00, 0x10];
@@ -690,7 +691,7 @@ mod tests {
     #[test]
     fn test_branch_offsets() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
 
         // BNE instructions
         let data = vec![0xD0, 0x00, 0xD0, 0x7F, 0xD0, 0x80, 0xD0, 0xFF, 0xD0, 0xFE];
@@ -749,7 +750,7 @@ mod tests {
     #[test]
     fn test_new_pointer_field_types() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
 
         // Indirect JMP (JMP ($1000)) -> 6C 00 10
         // LDA ($10, X) -> A1 10
@@ -829,7 +830,7 @@ mod tests {
     #[test]
     fn test_internal_label_priority() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
 
         // Scenario: Internal address $1005 accessed via:
         // 1. Branch (BNE $1005) -> D0 03 (assuming PC is 1000 + 2 = 1002. 1002+3=1005)
@@ -872,7 +873,7 @@ mod tests {
     #[test]
     fn test_internal_label_first_wins() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
 
         // BEQ $1005 (D0 03) -> Branch type
         // JMP $1005 (4C 05 10) -> Jump type
@@ -903,7 +904,7 @@ mod tests {
     #[test]
     fn test_external_label_still_prioritized() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         let len = 100;
         state.raw_data = vec![0; len]; // Just dummy data placeholder
         state.block_types = vec![BlockType::Code; len];
@@ -942,14 +943,14 @@ mod tests {
     #[test]
     fn test_excluded_addresses() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         // JMP $E500 (4C 00 E5) -> normally eE500
         // But we exclude E500.
         let data = vec![0x4C, 0x00, 0xE5];
         state.raw_data = data;
         state.block_types = vec![BlockType::Code; 3];
 
-        state.excluded_addresses.insert(0xE500);
+        state.excluded_addresses.insert(Addr(0xE500));
 
         let result = analyze(&state);
         let labels = result.labels;
@@ -958,7 +959,7 @@ mod tests {
         assert_eq!(labels.get(&0xE500), None);
 
         // Verification: if we remove it from excludes, it should appear
-        state.excluded_addresses.remove(&0xE500);
+        state.excluded_addresses.remove(&Addr(0xE500));
         let result = analyze(&state);
         let labels = result.labels;
         assert_eq!(
@@ -973,7 +974,7 @@ mod tests {
     #[test]
     fn test_external_branch() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         // BNE target that is out of range
         // Origin 1000. Data len 2. Range 1000..1002.
         // 1000: D0 7F (BNE +$7F) -> Target: 1002 + 7F = 1081.
@@ -1001,7 +1002,7 @@ mod tests {
         // 8D A0 00 -> STA $00A0 (Answer to Life, Universe, and Everything)
         // Absolute addressing mode targeting a ZP address.
         app_state.raw_data = vec![0x8D, 0xA0, 0x00];
-        app_state.origin = 0x1000;
+        app_state.origin = Addr(0x1000);
         app_state.block_types = vec![BlockType::Code; 3];
         // Fill opcodes
         app_state.disassembler.opcodes[0x8D] = Some(crate::cpu::Opcode {
@@ -1032,7 +1033,7 @@ mod tests {
         // Absolute indexed addressing mode targeting a ZP address.
         // Should generate "f00A0" (Field, 4 digits) NOT "fA0" (ZP Field, 2 digits).
         app_state.raw_data = vec![0x9D, 0xA0, 0x00];
-        app_state.origin = 0x1000;
+        app_state.origin = Addr(0x1000);
         app_state.block_types = vec![BlockType::Code; 3];
         // Fill opcodes
         app_state.disassembler.opcodes[0x9D] = Some(crate::cpu::Opcode {
@@ -1075,7 +1076,7 @@ mod tests {
         //    - It should generate LabelType::ZeroPagePointer ("p")
         //    - The USER wants this to be "pFB" (2 digits).
 
-        app_state.origin = 0x1000;
+        app_state.origin = Addr(0x1000);
         let data = vec![
             0x6C, 0xFB, 0x00, // JMP ($00FB)
             0xB1, 0xFB, // LDA ($FB), Y
@@ -1129,7 +1130,7 @@ mod tests {
         // 1002: LDA $00A0  -> AD A0 00 (Absolute Addressing Mode) -> AbsoluteAddress
         // Address $A0 is external (origin is 1000).
 
-        app_state.origin = 0x1000;
+        app_state.origin = Addr(0x1000);
         app_state.raw_data = vec![
             0xA5, 0xA0, // LDA $A0
             0xAD, 0xA0, 0x00, // LDA $00A0
@@ -1173,7 +1174,7 @@ mod tests {
     #[test]
     fn test_hilo_analysis() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         // HiLo Block: 4 bytes
         // Hi: $C0, $D0
         // Lo: $00, $01

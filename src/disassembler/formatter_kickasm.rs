@@ -1,6 +1,6 @@
 use super::formatter::Formatter;
 use crate::cpu::AddressingMode;
-use crate::state::LabelType;
+use crate::state::{Addr, LabelType};
 
 pub struct KickAsmFormatter;
 
@@ -21,8 +21,8 @@ impl Formatter for KickAsmFormatter {
         format!("${byte:02x}")
     }
 
-    fn format_address(&self, address: u16) -> String {
-        format!("${address:04x}")
+    fn format_address(&self, address: Addr) -> String {
+        format!("${:04x}", address.0)
     }
 
     fn format_operand(&self, ctx: &super::formatter::FormatContext) -> String {
@@ -34,7 +34,7 @@ impl Formatter for KickAsmFormatter {
         let _settings = ctx.settings;
         let immediate_value_formats = ctx.immediate_value_formats;
 
-        let get_label = |addr: u16, _l_type: LabelType| -> Option<String> {
+        let get_label = |addr: Addr, _l_type: LabelType| -> Option<String> {
             ctx.resolve_label(addr).map(|l| l.name.clone())
         };
 
@@ -81,7 +81,7 @@ impl Formatter for KickAsmFormatter {
                 }
             }
             AddressingMode::ZeroPage => {
-                let addr = u16::from(operands[0]);
+                let addr = Addr::from(u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::ZeroPageAbsoluteAddress) {
                     name
                 } else {
@@ -89,7 +89,7 @@ impl Formatter for KickAsmFormatter {
                 }
             }
             AddressingMode::ZeroPageX => {
-                let addr = u16::from(operands[0]);
+                let addr = Addr::from(u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
                     format!("{name},x")
                 } else {
@@ -97,7 +97,7 @@ impl Formatter for KickAsmFormatter {
                 }
             }
             AddressingMode::ZeroPageY => {
-                let addr = u16::from(operands[0]);
+                let addr = Addr::from(u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
                     format!("{name},y")
                 } else {
@@ -114,7 +114,7 @@ impl Formatter for KickAsmFormatter {
                 }
             }
             AddressingMode::Absolute => {
-                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
+                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
                 let l_type = if opcode.mnemonic == "JSR" {
                     LabelType::Subroutine
                 } else if opcode.mnemonic == "JMP" {
@@ -130,7 +130,7 @@ impl Formatter for KickAsmFormatter {
                 }
             }
             AddressingMode::AbsoluteX => {
-                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
+                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::Field) {
                     format!("{name},x")
                 } else {
@@ -138,7 +138,7 @@ impl Formatter for KickAsmFormatter {
                 }
             }
             AddressingMode::AbsoluteY => {
-                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
+                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::Field) {
                     format!("{name},y")
                 } else {
@@ -147,7 +147,7 @@ impl Formatter for KickAsmFormatter {
             }
 
             AddressingMode::Indirect => {
-                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
+                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::Pointer) {
                     format!("({name})")
                 } else {
@@ -155,7 +155,7 @@ impl Formatter for KickAsmFormatter {
                 }
             }
             AddressingMode::IndirectX => {
-                let addr = u16::from(operands[0]);
+                let addr = Addr::from(u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
                     format!("({name},x)")
                 } else {
@@ -163,7 +163,7 @@ impl Formatter for KickAsmFormatter {
                 }
             }
             AddressingMode::IndirectY => {
-                let addr = u16::from(operands[0]);
+                let addr = Addr::from(u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
                     format!("({name}),y")
                 } else {
@@ -301,7 +301,7 @@ impl Formatter for KickAsmFormatter {
         Vec::new()
     }
 
-    fn format_header_origin(&self, origin: u16) -> String {
+    fn format_header_origin(&self, origin: Addr) -> String {
         format!("*=${origin:04x}")
     }
 

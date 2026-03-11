@@ -65,7 +65,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         }
 
         // Check for ExternalFile
-        let offset = line.address as isize - state.origin as isize;
+        let offset = line.address.0 as isize - state.origin.0 as isize;
         let is_external = if offset >= 0 && (offset as usize) < state.block_types.len() {
             state.block_types[offset as usize] == crate::state::BlockType::ExternalFile
         } else {
@@ -167,8 +167,8 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
 
                 // If we check strictly address:
                 let line_in_range = if next_line_addr >= start_addr {
-                    let delta = next_line_addr.wrapping_sub(start_addr);
-                    (delta as usize) < byte_count
+                    let delta = next_line_addr.offset_from(start_addr);
+                    delta < byte_count
                 } else {
                     false
                 };
@@ -211,7 +211,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 let mid_addr = line.address.wrapping_add(j as u16);
                 if let Some(label_vec) = state.labels.get(&mid_addr)
                     && let Some(label) =
-                        crate::disassembler::resolve_label(label_vec, mid_addr, &state.settings)
+                        crate::disassembler::resolve_label(label_vec, mid_addr.0, &state.settings)
                 {
                     output.push_str(&format!(
                         "{}\n",
@@ -617,7 +617,7 @@ mod tests {
     #[test]
     fn test_export_external_file() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
         // Data: 0x1000..0x1004 (4 bytes)
         // 1000: NOP
         // 1001-1002: External File (2 bytes)
@@ -634,7 +634,7 @@ mod tests {
 
         // Mock disassembly lines
         state.disassembly.push(DisassemblyLine {
-            address: 0x1000,
+            address: crate::state::Addr(0x1000),
             mnemonic: "NOP".to_string(),
             operand: String::new(),
             bytes: vec![0xEA],
@@ -648,7 +648,7 @@ mod tests {
             is_collapsed: false,
         });
         state.disassembly.push(DisassemblyLine {
-            address: 0x1001,
+            address: crate::state::Addr(0x1001),
             mnemonic: ".BYTE".to_string(),
             operand: "$11".to_string(),
             bytes: vec![0x11],
@@ -662,7 +662,7 @@ mod tests {
             is_collapsed: false,
         });
         state.disassembly.push(DisassemblyLine {
-            address: 0x1002,
+            address: crate::state::Addr(0x1002),
             mnemonic: ".BYTE".to_string(),
             operand: "$22".to_string(),
             bytes: vec![0x22],
@@ -676,7 +676,7 @@ mod tests {
             is_collapsed: false,
         });
         state.disassembly.push(DisassemblyLine {
-            address: 0x1003,
+            address: crate::state::Addr(0x1003),
             mnemonic: "RTS".to_string(),
             operand: String::new(),
             bytes: vec![0x60],
@@ -740,12 +740,12 @@ mod tests {
     fn test_export_compiles_with_64tass() {
         // 1. Setup AppState with some code
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
 
         // Add some dummy lines mimicking a real program
         // LDA #$00
         state.disassembly.push(DisassemblyLine {
-            address: 0x1000,
+            address: crate::state::Addr(0x1000),
             mnemonic: "LDA".to_string(),
             operand: "#$00".to_string(),
             bytes: vec![0xA9, 0x00],
@@ -760,7 +760,7 @@ mod tests {
         });
         // STA $D020
         state.disassembly.push(DisassemblyLine {
-            address: 0x1002,
+            address: crate::state::Addr(0x1002),
             mnemonic: "STA".to_string(),
             operand: "$D020".to_string(),
             bytes: vec![0x8D, 0x20, 0xD0],
@@ -775,7 +775,7 @@ mod tests {
         });
         // RTS
         state.disassembly.push(DisassemblyLine {
-            address: 0x1005,
+            address: crate::state::Addr(0x1005),
             mnemonic: "RTS".to_string(),
             operand: String::new(),
             bytes: vec![0x60],
@@ -842,7 +842,7 @@ mod tests {
     #[test]
     fn test_export_mid_instruction_label() {
         let mut state = AppState::new();
-        state.origin = 0xC000;
+        state.origin = crate::state::Addr(0xC000);
 
         // STA $1234 -> 8D 34 12
         // We want to simulate labels at C001 and C002.
@@ -852,7 +852,7 @@ mod tests {
 
         // Add 3 labels
         state.labels.insert(
-            0xC000,
+            crate::state::Addr(0xC000),
             vec![crate::state::Label {
                 name: "aC000".to_string(),
                 kind: crate::state::LabelKind::User,
@@ -860,7 +860,7 @@ mod tests {
             }],
         );
         state.labels.insert(
-            0xC001,
+            crate::state::Addr(0xC001),
             vec![crate::state::Label {
                 name: "aC001".to_string(),
                 kind: crate::state::LabelKind::User,
@@ -868,7 +868,7 @@ mod tests {
             }],
         );
         state.labels.insert(
-            0xC002,
+            crate::state::Addr(0xC002),
             vec![crate::state::Label {
                 name: "aC002".to_string(),
                 kind: crate::state::LabelKind::User,
@@ -913,11 +913,11 @@ mod tests {
     #[test]
     fn test_export_includes_xrefs() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
 
         // Add a label with refs
         state.labels.insert(
-            0x1000,
+            crate::state::Addr(0x1000),
             vec![crate::state::Label {
                 name: "MyLabel".to_string(),
                 kind: crate::state::LabelKind::User,
@@ -927,7 +927,10 @@ mod tests {
 
         state.raw_data = vec![0xEA];
         state.block_types = vec![crate::state::BlockType::Code; 1];
-        state.cross_refs.insert(0x1000, vec![0x2000, 0x3000]);
+        state.cross_refs.insert(
+            crate::state::Addr(0x1000),
+            vec![crate::state::Addr(0x2000), crate::state::Addr(0x3000)],
+        );
         // To get "x-ref" comment, we need to ensure max_xref_count > 0 (default is 3, so ok)
         // And the address must be referenced? No, side_comment logic uses cross_refs map.
         // It should pick it up automatically.
@@ -967,7 +970,7 @@ mod tests {
     #[test]
     fn test_export_external_fields() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
         // 1 byte of data: 1000
         state.raw_data = vec![0x00];
 
@@ -977,7 +980,7 @@ mod tests {
         // Analyzer might produce these.
 
         state.labels.insert(
-            0x0002,
+            crate::state::Addr(0x0002),
             vec![crate::state::Label {
                 name: "f0002".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -985,7 +988,7 @@ mod tests {
             }],
         );
         state.labels.insert(
-            0xFFD2,
+            crate::state::Addr(0xFFD2),
             vec![crate::state::Label {
                 name: "sFFD2".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -995,7 +998,7 @@ mod tests {
 
         // Disassembly: invalid but unimportant for this test
         state.disassembly.push(DisassemblyLine {
-            address: 0x1000,
+            address: crate::state::Addr(0x1000),
             mnemonic: "NOP".to_string(),
             operand: String::new(),
             bytes: vec![0xEA],
@@ -1035,11 +1038,11 @@ mod tests {
     #[test]
     fn test_export_ca65_header() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
         state.settings.assembler = crate::state::Assembler::Ca65;
         state.raw_data = vec![0xEA];
         state.disassembly.push(DisassemblyLine {
-            address: 0x1000,
+            address: crate::state::Addr(0x1000),
             mnemonic: "NOP".to_string(),
             operand: String::new(),
             bytes: vec![0xEA],
@@ -1084,10 +1087,10 @@ mod tests {
     #[test]
     fn test_export_headers_other_assemblers() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
         state.raw_data = vec![0xEA];
         state.disassembly.push(DisassemblyLine {
-            address: 0x1000,
+            address: crate::state::Addr(0x1000),
             mnemonic: "NOP".to_string(),
             operand: String::new(),
             bytes: vec![0xEA],
@@ -1150,13 +1153,13 @@ mod tests {
     #[test]
     fn test_export_label_ordering() {
         let mut state = AppState::new();
-        state.origin = 0xC000;
+        state.origin = crate::state::Addr(0xC000);
         state.raw_data = vec![0xEA]; // NOP at C000
 
         // Groups:
         // ZP Fields: f10, f05
         state.labels.insert(
-            0x0010,
+            crate::state::Addr(0x0010),
             vec![crate::state::Label {
                 name: "f10".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -1164,7 +1167,7 @@ mod tests {
             }],
         );
         state.labels.insert(
-            0x0005,
+            crate::state::Addr(0x0005),
             vec![crate::state::Label {
                 name: "f05".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -1174,7 +1177,7 @@ mod tests {
 
         // ZP Abs: a20
         state.labels.insert(
-            0x0020,
+            crate::state::Addr(0x0020),
             vec![crate::state::Label {
                 name: "a20".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -1184,7 +1187,7 @@ mod tests {
 
         // ZP Ptrs: p30
         state.labels.insert(
-            0x0030,
+            crate::state::Addr(0x0030),
             vec![crate::state::Label {
                 name: "p30".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -1194,7 +1197,7 @@ mod tests {
 
         // Fields: f1000
         state.labels.insert(
-            0x1000,
+            crate::state::Addr(0x1000),
             vec![crate::state::Label {
                 name: "f1000".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -1204,7 +1207,7 @@ mod tests {
 
         // Abs: a2000
         state.labels.insert(
-            0x2000,
+            crate::state::Addr(0x2000),
             vec![crate::state::Label {
                 name: "a2000".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -1214,7 +1217,7 @@ mod tests {
 
         // Ptrs: p3000
         state.labels.insert(
-            0x3000,
+            crate::state::Addr(0x3000),
             vec![crate::state::Label {
                 name: "p3000".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -1224,7 +1227,7 @@ mod tests {
 
         // Ext Jump: e4000
         state.labels.insert(
-            0x4000,
+            crate::state::Addr(0x4000),
             vec![crate::state::Label {
                 name: "e4000".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -1234,7 +1237,7 @@ mod tests {
 
         // Other: b5000
         state.labels.insert(
-            0x5000,
+            crate::state::Addr(0x5000),
             vec![crate::state::Label {
                 name: "b5000".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -1244,7 +1247,7 @@ mod tests {
 
         // Edge Case: Absolute Address at low address (should NOT be ZP Absolute)
         state.labels.insert(
-            0x0011,
+            crate::state::Addr(0x0011),
             vec![crate::state::Label {
                 name: "a0011".to_string(), // Manually named absolute
                 kind: crate::state::LabelKind::User,
@@ -1345,7 +1348,7 @@ mod tests {
     #[test]
     fn test_external_detection_no_name_check() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
         state.raw_data = vec![0xEA]; // Range: 1000-1001
 
         // Label at internal address 0x1000
@@ -1353,7 +1356,7 @@ mod tests {
         // Should NOT be treated as external (because it's internal address).
 
         state.labels.insert(
-            0x1000,
+            crate::state::Addr(0x1000),
             vec![crate::state::Label {
                 name: "eUser".to_string(),
                 kind: crate::state::LabelKind::User,
@@ -1363,7 +1366,7 @@ mod tests {
 
         // Disassembly line for the label and instruction
         state.disassembly.push(DisassemblyLine {
-            address: 0x1000,
+            address: crate::state::Addr(0x1000),
             mnemonic: "NOP".to_string(),
             operand: String::new(),
             bytes: vec![0xEA],
@@ -1400,7 +1403,7 @@ mod tests {
     #[test]
     fn test_export_absolute_zp_forcing() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
 
         // AD 12 00: LDA $0012 (Absolute) targeting ZP
         // BD 12 00: LDA $0012,X (Absolute X) targeting ZP
@@ -1476,7 +1479,7 @@ mod tests {
     #[test]
     fn test_export_ignores_collapsed_blocks() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
 
         // Data: 3 NOPs
         state.raw_data = vec![0xEA, 0xEA, 0xEA];
@@ -1528,16 +1531,16 @@ mod tests {
     #[test]
     fn test_export_line_comments() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
         state.settings.assembler = crate::state::Assembler::Tass64;
 
         state.raw_data = vec![0xA9, 0x00];
         state.block_types = vec![crate::state::BlockType::Code; 2];
         state
             .user_line_comments
-            .insert(0x1000, "Function Start".to_string());
+            .insert(crate::state::Addr(0x1000), "Function Start".to_string());
         state.labels.insert(
-            0x1000,
+            crate::state::Addr(0x1000),
             vec![crate::state::Label {
                 name: "MyLabel".to_string(),
                 kind: crate::state::LabelKind::User,
@@ -1579,14 +1582,16 @@ mod tests {
     #[test]
     fn test_export_multiline_line_comments() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
         state.settings.assembler = crate::state::Assembler::Tass64;
 
         state.raw_data = vec![0xA9, 0x00];
         state.block_types = vec![crate::state::BlockType::Code; 2];
 
         let multiline_comment = "Line 1\nLine 2\nLine 3".to_string();
-        state.user_line_comments.insert(0x1000, multiline_comment);
+        state
+            .user_line_comments
+            .insert(crate::state::Addr(0x1000), multiline_comment);
 
         let file_name = "test_export_multiline_line_comments.asm";
         let path = PathBuf::from(file_name);
@@ -1627,12 +1632,12 @@ mod tests {
     #[test]
     fn test_export_all_labels_disabled() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
         state.raw_data = vec![0xEA];
 
         // Define an external label
         state.labels.insert(
-            0x0010,
+            crate::state::Addr(0x0010),
             vec![crate::state::Label {
                 name: "f10".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -1678,14 +1683,14 @@ mod tests {
     #[test]
     fn test_export_kick_external_comments() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
         state.settings.assembler = crate::state::Assembler::Kick;
         state.settings.all_labels = true;
         state.raw_data = vec![0xEA];
 
         // Add an external label to trigger header generation
         state.labels.insert(
-            0x0002,
+            crate::state::Addr(0x0002),
             vec![crate::state::Label {
                 name: "f0002".to_string(),
                 kind: crate::state::LabelKind::Auto,
@@ -1716,7 +1721,7 @@ mod tests {
     #[test]
     fn test_export_kick_relative_labels() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
         state.settings.assembler = crate::state::Assembler::Kick;
 
         let file_name = "test_kick_rel.asm";
@@ -1734,7 +1739,7 @@ mod tests {
 
         // Add label at 1001 (+1)
         state.labels.insert(
-            0x1001,
+            crate::state::Addr(0x1001),
             vec![crate::state::Label {
                 name: "rel1".to_string(),
                 kind: crate::state::LabelKind::User,
@@ -1763,7 +1768,7 @@ mod tests {
         use crate::state::{Label, LabelKind, LabelType};
 
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = crate::state::Addr(0x1000);
         // 4 bytes: NOP | ext_byte_1 | ext_byte_2 | RTS
         state.raw_data = vec![0xEA, 0x11, 0x22, 0x60];
         state.block_types = vec![
@@ -1775,7 +1780,7 @@ mod tests {
 
         // A label defined at $1001 (inside the ExternalFile region)
         state.labels.insert(
-            0x1001,
+            crate::state::Addr(0x1001),
             vec![Label {
                 name: "ext_data".to_string(),
                 label_type: LabelType::AbsoluteAddress,

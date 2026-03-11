@@ -1,4 +1,5 @@
 use regenerator2000::disassembler::Disassembler;
+use regenerator2000::state::Addr;
 use regenerator2000::state::{Assembler, BlockType, DocumentSettings};
 use std::collections::BTreeMap;
 
@@ -11,13 +12,13 @@ fn test_system_comments_logic() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let mut system_comments = BTreeMap::new();
     // Comment for target address
-    system_comments.insert(0xFF81, "init VIC".to_string());
+    system_comments.insert(Addr(0xFF81), "init VIC".to_string());
     // Comment for current address
-    system_comments.insert(0x1000, "Start Routine".to_string());
+    system_comments.insert(Addr(0x1000), "Start Routine".to_string());
 
     // 1000: JSR $FF81
     let code = vec![0x20, 0x81, 0xFF];
@@ -65,11 +66,11 @@ fn test_system_comment_on_sta() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x2000;
+    let origin = regenerator2000::state::Addr(0x2000);
 
     let mut system_comments = BTreeMap::new();
     // D020: Border Color
-    system_comments.insert(0xD020, "Border Color".to_string());
+    system_comments.insert(Addr(0xD020), "Border Color".to_string());
 
     // 2000: STA $D020 (8D 20 D0)
     let code = vec![0x8D, 0x20, 0xD0];

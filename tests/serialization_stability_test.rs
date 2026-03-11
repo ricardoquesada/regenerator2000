@@ -13,14 +13,14 @@ mod tests {
         app_state.project_path = Some(temp_path.clone());
 
         // 1. Setup a complex state with multiple labels at same addresses and comments
-        app_state.origin = 0x1000;
+        app_state.origin = regenerator2000::state::Addr(0x1000);
         app_state.raw_data = vec![0xEA; 100]; // 100 NOPs
         app_state.block_types = vec![BlockType::Code; 100];
 
         // Add labels at same address in NON-ALPHABETICAL order
         let mut labels = BTreeMap::new();
         labels.insert(
-            0x1000,
+            regenerator2000::state::Addr(0x1000),
             vec![
                 Label {
                     name: "Z_Label".to_string(),
@@ -35,7 +35,7 @@ mod tests {
             ],
         );
         labels.insert(
-            0x1005,
+            regenerator2000::state::Addr(0x1005),
             vec![Label {
                 name: "M_Label".to_string(),
                 label_type: LabelType::UserDefined,
@@ -45,19 +45,21 @@ mod tests {
         app_state.labels = labels;
 
         // Add comments in random order (BTreeMap will handle address order, but let's be sure)
-        app_state
-            .user_side_comments
-            .insert(0x1005, "Comment 2".to_string());
-        app_state
-            .user_side_comments
-            .insert(0x1000, "Comment 1".to_string());
+        app_state.user_side_comments.insert(
+            regenerator2000::state::Addr(0x1005),
+            "Comment 2".to_string(),
+        );
+        app_state.user_side_comments.insert(
+            regenerator2000::state::Addr(0x1000),
+            "Comment 1".to_string(),
+        );
 
         app_state
             .user_line_comments
-            .insert(0x1005, "Line 2".to_string());
+            .insert(regenerator2000::state::Addr(0x1005), "Line 2".to_string());
         app_state
             .user_line_comments
-            .insert(0x1000, "Line 1".to_string());
+            .insert(regenerator2000::state::Addr(0x1000), "Line 1".to_string());
 
         // 2. Save for the first time
         app_state

@@ -1,4 +1,4 @@
-use crate::state::AppState;
+use crate::state::{Addr, AppState};
 use crate::ui::menu::MenuAction;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
@@ -11,15 +11,15 @@ use ratatui::{
 };
 
 pub struct FindReferencesDialog {
-    pub target_address: u16,
-    pub references: Vec<u16>,
+    pub target_address: Addr,
+    pub references: Vec<Addr>,
     pub selected_index: usize,
     pub list_items: Vec<String>,
 }
 
 impl FindReferencesDialog {
     #[must_use]
-    pub fn new(app_state: &AppState, target_address: u16) -> Self {
+    pub fn new(app_state: &AppState, target_address: Addr) -> Self {
         let mut refs = app_state
             .cross_refs
             .get(&target_address)

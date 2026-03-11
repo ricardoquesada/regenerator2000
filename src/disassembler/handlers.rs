@@ -1,6 +1,6 @@
 use super::DisassemblyLine;
 use super::context::{DisassemblyContext, HandleArgs};
-use crate::state::BlockType;
+use crate::state::{Addr, BlockType};
 
 pub fn handle_lohi_address(
     ctx: &DisassemblyContext,
@@ -107,7 +107,7 @@ fn handle_split_byte_table(
         {
             formatter.format_label(&label.name)
         } else {
-            formatter.format_address(val)
+            formatter.format_address(Addr(val))
         };
 
         if is_lo {

@@ -66,7 +66,7 @@ pub enum MenuAction {
     ToggleCollapsedBlock,
     ToggleSplitter,
     FindReferences,
-    NavigateToAddress(u16),
+    NavigateToAddress(crate::state::Addr),
     SetBytesBlockByOffset {
         start: usize,
         end: usize,
@@ -88,11 +88,11 @@ pub enum MenuAction {
     ViceToggleBreakpoint,
     ViceBreakpointDialog,
     ViceSetBreakpointAt {
-        address: u16,
+        address: crate::state::Addr,
     },
     ViceToggleWatchpoint,
     ViceSetWatchpoint {
-        address: u16,
+        address: crate::state::Addr,
         kind: crate::vice::state::BreakpointKind,
     },
     ToggleDebuggerView,
@@ -1042,23 +1042,27 @@ fn vice_open_breakpoint_dialog(app_state: &AppState, ui_state: &mut UIState) {
     let prefill = app_state
         .disassembly
         .get(ui_state.cursor_index)
-        .map(|l| l.address);
+        .map(|l| l.address.0);
     ui_state.active_dialog = Some(Box::new(
         crate::ui::dialog_breakpoint_address::BreakpointAddressDialog::new(prefill),
     ));
 }
 
-fn vice_toggle_breakpoint_at(app_state: &mut AppState, ui_state: &mut UIState, addr: u16) {
+fn vice_toggle_breakpoint_at(
+    app_state: &mut AppState,
+    ui_state: &mut UIState,
+    addr: crate::state::Addr,
+) {
     if let Some(client) = &app_state.vice_client {
         if let Some(pos) = app_state.vice_state.breakpoints.iter().position(|bp| {
-            bp.address == addr && bp.kind == crate::vice::state::BreakpointKind::Exec
+            bp.address == addr.0 && bp.kind == crate::vice::state::BreakpointKind::Exec
         }) {
             let id = app_state.vice_state.breakpoints[pos].id;
             client.send_checkpoint_delete(id);
             app_state.vice_state.breakpoints.remove(pos);
             ui_state.set_status_message(format!("Breakpoint removed at ${addr:04X}"));
         } else {
-            client.send_checkpoint_set_exec(addr);
+            client.send_checkpoint_set_exec(addr.0);
             ui_state.set_status_message(format!("Breakpoint set at ${addr:04X}"));
         }
     } else {
@@ -1070,7 +1074,7 @@ fn vice_open_watchpoint_dialog(app_state: &AppState, ui_state: &mut UIState) {
     let prefill = app_state
         .disassembly
         .get(ui_state.cursor_index)
-        .map(|l| l.address);
+        .map(|l| l.address.0);
     ui_state.active_dialog = Some(Box::new(
         crate::ui::dialog_watchpoint_address::WatchpointAddressDialog::new(prefill),
     ));
@@ -1079,7 +1083,7 @@ fn vice_open_watchpoint_dialog(app_state: &AppState, ui_state: &mut UIState) {
 fn vice_toggle_watchpoint(
     app_state: &mut AppState,
     ui_state: &mut UIState,
-    addr: u16,
+    addr: crate::state::Addr,
     kind: crate::vice::state::BreakpointKind,
 ) {
     if let Some(client) = &app_state.vice_client {
@@ -1087,7 +1091,7 @@ fn vice_toggle_watchpoint(
             .vice_state
             .breakpoints
             .iter()
-            .position(|bp| bp.address == addr && bp.kind == kind)
+            .position(|bp| bp.address == addr.0 && bp.kind == kind)
         {
             let id = app_state.vice_state.breakpoints[pos].id;
             client.send_checkpoint_delete(id);
@@ -1099,10 +1103,12 @@ fn vice_toggle_watchpoint(
             ));
         } else {
             match kind {
-                crate::vice::state::BreakpointKind::Load => client.send_checkpoint_set_load(addr),
-                crate::vice::state::BreakpointKind::Store => client.send_checkpoint_set_store(addr),
+                crate::vice::state::BreakpointKind::Load => client.send_checkpoint_set_load(addr.0),
+                crate::vice::state::BreakpointKind::Store => {
+                    client.send_checkpoint_set_store(addr.0)
+                }
                 crate::vice::state::BreakpointKind::LoadStore => {
-                    client.send_checkpoint_set_load_store(addr);
+                    client.send_checkpoint_set_load_store(addr.0);
                 }
                 crate::vice::state::BreakpointKind::Exec => {}
             }
@@ -1439,8 +1445,8 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 perform_jump_to_address(app_state, ui_state, target_addr);
             }
             ActivePane::HexDump => {
-                let origin = app_state.origin as usize;
-                let target = target_addr as usize;
+                let origin = app_state.origin.0 as usize;
+                let target = target_addr.0 as usize;
                 let end_addr = origin + app_state.raw_data.len();
 
                 if target >= origin && target < end_addr {
@@ -1455,8 +1461,8 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 }
             }
             ActivePane::Sprites => {
-                let origin = app_state.origin as usize;
-                let target = target_addr as usize;
+                let origin = app_state.origin.0 as usize;
+                let target = target_addr.0 as usize;
                 let padding = (64 - (origin % 64)) % 64;
                 let aligned_start = origin + padding;
                 let end_addr = origin + app_state.raw_data.len();
@@ -1471,8 +1477,8 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 }
             }
             ActivePane::Charset => {
-                let origin = app_state.origin as usize;
-                let target = target_addr as usize;
+                let origin = app_state.origin.0 as usize;
+                let target = target_addr.0 as usize;
                 let base_alignment = 0x400;
                 let aligned_start_addr = (origin / base_alignment) * base_alignment;
                 let end_addr = origin + app_state.raw_data.len();
@@ -1527,10 +1533,10 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                                 | AddressingMode::AbsoluteX
                                 | AddressingMode::AbsoluteY => {
                                     if line.bytes.len() >= 3 {
-                                        Some(
+                                        Some(crate::state::Addr(
                                             u16::from(line.bytes[2]) << 8
                                                 | u16::from(line.bytes[1]),
-                                        )
+                                        ))
                                     } else {
                                         None
                                     }
@@ -1538,10 +1544,10 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                                 AddressingMode::Indirect => {
                                     // JMP ($1234) -> target is $1234
                                     if line.bytes.len() >= 3 {
-                                        Some(
+                                        Some(crate::state::Addr(
                                             u16::from(line.bytes[2]) << 8
                                                 | u16::from(line.bytes[1]),
-                                        )
+                                        ))
                                     } else {
                                         None
                                     }
@@ -1565,7 +1571,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                                 | AddressingMode::IndirectX
                                 | AddressingMode::IndirectY => {
                                     if line.bytes.len() >= 2 {
-                                        Some(u16::from(line.bytes[1]))
+                                        Some(crate::state::Addr(u16::from(line.bytes[1])))
                                     } else {
                                         None
                                     }
@@ -1580,21 +1586,27 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     }
                 }
                 ActivePane::HexDump => {
-                    let origin = app_state.origin as usize;
+                    let origin = app_state.origin.0 as usize;
                     let alignment_padding = origin % 16;
                     let aligned_origin = origin - alignment_padding;
-                    Some((aligned_origin + ui_state.hex_cursor_index * 16) as u16)
+                    Some(crate::state::Addr(
+                        (aligned_origin + ui_state.hex_cursor_index * 16) as u16,
+                    ))
                 }
                 ActivePane::Sprites => {
-                    let origin = app_state.origin as usize;
+                    let origin = app_state.origin.0 as usize;
                     let padding = (64 - (origin % 64)) % 64;
-                    Some((origin + padding + ui_state.sprites_cursor_index * 64) as u16)
+                    Some(crate::state::Addr(
+                        (origin + padding + ui_state.sprites_cursor_index * 64) as u16,
+                    ))
                 }
                 ActivePane::Charset => {
-                    let origin = app_state.origin as usize;
+                    let origin = app_state.origin.0 as usize;
                     let base_alignment = 0x400;
                     let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                    Some((aligned_start_addr + ui_state.charset_cursor_index * 8) as u16)
+                    Some(crate::state::Addr(
+                        (aligned_start_addr + ui_state.charset_cursor_index * 8) as u16,
+                    ))
                 }
                 ActivePane::Blocks => {
                     // Jump to start of selected block
@@ -1602,10 +1614,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     let idx = ui_state.blocks_list_state.selected().unwrap_or(0);
                     if idx < blocks.len() {
                         match blocks[idx] {
-                            crate::state::BlockItem::Block { start, .. } => {
-                                let offset = start;
-                                Some(app_state.origin.wrapping_add(offset))
-                            }
+                            crate::state::BlockItem::Block { start, .. } => Some(start),
                             crate::state::BlockItem::Splitter(addr) => Some(addr),
                         }
                     } else {
@@ -1613,12 +1622,12 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     }
                 }
                 ActivePane::Bitmap => {
-                    let origin = app_state.origin as usize;
+                    let origin = app_state.origin.0 as usize;
                     // Bitmaps must be aligned to 8192-byte boundaries
                     let first_aligned_addr = ((origin / 8192) * 8192)
                         + if origin.is_multiple_of(8192) { 0 } else { 8192 };
                     let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
-                    Some(bitmap_addr as u16)
+                    Some(crate::state::Addr(bitmap_addr as u16))
                 }
                 ActivePane::Debugger => None,
             };
@@ -1884,36 +1893,42 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                         .get(ui_state.cursor_index)
                         .map(|l| l.address),
                     ActivePane::HexDump => {
-                        let origin = app_state.origin as usize;
+                        let origin = app_state.origin.0 as usize;
                         let alignment_padding = origin % 16;
                         let aligned_origin = origin - alignment_padding;
-                        Some((aligned_origin + ui_state.hex_cursor_index * 16) as u16)
+                        Some(crate::state::Addr(
+                            (aligned_origin + ui_state.hex_cursor_index * 16) as u16,
+                        ))
                     }
                     ActivePane::Sprites => {
-                        let origin = app_state.origin as usize;
+                        let origin = app_state.origin.0 as usize;
                         let padding = (64 - (origin % 64)) % 64;
-                        Some((origin + padding + ui_state.sprites_cursor_index * 64) as u16)
+                        Some(crate::state::Addr(
+                            (origin + padding + ui_state.sprites_cursor_index * 64) as u16,
+                        ))
                     }
                     ActivePane::Charset => {
-                        let origin = app_state.origin as usize;
+                        let origin = app_state.origin.0 as usize;
                         let base_alignment = 0x400;
                         let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                        Some((aligned_start_addr + ui_state.charset_cursor_index * 8) as u16)
+                        Some(crate::state::Addr(
+                            (aligned_start_addr + ui_state.charset_cursor_index * 8) as u16,
+                        ))
                     }
                     ActivePane::Bitmap => {
-                        let origin = app_state.origin as usize;
+                        let origin = app_state.origin.0 as usize;
                         let first_aligned_addr = ((origin / 8192) * 8192)
                             + if origin.is_multiple_of(8192) { 0 } else { 8192 };
-                        Some((first_aligned_addr + ui_state.bitmap_cursor_index * 8192) as u16)
+                        Some(crate::state::Addr(
+                            (first_aligned_addr + ui_state.bitmap_cursor_index * 8192) as u16,
+                        ))
                     }
                     ActivePane::Blocks => {
                         let blocks = app_state.get_blocks_view_items();
                         let idx = ui_state.blocks_list_state.selected().unwrap_or(0);
                         if idx < blocks.len() {
                             match blocks[idx] {
-                                crate::state::BlockItem::Block { start, .. } => {
-                                    Some(app_state.origin.wrapping_add(start))
-                                }
+                                crate::state::BlockItem::Block { start, .. } => Some(start),
                                 crate::state::BlockItem::Splitter(addr) => Some(addr),
                             }
                         } else {
@@ -1927,7 +1942,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 };
 
                 if let Some(addr) = target_addr {
-                    client.send_checkpoint_set_exec_temp(addr);
+                    client.send_checkpoint_set_exec_temp(addr.0);
                     client.send_continue();
                     app_state.vice_state.running = true;
                     ui_state.set_status_message(format!("VICE: Running to ${addr:04X}..."));
@@ -1944,14 +1959,14 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     .map(|l| l.address);
                 if let Some(addr) = cursor_addr {
                     if let Some(pos) = app_state.vice_state.breakpoints.iter().position(|bp| {
-                        bp.address == addr && bp.kind == crate::vice::state::BreakpointKind::Exec
+                        bp.address == addr.0 && bp.kind == crate::vice::state::BreakpointKind::Exec
                     }) {
                         let id = app_state.vice_state.breakpoints[pos].id;
                         client.send_checkpoint_delete(id);
                         app_state.vice_state.breakpoints.remove(pos);
                         ui_state.set_status_message(format!("Breakpoint removed at ${addr:04X}"));
                     } else {
-                        client.send_checkpoint_set_exec(addr);
+                        client.send_checkpoint_set_exec(addr.0);
                         ui_state.set_status_message(format!("Breakpoint set at ${addr:04X}"));
                     }
                 }
@@ -2178,8 +2193,8 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 if let Some(idx) = ui_state.blocks_list_state.selected() {
                     if let Some(crate::state::BlockItem::Block { start, end, .. }) = blocks.get(idx)
                     {
-                        let start_offset = *start as usize;
-                        let end_offset = *end as usize;
+                        let start_offset = start.offset_from(app_state.origin);
+                        let end_offset = end.offset_from(app_state.origin);
 
                         let current_cursor_addr = app_state
                             .disassembly
@@ -2226,11 +2241,12 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 let cursor_addr = app_state
                     .disassembly
                     .get(ui_state.cursor_index)
-                    .map_or(0, |line| line.address);
+                    .map_or(crate::state::Addr::ZERO, |line| line.address);
 
                 // First check if we are ON a collapsed block placeholder (Uncollapse case)
                 if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                    let offset = (line.address as usize).wrapping_sub(app_state.origin as usize);
+                    let offset =
+                        (line.address.0 as usize).wrapping_sub(app_state.origin.0 as usize);
                     if let Some(&range) = app_state
                         .collapsed_blocks
                         .iter()
@@ -2247,9 +2263,8 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
 
                 // If not uncollapsing, try to Collapse
                 if let Some((start_addr, end_addr)) = app_state.get_block_range(cursor_addr) {
-                    let start_offset =
-                        (start_addr as usize).wrapping_sub(app_state.origin as usize);
-                    let end_offset = (end_addr as usize).wrapping_sub(app_state.origin as usize);
+                    let start_offset = start_addr.offset_from(app_state.origin);
+                    let end_offset = end_addr.offset_from(app_state.origin);
 
                     // Check if already collapsed
                     if let Some(&range) = app_state
@@ -2364,14 +2379,14 @@ fn apply_lo_hi_packing(app_state: &mut AppState, ui_state: &mut UIState, lo_firs
                 // For now, removing SetLabel command as agreed.
 
                 let fmt1 = if lo_first {
-                    crate::state::ImmediateFormat::LowByte(target)
+                    crate::state::ImmediateFormat::LowByte(crate::state::Addr(target))
                 } else {
-                    crate::state::ImmediateFormat::HighByte(target)
+                    crate::state::ImmediateFormat::HighByte(crate::state::Addr(target))
                 };
                 let fmt2 = if lo_first {
-                    crate::state::ImmediateFormat::HighByte(target)
+                    crate::state::ImmediateFormat::HighByte(crate::state::Addr(target))
                 } else {
-                    crate::state::ImmediateFormat::LowByte(target)
+                    crate::state::ImmediateFormat::LowByte(crate::state::Addr(target))
                 };
 
                 let addr1 = app_state.disassembly[idx1].address;
@@ -2461,14 +2476,18 @@ fn apply_block_type(
             && idx < blocks.len()
             && let crate::state::BlockItem::Block { start, end, .. } = blocks[idx]
         {
-            let len = (end as usize) - (start as usize) + 1;
+            let len = end.offset_from(start) + 1;
             if needs_even && !len.is_multiple_of(2) {
                 ui_state.set_status_message(format!(
                     "Error: {block_type} requires even number of bytes"
                 ));
                 return;
             }
-            app_state.set_block_type_region(block_type, Some(start as usize), end as usize);
+            app_state.set_block_type_region(
+                block_type,
+                Some(start.offset_from(app_state.origin)),
+                end.offset_from(app_state.origin),
+            );
             ui_state.set_status_message(format!("Set block type to {block_type}"));
         }
     } else if let Some(start_index) = ui_state.selection_start {
@@ -2487,7 +2506,7 @@ fn apply_block_type(
                 .wrapping_add(line.bytes.len() as u16)
                 .wrapping_sub(1)
         } else {
-            0
+            crate::state::Addr::ZERO
         };
 
         app_state.set_block_type_region(block_type, Some(start), end);
@@ -2541,44 +2560,44 @@ fn create_save_context(
     let hex_addr = if app_state.raw_data.is_empty() {
         None
     } else {
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         let alignment_padding = origin % 16;
         let aligned_origin = origin - alignment_padding;
         let row_start_offset = ui_state.hex_cursor_index * 16;
         let addr = aligned_origin + row_start_offset;
-        Some(addr as u16)
+        Some(crate::state::Addr(addr as u16))
     };
 
     let sprites_addr = if app_state.raw_data.is_empty() {
         None
     } else {
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         let padding = (64 - (origin % 64)) % 64;
         let sprite_offset = ui_state.sprites_cursor_index * 64;
         let addr = origin + padding + sprite_offset;
-        Some(addr as u16)
+        Some(crate::state::Addr(addr as u16))
     };
 
     let charset_addr = if app_state.raw_data.is_empty() {
         None
     } else {
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         let base_alignment = 0x400;
         let aligned_start_addr = (origin / base_alignment) * base_alignment;
         let char_offset = ui_state.charset_cursor_index * 8;
         let addr = aligned_start_addr + char_offset;
-        Some(addr as u16)
+        Some(crate::state::Addr(addr as u16))
     };
 
     let bitmap_addr = if app_state.raw_data.is_empty() {
         None
     } else {
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         // Bitmaps must be aligned to 8192-byte boundaries
         let first_aligned_addr =
             ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
         let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
-        Some(bitmap_addr as u16)
+        Some(crate::state::Addr(bitmap_addr as u16))
     };
 
     let right_pane_str = format!("{:?}", ui_state.right_pane);
@@ -2610,13 +2629,17 @@ fn update_hexdump_status(ui_state: &mut UIState, mode: crate::state::HexdumpView
     ui_state.set_status_message(format!("Hex Dump: {status}"));
 }
 
-pub fn perform_jump_to_address(app_state: &AppState, ui_state: &mut UIState, target_addr: u16) {
+pub fn perform_jump_to_address(
+    app_state: &AppState,
+    ui_state: &mut UIState,
+    target_addr: crate::state::Addr,
+) {
     // Push CURRENT state to history
     use crate::ui_state::NavigationTarget;
     if let Some(current_line) = app_state.disassembly.get(ui_state.cursor_index) {
         ui_state.navigation_history.push((
             ActivePane::Disassembly,
-            NavigationTarget::Address(current_line.address),
+            NavigationTarget::Address(current_line.address.0),
         ));
     } else {
         ui_state.navigation_history.push((
@@ -2631,7 +2654,7 @@ pub fn perform_jump_to_address(app_state: &AppState, ui_state: &mut UIState, tar
 pub fn perform_jump_to_address_no_history(
     app_state: &AppState,
     ui_state: &mut UIState,
-    target_addr: u16,
+    target_addr: crate::state::Addr,
 ) {
     if let Some(mut idx) = app_state
         .get_line_index_containing_address(target_addr)
@@ -2657,7 +2680,7 @@ pub fn perform_jump_to_address_no_history(
                 crate::ui::view_disassembly::DisassemblyView::get_sub_index_for_address(
                     line,
                     app_state,
-                    target_addr,
+                    target_addr.0,
                 );
         } else {
             ui_state.sub_cursor_index = 0;
@@ -2712,7 +2735,7 @@ mod tests {
     #[test]
     fn test_apply_block_type_single_line_cursor_preservation() {
         let mut app_state = AppState::default();
-        app_state.origin = 0xC000;
+        app_state.origin = crate::state::Addr(0xC000);
         // 3 bytes: A9 00 EA (LDA #$00; NOP)
         app_state.raw_data = vec![0xA9, 0x00, 0xEA];
         app_state.block_types = vec![crate::state::BlockType::DataByte; 3];

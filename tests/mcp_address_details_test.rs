@@ -36,7 +36,7 @@ mod tests {
     #[test]
     fn test_block_details() {
         let mut app_state = AppState::default();
-        let origin = 0x1000;
+        let origin = regenerator2000::state::Addr(0x1000);
         // LDA #$00 (A9 00)
         // STA $D020 (8D 20 D0)
         // JMP $1000 (4C 00 10)
@@ -45,16 +45,17 @@ mod tests {
 
         // Add some metadata
         app_state.labels.insert(
-            0x1000,
+            regenerator2000::state::Addr(0x1000),
             vec![regenerator2000::state::Label {
                 name: "start".to_string(),
                 kind: regenerator2000::state::LabelKind::User,
                 label_type: regenerator2000::state::LabelType::UserDefined,
             }],
         );
-        app_state
-            .user_side_comments
-            .insert(0x1000, "Start of loop".to_string());
+        app_state.user_side_comments.insert(
+            regenerator2000::state::Addr(0x1000),
+            "Start of loop".to_string(),
+        );
 
         let mut ui_state = UIState::new(Theme::default());
 

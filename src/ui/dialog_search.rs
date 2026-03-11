@@ -344,7 +344,7 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
             }
 
             // Check collapsed content
-            let pc = line.address.wrapping_sub(app_state.origin) as usize;
+            let pc = line.address.offset_from(app_state.origin);
             if app_state
                 .collapsed_blocks
                 .iter()

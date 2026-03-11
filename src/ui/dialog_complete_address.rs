@@ -14,12 +14,12 @@ pub struct CompleteAddressDialog {
     pub input: String,
     pub known_byte: u8,
     pub lo_first: bool, // true if known_byte is low byte, false if high byte
-    pub address: u16,   // Address of the instruction to modify
+    pub address: crate::state::Addr, // Address of the instruction to modify
 }
 
 impl CompleteAddressDialog {
     #[must_use]
-    pub fn new(known_byte: u8, lo_first: bool, address: u16) -> Self {
+    pub fn new(known_byte: u8, lo_first: bool, address: crate::state::Addr) -> Self {
         Self {
             input: String::new(),
             known_byte,
@@ -130,9 +130,9 @@ impl Widget for CompleteAddressDialog {
                 if let Some(target_address) = self.get_complete_address() {
                     // Create immediate format for this instruction
                     let fmt = if self.lo_first {
-                        crate::state::ImmediateFormat::LowByte(target_address)
+                        crate::state::ImmediateFormat::LowByte(crate::state::Addr(target_address))
                     } else {
-                        crate::state::ImmediateFormat::HighByte(target_address)
+                        crate::state::ImmediateFormat::HighByte(crate::state::Addr(target_address))
                     };
 
                     let old_fmt = app_state

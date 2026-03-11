@@ -105,12 +105,15 @@ impl Widget for DebuggerView {
             use std::collections::{BTreeMap, BTreeSet};
 
             let block_types: Vec<BlockType> = vec![BlockType::Code; live_bytes.len()];
-            let empty_labels: BTreeMap<u16, Vec<crate::state::Label>> = BTreeMap::new();
-            let empty_comments: BTreeMap<u16, String> = BTreeMap::new();
-            let empty_line_comments: BTreeMap<u16, String> = BTreeMap::new();
-            let empty_formats: BTreeMap<u16, crate::state::ImmediateFormat> = BTreeMap::new();
-            let empty_xrefs: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
-            let empty_splitters: BTreeSet<u16> = BTreeSet::new();
+            let empty_labels: BTreeMap<crate::state::Addr, Vec<crate::state::Label>> =
+                BTreeMap::new();
+            let empty_comments: BTreeMap<crate::state::Addr, String> = BTreeMap::new();
+            let empty_line_comments: BTreeMap<crate::state::Addr, String> = BTreeMap::new();
+            let empty_formats: BTreeMap<crate::state::Addr, crate::state::ImmediateFormat> =
+                BTreeMap::new();
+            let empty_xrefs: BTreeMap<crate::state::Addr, Vec<crate::state::Addr>> =
+                BTreeMap::new();
+            let empty_splitters: BTreeSet<crate::state::Addr> = BTreeSet::new();
             let settings = DocumentSettings::default();
             let collapsed: Vec<(usize, usize)> = Vec::new();
 
@@ -118,7 +121,7 @@ impl Widget for DebuggerView {
                 live_bytes,
                 &block_types,
                 &empty_labels,
-                mem_start,
+                crate::state::Addr(mem_start),
                 &settings,
                 &empty_comments,
                 &empty_comments,

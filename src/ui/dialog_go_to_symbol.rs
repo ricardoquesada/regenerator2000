@@ -27,7 +27,7 @@ impl GoToSymbolDialog {
                 // User requirement said "global and user-defined".
                 // I'll include User and System.
                 if label.kind != LabelKind::Auto {
-                    symbols.push((*addr, label.name.clone()));
+                    symbols.push((addr.0, label.name.clone()));
                 }
             }
         }
@@ -171,7 +171,7 @@ impl Widget for GoToSymbolDialog {
                     crate::ui::menu::execute_menu_action(
                         _app_state,
                         ui_state,
-                        crate::ui_state::MenuAction::NavigateToAddress(*addr),
+                        crate::ui_state::MenuAction::NavigateToAddress(crate::state::Addr(*addr)),
                     );
                 }
                 WidgetResult::Close
@@ -217,7 +217,7 @@ mod tests {
         let mut app = AppState::new();
         let mut labels = BTreeMap::new();
         labels.insert(
-            0x1000,
+            crate::state::Addr(0x1000),
             vec![Label {
                 name: "MainLoop".to_string(),
                 kind: LabelKind::User,
@@ -225,7 +225,7 @@ mod tests {
             }],
         );
         labels.insert(
-            0x2000,
+            crate::state::Addr(0x2000),
             vec![Label {
                 name: "DataStart".to_string(),
                 kind: LabelKind::User,
@@ -233,7 +233,7 @@ mod tests {
             }],
         );
         labels.insert(
-            0xfffe,
+            crate::state::Addr(0xfffe),
             vec![Label {
                 name: "IRQVector".to_string(),
                 kind: LabelKind::System,

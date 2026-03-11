@@ -1,16 +1,16 @@
 #[cfg(test)]
 mod tests {
     use regenerator2000::commands::Command;
-    use regenerator2000::state::{AppState, BlockType};
+    use regenerator2000::state::{Addr, AppState, BlockType};
 
     #[test]
     fn test_bookmark_add_remove() {
         let mut app_state = AppState::new();
-        app_state.origin = 0x1000;
+        app_state.origin = regenerator2000::state::Addr(0x1000);
         app_state.raw_data = vec![0xEA; 10];
         app_state.block_types = vec![BlockType::Code; 10];
 
-        let addr = 0x1005;
+        let addr = Addr(0x1005);
 
         // 1. Add Bookmark
         let cmd = Command::SetBookmark {
@@ -46,12 +46,15 @@ mod tests {
         path.push("test_bookmarks.regen2000proj");
         app_state.project_path = Some(path.clone());
 
-        app_state.origin = 0x1000;
+        app_state.origin = regenerator2000::state::Addr(0x1000);
         app_state.raw_data = vec![0xEA; 10];
         app_state.block_types = vec![BlockType::Code; 10];
 
         // Add bookmark
-        app_state.bookmarks.insert(0x1002, "MyBookmark".to_string());
+        app_state.bookmarks.insert(
+            regenerator2000::state::Addr(0x1002),
+            "MyBookmark".to_string(),
+        );
 
         // Save
         let context = regenerator2000::state::project::ProjectSaveContext {

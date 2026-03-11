@@ -1,4 +1,5 @@
 use regenerator2000::disassembler::Disassembler;
+use regenerator2000::state::Addr;
 use regenerator2000::state::{Assembler, BlockType, DocumentSettings};
 use std::collections::BTreeMap;
 
@@ -11,11 +12,11 @@ fn test_user_line_comments_basic() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // Map for line comments
     let mut user_line_comments = BTreeMap::new();
-    user_line_comments.insert(0x1000, "Start of routine".to_string());
+    user_line_comments.insert(Addr(0x1000), "Start of routine".to_string());
 
     let code = vec![0xEA]; // NOP
     let block_types = vec![BlockType::Code];
@@ -49,13 +50,13 @@ fn test_user_line_and_side_comments_coexist() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let mut user_line_comments = BTreeMap::new();
-    user_line_comments.insert(0x1000, "Header".to_string());
+    user_line_comments.insert(Addr(0x1000), "Header".to_string());
 
     let mut user_side_comments = BTreeMap::new();
-    user_side_comments.insert(0x1000, "Inline note".to_string());
+    user_side_comments.insert(Addr(0x1000), "Inline note".to_string());
 
     let code = vec![0xEA];
     let block_types = vec![BlockType::Code];

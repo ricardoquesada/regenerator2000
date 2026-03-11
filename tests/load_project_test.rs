@@ -21,7 +21,7 @@ mod tests {
 
         let project = ProjectState {
             version: 1,
-            origin: 0x1000,
+            origin: regenerator2000::state::Addr(0x1000),
             raw_data: raw_data_base64,
             blocks: vec![Block {
                 start: 0,

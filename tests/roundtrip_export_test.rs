@@ -189,7 +189,7 @@ fn test_roundtrip_sprmux32_all_assemblers() {
 #[test]
 fn test_roundtrip_synthetic_code() {
     let mut state = AppState::new();
-    state.origin = 0x0801;
+    state.origin = regenerator2000::state::Addr(0x0801);
     // LDA #$00; STA $D020; STA $D021; RTS
     state.raw_data = vec![
         0xA9, 0x00, // LDA #$00
@@ -226,7 +226,7 @@ fn test_roundtrip_synthetic_mixed_code_data() {
     use regenerator2000::state::BlockType;
 
     let mut state = AppState::new();
-    state.origin = 0xC000;
+    state.origin = regenerator2000::state::Addr(0xC000);
     state.raw_data = vec![
         0xA9, 0x01, // LDA #$01
         0x8D, 0x20, 0xD0, // STA $D020
@@ -273,7 +273,7 @@ fn test_roundtrip_synthetic_data_words() {
     use regenerator2000::state::BlockType;
 
     let mut state = AppState::new();
-    state.origin = 0x0800;
+    state.origin = regenerator2000::state::Addr(0x0800);
     state.raw_data = vec![
         0xA9, 0x42, // LDA #$42
         0x60, // RTS

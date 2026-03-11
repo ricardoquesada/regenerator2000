@@ -125,45 +125,45 @@ impl Widget for SaveAsDialog {
                     let hex_addr = if app_state.raw_data.is_empty() {
                         None
                     } else {
-                        let origin = app_state.origin as usize;
+                        let origin = app_state.origin.0 as usize;
                         let alignment_padding = origin % 16;
                         let aligned_origin = origin - alignment_padding;
                         let row_start_offset = ui_state.hex_cursor_index * 16;
                         let addr = aligned_origin + row_start_offset;
-                        Some(addr as u16)
+                        Some(crate::state::Addr(addr as u16))
                     };
 
                     let sprites_addr = if app_state.raw_data.is_empty() {
                         None
                     } else {
-                        let origin = app_state.origin as usize;
+                        let origin = app_state.origin.0 as usize;
                         let padding = (64 - (origin % 64)) % 64;
                         let sprite_offset = ui_state.sprites_cursor_index * 64;
                         let addr = origin + padding + sprite_offset;
-                        Some(addr as u16)
+                        Some(crate::state::Addr(addr as u16))
                     };
 
                     let charset_addr = if app_state.raw_data.is_empty() {
                         None
                     } else {
-                        let origin = app_state.origin as usize;
+                        let origin = app_state.origin.0 as usize;
                         let base_alignment = 0x400;
                         let aligned_start_addr = (origin / base_alignment) * base_alignment;
                         let char_offset = ui_state.charset_cursor_index * 8;
                         let addr = aligned_start_addr + char_offset;
-                        Some(addr as u16)
+                        Some(crate::state::Addr(addr as u16))
                     };
 
                     let bitmap_addr = if app_state.raw_data.is_empty() {
                         None
                     } else {
-                        let origin = app_state.origin as usize;
+                        let origin = app_state.origin.0 as usize;
                         // Bitmaps must be aligned to 8192-byte boundaries
                         let first_aligned_addr = ((origin / 8192) * 8192)
                             + if origin.is_multiple_of(8192) { 0 } else { 8192 };
                         let bitmap_addr =
                             first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
-                        Some(bitmap_addr as u16)
+                        Some(crate::state::Addr(bitmap_addr as u16))
                     };
 
                     let right_pane_str = format!("{:?}", ui_state.right_pane);

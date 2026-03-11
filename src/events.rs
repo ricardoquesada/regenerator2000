@@ -241,7 +241,7 @@ fn handle_vice_registers_get(
     if !app_state.disassembly.is_empty() {
         let idx = app_state
             .disassembly
-            .binary_search_by_key(&pc, |l| l.address)
+            .binary_search_by_key(&pc, |l| l.address.0)
             .unwrap_or_else(|i| i.saturating_sub(1).min(app_state.disassembly.len() - 1));
         let sub_idx = crate::ui::view_disassembly::DisassemblyView::get_sub_index_for_address(
             &app_state.disassembly[idx],
@@ -781,10 +781,10 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     if ui_state.right_pane == crate::ui_state::RightPane::HexDump
         && app_state.system_config.sync_hex_dump
     {
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         let alignment_padding = origin % 16;
         let aligned_origin = origin - alignment_padding;
-        let addr = target_addr as usize;
+        let addr = target_addr.0 as usize;
 
         if addr >= aligned_origin {
             let offset = addr - aligned_origin;
@@ -802,10 +802,10 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     if ui_state.right_pane == crate::ui_state::RightPane::Charset
         && app_state.system_config.sync_charset_view
     {
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         let base_alignment = 0x400;
         let aligned_start_addr = (origin / base_alignment) * base_alignment;
-        let addr = target_addr as usize;
+        let addr = target_addr.0 as usize;
 
         if addr >= aligned_start_addr {
             let char_offset = addr - aligned_start_addr;
@@ -824,9 +824,9 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     if ui_state.right_pane == crate::ui_state::RightPane::Sprites
         && app_state.system_config.sync_sprites_view
     {
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         let aligned_origin = (origin / 64) * 64;
-        let addr = target_addr as usize;
+        let addr = target_addr.0 as usize;
 
         if addr >= aligned_origin {
             let offset = addr - aligned_origin;
@@ -846,8 +846,8 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     if ui_state.right_pane == crate::ui_state::RightPane::Bitmap
         && app_state.system_config.sync_bitmap_view
     {
-        let origin = app_state.origin as usize;
-        let addr = target_addr as usize;
+        let origin = app_state.origin.0 as usize;
+        let addr = target_addr.0 as usize;
 
         // Bitmaps must be aligned to 8192-byte ($2000) boundaries
         let first_aligned_addr = (origin / 8192) * 8192;

@@ -226,10 +226,10 @@ impl UIState {
         if let Some(hex_addr) = loaded_hex_cursor
             && !app_state.raw_data.is_empty()
         {
-            let origin = app_state.origin as usize;
+            let origin = app_state.origin.0 as usize;
             let alignment_padding = origin % 16;
             let aligned_origin = origin - alignment_padding;
-            let target = hex_addr as usize;
+            let target = hex_addr.0 as usize;
 
             if target >= aligned_origin {
                 let offset = target - aligned_origin;
@@ -259,19 +259,19 @@ impl UIState {
             self.blocks_list_state.select(Some(idx));
         }
         if let Some(sprites_addr) = loaded_sprites_cursor {
-            let origin = app_state.origin as usize;
+            let origin = app_state.origin.0 as usize;
             let aligned_origin = (origin / 64) * 64;
-            let addr = sprites_addr as usize;
+            let addr = sprites_addr.0 as usize;
             if addr >= aligned_origin {
                 let offset = addr - aligned_origin;
                 self.sprites_cursor_index = offset / 64;
             }
         }
         if let Some(charset_addr) = loaded_charset_cursor {
-            let origin = app_state.origin as usize;
+            let origin = app_state.origin.0 as usize;
             let base_alignment = 0x400;
             let aligned_start_addr = (origin / base_alignment) * base_alignment;
-            let addr = charset_addr as usize;
+            let addr = charset_addr.0 as usize;
             if addr >= aligned_start_addr {
                 let offset = addr - aligned_start_addr;
                 self.charset_cursor_index = offset / 8;
@@ -280,10 +280,10 @@ impl UIState {
 
         // Restore Bitmap Cursor
         if let Some(bitmap_addr) = loaded_data.bitmap_cursor_address {
-            let origin = app_state.origin as usize;
+            let origin = app_state.origin.0 as usize;
             // Bitmaps must be aligned to 8192-byte boundaries
             let aligned_start_addr = (origin / 8192) * 8192;
-            let addr = bitmap_addr as usize;
+            let addr = bitmap_addr.0 as usize;
             if addr >= aligned_start_addr {
                 let offset = addr - aligned_start_addr;
                 self.bitmap_cursor_index = offset / 8192;

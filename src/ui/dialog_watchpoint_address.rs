@@ -145,7 +145,7 @@ impl Widget for WatchpointAddressDialog {
                     let kind = Self::existing_watchpoint(&self.input, app_state)
                         .map_or(self.kind, |bp| bp.kind);
                     WidgetResult::Action(crate::ui::menu::MenuAction::ViceSetWatchpoint {
-                        address: addr,
+                        address: crate::state::Addr(addr),
                         kind,
                     })
                 } else if self.input.is_empty() {

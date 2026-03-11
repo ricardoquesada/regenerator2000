@@ -211,8 +211,9 @@ impl Widget for T64FilePickerDialog {
 
                 match crate::parser::t64::extract_file(&self.disk_data, selected_entry) {
                     Ok((load_address, program_data)) => {
-                        app_state.origin = load_address;
-                        match app_state.load_binary(load_address, program_data) {
+                        app_state.origin = crate::state::Addr(load_address);
+                        match app_state.load_binary(crate::state::Addr(load_address), program_data)
+                        {
                             Ok(loaded_data) => {
                                 crate::ui::dialog_warning::WarningDialog::show_if_needed(
                                     loaded_data.entropy_warning,

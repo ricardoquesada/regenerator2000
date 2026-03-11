@@ -1,4 +1,5 @@
 use regenerator2000::disassembler::{Disassembler, DisassemblyLine};
+use regenerator2000::state::Addr;
 use regenerator2000::state::{Assembler, BlockType, DocumentSettings};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -12,7 +13,7 @@ fn test_tass_formatting_force_w() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // LDA $0012 (Absolute) -> should be LDA @w $0012
     let code = vec![0xAD, 0x12, 0x00]; // AD = LDA Abs
@@ -49,7 +50,7 @@ fn test_tass_formatting_no_force_if_disabled() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let code = vec![0xAD, 0x12, 0x00];
     let block_types = vec![BlockType::Code, BlockType::Code, BlockType::Code];
@@ -82,7 +83,7 @@ fn test_acme_formatting_basic() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let code = vec![0xAD, 0x12, 0x34]; // LDA $3412
     let block_types = vec![BlockType::Code, BlockType::Code, BlockType::Code];
@@ -121,7 +122,7 @@ fn test_text_char_limit_configurable() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let lines = disassembler.disassemble(
         &data,
@@ -167,7 +168,7 @@ fn test_screencode_limit_configurable() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let lines = disassembler.disassemble(
         &data,
@@ -211,7 +212,7 @@ fn test_acme_directives() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // .BYTE equivalent
     let code = vec![0xFF];
@@ -246,11 +247,11 @@ fn test_acme_lowercase_output() {
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // Add a label with MixedCase name
     labels.insert(
-        0x1005,
+        regenerator2000::state::Addr(0x1005),
         vec![regenerator2000::state::Label {
             name: "MixedCaseLabel".to_string(),
             kind: regenerator2000::state::LabelKind::User,
@@ -309,7 +310,7 @@ fn test_acme_plus2_formatting() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // LDA $0012 (Absolute) -> should be lda+2 $0012
     let code = vec![0xAD, 0x12, 0x00]; // AD = LDA Abs
@@ -346,11 +347,11 @@ fn test_xref_formatting_with_dollar() {
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // Create a label with references
     labels.insert(
-        0x1000,
+        regenerator2000::state::Addr(0x1000),
         vec![regenerator2000::state::Label {
             name: "TestLabel".to_string(),
             kind: regenerator2000::state::LabelKind::User,
@@ -363,7 +364,13 @@ fn test_xref_formatting_with_dollar() {
     let block_types = vec![BlockType::Code];
 
     let mut cross_refs = BTreeMap::new();
-    cross_refs.insert(0x1000, vec![0x2000, 0x3000]);
+    cross_refs.insert(
+        regenerator2000::state::Addr(0x1000),
+        vec![
+            regenerator2000::state::Addr(0x2000),
+            regenerator2000::state::Addr(0x3000),
+        ],
+    );
 
     let lines = disassembler.disassemble(
         &code,
@@ -395,11 +402,11 @@ fn test_xref_count_configurable() {
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // Create a label with many references
     labels.insert(
-        0x1000,
+        regenerator2000::state::Addr(0x1000),
         vec![regenerator2000::state::Label {
             name: "ManyRefs".to_string(),
             kind: regenerator2000::state::LabelKind::User,
@@ -411,7 +418,17 @@ fn test_xref_count_configurable() {
     let block_types = vec![BlockType::Code];
 
     let mut cross_refs = BTreeMap::new();
-    cross_refs.insert(0x1000, vec![0x2000, 0x2001, 0x2002, 0x2003, 0x2004, 0x2005]);
+    cross_refs.insert(
+        regenerator2000::state::Addr(0x1000),
+        vec![
+            regenerator2000::state::Addr(0x2000),
+            regenerator2000::state::Addr(0x2001),
+            regenerator2000::state::Addr(0x2002),
+            regenerator2000::state::Addr(0x2003),
+            regenerator2000::state::Addr(0x2004),
+            regenerator2000::state::Addr(0x2005),
+        ],
+    );
 
     // Case 1: Default (5)
     settings.max_xref_count = 5;
@@ -483,7 +500,7 @@ fn test_text_and_screencode_disassembly() {
     };
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // "ABC"
     let code = vec![0x41, 0x42, 0x43];
@@ -602,7 +619,7 @@ fn test_text_mixed_content() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // $00, $01, "A", "B", $00
     let code = vec![0x00, 0x01, 0x41, 0x42, 0x00];
@@ -645,7 +662,7 @@ fn test_text_escaping() {
     let mut settings = DocumentSettings::default();
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // String: Quote " Backslash \
     // ASCII: 51 75 6f 74 65 20 22 20 42 61 63 6b 73 6c 61 73 68 20 5c
@@ -708,7 +725,7 @@ fn test_screencode_mixed() {
     let mut settings = DocumentSettings::default();
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // Screencodes:
     // 0x01 ('A'), 0x00 ('@'), 0x80 (Invalid/Reverse), 0x01 ('A')
@@ -793,7 +810,7 @@ fn test_tass_screencode_enc_wrapping() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // "ABC" in screencode (0x01, 0x02, 0x03)
     let code = vec![0x01, 0x02, 0x03];
@@ -843,7 +860,7 @@ fn test_tass_screencode_multiline_wrapping() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // 40 bytes of screencode (exceeds 32 byte limit per line)
     // 0x01 * 40
@@ -901,7 +918,7 @@ fn test_text_show_bytes_is_false() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let code = vec![0x41, 0x42, 0x43]; // "ABC"
     let block_types = vec![
@@ -939,7 +956,7 @@ fn test_screencode_show_bytes_is_false() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let code = vec![0x01, 0x02, 0x03]; // "ABC" in screencode
     let block_types = vec![
@@ -980,7 +997,7 @@ fn test_databyte_show_bytes_is_false() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let code = vec![0x10, 0x20];
     let block_types = vec![BlockType::DataByte, BlockType::DataByte];
@@ -1016,7 +1033,7 @@ fn test_dataword_show_bytes_is_false() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let code = vec![0x10, 0x20]; // $2010
     let block_types = vec![BlockType::DataWord, BlockType::DataWord];
@@ -1052,7 +1069,7 @@ fn test_address_show_bytes_is_false() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let code = vec![0x10, 0x20]; // $2010
     let block_types = vec![BlockType::Address, BlockType::Address];
@@ -1084,7 +1101,7 @@ fn test_tass_block_separation() {
     };
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // SC (1 byte), Code (1 byte), SC (1 byte)
     let code = vec![0x01, 0xEA, 0x02];
@@ -1139,7 +1156,7 @@ fn test_tass_label_interruption() {
 
     // Label at index 1 (0x1001)
     labels.insert(
-        0x1001,
+        regenerator2000::state::Addr(0x1001),
         vec![Label {
             name: "MID".to_string(),
             kind: LabelKind::Auto,
@@ -1147,7 +1164,7 @@ fn test_tass_label_interruption() {
         }],
     );
 
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // SC (2 bytes)
     let code = vec![0x01, 0x02];
@@ -1209,7 +1226,7 @@ fn test_tass_screencode_single_byte_special() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // Single byte $4F
     let code = vec![0x4F];
@@ -1254,7 +1271,7 @@ fn test_tass_screencode_case_mapping() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // Case A: 30 2d 39 2c 20 08 0f 0c 01 20 03 0f 0d 0f (0-9, HOLA COMO)
     let bytes_a = vec![
@@ -1319,7 +1336,7 @@ fn test_screencode_limit_0x5f() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // 0x5E (94) -> < 0x5f. Maps to '~' (126). Text.
     // 0x5F (95) -> >= 0x5f. Byte.
@@ -1359,7 +1376,7 @@ fn test_acme_screencode_case_inversion() {
     };
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // Screencodes:
     // 0x01 -> 'A' (handle_screencode) -> "a" (format_screencode inverted)
@@ -1401,7 +1418,7 @@ fn test_target_address_population() {
     let settings = DocumentSettings::default();
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // 1. JMP $1234 (4C 34 12)
     // 2. BNE +4 (D0 04) -> 1003 + 2 + 4 = 1009
@@ -1439,11 +1456,17 @@ fn test_target_address_population() {
     assert_eq!(lines.len(), 3);
 
     // JMP $1234
-    assert_eq!(lines[0].target_address, Some(0x1234));
+    assert_eq!(
+        lines[0].target_address,
+        Some(regenerator2000::state::Addr(0x1234))
+    );
 
     // BNE +4
     // Address of BNE is 1003. Length 2. Next PC = 1005. Offset +4. Target = 1009.
-    assert_eq!(lines[1].target_address, Some(0x1009));
+    assert_eq!(
+        lines[1].target_address,
+        Some(regenerator2000::state::Addr(0x1009))
+    );
 
     // NOP
     assert_eq!(lines[2].target_address, None);
@@ -1458,7 +1481,7 @@ fn test_target_address_specific_instructions() {
     };
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // 1. JSR $2000 (20 00 20) -> Should have target
     // 2. JMP (Indirect) (6C 34 12) -> Should NOT have target
@@ -1505,7 +1528,10 @@ fn test_target_address_specific_instructions() {
 
     // JSR $2000
     assert_eq!(lines[0].mnemonic, "jsr");
-    assert_eq!(lines[0].target_address, Some(0x2000));
+    assert_eq!(
+        lines[0].target_address,
+        Some(regenerator2000::state::Addr(0x2000))
+    );
 
     // JMP ($1234)
     assert_eq!(lines[1].mnemonic, "jmp");
@@ -1528,7 +1554,7 @@ fn test_target_address_specific_instructions() {
 fn test_side_comment_propagation_suppressed_for_code() {
     let labels = BTreeMap::new();
     let mut user_side_comments = BTreeMap::new();
-    user_side_comments.insert(0x1000, "Loop Start".to_string());
+    user_side_comments.insert(Addr(0x1000), "Loop Start".to_string());
 
     // $1000: BNE $1000 -> D0 FE
     let data = vec![0xD0, 0xFE];
@@ -1541,7 +1567,7 @@ fn test_side_comment_propagation_suppressed_for_code() {
         &data,
         &block_types,
         &labels,
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &user_side_comments,
@@ -1568,7 +1594,7 @@ fn test_side_comment_propagation_suppressed_for_code() {
         &full_data,
         &full_block_types,
         &labels,
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &user_side_comments,
@@ -1588,7 +1614,7 @@ fn test_side_comment_propagation_suppressed_for_code() {
 fn test_side_comment_propagation_allowed_for_data() {
     let labels = BTreeMap::new();
     let mut user_side_comments = BTreeMap::new();
-    user_side_comments.insert(0x2000, "My Data".to_string());
+    user_side_comments.insert(Addr(0x2000), "My Data".to_string());
 
     let data = vec![0xAD, 0x00, 0x20]; // LDA $2000
     // Target $2000 is out of bounds of this data block, so is_code_target should be false.
@@ -1602,7 +1628,7 @@ fn test_side_comment_propagation_allowed_for_data() {
         &data,
         &block_types,
         &labels,
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &user_side_comments,
@@ -1626,7 +1652,7 @@ fn test_lohi_block() {
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // Data: 00 01 (Lo part), C0 D0 (Hi part)
     // Addr 0: 00 paired with C0 -> $C000
@@ -1665,7 +1691,7 @@ fn test_lohi_block() {
 
     // Case 2: With Label at $C000
     labels.insert(
-        0xC000,
+        regenerator2000::state::Addr(0xC000),
         vec![regenerator2000::state::Label {
             name: "MyLabel".to_string(),
             kind: regenerator2000::state::LabelKind::User,
@@ -1702,7 +1728,7 @@ fn test_lohi_internal_label_regression() {
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // 4 bytes total: 00 01 (Lo), C0 D0 (Hi)
     // Addr: 1000, 1001, 1002, 1003.
@@ -1714,7 +1740,7 @@ fn test_lohi_internal_label_regression() {
     let block_types = vec![BlockType::LoHiAddress; 4];
 
     labels.insert(
-        0x1002, // Midpoint
+        regenerator2000::state::Addr(0x1002), // Midpoint
         vec![regenerator2000::state::Label {
             name: "HiPart".to_string(),
             kind: regenerator2000::state::LabelKind::User,
@@ -1759,7 +1785,7 @@ fn test_hilo_block() {
 
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // Data: C0 D0 (Hi part), 00 01 (Lo part)
     // Addr 0: C0 paired with 00 -> $C000
@@ -1797,7 +1823,7 @@ fn test_hilo_block() {
 
     // Case 2: With Label at $C000
     labels.insert(
-        0xC000,
+        regenerator2000::state::Addr(0xC000),
         vec![regenerator2000::state::Label {
             name: "MyLabel".to_string(),
             kind: regenerator2000::state::LabelKind::User,
@@ -1840,18 +1866,18 @@ fn test_inverted_binary_format() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let code = vec![0xA9, 0x00, 0xA9, 0xFF]; // LDA #$00, LDA #$FF
     let block_types = vec![BlockType::Code; 4];
 
     let mut immediate_value_formats = BTreeMap::new();
     immediate_value_formats.insert(
-        0x1000,
+        regenerator2000::state::Addr(0x1000),
         regenerator2000::state::ImmediateFormat::InvertedBinary,
     );
     immediate_value_formats.insert(
-        0x1002,
+        regenerator2000::state::Addr(0x1002),
         regenerator2000::state::ImmediateFormat::InvertedBinary,
     );
 
@@ -1883,7 +1909,7 @@ fn test_acme_accumulator_formatting() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // ASL A (0x0A), LSR A (0x4A), ROL A (0x2A), ROR A (0x6A)
     let code = vec![0x0A, 0x4A, 0x2A, 0x6A];
@@ -1933,7 +1959,7 @@ fn test_addresses_per_line() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // 8 bytes of data -> 4 pairs for LoHi
     // Lo: 00, 01, 02, 03
@@ -2004,7 +2030,7 @@ fn test_words_per_line() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x2000;
+    let origin = regenerator2000::state::Addr(0x2000);
 
     // 8 bytes -> 4 words
     // Word 1: 00 10 ->
@@ -2057,7 +2083,7 @@ fn test_bytes_per_line() {
         &data,
         &block_types,
         &BTreeMap::new(),
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &BTreeMap::new(),

@@ -112,7 +112,7 @@ impl Widget for BlocksView {
                     let target_addr = match blocks[index] {
                         crate::state::BlockItem::Block { start, .. } => {
                             // start is u16 (offset from origin)
-                            Some(app_state.origin.wrapping_add(start))
+                            Some(start)
                         }
                         crate::state::BlockItem::Splitter(addr) => Some(addr),
                     };
@@ -162,8 +162,8 @@ impl Widget for BlocksView {
                     type_,
                     collapsed,
                 } => {
-                    let start_addr = app_state.origin.wrapping_add(*start);
-                    let end_addr = app_state.origin.wrapping_add(*end);
+                    let start_addr = *start;
+                    let end_addr = *end;
                     let color = match type_ {
                         BlockType::Code => ui_state.theme.block_code_fg,
                         BlockType::DataByte => ui_state.theme.block_data_byte_fg,
@@ -230,7 +230,7 @@ impl Widget for BlocksView {
                     let target_addr = match blocks[idx] {
                         crate::state::BlockItem::Block { start, .. } => {
                             // start is u16 (offset from origin)
-                            Some(app_state.origin.wrapping_add(start))
+                            Some(start)
                         }
                         crate::state::BlockItem::Splitter(addr) => Some(addr),
                     };

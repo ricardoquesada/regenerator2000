@@ -5,12 +5,12 @@ use std::path::PathBuf;
 #[test]
 fn test_export_all_labels_disabled() {
     let mut state = AppState::new();
-    state.origin = 0x1000;
+    state.origin = regenerator2000::state::Addr(0x1000);
     state.raw_data = vec![0xEA];
 
     // Define an external label
     state.labels.insert(
-        0x0010,
+        regenerator2000::state::Addr(0x0010),
         vec![regenerator2000::state::Label {
             name: "f10".to_string(),
             kind: regenerator2000::state::LabelKind::Auto,

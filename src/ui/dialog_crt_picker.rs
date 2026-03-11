@@ -176,9 +176,11 @@ impl Widget for CrtBankPickerDialog {
                     let chip = &selected_entry.chip;
 
                     // Set origin and raw data
-                    app_state.origin = chip.load_address;
+                    app_state.origin = crate::state::Addr(chip.load_address);
 
-                    match app_state.load_binary(chip.load_address, chip.data.clone()) {
+                    match app_state
+                        .load_binary(crate::state::Addr(chip.load_address), chip.data.clone())
+                    {
                         Ok(loaded_data) => {
                             crate::ui::dialog_warning::WarningDialog::show_if_needed(
                                 loaded_data.entropy_warning,

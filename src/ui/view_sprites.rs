@@ -17,7 +17,7 @@ pub struct SpritesView;
 
 impl Navigable for SpritesView {
     fn len(&self, app_state: &AppState) -> usize {
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         let aligned_origin = (origin / 64) * 64;
         let end_address = origin + app_state.raw_data.len();
         let total_bytes = end_address.saturating_sub(aligned_origin);
@@ -149,7 +149,7 @@ impl Widget for SpritesView {
             return;
         }
 
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         let aligned_origin = (origin / 64) * 64;
         let end_address = origin + app_state.raw_data.len();
         let total_bytes = end_address.saturating_sub(aligned_origin);
@@ -369,7 +369,7 @@ impl Widget for SpritesView {
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
                 // Convert selected sprites or current sprite to bytes block (64 bytes per sprite)
-                let origin = app_state.origin as usize;
+                let origin = app_state.origin.0 as usize;
                 let aligned_origin = (origin / 64) * 64;
                 let end_address = origin + app_state.raw_data.len();
 
@@ -408,7 +408,7 @@ impl Widget for SpritesView {
                 }
             }
             KeyCode::Enter => {
-                let origin = app_state.origin as usize;
+                let origin = app_state.origin.0 as usize;
                 let aligned_origin = (origin / 64) * 64;
                 let sprite_offset = ui_state.sprites_cursor_index * 64;
                 let sprite_addr = aligned_origin + sprite_offset;
@@ -423,7 +423,7 @@ impl Widget for SpritesView {
                 crate::ui::navigable::jump_to_disassembly_at_address(
                     app_state,
                     ui_state,
-                    target_addr,
+                    crate::state::Addr(target_addr),
                 )
             }
             _ => WidgetResult::Ignored,

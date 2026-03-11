@@ -6,9 +6,9 @@ mod tests {
     fn test_save_and_restore_cursor() {
         // 1. Setup initial state
         let mut app_state = AppState::new();
-        app_state.origin = 0x1000;
-        let start_cursor_addr = 0x1005;
-        let start_hex_cursor_addr = 0x1010;
+        app_state.origin = regenerator2000::state::Addr(0x1000);
+        let start_cursor_addr = regenerator2000::state::Addr(0x1005);
+        let start_hex_cursor_addr = regenerator2000::state::Addr(0x1010);
 
         // Dummy raw data
         let raw_bytes: Vec<u8> = vec![0xEA; 32]; // Enough bytes for a few rows

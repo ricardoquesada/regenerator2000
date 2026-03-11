@@ -74,7 +74,9 @@ impl Widget for JumpToAddressDialog {
                     crate::ui::menu::execute_menu_action(
                         _app_state,
                         ui_state,
-                        crate::ui::menu::MenuAction::NavigateToAddress(target_addr),
+                        crate::ui::menu::MenuAction::NavigateToAddress(crate::state::Addr(
+                            target_addr,
+                        )),
                     );
                 } else if !input.is_empty() {
                     ui_state.set_status_message("Invalid Hex Address");

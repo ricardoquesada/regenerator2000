@@ -21,7 +21,7 @@ fn sync_hex_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
     if app_state.raw_data.is_empty() || app_state.disassembly.is_empty() {
         return;
     }
-    let origin = app_state.origin as usize;
+    let origin = app_state.origin.0 as usize;
     let bytes_per_row = 16usize;
     let aligned_origin = origin - origin % bytes_per_row;
 
@@ -39,9 +39,9 @@ fn sync_hex_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
     // that starts at or after the row boundary instead.  This prevents the
     // disassembly cursor from jumping backwards when the user presses Down.
     let inst_idx = app_state
-        .get_line_index_containing_address(cursor_byte_addr)
+        .get_line_index_containing_address(crate::state::Addr(cursor_byte_addr))
         .filter(|&idx| app_state.disassembly[idx].address >= row_start_addr)
-        .or_else(|| app_state.get_line_index_for_address(row_start_addr));
+        .or_else(|| app_state.get_line_index_for_address(crate::state::Addr(row_start_addr)));
 
     if let Some(inst_idx) = inst_idx {
         ui_state.cursor_index = inst_idx;
@@ -57,7 +57,7 @@ fn sync_hex_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
                 + ui_state.hex_selection_start_col.min(bytes_per_row - 1))
             .min(origin + app_state.raw_data.len().saturating_sub(1))
                 as u16;
-            app_state.get_line_index_containing_address(anchor_addr)
+            app_state.get_line_index_containing_address(crate::state::Addr(anchor_addr))
         });
     }
 }
@@ -67,7 +67,7 @@ pub struct HexDumpView;
 impl Navigable for HexDumpView {
     fn len(&self, app_state: &AppState) -> usize {
         let bytes_per_row = 16;
-        let padding = (app_state.origin as usize) % bytes_per_row;
+        let padding = (app_state.origin.0 as usize) % bytes_per_row;
         (app_state.raw_data.len() + padding).div_ceil(bytes_per_row)
     }
 
@@ -248,7 +248,7 @@ impl Widget for HexDumpView {
         let visible_height = inner_area.height as usize;
         // Each row is 16 bytes
         let bytes_per_row = 16;
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         let alignment_padding = origin % bytes_per_row;
         let aligned_origin = origin - alignment_padding;
 
@@ -265,7 +265,7 @@ impl Widget for HexDumpView {
         } else if total_rows > 0 {
             // Hex is passive: follow the disassembly cursor for scrolling.
             if let Some(dline) = app_state.disassembly.get(ui_state.cursor_index) {
-                let addr = dline.address as usize;
+                let addr = dline.address.0 as usize;
                 if addr >= aligned_origin {
                     let row = (addr - aligned_origin) / bytes_per_row;
                     ui_state.hex_cursor_index = row.min(total_rows.saturating_sub(1));
@@ -335,16 +335,16 @@ impl Widget for HexDumpView {
                 let start_addr = app_state
                     .disassembly
                     .get(s_idx)
-                    .map_or(dline.address as usize, |l| l.address as usize);
+                    .map_or(dline.address.0 as usize, |l| l.address.0 as usize);
                 let end_addr = app_state
                     .disassembly
                     .get(e_idx)
-                    .map_or(dline.address as usize, |l| {
-                        l.address as usize + l.bytes.len().saturating_sub(1)
+                    .map_or(dline.address.0 as usize, |l| {
+                        l.address.0 as usize + l.bytes.len().saturating_sub(1)
                     });
                 (start_addr, end_addr)
             } else {
-                let addr = dline.address as usize;
+                let addr = dline.address.0 as usize;
                 let end = addr + dline.bytes.len().saturating_sub(1);
                 (addr, end)
             }
@@ -629,7 +629,7 @@ impl Widget for HexDumpView {
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
                 // Convert selected bytes (or current row if no selection) to a bytes block.
-                let origin = app_state.origin as usize;
+                let origin = app_state.origin.0 as usize;
                 let bytes_per_row = 16;
                 let alignment_padding = origin % bytes_per_row;
                 let aligned_origin = origin - alignment_padding;
@@ -688,7 +688,7 @@ impl Widget for HexDumpView {
                 }
             }
             KeyCode::Enter => {
-                let origin = app_state.origin as usize;
+                let origin = app_state.origin.0 as usize;
                 let alignment_padding = origin % 16;
                 let aligned_origin = origin - alignment_padding;
                 let row_addr = aligned_origin + ui_state.hex_cursor_index * 16;
@@ -702,7 +702,7 @@ impl Widget for HexDumpView {
                 crate::ui::navigable::jump_to_disassembly_at_address(
                     app_state,
                     ui_state,
-                    target_addr,
+                    crate::state::Addr(target_addr),
                 )
             }
             _ => WidgetResult::Ignored,

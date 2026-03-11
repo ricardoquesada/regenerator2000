@@ -66,7 +66,7 @@ impl Widget for BookmarksDialog {
             let items: Vec<ListItem> = bookmarks
                 .iter()
                 .map(|(addr, name)| {
-                    let label = if let Some(labels) = app_state.labels.get(addr)
+                    let label = if let Some(labels) = app_state.labels.get(*addr)
                         && let Some(first) = labels.first()
                     {
                         format!(" ({})", first.name)
@@ -104,7 +104,7 @@ impl Widget for BookmarksDialog {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        let bookmarks: Vec<u16> = app_state.bookmarks.keys().copied().collect();
+        let bookmarks: Vec<crate::state::Addr> = app_state.bookmarks.keys().copied().collect();
 
         match key.code {
             KeyCode::Esc => {

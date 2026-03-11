@@ -17,7 +17,7 @@ pub struct CharsetView;
 
 impl Navigable for CharsetView {
     fn len(&self, app_state: &AppState) -> usize {
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         let base_alignment = 0x400;
         let aligned_start_addr = (origin / base_alignment) * base_alignment;
         let end_addr = origin + app_state.raw_data.len();
@@ -158,7 +158,7 @@ impl Widget for CharsetView {
             return;
         }
 
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         // Align origin to next multiple of $400 as per user request (and consistent with events.rs)
         let base_alignment = 0x400;
         let aligned_start_addr = (origin / base_alignment) * base_alignment;
@@ -503,7 +503,7 @@ impl Widget for CharsetView {
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
                 // Convert selected characters or current character to bytes block (8 bytes per character)
-                let origin = app_state.origin as usize;
+                let origin = app_state.origin.0 as usize;
                 let base_alignment = 0x400;
                 let aligned_start_addr = (origin / base_alignment) * base_alignment;
 
@@ -541,7 +541,7 @@ impl Widget for CharsetView {
                 }
             }
             KeyCode::Enter => {
-                let origin = app_state.origin as usize;
+                let origin = app_state.origin.0 as usize;
                 let base_alignment = 0x400;
                 let aligned_start_addr = (origin / base_alignment) * base_alignment;
                 let char_offset = ui_state.charset_cursor_index * 8;
@@ -557,7 +557,7 @@ impl Widget for CharsetView {
                 crate::ui::navigable::jump_to_disassembly_at_address(
                     app_state,
                     ui_state,
-                    target_addr,
+                    crate::state::Addr(target_addr),
                 )
             }
             _ => WidgetResult::Ignored,

@@ -225,9 +225,10 @@ impl Widget for D64FilePickerDialog {
                 match crate::parser::d64::extract_file(&self.disk_data, selected_entry) {
                     Ok((load_address, program_data)) => {
                         // Set origin and raw data
-                        app_state.origin = load_address;
+                        app_state.origin = crate::state::Addr(load_address);
                         // Let's redo.
-                        match app_state.load_binary(load_address, program_data) {
+                        match app_state.load_binary(crate::state::Addr(load_address), program_data)
+                        {
                             Ok(loaded_data) => {
                                 // Apply loaded UI state if needed (like cursor pos), though load_binary defaults them.
                                 crate::ui::dialog_warning::WarningDialog::show_if_needed(

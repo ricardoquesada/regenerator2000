@@ -1,6 +1,6 @@
 use super::formatter::Formatter;
 use crate::cpu::AddressingMode;
-use crate::state::LabelType;
+use crate::state::{Addr, LabelType};
 
 pub struct TassFormatter;
 
@@ -21,8 +21,8 @@ impl Formatter for TassFormatter {
         format!("${byte:02x}")
     }
 
-    fn format_address(&self, address: u16) -> String {
-        format!("${address:04x}")
+    fn format_address(&self, address: Addr) -> String {
+        format!("${:04x}", address.0)
     }
 
     fn format_operand(&self, ctx: &super::formatter::FormatContext) -> String {
@@ -33,7 +33,7 @@ impl Formatter for TassFormatter {
         let _labels = ctx.labels;
         let settings = ctx.settings;
         let immediate_value_formats = ctx.immediate_value_formats;
-        let get_label = |addr: u16, _l_type: LabelType| -> Option<String> {
+        let get_label = |addr: Addr, _l_type: LabelType| -> Option<String> {
             ctx.resolve_label(addr).map(|l| l.name.clone())
         };
 
@@ -80,7 +80,7 @@ impl Formatter for TassFormatter {
                 }
             }
             AddressingMode::ZeroPage => {
-                let addr = u16::from(operands[0]); // Zero page address
+                let addr = Addr::from(u16::from(operands[0])); // Zero page address
                 if let Some(name) = get_label(addr, LabelType::ZeroPageAbsoluteAddress) {
                     name
                 } else {
@@ -88,7 +88,7 @@ impl Formatter for TassFormatter {
                 }
             }
             AddressingMode::ZeroPageX => {
-                let addr = u16::from(operands[0]);
+                let addr = Addr::from(u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
                     format!("{name},x")
                 } else {
@@ -96,7 +96,7 @@ impl Formatter for TassFormatter {
                 }
             }
             AddressingMode::ZeroPageY => {
-                let addr = u16::from(operands[0]);
+                let addr = Addr::from(u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::ZeroPageField) {
                     format!("{name},y")
                 } else {
@@ -113,7 +113,7 @@ impl Formatter for TassFormatter {
                 }
             }
             AddressingMode::Absolute => {
-                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
+                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
                 let l_type = if opcode.mnemonic == "JSR" {
                     LabelType::Subroutine
                 } else if opcode.mnemonic == "JMP" {
@@ -135,7 +135,7 @@ impl Formatter for TassFormatter {
                 }
             }
             AddressingMode::AbsoluteX => {
-                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
+                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
                 let base = if let Some(name) = get_label(addr, LabelType::Field) {
                     format!("{name},x")
                 } else {
@@ -149,7 +149,7 @@ impl Formatter for TassFormatter {
                 }
             }
             AddressingMode::AbsoluteY => {
-                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
+                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
                 let base = if let Some(name) = get_label(addr, LabelType::Field) {
                     format!("{name},y")
                 } else {
@@ -164,7 +164,7 @@ impl Formatter for TassFormatter {
             }
 
             AddressingMode::Indirect => {
-                let addr = u16::from(operands[1]) << 8 | u16::from(operands[0]);
+                let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::Pointer) {
                     format!("({name})")
                 } else {
@@ -172,7 +172,7 @@ impl Formatter for TassFormatter {
                 }
             }
             AddressingMode::IndirectX => {
-                let addr = u16::from(operands[0]);
+                let addr = Addr::from(u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
                     format!("({name},x)")
                 } else {
@@ -180,7 +180,7 @@ impl Formatter for TassFormatter {
                 }
             }
             AddressingMode::IndirectY => {
-                let addr = u16::from(operands[0]);
+                let addr = Addr::from(u16::from(operands[0]));
                 if let Some(name) = get_label(addr, LabelType::ZeroPagePointer) {
                     format!("({name}),y")
                 } else {
@@ -268,7 +268,7 @@ impl Formatter for TassFormatter {
         vec![(".endencode".to_string(), String::new())]
     }
 
-    fn format_header_origin(&self, origin: u16) -> String {
+    fn format_header_origin(&self, origin: Addr) -> String {
         format!("* = ${origin:04x}")
     }
 

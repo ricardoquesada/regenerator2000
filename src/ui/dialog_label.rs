@@ -1,4 +1,4 @@
-use crate::state::AppState;
+use crate::state::{Addr, AppState};
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
@@ -12,12 +12,12 @@ use crate::ui::widget::{Widget, WidgetResult};
 
 pub struct LabelDialog {
     pub input: String,
-    pub address: u16,
+    pub address: Addr,
 }
 
 impl LabelDialog {
     #[must_use]
-    pub fn new(current_label: Option<&str>, address: u16) -> Self {
+    pub fn new(current_label: Option<&str>, address: Addr) -> Self {
         Self {
             input: current_label.unwrap_or("").to_string(),
             address,

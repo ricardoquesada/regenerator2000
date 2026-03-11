@@ -11,7 +11,7 @@ mod tests {
     #[test]
     fn test_batch_execute() {
         let mut app_state = AppState::default();
-        let origin = 0x1000;
+        let origin = regenerator2000::state::Addr(0x1000);
         let data = vec![0xEA; 10]; // NOPs
         app_state.load_binary(origin, data).unwrap();
 

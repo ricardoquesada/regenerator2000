@@ -1,4 +1,5 @@
 use regenerator2000::disassembler::Disassembler;
+use regenerator2000::state::Addr;
 use regenerator2000::state::{BlockType, DocumentSettings, Label, LabelKind, LabelType};
 use std::collections::BTreeMap;
 
@@ -22,7 +23,7 @@ fn test_brk_default_behavior() {
         &data,
         &block_types,
         &BTreeMap::new(),
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -59,7 +60,7 @@ fn test_brk_patch_brk_enabled() {
         &data,
         &block_types,
         &BTreeMap::new(),
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -100,7 +101,7 @@ fn test_brk_single_byte_enabled() {
         &data,
         &block_types,
         &BTreeMap::new(),
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -141,7 +142,7 @@ fn test_brk_patch_brk_with_label() {
 
     let mut labels = BTreeMap::new();
     labels.insert(
-        0x1001,
+        regenerator2000::state::Addr(0x1001),
         vec![Label {
             name: "b1001".to_string(),
             label_type: LabelType::UserDefined,
@@ -153,7 +154,7 @@ fn test_brk_patch_brk_with_label() {
         &data,
         &block_types,
         &labels,
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &BTreeMap::new(),

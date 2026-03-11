@@ -7,7 +7,7 @@ fn test_collapsed_block_rendering() {
     let settings = DocumentSettings::default();
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // 4 NOPs
     let code = vec![0xEA, 0xEA, 0xEA, 0xEA];
@@ -38,14 +38,14 @@ fn test_collapsed_block_rendering() {
 
     assert_eq!(lines.len(), 3);
 
-    assert_eq!(lines[0].address, 0x1000);
+    assert_eq!(lines[0].address, regenerator2000::state::Addr(0x1000));
     assert_eq!(lines[0].mnemonic, "nop");
 
-    assert_eq!(lines[1].address, 0x1001);
+    assert_eq!(lines[1].address, regenerator2000::state::Addr(0x1001));
     assert!(lines[1].mnemonic.contains("Collapsed Code block"));
     // Verify bytes are empty for collapsed block
     assert!(lines[1].bytes.is_empty());
 
-    assert_eq!(lines[2].address, 0x1003);
+    assert_eq!(lines[2].address, regenerator2000::state::Addr(0x1003));
     assert_eq!(lines[2].mnemonic, "nop");
 }

@@ -1,5 +1,5 @@
 use super::settings::DocumentSettings;
-use super::types::{BlockType, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType};
+use super::types::{Addr, BlockType, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType};
 use base64::{Engine as _, engine::general_purpose};
 use flate2::Compression;
 use flate2::read::GzDecoder;
@@ -40,30 +40,30 @@ pub struct Block {
 pub struct ProjectState {
     #[serde(default = "default_project_version")]
     pub version: u32,
-    pub origin: u16,
+    pub origin: Addr,
     #[serde(rename = "raw_data_base64")]
     pub raw_data: String,
     pub blocks: Vec<Block>,
     #[serde(default)]
-    pub labels: BTreeMap<u16, Vec<Label>>,
+    pub labels: BTreeMap<Addr, Vec<Label>>,
     #[serde(default, alias = "user_comments")]
-    pub user_side_comments: BTreeMap<u16, String>,
+    pub user_side_comments: BTreeMap<Addr, String>,
     #[serde(default)]
-    pub user_line_comments: BTreeMap<u16, String>,
+    pub user_line_comments: BTreeMap<Addr, String>,
     #[serde(default)]
     pub settings: DocumentSettings,
     #[serde(default)]
-    pub immediate_value_formats: BTreeMap<u16, ImmediateFormat>,
+    pub immediate_value_formats: BTreeMap<Addr, ImmediateFormat>,
     #[serde(default)]
-    pub bookmarks: BTreeMap<u16, String>,
+    pub bookmarks: BTreeMap<Addr, String>,
     #[serde(default)]
-    pub cursor_address: Option<u16>,
+    pub cursor_address: Option<Addr>,
     #[serde(default)]
-    pub hex_dump_cursor_address: Option<u16>,
+    pub hex_dump_cursor_address: Option<Addr>,
     #[serde(default)]
-    pub sprites_cursor_address: Option<u16>,
+    pub sprites_cursor_address: Option<Addr>,
     #[serde(default)]
-    pub charset_cursor_address: Option<u16>,
+    pub charset_cursor_address: Option<Addr>,
     #[serde(default)]
     pub right_pane_visible: Option<String>,
     #[serde(default)]
@@ -71,24 +71,24 @@ pub struct ProjectState {
     #[serde(default)]
     pub charset_multicolor_mode: bool,
     #[serde(default)]
-    pub bitmap_cursor_address: Option<u16>,
+    pub bitmap_cursor_address: Option<Addr>,
     #[serde(default)]
     pub bitmap_multicolor_mode: bool,
     #[serde(default)]
     pub hexdump_view_mode: HexdumpViewMode,
     #[serde(default)]
-    pub splitters: BTreeSet<u16>,
+    pub splitters: BTreeSet<Addr>,
     #[serde(default)]
     pub blocks_view_cursor: Option<usize>,
 }
 
 pub struct LoadedProjectData {
-    pub cursor_address: Option<u16>,
-    pub hex_dump_cursor_address: Option<u16>,
-    pub sprites_cursor_address: Option<u16>,
+    pub cursor_address: Option<Addr>,
+    pub hex_dump_cursor_address: Option<Addr>,
+    pub sprites_cursor_address: Option<Addr>,
     pub right_pane_visible: Option<String>,
-    pub charset_cursor_address: Option<u16>,
-    pub bitmap_cursor_address: Option<u16>,
+    pub charset_cursor_address: Option<Addr>,
+    pub bitmap_cursor_address: Option<Addr>,
     pub sprite_multicolor_mode: bool,
     pub charset_multicolor_mode: bool,
     pub bitmap_multicolor_mode: Option<bool>,
@@ -99,19 +99,19 @@ pub struct LoadedProjectData {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProjectSaveContext {
-    pub cursor_address: Option<u16>,
-    pub hex_dump_cursor_address: Option<u16>,
-    pub sprites_cursor_address: Option<u16>,
+    pub cursor_address: Option<Addr>,
+    pub hex_dump_cursor_address: Option<Addr>,
+    pub sprites_cursor_address: Option<Addr>,
     pub right_pane_visible: Option<String>,
-    pub charset_cursor_address: Option<u16>,
-    pub bitmap_cursor_address: Option<u16>,
+    pub charset_cursor_address: Option<Addr>,
+    pub bitmap_cursor_address: Option<Addr>,
     pub sprite_multicolor_mode: bool,
     pub charset_multicolor_mode: bool,
     pub bitmap_multicolor_mode: bool,
     pub hexdump_view_mode: HexdumpViewMode,
-    pub splitters: BTreeSet<u16>,
+    pub splitters: BTreeSet<Addr>,
     pub blocks_view_cursor: Option<usize>,
-    pub bookmarks: BTreeMap<u16, String>,
+    pub bookmarks: BTreeMap<Addr, String>,
 }
 
 pub fn encode_raw_data_to_base64(data: &[u8]) -> anyhow::Result<String> {

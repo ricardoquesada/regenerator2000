@@ -4,7 +4,7 @@ use super::project::{
 };
 use super::settings::DocumentSettings;
 use super::types::{
-    BlockType, CachedArrow, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType, Platform,
+    Addr, BlockType, CachedArrow, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType, Platform,
 };
 use crate::config::SystemConfig;
 use crate::disassembler::{Disassembler, DisassemblyLine};
@@ -14,12 +14,12 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, PartialEq)]
 pub enum BlockItem {
     Block {
-        start: u16,
-        end: u16,
+        start: Addr,
+        end: Addr,
         type_: BlockType,
         collapsed: bool,
     },
-    Splitter(u16),
+    Splitter(Addr),
 }
 
 pub struct AppState {
@@ -30,26 +30,26 @@ pub struct AppState {
     pub disassembly: Vec<DisassemblyLine>,
     pub cached_arrows: Vec<CachedArrow>,
     pub disassembler: Disassembler,
-    pub origin: u16,
+    pub origin: Addr,
 
     // Data Conversion State
     pub block_types: Vec<BlockType>,
-    pub labels: BTreeMap<u16, Vec<Label>>,
+    pub labels: BTreeMap<Addr, Vec<Label>>,
     pub settings: DocumentSettings,
-    pub system_comments: BTreeMap<u16, String>,
-    pub user_side_comments: BTreeMap<u16, String>,
-    pub user_line_comments: BTreeMap<u16, String>,
-    pub immediate_value_formats: BTreeMap<u16, ImmediateFormat>,
-    pub cross_refs: BTreeMap<u16, Vec<u16>>,
-    pub bookmarks: BTreeMap<u16, String>,
+    pub system_comments: BTreeMap<Addr, String>,
+    pub user_side_comments: BTreeMap<Addr, String>,
+    pub user_line_comments: BTreeMap<Addr, String>,
+    pub immediate_value_formats: BTreeMap<Addr, ImmediateFormat>,
+    pub cross_refs: BTreeMap<Addr, Vec<Addr>>,
+    pub bookmarks: BTreeMap<Addr, String>,
 
     pub system_config: SystemConfig,
 
     pub undo_stack: crate::commands::UndoStack,
     pub last_saved_pointer: usize,
-    pub excluded_addresses: std::collections::HashSet<u16>,
+    pub excluded_addresses: std::collections::HashSet<Addr>,
     pub collapsed_blocks: Vec<(usize, usize)>,
-    pub splitters: BTreeSet<u16>,
+    pub splitters: BTreeSet<Addr>,
     pub last_import_labels_path: Option<PathBuf>,
     pub last_export_labels_filename: Option<String>,
     pub last_save_as_filename: Option<String>,
@@ -87,7 +87,7 @@ impl AppState {
             disassembly: Vec::new(),
             cached_arrows: Vec::new(),
             disassembler: Disassembler::new(),
-            origin: 0,
+            origin: Addr::ZERO,
             block_types: Vec::new(),
             labels: BTreeMap::new(),
             settings: DocumentSettings::default(),
@@ -127,7 +127,10 @@ impl AppState {
 
         // Load comments (conditionally)
         if self.settings.show_system_comments {
-            self.system_comments = crate::assets::load_comments(&self.settings.platform);
+            self.system_comments = crate::assets::load_comments(&self.settings.platform)
+                .into_iter()
+                .map(|(k, v)| (Addr(k), v))
+                .collect();
         } else {
             self.system_comments.clear();
         }
@@ -138,12 +141,12 @@ impl AppState {
             Some(&self.settings.enabled_features),
         );
         for (addr, label) in system_labels {
-            self.labels.entry(addr).or_default().push(label);
+            self.labels.entry(Addr(addr)).or_default().push(label);
         }
 
         // Load excludes
         let excludes = crate::assets::load_excludes(&self.settings.platform);
-        self.excluded_addresses = excludes.into_iter().collect();
+        self.excluded_addresses = excludes.into_iter().map(Addr).collect();
     }
 
     #[must_use]
@@ -152,12 +155,12 @@ impl AppState {
     }
 
     #[must_use]
-    pub fn get_block_range(&self, address: u16) -> Option<(u16, u16)> {
+    pub fn get_block_range(&self, address: Addr) -> Option<(Addr, Addr)> {
         let origin = self.origin;
         if address < origin {
             return None;
         }
-        let index = (address - origin) as usize;
+        let index = address.offset_from(origin);
         if index >= self.block_types.len() {
             return None;
         }
@@ -230,26 +233,26 @@ impl AppState {
             }
 
             if ext.eq_ignore_ascii_case("prg") && data.len() >= 2 {
-                self.origin = u16::from(data[1]) << 8 | u16::from(data[0]);
+                self.origin = Addr(u16::from(data[1]) << 8 | u16::from(data[0]));
                 self.raw_data = data[2..].to_vec();
             } else if ext.eq_ignore_ascii_case("crt") {
                 let (origin, raw_data) = crate::parser::crt::parse_crt(&data)
                     .map_err(|e| anyhow::anyhow!("Failed to parse CRT: {e}"))?;
-                self.origin = origin;
+                self.origin = Addr(origin);
                 self.raw_data = raw_data;
             } else if ext.eq_ignore_ascii_case("vsf") {
                 let vsf_data = crate::parser::vice_vsf::parse_vsf(&data)
                     .map_err(|e| anyhow::anyhow!("Failed to parse VSF: {e}"))?;
-                self.origin = 0;
+                self.origin = Addr::ZERO;
                 self.raw_data = vsf_data.memory;
                 cursor_start = vsf_data.start_address;
             } else if ext.eq_ignore_ascii_case("t64") {
                 let (load_address, raw_data) = crate::parser::t64::parse_t64(&data)
                     .map_err(|e| anyhow::anyhow!("Failed to parse T64: {e}"))?;
-                self.origin = load_address;
+                self.origin = Addr(load_address);
                 self.raw_data = raw_data;
             } else if ext.eq_ignore_ascii_case("bin") || ext.eq_ignore_ascii_case("raw") {
-                self.origin = 0; // Default for .bin
+                self.origin = Addr::ZERO; // Default for .bin
                 self.raw_data = data;
             } else {
                 return Err(anyhow::anyhow!(
@@ -284,7 +287,7 @@ impl AppState {
         }
 
         Ok(LoadedProjectData {
-            cursor_address: cursor_start,
+            cursor_address: cursor_start.map(Addr),
             hex_dump_cursor_address: hex_cursor_start,
             sprites_cursor_address: None,
             right_pane_visible: None,
@@ -299,7 +302,11 @@ impl AppState {
         })
     }
 
-    pub fn load_binary(&mut self, origin: u16, data: Vec<u8>) -> anyhow::Result<LoadedProjectData> {
+    pub fn load_binary(
+        &mut self,
+        origin: Addr,
+        data: Vec<u8>,
+    ) -> anyhow::Result<LoadedProjectData> {
         self.origin = origin;
         self.raw_data = data;
         self.block_types = vec![BlockType::Code; self.raw_data.len()];
@@ -549,7 +556,8 @@ impl AppState {
         let mut new_labels_vec = Vec::new();
         let mut old_labels_map = BTreeMap::new();
 
-        for (addr, name) in parsed {
+        for (raw_addr, name) in parsed {
+            let addr = Addr(raw_addr);
             let label = Label {
                 name,
                 kind: LabelKind::User,
@@ -563,7 +571,7 @@ impl AppState {
         }
 
         let command = crate::commands::Command::ImportLabels {
-            new_labels: new_labels_vec,
+            new_labels: new_labels_vec.clone(),
             old_labels: old_labels_map,
         };
         command.apply(self);
@@ -583,7 +591,7 @@ impl AppState {
         for (addr, labels) in &self.labels {
             for label in labels {
                 if label.kind == LabelKind::User {
-                    export_list.push((*addr, label.name.clone()));
+                    export_list.push((addr.0, label.name.clone()));
                 }
             }
         }
@@ -622,8 +630,8 @@ impl AppState {
                     .wrapping_add(end_line.bytes.len() as u16)
                     .wrapping_sub(1);
 
-                let start_idx = (start_addr.wrapping_sub(self.origin)) as usize;
-                let end_idx = (end_addr_inclusive.wrapping_sub(self.origin)) as usize;
+                let start_idx = start_addr.offset_from(self.origin);
+                let end_idx = end_addr_inclusive.offset_from(self.origin);
 
                 Some((start_idx, end_idx))
             } else {
@@ -641,8 +649,8 @@ impl AppState {
                         .wrapping_add(line.bytes.len() as u16)
                         .wrapping_sub(1);
 
-                    let start_idx = (start_addr.wrapping_sub(self.origin)) as usize;
-                    let end_idx = (end_addr_inclusive.wrapping_sub(self.origin)) as usize;
+                    let start_idx = start_addr.offset_from(self.origin);
+                    let end_idx = end_addr_inclusive.offset_from(self.origin);
                     Some((start_idx, end_idx))
                 }
             } else {
@@ -697,7 +705,7 @@ impl AppState {
     }
 
     #[must_use]
-    pub fn is_external(&self, addr: u16) -> bool {
+    pub fn is_external(&self, addr: Addr) -> bool {
         let len = self.raw_data.len();
         let end = self.origin.wrapping_add(len as u16);
         if self.origin < end {
@@ -709,14 +717,14 @@ impl AppState {
 
     #[must_use]
     pub fn get_external_label_definitions(&self) -> Vec<DisassemblyLine> {
-        let mut candidates: Vec<(u16, LabelType, &String)> = Vec::new();
+        let mut candidates: Vec<(Addr, LabelType, &String)> = Vec::new();
 
         for (addr, labels) in &self.labels {
             if self.is_external(*addr) {
                 // Only include if setting enabled
 
                 if let Some(label) =
-                    crate::disassembler::resolve_label(labels, *addr, &self.settings)
+                    crate::disassembler::resolve_label(labels, (*addr).into(), &self.settings)
                 {
                     candidates.push((*addr, label.label_type, &label.name));
                 }
@@ -745,14 +753,14 @@ impl AppState {
 
         for (addr, l_type, name) in all_externals {
             match l_type {
-                LabelType::ZeroPageField => zp_fields.push((addr, name)),
-                LabelType::ZeroPageAbsoluteAddress => zp_abs.push((addr, name)),
-                LabelType::ZeroPagePointer => zp_ptrs.push((addr, name)),
-                LabelType::Field => fields.push((addr, name)),
-                LabelType::AbsoluteAddress => abs.push((addr, name)),
-                LabelType::Pointer => ptrs.push((addr, name)),
-                LabelType::ExternalJump => ext_jumps.push((addr, name)),
-                _ => others.push((addr, name)),
+                LabelType::ZeroPageField => zp_fields.push((addr.0, name)),
+                LabelType::ZeroPageAbsoluteAddress => zp_abs.push((addr.0, name)),
+                LabelType::ZeroPagePointer => zp_ptrs.push((addr.0, name)),
+                LabelType::Field => fields.push((addr.0, name)),
+                LabelType::AbsoluteAddress => abs.push((addr.0, name)),
+                LabelType::Pointer => ptrs.push((addr.0, name)),
+                LabelType::ExternalJump => ext_jumps.push((addr.0, name)),
+                _ => others.push((addr.0, name)),
             }
         }
 
@@ -774,18 +782,22 @@ impl AppState {
         // directive), so referenced labels would be undefined in the output ASM unless
         // we declare them here.
         let mut ext_file_labels: Vec<(u16, &String)> = Vec::new();
+        // Note: ext_file_labels uses u16 like other groups for formatter compatibility
         {
             let mut seen: std::collections::HashSet<&String> = std::collections::HashSet::new();
             for (addr, labels) in &self.labels {
                 if !self.is_external(*addr) {
-                    let offset = addr.wrapping_sub(self.origin) as usize;
+                    let offset = addr.offset_from(self.origin);
                     if offset < self.block_types.len()
                         && self.block_types[offset] == BlockType::ExternalFile
-                        && let Some(label) =
-                            crate::disassembler::resolve_label(labels, *addr, &self.settings)
+                        && let Some(label) = crate::disassembler::resolve_label(
+                            labels,
+                            (*addr).into(),
+                            &self.settings,
+                        )
                         && seen.insert(&label.name)
                     {
-                        ext_file_labels.push((*addr, &label.name));
+                        ext_file_labels.push((addr.0, &label.name));
                     }
                 }
             }
@@ -799,7 +811,7 @@ impl AppState {
         let mut add_group = |title: &str, group: Vec<(u16, &String)>, is_zp: bool| {
             if !group.is_empty() {
                 lines.push(DisassemblyLine {
-                    address: 0,
+                    address: Addr::ZERO,
                     bytes: vec![],
                     mnemonic: format!("{} {}", formatter.comment_prefix(), title),
                     operand: String::new(),
@@ -816,14 +828,15 @@ impl AppState {
                 for (addr, name) in group {
                     // Logic for side comment
                     let mut comment = String::new();
-                    if let Some(user_comment) = self.user_side_comments.get(&addr) {
+                    if let Some(user_comment) = self.user_side_comments.get(&Addr(addr)) {
                         comment = user_comment.clone();
-                    } else if let Some(sys_comment) = self.system_comments.get(&addr) {
+                    } else if let Some(sys_comment) = self.system_comments.get(&Addr(addr)) {
                         comment = sys_comment.clone();
                     }
 
                     lines.push(DisassemblyLine {
-                        address: 0,
+                        // address field is Addr
+                        address: Addr::ZERO,
                         bytes: vec![],
                         mnemonic: formatter.format_definition(name, addr, is_zp),
                         operand: String::new(),
@@ -833,13 +846,13 @@ impl AppState {
                         opcode: None,
                         show_bytes: true,
                         target_address: None,
-                        external_label_address: Some(addr),
+                        external_label_address: Some(Addr(addr)),
                         is_collapsed: false,
                     });
                 }
 
                 lines.push(DisassemblyLine {
-                    address: 0,
+                    address: Addr::ZERO,
                     bytes: vec![],
                     mnemonic: String::new(),
                     operand: String::new(),
@@ -958,7 +971,7 @@ impl AppState {
     }
 
     #[must_use]
-    pub fn get_line_index_for_address(&self, address: u16) -> Option<usize> {
+    pub fn get_line_index_for_address(&self, address: Addr) -> Option<usize> {
         // First pass: try to find exact match with content (bytes not empty)
         // This avoids matching external label headers that might be at the same address (e.g. 0)
         if let Some(idx) = self
@@ -993,7 +1006,7 @@ impl AppState {
     }
 
     #[must_use]
-    pub fn get_line_index_containing_address(&self, address: u16) -> Option<usize> {
+    pub fn get_line_index_containing_address(&self, address: Addr) -> Option<usize> {
         // Check if address is in a collapsed block
         for (start_idx, end_idx) in &self.collapsed_blocks {
             let start_addr = self.origin.wrapping_add(*start_idx as u16);
@@ -1040,7 +1053,7 @@ impl AppState {
         self.undo_stack.get_pointer() != self.last_saved_pointer
     }
 
-    pub fn toggle_splitter(&mut self, address: u16) {
+    pub fn toggle_splitter(&mut self, address: Addr) {
         // Toggle splitter for the generic address
         if self.splitters.contains(&address) {
             self.splitters.remove(&address);
@@ -1070,7 +1083,7 @@ impl AppState {
             let current_end_idx = block.end;
 
             // Filter splitters relevant to this block range
-            let relevant_splitters: Vec<u16> = self
+            let relevant_splitters: Vec<Addr> = self
                 .splitters
                 .range(block_start..=block_end)
                 .copied()
@@ -1081,7 +1094,7 @@ impl AppState {
 
             for splitter_addr in relevant_splitters {
                 // Convert splitter address to index
-                let splitter_idx = (splitter_addr.wrapping_sub(origin)) as usize;
+                let splitter_idx = splitter_addr.offset_from(origin);
 
                 // If splitter is outside current bounds (shouldn't happen due to range filter), skip.
                 if splitter_idx < sub_block_start || splitter_idx > current_end_idx {
@@ -1091,8 +1104,8 @@ impl AppState {
                 // If splitter is > sub_block_start, we have a chunk before the splitter.
                 if splitter_idx > sub_block_start {
                     items.push(BlockItem::Block {
-                        start: sub_block_start as u16,
-                        end: (splitter_idx - 1) as u16,
+                        start: origin.wrapping_add(sub_block_start as u16),
+                        end: origin.wrapping_add((splitter_idx - 1) as u16),
                         type_: block.type_,
                         collapsed: block.collapsed,
                     });
@@ -1107,8 +1120,8 @@ impl AppState {
             // Emit remainder
             if sub_block_start <= current_end_idx {
                 items.push(BlockItem::Block {
-                    start: sub_block_start as u16,
-                    end: current_end_idx as u16,
+                    start: origin.wrapping_add(sub_block_start as u16),
+                    end: origin.wrapping_add(current_end_idx as u16),
                     type_: block.type_,
                     collapsed: block.collapsed,
                 });
@@ -1119,12 +1132,12 @@ impl AppState {
     }
 
     #[must_use]
-    pub fn get_block_index_for_address(&self, address: u16) -> Option<usize> {
+    pub fn get_block_index_for_address(&self, address: Addr) -> Option<usize> {
         let items = self.get_blocks_view_items();
         items.iter().position(|item| match item {
             BlockItem::Block { start, end, .. } => {
-                let s = self.origin.wrapping_add(*start);
-                let e = self.origin.wrapping_add(*end);
+                let s = *start;
+                let e = *end;
                 // Check if address is within [s, e]
                 if s <= e {
                     address >= s && address <= e
@@ -1149,7 +1162,7 @@ mod load_file_tests {
 
         // 1. Set some initial state
         app_state.labels.insert(
-            0x1234,
+            Addr(0x1234),
             vec![Label {
                 name: "DeleteMe".to_string(),
                 label_type: LabelType::UserDefined,
@@ -1160,8 +1173,8 @@ mod load_file_tests {
         app_state.export_path = Some(PathBuf::from("fake_export.asm"));
         app_state.collapsed_blocks.push((0, 10));
         app_state.collapsed_blocks.push((20, 30));
-        app_state.splitters.insert(0x1000);
-        app_state.splitters.insert(0x2000);
+        app_state.splitters.insert(Addr(0x1000));
+        app_state.splitters.insert(Addr(0x2000));
 
         // 2. Create a dummy binary file
         let mut path = std::env::temp_dir();
@@ -1189,7 +1202,7 @@ mod load_file_tests {
         }
 
         assert!(
-            !app_state.labels.contains_key(&0x1234),
+            !app_state.labels.contains_key(&Addr(0x1234)),
             "Specific user label address should not exist (assuming it doesn't collide with system)"
         );
         assert!(
@@ -1225,7 +1238,7 @@ mod save_project_tests {
 
         // 1. Add USER label
         app_state.labels.insert(
-            0x1000,
+            Addr(0x1000),
             vec![Label {
                 name: "UserLabel".to_string(),
                 label_type: LabelType::AbsoluteAddress,
@@ -1235,7 +1248,7 @@ mod save_project_tests {
 
         // 2. Add AUTO label
         app_state.labels.insert(
-            0x1005,
+            Addr(0x1005),
             vec![Label {
                 name: "AutoLabel".to_string(),
                 label_type: LabelType::Branch,
@@ -1278,14 +1291,14 @@ mod save_project_tests {
 
         // 5. Verify AUTO label is GONE
         assert!(
-            !project.labels.contains_key(&0x1005),
+            !project.labels.contains_key(&Addr(0x1005)),
             "Autogenerated label should NOT be saved"
         );
 
         // 6. Verify USER label is PRESENT
         let user_label = project
             .labels
-            .get(&0x1000)
+            .get(&Addr(0x1000))
             .expect("User label should be saved");
         assert_eq!(user_label.first().unwrap().name, "UserLabel");
         assert_eq!(user_label.first().unwrap().kind, LabelKind::User);
@@ -1307,11 +1320,11 @@ mod cursor_tests {
     #[test]
     fn test_get_line_index_skips_headers() {
         let mut app_state = AppState::new();
-        app_state.origin = 0x1000;
+        app_state.origin = Addr(0x1000);
 
         // Simulate external label definition at 0
         app_state.disassembly.push(DisassemblyLine {
-            address: 0,
+            address: Addr::ZERO,
             bytes: vec![],
             mnemonic: "; EXTERNAL".to_string(),
             operand: String::new(),
@@ -1327,7 +1340,7 @@ mod cursor_tests {
 
         // Simulate code at origin
         app_state.disassembly.push(DisassemblyLine {
-            address: 0x1000,
+            address: Addr(0x1000),
             bytes: vec![0xEA],
             mnemonic: "NOP".to_string(),
             operand: String::new(),
@@ -1346,11 +1359,11 @@ mod cursor_tests {
         // Let's test the case where origin is 0 and we have external labels for 0.
 
         let mut app_state_zero = AppState::new();
-        app_state_zero.origin = 0;
+        app_state_zero.origin = Addr::ZERO;
 
         // External label for $0000
         app_state_zero.disassembly.push(DisassemblyLine {
-            address: 0,
+            address: Addr::ZERO,
             bytes: vec![],
             mnemonic: "ExtLabel".to_string(),
             operand: String::new(),
@@ -1366,7 +1379,7 @@ mod cursor_tests {
 
         // Actual code at $0000
         app_state_zero.disassembly.push(DisassemblyLine {
-            address: 0,
+            address: Addr::ZERO,
             bytes: vec![0xEA],
             mnemonic: "NOP".to_string(),
             operand: String::new(),
@@ -1380,7 +1393,7 @@ mod cursor_tests {
             is_collapsed: false,
         });
 
-        let idx = app_state_zero.get_line_index_for_address(0);
+        let idx = app_state_zero.get_line_index_for_address(Addr::ZERO);
         assert_eq!(
             idx,
             Some(1),
@@ -1396,7 +1409,7 @@ mod analysis_tests {
     #[test]
     fn test_perform_analysis_preserves_user_labels() {
         let mut app_state = AppState::new();
-        app_state.origin = 0x1000;
+        app_state.origin = Addr(0x1000);
         // JMP $1005 (4C 05 10)
         app_state.raw_data = vec![0x4C, 0x05, 0x10, 0xEA, 0xEA, 0xEA];
         app_state.block_types = vec![BlockType::Code; 6];
@@ -1407,13 +1420,16 @@ mod analysis_tests {
             kind: LabelKind::User,
             label_type: LabelType::UserDefined,
         };
-        app_state.labels.insert(0x1005, vec![user_label]);
+        app_state.labels.insert(Addr(0x1005), vec![user_label]);
 
         // 2. Perform Analysis
         app_state.perform_analysis();
 
         // 3. Verify User Label is PRESERVED
-        let labels = app_state.labels.get(&0x1005).expect("Should have labels");
+        let labels = app_state
+            .labels
+            .get(&Addr(0x1005))
+            .expect("Should have labels");
         assert_eq!(labels.len(), 1);
         assert_eq!(labels[0].kind, LabelKind::User);
         assert_eq!(labels[0].name, "MyCustomLabel");
@@ -1422,7 +1438,7 @@ mod analysis_tests {
     #[test]
     fn test_perform_analysis_preserves_system_labels() {
         let mut app_state = AppState::new();
-        app_state.origin = 0x1000;
+        app_state.origin = Addr(0x1000);
         // LDA
         app_state.raw_data = vec![0xAD, 0x20, 0xD0];
         app_state.block_types = vec![BlockType::Code; 3];
@@ -1433,13 +1449,16 @@ mod analysis_tests {
             kind: LabelKind::System,
             label_type: LabelType::AbsoluteAddress,
         };
-        app_state.labels.insert(0xD020, vec![sys_label]);
+        app_state.labels.insert(Addr(0xD020), vec![sys_label]);
 
         // 2. Perform Analysis
         app_state.perform_analysis();
 
         // 3. Verify System Label is PRESERVED (if used)
-        let labels = app_state.labels.get(&0xD020).expect("Should have labels");
+        let labels = app_state
+            .labels
+            .get(&Addr(0xD020))
+            .expect("Should have labels");
         assert_eq!(labels[0].name, "VIC_BORDER_COLOR");
         assert_eq!(labels[0].kind, LabelKind::System);
     }
@@ -1447,7 +1466,7 @@ mod analysis_tests {
     #[test]
     fn test_perform_analysis_regenerates_arrows() {
         let mut app_state = AppState::new();
-        app_state.origin = 0x1000;
+        app_state.origin = Addr(0x1000);
         // JMP  (4C 05 10)
         app_state.raw_data = vec![0x4C, 0x05, 0x10, 0xEA, 0xEA, 0xEA];
         app_state.block_types = vec![BlockType::Code; 6];
@@ -1459,7 +1478,7 @@ mod analysis_tests {
         // The first line should be the JMP instruction with target_address 1005
         let line = &app_state.disassembly[0];
         assert_eq!(line.mnemonic, "jmp");
-        assert_eq!(line.target_address, Some(0x1005));
+        assert_eq!(line.target_address, Some(Addr(0x1005)));
     }
 
     #[test]
@@ -1477,7 +1496,7 @@ mod analysis_tests {
     #[test]
     fn test_set_block_type_lohi_creates_labels() {
         let mut app_state = AppState::new();
-        app_state.origin = 0x1000;
+        app_state.origin = Addr(0x1000);
         // 4 bytes: 00 01 (Lo), 00 20 (Hi).
         // Pair 1: Lo=00, Hi=00 -> $0000 (Internal/ZP)
         // Pair 2: Lo=01, Hi=20 -> $2001 (External, assuming len=4)
@@ -1494,20 +1513,20 @@ mod analysis_tests {
         app_state.set_block_type_region(BlockType::LoHiAddress, Some(0), 0);
 
         // Verify Label $0000 (Internal)
-        let l1 = app_state.labels.get(&0x0000);
+        let l1 = app_state.labels.get(&Addr(0x0000));
         assert!(l1.is_some(), "Should generate label for internal address");
         assert_eq!(l1.unwrap()[0].name, "a0000"); // Analyzer generates 'a' for AbsoluteAddress usage
 
         // Verify Label $2001 (External)
         // Analyzer generates 'a' for AbsoluteAddress usage even if external, unless it's a Jump.
-        let l2 = app_state.labels.get(&0x2001);
+        let l2 = app_state.labels.get(&Addr(0x2001));
         assert!(l2.is_some(), "Should generate label for external address");
         assert_eq!(l2.unwrap()[0].name, "a2001");
     }
     #[test]
     fn test_get_line_index_with_collapsed_block() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         state.raw_data = vec![0xEA, 0xEA, 0xEA];
         state.block_types = vec![BlockType::Code; 3];
 
@@ -1520,7 +1539,7 @@ mod analysis_tests {
         // Line 2: NOP ($1002)
 
         // Test finding start of collapsed block
-        let idx = state.get_line_index_containing_address(0x1001);
+        let idx = state.get_line_index_containing_address(Addr(0x1001));
         assert_eq!(
             idx,
             Some(1),
@@ -1528,46 +1547,52 @@ mod analysis_tests {
         );
 
         // Test finding normal lines
-        assert_eq!(state.get_line_index_containing_address(0x1000), Some(0));
-        assert_eq!(state.get_line_index_containing_address(0x1002), Some(2));
+        assert_eq!(
+            state.get_line_index_containing_address(Addr(0x1000)),
+            Some(0)
+        );
+        assert_eq!(
+            state.get_line_index_containing_address(Addr(0x1002)),
+            Some(2)
+        );
     }
 
     #[test]
     fn test_get_block_range_respects_splitters() {
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         state.raw_data = vec![0xEA; 10]; // 10 bytes of NOP
         state.block_types = vec![BlockType::Code; 10];
 
         // Without splitters, range should be everything
-        let range = state.get_block_range(0x1005).unwrap();
-        assert_eq!(range, (0x1000, 0x1009));
+        let range = state.get_block_range(Addr(0x1005)).unwrap();
+        assert_eq!(range, (Addr(0x1000), Addr(0x1009)));
 
         // Add a splitter at 0x1005
-        state.splitters.insert(0x1005);
+        state.splitters.insert(Addr(0x1005));
 
         // Range for 0x1004 should stop at 0x1004
-        let range1 = state.get_block_range(0x1004).unwrap();
-        assert_eq!(range1, (0x1000, 0x1004));
+        let range1 = state.get_block_range(Addr(0x1004)).unwrap();
+        assert_eq!(range1, (Addr(0x1000), Addr(0x1004)));
 
         // Range for 0x1005 should start at 0x1005
-        let range2 = state.get_block_range(0x1005).unwrap();
-        assert_eq!(range2, (0x1005, 0x1009));
+        let range2 = state.get_block_range(Addr(0x1005)).unwrap();
+        assert_eq!(range2, (Addr(0x1005), Addr(0x1009)));
 
         // Add another splitter at 0x1008
-        state.splitters.insert(0x1008);
+        state.splitters.insert(Addr(0x1008));
 
         // Range for 0x1006 should be 0x1005 to 0x1007
-        let range3 = state.get_block_range(0x1006).unwrap();
-        assert_eq!(range3, (0x1005, 0x1007));
+        let range3 = state.get_block_range(Addr(0x1006)).unwrap();
+        assert_eq!(range3, (Addr(0x1005), Addr(0x1007)));
     }
     #[test]
     fn test_export_vice_labels() {
         use std::path::PathBuf;
         let mut state = AppState::new();
-        state.origin = 0x1000;
+        state.origin = Addr(0x1000);
         state.labels.insert(
-            0x1000,
+            Addr(0x1000),
             vec![Label {
                 name: "start".to_string(),
                 kind: LabelKind::User,
@@ -1575,7 +1600,7 @@ mod analysis_tests {
             }],
         );
         state.labels.insert(
-            0x2000,
+            Addr(0x2000),
             vec![Label {
                 name: "loop".to_string(),
                 kind: LabelKind::User,
@@ -1584,7 +1609,7 @@ mod analysis_tests {
         );
         // System label should be ignored
         state.labels.insert(
-            0xFFD2,
+            Addr(0xFFD2),
             vec![Label {
                 name: "CHROUT".to_string(),
                 kind: LabelKind::System,

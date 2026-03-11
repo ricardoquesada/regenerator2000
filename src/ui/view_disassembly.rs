@@ -603,7 +603,7 @@ impl Widget for DisassemblyView {
 
             // Check if arrow overlaps with visible area
             if low < end_view && high >= scroll_inst_idx {
-                let target_addr_val = arrow.target_addr.unwrap_or(0);
+                let target_addr_val = arrow.target_addr.map_or(0, |a| a.0);
 
                 // Check if it is an exact match to the line address
                 // If exact match, we don't treat it as "relative target" (no special tip)
@@ -620,7 +620,7 @@ impl Widget for DisassemblyView {
                     start: src_idx,
                     end: dst_idx,
                     col: 0,
-                    target_addr: relative_target,
+                    target_addr: relative_target.map(|a| a.0),
                     start_visible: src_idx >= scroll_inst_idx && src_idx < end_view,
                     end_visible: dst_idx >= scroll_inst_idx && dst_idx < end_view,
                 });
@@ -1162,7 +1162,8 @@ impl Widget for DisassemblyView {
                         };
 
                         for label in labels {
-                            let arrow_padding = get_comment_arrow_str(current_inst, Some(mid_addr)); // Need accurate active_arrows calculate first?
+                            let arrow_padding =
+                                get_comment_arrow_str(current_inst, Some(mid_addr.0)); // Need accurate active_arrows calculate first?
                             // Arrows calculation depends on 'offset' which is scroll_index (inst).
                             // But with smooth scrolling, arrows should be calculated based on the window.
                             // The arrow logic "get_arrow_str" takes 'current_line' (instruction index).
@@ -1172,7 +1173,7 @@ impl Widget for DisassemblyView {
                             // For now we assume arrow logic works on Instruction granularity.
 
                             let is_bookmarked = app_state.bookmarks.contains_key(&mid_addr);
-                            let has_breakpoint = app_state.vice_state.has_breakpoint_at(mid_addr);
+                            let has_breakpoint = app_state.vice_state.has_breakpoint_at(mid_addr.0);
                             let gutter = if has_breakpoint {
                                 "  *  "
                             } else if is_bookmarked {
@@ -1258,8 +1259,8 @@ impl Widget for DisassemblyView {
             let arrow_padding = get_arrow_str(current_inst);
 
             let is_bookmarked = app_state.bookmarks.contains_key(&line.address);
-            let is_pc = app_state.vice_state.pc == Some(line.address);
-            let has_breakpoint = app_state.vice_state.has_breakpoint_at(line.address);
+            let is_pc = app_state.vice_state.pc == Some(line.address.0);
+            let has_breakpoint = app_state.vice_state.has_breakpoint_at(line.address.0);
             let gutter = if is_pc && has_breakpoint {
                 " *>  "
             } else if is_pc {
@@ -1566,7 +1567,9 @@ impl Widget for DisassemblyView {
                             NavigationTarget::Address(addr) => {
                                 // Delegate to shared jump logic (no history push)
                                 crate::ui::menu::perform_jump_to_address_no_history(
-                                    app_state, ui_state, addr,
+                                    app_state,
+                                    ui_state,
+                                    crate::state::Addr(addr),
                                 );
                                 ui_state.set_status_message("Navigated back");
                             }
@@ -1759,11 +1762,13 @@ mod tests {
             label_type: LabelType::UserDefined,
             kind: LabelKind::User,
         };
-        app_state.labels.insert(0xC001, vec![label]);
+        app_state
+            .labels
+            .insert(crate::state::Addr(0xC001), vec![label]);
 
         // Create line at $C000 with 2 bytes
         let line = DisassemblyLine {
-            address: 0xC000,
+            address: crate::state::Addr(0xC000),
             bytes: vec![0xA9, 0x00],
             mnemonic: "LDA".to_string(),
             operand: "#$00".to_string(),

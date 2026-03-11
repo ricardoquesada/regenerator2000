@@ -71,7 +71,7 @@ mod tests {
         app_state.project_path = Some(temp_path.clone());
 
         // Minimal data so save doesn't fail
-        app_state.origin = 0x1000;
+        app_state.origin = regenerator2000::state::Addr(0x1000);
         app_state.raw_data = vec![0xEA]; // 1 NOP
         app_state.block_types = vec![regenerator2000::state::BlockType::Code];
 

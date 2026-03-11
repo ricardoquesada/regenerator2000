@@ -1,4 +1,5 @@
 use regenerator2000::disassembler::Disassembler;
+use regenerator2000::state::Addr;
 use regenerator2000::state::{Assembler, BlockType, DocumentSettings, Label, LabelKind, LabelType};
 use std::collections::BTreeMap;
 
@@ -10,13 +11,16 @@ fn test_tass_label_placement_on_text() {
     };
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
     let mut cross_refs = BTreeMap::new();
-    cross_refs.insert(0x1000, vec![0x2000]);
+    cross_refs.insert(
+        regenerator2000::state::Addr(0x1000),
+        vec![regenerator2000::state::Addr(0x2000)],
+    );
 
     // Label at start of text block
     labels.insert(
-        0x1000,
+        regenerator2000::state::Addr(0x1000),
         vec![Label {
             name: "TextLabel".to_string(),
             kind: LabelKind::User,
@@ -79,15 +83,15 @@ fn test_tass_label_placement_on_screencode() {
     };
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // Add side comment
     let mut user_side_comments = BTreeMap::new();
-    user_side_comments.insert(0x1000, "My Side Comment".to_string());
+    user_side_comments.insert(Addr(0x1000), "My Side Comment".to_string());
 
     // Label at start of screencode block
     labels.insert(
-        0x1000,
+        regenerator2000::state::Addr(0x1000),
         vec![Label {
             name: "ScreenLabel".to_string(),
             kind: LabelKind::User,

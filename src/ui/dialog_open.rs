@@ -396,9 +396,9 @@ impl Widget for OpenDialog {
                                         if let Some(sprites_addr) = loaded_sprites_cursor {
                                             // Calculate index from address
                                             // Index = (addr - origin - padding) / 64
-                                            let origin = app_state.origin as usize;
+                                            let origin = app_state.origin.0 as usize;
                                             let padding = (64 - (origin % 64)) % 64;
-                                            let addr = sprites_addr as usize;
+                                            let addr = sprites_addr.0 as usize;
                                             if addr >= origin + padding {
                                                 let offset = addr - (origin + padding);
                                                 ui_state.sprites_cursor_index = offset / 64;
@@ -410,11 +410,11 @@ impl Widget for OpenDialog {
                                         }
 
                                         if let Some(charset_addr) = loaded_charset_cursor {
-                                            let origin = app_state.origin as usize;
+                                            let origin = app_state.origin.0 as usize;
                                             let base_alignment = 0x400;
                                             let aligned_start_addr =
                                                 (origin / base_alignment) * base_alignment;
-                                            let addr = charset_addr as usize;
+                                            let addr = charset_addr.0 as usize;
                                             if addr >= aligned_start_addr {
                                                 let offset = addr - aligned_start_addr;
                                                 ui_state.charset_cursor_index = offset / 8;
@@ -455,10 +455,10 @@ impl Widget for OpenDialog {
                                         if let Some(hex_addr) = loaded_hex_cursor
                                             && !app_state.raw_data.is_empty()
                                         {
-                                            let origin = app_state.origin as usize;
+                                            let origin = app_state.origin.0 as usize;
                                             let alignment_padding = origin % 16;
                                             let aligned_origin = origin - alignment_padding;
-                                            let target = hex_addr as usize;
+                                            let target = hex_addr.0 as usize;
 
                                             if target >= aligned_origin {
                                                 let offset = target - aligned_origin;
@@ -475,7 +475,7 @@ impl Widget for OpenDialog {
                                         if app_state.raw_data.is_empty() {
                                             ui_state.hex_cursor_index = 0;
                                         } else {
-                                            let origin = app_state.origin as usize;
+                                            let origin = app_state.origin.0 as usize;
                                             let alignment_padding = origin % 16;
                                             let total_len =
                                                 app_state.raw_data.len() + alignment_padding;

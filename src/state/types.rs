@@ -93,14 +93,15 @@ pub fn default_platform() -> Platform {
 /// A 16-bit address in the 6502 address space.
 ///
 /// Wraps a `u16` to distinguish *addresses* from other numeric quantities
-/// (lengths, byte values, indices). Provides wrapping arithmetic methods that
-/// mirror the 6502's 16-bit address bus behaviour.
+/// (lengths, byte values, indices). The inner field is `pub` for easy
+/// interop with existing `u16`-heavy code; the type safety comes from
+/// function signatures, not from hiding the value.
 ///
 /// Serialises transparently as a plain JSON number so existing project files
 /// are fully backward-compatible.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct Addr(u16);
+pub struct Addr(pub u16);
 
 impl Addr {
     /// Wraps a raw `u16` into an `Addr`.
@@ -136,6 +137,18 @@ impl Addr {
         self.0.wrapping_sub(origin.0) as usize
     }
 
+    /// Saturating addition.
+    #[must_use]
+    pub const fn saturating_add(self, rhs: u16) -> Self {
+        Self(self.0.saturating_add(rhs))
+    }
+
+    /// Saturating subtraction.
+    #[must_use]
+    pub const fn saturating_sub(self, rhs: u16) -> Self {
+        Self(self.0.saturating_sub(rhs))
+    }
+
     /// Zero address constant.
     pub const ZERO: Addr = Addr(0);
 }
@@ -164,6 +177,8 @@ impl std::fmt::LowerHex for Addr {
     }
 }
 
+// ---- Conversions ----
+
 impl From<u16> for Addr {
     fn from(val: u16) -> Self {
         Self(val)
@@ -173,6 +188,76 @@ impl From<u16> for Addr {
 impl From<Addr> for u16 {
     fn from(addr: Addr) -> u16 {
         addr.0
+    }
+}
+
+impl From<Addr> for usize {
+    fn from(addr: Addr) -> usize {
+        addr.0 as usize
+    }
+}
+
+impl From<Addr> for i32 {
+    fn from(addr: Addr) -> i32 {
+        addr.0 as i32
+    }
+}
+
+/// Allows `BTreeMap<Addr, T>` to be queried with `&u16` keys.
+impl std::borrow::Borrow<u16> for Addr {
+    fn borrow(&self) -> &u16 {
+        &self.0
+    }
+}
+
+// ---- Comparison with u16 ----
+
+impl PartialEq<u16> for Addr {
+    fn eq(&self, other: &u16) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialOrd<u16> for Addr {
+    fn partial_cmp(&self, other: &u16) -> Option<std::cmp::Ordering> {
+        Some(self.0.cmp(other))
+    }
+}
+
+// ---- Arithmetic operators ----
+
+impl std::ops::Add<u16> for Addr {
+    type Output = Addr;
+    fn add(self, rhs: u16) -> Self {
+        Self(self.0.wrapping_add(rhs))
+    }
+}
+
+impl std::ops::Sub<u16> for Addr {
+    type Output = Addr;
+    fn sub(self, rhs: u16) -> Self {
+        Self(self.0.wrapping_sub(rhs))
+    }
+}
+
+impl std::ops::Sub<Addr> for Addr {
+    type Output = u16;
+    fn sub(self, rhs: Addr) -> u16 {
+        self.0.wrapping_sub(rhs.0)
+    }
+}
+
+impl std::ops::BitAnd<u16> for Addr {
+    type Output = u16;
+    fn bitand(self, rhs: u16) -> u16 {
+        self.0 & rhs
+    }
+}
+
+impl std::ops::Shr<u16> for Addr {
+    type Output = u16;
+    fn shr(self, rhs: u16) -> u16 {
+        self.0 >> rhs
     }
 }
 
@@ -340,13 +425,20 @@ pub enum ImmediateFormat {
     NegativeDecimal,
     Binary,
     InvertedBinary,
-    LowByte(u16),
-    HighByte(u16),
+    LowByte(Addr),
+    HighByte(Addr),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CachedArrow {
     pub start: usize,
     pub end: usize,
-    pub target_addr: Option<u16>,
+    pub target_addr: Option<Addr>,
+}
+
+impl std::ops::Rem<u16> for Addr {
+    type Output = u16;
+    fn rem(self, rhs: u16) -> u16 {
+        self.0 % rhs
+    }
 }

@@ -1,4 +1,5 @@
 use regenerator2000::disassembler::Disassembler;
+use regenerator2000::state::Addr;
 use regenerator2000::state::{Assembler, BlockType, DocumentSettings};
 use std::collections::BTreeMap;
 
@@ -11,13 +12,13 @@ fn test_user_comments_override_system_comments() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let mut system_comments = BTreeMap::new();
-    system_comments.insert(0x1000, "System Comment".to_string());
+    system_comments.insert(Addr(0x1000), "System Comment".to_string());
 
     let mut user_comments = BTreeMap::new();
-    user_comments.insert(0x1000, "User Comment".to_string());
+    user_comments.insert(Addr(0x1000), "User Comment".to_string());
 
     let code = vec![0xEA]; // NOP
     let block_types = vec![BlockType::Code];
@@ -50,10 +51,10 @@ fn test_user_comments_fallthrough() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     let mut system_comments = BTreeMap::new();
-    system_comments.insert(0x1000, "System Comment".to_string());
+    system_comments.insert(Addr(0x1000), "System Comment".to_string());
 
     let user_comments = BTreeMap::new();
     // No user comment for 0x1000
@@ -89,14 +90,14 @@ fn test_user_comments_referenced_address() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = 0x1000;
+    let origin = regenerator2000::state::Addr(0x1000);
 
     // 0x2000 is referenced
     let mut system_comments = BTreeMap::new();
-    system_comments.insert(0x2000, "System Ref Comment".to_string());
+    system_comments.insert(Addr(0x2000), "System Ref Comment".to_string());
 
     let mut user_comments = BTreeMap::new();
-    user_comments.insert(0x2000, "User Ref Comment".to_string());
+    user_comments.insert(Addr(0x2000), "User Ref Comment".to_string());
 
     // JMP $2000
     let code = vec![0x4C, 0x00, 0x20];

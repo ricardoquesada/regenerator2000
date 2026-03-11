@@ -12,7 +12,7 @@ mod tests {
     #[test]
     fn test_binary_main_resource() {
         let mut app_state = AppState::default();
-        let origin = 0x0801;
+        let origin = regenerator2000::state::Addr(0x0801);
         let data = vec![0x00, 0x01, 0x02, 0x03, 0xFF]; // random bytes
         app_state.load_binary(origin, data.clone()).unwrap();
 

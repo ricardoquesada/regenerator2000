@@ -1,4 +1,4 @@
-use crate::state::AppState;
+use crate::state::{Addr, AppState};
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
@@ -16,9 +16,9 @@ pub struct OriginDialog {
 
 impl OriginDialog {
     #[must_use]
-    pub fn new(current_origin: u16) -> Self {
+    pub fn new(current_origin: Addr) -> Self {
         Self {
-            input: format!("{current_origin:04X}"),
+            input: format!("{:04X}", current_origin.0),
         }
     }
 }
@@ -61,7 +61,7 @@ impl Widget for OriginDialog {
                     if (new_origin as usize) + size <= 0x10000 {
                         let old_origin = app_state.origin;
                         let command = crate::commands::Command::ChangeOrigin {
-                            new_origin,
+                            new_origin: Addr(new_origin),
                             old_origin,
                         };
                         command.apply(app_state);

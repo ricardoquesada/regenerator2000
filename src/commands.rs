@@ -1,4 +1,4 @@
-use crate::state::{AppState, BlockType, ImmediateFormat, Label};
+use crate::state::{Addr, AppState, BlockType, ImmediateFormat, Label};
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
@@ -10,32 +10,32 @@ pub enum Command {
         old_types: Vec<BlockType>,
     },
     SetLabel {
-        address: u16,
+        address: Addr,
         new_label: Option<Vec<crate::state::Label>>,
         old_label: Option<Vec<crate::state::Label>>,
     },
     SetAnalysisData {
-        labels: BTreeMap<u16, Vec<Label>>,
-        cross_refs: BTreeMap<u16, Vec<u16>>,
-        old_labels: BTreeMap<u16, Vec<Label>>,
-        old_cross_refs: BTreeMap<u16, Vec<u16>>,
+        labels: BTreeMap<Addr, Vec<Label>>,
+        cross_refs: BTreeMap<Addr, Vec<Addr>>,
+        old_labels: BTreeMap<Addr, Vec<Label>>,
+        old_cross_refs: BTreeMap<Addr, Vec<Addr>>,
     },
     SetUserSideComment {
-        address: u16,
+        address: Addr,
         new_comment: Option<String>,
         old_comment: Option<String>,
     },
     SetUserLineComment {
-        address: u16,
+        address: Addr,
         new_comment: Option<String>,
         old_comment: Option<String>,
     },
     ChangeOrigin {
-        new_origin: u16,
-        old_origin: u16,
+        new_origin: Addr,
+        old_origin: Addr,
     },
     SetImmediateFormat {
-        address: u16,
+        address: Addr,
         new_format: Option<ImmediateFormat>,
         old_format: Option<ImmediateFormat>,
     },
@@ -46,14 +46,14 @@ pub enum Command {
         range: (usize, usize),
     },
     ToggleSplitter {
-        address: u16,
+        address: Addr,
     },
     ImportLabels {
-        new_labels: Vec<(u16, crate::state::Label)>,
-        old_labels: BTreeMap<u16, Vec<crate::state::Label>>,
+        new_labels: Vec<(Addr, crate::state::Label)>,
+        old_labels: BTreeMap<Addr, Vec<crate::state::Label>>,
     },
     SetBookmark {
-        address: u16,
+        address: Addr,
         new_name: Option<String>,
         old_name: Option<String>,
     },
@@ -280,7 +280,7 @@ impl Command {
                 new_labels,
                 old_labels,
             } => {
-                let affected_addrs: std::collections::HashSet<u16> =
+                let affected_addrs: std::collections::HashSet<Addr> =
                     new_labels.iter().map(|(a, _)| *a).collect();
                 for addr in affected_addrs {
                     if let Some(labels) = old_labels.get(&addr) {
@@ -383,7 +383,7 @@ impl UndoStack {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::{AppState, BlockType};
+    use crate::state::{Addr, AppState, BlockType};
 
     #[test]
     fn test_undo_stack_push_undo_redo() {
@@ -437,7 +437,7 @@ mod tests {
     #[test]
     fn test_label_undo_redo() {
         let mut app_state = AppState::new();
-        let address = 0x1000;
+        let address = Addr(0x1000);
 
         // Action 1: Set Label
         let label = crate::state::Label {
@@ -480,7 +480,7 @@ mod tests {
     #[test]
     fn test_dynamic_label_update() {
         let mut app_state = AppState::new();
-        app_state.origin = 0x1000;
+        app_state.origin = Addr(0x1000);
         // JMP $1005 (4C 05 10)
         // NOP (EA)
         // NOP (EA)
@@ -495,10 +495,16 @@ mod tests {
         app_state.cross_refs = result.cross_refs;
 
         // Assert label exists
-        assert!(app_state.labels.contains_key(&0x1005));
-        assert_eq!(app_state.cross_refs.get(&0x1005).unwrap().len(), 1);
+        assert!(app_state.labels.contains_key(&Addr(0x1005)));
+        assert_eq!(app_state.cross_refs.get(&Addr(0x1005)).unwrap().len(), 1);
         assert_eq!(
-            app_state.labels.get(&0x1005).unwrap().first().unwrap().kind,
+            app_state
+                .labels
+                .get(&Addr(0x1005))
+                .unwrap()
+                .first()
+                .unwrap()
+                .kind,
             crate::state::LabelKind::Auto
         );
 
@@ -515,7 +521,7 @@ mod tests {
         app_state.undo_stack.push(command);
 
         // Verify label is GONE because reference count dropped to 0
-        assert!(!app_state.labels.contains_key(&0x1005));
+        assert!(!app_state.labels.contains_key(&Addr(0x1005)));
 
         // Undo
         let mut stack = std::mem::take(&mut app_state.undo_stack);
@@ -536,13 +542,13 @@ mod tests {
         app_state.undo_stack = stack;
 
         // Verify label is BACK
-        assert!(app_state.labels.contains_key(&0x1005));
-        assert_eq!(app_state.cross_refs.get(&0x1005).unwrap().len(), 1);
+        assert!(app_state.labels.contains_key(&Addr(0x1005)));
+        assert_eq!(app_state.cross_refs.get(&Addr(0x1005)).unwrap().len(), 1);
     }
     #[test]
     fn test_user_line_comment_undo_redo() {
         let mut app_state = AppState::new();
-        let address = 0x1000;
+        let address = Addr(0x1000);
 
         // Action: Set User Line Comment
         let comment = "Line Comment".to_string();
@@ -576,7 +582,7 @@ mod tests {
     fn test_import_labels_undo_redo() {
         let mut app_state = AppState::new();
         // Setup initial state: Label at 0x1000
-        let address = 0x1000;
+        let address = Addr(0x1000);
         let initial_label = crate::state::Label {
             name: "Initial".to_string(),
             kind: crate::state::LabelKind::User,
@@ -600,14 +606,17 @@ mod tests {
             label_type: crate::state::LabelType::UserDefined,
         };
 
-        let new_labels = vec![(0x1000, new_label1.clone()), (0x2000, new_label2.clone())];
+        let new_labels = vec![
+            (Addr(0x1000), new_label1.clone()),
+            (Addr(0x2000), new_label2.clone()),
+        ];
 
         // Capture old state manually (as done in state.rs)
         let mut old_labels = BTreeMap::new();
-        old_labels.insert(0x1000, vec![initial_label.clone()]);
+        old_labels.insert(Addr(0x1000), vec![initial_label.clone()]);
         // 0x2000 has no old labels, so do we insert empty vec or nothing?
         // Logic in state.rs: if !old_labels_map.contains_key, insert current (empty).
-        old_labels.insert(0x2000, Vec::new());
+        old_labels.insert(Addr(0x2000), Vec::new());
 
         let command = Command::ImportLabels {
             new_labels,
@@ -619,13 +628,13 @@ mod tests {
 
         // Verify application
         // 0x1000 should have 2 labels
-        let labels_1000 = app_state.labels.get(&0x1000).unwrap();
+        let labels_1000 = app_state.labels.get(&Addr(0x1000)).unwrap();
         assert_eq!(labels_1000.len(), 2);
         assert!(labels_1000.iter().any(|l| l.name == "Initial"));
         assert!(labels_1000.iter().any(|l| l.name == "New1"));
 
         // 0x2000 should have 1 label
-        let labels_2000 = app_state.labels.get(&0x2000).unwrap();
+        let labels_2000 = app_state.labels.get(&Addr(0x2000)).unwrap();
         assert_eq!(labels_2000.len(), 1);
         assert_eq!(labels_2000[0].name, "New2");
 
@@ -636,14 +645,14 @@ mod tests {
 
         // Verify Undo
         // 0x1000 should have 1 label (Initial)
-        let labels_1000 = app_state.labels.get(&0x1000).unwrap();
+        let labels_1000 = app_state.labels.get(&Addr(0x1000)).unwrap();
         assert_eq!(labels_1000.len(), 1);
         assert_eq!(labels_1000[0].name, "Initial");
 
         // 0x2000 should be empty/removed
         // Note: our logic in undo inserts `Vec::new()` which means key exists but is empty.
         // OR we can check isEmpty.
-        if let Some(l) = app_state.labels.get(&0x2000) {
+        if let Some(l) = app_state.labels.get(&Addr(0x2000)) {
             assert!(l.is_empty());
         } else {
             // also fine
@@ -655,10 +664,10 @@ mod tests {
         app_state.undo_stack = stack;
 
         // Verify Redo
-        let labels_1000 = app_state.labels.get(&0x1000).unwrap();
+        let labels_1000 = app_state.labels.get(&Addr(0x1000)).unwrap();
         assert_eq!(labels_1000.len(), 2);
 
-        let labels_2000 = app_state.labels.get(&0x2000).unwrap();
+        let labels_2000 = app_state.labels.get(&Addr(0x2000)).unwrap();
         assert_eq!(labels_2000.len(), 1);
     }
 }

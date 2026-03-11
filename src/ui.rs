@@ -132,7 +132,7 @@ mod tests {
         opcode: Option<Opcode>,
     ) -> DisassemblyLine {
         DisassemblyLine {
-            address: addr,
+            address: crate::state::Addr(addr),
             bytes: vec![],
             mnemonic: mnemonic.to_string(),
             operand: operand.to_string(),
@@ -141,7 +141,7 @@ mod tests {
             label: None,
             opcode,
             show_bytes: false,
-            target_address: target,
+            target_address: target.map(crate::state::Addr),
             external_label_address: None,
             is_collapsed: false,
         }

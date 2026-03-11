@@ -74,26 +74,27 @@ impl Widget for StatusBar {
         let cursor_addr = app_state
             .disassembly
             .get(ui_state.cursor_index)
-            .map_or(0, |l| l.address);
+            .map_or(crate::state::Addr(0), |l| l.address);
 
-        let block_info =
-            if let Some(offset) = (cursor_addr as isize).checked_sub(app_state.origin as isize) {
-                if offset >= 0 && (offset as usize) < app_state.block_types.len() {
-                    let block_type = app_state.block_types[offset as usize];
-                    if let Some((start, end)) = app_state.get_block_range(cursor_addr) {
-                        format!(
-                            "{} | {}: ${:04X}-${:04X} | ",
-                            app_state.settings.assembler, block_type, start, end
-                        )
-                    } else {
-                        format!("{} | {}: ??? | ", app_state.settings.assembler, block_type)
-                    }
+        let block_info = if let Some(offset) =
+            (cursor_addr.0 as isize).checked_sub(app_state.origin.0 as isize)
+        {
+            if offset >= 0 && (offset as usize) < app_state.block_types.len() {
+                let block_type = app_state.block_types[offset as usize];
+                if let Some((start, end)) = app_state.get_block_range(cursor_addr) {
+                    format!(
+                        "{} | {}: ${:04X}-${:04X} | ",
+                        app_state.settings.assembler, block_type, start, end
+                    )
                 } else {
-                    format!("{} | ", app_state.settings.assembler)
+                    format!("{} | {}: ??? | ", app_state.settings.assembler, block_type)
                 }
             } else {
                 format!("{} | ", app_state.settings.assembler)
-            };
+            }
+        } else {
+            format!("{} | ", app_state.settings.assembler)
+        };
 
         let info = format!(
             "{} | {}Cursor: {:04X} | Origin: {:04X} | File: {:?}{}",

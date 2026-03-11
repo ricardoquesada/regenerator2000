@@ -1,6 +1,6 @@
 use crate::mcp::types::{McpError, McpRequest, McpResponse};
 use crate::state::AppState;
-use crate::state::types::{BlockType, ImmediateFormat};
+use crate::state::types::{Addr, BlockType, ImmediateFormat};
 use base64::prelude::*;
 use serde_json::{Value, json};
 
@@ -756,8 +756,8 @@ fn convert_region(
         });
     }
 
-    let start_idx = (start_addr.wrapping_sub(origin)) as usize;
-    let end_idx = (end_addr.wrapping_sub(origin)) as usize;
+    let start_idx = start_addr.offset_from(origin);
+    let end_idx = end_addr.offset_from(origin);
 
     // Range is inclusive on both ends, Command::SetBlockType uses start..end+1
     let range = start_idx..(end_idx + 1);
@@ -779,7 +779,7 @@ fn convert_region(
     )
 }
 
-fn get_address(args: &Value, key: &str) -> Result<u16, McpError> {
+fn get_address(args: &Value, key: &str) -> Result<Addr, McpError> {
     let val = args.get(key).ok_or_else(|| McpError {
         code: -32602,
         message: format!("Missing '{key}'"),
@@ -787,14 +787,14 @@ fn get_address(args: &Value, key: &str) -> Result<u16, McpError> {
     })?;
 
     if let Some(n) = val.as_u64() {
-        return Ok(n as u16);
+        return Ok(Addr(n as u16));
     }
 
     // Still accept string formats for robustness / backwards compat with older clients
     if let Some(s) = val.as_str()
         && let Some(addr) = parse_address_string(s)
     {
-        return Ok(addr);
+        return Ok(Addr(addr));
     }
 
     Err(McpError {
@@ -864,7 +864,7 @@ fn handle_resource_read(params: &Value, app_state: &mut AppState) -> Result<Valu
     }
 }
 
-fn get_disassembly_text(app_state: &AppState, start: u16, end: u16) -> String {
+fn get_disassembly_text(app_state: &AppState, start: Addr, end: Addr) -> String {
     let mut output = String::new();
     output.push_str(&format!("* = ${start:04X}\n"));
 
@@ -906,7 +906,7 @@ fn get_disassembly_text(app_state: &AppState, start: u16, end: u16) -> String {
 fn get_selection_range_disasm(
     app_state: &AppState,
     ui_state: &UIState,
-) -> Result<(u16, u16), McpError> {
+) -> Result<(Addr, Addr), McpError> {
     let cursor_idx = ui_state.cursor_index;
     let selection_idx = ui_state.selection_start;
 
@@ -941,7 +941,7 @@ fn get_selection_range_disasm(
 fn get_selection_range_hexdump(
     app_state: &AppState,
     ui_state: &UIState,
-) -> Result<(u16, u16), McpError> {
+) -> Result<(Addr, Addr), McpError> {
     let cursor_row = ui_state.hex_cursor_index;
     let selection_row = ui_state.hex_selection_start;
 
@@ -958,11 +958,11 @@ fn get_selection_range_hexdump(
     let origin = app_state.origin;
     let bytes_per_row = 16;
 
-    let alignment_padding = (origin % 16) as usize;
-    let aligned_origin = (origin as usize) - alignment_padding;
+    let alignment_padding = (origin.0 % 16) as usize;
+    let aligned_origin = (origin.0 as usize) - alignment_padding;
 
-    let start_addr = (aligned_origin + start_row * bytes_per_row) as u16;
-    let end_addr = (aligned_origin + (end_row + 1) * bytes_per_row - 1) as u16;
+    let start_addr = Addr((aligned_origin + start_row * bytes_per_row) as u16);
+    let end_addr = Addr((aligned_origin + (end_row + 1) * bytes_per_row - 1) as u16);
 
     // Clamp to valid range
     let max_len = app_state.raw_data.len() as u16;
@@ -982,16 +982,17 @@ fn get_selection_range_hexdump(
     Ok((final_start, final_end))
 }
 
-fn get_hexdump_text(app_state: &AppState, start_addr: u16, end_addr: u16) -> String {
+fn get_hexdump_text(app_state: &AppState, start_addr: Addr, end_addr: Addr) -> String {
     let mut output = String::new();
     let origin = app_state.origin;
-    for addr in start_addr..=end_addr {
+    for addr_val in start_addr.0..=end_addr.0 {
+        let addr = Addr(addr_val);
         if addr < origin || addr >= origin.wrapping_add(app_state.raw_data.len() as u16) {
             continue;
         }
-        let idx = (addr - origin) as usize;
+        let idx = addr.offset_from(origin);
         let byte = app_state.raw_data[idx];
-        if (addr - start_addr).is_multiple_of(16) {
+        if (addr.0.wrapping_sub(start_addr.0)).is_multiple_of(16) {
             if addr != start_addr {
                 output.push('\n');
             }
@@ -1066,7 +1067,7 @@ fn get_analyzed_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec<V
     blocks
 }
 
-fn get_cross_references_impl(app_state: &AppState, address: u16) -> Vec<u16> {
+fn get_cross_references_impl(app_state: &AppState, address: Addr) -> Vec<Addr> {
     if let Some(refs) = app_state.cross_refs.get(&address) {
         let mut sorted_refs = refs.clone();
         sorted_refs.sort_unstable();
@@ -1079,7 +1080,7 @@ fn get_cross_references_impl(app_state: &AppState, address: u16) -> Vec<u16> {
 
 fn set_operand_format_impl(
     app_state: &mut AppState,
-    address: u16,
+    address: Addr,
     format_str: &str,
 ) -> Result<(), McpError> {
     let format = match format_str.to_lowercase().as_str() {
@@ -1158,7 +1159,7 @@ fn get_all_comments_impl(app_state: &AppState) -> Vec<Value> {
     comments
 }
 
-fn get_address_details_impl(app_state: &AppState, address: u16) -> Result<Value, McpError> {
+fn get_address_details_impl(app_state: &AppState, address: Addr) -> Result<Value, McpError> {
     let origin = app_state.origin;
     if address < origin || address >= origin.wrapping_add(app_state.raw_data.len() as u16) {
         return Ok(json!({
@@ -1168,7 +1169,7 @@ fn get_address_details_impl(app_state: &AppState, address: u16) -> Result<Value,
         }));
     }
 
-    let idx = (address - origin) as usize;
+    let idx = address.offset_from(origin);
     let block_type = app_state.block_types[idx];
     let mut details = json!({
         "address": address,
@@ -1284,7 +1285,7 @@ fn create_save_context(
     app_state: &AppState,
     ui_state: &UIState,
 ) -> crate::state::project::ProjectSaveContext {
-    let origin = app_state.origin as usize;
+    let origin = app_state.origin.0 as usize;
 
     // Cursor address
     let cursor_address = app_state
@@ -1295,23 +1296,28 @@ fn create_save_context(
     // Hex cursor address
     let alignment_padding = origin % 16;
     let aligned_origin = origin - alignment_padding;
-    let hex_dump_cursor_address = Some((aligned_origin + ui_state.hex_cursor_index * 16) as u16);
+    let hex_dump_cursor_address = Some(Addr(
+        (aligned_origin + ui_state.hex_cursor_index * 16) as u16,
+    ));
 
     // Sprites cursor address
     let aligned_sprite_origin = (origin / 64) * 64;
-    let sprites_cursor_address =
-        Some((aligned_sprite_origin + ui_state.sprites_cursor_index * 64) as u16);
+    let sprites_cursor_address = Some(Addr(
+        (aligned_sprite_origin + ui_state.sprites_cursor_index * 64) as u16,
+    ));
 
     // Charset cursor address
     let base_alignment = 0x400;
     let aligned_charset_origin = (origin / base_alignment) * base_alignment;
-    let charset_cursor_address =
-        Some((aligned_charset_origin + ui_state.charset_cursor_index * 8) as u16);
+    let charset_cursor_address = Some(Addr(
+        (aligned_charset_origin + ui_state.charset_cursor_index * 8) as u16,
+    ));
 
     // Bitmap cursor address
     let aligned_bitmap_origin = (origin / 8192) * 8192;
-    let bitmap_cursor_address =
-        Some((aligned_bitmap_origin + ui_state.bitmap_cursor_index * 8192) as u16);
+    let bitmap_cursor_address = Some(Addr(
+        (aligned_bitmap_origin + ui_state.bitmap_cursor_index * 8192) as u16,
+    ));
 
     crate::state::project::ProjectSaveContext {
         cursor_address,
@@ -1338,7 +1344,7 @@ mod tests {
     /// Create a minimal AppState with the given origin and data size.
     fn make_app_state(origin: u16, size: usize) -> AppState {
         let mut state = AppState::new();
-        state.origin = origin;
+        state.origin = Addr(origin);
         state.raw_data = vec![0u8; size];
         state.block_types = vec![BlockType::Code; size];
         state.disassemble();

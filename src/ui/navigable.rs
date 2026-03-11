@@ -123,7 +123,7 @@ pub fn handle_nav_input<T: Navigable>(
 pub fn jump_to_disassembly_at_address(
     app_state: &AppState,
     ui_state: &mut UIState,
-    target_addr: u16,
+    target_addr: crate::state::Addr,
 ) -> WidgetResult {
     if let Some(line_idx) = app_state.get_line_index_containing_address(target_addr) {
         ui_state.navigation_history.push((

@@ -33,7 +33,7 @@ impl Navigable for BitmapView {
     fn len(&self, app_state: &AppState) -> usize {
         // Bitmaps must be aligned to 8192-byte ($2000) boundaries
         // We align to the floor to support partial bitmaps (padding with zeros before origin)
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         let aligned_origin = (origin / 8192) * 8192;
         let end_address = origin + app_state.raw_data.len();
 
@@ -158,7 +158,7 @@ impl Widget for BitmapView {
             return;
         }
 
-        let origin = app_state.origin as usize;
+        let origin = app_state.origin.0 as usize;
         // Align to floor boundary to support partial bitmaps (bytes before origin are zeros)
         let aligned_origin = (origin / 8192) * 8192;
         let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
@@ -364,7 +364,7 @@ impl Widget for BitmapView {
             KeyCode::Char('m') => WidgetResult::Action(MenuAction::ToggleBitmapMulticolor),
             KeyCode::Char('B') => {
                 // Convert current bitmap to bytes block (8000 bytes per bitmap)
-                let origin = app_state.origin as usize;
+                let origin = app_state.origin.0 as usize;
                 // Align to floor boundary to support partial bitmaps
                 let aligned_origin = (origin / 8192) * 8192;
                 let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
@@ -391,7 +391,7 @@ impl Widget for BitmapView {
                 }
             }
             KeyCode::Enter => {
-                let origin = app_state.origin as usize;
+                let origin = app_state.origin.0 as usize;
                 // Align to floor boundary to support partial bitmaps
                 let aligned_origin = (origin / 8192) * 8192;
                 let bitmap_addr = aligned_origin + (ui_state.bitmap_cursor_index * 8192);
@@ -411,7 +411,7 @@ impl Widget for BitmapView {
                 crate::ui::navigable::jump_to_disassembly_at_address(
                     app_state,
                     ui_state,
-                    target_addr,
+                    crate::state::Addr(target_addr),
                 )
             }
             _ => WidgetResult::Ignored,

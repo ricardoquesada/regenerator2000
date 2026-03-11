@@ -108,13 +108,17 @@ pub fn parse_hex_pattern(query: &str) -> Option<Vec<Option<u8>>> {
 }
 
 #[must_use]
-pub fn check_hex_pattern(address: u16, pattern: &[Option<u8>], app_state: &AppState) -> bool {
+pub fn check_hex_pattern(
+    address: crate::state::Addr,
+    pattern: &[Option<u8>],
+    app_state: &AppState,
+) -> bool {
     let raw_len = app_state.raw_data.len();
     if raw_len == 0 {
         return false;
     }
 
-    let start_offset = (address.wrapping_sub(app_state.origin)) as usize;
+    let start_offset = address.offset_from(app_state.origin);
 
     if start_offset >= raw_len {
         return false;
@@ -145,7 +149,7 @@ pub fn check_hex_pattern(address: u16, pattern: &[Option<u8>], app_state: &AppSt
 /// Checks both PETSCII and Screencode encodings, case-insensitively.
 #[must_use]
 pub fn check_string_pattern(
-    address: u16,
+    address: crate::state::Addr,
     query: &str,
     app_state: &AppState,
     filters: &SearchFilters,
@@ -155,7 +159,7 @@ pub fn check_string_pattern(
         return false;
     }
 
-    let start_offset = (address.wrapping_sub(app_state.origin)) as usize;
+    let start_offset = address.offset_from(app_state.origin);
     if start_offset >= raw_len {
         return false;
     }
@@ -467,7 +471,7 @@ pub fn search_memory_raw(
         }
     }
 
-    Ok(found_set.into_iter().collect())
+    Ok(found_set.into_iter().map(|a| a.0).collect())
 }
 
 // ---------------------------------------------------------------------------
@@ -505,7 +509,7 @@ mod tests {
     #[test]
     fn test_match_instruction_content_bytes_alignment() {
         let line = DisassemblyLine {
-            address: 0x1000,
+            address: crate::state::Addr(0x1000),
             bytes: vec![0x8D, 0x02, 0x08], // 8d0208
             mnemonic: "STA".to_string(),
             operand: "$0802".to_string(),
@@ -540,7 +544,7 @@ mod tests {
         let mut app_state = AppState::new();
         // Mid-address label at 0x1001
         app_state.labels.insert(
-            0x1001,
+            crate::state::Addr(0x1001),
             vec![Label {
                 name: "mid_label".to_string(),
                 label_type: crate::state::LabelType::AbsoluteAddress,
@@ -549,7 +553,7 @@ mod tests {
         );
 
         let line = DisassemblyLine {
-            address: 0x1000,
+            address: crate::state::Addr(0x1000),
             bytes: vec![0xA9, 0x00], // LDA #$00
             mnemonic: "LDA".to_string(),
             operand: "#$00".to_string(),
@@ -650,22 +654,57 @@ mod tests_string {
             0x48, 0x45, 0x4C, 0x4C, 0x4F, // "HELLO" in PETSCII (unshifted)
             0x08, 0x05, 0x0C, 0x0C, 0x0F, // "hello" in Screencodes (Shifted/Lowercase)
         ];
-        app_state.origin = 0x1000;
+        app_state.origin = crate::state::Addr(0x1000);
 
         // 1. PETSCII match (unshifted)
         let filters = SearchFilters::default();
-        assert!(check_string_pattern(0x1000, "HELLO", &app_state, &filters));
-        assert!(check_string_pattern(0x1000, "hello", &app_state, &filters)); // Case-insensitive
-        assert!(check_string_pattern(0x1000, "HellO", &app_state, &filters));
+        assert!(check_string_pattern(
+            crate::state::Addr(0x1000),
+            "HELLO",
+            &app_state,
+            &filters
+        ));
+        assert!(check_string_pattern(
+            crate::state::Addr(0x1000),
+            "hello",
+            &app_state,
+            &filters
+        )); // Case-insensitive
+        assert!(check_string_pattern(
+            crate::state::Addr(0x1000),
+            "HellO",
+            &app_state,
+            &filters
+        ));
 
         // 2. Screencode match
         // Note: screencode_to_petscii(0x08) -> 0x48 ('H' or 'h' shifted)
-        assert!(check_string_pattern(0x1005, "hello", &app_state, &filters));
-        assert!(check_string_pattern(0x1005, "HELLO", &app_state, &filters));
+        assert!(check_string_pattern(
+            crate::state::Addr(0x1005),
+            "hello",
+            &app_state,
+            &filters
+        ));
+        assert!(check_string_pattern(
+            crate::state::Addr(0x1005),
+            "HELLO",
+            &app_state,
+            &filters
+        ));
 
         // 3. No match
-        assert!(!check_string_pattern(0x1000, "WORLD", &app_state, &filters));
-        assert!(!check_string_pattern(0x1008, "HELLO", &app_state, &filters)); // Out of bounds/Too long
+        assert!(!check_string_pattern(
+            crate::state::Addr(0x1000),
+            "WORLD",
+            &app_state,
+            &filters
+        ));
+        assert!(!check_string_pattern(
+            crate::state::Addr(0x1008),
+            "HELLO",
+            &app_state,
+            &filters
+        )); // Out of bounds/Too long
     }
 
     #[test]
@@ -676,10 +715,10 @@ mod tests_string {
         // Screencode for "LANDING": 0C 01 0E 04 09 0E 07
         // Let's put a dummy byte at the start to force an offset
         app_state.raw_data = vec![0x00, 0x0C, 0x01, 0x0E, 0x04, 0x09, 0x0E, 0x07];
-        app_state.origin = 0x1000;
+        app_state.origin = crate::state::Addr(0x1000);
 
         let line = DisassemblyLine {
-            address: 0x1000,
+            address: crate::state::Addr(0x1000),
             bytes: app_state.raw_data.clone(),
             mnemonic: String::new(),
             operand: String::new(),
@@ -705,7 +744,12 @@ mod tests_string {
         // The bug is that we don't check offsets. This test will help me verify the fix.
         let mut found_at_any_offset = false;
         for offset in 0..line.bytes.len() {
-            if check_string_pattern(line.address + offset as u16, query, &app_state, &filters) {
+            if check_string_pattern(
+                line.address.wrapping_add(offset as u16),
+                query,
+                &app_state,
+                &filters,
+            ) {
                 found_at_any_offset = true;
                 break;
             }

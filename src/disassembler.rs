@@ -1,5 +1,5 @@
 use crate::cpu::{Opcode, get_opcodes};
-use crate::state::{Assembler, BlockType, DocumentSettings, Label};
+use crate::state::{Addr, Assembler, BlockType, DocumentSettings, Label};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub mod context;
@@ -72,7 +72,7 @@ pub use context::HandleArgs;
 
 #[derive(Debug, Clone)]
 pub struct DisassemblyLine {
-    pub address: u16,
+    pub address: Addr,
     pub bytes: Vec<u8>,
     pub mnemonic: String,
     pub operand: String,
@@ -82,8 +82,8 @@ pub struct DisassemblyLine {
     pub label: Option<String>,
     pub opcode: Option<Opcode>,
     pub show_bytes: bool,
-    pub target_address: Option<u16>,
-    pub external_label_address: Option<u16>,
+    pub target_address: Option<Addr>,
+    pub external_label_address: Option<Addr>,
     pub is_collapsed: bool,
 }
 
@@ -121,16 +121,16 @@ impl Disassembler {
         &self,
         data: &[u8],
         block_types: &[BlockType],
-        labels: &BTreeMap<u16, Vec<Label>>,
-        origin: u16,
+        labels: &BTreeMap<Addr, Vec<Label>>,
+        origin: Addr,
         settings: &DocumentSettings,
-        system_comments: &BTreeMap<u16, String>,
-        user_side_comments: &BTreeMap<u16, String>,
-        user_line_comments: &BTreeMap<u16, String>,
-        immediate_value_formats: &BTreeMap<u16, crate::state::ImmediateFormat>,
-        cross_refs: &BTreeMap<u16, Vec<u16>>,
+        system_comments: &BTreeMap<Addr, String>,
+        user_side_comments: &BTreeMap<Addr, String>,
+        user_line_comments: &BTreeMap<Addr, String>,
+        immediate_value_formats: &BTreeMap<Addr, crate::state::ImmediateFormat>,
+        cross_refs: &BTreeMap<Addr, Vec<Addr>>,
         collapsed_blocks: &[(usize, usize)],
-        splitters: &BTreeSet<u16>,
+        splitters: &BTreeSet<Addr>,
     ) -> Vec<DisassemblyLine> {
         let ctx = DisassemblyContext {
             data,
@@ -231,7 +231,12 @@ impl Disassembler {
         lines
     }
 
-    fn get_arrow_target_address(&self, opcode: &Opcode, bytes: &[u8], address: u16) -> Option<u16> {
+    fn get_arrow_target_address(
+        &self,
+        opcode: &Opcode,
+        bytes: &[u8],
+        address: Addr,
+    ) -> Option<Addr> {
         use crate::cpu::AddressingMode;
 
         if !opcode.is_flow_control_with_target() {
@@ -241,7 +246,7 @@ impl Disassembler {
         match opcode.mode {
             AddressingMode::Absolute => {
                 if bytes.len() >= 3 {
-                    Some(u16::from(bytes[2]) << 8 | u16::from(bytes[1]))
+                    Some(Addr(u16::from(bytes[2]) << 8 | u16::from(bytes[1])))
                 } else {
                     None
                 }
@@ -261,20 +266,20 @@ impl Disassembler {
     /// Returns the address referenced by the instruction, if any.
     /// This is used for looking up comments and X-Refs.
     /// Unlike `get_flow_target_address`, this returns a value for memory access instructions like STA, LDA, etc.
-    fn get_referenced_address(&self, opcode: &Opcode, bytes: &[u8], address: u16) -> Option<u16> {
+    fn get_referenced_address(&self, opcode: &Opcode, bytes: &[u8], address: Addr) -> Option<Addr> {
         use crate::cpu::AddressingMode;
 
         match opcode.mode {
             AddressingMode::Absolute | AddressingMode::AbsoluteX | AddressingMode::AbsoluteY => {
                 if bytes.len() >= 3 {
-                    Some(u16::from(bytes[2]) << 8 | u16::from(bytes[1]))
+                    Some(Addr(u16::from(bytes[2]) << 8 | u16::from(bytes[1])))
                 } else {
                     None
                 }
             }
             AddressingMode::ZeroPage | AddressingMode::ZeroPageX | AddressingMode::ZeroPageY => {
                 if bytes.len() >= 2 {
-                    Some(u16::from(bytes[1]))
+                    Some(Addr(u16::from(bytes[1])))
                 } else {
                     None
                 }
@@ -290,7 +295,7 @@ impl Disassembler {
             }
             AddressingMode::Indirect => {
                 if bytes.len() >= 3 {
-                    Some(u16::from(bytes[2]) << 8 | u16::from(bytes[1]))
+                    Some(Addr(u16::from(bytes[2]) << 8 | u16::from(bytes[1])))
                 } else {
                     None
                 }
@@ -298,7 +303,7 @@ impl Disassembler {
             // For IndirectX/Y, we could argue it references the Zero Page address given.
             AddressingMode::IndirectX | AddressingMode::IndirectY => {
                 if bytes.len() >= 2 {
-                    Some(u16::from(bytes[1]))
+                    Some(Addr(u16::from(bytes[1])))
                 } else {
                     None
                 }
@@ -309,19 +314,19 @@ impl Disassembler {
 
     fn get_label_name(
         &self,
-        address: u16,
-        labels: &BTreeMap<u16, Vec<Label>>,
+        address: Addr,
+        labels: &BTreeMap<Addr, Vec<Label>>,
         formatter: &dyn Formatter,
         settings: &DocumentSettings,
     ) -> Option<String> {
         labels.get(&address).and_then(|v| {
-            resolve_label(v, address, settings).map(|l| formatter.format_label(&l.name))
+            resolve_label(v, address.0, settings).map(|l| formatter.format_label(&l.name))
         })
     }
 
     fn get_side_comment(
         &self,
-        address: u16,
+        address: Addr,
         ctx: &DisassemblyContext,
         comment_prefix: &str,
     ) -> String {
@@ -473,7 +478,7 @@ impl Disassembler {
                     {
                         // Calculate origin to check if target is within our data block
                         let origin = address.wrapping_sub(pc as u16);
-                        let target_idx = target_addr.wrapping_sub(origin) as usize;
+                        let target_idx = target_addr.offset_from(origin);
 
                         // Check if target is known code
                         let mut is_code_target = false;
@@ -741,7 +746,7 @@ impl Disassembler {
 
             bytes.push(low);
             bytes.push(high);
-            operands.push(formatter.format_address(val));
+            operands.push(formatter.format_address(Addr(val)));
             count += 1;
         }
 
@@ -921,7 +926,7 @@ impl Disassembler {
             {
                 formatter.format_label(&label.name)
             } else {
-                formatter.format_address(val)
+                formatter.format_address(Addr(val))
             };
             operands.push(operand);
 
@@ -1290,7 +1295,7 @@ impl Disassembler {
         &self,
         pc: usize,
         data: &[u8],
-        address: u16,
+        address: Addr,
         formatter: &dyn Formatter,
         label_name: Option<String>,
         side_comment: String,
@@ -1344,7 +1349,7 @@ impl Disassembler {
 }
 
 #[must_use]
-pub fn format_cross_references(refs: &[u16], max_count: usize) -> String {
+pub fn format_cross_references(refs: &[Addr], max_count: usize) -> String {
     if refs.is_empty() || max_count == 0 {
         return String::new();
     }
@@ -1375,7 +1380,7 @@ mod tests {
     #[test]
     fn test_format_cross_references() {
         // Test truncation
-        let refs = vec![0x2000, 0x3000, 0x4000];
+        let refs = vec![Addr(0x2000), Addr(0x3000), Addr(0x4000)];
         let output = format_cross_references(&refs, 2);
         assert_eq!(output, "x-ref: $2000, $3000, ...");
 
@@ -1384,7 +1389,7 @@ mod tests {
         assert_eq!(output_full, "x-ref: $2000, $3000, $4000");
 
         // Test deduplication
-        let refs_dup = vec![0x2000, 0x2000];
+        let refs_dup = vec![Addr(0x2000), Addr(0x2000)];
         let output_dup = format_cross_references(&refs_dup, 2);
         assert_eq!(output_dup, "x-ref: $2000");
     }

@@ -1,5 +1,5 @@
 use crate::cpu::Opcode;
-use crate::state::Label;
+use crate::state::{Addr, Label};
 use std::collections::BTreeMap;
 
 pub enum TextFragment {
@@ -10,18 +10,18 @@ pub enum TextFragment {
 pub struct FormatContext<'a> {
     pub opcode: &'a Opcode,
     pub operands: &'a [u8],
-    pub address: u16,
+    pub address: Addr,
     pub target_context: Option<crate::state::LabelType>,
-    pub labels: &'a BTreeMap<u16, Vec<Label>>,
+    pub labels: &'a BTreeMap<Addr, Vec<Label>>,
     pub settings: &'a crate::state::DocumentSettings,
-    pub immediate_value_formats: &'a BTreeMap<u16, crate::state::ImmediateFormat>,
+    pub immediate_value_formats: &'a BTreeMap<Addr, crate::state::ImmediateFormat>,
 }
 
 impl<'a> FormatContext<'a> {
     #[must_use]
-    pub fn resolve_label(&self, address: u16) -> Option<&'a Label> {
+    pub fn resolve_label(&self, address: Addr) -> Option<&'a Label> {
         if let Some(v) = self.labels.get(&address) {
-            crate::disassembler::resolve_label(v, address, self.settings)
+            crate::disassembler::resolve_label(v, address.0, self.settings)
         } else {
             None
         }
@@ -33,7 +33,7 @@ pub trait Formatter {
     fn byte_directive(&self) -> &'static str;
     fn word_directive(&self) -> &'static str;
     fn format_byte(&self, byte: u8) -> String;
-    fn format_address(&self, address: u16) -> String;
+    fn format_address(&self, address: Addr) -> String;
     fn format_operand(&self, ctx: &FormatContext) -> String;
 
     fn format_mnemonic(&self, mnemonic: &str) -> String;
@@ -49,7 +49,7 @@ pub trait Formatter {
     fn format_screencode_pre(&self) -> Vec<(String, String)>;
     fn format_screencode(&self, fragments: &[TextFragment]) -> Vec<(String, String, bool)>;
     fn format_screencode_post(&self) -> Vec<(String, String)>;
-    fn format_header_origin(&self, origin: u16) -> String;
+    fn format_header_origin(&self, origin: Addr) -> String;
     fn format_file_header(&self, file_name: &str, use_illegal_opcodes: bool) -> String {
         let _ = file_name;
         let _ = use_illegal_opcodes;

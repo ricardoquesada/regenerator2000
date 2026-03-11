@@ -1,4 +1,5 @@
 use regenerator2000::disassembler::Disassembler;
+use regenerator2000::state::Addr;
 use regenerator2000::state::{BlockType, DocumentSettings};
 use std::collections::BTreeMap;
 
@@ -20,7 +21,7 @@ fn test_illegal_opcodes_disabled_by_default() {
         &data,
         &block_types,
         &BTreeMap::new(),
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -58,7 +59,7 @@ fn test_illegal_opcodes_enabled() {
         &data,
         &block_types,
         &BTreeMap::new(),
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -89,7 +90,7 @@ fn test_new_illegal_opcodes() {
         &data_anc,
         &[BlockType::Code; 2],
         &BTreeMap::new(),
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -108,7 +109,7 @@ fn test_new_illegal_opcodes() {
         &data_asr,
         &[BlockType::Code; 2],
         &BTreeMap::new(),
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -127,7 +128,7 @@ fn test_new_illegal_opcodes() {
         &data_arr,
         &[BlockType::Code; 2],
         &BTreeMap::new(),
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -146,7 +147,7 @@ fn test_new_illegal_opcodes() {
         &data_sbx,
         &[BlockType::Code; 2],
         &BTreeMap::new(),
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &BTreeMap::new(),
@@ -165,7 +166,7 @@ fn test_new_illegal_opcodes() {
         &data_lax,
         &[BlockType::Code; 2],
         &BTreeMap::new(),
-        0x1000,
+        Addr(0x1000),
         &settings,
         &BTreeMap::new(),
         &BTreeMap::new(),

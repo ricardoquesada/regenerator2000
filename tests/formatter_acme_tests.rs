@@ -21,7 +21,7 @@ fn test_format_instructions() {
     let ctx = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xA9].as_ref().unwrap(),
         operands: &[0x00],
-        address: 0x1000,
+        address: regenerator2000::state::Addr(0x1000),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -36,7 +36,7 @@ fn test_format_instructions() {
     let ctx = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0x8D].as_ref().unwrap(),
         operands: &[0x20, 0xD0],
-        address: 0x1002,
+        address: regenerator2000::state::Addr(0x1002),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -51,7 +51,7 @@ fn test_format_instructions() {
     let ctx = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xEA].as_ref().unwrap(),
         operands: &[],
-        address: 0x1005,
+        address: regenerator2000::state::Addr(0x1005),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -66,7 +66,7 @@ fn test_format_instructions() {
     let ctx = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0x0A].as_ref().unwrap(),
         operands: &[],
-        address: 0x1006,
+        address: regenerator2000::state::Addr(0x1006),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -84,8 +84,14 @@ fn test_origin() {
         ..Default::default()
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
-    assert_eq!(formatter.format_header_origin(0x0801), "* = $0801");
-    assert_eq!(formatter.format_header_origin(0xC000), "* = $c000");
+    assert_eq!(
+        formatter.format_header_origin(regenerator2000::state::Addr(0x0801)),
+        "* = $0801"
+    );
+    assert_eq!(
+        formatter.format_header_origin(regenerator2000::state::Addr(0xC000)),
+        "* = $c000"
+    );
 }
 
 #[test]
@@ -128,7 +134,7 @@ fn test_forced_absolute_plus2() {
     let ctx = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
-        address: 0x1000,
+        address: regenerator2000::state::Addr(0x1000),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -145,7 +151,7 @@ fn test_forced_absolute_plus2() {
     let ctx_false = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
-        address: 0x1000,
+        address: regenerator2000::state::Addr(0x1000),
         target_context: None,
         labels: &labels,
         settings: &settings_false,
@@ -160,7 +166,7 @@ fn test_forced_absolute_plus2() {
     let ctx_x = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0x9D].as_ref().unwrap(), // STA abs,X
         operands: &[0x10, 0x00],
-        address: 0x1003,
+        address: regenerator2000::state::Addr(0x1003),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -175,7 +181,7 @@ fn test_forced_absolute_plus2() {
     let ctx_normal = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x20, 0xD0],
-        address: 0x1006,
+        address: regenerator2000::state::Addr(0x1006),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -202,7 +208,7 @@ fn test_addressing_modes() {
     let ctx = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xA1].as_ref().unwrap(),
         operands: &[0x20],
-        address: 0x2000,
+        address: regenerator2000::state::Addr(0x2000),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -217,7 +223,7 @@ fn test_addressing_modes() {
     let ctx = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xB1].as_ref().unwrap(),
         operands: &[0x20],
-        address: 0x2002,
+        address: regenerator2000::state::Addr(0x2002),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -232,7 +238,7 @@ fn test_addressing_modes() {
     let ctx = regenerator2000::disassembler::formatter::FormatContext {
         opcode: opcodes[0xD0].as_ref().unwrap(),
         operands: &[0x03],
-        address: 0x2004,
+        address: regenerator2000::state::Addr(0x2004),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -408,7 +414,7 @@ fn test_lax_immediate_mnemonic() {
         let ctx = regenerator2000::disassembler::formatter::FormatContext {
             opcode,
             operands: &[0x42],
-            address: 0x1000,
+            address: regenerator2000::state::Addr(0x1000),
             target_context: None,
             labels: &labels,
             settings: &settings,
