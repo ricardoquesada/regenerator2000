@@ -14,7 +14,8 @@ use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui::navigable::{Navigable, handle_nav_input};
 
 const PAGE_SCROLL_AMOUNT: usize = 30;
-const LABEL_COLUMN_WIDTH: usize = 20;
+// LABEL_COLUMN_WIDTH moved to regenerator_core::disassembler
+use regenerator_core::disassembler::LABEL_COLUMN_WIDTH;
 
 pub struct VisualLineCounts {
     pub labels: usize,
@@ -185,46 +186,7 @@ impl DisassemblyView {
         app_state: &AppState,
         target_addr: u16,
     ) -> usize {
-        // Calculate visual index for target_addr within this line.
-        // Order:
-        // 1. Labels [offset 1..N]
-        // 2. Comments (not addressable by jump usually, but occupy sub-indices)
-        // 3. Instruction (Base address)
-
-        let mut sub_index = 0;
-
-        // 1. Labels inside multi-byte instructions
-        if line.bytes.len() > 1 {
-            for offset in 1..line.bytes.len() {
-                let mid_addr = line.address.wrapping_add(offset as u16);
-                if let Some(l) = app_state.labels.get(&mid_addr) {
-                    if mid_addr == target_addr {
-                        return sub_index;
-                    }
-                    sub_index += l.len();
-                }
-            }
-        }
-
-        // 2. Line comment
-        if let Some(comment) = &line.line_comment {
-            sub_index += comment.lines().count();
-        }
-
-        // 2.5. Long label on its own line
-        if let Some(label) = &line.label
-            && label.len() >= LABEL_COLUMN_WIDTH
-        {
-            sub_index += 1;
-        }
-
-        // 3. Instruction
-        // If we didn't return early, checking labels, and the target IS the line address,
-        // we return the instruction index (current valid sub_index).
-        // If the target matched a mid-address with NO label, we default here too?
-        // Wait, if mid-address has NO label, it's not visually distinct (no sub-line).
-        // So we just return the instruction sub-index.
-        sub_index
+        line.get_sub_index_for_address(app_state, target_addr)
     }
 }
 

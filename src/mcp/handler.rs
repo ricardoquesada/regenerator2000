@@ -601,7 +601,8 @@ fn handle_tool_call_internal(
                 .or_else(|| app_state.get_line_index_for_address(address))
                 .is_some()
             {
-                crate::navigation::perform_jump_to_address(app_state, ui_state, address);
+                crate::navigation::perform_jump_to_address(app_state, &mut ui_state.core, address);
+                ui_state.sync_status_message();
 
                 Ok(json!({
                     "content": [{
@@ -704,7 +705,7 @@ fn handle_tool_call_internal(
                 });
             }
 
-            let ctx = crate::navigation::create_save_context(app_state, ui_state);
+            let ctx = crate::navigation::create_save_context(app_state, &ui_state.core);
             app_state.save_project(ctx, true).map_err(|e| McpError {
                 code: -32603,
                 message: format!("Failed to save project: {e}"),

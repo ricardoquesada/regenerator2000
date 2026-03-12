@@ -69,9 +69,9 @@ impl Widget for JumpToLineDialog {
                             app_state, line_num,
                         )
                     {
-                        ui_state.navigation_history.push((
+                        ui_state.core.navigation_history.push((
                             crate::ui_state::ActivePane::Disassembly,
-                            crate::ui_state::NavigationTarget::Index(ui_state.cursor_index),
+                            crate::ui_state::NavigationTarget::Index(ui_state.core.cursor_index),
                         ));
                         ui_state.cursor_index = target_idx;
                         ui_state.set_status_message(format!("Jumped to visual line {line_num}"));

@@ -464,8 +464,7 @@ mod load_file_tests {
 #[cfg(test)]
 mod save_project_tests {
     use super::super::app_state::AppState;
-    use super::super::project::Label;
-    use super::super::types::*;
+    use super::super::types::{HexdumpViewMode, Label};
     use std::io::Write;
 
     #[test]
@@ -586,7 +585,7 @@ mod config_tests {
             sprite_multicolor_mode: false,
             charset_multicolor_mode: false,
             bitmap_multicolor_mode: false,
-            hexdump_view_mode: HexdumpViewMode::default(),
+            hexdump_view_mode: crate::state::types::HexdumpViewMode::default(),
             splitters: std::collections::BTreeSet::new(),
             blocks_view_cursor: None,
             bookmarks: std::collections::BTreeMap::new(),

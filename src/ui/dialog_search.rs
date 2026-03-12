@@ -257,7 +257,7 @@ impl Widget for SearchDialog {
 }
 
 pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward: bool) {
-    let query = &ui_state.last_search_query;
+    let query = ui_state.last_search_query.clone();
     if query.is_empty() {
         ui_state.set_status_message("No search query");
         return;
@@ -274,7 +274,7 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
     let mut found_sub_idx = 0;
 
     let hex_pattern = if ui_state.search_filters.hex_bytes {
-        search::parse_hex_pattern(query)
+        search::parse_hex_pattern(&query)
     } else {
         None
     };
@@ -302,9 +302,9 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
         };
 
         if let Some(sub) = candidate {
-            ui_state.navigation_history.push((
+            ui_state.core.navigation_history.push((
                 ActivePane::Disassembly,
-                crate::ui_state::NavigationTarget::Index(ui_state.cursor_index),
+                crate::ui_state::NavigationTarget::Index(ui_state.core.cursor_index),
             ));
             ui_state.sub_cursor_index = sub;
             ui_state.set_status_message(format!("Found '{query}'"));
@@ -369,9 +369,9 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
     }
 
     if let Some(idx) = found_idx {
-        ui_state.navigation_history.push((
+        ui_state.core.navigation_history.push((
             ActivePane::Disassembly,
-            crate::ui_state::NavigationTarget::Index(ui_state.cursor_index),
+            crate::ui_state::NavigationTarget::Index(ui_state.core.cursor_index),
         ));
         ui_state.cursor_index = idx;
         ui_state.sub_cursor_index = found_sub_idx;

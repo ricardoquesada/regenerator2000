@@ -9,91 +9,35 @@ use ratatui_image::picker::Picker;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ActivePane {
-    Disassembly,
-    HexDump,
-    Sprites,
-    Charset,
-    Bitmap,
-    Blocks,
-    Debugger,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NavigationTarget {
-    Index(usize),
-    Address(u16),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum RightPane {
-    None,
-    #[default]
-    HexDump,
-    Sprites,
-    Charset,
-    Bitmap,
-    Blocks,
-    Debugger,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ScreenRamMode {
-    AfterBitmap,
-    BankOffset(u8), // 0-15
-}
-
-use crate::state::HexdumpViewMode;
+// Re-export core enums so existing `crate::ui_state::ActivePane` etc. still work.
+pub use regenerator_core::view_state::{
+    ActivePane, CoreViewState, NavigationTarget, RightPane, ScreenRamMode,
+};
 
 pub struct UIState {
+    /// Frontend-agnostic state (cursors, selections, panes, modes).
+    /// Accessible directly via `Deref`/`DerefMut`.
+    pub core: CoreViewState,
+
+    // --- TUI-only state below ---
     pub active_dialog: Option<Box<dyn Widget>>,
     pub file_dialog_current_dir: PathBuf,
 
     pub menu: MenuState,
 
-    pub navigation_history: Vec<(ActivePane, NavigationTarget)>,
     #[allow(dead_code)]
     pub disassembly_state: ListState,
-
-    // UI Selection/Cursor
-    pub selection_start: Option<usize>,
-    pub cursor_index: usize,
-    pub sub_cursor_index: usize,
-    pub scroll_index: usize,
-    pub scroll_sub_index: usize,
-
-    // Hex View State
-    pub hex_cursor_index: usize,
-    pub hex_col_cursor: usize,
-    pub hex_selection_start: Option<usize>,
-    pub hex_selection_start_col: usize,
-    pub sprites_cursor_index: usize,
-    pub sprites_selection_start: Option<usize>,
-    pub charset_cursor_index: usize,
-    pub charset_selection_start: Option<usize>,
-    pub bitmap_cursor_index: usize,
 
     pub blocks_list_state: ListState,
     pub bookmarks_list_state: ListState,
     pub recent_list_state: ListState,
-    #[allow(dead_code)]
-    pub hex_scroll_index: usize,
-    pub right_pane: RightPane,
-    pub sprite_multicolor_mode: bool,
-    pub charset_multicolor_mode: bool,
-    pub bitmap_multicolor_mode: bool,
-    pub bitmap_screen_ram_mode: ScreenRamMode,
-    pub hexdump_view_mode: HexdumpViewMode,
 
-    pub active_pane: ActivePane,
     pub should_quit: bool,
     pub status_bar: crate::ui::statusbar::StatusBarState,
 
     pub logo: Option<DynamicImage>,
     pub picker: Option<Picker>,
     pub dismiss_logo: bool,
-    pub is_visual_mode: bool,
     pub input_buffer: String,
 
     pub theme: Theme,
@@ -123,47 +67,42 @@ pub struct UIState {
     pub active_dialog_area: ratatui::layout::Rect,
 }
 
+// ---------------------------------------------------------------------------
+// Deref to CoreViewState so `ui_state.cursor_index` keeps working unchanged
+// ---------------------------------------------------------------------------
+
+impl std::ops::Deref for UIState {
+    type Target = CoreViewState;
+    fn deref(&self) -> &CoreViewState {
+        &self.core
+    }
+}
+
+impl std::ops::DerefMut for UIState {
+    fn deref_mut(&mut self) -> &mut CoreViewState {
+        &mut self.core
+    }
+}
+
 impl UIState {
     #[must_use]
     pub fn new(theme: Theme) -> Self {
         Self {
+            core: CoreViewState::new(),
+
             active_dialog: None,
             file_dialog_current_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
 
             menu: MenuState::new(),
-            navigation_history: Vec::new(),
             disassembly_state: ListState::default(),
-            selection_start: None,
-            cursor_index: 0,
-            sub_cursor_index: 0,
-            scroll_index: 0,
-            scroll_sub_index: 0,
-            hex_cursor_index: 0,
-            hex_col_cursor: 0,
-            hex_selection_start: None,
-            hex_selection_start_col: 0,
-            sprites_cursor_index: 0,
-            sprites_selection_start: None,
-            charset_cursor_index: 0,
-            charset_selection_start: None,
-            bitmap_cursor_index: 0,
             blocks_list_state: ListState::default(),
             bookmarks_list_state: ListState::default(),
             recent_list_state: ListState::default(),
-            hex_scroll_index: 0,
-            right_pane: RightPane::HexDump,
-            sprite_multicolor_mode: false,
-            charset_multicolor_mode: false,
-            bitmap_multicolor_mode: false,
-            bitmap_screen_ram_mode: ScreenRamMode::AfterBitmap,
-            hexdump_view_mode: HexdumpViewMode::ScreencodeShifted,
-            active_pane: ActivePane::Disassembly,
             should_quit: false,
             status_bar: crate::ui::statusbar::StatusBarState::new(),
             logo: crate::utils::load_logo(),
             picker: crate::utils::create_picker(),
             dismiss_logo: false,
-            is_visual_mode: false,
             input_buffer: String::new(),
             vim_search_active: false,
             vim_search_input: String::new(),
@@ -185,7 +124,17 @@ impl UIState {
     }
 
     pub fn set_status_message(&mut self, message: impl Into<String>) {
-        self.status_bar.set_message(message);
+        let msg = message.into();
+        self.core.status_message = Some(msg.clone());
+        self.status_bar.set_message(msg);
+    }
+
+    /// Synchronize the TUI status bar with any message set in CoreViewState.
+    /// Used after calling core functions that might update status_message.
+    pub fn sync_status_message(&mut self) {
+        if let Some(msg) = self.core.status_message.take() {
+            self.status_bar.set_message(msg);
+        }
     }
 
     pub fn restore_session(
@@ -258,6 +207,7 @@ impl UIState {
         }
         if let Some(idx) = loaded_data.blocks_view_cursor {
             self.blocks_list_state.select(Some(idx));
+            self.blocks_selected_index = Some(idx);
         }
         if let Some(sprites_addr) = loaded_sprites_cursor {
             let origin = app_state.origin.0 as usize;

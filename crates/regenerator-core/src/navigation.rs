@@ -1,39 +1,35 @@
-//! Navigation helpers that operate on `AppState` + `UIState`.
-//!
-//! These live in the TUI crate (not regenerator-core) because they depend on
-//! `UIState` and `DisassemblyView`, which are TUI-specific.
-
+use crate::state::Addr;
 use crate::state::AppState;
-use crate::ui_state::{ActivePane, NavigationTarget, UIState};
+use crate::view_state::{ActivePane, CoreViewState, NavigationTarget};
 
 /// Jump to `target_addr` and push the current cursor position onto the
 /// navigation-history stack so the user can go back.
 pub fn perform_jump_to_address(
     app_state: &AppState,
-    ui_state: &mut UIState,
-    target_addr: crate::state::Addr,
+    view_state: &mut CoreViewState,
+    target_addr: Addr,
 ) {
     // Push CURRENT state to history
-    if let Some(current_line) = app_state.disassembly.get(ui_state.cursor_index) {
-        ui_state.navigation_history.push((
+    if let Some(current_line) = app_state.disassembly.get(view_state.cursor_index) {
+        view_state.navigation_history.push((
             ActivePane::Disassembly,
             NavigationTarget::Address(current_line.address.0),
         ));
     } else {
-        ui_state.navigation_history.push((
+        view_state.navigation_history.push((
             ActivePane::Disassembly,
-            NavigationTarget::Index(ui_state.cursor_index),
+            NavigationTarget::Index(view_state.cursor_index),
         ));
     }
 
-    perform_jump_to_address_no_history(app_state, ui_state, target_addr);
+    perform_jump_to_address_no_history(app_state, view_state, target_addr);
 }
 
 /// Jump to `target_addr` *without* modifying navigation history.
 pub fn perform_jump_to_address_no_history(
     app_state: &AppState,
-    ui_state: &mut UIState,
-    target_addr: crate::state::Addr,
+    view_state: &mut CoreViewState,
+    target_addr: Addr,
 ) {
     if let Some(mut idx) = app_state
         .get_line_index_containing_address(target_addr)
@@ -49,45 +45,37 @@ pub fn perform_jump_to_address_no_history(
             idx += 1;
         }
 
-        ui_state.cursor_index = idx;
-        ui_state.scroll_index = idx; // Ensure we jump visually too
-        ui_state.scroll_sub_index = 0;
+        view_state.cursor_index = idx;
+        view_state.scroll_index = idx; // Ensure we jump visually too
+        view_state.scroll_sub_index = 0;
 
         // Smart Jump: Select relevant sub-line if applicable
         if let Some(line) = app_state.disassembly.get(idx) {
-            ui_state.sub_cursor_index =
-                crate::ui::view_disassembly::DisassemblyView::get_sub_index_for_address(
-                    line,
-                    app_state,
-                    target_addr.0,
-                );
+            view_state.sub_cursor_index = line.get_sub_index_for_address(app_state, target_addr.0);
         } else {
-            ui_state.sub_cursor_index = 0;
+            view_state.sub_cursor_index = 0;
         }
 
         // Ensure active pane is Disassembly (important for MCP calls)
-        ui_state.active_pane = ActivePane::Disassembly;
+        view_state.active_pane = ActivePane::Disassembly;
 
-        ui_state.set_status_message(format!("Jumped to ${target_addr:04X}"));
+        view_state.status_message = Some(format!("Jumped to ${target_addr:04X}"));
     } else if !app_state.disassembly.is_empty() {
-        ui_state.set_status_message(format!("Address ${target_addr:04X} not found"));
+        view_state.status_message = Some(format!("Address ${target_addr:04X} not found"));
     }
 }
 
-/// Build a [`ProjectSaveContext`] from the current app + UI state.
-///
-/// This is the single canonical implementation. Lives in the TUI crate
-/// because it reads `UIState` fields (cursor positions, right pane, etc.).
+/// Build a [`crate::state::ProjectSaveContext`] from the current app + UI state.
 #[must_use]
 pub fn create_save_context(
     app_state: &AppState,
-    ui_state: &UIState,
+    view_state: &CoreViewState,
 ) -> crate::state::ProjectSaveContext {
-    use crate::state::{Addr, ProjectSaveContext};
+    use crate::state::ProjectSaveContext;
 
     let cursor_addr = app_state
         .disassembly
-        .get(ui_state.cursor_index)
+        .get(view_state.cursor_index)
         .map(|l| l.address);
 
     let hex_addr = if app_state.raw_data.is_empty() {
@@ -96,7 +84,7 @@ pub fn create_save_context(
         let origin = app_state.origin.0 as usize;
         let alignment_padding = origin % 16;
         let aligned_origin = origin - alignment_padding;
-        let row_start_offset = ui_state.hex_cursor_index * 16;
+        let row_start_offset = view_state.hex_cursor_index * 16;
         let addr = aligned_origin + row_start_offset;
         Some(Addr(addr as u16))
     };
@@ -106,7 +94,7 @@ pub fn create_save_context(
     } else {
         let origin = app_state.origin.0 as usize;
         let padding = (64 - (origin % 64)) % 64;
-        let sprite_offset = ui_state.sprites_cursor_index * 64;
+        let sprite_offset = view_state.sprites_cursor_index * 64;
         let addr = origin + padding + sprite_offset;
         Some(Addr(addr as u16))
     };
@@ -117,7 +105,7 @@ pub fn create_save_context(
         let origin = app_state.origin.0 as usize;
         let base_alignment = 0x400;
         let aligned_start_addr = (origin / base_alignment) * base_alignment;
-        let char_offset = ui_state.charset_cursor_index * 8;
+        let char_offset = view_state.charset_cursor_index * 8;
         let addr = aligned_start_addr + char_offset;
         Some(Addr(addr as u16))
     };
@@ -127,13 +115,12 @@ pub fn create_save_context(
     } else {
         let origin = app_state.origin.0 as usize;
         // Bitmaps must be aligned to 8192-byte boundaries
-        let first_aligned_addr =
-            ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
-        let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
+        let first_aligned_addr = origin.div_ceil(8192) * 8192;
+        let bitmap_addr = first_aligned_addr + (view_state.bitmap_cursor_index * 8192);
         Some(Addr(bitmap_addr as u16))
     };
 
-    let right_pane_str = format!("{:?}", ui_state.right_pane);
+    let right_pane_str = format!("{:?}", view_state.right_pane);
 
     ProjectSaveContext {
         cursor_address: cursor_addr,
@@ -142,12 +129,12 @@ pub fn create_save_context(
         right_pane_visible: Some(right_pane_str),
         charset_cursor_address: charset_addr,
         bitmap_cursor_address: bitmap_addr,
-        sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
-        charset_multicolor_mode: ui_state.charset_multicolor_mode,
-        bitmap_multicolor_mode: ui_state.bitmap_multicolor_mode,
-        hexdump_view_mode: ui_state.hexdump_view_mode,
+        sprite_multicolor_mode: view_state.sprite_multicolor_mode,
+        charset_multicolor_mode: view_state.charset_multicolor_mode,
+        bitmap_multicolor_mode: view_state.bitmap_multicolor_mode,
+        hexdump_view_mode: view_state.hexdump_view_mode,
         splitters: app_state.splitters.clone(),
-        blocks_view_cursor: ui_state.blocks_list_state.selected(),
+        blocks_view_cursor: view_state.blocks_selected_index,
         bookmarks: app_state.bookmarks.clone(),
     }
 }

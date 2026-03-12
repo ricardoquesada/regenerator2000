@@ -17,6 +17,8 @@ use formatter_acme::AcmeFormatter;
 use formatter_ca65::Ca65Formatter;
 use formatter_kickasm::KickAsmFormatter;
 
+pub const LABEL_COLUMN_WIDTH: usize = 20;
+
 #[must_use]
 pub fn resolve_label<'a>(
     labels: &'a [Label],
@@ -85,6 +87,51 @@ pub struct DisassemblyLine {
     pub target_address: Option<Addr>,
     pub external_label_address: Option<Addr>,
     pub is_collapsed: bool,
+}
+
+impl DisassemblyLine {
+    #[must_use]
+    pub fn get_sub_index_for_address(
+        &self,
+        app_state: &crate::state::app_state::AppState,
+        target_addr: u16,
+    ) -> usize {
+        // Calculate visual index for target_addr within this line.
+        // Order:
+        // 1. Labels [offset 1..N]
+        // 2. Comments (not addressable by jump usually, but occupy sub-indices)
+        // 3. Instruction (Base address)
+
+        let mut sub_index = 0;
+
+        // 1. Labels inside multi-byte instructions
+        if self.bytes.len() > 1 {
+            for offset in 1..self.bytes.len() {
+                let mid_addr = self.address.wrapping_add(offset as u16);
+                if let Some(l) = app_state.labels.get(&mid_addr) {
+                    if mid_addr.0 == target_addr {
+                        return sub_index;
+                    }
+                    sub_index += l.len();
+                }
+            }
+        }
+
+        // 2. Line comment
+        if let Some(comment) = &self.line_comment {
+            sub_index += comment.lines().count();
+        }
+
+        // 2.5. Long label on its own line
+        if let Some(label) = &self.label
+            && label.len() >= LABEL_COLUMN_WIDTH
+        {
+            sub_index += 1;
+        }
+
+        // 3. Instruction
+        sub_index
+    }
 }
 
 pub struct Disassembler {

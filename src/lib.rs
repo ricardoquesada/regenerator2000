@@ -8,7 +8,6 @@ pub use regenerator_core::*;
 // TUI-only modules
 pub mod events;
 pub mod mcp;
-pub mod navigation;
 pub mod theme;
 pub mod ui;
 pub mod ui_state;
