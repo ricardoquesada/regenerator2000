@@ -1,6 +1,11 @@
 use crate::state::AppState;
 use std::path::PathBuf;
 
+/// Column width for label definitions in exported assembly.
+const LABEL_COLUMN_WIDTH: usize = 24;
+/// Column width for the instruction+label portion before side comments.
+const INSTRUCTION_COLUMN_WIDTH: usize = 40;
+
 pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let formatter = state.get_formatter();
 
@@ -237,8 +242,8 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             format!("{} {}", line.mnemonic, line.operand)
         };
 
-        let line_out = if label_part.len() < 24 {
-            format!("{label_part:<24}{instruction_part}")
+        let line_out = if label_part.len() < LABEL_COLUMN_WIDTH {
+            format!("{label_part:<LABEL_COLUMN_WIDTH$}{instruction_part}")
         } else {
             format!("{label_part} {instruction_part}")
         };
@@ -247,7 +252,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             output.push_str(&format!("{line_out}\n"));
         } else {
             output.push_str(&format!(
-                "{:<40} {} {}\n",
+                "{:<INSTRUCTION_COLUMN_WIDTH$} {} {}\n",
                 line_out,
                 formatter.comment_prefix(),
                 line.comment
@@ -948,7 +953,7 @@ mod tests {
         println!("Content:\n{content}");
 
         // Check for padding. MyLabel is 7 chars (MyLabel).
-        // Format is {:-24} {Instruction}
+        // Format is {:<LABEL_COLUMN_WIDTH} {Instruction}
         // "MyLabel                 NOP                     ; x-ref: $2000, $3000"
 
         // Check that label, instruction and comment are on the same line
