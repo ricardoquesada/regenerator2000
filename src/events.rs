@@ -715,10 +715,10 @@ fn handle_mouse_views(
 }
 
 // ---------------------------------------------------------------------------
-// Shared helper: dispatch a MenuAction (de-duplicates ViceConnectAddress logic)
+// Shared helper: dispatch a AppAction (de-duplicates ViceConnectAddress logic)
 // ---------------------------------------------------------------------------
 
-/// Route a `MenuAction` to either the VICE connect flow or the generic handler.
+/// Route a `AppAction` to either the VICE connect flow or the generic handler.
 ///
 /// When `send_registers_on_connect` is true (mouse-originated connections),
 /// we immediately request registers after connecting so the debugger panel

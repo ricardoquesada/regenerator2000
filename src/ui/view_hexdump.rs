@@ -1,5 +1,5 @@
 use crate::state::{AppState, HexdumpViewMode};
-use crate::ui_state::{ActivePane, MenuAction, UIState};
+use crate::ui_state::{ActivePane, AppAction, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
@@ -622,10 +622,10 @@ impl Widget for HexDumpView {
                 WidgetResult::Handled
             }
             KeyCode::Char('m') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::HexdumpViewModeNext)
+                WidgetResult::Action(AppAction::HexdumpViewModeNext)
             }
             KeyCode::Char('M') if key.modifiers == KeyModifiers::SHIFT => {
-                WidgetResult::Action(MenuAction::HexdumpViewModePrev)
+                WidgetResult::Action(AppAction::HexdumpViewModePrev)
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
                 // Convert selected bytes (or current row if no selection) to a bytes block.
@@ -679,7 +679,7 @@ impl Widget for HexDumpView {
                 ui_state.hex_col_cursor = (end_abs_addr - aligned_origin) % bytes_per_row;
 
                 if start_offset < app_state.raw_data.len() {
-                    WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
+                    WidgetResult::Action(AppAction::SetBytesBlockByOffset {
                         start: start_offset,
                         end: end_offset,
                     })

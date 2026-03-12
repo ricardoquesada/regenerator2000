@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::ui_state::{ActivePane, MenuAction, UIState};
+use crate::ui_state::{ActivePane, AppAction, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
@@ -499,7 +499,7 @@ impl Widget for CharsetView {
                 WidgetResult::Handled
             }
             KeyCode::Char('m') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::ToggleCharsetMulticolor)
+                WidgetResult::Action(AppAction::ToggleCharsetMulticolor)
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
                 // Convert selected characters or current character to bytes block (8 bytes per character)
@@ -532,7 +532,7 @@ impl Widget for CharsetView {
                 ui_state.is_visual_mode = false;
 
                 if start_offset < app_state.raw_data.len() {
-                    WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
+                    WidgetResult::Action(AppAction::SetBytesBlockByOffset {
                         start: start_offset,
                         end: end_offset,
                     })

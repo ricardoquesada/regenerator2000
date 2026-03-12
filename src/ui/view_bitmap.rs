@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui::graphics_common::VIC_II_RGB;
-use crate::ui_state::{ActivePane, MenuAction, ScreenRamMode, UIState};
+use crate::ui_state::{ActivePane, AppAction, ScreenRamMode, UIState};
 use crossterm::event::{KeyCode, KeyEvent, MouseEvent, MouseEventKind};
 use image::{DynamicImage, Rgb, RgbImage};
 use ratatui::{
@@ -361,7 +361,7 @@ impl Widget for BitmapView {
                 ui_state.bitmap_screen_ram_mode = ScreenRamMode::AfterBitmap;
                 WidgetResult::Handled
             }
-            KeyCode::Char('m') => WidgetResult::Action(MenuAction::ToggleBitmapMulticolor),
+            KeyCode::Char('m') => WidgetResult::Action(AppAction::ToggleBitmapMulticolor),
             KeyCode::Char('B') => {
                 // Convert current bitmap to bytes block (8000 bytes per bitmap)
                 let origin = app_state.origin.0 as usize;
@@ -382,7 +382,7 @@ impl Widget for BitmapView {
                 };
 
                 if start_offset < app_state.raw_data.len() && start_offset <= end_offset {
-                    WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
+                    WidgetResult::Action(AppAction::SetBytesBlockByOffset {
                         start: start_offset,
                         end: end_offset,
                     })

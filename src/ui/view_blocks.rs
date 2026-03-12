@@ -1,5 +1,5 @@
 use crate::state::{AppState, BlockType};
-use crate::ui_state::{ActivePane, MenuAction, UIState};
+use crate::ui_state::{ActivePane, AppAction, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
@@ -244,7 +244,7 @@ impl Widget for BlocksView {
                 WidgetResult::Handled
             }
             KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
-                WidgetResult::Action(MenuAction::ToggleCollapsedBlock)
+                WidgetResult::Action(AppAction::ToggleCollapsedBlock)
             }
 
             _ => WidgetResult::Ignored,

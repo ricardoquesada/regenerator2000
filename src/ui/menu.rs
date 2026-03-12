@@ -10,8 +10,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, Paragraph},
 };
 
-// Re-export AppAction as MenuAction for backward compatibility within the UI layer.
-pub use crate::state::actions::{AppAction as MenuAction, AppAction};
+pub use crate::state::actions::AppAction;
 
 pub struct Menu;
 
@@ -260,131 +259,127 @@ impl MenuState {
                 MenuCategory {
                     name: "File".to_string(),
                     items: vec![
-                        MenuItem::new("Open...", Some("Ctrl+O"), Some(MenuAction::Open)),
+                        MenuItem::new("Open...", Some("Ctrl+O"), Some(AppAction::Open)),
                         MenuItem::new(
                             "Open Recents...",
                             Some("Alt+O"),
-                            Some(MenuAction::OpenRecent),
+                            Some(AppAction::OpenRecent),
                         ),
-                        MenuItem::new("Save", Some("Ctrl+S"), Some(MenuAction::Save)),
-                        MenuItem::new("Save As...", Some("Alt+S"), Some(MenuAction::SaveAs)),
+                        MenuItem::new("Save", Some("Ctrl+S"), Some(AppAction::Save)),
+                        MenuItem::new("Save As...", Some("Alt+S"), Some(AppAction::SaveAs)),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Export Project",
                             Some("Ctrl+E"),
-                            Some(MenuAction::ExportProject),
+                            Some(AppAction::ExportProject),
                         ),
                         MenuItem::new(
                             "Export Project As...",
                             Some("Alt+E"),
-                            Some(MenuAction::ExportProjectAs),
+                            Some(AppAction::ExportProjectAs),
                         ),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Import VICE Labels...",
                             None,
-                            Some(MenuAction::ImportViceLabels),
+                            Some(AppAction::ImportViceLabels),
                         ),
                         MenuItem::new(
                             "Export VICE Labels...",
                             None,
-                            Some(MenuAction::ExportViceLabels),
+                            Some(AppAction::ExportViceLabels),
                         ),
                         MenuItem::separator(),
-                        MenuItem::new("Settings", Some("Alt+P"), Some(MenuAction::SystemSettings)),
+                        MenuItem::new("Settings", Some("Alt+P"), Some(AppAction::SystemSettings)),
                         MenuItem::separator(),
-                        MenuItem::new("Exit", Some("Ctrl+Q"), Some(MenuAction::Exit)),
+                        MenuItem::new("Exit", Some("Ctrl+Q"), Some(AppAction::Exit)),
                     ],
                 },
                 MenuCategory {
                     name: "Edit".to_string(),
                     items: vec![
-                        MenuItem::new("Undo", Some("U"), Some(MenuAction::Undo)),
-                        MenuItem::new("Redo", Some("Ctrl+R"), Some(MenuAction::Redo)),
+                        MenuItem::new("Undo", Some("U"), Some(AppAction::Undo)),
+                        MenuItem::new("Redo", Some("Ctrl+R"), Some(AppAction::Redo)),
                         MenuItem::separator(),
-                        MenuItem::new("Code", Some("C"), Some(MenuAction::Code)),
-                        MenuItem::new("Byte", Some("B"), Some(MenuAction::Byte)),
-                        MenuItem::new("Word", Some("W"), Some(MenuAction::Word)),
-                        MenuItem::new("Address", Some("A"), Some(MenuAction::Address)),
-                        MenuItem::new("Lo/Hi Word Table", Some(","), Some(MenuAction::SetLoHiWord)),
-                        MenuItem::new("Hi/Lo Word Table", Some("."), Some(MenuAction::SetHiLoWord)),
+                        MenuItem::new("Code", Some("C"), Some(AppAction::Code)),
+                        MenuItem::new("Byte", Some("B"), Some(AppAction::Byte)),
+                        MenuItem::new("Word", Some("W"), Some(AppAction::Word)),
+                        MenuItem::new("Address", Some("A"), Some(AppAction::Address)),
+                        MenuItem::new("Lo/Hi Word Table", Some(","), Some(AppAction::SetLoHiWord)),
+                        MenuItem::new("Hi/Lo Word Table", Some("."), Some(AppAction::SetHiLoWord)),
                         MenuItem::new(
                             "Lo/Hi Address Table",
                             Some("<"),
-                            Some(MenuAction::SetLoHiAddress),
+                            Some(AppAction::SetLoHiAddress),
                         ),
                         MenuItem::new(
                             "Hi/Lo Address Table",
                             Some(">"),
-                            Some(MenuAction::SetHiLoAddress),
+                            Some(AppAction::SetHiLoAddress),
                         ),
                         MenuItem::new(
                             "Pack Lo/Hi Address",
                             Some("["),
-                            Some(MenuAction::PackLoHiAddress),
+                            Some(AppAction::PackLoHiAddress),
                         ),
                         MenuItem::new(
                             "Pack Hi/Lo Address",
                             Some("]"),
-                            Some(MenuAction::PackHiLoAddress),
+                            Some(AppAction::PackHiLoAddress),
                         ),
-                        MenuItem::new("PETSCII Text", Some("P"), Some(MenuAction::PetsciiText)),
+                        MenuItem::new("PETSCII Text", Some("P"), Some(AppAction::PetsciiText)),
                         MenuItem::new(
                             "Screencode Text",
                             Some("S"),
-                            Some(MenuAction::ScreencodeText),
+                            Some(AppAction::ScreencodeText),
                         ),
-                        MenuItem::new(
-                            "External File",
-                            Some("E"),
-                            Some(MenuAction::SetExternalFile),
-                        ),
-                        MenuItem::new("Undefined", Some("?"), Some(MenuAction::Undefined)),
+                        MenuItem::new("External File", Some("E"), Some(AppAction::SetExternalFile)),
+                        MenuItem::new("Undefined", Some("?"), Some(AppAction::Undefined)),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Next Imm. Mode Format",
                             Some("D"),
-                            Some(MenuAction::NextImmediateFormat),
+                            Some(AppAction::NextImmediateFormat),
                         ),
                         MenuItem::new(
                             "Prev Imm. Mode Format",
                             Some("Shift+D"),
-                            Some(MenuAction::PreviousImmediateFormat),
+                            Some(AppAction::PreviousImmediateFormat),
                         ),
                         MenuItem::separator(),
-                        MenuItem::new("Side Comment", Some(";"), Some(MenuAction::SideComment)),
-                        MenuItem::new("Line Comment", Some(":"), Some(MenuAction::LineComment)),
-                        MenuItem::new("Set Label", Some("L"), Some(MenuAction::SetLabel)),
+                        MenuItem::new("Side Comment", Some(";"), Some(AppAction::SideComment)),
+                        MenuItem::new("Line Comment", Some(":"), Some(AppAction::LineComment)),
+                        MenuItem::new("Set Label", Some("L"), Some(AppAction::SetLabel)),
                         MenuItem::new(
                             "Toggle Bookmark",
                             Some("Ctrl+B"),
-                            Some(MenuAction::ToggleBookmark),
+                            Some(AppAction::ToggleBookmark),
                         ),
                         MenuItem::new(
                             "List Bookmarks...",
                             Some("Ctrl+Shift+B"),
-                            Some(MenuAction::ListBookmarks),
+                            Some(AppAction::ListBookmarks),
                         ),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Toggle Splitter",
                             Some("|"),
-                            Some(MenuAction::ToggleSplitter),
+                            Some(AppAction::ToggleSplitter),
                         ),
                         MenuItem::new(
                             "Toggle Collapsed Block",
                             Some("Ctrl+K"),
-                            Some(MenuAction::ToggleCollapsedBlock),
+                            Some(AppAction::ToggleCollapsedBlock),
                         ),
                         MenuItem::separator(),
-                        MenuItem::new("Change Origin", None, Some(MenuAction::ChangeOrigin)),
+                        MenuItem::new("Change Origin", None, Some(AppAction::ChangeOrigin)),
                         MenuItem::separator(),
-                        MenuItem::new("Analyze", Some("Ctrl+A"), Some(MenuAction::Analyze)),
+                        MenuItem::new("Analyze", Some("Ctrl+A"), Some(AppAction::Analyze)),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Document Settings",
                             Some("Alt+D"),
-                            Some(MenuAction::DocumentSettings),
+                            Some(AppAction::DocumentSettings),
                         ),
                     ],
                 },
@@ -394,39 +389,39 @@ impl MenuState {
                         MenuItem::new(
                             "Jump to address...",
                             Some("Alt+G"),
-                            Some(MenuAction::JumpToAddress),
+                            Some(AppAction::JumpToAddress),
                         ),
                         MenuItem::new(
                             "Jump to line...",
                             Some("Alt+Shift+G"),
-                            Some(MenuAction::JumpToLine),
+                            Some(AppAction::JumpToLine),
                         ),
                         MenuItem::new(
                             "Jump to operand",
                             Some("Enter"),
-                            Some(MenuAction::JumpToOperand),
+                            Some(AppAction::JumpToOperand),
                         ),
                     ],
                 },
                 MenuCategory {
                     name: "Search".to_string(),
                     items: vec![
-                        MenuItem::new("Search...", Some("Ctrl+F"), Some(MenuAction::Search)),
-                        MenuItem::new("Find Next", Some("F3"), Some(MenuAction::FindNext)),
+                        MenuItem::new("Search...", Some("Ctrl+F"), Some(AppAction::Search)),
+                        MenuItem::new("Find Next", Some("F3"), Some(AppAction::FindNext)),
                         MenuItem::new(
                             "Find Previous",
                             Some("Shift+F3"),
-                            Some(MenuAction::FindPrevious),
+                            Some(AppAction::FindPrevious),
                         ),
                         MenuItem::new(
                             "Go to symbol...",
                             Some("Ctrl+P"),
-                            Some(MenuAction::GoToSymbol),
+                            Some(AppAction::GoToSymbol),
                         ),
                         MenuItem::new(
                             "Find References...",
                             Some("Ctrl+x"),
-                            Some(MenuAction::FindReferences),
+                            Some(AppAction::FindReferences),
                         ),
                     ],
                 },
@@ -436,94 +431,94 @@ impl MenuState {
                         MenuItem::new(
                             "Next Hex Dump Mode",
                             Some("M"),
-                            Some(MenuAction::HexdumpViewModeNext),
+                            Some(AppAction::HexdumpViewModeNext),
                         ),
                         MenuItem::new(
                             "Prev Hex Dump Mode",
                             Some("Shift+M"),
-                            Some(MenuAction::HexdumpViewModePrev),
+                            Some(AppAction::HexdumpViewModePrev),
                         ),
                         MenuItem::new(
                             "Toggle Multicolor Sprites",
                             Some("M"),
-                            Some(MenuAction::ToggleSpriteMulticolor),
+                            Some(AppAction::ToggleSpriteMulticolor),
                         ),
                         MenuItem::new(
                             "Toggle Multicolor Bitmap",
                             Some("M"),
-                            Some(MenuAction::ToggleBitmapMulticolor),
+                            Some(AppAction::ToggleBitmapMulticolor),
                         ),
                         MenuItem::new(
                             "Toggle Multicolor Charset",
                             Some("M"),
-                            Some(MenuAction::ToggleCharsetMulticolor),
+                            Some(AppAction::ToggleCharsetMulticolor),
                         ),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Toggle Blocks View",
                             Some("Alt+1"),
-                            Some(MenuAction::ToggleBlocksView),
+                            Some(AppAction::ToggleBlocksView),
                         ),
                         MenuItem::new(
                             "Toggle Hex Dump",
                             Some("Alt+2"),
-                            Some(MenuAction::ToggleHexDump),
+                            Some(AppAction::ToggleHexDump),
                         ),
                         MenuItem::new(
                             "Toggle Sprites View",
                             Some("Alt+3"),
-                            Some(MenuAction::ToggleSpritesView),
+                            Some(AppAction::ToggleSpritesView),
                         ),
                         MenuItem::new(
                             "Toggle Charset View",
                             Some("Alt+4"),
-                            Some(MenuAction::ToggleCharsetView),
+                            Some(AppAction::ToggleCharsetView),
                         ),
                         MenuItem::new(
                             "Toggle Bitmap View",
                             Some("Alt+5"),
-                            Some(MenuAction::ToggleBitmapView),
+                            Some(AppAction::ToggleBitmapView),
                         ),
                         MenuItem::new(
                             "Toggle Debugger View",
                             Some("Alt+6"),
-                            Some(MenuAction::ToggleDebuggerView),
+                            Some(AppAction::ToggleDebuggerView),
                         ),
                     ],
                 },
                 MenuCategory {
                     name: "Debugger".to_string(),
                     items: vec![
-                        MenuItem::new("Connect to VICE...", None, Some(MenuAction::ViceConnect)),
+                        MenuItem::new("Connect to VICE...", None, Some(AppAction::ViceConnect)),
                         MenuItem::new(
                             "Disconnect from VICE",
                             None,
-                            Some(MenuAction::ViceDisconnect),
+                            Some(AppAction::ViceDisconnect),
                         ),
                         MenuItem::separator(),
-                        MenuItem::new("Step Instruction", Some("F7"), Some(MenuAction::ViceStep)),
-                        MenuItem::new("Step Over", Some("F8"), Some(MenuAction::ViceStepOver)),
-                        MenuItem::new("Step Out", Some("Shift+F8"), Some(MenuAction::ViceStepOut)),
-                        MenuItem::new("Continue", Some("F9"), Some(MenuAction::ViceContinue)),
+                        MenuItem::new("Step Instruction", Some("F7"), Some(AppAction::ViceStep)),
+                        MenuItem::new("Step Over", Some("F8"), Some(AppAction::ViceStepOver)),
+                        MenuItem::new("Step Out", Some("Shift+F8"), Some(AppAction::ViceStepOut)),
+                        MenuItem::new("Continue", Some("F9"), Some(AppAction::ViceContinue)),
                         MenuItem::new(
                             "Run to Cursor",
                             Some("F4"),
-                            Some(MenuAction::ViceRunToCursor),
+                            Some(AppAction::ViceRunToCursor),
                         ),
                         MenuItem::new(
                             "Toggle Breakpoint",
                             Some("F2"),
-                            Some(MenuAction::ViceToggleBreakpoint),
+                            Some(AppAction::ViceToggleBreakpoint),
                         ),
                         MenuItem::new(
                             "Toggle Breakpoint...",
                             Some("Shift+F2"),
-                            Some(MenuAction::ViceBreakpointDialog),
+                            Some(AppAction::ViceBreakpointDialog),
                         ),
                         MenuItem::new(
                             "Watchpoint...",
                             Some("F6"),
-                            Some(MenuAction::ViceToggleWatchpoint),
+                            Some(AppAction::ViceToggleWatchpoint),
                         ),
                     ],
                 },
@@ -533,10 +528,10 @@ impl MenuState {
                         MenuItem::new(
                             "Keyboard Shortcuts",
                             None,
-                            Some(MenuAction::KeyboardShortcuts),
+                            Some(AppAction::KeyboardShortcuts),
                         ),
                         MenuItem::separator(),
-                        MenuItem::new("About", None, Some(MenuAction::About)),
+                        MenuItem::new("About", None, Some(AppAction::About)),
                     ],
                 },
             ],
@@ -630,10 +625,10 @@ impl MenuState {
                     } else {
                         // Context-specific checks
                         match action {
-                            MenuAction::FindNext | MenuAction::FindPrevious => {
+                            AppAction::FindNext | AppAction::FindPrevious => {
                                 item.disabled = last_search_empty;
                             }
-                            MenuAction::PackLoHiAddress | MenuAction::PackHiLoAddress => {
+                            AppAction::PackLoHiAddress | AppAction::PackHiLoAddress => {
                                 let mut is_valid = false;
                                 if has_document
                                     && let Some(line) = app_state.disassembly.get(cursor_index)
@@ -647,8 +642,7 @@ impl MenuState {
                                 }
                                 item.disabled = !is_valid;
                             }
-                            MenuAction::NextImmediateFormat
-                            | MenuAction::PreviousImmediateFormat => {
+                            AppAction::NextImmediateFormat | AppAction::PreviousImmediateFormat => {
                                 let mut is_immediate = false;
                                 if has_document
                                     && let Some(line) = app_state.disassembly.get(cursor_index)
@@ -659,37 +653,37 @@ impl MenuState {
                                 }
                                 item.disabled = !is_immediate;
                             }
-                            MenuAction::HexdumpViewModeNext | MenuAction::HexdumpViewModePrev => {
+                            AppAction::HexdumpViewModeNext | AppAction::HexdumpViewModePrev => {
                                 item.disabled = active_pane != ActivePane::HexDump;
                             }
-                            MenuAction::ToggleSpriteMulticolor => {
+                            AppAction::ToggleSpriteMulticolor => {
                                 item.disabled = active_pane != ActivePane::Sprites;
                             }
-                            MenuAction::ToggleCharsetMulticolor => {
+                            AppAction::ToggleCharsetMulticolor => {
                                 item.disabled = active_pane != ActivePane::Charset;
                             }
-                            MenuAction::ToggleBitmapMulticolor => {
+                            AppAction::ToggleBitmapMulticolor => {
                                 item.disabled = active_pane != ActivePane::Bitmap;
                             }
-                            MenuAction::SetLabel
-                            | MenuAction::FindReferences
-                            | MenuAction::ToggleBookmark => {
+                            AppAction::SetLabel
+                            | AppAction::FindReferences
+                            | AppAction::ToggleBookmark => {
                                 item.disabled = active_pane != ActivePane::Disassembly;
                             }
-                            MenuAction::ViceConnect => {
+                            AppAction::ViceConnect => {
                                 item.disabled = app_state.vice_client.is_some();
                             }
-                            MenuAction::ViceDisconnect
-                            | MenuAction::ViceToggleBreakpoint
-                            | MenuAction::ViceBreakpointDialog
-                            | MenuAction::ViceToggleWatchpoint => {
+                            AppAction::ViceDisconnect
+                            | AppAction::ViceToggleBreakpoint
+                            | AppAction::ViceBreakpointDialog
+                            | AppAction::ViceToggleWatchpoint => {
                                 item.disabled = app_state.vice_client.is_none();
                             }
-                            MenuAction::ViceStep
-                            | MenuAction::ViceStepOver
-                            | MenuAction::ViceStepOut
-                            | MenuAction::ViceContinue
-                            | MenuAction::ViceRunToCursor => {
+                            AppAction::ViceStep
+                            | AppAction::ViceStepOver
+                            | AppAction::ViceStepOut
+                            | AppAction::ViceContinue
+                            | AppAction::ViceRunToCursor => {
                                 item.disabled =
                                     app_state.vice_client.is_none() || app_state.vice_state.running;
                             }
@@ -712,13 +706,13 @@ pub struct MenuItem {
     pub name: String,
     pub shortcut: Option<String>,
     pub is_separator: bool,
-    pub action: Option<MenuAction>,
+    pub action: Option<AppAction>,
     pub disabled: bool,
 }
 
 impl MenuItem {
     #[must_use]
-    pub fn new(name: &str, shortcut: Option<&str>, action: Option<MenuAction>) -> Self {
+    pub fn new(name: &str, shortcut: Option<&str>, action: Option<AppAction>) -> Self {
         Self {
             name: name.to_string(),
             shortcut: shortcut.map(std::string::ToString::to_string),
@@ -999,7 +993,7 @@ fn vice_toggle_watchpoint(
     }
 }
 
-pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: MenuAction) {
+pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: AppAction) {
     if action.requires_document() && app_state.raw_data.is_empty() {
         ui_state.set_status_message("No open document");
         return;
@@ -1007,7 +1001,7 @@ pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, acti
 
     // Context-specific checks for actions that didn't fit in update_availability
     // or need enforcement even via shortcuts
-    if action == MenuAction::FindReferences && ui_state.active_pane != ActivePane::Disassembly {
+    if action == AppAction::FindReferences && ui_state.active_pane != ActivePane::Disassembly {
         ui_state.set_status_message("Action only available in Disassembly View");
         return;
     }
@@ -1015,7 +1009,7 @@ pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, acti
     // Check for changes on destructive actions
     let is_destructive = matches!(
         action,
-        MenuAction::Exit | MenuAction::Open | MenuAction::OpenRecent
+        AppAction::Exit | AppAction::Open | AppAction::OpenRecent
     );
 
     if is_destructive && app_state.is_dirty() {
@@ -1032,25 +1026,25 @@ pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, acti
     execute_menu_action(app_state, ui_state, action);
 }
 
-pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: MenuAction) {
+pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: AppAction) {
     ui_state.set_status_message(format!("Action: {action:?}"));
 
     match action {
-        MenuAction::Exit => ui_state.should_quit = true,
+        AppAction::Exit => ui_state.should_quit = true,
 
-        MenuAction::Open => {
+        AppAction::Open => {
             ui_state.active_dialog = Some(Box::new(crate::ui::dialog_open::OpenDialog::new(
                 ui_state.file_dialog_current_dir.clone(),
             )));
             ui_state.set_status_message("Select a file to open");
         }
-        MenuAction::OpenRecent => {
+        AppAction::OpenRecent => {
             ui_state.active_dialog =
                 Some(Box::new(crate::ui::dialog_open_recent::OpenRecentDialog));
             ui_state.recent_list_state.select(Some(0));
             ui_state.set_status_message("Open recent project");
         }
-        MenuAction::ImportViceLabels => {
+        AppAction::ImportViceLabels => {
             ui_state.active_dialog = Some(Box::new(
                 crate::ui::dialog_open::OpenDialog::new_import_vice_labels(
                     ui_state.file_dialog_current_dir.clone(),
@@ -1059,7 +1053,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ));
             ui_state.set_status_message("Select a VICE label file to import");
         }
-        MenuAction::ExportViceLabels => {
+        AppAction::ExportViceLabels => {
             let initial = app_state
                 .last_export_labels_filename
                 .clone()
@@ -1069,7 +1063,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ));
             ui_state.set_status_message("Enter VICE label filename");
         }
-        MenuAction::Save => {
+        AppAction::Save => {
             if app_state.project_path.is_some() {
                 let context = create_save_context(app_state, ui_state);
                 if let Err(e) = app_state.save_project(context, true) {
@@ -1094,7 +1088,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Enter Project filename");
             }
         }
-        MenuAction::SaveAs => {
+        AppAction::SaveAs => {
             let initial = app_state
                 .last_save_as_filename
                 .clone()
@@ -1104,7 +1098,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             )));
             ui_state.set_status_message("Enter Project filename");
         }
-        MenuAction::ExportProject => {
+        AppAction::ExportProject => {
             if let Some(path) = &app_state.export_path {
                 if let Err(e) = crate::exporter::export_asm(app_state, path) {
                     ui_state.set_status_message(format!("Error exporting: {e}"));
@@ -1123,7 +1117,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Enter .asm filename");
             }
         }
-        MenuAction::ExportProjectAs => {
+        AppAction::ExportProjectAs => {
             let initial = app_state
                 .last_export_asm_filename
                 .clone()
@@ -1133,13 +1127,13 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ));
             ui_state.set_status_message("Enter .asm filename");
         }
-        MenuAction::DocumentSettings => {
+        AppAction::DocumentSettings => {
             ui_state.active_dialog = Some(Box::new(
                 crate::ui::dialog_document_settings::DocumentSettingsDialog::new(),
             ));
             ui_state.set_status_message("Document Settings");
         }
-        MenuAction::Analyze => {
+        AppAction::Analyze => {
             // Capture current address
             let current_addr = app_state
                 .disassembly
@@ -1168,16 +1162,16 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 }
             }
         }
-        MenuAction::SetLabel => {
+        AppAction::SetLabel => {
             crate::ui::view_disassembly::action_set_label(app_state, ui_state);
         }
-        MenuAction::Undo => {
+        AppAction::Undo => {
             ui_state.set_status_message(app_state.undo_last_command());
         }
-        MenuAction::Redo => {
+        AppAction::Redo => {
             ui_state.set_status_message(app_state.redo_last_command());
         }
-        MenuAction::ToggleBookmark => {
+        AppAction::ToggleBookmark => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                 if line.external_label_address.is_some() {
                     ui_state.set_status_message("Cannot bookmark external label definition");
@@ -1205,75 +1199,75 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 }
             }
         }
-        MenuAction::ListBookmarks => {
+        AppAction::ListBookmarks => {
             let dialog = crate::ui::dialog_bookmarks::BookmarksDialog;
             ui_state.active_dialog = Some(Box::new(dialog));
             ui_state.bookmarks_list_state.select(Some(0));
         }
-        MenuAction::ViceConnect => {
+        AppAction::ViceConnect => {
             ui_state.active_dialog = Some(Box::new(
                 crate::ui::dialog_vice_connect::ViceConnectDialog::new(),
             ));
             ui_state.set_status_message("Enter VICE hostname and port (e.g. localhost:6502)");
         }
-        MenuAction::ViceConnectAddress(_) => {
+        AppAction::ViceConnectAddress(_) => {
             // Handled directly in run_app
         }
 
-        MenuAction::Code => apply_block_type(app_state, ui_state, crate::state::BlockType::Code),
-        MenuAction::Byte => {
+        AppAction::Code => apply_block_type(app_state, ui_state, crate::state::BlockType::Code),
+        AppAction::Byte => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::DataByte);
         }
-        MenuAction::Word => {
+        AppAction::Word => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::DataWord);
         }
-        MenuAction::SetExternalFile => {
+        AppAction::SetExternalFile => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::ExternalFile);
         }
-        MenuAction::Address => {
+        AppAction::Address => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::Address);
         }
-        MenuAction::PetsciiText => {
+        AppAction::PetsciiText => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::PetsciiText);
         }
-        MenuAction::ScreencodeText => {
+        AppAction::ScreencodeText => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::ScreencodeText);
         }
-        MenuAction::Undefined => {
+        AppAction::Undefined => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::Undefined);
         }
-        MenuAction::JumpToAddress => {
+        AppAction::JumpToAddress => {
             ui_state.active_dialog = Some(Box::new(
                 crate::ui::dialog_jump_to_address::JumpToAddressDialog::new(),
             ));
             ui_state.set_status_message("Enter address (Hex)");
         }
-        MenuAction::JumpToLine => {
+        AppAction::JumpToLine => {
             ui_state.active_dialog = Some(Box::new(
                 crate::ui::dialog_jump_to_line::JumpToLineDialog::new(),
             ));
             ui_state.set_status_message("Enter Line Number (Dec)");
         }
-        MenuAction::Search => {
+        AppAction::Search => {
             ui_state.active_dialog = Some(Box::new(crate::ui::dialog_search::SearchDialog::new(
                 ui_state.last_search_query.clone(),
                 ui_state.search_filters.clone(),
             )));
             ui_state.set_status_message("Search...");
         }
-        MenuAction::GoToSymbol => {
+        AppAction::GoToSymbol => {
             ui_state.active_dialog = Some(Box::new(
                 crate::ui::dialog_go_to_symbol::GoToSymbolDialog::new(app_state),
             ));
             ui_state.set_status_message("Go to Symbol...");
         }
-        MenuAction::FindNext => {
+        AppAction::FindNext => {
             crate::ui::dialog_search::perform_search(app_state, ui_state, true);
         }
-        MenuAction::FindPrevious => {
+        AppAction::FindPrevious => {
             crate::ui::dialog_search::perform_search(app_state, ui_state, false);
         }
-        MenuAction::FindReferences => {
+        AppAction::FindReferences => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                 // Resolve the effective address under the cursor, mirroring
                 // the logic used in action_set_label:
@@ -1316,7 +1310,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("No address selected");
             }
         }
-        MenuAction::NavigateToAddress(target_addr) => match ui_state.active_pane {
+        AppAction::NavigateToAddress(target_addr) => match ui_state.active_pane {
             ActivePane::Disassembly => {
                 perform_jump_to_address(app_state, ui_state, target_addr);
             }
@@ -1379,7 +1373,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             }
         },
 
-        MenuAction::JumpToOperand => {
+        AppAction::JumpToOperand => {
             let target_addr = match ui_state.active_pane {
                 ActivePane::Disassembly => {
                     if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
@@ -1509,18 +1503,18 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             };
 
             if let Some(addr) = target_addr {
-                execute_menu_action(app_state, ui_state, MenuAction::NavigateToAddress(addr));
+                execute_menu_action(app_state, ui_state, AppAction::NavigateToAddress(addr));
             } else {
                 ui_state.set_status_message("No valid operand to jump to");
             }
         }
-        MenuAction::About => {
+        AppAction::About => {
             ui_state.active_dialog = Some(Box::new(crate::ui::dialog_about::AboutDialog::new(
                 ui_state,
             )));
             ui_state.set_status_message("About Regenerator 2000");
         }
-        MenuAction::HexdumpViewModeNext => {
+        AppAction::HexdumpViewModeNext => {
             let new_mode = match ui_state.hexdump_view_mode {
                 crate::state::HexdumpViewMode::ScreencodeShifted => {
                     crate::state::HexdumpViewMode::ScreencodeUnshifted
@@ -1538,7 +1532,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ui_state.hexdump_view_mode = new_mode;
             update_hexdump_status(ui_state, new_mode);
         }
-        MenuAction::HexdumpViewModePrev => {
+        AppAction::HexdumpViewModePrev => {
             let new_mode = match ui_state.hexdump_view_mode {
                 crate::state::HexdumpViewMode::ScreencodeShifted => {
                     crate::state::HexdumpViewMode::PETSCIIUnshifted
@@ -1556,7 +1550,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
             ui_state.hexdump_view_mode = new_mode;
             update_hexdump_status(ui_state, new_mode);
         }
-        MenuAction::ToggleSplitter => {
+        AppAction::ToggleSplitter => {
             if ui_state.active_pane == ActivePane::Blocks {
                 let blocks = app_state.get_blocks_view_items();
                 if let Some(idx) = ui_state.blocks_list_state.selected()
@@ -1583,7 +1577,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 }
             }
         }
-        MenuAction::ToggleSpriteMulticolor => {
+        AppAction::ToggleSpriteMulticolor => {
             ui_state.sprite_multicolor_mode = !ui_state.sprite_multicolor_mode;
             if ui_state.sprite_multicolor_mode {
                 ui_state.set_status_message("Sprites: Multicolor Mode ON");
@@ -1591,7 +1585,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Sprites: Single Color Mode");
             }
         }
-        MenuAction::ToggleCharsetMulticolor => {
+        AppAction::ToggleCharsetMulticolor => {
             ui_state.charset_multicolor_mode = !ui_state.charset_multicolor_mode;
             if ui_state.charset_multicolor_mode {
                 ui_state.set_status_message("Charset: Multicolor Mode ON");
@@ -1599,25 +1593,25 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Charset: Single Color Mode");
             }
         }
-        MenuAction::PackLoHiAddress => {
+        AppAction::PackLoHiAddress => {
             apply_lo_hi_packing(app_state, ui_state, true);
         }
-        MenuAction::PackHiLoAddress => {
+        AppAction::PackHiLoAddress => {
             apply_lo_hi_packing(app_state, ui_state, false);
         }
-        MenuAction::SetLoHiAddress => {
+        AppAction::SetLoHiAddress => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::LoHiAddress);
         }
-        MenuAction::SetHiLoAddress => {
+        AppAction::SetHiLoAddress => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::HiLoAddress);
         }
-        MenuAction::SetLoHiWord => {
+        AppAction::SetLoHiWord => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::LoHiWord);
         }
-        MenuAction::SetHiLoWord => {
+        AppAction::SetHiLoWord => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::HiLoWord);
         }
-        MenuAction::SideComment => {
+        AppAction::SideComment => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                 let address = line.address;
                 let current_comment = app_state
@@ -1632,7 +1626,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message(format!("Edit Side Comment at ${address:04X}"));
             }
         }
-        MenuAction::LineComment => {
+        AppAction::LineComment => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                 let address = line.address;
                 let current_comment = app_state
@@ -1647,7 +1641,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message(format!("Edit Line Comment at ${address:04X}"));
             }
         }
-        MenuAction::ToggleHexDump => {
+        AppAction::ToggleHexDump => {
             if ui_state.right_pane == crate::ui_state::RightPane::HexDump {
                 ui_state.right_pane = crate::ui_state::RightPane::None;
                 ui_state.set_status_message("Hex Dump View Hidden");
@@ -1660,7 +1654,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Hex Dump View Shown");
             }
         }
-        MenuAction::ToggleSpritesView => {
+        AppAction::ToggleSpritesView => {
             if ui_state.right_pane == crate::ui_state::RightPane::Sprites {
                 ui_state.right_pane = crate::ui_state::RightPane::None;
                 ui_state.set_status_message("Sprites View Hidden");
@@ -1673,7 +1667,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Sprites View Shown");
             }
         }
-        MenuAction::ToggleCharsetView => {
+        AppAction::ToggleCharsetView => {
             if ui_state.right_pane == crate::ui_state::RightPane::Charset {
                 ui_state.right_pane = crate::ui_state::RightPane::None;
                 ui_state.set_status_message("Charset View Hidden");
@@ -1686,7 +1680,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Charset View Shown");
             }
         }
-        MenuAction::ToggleBitmapView => {
+        AppAction::ToggleBitmapView => {
             if ui_state.right_pane == crate::ui_state::RightPane::Bitmap {
                 ui_state.right_pane = crate::ui_state::RightPane::None;
                 ui_state.set_status_message("Bitmap View Hidden");
@@ -1699,7 +1693,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Bitmap View Shown");
             }
         }
-        MenuAction::ToggleBitmapMulticolor => {
+        AppAction::ToggleBitmapMulticolor => {
             ui_state.bitmap_multicolor_mode = !ui_state.bitmap_multicolor_mode;
             ui_state.set_status_message(if ui_state.bitmap_multicolor_mode {
                 "Multicolor mode enabled"
@@ -1707,7 +1701,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 "Single color mode enabled"
             });
         }
-        MenuAction::ToggleBlocksView => {
+        AppAction::ToggleBlocksView => {
             if ui_state.right_pane == crate::ui_state::RightPane::Blocks {
                 ui_state.right_pane = crate::ui_state::RightPane::None;
                 ui_state.set_status_message("Blocks View Hidden");
@@ -1720,12 +1714,12 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Blocks View Shown");
             }
         }
-        MenuAction::ViceDisconnect => {
+        AppAction::ViceDisconnect => {
             app_state.vice_client = None;
             app_state.vice_state.connected = false;
             ui_state.set_status_message("Disconnected from VICE");
         }
-        MenuAction::ViceStep => {
+        AppAction::ViceStep => {
             if let Some(client) = &app_state.vice_client {
                 client.send_advance_instruction();
                 app_state.vice_state.running = true;
@@ -1733,7 +1727,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Not connected to VICE");
             }
         }
-        MenuAction::ViceContinue => {
+        AppAction::ViceContinue => {
             if let Some(client) = &app_state.vice_client {
                 client.send_continue();
                 app_state.vice_state.running = true;
@@ -1742,7 +1736,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Not connected to VICE");
             }
         }
-        MenuAction::ViceStepOver => {
+        AppAction::ViceStepOver => {
             if let Some(client) = &app_state.vice_client {
                 client.send_step_over();
                 app_state.vice_state.running = true;
@@ -1750,7 +1744,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Not connected to VICE");
             }
         }
-        MenuAction::ViceStepOut => {
+        AppAction::ViceStepOut => {
             if let Some(client) = &app_state.vice_client {
                 client.send_execute_until_return();
                 // We must tell the editor that the vice client is running so that
@@ -1761,7 +1755,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Not connected to VICE");
             }
         }
-        MenuAction::ViceRunToCursor => {
+        AppAction::ViceRunToCursor => {
             if let Some(client) = &app_state.vice_client {
                 let target_addr = match ui_state.active_pane {
                     ActivePane::Disassembly => app_state
@@ -1827,7 +1821,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Not connected to VICE");
             }
         }
-        MenuAction::ViceToggleBreakpoint => {
+        AppAction::ViceToggleBreakpoint => {
             if let Some(client) = &app_state.vice_client {
                 let cursor_addr = app_state
                     .disassembly
@@ -1850,19 +1844,19 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Not connected to VICE");
             }
         }
-        MenuAction::ViceBreakpointDialog => {
+        AppAction::ViceBreakpointDialog => {
             vice_open_breakpoint_dialog(app_state, ui_state);
         }
-        MenuAction::ViceSetBreakpointAt { address } => {
+        AppAction::ViceSetBreakpointAt { address } => {
             vice_toggle_breakpoint_at(app_state, ui_state, address);
         }
-        MenuAction::ViceToggleWatchpoint => {
+        AppAction::ViceToggleWatchpoint => {
             vice_open_watchpoint_dialog(app_state, ui_state);
         }
-        MenuAction::ViceSetWatchpoint { address, kind } => {
+        AppAction::ViceSetWatchpoint { address, kind } => {
             vice_toggle_watchpoint(app_state, ui_state, address, kind);
         }
-        MenuAction::ToggleDebuggerView => {
+        AppAction::ToggleDebuggerView => {
             if ui_state.right_pane == crate::ui_state::RightPane::Debugger {
                 ui_state.right_pane = crate::ui_state::RightPane::None;
                 if ui_state.active_pane == ActivePane::Debugger {
@@ -1875,24 +1869,24 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Debugger Panel Shown");
             }
         }
-        MenuAction::KeyboardShortcuts => {
+        AppAction::KeyboardShortcuts => {
             ui_state.active_dialog = Some(Box::new(
                 crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::new(),
             ));
             ui_state.set_status_message("Keyboard Shortcuts");
         }
-        MenuAction::ChangeOrigin => {
+        AppAction::ChangeOrigin => {
             ui_state.active_dialog = Some(Box::new(crate::ui::dialog_origin::OriginDialog::new(
                 app_state.origin,
             )));
             ui_state.set_status_message("Enter new origin (Hex)");
         }
-        MenuAction::SystemSettings => {
+        AppAction::SystemSettings => {
             ui_state.active_dialog =
                 Some(Box::new(crate::ui::dialog_settings::SettingsDialog::new()));
             ui_state.set_status_message("Settings");
         }
-        MenuAction::NextImmediateFormat => {
+        AppAction::NextImmediateFormat => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                 let has_immediate = if let Some(opcode) = &line.opcode {
                     opcode.mode == crate::cpu::AddressingMode::Immediate
@@ -1948,7 +1942,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 }
             }
         }
-        MenuAction::PreviousImmediateFormat => {
+        AppAction::PreviousImmediateFormat => {
             if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
                 let has_immediate = if let Some(opcode) = &line.opcode {
                     opcode.mode == crate::cpu::AddressingMode::Immediate
@@ -2004,7 +1998,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 }
             }
         }
-        MenuAction::SetBytesBlockByOffset { start, end } => {
+        AppAction::SetBytesBlockByOffset { start, end } => {
             // Set block type to DataByte for a specific byte offset range
             let block_type = crate::state::BlockType::DataByte;
             let max_len = app_state.block_types.len();
@@ -2063,7 +2057,7 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                 ui_state.set_status_message("Error: offset out of range");
             }
         }
-        MenuAction::ToggleCollapsedBlock => {
+        AppAction::ToggleCollapsedBlock => {
             if ui_state.active_pane == ActivePane::Blocks {
                 let blocks = app_state.get_blocks_view_items();
                 if let Some(idx) = ui_state.blocks_list_state.selected() {

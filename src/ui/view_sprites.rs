@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::ui_state::{ActivePane, MenuAction, UIState};
+use crate::ui_state::{ActivePane, AppAction, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
@@ -365,7 +365,7 @@ impl Widget for SpritesView {
                 WidgetResult::Handled
             }
             KeyCode::Char('m') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::ToggleSpriteMulticolor)
+                WidgetResult::Action(AppAction::ToggleSpriteMulticolor)
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => {
                 // Convert selected sprites or current sprite to bytes block (64 bytes per sprite)
@@ -399,7 +399,7 @@ impl Widget for SpritesView {
                 ui_state.is_visual_mode = false;
 
                 if start_offset < app_state.raw_data.len() && start_offset <= end_offset {
-                    WidgetResult::Action(MenuAction::SetBytesBlockByOffset {
+                    WidgetResult::Action(AppAction::SetBytesBlockByOffset {
                         start: start_offset,
                         end: end_offset,
                     })

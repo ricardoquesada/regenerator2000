@@ -1,4 +1,4 @@
-pub use crate::state::actions::MenuAction;
+pub use crate::state::actions::AppAction;
 use crate::theme::Theme;
 use crate::ui::dialog_search::SearchFilters;
 pub use crate::ui::menu::MenuState;

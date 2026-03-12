@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::ui_state::{ActivePane, MenuAction, UIState};
+use crate::ui_state::{ActivePane, AppAction, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
@@ -1502,9 +1502,9 @@ impl Widget for DisassemblyView {
             // Other keys...
             KeyCode::F(3) => {
                 if key.modifiers == KeyModifiers::SHIFT {
-                    WidgetResult::Action(crate::ui_state::MenuAction::FindPrevious)
+                    WidgetResult::Action(crate::state::actions::AppAction::FindPrevious)
                 } else if key.modifiers.is_empty() {
-                    WidgetResult::Action(crate::ui_state::MenuAction::FindNext)
+                    WidgetResult::Action(crate::state::actions::AppAction::FindNext)
                 } else {
                     WidgetResult::Ignored
                 }
@@ -1523,7 +1523,7 @@ impl Widget for DisassemblyView {
                 WidgetResult::Handled
             }
             KeyCode::Char('f') if key.modifiers == KeyModifiers::CONTROL => {
-                WidgetResult::Action(crate::ui_state::MenuAction::Search)
+                WidgetResult::Action(crate::state::actions::AppAction::Search)
             }
             KeyCode::Char(c)
                 if c.is_ascii_digit()
@@ -1590,81 +1590,75 @@ impl Widget for DisassemblyView {
             }
 
             KeyCode::Char('l') if key.modifiers.is_empty() => action_set_label(app_state, ui_state),
-            KeyCode::Char('c') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::Code)
-            }
-            KeyCode::Char('b') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::Byte)
-            }
-            KeyCode::Char('w') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::Word)
-            }
+            KeyCode::Char('c') if key.modifiers.is_empty() => WidgetResult::Action(AppAction::Code),
+            KeyCode::Char('b') if key.modifiers.is_empty() => WidgetResult::Action(AppAction::Byte),
+            KeyCode::Char('w') if key.modifiers.is_empty() => WidgetResult::Action(AppAction::Word),
             KeyCode::Char('a') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::Address)
+                WidgetResult::Action(AppAction::Address)
             }
             KeyCode::Char('p') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::PetsciiText)
+                WidgetResult::Action(AppAction::PetsciiText)
             }
             KeyCode::Char('s') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::ScreencodeText)
+                WidgetResult::Action(AppAction::ScreencodeText)
             }
             KeyCode::Char('?')
                 if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
             {
-                WidgetResult::Action(MenuAction::Undefined)
+                WidgetResult::Action(AppAction::Undefined)
             }
             KeyCode::Char('<')
                 if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
             {
-                WidgetResult::Action(MenuAction::SetLoHiAddress)
+                WidgetResult::Action(AppAction::SetLoHiAddress)
             }
             KeyCode::Char('>')
                 if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
             {
-                WidgetResult::Action(MenuAction::SetHiLoAddress)
+                WidgetResult::Action(AppAction::SetHiLoAddress)
             }
             KeyCode::Char(',') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::SetLoHiWord)
+                WidgetResult::Action(AppAction::SetLoHiWord)
             }
             KeyCode::Char('.') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::SetHiLoWord)
+                WidgetResult::Action(AppAction::SetHiLoWord)
             }
             KeyCode::Char('|')
                 if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
             {
-                WidgetResult::Action(MenuAction::ToggleSplitter)
+                WidgetResult::Action(AppAction::ToggleSplitter)
             }
             KeyCode::Char(';')
                 if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
             {
-                WidgetResult::Action(MenuAction::SideComment)
+                WidgetResult::Action(AppAction::SideComment)
             }
             KeyCode::Char(':')
                 if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
             {
-                WidgetResult::Action(MenuAction::LineComment)
+                WidgetResult::Action(AppAction::LineComment)
             }
             KeyCode::Char('e') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::SetExternalFile)
+                WidgetResult::Action(AppAction::SetExternalFile)
             }
             KeyCode::Enter if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::JumpToOperand)
+                WidgetResult::Action(AppAction::JumpToOperand)
             }
             KeyCode::Char('d') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::NextImmediateFormat)
+                WidgetResult::Action(AppAction::NextImmediateFormat)
             }
             KeyCode::Char('[') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::PackLoHiAddress)
+                WidgetResult::Action(AppAction::PackLoHiAddress)
             }
             KeyCode::Char(']') if key.modifiers.is_empty() => {
-                WidgetResult::Action(MenuAction::PackHiLoAddress)
+                WidgetResult::Action(AppAction::PackHiLoAddress)
             }
             KeyCode::Char('D') if key.modifiers == KeyModifiers::SHIFT => {
-                WidgetResult::Action(MenuAction::PreviousImmediateFormat)
+                WidgetResult::Action(AppAction::PreviousImmediateFormat)
             }
 
             KeyCode::Char('k') if key.modifiers == KeyModifiers::CONTROL => {
-                WidgetResult::Action(MenuAction::ToggleCollapsedBlock)
+                WidgetResult::Action(AppAction::ToggleCollapsedBlock)
             }
             _ => {
                 // Check if modifiers contain CONTROL
@@ -1672,15 +1666,15 @@ impl Widget for DisassemblyView {
                     && let KeyCode::Char('b') = key.code
                 {
                     if key.modifiers.contains(KeyModifiers::SHIFT) {
-                        return WidgetResult::Action(MenuAction::ListBookmarks);
+                        return WidgetResult::Action(AppAction::ListBookmarks);
                     }
-                    return WidgetResult::Action(MenuAction::ToggleBookmark);
+                    return WidgetResult::Action(AppAction::ToggleBookmark);
                 }
 
                 if key.modifiers.contains(KeyModifiers::ALT)
                     && let KeyCode::Char('b') = key.code
                 {
-                    return WidgetResult::Action(MenuAction::ListBookmarks);
+                    return WidgetResult::Action(AppAction::ListBookmarks);
                 }
                 WidgetResult::Ignored
             }
@@ -1803,12 +1797,12 @@ mod tests {
 
         let keys = vec!['?', '<', '>', '|', ';', ':'];
         let actions = vec![
-            MenuAction::Undefined,
-            MenuAction::SetLoHiAddress,
-            MenuAction::SetHiLoAddress,
-            MenuAction::ToggleSplitter,
-            MenuAction::SideComment,
-            MenuAction::LineComment,
+            AppAction::Undefined,
+            AppAction::SetLoHiAddress,
+            AppAction::SetHiLoAddress,
+            AppAction::ToggleSplitter,
+            AppAction::SideComment,
+            AppAction::LineComment,
         ];
 
         for (c, expected_action) in keys.into_iter().zip(actions.into_iter()) {

@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use crate::state::actions::AppAction as MenuAction;
+use crate::state::actions::AppAction;
 use crate::ui::menu::execute_menu_action;
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -15,11 +15,11 @@ use crate::ui::widget::{Widget, WidgetResult};
 pub struct ConfirmationDialog {
     pub title: String,
     pub message: String,
-    pub action: MenuAction,
+    pub action: AppAction,
 }
 
 impl ConfirmationDialog {
-    pub fn new(title: impl Into<String>, message: impl Into<String>, action: MenuAction) -> Self {
+    pub fn new(title: impl Into<String>, message: impl Into<String>, action: AppAction) -> Self {
         Self {
             title: title.into(),
             message: message.into(),
@@ -82,9 +82,9 @@ impl Widget for ConfirmationDialog {
             }
             KeyCode::Enter | KeyCode::Char('y') => {
                 // We need to clone the action because we can't move out of self in handle_input
-                // But MenuAction should be Clone (it's an enum of simple types/strings?)
-                // Let's assume MenuAction is Clone. If not I need to make it Clone.
-                // Or I can use Option<MenuAction> in struct and take() it.
+                // But AppAction should be Clone (it's an enum of simple types/strings?)
+                // Let's assume AppAction is Clone. If not I need to make it Clone.
+                // Or I can use Option<AppAction> in struct and take() it.
                 // But handle_input takes &mut self.
                 // I will use Option in struct for safety.
                 execute_menu_action(app_state, ui_state, self.action.clone());

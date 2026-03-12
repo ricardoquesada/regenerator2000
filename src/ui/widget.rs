@@ -4,14 +4,14 @@ use crossterm::event::KeyEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 
-use crate::ui_state::MenuAction;
+use crate::state::actions::AppAction;
 
 #[derive(Debug, PartialEq)]
 pub enum WidgetResult {
     Ignored,
     Handled,
     Close,
-    Action(MenuAction),
+    Action(AppAction),
 }
 
 pub trait Widget {

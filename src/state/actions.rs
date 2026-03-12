@@ -1,7 +1,7 @@
 //! Semantic actions that any frontend (TUI, GUI, Web, MCP) can produce.
 //!
 //! These were formerly `MenuAction` in `ui/menu.rs`.  The canonical name is
-//! now `AppAction`; re‑exported as `MenuAction` for backward compatibility.
+//! now `AppAction`.
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AppAction {
@@ -90,9 +90,6 @@ pub enum AppAction {
     },
     ToggleDebuggerView,
 }
-
-/// Backward-compatible alias.
-pub type MenuAction = AppAction;
 
 impl AppAction {
     #[must_use]

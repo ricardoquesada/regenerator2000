@@ -171,7 +171,9 @@ impl Widget for GoToSymbolDialog {
                     crate::ui::menu::execute_menu_action(
                         _app_state,
                         ui_state,
-                        crate::ui_state::MenuAction::NavigateToAddress(crate::state::Addr(*addr)),
+                        crate::state::actions::AppAction::NavigateToAddress(crate::state::Addr(
+                            *addr,
+                        )),
                     );
                 }
                 WidgetResult::Close
