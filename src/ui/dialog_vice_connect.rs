@@ -64,7 +64,9 @@ impl Widget for ViceConnectDialog {
                 if input.is_empty() {
                     WidgetResult::Close
                 } else {
-                    WidgetResult::Action(crate::ui::menu::MenuAction::ViceConnectAddress(input))
+                    WidgetResult::Action(crate::state::actions::AppAction::ViceConnectAddress(
+                        input,
+                    ))
                 }
             }
             KeyCode::Backspace => {

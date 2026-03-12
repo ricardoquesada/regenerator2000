@@ -74,7 +74,7 @@ impl Widget for JumpToAddressDialog {
                     crate::ui::menu::execute_menu_action(
                         _app_state,
                         ui_state,
-                        crate::ui::menu::MenuAction::NavigateToAddress(crate::state::Addr(
+                        crate::state::actions::AppAction::NavigateToAddress(crate::state::Addr(
                             target_addr,
                         )),
                     );

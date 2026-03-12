@@ -1,6 +1,7 @@
+pub use crate::state::actions::MenuAction;
 use crate::theme::Theme;
 use crate::ui::dialog_search::SearchFilters;
-pub use crate::ui::menu::{MenuAction, MenuState};
+pub use crate::ui::menu::MenuState;
 use crate::ui::widget::Widget;
 use image::DynamicImage;
 use ratatui::widgets::ListState;

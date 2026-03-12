@@ -1,5 +1,6 @@
 use crate::state::AppState;
-use crate::ui::menu::{MenuAction, execute_menu_action};
+use crate::state::actions::AppAction as MenuAction;
+use crate::ui::menu::execute_menu_action;
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{

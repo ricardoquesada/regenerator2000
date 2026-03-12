@@ -144,7 +144,7 @@ impl Widget for WatchpointAddressDialog {
                     // If a watchpoint already exists, remove it (use its kind to trigger toggle)
                     let kind = Self::existing_watchpoint(&self.input, app_state)
                         .map_or(self.kind, |bp| bp.kind);
-                    WidgetResult::Action(crate::ui::menu::MenuAction::ViceSetWatchpoint {
+                    WidgetResult::Action(crate::state::actions::AppAction::ViceSetWatchpoint {
                         address: crate::state::Addr(addr),
                         kind,
                     })

@@ -1,5 +1,5 @@
+use crate::state::actions::AppAction;
 use crate::state::{Addr, AppState};
-use crate::ui::menu::MenuAction;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
@@ -138,7 +138,7 @@ impl Widget for FindReferencesDialog {
                     crate::ui::menu::execute_menu_action(
                         _app_state,
                         ui_state,
-                        MenuAction::NavigateToAddress(addr),
+                        AppAction::NavigateToAddress(addr),
                     );
                 }
                 WidgetResult::Close

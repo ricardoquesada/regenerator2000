@@ -724,13 +724,13 @@ fn handle_mouse_views(
 /// we immediately request registers after connecting so the debugger panel
 /// populates.
 fn dispatch_menu_action(
-    action: crate::ui::menu::MenuAction,
+    action: crate::state::actions::AppAction,
     app_state: &mut AppState,
     ui_state: &mut UIState,
     event_tx: &std::sync::mpsc::Sender<AppEvent>,
     send_registers_on_connect: bool,
 ) {
-    if let crate::ui::menu::MenuAction::ViceConnectAddress(addr) = action {
+    if let crate::state::actions::AppAction::ViceConnectAddress(addr) = action {
         if let Ok(client) = crate::vice::ViceClient::connect(&addr, event_tx.clone()) {
             if send_registers_on_connect {
                 client.send_registers_get();

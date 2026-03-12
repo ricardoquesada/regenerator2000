@@ -90,7 +90,7 @@ impl Widget for BreakpointAddressDialog {
             }
             KeyCode::Enter => {
                 if let Ok(addr) = u16::from_str_radix(&self.input, 16) {
-                    WidgetResult::Action(crate::ui::menu::MenuAction::ViceSetBreakpointAt {
+                    WidgetResult::Action(crate::state::actions::AppAction::ViceSetBreakpointAt {
                         address: crate::state::Addr(addr),
                     })
                 } else if self.input.is_empty() {
