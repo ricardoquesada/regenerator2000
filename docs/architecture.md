@@ -11,6 +11,7 @@ flowchart TD
     EventLoop[Event Loop]
     Widget[Active Widget<br/>View/Dialog]
     MCPServer[MCP Server<br/>HTTP/Stdio]
+    Action[AppAction<br/>Semantic Action]
     CommandSys[Command System]
     AppState[Application State]
     Analyzer[Code Analyzer]
@@ -22,9 +23,10 @@ flowchart TD
 
     Input -->|Dispatch to Widget| EventLoop
     EventLoop --> Widget
-    Widget -->|Results in Action/Command| CommandSys
+    Widget -->|WidgetResult::Action| Action
+    Action -->|Dispatch| CommandSys
     MCPClient -->|Tools/Resources| MCPServer
-    MCPServer -->|Commands| CommandSys
+    MCPServer -->|AppAction / Commands| CommandSys
     MCPServer -.->|Read State| AppState
     CommandSys -->|Apply/Undo| AppState
     AppState -->|Requests| DisasmEngine
@@ -47,6 +49,11 @@ The central hub of the application, organized across multiple modules:
   - **Disassembly Cache**: Used to avoid re-disassembling the entire file on every frame.
   - **VICE State**: Tracks connection with the VICE emulator, breakpoints, CPU registers, and debugger state.
   - **Labels & Cross-References**: Auto-generated and user-defined labels with their cross-references.
+- **[`actions.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/state/actions.rs)**: Defines the `AppAction` enum — semantic actions that any frontend (TUI, GUI, Web, MCP) can produce. This is the bridge between raw user input and state mutations.
+- **[`blocks.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/state/blocks.rs)**: Block management logic for `AppState`, including block range queries, block type changes, splitter management, and the blocks view item list.
+- **[`disassembly.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/state/disassembly.rs)**: Disassembly orchestration on `AppState`, including the `disassemble()` driver, cached arrow computation, and line-index lookups by address.
+- **[`file_io.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/state/file_io.rs)**: File I/O operations for `AppState`: loading files (PRG, CRT, VSF, T64, BIN), loading/saving projects, and importing/exporting VICE labels.
+- **[`navigation.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/state/navigation.rs)**: Navigation helpers (`perform_jump_to_address`, `perform_jump_to_address_no_history`) that operate on `AppState` + `UIState`, decoupled from the TUI layer so MCP and future frontends can navigate.
 - **[`project.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/state/project.rs)**: The `ProjectState` struct - the persistent part of the state (saved to .regen2000proj files), containing:
   - **Raw Data**: The binary being disassembled (gzip-compressed and base64-encoded for JSON serialization).
   - **Block Types**: Stored as run-length encoded blocks, defining how each byte should be interpreted (Code, DataByte, DataWord, Address, Text, Screencode, LoHi, HiLo, ExternalFile, Undefined).
@@ -63,7 +70,7 @@ The central hub of the application, organized across multiple modules:
   - Analysis hints visibility toggle
   - Project description
 - **[`search.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/state/search.rs)**: Centralized search logic used by both the UI search dialog and the MCP server. Supports searching in text (PETSCII/Screencode) and hex encodings.
-- **[`types.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/state/types.rs)**: Core type definitions used throughout the state module (BlockType, ImmediateFormat, Label, Platform, Assembler, etc.).
+- **[`types.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/state/types.rs)**: Core type definitions used throughout the state module (BlockType, ImmediateFormat, Label, Platform, Assembler, Addr, etc.).
 
 ### 2. Disassembly Engine ([`disassembler/`](https://github.com/ricardoquesada/regenerator2000/tree/main/src/disassembler))
 
@@ -106,7 +113,6 @@ A heuristic engine that runs after state changes. It:
 
 Handles importing various Commodore file formats and label files.
 
-- **[`parser.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/parser.rs)**: Module definition.
 - **[`crt.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/parser/crt.rs)**: Parser for Commodore 64 cartridge (.crt) files.
 - **[`d64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/parser/d64.rs)**: Parser for D64 disk image files, supporting file extraction from 1541 disk images.
 - **[`t64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/parser/t64.rs)**: Parser for T64 tape archive files.
@@ -143,10 +149,16 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   - **[`events.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/events.rs)**: The primary event loop and rendering coordinator. Synchronizes view states and manages the main application loop.
   - **[`events/input.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/events/input.rs)**: The input router. It determines the active pane and dispatches input events (keyboard and mouse) to the corresponding `Widget`.
   - **[`ui.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui.rs)**: The top-level layout engine. It renders the Menu, StatusBar, and the active Main View.
-  - **[`menu.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/menu.rs)**: Menu bar with File, Edit, View, Tools, Debug, and Help menus. Defines all `MenuAction` entries and keyboard shortcut bindings.
   - **[`statusbar.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/statusbar.rs)**: Bottom status bar showing cursor address, block type, and context info.
   - **[`navigable.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/navigable.rs)**: Shared trait/helpers for views that support cursor-based navigation.
   - **[`graphics_common.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/graphics_common.rs)**: Shared rendering logic for graphical views (sprites, charset, bitmap).
+
+- **Menu System** ([`ui/menu/`](https://github.com/ricardoquesada/regenerator2000/tree/main/src/ui/menu)):
+  The menu bar is split across several sub-modules:
+  - **[`mod.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/menu/mod.rs)**: The `Menu` struct implementing `Widget`, handling keyboard and mouse interaction with the menu bar and popup menus.
+  - **[`menu_action.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/menu/menu_action.rs)**: Action dispatch logic — routes `AppAction` variants to `Command` applications, dialog creation, and other side effects.
+  - **[`menu_model.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/menu/menu_model.rs)**: Data model for the menu system: `MenuState`, `MenuCategory`, and `MenuItem` structs with keyboard shortcut bindings.
+  - **[`menu_render.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/menu/menu_render.rs)**: Rendering functions for the menu bar and popup menus.
 
 - **Main Views** ([`ui/view_*.rs`](https://github.com/ricardoquesada/regenerator2000/tree/main/src/ui)):
   - **[`view_disassembly.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/ui/view_disassembly.rs)**: The primary disassembly listing view with syntax highlighting and navigation.
@@ -256,7 +268,7 @@ Contains shared helper functions and utilities used across the application.
 
 1. **Input**: User presses a key (e.g., `C`) or interacts with the mouse.
 2. **Dispatch**: [`events/input.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/events/input.rs) routes the input to the active `Widget` (e.g., `DisassemblyView`, or an active dialog).
-3. **Action**: The Widget processes the input via `handle_input()` or `handle_mouse()` and returns a `WidgetResult::Action` (e.g., `MenuAction::Code`).
+3. **Action**: The Widget processes the input via `handle_input()` or `handle_mouse()` and returns a `WidgetResult::Action` (e.g., `AppAction::Code`).
 4. **Execution**: The action is converted into a `Command` (e.g., `SetBlockType`), pushed to the `UndoStack`, and applied to `AppState`.
 5. **Update**: `AppState` modifies the data (e.g., updates `BlockType` array).
 6. **Analysis**: The change triggers [`analyzer.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/analyzer.rs) to re-scan the code.
