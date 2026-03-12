@@ -82,6 +82,7 @@ pub struct ProjectState {
     pub blocks_view_cursor: Option<usize>,
 }
 
+#[derive(Debug)]
 pub struct LoadedProjectData {
     pub cursor_address: Option<Addr>,
     pub hex_dump_cursor_address: Option<Addr>,

@@ -1,5 +1,8 @@
 pub mod actions;
 pub mod app_state;
+mod blocks;
+mod disassembly;
+mod file_io;
 pub mod navigation;
 pub mod project;
 pub mod search;
