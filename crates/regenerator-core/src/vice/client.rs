@@ -1,5 +1,4 @@
 use super::protocol::{ViceCommand, ViceCpuOp, ViceMessage};
-use crate::events::AppEvent;
 use std::io::{Read, Write};
 use std::net::{Shutdown, TcpStream};
 use std::sync::mpsc::{self, Sender};
@@ -16,7 +15,7 @@ pub struct ViceClient {
 }
 
 impl ViceClient {
-    pub fn connect(addr: &str, app_tx: Sender<AppEvent>) -> anyhow::Result<Self> {
+    pub fn connect(addr: &str, app_tx: Sender<ViceEvent>) -> anyhow::Result<Self> {
         let stream = TcpStream::connect(addr)?;
         stream.set_nonblocking(false)?;
         stream.set_nodelay(true)?;
@@ -29,16 +28,15 @@ impl ViceClient {
         // Reading thread
         let app_tx_read = app_tx.clone();
         thread::spawn(move || {
-            let _ = app_tx_read.send(AppEvent::Vice(ViceEvent::Connected));
+            let _ = app_tx_read.send(ViceEvent::Connected);
             let mut buffer = [0u8; 8192];
             let mut read_buf = Vec::new();
 
             loop {
                 match read_stream.read(&mut buffer) {
                     Ok(0) => {
-                        let _ = app_tx_read.send(AppEvent::Vice(ViceEvent::Disconnected(
-                            "Connection closed".to_string(),
-                        )));
+                        let _ = app_tx_read
+                            .send(ViceEvent::Disconnected("Connection closed".to_string()));
                         break;
                     }
                     Ok(n) => {
@@ -48,8 +46,7 @@ impl ViceClient {
                         loop {
                             match ViceMessage::decode(&read_buf) {
                                 Ok(Some((msg, size))) => {
-                                    let _ =
-                                        app_tx_read.send(AppEvent::Vice(ViceEvent::Message(msg)));
+                                    let _ = app_tx_read.send(ViceEvent::Message(msg));
                                     read_buf.drain(..size);
                                 }
                                 Ok(None) => {
@@ -57,17 +54,16 @@ impl ViceClient {
                                 }
                                 Err(e) => {
                                     // Corrupt data, clear buffer
-                                    let _ = app_tx_read.send(AppEvent::Vice(
-                                        ViceEvent::Disconnected(format!("Protocol error: {e}")),
-                                    ));
+                                    let _ = app_tx_read.send(ViceEvent::Disconnected(format!(
+                                        "Protocol error: {e}"
+                                    )));
                                     return;
                                 }
                             }
                         }
                     }
                     Err(e) => {
-                        let _ = app_tx_read
-                            .send(AppEvent::Vice(ViceEvent::Disconnected(e.to_string())));
+                        let _ = app_tx_read.send(ViceEvent::Disconnected(e.to_string()));
                         break;
                     }
                 }

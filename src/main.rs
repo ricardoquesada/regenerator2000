@@ -565,7 +565,8 @@ fn connect_vice(
     vice_addr: &str,
     event_tx: &std::sync::mpsc::Sender<events::AppEvent>,
 ) {
-    match regenerator2000::vice::ViceClient::connect(vice_addr, event_tx.clone()) {
+    let vice_tx = vice_event_adapter(event_tx);
+    match regenerator2000::vice::ViceClient::connect(vice_addr, vice_tx) {
         Ok(client) => {
             app_state.vice_client = Some(client);
             ui_state.set_status_message(format!("Connecting to VICE at {vice_addr}..."));
@@ -574,6 +575,23 @@ fn connect_vice(
             ui_state.set_status_message(format!("Failed to connect to VICE at {vice_addr}: {e}"));
         }
     }
+}
+
+/// Create a `Sender<ViceEvent>` that wraps events into `AppEvent::Vice` and
+/// forwards them to the given `Sender<AppEvent>`.
+fn vice_event_adapter(
+    app_tx: &std::sync::mpsc::Sender<events::AppEvent>,
+) -> std::sync::mpsc::Sender<regenerator2000::vice::ViceEvent> {
+    let (vice_tx, vice_rx) = std::sync::mpsc::channel();
+    let app_tx = app_tx.clone();
+    std::thread::spawn(move || {
+        while let Ok(event) = vice_rx.recv() {
+            if app_tx.send(events::AppEvent::Vice(event)).is_err() {
+                break;
+            }
+        }
+    });
+    vice_tx
 }
 
 // ---------------------------------------------------------------------------

@@ -2603,6 +2603,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "regenerator-core"
+version = "0.8.8"
+dependencies = [
+ "anyhow",
+ "base64",
+ "directories",
+ "flate2",
+ "include_dir",
+ "log",
+ "regex",
+ "serde",
+ "serde_json",
+ "uuid",
+]
+
+[[package]]
 name = "regenerator2000"
 version = "0.8.8"
 dependencies = [
@@ -2619,6 +2635,7 @@ dependencies = [
  "ratatui",
  "ratatui-image",
  "ratatui-textarea",
+ "regenerator-core",
  "regex",
  "reqwest",
  "rmcp",

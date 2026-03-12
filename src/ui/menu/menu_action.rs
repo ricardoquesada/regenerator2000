@@ -1530,7 +1530,7 @@ fn create_save_context(
     app_state: &AppState,
     ui_state: &UIState,
 ) -> crate::state::ProjectSaveContext {
-    crate::state::project::create_save_context(app_state, ui_state)
+    crate::navigation::create_save_context(app_state, ui_state)
 }
 
 fn update_hexdump_status(ui_state: &mut UIState, mode: crate::state::HexdumpViewMode) {
@@ -1543,20 +1543,20 @@ fn update_hexdump_status(ui_state: &mut UIState, mode: crate::state::HexdumpView
     ui_state.set_status_message(format!("Hex Dump: {status}"));
 }
 
-/// Thin wrapper – delegates to [`crate::state::navigation::perform_jump_to_address`].
+/// Thin wrapper – delegates to [`crate::navigation::perform_jump_to_address`].
 pub fn perform_jump_to_address(
     app_state: &AppState,
     ui_state: &mut UIState,
     target_addr: crate::state::Addr,
 ) {
-    crate::state::navigation::perform_jump_to_address(app_state, ui_state, target_addr);
+    crate::navigation::perform_jump_to_address(app_state, ui_state, target_addr);
 }
 
-/// Thin wrapper – delegates to [`crate::state::navigation::perform_jump_to_address_no_history`].
+/// Thin wrapper – delegates to [`crate::navigation::perform_jump_to_address_no_history`].
 pub fn perform_jump_to_address_no_history(
     app_state: &AppState,
     ui_state: &mut UIState,
     target_addr: crate::state::Addr,
 ) {
-    crate::state::navigation::perform_jump_to_address_no_history(app_state, ui_state, target_addr);
+    crate::navigation::perform_jump_to_address_no_history(app_state, ui_state, target_addr);
 }

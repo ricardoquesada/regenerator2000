@@ -731,7 +731,16 @@ fn dispatch_menu_action(
     send_registers_on_connect: bool,
 ) {
     if let crate::state::actions::AppAction::ViceConnectAddress(addr) = action {
-        if let Ok(client) = crate::vice::ViceClient::connect(&addr, event_tx.clone()) {
+        let (vice_tx, vice_rx) = std::sync::mpsc::channel();
+        let app_tx = event_tx.clone();
+        std::thread::spawn(move || {
+            while let Ok(event) = vice_rx.recv() {
+                if app_tx.send(AppEvent::Vice(event)).is_err() {
+                    break;
+                }
+            }
+        });
+        if let Ok(client) = crate::vice::ViceClient::connect(&addr, vice_tx) {
             if send_registers_on_connect {
                 client.send_registers_get();
             }

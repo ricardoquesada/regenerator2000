@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "crates/regenerator-core"]
+resolver = "3"
+
 [package]
 authors = ["Ricardo Quesada <ricardoquesada@gmail.com>"]
 description = "An interactive disassembler for the CPU 6502, focused mostly on Commodore 8-bit computers."
@@ -28,6 +32,7 @@ exclude = [
 ]
 
 [dependencies]
+regenerator-core = { path = "crates/regenerator-core" }
 clap = { version = "4", features = ["derive"] }
 ratatui = "0.30.0"
 crossterm = "0.29"

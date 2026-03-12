@@ -1,0 +1,23 @@
+[package]
+name = "regenerator-core"
+version = "0.8.8"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Core library for Regenerator 2000: state, disassembler, analyzer, commands, parsers, and exporter for 6502/Commodore binaries."
+
+[dependencies]
+anyhow = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+base64 = "0.22.1"
+flate2 = "1.1.8"
+directories = "6.0.0"
+regex = "1.12.2"
+log = "0.4.29"
+include_dir = "0.7"
+uuid = { version = "1.20.0", features = ["v4", "fast-rng"] }
+
+[lints.clippy]
+unwrap_used = "warn"
+panic = "warn"
+expect_used = "warn"

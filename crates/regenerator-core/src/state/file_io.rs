@@ -518,10 +518,21 @@ mod save_project_tests {
         // Save project
         let project_path = dir.join("test_save_filter.regen2000proj");
         app_state.project_path = Some(project_path.clone());
-        let ctx = crate::state::project::create_save_context(
-            &app_state,
-            &crate::ui_state::UIState::new(crate::theme::Theme::default()),
-        );
+        let ctx = crate::state::project::ProjectSaveContext {
+            cursor_address: None,
+            hex_dump_cursor_address: None,
+            sprites_cursor_address: None,
+            right_pane_visible: None,
+            charset_cursor_address: None,
+            bitmap_cursor_address: None,
+            sprite_multicolor_mode: false,
+            charset_multicolor_mode: false,
+            bitmap_multicolor_mode: false,
+            hexdump_view_mode: HexdumpViewMode::default(),
+            splitters: std::collections::BTreeSet::new(),
+            blocks_view_cursor: None,
+            bookmarks: std::collections::BTreeMap::new(),
+        };
         let result = app_state.save_project(ctx, false);
         assert!(result.is_ok());
 
@@ -565,10 +576,21 @@ mod config_tests {
         let _ = app_state.load_file(file_path.clone());
         let project_path = dir.join("test_config_path.regen2000proj");
         app_state.project_path = Some(project_path.clone());
-        let ctx = crate::state::project::create_save_context(
-            &app_state,
-            &crate::ui_state::UIState::new(crate::theme::Theme::default()),
-        );
+        let ctx = crate::state::project::ProjectSaveContext {
+            cursor_address: None,
+            hex_dump_cursor_address: None,
+            sprites_cursor_address: None,
+            right_pane_visible: None,
+            charset_cursor_address: None,
+            bitmap_cursor_address: None,
+            sprite_multicolor_mode: false,
+            charset_multicolor_mode: false,
+            bitmap_multicolor_mode: false,
+            hexdump_view_mode: HexdumpViewMode::default(),
+            splitters: std::collections::BTreeSet::new(),
+            blocks_view_cursor: None,
+            bookmarks: std::collections::BTreeMap::new(),
+        };
         let _result = app_state.save_project(ctx, true);
 
         // Verify that last_project_path is an absolute canonical path
