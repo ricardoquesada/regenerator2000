@@ -6,40 +6,44 @@ Regenerator 2000 is an interactive disassembler for 8-bit Commodore computers (C
 
 ```mermaid
 flowchart TD
-    subgraph r2k [regenerator2000 Crate]
-        Input[User Input<br/>Keys/Mouse]
+    subgraph r2k [regenerator2000 Crate - TUI]
+        Input[User Input]
         EventLoop[Event Loop]
         Widget[Active Widget<br/>View/Dialog]
         Renderer[TUI Renderer]
         UIState[UI State]
+        MCPServer[MCP Server<br/>HTTP/Stdio]
     end
 
-    subgraph core [regenerator-core Crate]
-        Action[AppAction<br/>Semantic Action]
+    subgraph core_crate [regenerator-core Crate - Engine]
+        Core[Core Hub]
+        Action[AppAction]
         CommandSys[Command System]
         AppState[Application State]
         CoreViewState[Core View State]
         Analyzer[Code Analyzer]
         DisasmEngine[Disassembly Engine]
+        ViceClient[VICE Client]
     end
 
-    subgraph Interface [External Interface]
-        MCPClient[MCP Client]
-        MCPServer[MCP Server<br/>HTTP/Stdio]
+    subgraph External [External Interface]
+        MCPClient[MCP Client / AI Agent]
         VICE[VICE Emulator]
     end
 
-    Input -->|Dispatch to Widget| EventLoop
-    EventLoop --> Widget
-    Widget -->|WidgetResult::Action| Action
-    Action -->|Dispatch| CommandSys
+    Input -->|Handled by| Widget
+    EventLoop -->|Drives| Renderer
+    Widget -->|AppAction| Action
+    Action -->|apply_action| Core
 
     MCPClient -->|Tools/Resources| MCPServer
-    MCPServer -->|AppAction / Commands| CommandSys
+    MCPServer -->|AppAction| Core
     MCPServer -.->|Read State| AppState
 
+    Core -->|Dispatch| CommandSys
+    Core -->|Direct Mutate| CoreViewState
+
     CommandSys -->|Apply/Undo| AppState
-    CommandSys -->|Update Cursor/View| CoreViewState
 
     AppState -->|Requests| DisasmEngine
     AppState -->|Triggers| Analyzer
@@ -49,7 +53,7 @@ flowchart TD
     AppState -->|Provides Data| Renderer
     DisasmEngine -->|Generates Lines| Renderer
 
-    VICE <-->|Binary Protocol| ViceClient[VICE Client]
+    VICE <-->|Binary Protocol| ViceClient
     ViceClient -.-> AppState
 ```
 
@@ -66,11 +70,13 @@ The project is organized as a Cargo workspace with two primary crates:
 
 The core engine state, organized across multiple modules:
 
+- **[`core.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator-core/src/core.rs)**: The central `Core` hub. Orhcestrates persistent state (`AppState`) and transient view state (`CoreViewState`). Frontends interact with it via `apply_action()`.
 - **[`app_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator-core/src/state/app_state.rs)**: The main `AppState` struct that holds the runtime data hub. Contains the Undo Stack, Disassembly Cache, and connection state for VICE.
-- **[`view_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator-core/src/state/view_state.rs)**: Defines `CoreViewState` — the frontend-agnostic representation of cursor positions, selections, and active panes.
+- **[`view_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator-core/src/view_state.rs)**: Defines `CoreViewState` — the frontend-agnostic representation of cursor positions, selections, and active panes.
 - **[`actions.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator-core/src/state/actions.rs)**: Defines the `AppAction` enum — semantic actions that any frontend (TUI, GUI, Web, MCP) can produce.
 - **[`blocks.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator-core/src/state/blocks.rs)**: Block management logic (Code, Data, Text, etc.) and memory layout queries.
 - **[`disassembly.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator-core/src/state/disassembly.rs)**: Disassembly orchestration and line-index lookups.
+- **[`file_io.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator-core/src/state/file_io.rs)**: Loading and importing of various formats into `AppState`.
 - **[`navigation.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator-core/src/navigation.rs)**: Pure navigation helpers (jumping to addresses, creating save contexts) that operate on `AppState` + `CoreViewState`.
 - **[`project.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator-core/src/state/project.rs)**: The `ProjectState` struct — the persistent part of the state saved to `.regen2000proj` files.
 - **[`settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator-core/src/state/settings.rs)**: Document-level settings (assembler, platform, display preferences).
@@ -268,14 +274,14 @@ Contains shared helper functions and utilities used across the application, spli
 ## Data Flow
 
 1. **Input**: User presses a key (e.g., `C`) or interacts with the mouse.
-2. **Dispatch**: [`events/input.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/events/input.rs) routes the input to the active `Widget` (e.g., `DisassemblyView`, or an active dialog).
-3. **Action**: The Widget processes the input via `handle_input()` or `handle_mouse()` and returns a `WidgetResult::Action` (e.g., `AppAction::Code`).
-4. **Execution**: The action is converted into a `Command` (e.g., `SetBlockType`), pushed to the `UndoStack`, and applied to `AppState`.
-5. **Update**: `AppState` modifies the data (e.g., updates `BlockType` array).
-6. **Analysis**: The change triggers [`analyzer.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/analyzer.rs) to re-scan the code.
-7. **Disassembly**: `AppState` calls `Disassembler::disassemble()` to regenerate the cached `DisassemblyLine`s.
-8. **Synchronization**: [`events.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/events.rs) synchronizes view states (e.g., if hex dump sync is enabled, the hex cursor follows the disassembly cursor).
-9. **Render**: The main loop calls `ui::draw()`, which asks every visible `Widget` to render itself based on the new `AppState`.
+2. **Dispatch**: [`events/input.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/events/input.rs) routes the input to the active `Widget`.
+3. **Action**: The Widget processes the input and returns an `AppAction` (e.g., `AppAction::Code`).
+4. **Core Application**: The TUI calls `Core::apply_action(action)`.
+5. **Execution**: `Core` converts the action into a `Command` (e.g., `SetBlockType`), pushes to the `UndoStack`, and applies it to `AppState`.
+6. **Side Effects**: `Core` executes the logic, potentially triggering [`analyzer.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/src/analyzer.rs) or regenerating the disassembly.
+7. **Events**: `Core::apply_action` returns a list of `CoreEvent`s (e.g., `StateChanged`, `DialogRequested`).
+8. **UI Sync**: The TUI processes these events, updating `UIState` (opening dialogs, syncing cursors, setting status messages).
+9. **Render**: The main loop calls `ui::draw()`, which renders the TUI from the updated `AppState` and `UIState`.
 
 ## Persistence
 
