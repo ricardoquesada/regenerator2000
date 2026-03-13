@@ -26,6 +26,32 @@ impl Core {
     pub fn apply_action(&mut self, action: AppAction) -> Vec<CoreEvent> {
         let mut events = Vec::new();
 
+        // Check for unsaved changes on destructive actions
+        if action.is_destructive() && self.state.is_dirty() {
+            events.push(CoreEvent::DialogRequested(
+                crate::event::DialogType::Confirmation {
+                    title: "Unsaved Changes".to_string(),
+                    message: "You have unsaved changes. Proceed anyway?".to_string(),
+                    action,
+                },
+            ));
+            return events;
+        }
+
+        if action.requires_document() && self.state.raw_data.is_empty() {
+            events.push(CoreEvent::StatusMessage("No open document".to_string()));
+            return events;
+        }
+
+        if action == AppAction::FindReferences
+            && self.view.active_pane != crate::view_state::ActivePane::Disassembly
+        {
+            events.push(CoreEvent::StatusMessage(
+                "Action only available in Disassembly View".to_string(),
+            ));
+            return events;
+        }
+
         match action {
             AppAction::Exit => {
                 events.push(CoreEvent::QuitRequested);
@@ -67,9 +93,25 @@ impl Core {
                 events.push(CoreEvent::StatusMessage("Document Settings".to_string()));
             }
             AppAction::Analyze => {
+                let current_addr = self
+                    .state
+                    .disassembly
+                    .get(self.view.cursor_index)
+                    .map(|l| l.address);
+
                 let msg = self.state.perform_analysis();
+
+                if let Some(addr) = current_addr {
+                    if let Some(idx) = self.state.get_line_index_containing_address(addr) {
+                        self.view.cursor_index = idx;
+                    } else if let Some(idx) = self.state.get_line_index_for_address(addr) {
+                        self.view.cursor_index = idx;
+                    }
+                }
+
                 events.push(CoreEvent::StatusMessage(msg));
                 events.push(CoreEvent::StateChanged);
+                events.push(CoreEvent::ViewChanged);
             }
             AppAction::Undo => {
                 let msg = self.state.undo_last_command();
@@ -222,56 +264,9 @@ impl Core {
             AppAction::Undefined => {
                 self.apply_block_type(crate::state::BlockType::Undefined, &mut events);
             }
-            AppAction::SetLabel => {
-                if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
-                    let mut target_addr = line.address;
-                    let mut current_sub_index = 0;
-                    let mut found = false;
-
-                    if line.bytes.is_empty() {
-                        if let Some(addr) = line.external_label_address {
-                            target_addr = addr;
-                        } else {
-                            // Header or empty line -> ignore
-                            return events;
-                        }
-                    } else if line.bytes.len() > 1 {
-                        for offset in 1..line.bytes.len() {
-                            let mid_addr = line.address.wrapping_add(offset as u16);
-                            if let Some(labels) = self.state.labels.get(&mid_addr) {
-                                for _ in labels {
-                                    if current_sub_index == self.view.sub_cursor_index {
-                                        target_addr = mid_addr;
-                                        found = true;
-                                        break;
-                                    }
-                                    current_sub_index += 1;
-                                }
-                            }
-                            if found {
-                                break;
-                            }
-                        }
-                    }
-
-                    let initial_name = self
-                        .state
-                        .labels
-                        .get(&target_addr)
-                        .and_then(|v| v.first())
-                        .map(|l| l.name.clone())
-                        .unwrap_or_default();
-
-                    events.push(CoreEvent::DialogRequested(
-                        crate::event::DialogType::Label {
-                            address: target_addr,
-                            initial_name,
-                            is_external: self.state.is_external(target_addr),
-                        },
-                    ));
-                    events.push(CoreEvent::StatusMessage("Enter Label".to_string()));
-                }
-            }
+            AppAction::SetLabel => self.handle_set_label(&mut events),
+            AppAction::PackLoHiAddress => self.handle_lo_hi_packing(true, &mut events),
+            AppAction::PackHiLoAddress => self.handle_lo_hi_packing(false, &mut events),
             AppAction::SetLoHiAddress => {
                 self.apply_block_type(crate::state::BlockType::LoHiAddress, &mut events);
             }
@@ -380,12 +375,16 @@ impl Core {
                 ));
             }
             AppAction::ExportProject => {
-                if let Some(_path) = &self.state.export_path {
-                    // Note: Exporter might need to be in core too
-                    // For now, if we can't do it here, we'll emit an event for the frontend to do it.
-                    events.push(CoreEvent::StatusMessage("Exporting...".to_string()));
-                    // Let's assume for now the frontend handles actual export if we emit a certain event
-                    // or we move exporter to core.
+                if let Some(path) = self.state.export_path.clone() {
+                    match crate::exporter::export_asm(&self.state, &path) {
+                        Ok(_) => {
+                            let filename = path.file_name().unwrap_or_default().to_string_lossy();
+                            events.push(CoreEvent::StatusMessage(format!("Exported: {filename}")));
+                        }
+                        Err(e) => {
+                            events.push(CoreEvent::StatusMessage(format!("Error exporting: {e}")));
+                        }
+                    }
                 } else {
                     let initial = self
                         .state
@@ -647,8 +646,13 @@ impl Core {
                 }
             }
             AppAction::ViceBreakpointDialog => {
+                let prefill = self
+                    .state
+                    .disassembly
+                    .get(self.view.cursor_index)
+                    .map(|l| l.address.0);
                 events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::BreakpointAddress(None),
+                    crate::event::DialogType::BreakpointAddress(prefill),
                 ));
             }
             AppAction::ViceSetBreakpointAt { address } => {
@@ -657,8 +661,13 @@ impl Core {
                 }
             }
             AppAction::ViceToggleWatchpoint => {
+                let prefill = self
+                    .state
+                    .disassembly
+                    .get(self.view.cursor_index)
+                    .map(|l| l.address.0);
                 events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::WatchpointAddress(None),
+                    crate::event::DialogType::WatchpointAddress(prefill),
                 ));
             }
             AppAction::ViceSetWatchpoint { address, kind } => {
@@ -819,6 +828,38 @@ impl Core {
                 kind,
             } => {
                 self.handle_apply_comment(address, text, kind, &mut events);
+            }
+            AppAction::CyclePane => {
+                use crate::view_state::ActivePane;
+                self.view.active_pane = match self.view.active_pane {
+                    ActivePane::Disassembly => match self.view.right_pane {
+                        crate::view_state::RightPane::None => ActivePane::Disassembly,
+                        crate::view_state::RightPane::HexDump => ActivePane::HexDump,
+                        crate::view_state::RightPane::Sprites => ActivePane::Sprites,
+                        crate::view_state::RightPane::Charset => ActivePane::Charset,
+                        crate::view_state::RightPane::Bitmap => ActivePane::Bitmap,
+                        crate::view_state::RightPane::Blocks => ActivePane::Blocks,
+                        crate::view_state::RightPane::Debugger => ActivePane::Debugger,
+                    },
+                    ActivePane::HexDump
+                    | ActivePane::Sprites
+                    | ActivePane::Charset
+                    | ActivePane::Bitmap
+                    | ActivePane::Blocks
+                    | ActivePane::Debugger => ActivePane::Disassembly,
+                };
+                events.push(CoreEvent::ViewChanged);
+            }
+            AppAction::Cancel => {
+                if self.view.is_visual_mode {
+                    self.view.is_visual_mode = false;
+                    self.view.selection_start = None;
+                    events.push(CoreEvent::StatusMessage("Visual Mode Exited".to_string()));
+                } else if self.view.selection_start.is_some() {
+                    self.view.selection_start = None;
+                    events.push(CoreEvent::StatusMessage("Selection cleared".to_string()));
+                }
+                events.push(CoreEvent::ViewChanged);
             }
             _ => {}
         }
@@ -1260,6 +1301,200 @@ impl Core {
         path.file_stem()
             .and_then(|s| s.to_str())
             .map(std::string::ToString::to_string)
+    }
+
+    fn handle_set_label(&mut self, events: &mut Vec<CoreEvent>) {
+        if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
+            let mut target_addr = line.address;
+            let mut current_sub_index = 0;
+            let mut found = false;
+
+            if line.bytes.is_empty() {
+                if let Some(addr) = line.external_label_address {
+                    target_addr = addr;
+                } else {
+                    return;
+                }
+            } else if line.bytes.len() > 1 {
+                for offset in 1..line.bytes.len() {
+                    let mid_addr = line.address.wrapping_add(offset as u16);
+                    if let Some(labels) = self.state.labels.get(&mid_addr) {
+                        for _ in labels {
+                            if current_sub_index == self.view.sub_cursor_index {
+                                target_addr = mid_addr;
+                                found = true;
+                                break;
+                            }
+                            current_sub_index += 1;
+                        }
+                    }
+                    if found {
+                        break;
+                    }
+                }
+            }
+
+            let initial_name = self
+                .state
+                .labels
+                .get(&target_addr)
+                .and_then(|v| v.first())
+                .map(|l| l.name.clone())
+                .unwrap_or_default();
+
+            events.push(CoreEvent::DialogRequested(
+                crate::event::DialogType::Label {
+                    address: target_addr,
+                    initial_name,
+                    is_external: self.state.is_external(target_addr),
+                },
+            ));
+            events.push(CoreEvent::StatusMessage("Enter Label".to_string()));
+        }
+    }
+
+    fn handle_lo_hi_packing(&mut self, lo_first: bool, events: &mut Vec<CoreEvent>) {
+        let mut indices = Vec::new();
+        if let Some(start) = self.view.selection_start {
+            let end = self.view.cursor_index;
+            let (low, high) = if start < end {
+                (start, end)
+            } else {
+                (end, start)
+            };
+            for i in low..=high {
+                indices.push(i);
+            }
+        } else {
+            indices.push(self.view.cursor_index);
+        }
+
+        if indices.len() == 1 {
+            let idx = indices[0];
+            if idx + 1 < self.state.disassembly.len() {
+                indices.push(idx + 1);
+            }
+        }
+
+        let mut batch_commands = Vec::new();
+        let mut i = 0;
+        let mut last_target = 0;
+
+        while i < indices.len() {
+            let idx1 = indices[i];
+            let val1 = self.state.disassembly.get(idx1).and_then(|l| {
+                if let Some(op) = &l.opcode
+                    && op.mode == crate::cpu::AddressingMode::Immediate
+                    && matches!(op.mnemonic, "LDA" | "LDX" | "LDY")
+                {
+                    l.bytes.get(1).copied()
+                } else {
+                    None
+                }
+            });
+
+            if let Some(v1) = val1 {
+                let mut j = i + 1;
+                let mut found_match = None;
+                while j < indices.len() {
+                    let idx2 = indices[j];
+                    let val2 = self.state.disassembly.get(idx2).and_then(|l| {
+                        if let Some(op) = &l.opcode
+                            && op.mode == crate::cpu::AddressingMode::Immediate
+                            && matches!(op.mnemonic, "LDA" | "LDX" | "LDY")
+                        {
+                            l.bytes.get(1).copied()
+                        } else {
+                            None
+                        }
+                    });
+                    if let Some(v2) = val2 {
+                        found_match = Some((j, idx2, v2));
+                        break;
+                    }
+                    j += 1;
+                }
+
+                if let Some((match_idx, idx2, v2)) = found_match {
+                    let (lo, hi) = if lo_first { (v1, v2) } else { (v2, v1) };
+                    let target = (u16::from(hi) << 8) | u16::from(lo);
+                    last_target = target;
+
+                    let addr1 = self.state.disassembly[idx1].address;
+                    let addr2 = self.state.disassembly[idx2].address;
+
+                    let fmt1 = if lo_first {
+                        crate::state::ImmediateFormat::LowByte(crate::state::Addr(target))
+                    } else {
+                        crate::state::ImmediateFormat::HighByte(crate::state::Addr(target))
+                    };
+                    let fmt2 = if lo_first {
+                        crate::state::ImmediateFormat::HighByte(crate::state::Addr(target))
+                    } else {
+                        crate::state::ImmediateFormat::LowByte(crate::state::Addr(target))
+                    };
+
+                    batch_commands.push(crate::commands::Command::SetImmediateFormat {
+                        address: addr1,
+                        new_format: Some(fmt1),
+                        old_format: self.state.immediate_value_formats.get(&addr1).copied(),
+                    });
+                    batch_commands.push(crate::commands::Command::SetImmediateFormat {
+                        address: addr2,
+                        new_format: Some(fmt2),
+                        old_format: self.state.immediate_value_formats.get(&addr2).copied(),
+                    });
+
+                    i = match_idx + 1;
+                } else {
+                    i += 1;
+                }
+            } else {
+                i += 1;
+            }
+        }
+
+        if !batch_commands.is_empty() {
+            let batch = crate::commands::Command::Batch(batch_commands);
+            batch.apply(&mut self.state);
+            self.state.push_command(batch);
+
+            let result = crate::analyzer::analyze(&self.state);
+            self.state.labels = result.labels;
+            self.state.cross_refs = result.cross_refs;
+            self.state.disassemble();
+
+            self.view.selection_start = None;
+            self.view.is_visual_mode = false;
+
+            events.push(CoreEvent::StatusMessage(format!(
+                "Packed Lo/Hi address for ${last_target:04X}"
+            )));
+            events.push(CoreEvent::StateChanged);
+            events.push(CoreEvent::ViewChanged);
+        } else if self.view.selection_start.is_none() {
+            let idx = self.view.cursor_index;
+            // No pairs found, but if this is a single selection with an immediate instruction,
+            // show dialog to complete the address
+            if let Some(line) = self.state.disassembly.get(idx)
+                && let Some(op) = &line.opcode
+                && op.mode == crate::cpu::AddressingMode::Immediate
+                && matches!(op.mnemonic, "LDA" | "LDX" | "LDY")
+                && let Some(known_byte) = line.bytes.get(1).copied()
+            {
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::CompleteAddress {
+                        known_byte,
+                        lo_first,
+                        address: line.address,
+                    },
+                ));
+            } else {
+                events.push(CoreEvent::StatusMessage("No Lo/Hi pairs found".to_string()));
+            }
+        } else {
+            events.push(CoreEvent::StatusMessage("No Lo/Hi pairs found".to_string()));
+        }
     }
 }
 

@@ -96,6 +96,8 @@ pub enum AppAction {
         text: String,
         kind: super::types::CommentKind,
     },
+    CyclePane,
+    Cancel,
 }
 
 impl AppAction {
@@ -119,6 +121,15 @@ impl AppAction {
                 | AppAction::ViceBreakpointDialog
                 | AppAction::ViceSetBreakpointAt { .. }
                 | AppAction::ViceToggleWatchpoint
+        )
+    }
+
+    /// Whether this action should check for unsaved changes before proceeding.
+    #[must_use]
+    pub fn is_destructive(&self) -> bool {
+        matches!(
+            self,
+            AppAction::Exit | AppAction::Open | AppAction::OpenRecent
         )
     }
 

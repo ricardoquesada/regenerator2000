@@ -1,4 +1,4 @@
-use crate::ui_state::{ActivePane, UIState};
+use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use regenerator_core::Core;
 
@@ -306,34 +306,11 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
             handle_menu_action(core, ui_state, crate::state::actions::AppAction::JumpToLine);
         }
         KeyCode::Tab => {
-            ui_state.active_pane = match ui_state.active_pane {
-                ActivePane::Disassembly => match ui_state.right_pane {
-                    crate::ui_state::RightPane::None => ActivePane::Disassembly,
-                    crate::ui_state::RightPane::HexDump => ActivePane::HexDump,
-                    crate::ui_state::RightPane::Sprites => ActivePane::Sprites,
-                    crate::ui_state::RightPane::Charset => ActivePane::Charset,
-                    crate::ui_state::RightPane::Bitmap => ActivePane::Bitmap,
-                    crate::ui_state::RightPane::Blocks => ActivePane::Blocks,
-                    crate::ui_state::RightPane::Debugger => ActivePane::Debugger,
-                },
-                ActivePane::HexDump
-                | ActivePane::Sprites
-                | ActivePane::Charset
-                | ActivePane::Bitmap
-                | ActivePane::Blocks
-                | ActivePane::Debugger => ActivePane::Disassembly,
-            };
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::CyclePane);
         }
         KeyCode::Esc => {
             ui_state.input_buffer.clear();
-            if ui_state.is_visual_mode {
-                ui_state.is_visual_mode = false;
-                ui_state.selection_start = None;
-                ui_state.set_status_message("Visual Mode Exited");
-            } else if ui_state.selection_start.is_some() {
-                ui_state.selection_start = None;
-                ui_state.set_status_message("Selection cleared");
-            }
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Cancel);
         }
         _ => {}
     }

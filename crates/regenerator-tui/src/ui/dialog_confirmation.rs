@@ -1,6 +1,5 @@
 use crate::state::AppState;
 use crate::state::actions::AppAction;
-use crate::ui::menu::execute_menu_action;
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
@@ -72,7 +71,7 @@ impl Widget for ConfirmationDialog {
     fn handle_input(
         &mut self,
         key: KeyEvent,
-        app_state: &mut AppState,
+        _app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
         match key.code {
@@ -80,16 +79,7 @@ impl Widget for ConfirmationDialog {
                 ui_state.set_status_message("Action cancelled");
                 WidgetResult::Close
             }
-            KeyCode::Enter | KeyCode::Char('y') => {
-                // We need to clone the action because we can't move out of self in handle_input
-                // But AppAction should be Clone (it's an enum of simple types/strings?)
-                // Let's assume AppAction is Clone. If not I need to make it Clone.
-                // Or I can use Option<AppAction> in struct and take() it.
-                // But handle_input takes &mut self.
-                // I will use Option in struct for safety.
-                execute_menu_action(app_state, ui_state, self.action.clone());
-                WidgetResult::Close
-            }
+            KeyCode::Enter | KeyCode::Char('y') => WidgetResult::Action(self.action.clone()),
             _ => WidgetResult::Handled,
         }
     }

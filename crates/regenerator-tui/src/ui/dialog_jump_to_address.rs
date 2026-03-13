@@ -70,18 +70,15 @@ impl Widget for JumpToAddressDialog {
             KeyCode::Enter => {
                 let input = self.input.clone();
                 if let Ok(target_addr) = u16::from_str_radix(&input, 16) {
-                    // Navigate manually and close
-                    crate::ui::menu::execute_menu_action(
-                        _app_state,
-                        ui_state,
-                        crate::state::actions::AppAction::NavigateToAddress(crate::state::Addr(
-                            target_addr,
-                        )),
-                    );
-                } else if !input.is_empty() {
-                    ui_state.set_status_message("Invalid Hex Address");
+                    WidgetResult::Action(crate::state::actions::AppAction::NavigateToAddress(
+                        crate::state::Addr(target_addr),
+                    ))
+                } else {
+                    if !input.is_empty() {
+                        ui_state.set_status_message("Invalid Hex Address");
+                    }
+                    WidgetResult::Close
                 }
-                WidgetResult::Close
             }
             KeyCode::Backspace => {
                 self.input.pop();

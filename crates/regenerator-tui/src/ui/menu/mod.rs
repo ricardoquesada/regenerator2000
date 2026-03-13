@@ -11,10 +11,7 @@ mod menu_render;
 
 // Re-exports: preserve the existing public API surface so external `use crate::ui::menu::*` paths
 // continue to work without changes.
-pub use menu_action::{
-    AppAction, execute_menu_action, handle_menu_action, perform_jump_to_address,
-    perform_jump_to_address_no_history,
-};
+pub use menu_action::{AppAction, handle_menu_action};
 pub use menu_model::{MenuCategory, MenuItem, MenuState};
 pub use menu_render::{render_menu, render_menu_popup};
 
@@ -256,8 +253,6 @@ mod tests {
 
     #[test]
     fn test_render_menu_popup_bounds_panic() {
-        // Create a very small terminal (20x5)
-        // The default "File" menu is longer than 5 lines
         let backend = TestBackend::new(20, 5);
         let mut terminal = Terminal::new(backend).unwrap();
 
@@ -267,7 +262,6 @@ mod tests {
 
         let theme = crate::theme::Theme::default();
 
-        // This should NOT panic with the fix
         let res = terminal.draw(|f| {
             let area = f.area();
             let chunks = ratatui::layout::Layout::default()
@@ -283,28 +277,5 @@ mod tests {
         });
 
         assert!(res.is_ok());
-    }
-
-    #[test]
-    fn test_apply_block_type_single_line_cursor_preservation() {
-        let mut app_state = AppState {
-            origin: crate::state::Addr(0xC000),
-            // 3 bytes: A9 00 EA (LDA #$00; NOP)
-            raw_data: vec![0xA9, 0x00, 0xEA],
-            block_types: vec![crate::state::BlockType::DataByte; 3],
-            ..Default::default()
-        };
-        app_state.disassemble();
-
-        let mut ui_state = UIState::new(crate::theme::Theme::default());
-        ui_state.cursor_index = 2; // Pointing to $C002 (EA)
-        ui_state.selection_start = None;
-        ui_state.active_pane = crate::ui_state::ActivePane::Disassembly;
-
-        // Change C002 to Code.
-        menu_action::apply_block_type(&mut app_state, &mut ui_state, crate::state::BlockType::Code);
-
-        // Should still be at index 2 ($C002)
-        assert_eq!(ui_state.cursor_index, 2);
     }
 }

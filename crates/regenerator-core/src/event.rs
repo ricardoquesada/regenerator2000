@@ -65,4 +65,9 @@ pub enum DialogType {
     Settings,
     ViceConnect,
     WatchpointAddress(Option<u16>),
+    CompleteAddress {
+        known_byte: u8,
+        lo_first: bool,
+        address: Addr,
+    },
 }

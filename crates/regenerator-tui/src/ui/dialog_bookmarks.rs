@@ -159,8 +159,9 @@ impl Widget for BookmarksDialog {
             KeyCode::Enter => {
                 if let Some(i) = ui_state.bookmarks_list_state.selected() {
                     if let Some(&addr) = bookmarks.get(i) {
-                        crate::ui::menu::perform_jump_to_address(app_state, ui_state, addr);
-                        WidgetResult::Close
+                        WidgetResult::Action(crate::state::actions::AppAction::NavigateToAddress(
+                            addr,
+                        ))
                     } else {
                         WidgetResult::Handled
                     }

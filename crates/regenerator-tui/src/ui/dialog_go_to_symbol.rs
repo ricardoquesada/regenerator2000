@@ -162,21 +162,18 @@ impl Widget for GoToSymbolDialog {
         &mut self,
         key: KeyEvent,
         _app_state: &mut AppState,
-        ui_state: &mut UIState,
+        _ui_state: &mut UIState,
     ) -> WidgetResult {
         match key.code {
             KeyCode::Esc => WidgetResult::Close,
             KeyCode::Enter => {
                 if let Some((addr, _)) = self.filtered_symbols.get(self.selected_index) {
-                    crate::ui::menu::execute_menu_action(
-                        _app_state,
-                        ui_state,
-                        crate::state::actions::AppAction::NavigateToAddress(crate::state::Addr(
-                            *addr,
-                        )),
-                    );
+                    WidgetResult::Action(crate::state::actions::AppAction::NavigateToAddress(
+                        crate::state::Addr(*addr),
+                    ))
+                } else {
+                    WidgetResult::Close
                 }
-                WidgetResult::Close
             }
             KeyCode::Char(c) => {
                 self.input.push(c);
