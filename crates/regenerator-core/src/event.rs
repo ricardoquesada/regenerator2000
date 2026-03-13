@@ -2,6 +2,7 @@
 
 use crate::state::Addr;
 use crate::state::actions::AppAction;
+pub use crate::state::types::CommentKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CoreEvent {
@@ -64,10 +65,4 @@ pub enum DialogType {
     Settings,
     ViceConnect,
     WatchpointAddress(Option<u16>),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CommentKind {
-    Side,
-    Line,
 }

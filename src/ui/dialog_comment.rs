@@ -23,18 +23,19 @@ pub enum CommentType {
 pub struct CommentDialog {
     pub textarea: TextArea<'static>,
     pub comment_type: CommentType,
+    pub address: crate::state::Addr,
 }
 
 impl CommentDialog {
     #[must_use]
-    pub fn new(current_comment: Option<&str>, comment_type: CommentType) -> Self {
+    pub fn new(
+        current_comment: Option<&str>,
+        comment_type: CommentType,
+        address: crate::state::Addr,
+    ) -> Self {
         let textarea = if let Some(comment) = current_comment {
             let mut t = TextArea::from(comment.lines());
-            // For existing comments, we assume user wants to edit them as is.
-            // If it was single line, lines() works.
-            // If empty string, lines() is empty, TextArea becomes empty.
             if comment.is_empty() {
-                // Fallback to default logic if actually empty string passed (rare)
                 Self::create_default_textarea(&comment_type)
             } else {
                 t.move_cursor(CursorMove::Bottom);
@@ -48,6 +49,7 @@ impl CommentDialog {
         Self {
             textarea,
             comment_type,
+            address,
         }
     }
 
@@ -176,7 +178,7 @@ impl Widget for CommentDialog {
     fn handle_input(
         &mut self,
         key: KeyEvent,
-        app_state: &mut AppState,
+        _app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
         match key.code {
@@ -192,50 +194,22 @@ impl Widget for CommentDialog {
                         self.textarea.insert_newline();
                     }
                     WidgetResult::Handled
-                } else if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                    let address = line.external_label_address.unwrap_or(line.address);
-
+                } else {
                     let lines = self.textarea.lines();
-                    // Join with newline for Line comments, space for Side comments
                     let full_comment = match self.comment_type {
                         CommentType::Line => lines.join("\n"),
                         CommentType::Side => lines.join(" "),
                     };
-                    let new_comment = full_comment.trim().to_string();
-
-                    let new_comment_opt = if new_comment.is_empty() {
-                        None
-                    } else {
-                        Some(new_comment)
+                    let kind = match self.comment_type {
+                        CommentType::Side => crate::state::types::CommentKind::Side,
+                        CommentType::Line => crate::state::types::CommentKind::Line,
                     };
 
-                    let command = match self.comment_type {
-                        CommentType::Side => {
-                            let old_comment = app_state.user_side_comments.get(&address).cloned();
-                            crate::commands::Command::SetUserSideComment {
-                                address,
-                                new_comment: new_comment_opt,
-                                old_comment,
-                            }
-                        }
-                        CommentType::Line => {
-                            let old_comment = app_state.user_line_comments.get(&address).cloned();
-                            crate::commands::Command::SetUserLineComment {
-                                address,
-                                new_comment: new_comment_opt,
-                                old_comment,
-                            }
-                        }
-                    };
-
-                    command.apply(app_state);
-                    app_state.push_command(command);
-
-                    ui_state.set_status_message("Comment set");
-                    app_state.disassemble();
-                    WidgetResult::Close
-                } else {
-                    WidgetResult::Handled
+                    WidgetResult::Action(crate::state::actions::AppAction::ApplyComment {
+                        address: self.address,
+                        text: full_comment,
+                        kind,
+                    })
                 }
             }
             // Separator shortcuts (only in multi-line / Line comment mode)
@@ -294,7 +268,8 @@ mod tests {
     #[test]
     fn test_cursor_position_at_end() {
         let comment = "Hello\nWorld";
-        let dialog = CommentDialog::new(Some(comment), CommentType::Side);
+        let dialog =
+            CommentDialog::new(Some(comment), CommentType::Side, crate::state::Addr(0x1000));
         let cursor = dialog.textarea.cursor();
         // cursor is (row, col)
         // Rows are 0-indexed. Hello is row 0. World is row 1.
@@ -305,14 +280,15 @@ mod tests {
     #[test]
     fn test_cursor_position_single_line() {
         let comment = "Hello";
-        let dialog = CommentDialog::new(Some(comment), CommentType::Side);
+        let dialog =
+            CommentDialog::new(Some(comment), CommentType::Side, crate::state::Addr(0x1000));
         let cursor = dialog.textarea.cursor();
         assert_eq!(cursor, (0, 5));
     }
 
     #[test]
     fn test_cursor_position_default_line_comment() {
-        let dialog = CommentDialog::new(None, CommentType::Line);
+        let dialog = CommentDialog::new(None, CommentType::Line, crate::state::Addr(0x1000));
         let cursor = dialog.textarea.cursor();
         // Dialog now starts empty; cursor should be at (0, 0).
         assert_eq!(cursor, (0, 0));
@@ -320,7 +296,7 @@ mod tests {
 
     #[test]
     fn test_insert_separator_dashes() {
-        let mut dialog = CommentDialog::new(None, CommentType::Line);
+        let mut dialog = CommentDialog::new(None, CommentType::Line, crate::state::Addr(0x1000));
         dialog.insert_separator(&"-".repeat(SEPARATOR_LEN));
         let lines = dialog.textarea.lines();
         // Last line is empty (cursor row). Second-to-last is the separator.
@@ -333,7 +309,7 @@ mod tests {
 
     #[test]
     fn test_insert_separator_equals() {
-        let mut dialog = CommentDialog::new(None, CommentType::Line);
+        let mut dialog = CommentDialog::new(None, CommentType::Line, crate::state::Addr(0x1000));
         dialog.insert_separator(&"=".repeat(SEPARATOR_LEN));
         let lines = dialog.textarea.lines();
         let sep_line = &lines[lines.len() - 2];

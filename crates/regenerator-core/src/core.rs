@@ -1,6 +1,6 @@
 use crate::event::CoreEvent;
-use crate::state::AppState;
 use crate::state::actions::AppAction;
+use crate::state::{Addr, AppState};
 use crate::view_state::CoreViewState;
 
 /// The central engine of Regenerator 2000.
@@ -247,38 +247,6 @@ impl Core {
             AppAction::SetHiLoWord => {
                 self.apply_block_type(crate::state::BlockType::HiLoWord, &mut events);
             }
-            AppAction::SideComment => {
-                if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
-                    let address = line.address;
-                    let current = self.state.user_side_comments.get(&address).cloned();
-                    events.push(CoreEvent::DialogRequested(
-                        crate::event::DialogType::Comment {
-                            address,
-                            current,
-                            kind: crate::event::CommentKind::Side,
-                        },
-                    ));
-                    events.push(CoreEvent::StatusMessage(format!(
-                        "Edit Side Comment at ${address:04X}"
-                    )));
-                }
-            }
-            AppAction::LineComment => {
-                if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
-                    let address = line.address;
-                    let current = self.state.user_line_comments.get(&address).cloned();
-                    events.push(CoreEvent::DialogRequested(
-                        crate::event::DialogType::Comment {
-                            address,
-                            current,
-                            kind: crate::event::CommentKind::Line,
-                        },
-                    ));
-                    events.push(CoreEvent::StatusMessage(format!(
-                        "Edit Line Comment at ${address:04X}"
-                    )));
-                }
-            }
             AppAction::ToggleSplitter => {
                 use crate::view_state::ActivePane;
                 if self.view.active_pane == ActivePane::Blocks {
@@ -453,7 +421,48 @@ impl Core {
                     events.push(CoreEvent::ViewChanged);
                 }
             }
-            // Add more as needed...
+            AppAction::SideComment => {
+                if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
+                    let address = line.address;
+                    let current = self.state.user_side_comments.get(&address).cloned();
+                    events.push(CoreEvent::DialogRequested(
+                        crate::event::DialogType::Comment {
+                            address,
+                            current,
+                            kind: crate::state::types::CommentKind::Side,
+                        },
+                    ));
+                    events.push(CoreEvent::StatusMessage(format!(
+                        "Edit Side Comment at ${address:04X}"
+                    )));
+                }
+            }
+            AppAction::LineComment => {
+                if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
+                    let address = line.address;
+                    let current = self.state.user_line_comments.get(&address).cloned();
+                    events.push(CoreEvent::DialogRequested(
+                        crate::event::DialogType::Comment {
+                            address,
+                            current,
+                            kind: crate::state::types::CommentKind::Line,
+                        },
+                    ));
+                    events.push(CoreEvent::StatusMessage(format!(
+                        "Edit Line Comment at ${address:04X}"
+                    )));
+                }
+            }
+            AppAction::ApplyLabel { address, name } => {
+                self.handle_apply_label(address, name, &mut events);
+            }
+            AppAction::ApplyComment {
+                address,
+                text,
+                kind,
+            } => {
+                self.handle_apply_comment(address, text, kind, &mut events);
+            }
             _ => {}
         }
 
@@ -787,6 +796,104 @@ impl Core {
         }
     }
 
+    fn handle_apply_label(&mut self, address: Addr, name: String, events: &mut Vec<CoreEvent>) {
+        let label_name = name.trim().to_string();
+
+        let old_label_vec = self.state.labels.get(&address).cloned();
+
+        if label_name.is_empty() {
+            let command = crate::commands::Command::SetLabel {
+                address,
+                new_label: None,
+                old_label: old_label_vec,
+            };
+            command.apply(&mut self.state);
+            self.state.push_command(command);
+            events.push(CoreEvent::StatusMessage("Label removed".to_string()));
+        } else {
+            let exists = self.state.labels.iter().any(|(addr, label_vec)| {
+                *addr != address && label_vec.iter().any(|l| l.name == label_name)
+            });
+
+            if exists {
+                events.push(CoreEvent::StatusMessage(format!(
+                    "Error: Label '{label_name}' already exists"
+                )));
+                return;
+            }
+
+            let mut new_label_vec = old_label_vec.clone().unwrap_or_default();
+            let new_label_entry = crate::state::Label {
+                name: label_name,
+                kind: crate::state::LabelKind::User,
+                label_type: crate::state::LabelType::UserDefined,
+            };
+
+            if new_label_vec.is_empty() {
+                new_label_vec.push(new_label_entry);
+            } else {
+                new_label_vec[0] = new_label_entry;
+            }
+
+            let command = crate::commands::Command::SetLabel {
+                address,
+                new_label: Some(new_label_vec),
+                old_label: old_label_vec,
+            };
+            command.apply(&mut self.state);
+            self.state.push_command(command);
+            events.push(CoreEvent::StatusMessage("Label set".to_string()));
+        }
+
+        // Trigger re-disassembly as it might have changed labels in the view
+        self.state.disassemble();
+        events.push(CoreEvent::StateChanged);
+        events.push(CoreEvent::ViewChanged);
+        events.push(CoreEvent::DialogDismissalRequested);
+    }
+
+    fn handle_apply_comment(
+        &mut self,
+        address: Addr,
+        text: String,
+        kind: crate::state::types::CommentKind,
+        events: &mut Vec<CoreEvent>,
+    ) {
+        let new_text = text.trim().to_string();
+        let new_comment_opt = if new_text.is_empty() {
+            None
+        } else {
+            Some(new_text)
+        };
+
+        let command = match kind {
+            crate::state::types::CommentKind::Side => {
+                let old_comment = self.state.user_side_comments.get(&address).cloned();
+                crate::commands::Command::SetUserSideComment {
+                    address,
+                    new_comment: new_comment_opt,
+                    old_comment,
+                }
+            }
+            crate::state::types::CommentKind::Line => {
+                let old_comment = self.state.user_line_comments.get(&address).cloned();
+                crate::commands::Command::SetUserLineComment {
+                    address,
+                    new_comment: new_comment_opt,
+                    old_comment,
+                }
+            }
+        };
+
+        command.apply(&mut self.state);
+        self.state.push_command(command);
+
+        events.push(CoreEvent::StatusMessage("Comment set".to_string()));
+        self.state.disassemble();
+        events.push(CoreEvent::StateChanged);
+        events.push(CoreEvent::ViewChanged);
+        events.push(CoreEvent::DialogDismissalRequested);
+    }
     pub fn get_default_filename_stem(&self) -> Option<String> {
         let path = self
             .state

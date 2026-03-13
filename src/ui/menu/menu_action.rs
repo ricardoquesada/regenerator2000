@@ -225,7 +225,7 @@ pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAc
                         ));
                     }
                     DialogType::Comment {
-                        address: _,
+                        address,
                         current,
                         kind,
                     } => {
@@ -237,6 +237,7 @@ pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAc
                             Some(Box::new(crate::ui::dialog_comment::CommentDialog::new(
                                 current.as_deref(),
                                 dialog_kind,
+                                address,
                             )));
                     }
                     DialogType::Confirmation {
@@ -899,35 +900,8 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
         AppAction::SetHiLoWord => {
             apply_block_type(app_state, ui_state, crate::state::BlockType::HiLoWord);
         }
-        AppAction::SideComment => {
-            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                let address = line.address;
-                let current_comment = app_state
-                    .user_side_comments
-                    .get(&address)
-                    .map(std::string::String::as_str);
-                ui_state.active_dialog =
-                    Some(Box::new(crate::ui::dialog_comment::CommentDialog::new(
-                        current_comment,
-                        crate::ui::dialog_comment::CommentType::Side,
-                    )));
-                ui_state.set_status_message(format!("Edit Side Comment at ${address:04X}"));
-            }
-        }
-        AppAction::LineComment => {
-            if let Some(line) = app_state.disassembly.get(ui_state.cursor_index) {
-                let address = line.address;
-                let current_comment = app_state
-                    .user_line_comments
-                    .get(&address)
-                    .map(std::string::String::as_str);
-                ui_state.active_dialog =
-                    Some(Box::new(crate::ui::dialog_comment::CommentDialog::new(
-                        current_comment,
-                        crate::ui::dialog_comment::CommentType::Line,
-                    )));
-                ui_state.set_status_message(format!("Edit Line Comment at ${address:04X}"));
-            }
+        AppAction::SideComment | AppAction::LineComment => {
+            // Handled in handle_menu_action via core.apply_action
         }
         AppAction::ToggleHexDump => {
             if ui_state.right_pane == crate::ui_state::RightPane::HexDump {
@@ -1457,6 +1431,9 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
                     ui_state.set_status_message("No block found at cursor");
                 }
             }
+        }
+        _ => {
+            // Unhandled actions
         }
     }
 }

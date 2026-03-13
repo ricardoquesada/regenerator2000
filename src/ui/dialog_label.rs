@@ -48,7 +48,7 @@ impl Widget for LabelDialog {
     fn handle_input(
         &mut self,
         key: KeyEvent,
-        app_state: &mut AppState,
+        _app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
         match key.code {
@@ -56,99 +56,10 @@ impl Widget for LabelDialog {
                 ui_state.set_status_message("Ready");
                 WidgetResult::Close
             }
-            KeyCode::Enter => {
-                let address = self.address;
-                let label_name = self.input.trim().to_string();
-
-                if label_name.is_empty() {
-                    // Remove label
-                    let old_label = app_state.labels.get(&address).cloned();
-
-                    let command = crate::commands::Command::SetLabel {
-                        address,
-                        new_label: None,
-                        old_label,
-                    };
-
-                    command.apply(app_state);
-                    app_state.push_command(command);
-
-                    ui_state.set_status_message("Label removed");
-
-                    let cursor_addr = app_state
-                        .disassembly
-                        .get(ui_state.cursor_index)
-                        .map(|l| l.address);
-
-                    app_state.disassemble();
-
-                    if let Some(addr) = cursor_addr {
-                        if let Some(idx) = app_state.get_line_index_containing_address(addr) {
-                            ui_state.cursor_index = idx;
-                        } else if let Some(idx) = app_state.get_line_index_for_address(addr) {
-                            ui_state.cursor_index = idx;
-                        }
-                    }
-                    WidgetResult::Close
-                } else {
-                    // Check for duplicates (exclude current address in case of rename/edit)
-                    let exists = app_state.labels.iter().any(|(addr, label_vec)| {
-                        *addr != address && label_vec.iter().any(|l| l.name == label_name)
-                    });
-
-                    if exists {
-                        ui_state.set_status_message(format!(
-                            "Error: Label '{label_name}' already exists"
-                        ));
-                        // Do not close dialog, let user correct it
-                        WidgetResult::Handled
-                    } else {
-                        let old_label_vec = app_state.labels.get(&address).cloned();
-
-                        let mut new_label_vec = old_label_vec.clone().unwrap_or_default();
-
-                        let new_label_entry = crate::state::Label {
-                            name: label_name,
-                            kind: crate::state::LabelKind::User,
-                            label_type: crate::state::LabelType::UserDefined,
-                        };
-
-                        // If vector has items, we assume we are editing the first one (as that's what we showed).
-                        if new_label_vec.is_empty() {
-                            new_label_vec.push(new_label_entry);
-                        } else {
-                            new_label_vec[0] = new_label_entry;
-                        }
-
-                        let command = crate::commands::Command::SetLabel {
-                            address,
-                            new_label: Some(new_label_vec),
-                            old_label: old_label_vec,
-                        };
-
-                        command.apply(app_state);
-                        app_state.push_command(command);
-
-                        ui_state.set_status_message("Label set");
-
-                        let cursor_addr = app_state
-                            .disassembly
-                            .get(ui_state.cursor_index)
-                            .map(|l| l.address);
-
-                        app_state.disassemble();
-
-                        if let Some(addr) = cursor_addr {
-                            if let Some(idx) = app_state.get_line_index_containing_address(addr) {
-                                ui_state.cursor_index = idx;
-                            } else if let Some(idx) = app_state.get_line_index_for_address(addr) {
-                                ui_state.cursor_index = idx;
-                            }
-                        }
-                        WidgetResult::Close
-                    }
-                }
-            }
+            KeyCode::Enter => WidgetResult::Action(crate::state::actions::AppAction::ApplyLabel {
+                address: self.address,
+                name: self.input.clone(),
+            }),
             KeyCode::Backspace => {
                 self.input.pop();
                 WidgetResult::Handled

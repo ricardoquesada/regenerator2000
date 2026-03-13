@@ -442,3 +442,9 @@ impl std::ops::Rem<u16> for Addr {
         self.0 % rhs
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CommentKind {
+    Side,
+    Line,
+}

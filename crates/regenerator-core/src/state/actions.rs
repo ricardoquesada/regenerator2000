@@ -87,6 +87,15 @@ pub enum AppAction {
     },
     ToggleDebuggerView,
     NavigateBack,
+    ApplyLabel {
+        address: super::Addr,
+        name: String,
+    },
+    ApplyComment {
+        address: super::Addr,
+        text: String,
+        kind: super::types::CommentKind,
+    },
 }
 
 impl AppAction {
