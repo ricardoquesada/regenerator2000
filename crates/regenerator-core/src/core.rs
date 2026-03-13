@@ -969,6 +969,7 @@ impl Core {
             };
             command.apply(&mut self.state);
             self.state.push_command(command);
+            self.state.disassemble();
             events.push(CoreEvent::StateChanged);
 
             if let Some(fmt) = next {
@@ -1004,6 +1005,7 @@ impl Core {
                 };
                 command.apply(&mut self.state);
                 self.state.push_command(command);
+                self.state.disassemble();
                 events.push(CoreEvent::StateChanged);
                 events.push(CoreEvent::StatusMessage(if collapsed {
                     "Uncollapsed block".to_string()
@@ -1024,6 +1026,7 @@ impl Core {
                     let command = crate::commands::Command::UncollapseBlock { range };
                     command.apply(&mut self.state);
                     self.state.push_command(command);
+                    self.state.disassemble();
                     events.push(CoreEvent::StateChanged);
                     events.push(CoreEvent::StatusMessage("Uncollapsed block".to_string()));
                 }
@@ -1044,6 +1047,7 @@ impl Core {
                     let command = crate::commands::Command::CollapseBlock { range };
                     command.apply(&mut self.state);
                     self.state.push_command(command);
+                    self.state.disassemble();
                     events.push(CoreEvent::StateChanged);
                     events.push(CoreEvent::StatusMessage("Collapsed block".to_string()));
                 }
