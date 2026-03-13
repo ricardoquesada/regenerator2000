@@ -159,6 +159,11 @@ pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAc
                         ),
                     ));
                 }
+                DialogType::Origin => {
+                    ui_state.active_dialog = Some(Box::new(
+                        crate::ui::dialog_origin::OriginDialog::new(core.state.origin),
+                    ));
+                }
             },
             CoreEvent::DialogDismissalRequested => {
                 ui_state.active_dialog = None;

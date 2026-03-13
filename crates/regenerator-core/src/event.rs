@@ -63,6 +63,7 @@ pub enum DialogType {
         filters: crate::state::search::SearchFilters,
     },
     Settings,
+    Origin,
     ViceConnect,
     WatchpointAddress(Option<u16>),
     CompleteAddress {

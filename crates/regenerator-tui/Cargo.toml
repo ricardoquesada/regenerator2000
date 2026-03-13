@@ -5,7 +5,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-regenerator-core = { path = "../regenerator-core" }
+regenerator-core = { path = "../regenerator-core", features = ["mcp"] }
 ratatui = "0.30.0"
 crossterm = "0.29"
 anyhow = "1.0"

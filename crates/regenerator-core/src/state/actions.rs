@@ -96,6 +96,7 @@ pub enum AppAction {
         text: String,
         kind: super::types::CommentKind,
     },
+    ApplyOrigin(super::Addr),
     CyclePane,
     Cancel,
     /// Wraps an action that has been explicitly confirmed by the user.
@@ -169,6 +170,7 @@ impl AppAction {
                 | AppAction::Save
                 | AppAction::SaveAs
                 | AppAction::ChangeOrigin
+                | AppAction::ApplyOrigin(_)
                 | AppAction::Open
                 | AppAction::OpenRecent
         )

@@ -1,5 +1,5 @@
 use crate::state::{Addr, AppState};
-use crate::ui_state::UIState;
+use crate::ui_state::{AppAction, UIState};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
     Frame,
@@ -59,17 +59,7 @@ impl Widget for OriginDialog {
                     let size = app_state.raw_data.len();
                     // Check for overflow
                     if (new_origin as usize) + size <= 0x10000 {
-                        let old_origin = app_state.origin;
-                        let command = crate::commands::Command::ChangeOrigin {
-                            new_origin: Addr(new_origin),
-                            old_origin,
-                        };
-                        command.apply(app_state);
-                        app_state.push_command(command);
-
-                        app_state.disassemble();
-                        ui_state.set_status_message(format!("Origin changed to ${new_origin:04X}"));
-                        WidgetResult::Close
+                        WidgetResult::Action(AppAction::ApplyOrigin(Addr(new_origin)))
                     } else {
                         ui_state.set_status_message("Error: Origin + Size exceeds $FFFF");
                         WidgetResult::Handled

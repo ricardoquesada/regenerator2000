@@ -177,6 +177,25 @@ impl Core {
                     "Enter Line Number (Dec)".to_string(),
                 ));
             }
+            AppAction::ChangeOrigin => {
+                events.push(CoreEvent::DialogRequested(crate::event::DialogType::Origin));
+                events.push(CoreEvent::StatusMessage("Change Origin...".to_string()));
+            }
+            AppAction::ApplyOrigin(new_origin) => {
+                let old_origin = self.state.origin;
+                let command = crate::commands::Command::ChangeOrigin {
+                    new_origin,
+                    old_origin,
+                };
+                command.apply(&mut self.state);
+                self.state.push_command(command);
+                self.state.disassemble();
+                events.push(CoreEvent::StatusMessage(format!(
+                    "Origin changed to ${:04X}",
+                    new_origin.0
+                )));
+                events.push(CoreEvent::StateChanged);
+            }
             AppAction::Search => {
                 events.push(CoreEvent::DialogRequested(
                     crate::event::DialogType::Search {
@@ -867,10 +886,169 @@ impl Core {
                 }
                 events.push(CoreEvent::ViewChanged);
             }
+            AppAction::NextImmediateFormat => {
+                self.cycle_immediate_format(true, &mut events);
+            }
+            AppAction::PreviousImmediateFormat => {
+                self.cycle_immediate_format(false, &mut events);
+            }
+            AppAction::HexdumpViewModeNext => {
+                use crate::state::types::HexdumpViewMode;
+                self.view.hexdump_view_mode = match self.view.hexdump_view_mode {
+                    HexdumpViewMode::ScreencodeShifted => HexdumpViewMode::ScreencodeUnshifted,
+                    HexdumpViewMode::ScreencodeUnshifted => HexdumpViewMode::PETSCIIShifted,
+                    HexdumpViewMode::PETSCIIShifted => HexdumpViewMode::PETSCIIUnshifted,
+                    HexdumpViewMode::PETSCIIUnshifted => HexdumpViewMode::ScreencodeShifted,
+                };
+                events.push(CoreEvent::StatusMessage(format!(
+                    "Hexdump Mode: {:?}",
+                    self.view.hexdump_view_mode
+                )));
+                events.push(CoreEvent::ViewChanged);
+            }
+            AppAction::HexdumpViewModePrev => {
+                use crate::state::types::HexdumpViewMode;
+                self.view.hexdump_view_mode = match self.view.hexdump_view_mode {
+                    HexdumpViewMode::ScreencodeShifted => HexdumpViewMode::PETSCIIUnshifted,
+                    HexdumpViewMode::ScreencodeUnshifted => HexdumpViewMode::ScreencodeShifted,
+                    HexdumpViewMode::PETSCIIShifted => HexdumpViewMode::ScreencodeUnshifted,
+                    HexdumpViewMode::PETSCIIUnshifted => HexdumpViewMode::PETSCIIShifted,
+                };
+                events.push(CoreEvent::StatusMessage(format!(
+                    "Hexdump Mode: {:?}",
+                    self.view.hexdump_view_mode
+                )));
+                events.push(CoreEvent::ViewChanged);
+            }
+            AppAction::ToggleCollapsedBlock => {
+                self.toggle_collapsed_block(&mut events);
+            }
             _ => {}
         }
 
         events
+    }
+
+    fn cycle_immediate_format(&mut self, forward: bool, events: &mut Vec<CoreEvent>) {
+        use crate::state::types::ImmediateFormat;
+        if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
+            let address = line.address;
+            let current = self.state.immediate_value_formats.get(&address);
+
+            let next = match (current, forward) {
+                (None, true) => Some(ImmediateFormat::Hex),
+                (None, false) => Some(ImmediateFormat::HighByte(Addr::ZERO)),
+                (Some(ImmediateFormat::Hex), true) => Some(ImmediateFormat::InvertedHex),
+                (Some(ImmediateFormat::Hex), false) => None,
+                (Some(ImmediateFormat::InvertedHex), true) => Some(ImmediateFormat::Decimal),
+                (Some(ImmediateFormat::InvertedHex), false) => Some(ImmediateFormat::Hex),
+                (Some(ImmediateFormat::Decimal), true) => Some(ImmediateFormat::NegativeDecimal),
+                (Some(ImmediateFormat::Decimal), false) => Some(ImmediateFormat::InvertedHex),
+                (Some(ImmediateFormat::NegativeDecimal), true) => Some(ImmediateFormat::Binary),
+                (Some(ImmediateFormat::NegativeDecimal), false) => Some(ImmediateFormat::Decimal),
+                (Some(ImmediateFormat::Binary), true) => Some(ImmediateFormat::InvertedBinary),
+                (Some(ImmediateFormat::Binary), false) => Some(ImmediateFormat::NegativeDecimal),
+                (Some(ImmediateFormat::InvertedBinary), true) => {
+                    Some(ImmediateFormat::LowByte(Addr::ZERO))
+                }
+                (Some(ImmediateFormat::InvertedBinary), false) => Some(ImmediateFormat::Binary),
+                (Some(ImmediateFormat::LowByte(_)), true) => {
+                    Some(ImmediateFormat::HighByte(Addr::ZERO))
+                }
+                (Some(ImmediateFormat::LowByte(_)), false) => Some(ImmediateFormat::InvertedBinary),
+                (Some(ImmediateFormat::HighByte(_)), true) => None,
+                (Some(ImmediateFormat::HighByte(_)), false) => {
+                    Some(ImmediateFormat::LowByte(Addr::ZERO))
+                }
+            };
+
+            let command = crate::commands::Command::SetImmediateFormat {
+                address,
+                new_format: next,
+                old_format: current.cloned(),
+            };
+            command.apply(&mut self.state);
+            self.state.push_command(command);
+            events.push(CoreEvent::StateChanged);
+
+            if let Some(fmt) = next {
+                events.push(CoreEvent::StatusMessage(format!("Set format to {fmt:?}")));
+            } else {
+                events.push(CoreEvent::StatusMessage(
+                    "Reset format to default".to_string(),
+                ));
+            }
+        }
+    }
+
+    fn toggle_collapsed_block(&mut self, events: &mut Vec<CoreEvent>) {
+        if self.view.active_pane == crate::view_state::ActivePane::Blocks {
+            let blocks = self.state.get_blocks_view_items();
+            let idx = self.view.blocks_selected_index.unwrap_or(0);
+            if idx < blocks.len()
+                && let crate::state::BlockItem::Block {
+                    start,
+                    end,
+                    collapsed,
+                    ..
+                } = blocks[idx]
+            {
+                let start_offset = start.offset_from(self.state.origin);
+                let end_offset = end.offset_from(self.state.origin);
+                let range = (start_offset, end_offset);
+
+                let command = if collapsed {
+                    crate::commands::Command::UncollapseBlock { range }
+                } else {
+                    crate::commands::Command::CollapseBlock { range }
+                };
+                command.apply(&mut self.state);
+                self.state.push_command(command);
+                events.push(CoreEvent::StateChanged);
+                events.push(CoreEvent::StatusMessage(if collapsed {
+                    "Uncollapsed block".to_string()
+                } else {
+                    "Collapsed block".to_string()
+                }));
+            }
+        } else if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
+            if line.is_collapsed {
+                let start_offset = line.address.offset_from(self.state.origin);
+                if let Some(range) = self
+                    .state
+                    .collapsed_blocks
+                    .iter()
+                    .find(|(s, _)| *s == start_offset)
+                    .cloned()
+                {
+                    let command = crate::commands::Command::UncollapseBlock { range };
+                    command.apply(&mut self.state);
+                    self.state.push_command(command);
+                    events.push(CoreEvent::StateChanged);
+                    events.push(CoreEvent::StatusMessage("Uncollapsed block".to_string()));
+                }
+            } else {
+                // To collapse from disassembly, we need a block at cursor.
+                // In TUI this was possible if cursor was on a block header.
+                // The analyzer already has blocks.
+                let addr = line.address;
+                let offset = addr.offset_from(self.state.origin);
+                let block = self
+                    .state
+                    .get_compressed_blocks()
+                    .into_iter()
+                    .find(|b| offset >= b.start && offset <= b.end);
+
+                if let Some(b) = block {
+                    let range = (b.start, b.end);
+                    let command = crate::commands::Command::CollapseBlock { range };
+                    command.apply(&mut self.state);
+                    self.state.push_command(command);
+                    events.push(CoreEvent::StateChanged);
+                    events.push(CoreEvent::StatusMessage("Collapsed block".to_string()));
+                }
+            }
+        }
     }
 
     fn apply_block_type(
