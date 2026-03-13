@@ -1,11 +1,12 @@
 pub mod input;
 
-use crate::state::AppState;
 use crate::ui::ui;
 use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, MouseEvent};
 use input::handle_global_input;
 use ratatui::{Terminal, backend::Backend};
+use regenerator_core::Core;
+use regenerator_core::state::AppState;
 use std::io;
 
 pub enum AppEvent {
@@ -29,14 +30,17 @@ enum EventOutcome {
 
 pub fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
-    mut app_state: AppState,
+    mut core: Core,
     mut ui_state: UIState,
     event_tx: std::sync::mpsc::Sender<AppEvent>,
     event_rx: std::sync::mpsc::Receiver<AppEvent>,
 ) -> io::Result<()> {
+    // Sync Core's initial view state into TUI's UIState
+    ui_state.core = core.view.clone();
+
     // Initial render before event loop
     terminal
-        .draw(|f| ui(f, &app_state, &mut ui_state))
+        .draw(|f| ui(f, &core.state, &mut ui_state))
         .map_err(|e| io::Error::other(e.to_string()))?;
 
     let mut should_render = false;
@@ -51,7 +55,7 @@ pub fn run_app<B: Backend>(
         match event {
             AppEvent::Mcp(req) => {
                 let response =
-                    crate::mcp::handler::handle_request(&req, &mut app_state, &mut ui_state);
+                    crate::mcp::handler::handle_request(&req, &mut core.state, &mut ui_state);
                 let _ = req.response_sender.send(response);
                 should_render = true;
             }
@@ -60,7 +64,7 @@ pub fn run_app<B: Backend>(
                 should_render = true;
             }
             AppEvent::Vice(vice_event) => {
-                handle_vice_event(vice_event, &mut app_state, &mut ui_state);
+                handle_vice_event(vice_event, &mut core.state, &mut ui_state);
                 should_render = true;
             }
             AppEvent::Tick => {
@@ -74,7 +78,7 @@ pub fn run_app<B: Backend>(
                 Event::Key(key) => {
                     match handle_key_event(
                         key,
-                        &mut app_state,
+                        &mut core,
                         &mut ui_state,
                         &event_tx,
                         &mut should_render,
@@ -87,7 +91,7 @@ pub fn run_app<B: Backend>(
                 Event::Mouse(mouse) => {
                     match handle_mouse_event(
                         mouse,
-                        &mut app_state,
+                        &mut core,
                         &mut ui_state,
                         &event_tx,
                         &mut should_render,
@@ -108,11 +112,17 @@ pub fn run_app<B: Backend>(
 
         // Render AFTER event processing (only when something changed)
         if should_render {
-            sync_views_before_render(&app_state, &mut ui_state);
+            // Ensure TUI's ui_state.core is in sync with core.view before sync_views_before_render
+            ui_state.core = core.view.clone();
+
+            sync_views_before_render(&core.state, &mut ui_state);
 
             terminal
-                .draw(|f| ui(f, &app_state, &mut ui_state))
+                .draw(|f| ui(f, &core.state, &mut ui_state))
                 .map_err(|e| io::Error::other(e.to_string()))?;
+
+            // After render, sync BACK any TUI-driven view changes to Core
+            core.view = ui_state.core.clone();
 
             should_render = false;
         }
@@ -408,7 +418,7 @@ fn handle_vice_checkpoint(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
 
 fn handle_key_event(
     key: KeyEvent,
-    app_state: &mut AppState,
+    core: &mut Core,
     ui_state: &mut UIState,
     event_tx: &std::sync::mpsc::Sender<AppEvent>,
     should_render: &mut bool,
@@ -424,7 +434,7 @@ fn handle_key_event(
 
     // Handle Active Dialog (Generic)
     if let Some(mut dialog) = ui_state.active_dialog.take() {
-        let result = dialog.handle_input(key, app_state, ui_state);
+        let result = dialog.handle_input(key, &mut core.state, ui_state);
         match result {
             crate::ui::widget::WidgetResult::Ignored => {
                 ui_state.active_dialog = Some(dialog);
@@ -442,7 +452,7 @@ fn handle_key_event(
                     ui_state.active_dialog = Some(dialog);
                 }
                 *should_render = true;
-                dispatch_menu_action(action, app_state, ui_state, event_tx, false);
+                dispatch_menu_action(action, core, ui_state, event_tx, false);
             }
         }
         if ui_state.should_quit {
@@ -450,9 +460,9 @@ fn handle_key_event(
         }
     } else if ui_state.menu.active {
         use crate::ui::widget::Widget;
-        let result = crate::ui::menu::Menu.handle_input(key, app_state, ui_state);
+        let result = crate::ui::menu::Menu.handle_input(key, &mut core.state, ui_state);
         if let crate::ui::widget::WidgetResult::Action(action) = result {
-            dispatch_menu_action(action, app_state, ui_state, event_tx, false);
+            dispatch_menu_action(action, core, ui_state, event_tx, false);
         }
     } else if ui_state.vim_search_active {
         match key.code {
@@ -463,7 +473,7 @@ fn handle_key_event(
             KeyCode::Enter => {
                 ui_state.last_search_query = ui_state.vim_search_input.clone();
                 ui_state.vim_search_active = false;
-                crate::ui::dialog_search::perform_search(app_state, ui_state, true);
+                crate::ui::dialog_search::perform_search(&mut core.state, ui_state, true);
             }
             KeyCode::Backspace => {
                 ui_state.vim_search_input.pop();
@@ -474,7 +484,7 @@ fn handle_key_event(
             _ => {}
         }
     } else {
-        handle_key_event_active_view(key, app_state, ui_state, event_tx);
+        handle_key_event_active_view(key, core, ui_state, event_tx);
     }
 
     if ui_state.should_quit {
@@ -487,7 +497,7 @@ fn handle_key_event(
 /// Delegate a key event to the currently active view/pane.
 fn handle_key_event_active_view(
     key: KeyEvent,
-    app_state: &mut AppState,
+    core: &mut Core,
     ui_state: &mut UIState,
     event_tx: &std::sync::mpsc::Sender<AppEvent>,
 ) {
@@ -510,16 +520,16 @@ fn handle_key_event_active_view(
         ActivePane::Debugger => Box::new(DebuggerView),
     };
 
-    match active_view.handle_input(key, app_state, ui_state) {
+    match active_view.handle_input(key, &mut core.state, ui_state) {
         WidgetResult::Handled => {
             // Event handled, will render below
         }
         WidgetResult::Action(action) => {
-            dispatch_menu_action(action, app_state, ui_state, event_tx, false);
+            dispatch_menu_action(action, core, ui_state, event_tx, false);
         }
         WidgetResult::Ignored => {
             // Try global input handler
-            handle_global_input(key, app_state, ui_state);
+            handle_global_input(key, core, ui_state);
         }
         WidgetResult::Close => {}
     }
@@ -531,7 +541,7 @@ fn handle_key_event_active_view(
 
 fn handle_mouse_event(
     mouse: MouseEvent,
-    app_state: &mut AppState,
+    core: &mut Core,
     ui_state: &mut UIState,
     event_tx: &std::sync::mpsc::Sender<AppEvent>,
     should_render: &mut bool,
@@ -543,8 +553,7 @@ fn handle_mouse_event(
 
     // Handle Active Dialog (Modal) - Capture all mouse events
     if let Some(dialog) = ui_state.active_dialog.take() {
-        let outcome =
-            handle_mouse_dialog(mouse, dialog, app_state, ui_state, event_tx, should_render);
+        let outcome = handle_mouse_dialog(mouse, dialog, core, ui_state, event_tx, should_render);
         if ui_state.should_quit {
             return EventOutcome::Quit;
         }
@@ -552,7 +561,7 @@ fn handle_mouse_event(
     }
 
     // No dialog active — route to menu bar or views
-    handle_mouse_views(mouse, app_state, ui_state, event_tx, should_render);
+    handle_mouse_views(mouse, core, ui_state, event_tx, should_render);
 
     if ui_state.should_quit {
         return EventOutcome::Quit;
@@ -565,7 +574,7 @@ fn handle_mouse_event(
 fn handle_mouse_dialog(
     mouse: MouseEvent,
     mut dialog: Box<dyn crate::ui::widget::Widget>,
-    app_state: &mut AppState,
+    core: &mut Core,
     ui_state: &mut UIState,
     event_tx: &std::sync::mpsc::Sender<AppEvent>,
     should_render: &mut bool,
@@ -587,7 +596,7 @@ fn handle_mouse_dialog(
         return EventOutcome::Continue;
     }
 
-    let result = dialog.handle_mouse(mouse, app_state, ui_state);
+    let result = dialog.handle_mouse(mouse, &mut core.state, ui_state);
     match result {
         crate::ui::widget::WidgetResult::Ignored => {
             ui_state.active_dialog = Some(dialog);
@@ -605,7 +614,7 @@ fn handle_mouse_dialog(
                 ui_state.active_dialog = Some(dialog);
             }
             *should_render = true;
-            dispatch_menu_action(action, app_state, ui_state, event_tx, false);
+            dispatch_menu_action(action, core, ui_state, event_tx, false);
         }
     }
 
@@ -615,7 +624,7 @@ fn handle_mouse_dialog(
 /// Handle mouse events against menu bar and view panes (no dialog active).
 fn handle_mouse_views(
     mouse: MouseEvent,
-    app_state: &mut AppState,
+    core: &mut Core,
     ui_state: &mut UIState,
     event_tx: &std::sync::mpsc::Sender<AppEvent>,
     should_render: &mut bool,
@@ -631,11 +640,11 @@ fn handle_mouse_views(
     use crate::ui::widget::Widget;
 
     if is_inside(ui_state.menu_area, col, row) {
-        widget_result = crate::ui::menu::Menu.handle_mouse(mouse, app_state, ui_state);
+        widget_result = crate::ui::menu::Menu.handle_mouse(mouse, &mut core.state, ui_state);
     } else if ui_state.menu.active {
         // If menu is active and we clicked outside menu area.
         // We let Menu handle it (it might detect click in popup).
-        widget_result = crate::ui::menu::Menu.handle_mouse(mouse, app_state, ui_state);
+        widget_result = crate::ui::menu::Menu.handle_mouse(mouse, &mut core.state, ui_state);
 
         // If the menu ignored it (e.g. click outside both bar and popup), close the menu.
         if matches!(widget_result, crate::ui::widget::WidgetResult::Ignored)
@@ -653,7 +662,7 @@ fn handle_mouse_views(
         if is_inside(ui_state.disassembly_area, col, row) {
             ui_state.active_pane = ActivePane::Disassembly;
             use crate::ui::view_disassembly::DisassemblyView;
-            widget_result = DisassemblyView.handle_mouse(mouse, app_state, ui_state);
+            widget_result = DisassemblyView.handle_mouse(mouse, &mut core.state, ui_state);
         } else if is_inside(ui_state.right_pane_area, col, row) {
             match ui_state.right_pane {
                 crate::ui_state::RightPane::HexDump => {
@@ -694,7 +703,7 @@ fn handle_mouse_views(
                 ActivePane::Blocks => Box::new(BlocksView),
                 ActivePane::Debugger => Box::new(DebuggerView),
             };
-            widget_result = active_view.handle_mouse(mouse, app_state, ui_state);
+            widget_result = active_view.handle_mouse(mouse, &mut core.state, ui_state);
         }
     }
 
@@ -710,7 +719,7 @@ fn handle_mouse_views(
     }
 
     if let crate::ui::widget::WidgetResult::Action(action) = widget_result {
-        dispatch_menu_action(action, app_state, ui_state, event_tx, true);
+        dispatch_menu_action(action, core, ui_state, event_tx, true);
     }
 }
 
@@ -725,7 +734,7 @@ fn handle_mouse_views(
 /// populates.
 fn dispatch_menu_action(
     action: crate::state::actions::AppAction,
-    app_state: &mut AppState,
+    core: &mut Core,
     ui_state: &mut UIState,
     event_tx: &std::sync::mpsc::Sender<AppEvent>,
     send_registers_on_connect: bool,
@@ -744,12 +753,12 @@ fn dispatch_menu_action(
             if send_registers_on_connect {
                 client.send_registers_get();
             }
-            app_state.vice_client = Some(client);
+            core.state.vice_client = Some(client);
         } else {
             ui_state.set_status_message("Failed to connect to VICE");
         }
     } else {
-        crate::ui::menu::handle_menu_action(app_state, ui_state, action);
+        crate::ui::menu::handle_menu_action(core, ui_state, action);
     }
 }
 

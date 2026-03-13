@@ -3,6 +3,7 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::panic))]
 
 // Re-export all core modules so existing `regenerator2000::state::*` paths continue to work.
+pub use regenerator_core::state;
 pub use regenerator_core::*;
 
 // TUI-only modules

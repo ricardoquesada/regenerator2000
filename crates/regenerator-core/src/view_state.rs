@@ -48,6 +48,7 @@ pub enum ScreenRamMode {
 /// Contains cursor positions, selections, active pane, view modes, and
 /// navigation history. Does **not** include rendering primitives (Rect, Theme,
 /// ListState) or TUI widgets.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CoreViewState {
     // Navigation
     pub navigation_history: Vec<(ActivePane, NavigationTarget)>,
@@ -85,6 +86,10 @@ pub struct CoreViewState {
 
     // Blocks view (plain index, not ratatui ListState)
     pub blocks_selected_index: Option<usize>,
+
+    // Search
+    pub last_search_query: String,
+    pub search_filters: crate::state::search::SearchFilters,
 
     /// Status message for the UI.
     pub status_message: Option<String>,
@@ -124,6 +129,8 @@ impl CoreViewState {
             bitmap_multicolor_mode: false,
 
             blocks_selected_index: None,
+            last_search_query: String::new(),
+            search_filters: crate::state::search::SearchFilters::default(),
             status_message: None,
         }
     }

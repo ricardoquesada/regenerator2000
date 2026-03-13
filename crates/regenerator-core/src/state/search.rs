@@ -5,7 +5,7 @@ use crate::utils::{petscii_to_unicode, screencode_to_petscii};
 // SearchFilters
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SearchFilters {
     pub labels: bool,
     pub comments: bool,

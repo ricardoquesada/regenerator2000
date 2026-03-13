@@ -1,11 +1,10 @@
-pub use crate::state::actions::AppAction;
 use crate::theme::Theme;
-use crate::ui::dialog_search::SearchFilters;
 pub use crate::ui::menu::MenuState;
 use crate::ui::widget::Widget;
 use image::DynamicImage;
 use ratatui::widgets::ListState;
 use ratatui_image::picker::Picker;
+pub use regenerator_core::state::actions::AppAction;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -45,8 +44,6 @@ pub struct UIState {
     // Vim-like search
     pub vim_search_active: bool,
     pub vim_search_input: String,
-    pub last_search_query: String,
-    pub search_filters: SearchFilters,
 
     // Bitmap cache: key is (bitmap_address, multicolor_mode, screen_ram_address)
     pub bitmap_cache: HashMap<(usize, bool, usize), DynamicImage>,
@@ -106,8 +103,6 @@ impl UIState {
             input_buffer: String::new(),
             vim_search_active: false,
             vim_search_input: String::new(),
-            last_search_query: String::new(),
-            search_filters: SearchFilters::default(),
             bitmap_cache: HashMap::new(),
             theme,
 

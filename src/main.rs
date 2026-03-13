@@ -662,9 +662,9 @@ fn main() -> Result<()> {
         validate_headless_mode(file_str);
     }
 
-    // Create AppState and load the real system config from disk
-    let mut app_state = AppState::new();
-    app_state.system_config = regenerator2000::config::SystemConfig::load();
+    // Create Core and load the real system config from disk
+    let mut core = regenerator2000::Core::new();
+    core.state.system_config = regenerator2000::config::SystemConfig::load();
 
     // 1. Load file / project based on detected file type
     let mut initial_load_result = None;
@@ -684,7 +684,7 @@ fn main() -> Result<()> {
                 cart_image_data = load_cart_image(file_str, headless);
             }
             InputFileType::Other => {
-                initial_load_result = app_state.resolve_initial_load(Some(file_str));
+                initial_load_result = core.state.resolve_initial_load(Some(file_str));
                 if let Some(Ok((_, path))) = &initial_load_result
                     && headless
                     && !mcp_server
@@ -701,7 +701,7 @@ fn main() -> Result<()> {
         }
     } else {
         // No file specified — try to load the most recent project
-        initial_load_result = app_state.resolve_initial_load(None);
+        initial_load_result = core.state.resolve_initial_load(None);
         if let Some(Err(e)) = &initial_load_result {
             eprintln!("Error loading file: {e}");
             // Don't exit — just proceed without a loaded file
@@ -710,18 +710,18 @@ fn main() -> Result<()> {
 
     // 2. Import labels
     if let Some(lbl_path) = labels_to_import {
-        import_labels(&mut app_state, lbl_path, headless, mcp_server);
+        import_labels(&mut core.state, lbl_path, headless, mcp_server);
     }
 
     // 3. Export labels
     if let Some(path_str) = export_lbl_path {
-        export_labels(&mut app_state, path_str, headless, mcp_server);
+        export_labels(&mut core.state, path_str, headless, mcp_server);
     }
 
     // 4. Apply assembler override (before export or verify)
     if let Some(ref name) = assembler_override {
         let assembler = parse_assembler_name(name);
-        app_state.settings.assembler = assembler;
+        core.state.settings.assembler = assembler;
         if headless && !mcp_server {
             println!("Assembler overridden to: {assembler}");
         }
@@ -729,12 +729,12 @@ fn main() -> Result<()> {
 
     // 5. Export assembly
     if let Some(path_str) = export_asm_path {
-        export_assembly(&app_state, path_str, headless, mcp_server);
+        export_assembly(&core.state, path_str, headless, mcp_server);
     }
 
     // 6. Verify roundtrip (export → assemble → diff)
     if verify {
-        return run_verify(&app_state);
+        return run_verify(&core.state);
     }
 
     // Headless without MCP — nothing more to do
@@ -744,14 +744,14 @@ fn main() -> Result<()> {
 
     // Headless MCP server (stdio or HTTP, no TUI)
     if headless && mcp_server {
-        return run_headless_mcp(app_state, mcp_server_stdio);
+        return run_headless_mcp(core.state, mcp_server_stdio);
     }
 
     // --- TUI mode ---
 
     let (mut terminal, keyboard_enhancement_result) = setup_terminal()?;
 
-    let theme = regenerator2000::theme::Theme::from_name(&app_state.system_config.theme);
+    let theme = regenerator2000::theme::Theme::from_name(&core.state.system_config.theme);
     let mut ui_state = UIState::new(theme);
 
     // Open an image picker dialog if we loaded a container image
@@ -770,7 +770,7 @@ fn main() -> Result<()> {
     // Apply the initial load result to the UI state
     apply_initial_load_result(
         &mut ui_state,
-        &app_state,
+        &core.state,
         initial_load_result,
         file_to_load.is_some(),
     );
@@ -781,7 +781,7 @@ fn main() -> Result<()> {
     // Spawn background threads
     spawn_input_thread(&event_tx);
 
-    if app_state.system_config.check_for_updates {
+    if core.state.system_config.check_for_updates {
         spawn_update_check(&event_tx);
     }
 
@@ -791,11 +791,11 @@ fn main() -> Result<()> {
 
     // Auto-connect to VICE if --vice flag provided
     if let Some(ref vice_addr) = cli.vice {
-        connect_vice(&mut app_state, &mut ui_state, vice_addr, &event_tx);
+        connect_vice(&mut core.state, &mut ui_state, vice_addr, &event_tx);
     }
 
     // Run the main event loop
-    let res = events::run_app(&mut terminal, app_state, ui_state, event_tx, event_rx);
+    let res = events::run_app(&mut terminal, core, ui_state, event_tx, event_rx);
 
     // Restore terminal
     restore_terminal(&mut terminal)?;

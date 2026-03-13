@@ -1,7 +1,8 @@
-use crate::state::AppState;
 use crate::ui_state::{ActivePane, UIState};
-
-pub use crate::state::actions::AppAction;
+use regenerator_core::Core;
+use regenerator_core::event::{CoreEvent, DialogType};
+use regenerator_core::state::AppState;
+pub use regenerator_core::state::actions::AppAction;
 
 /// Returns the file stem (no extension, no path) of the currently open file or project,
 /// to be used as a default autocomplete value in save/export dialogs.
@@ -101,8 +102,8 @@ fn vice_toggle_watchpoint(
     }
 }
 
-pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: AppAction) {
-    if action.requires_document() && app_state.raw_data.is_empty() {
+pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAction) {
+    if action.requires_document() && core.state.raw_data.is_empty() {
         ui_state.set_status_message("No open document");
         return;
     }
@@ -120,7 +121,7 @@ pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, acti
         AppAction::Exit | AppAction::Open | AppAction::OpenRecent
     );
 
-    if is_destructive && app_state.is_dirty() {
+    if is_destructive && core.state.is_dirty() {
         ui_state.active_dialog = Some(Box::new(
             crate::ui::dialog_confirmation::ConfirmationDialog::new(
                 "Unsaved Changes",
@@ -131,7 +132,97 @@ pub fn handle_menu_action(app_state: &mut AppState, ui_state: &mut UIState, acti
         return;
     }
 
-    execute_menu_action(app_state, ui_state, action);
+    let events = core.apply_action(action.clone());
+    for event in events {
+        match event {
+            CoreEvent::QuitRequested => ui_state.should_quit = true,
+            CoreEvent::StatusMessage(msg) => ui_state.set_status_message(msg),
+            CoreEvent::DialogRequested(dialog_type) => {
+                match dialog_type {
+                    DialogType::Open => {
+                        ui_state.active_dialog =
+                            Some(Box::new(crate::ui::dialog_open::OpenDialog::new(
+                                ui_state.file_dialog_current_dir.clone(),
+                            )));
+                    }
+                    DialogType::OpenRecent => {
+                        ui_state.active_dialog =
+                            Some(Box::new(crate::ui::dialog_open_recent::OpenRecentDialog));
+                        ui_state.recent_list_state.select(Some(0));
+                    }
+                    DialogType::ImportViceLabels => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_open::OpenDialog::new_import_vice_labels(
+                                ui_state.file_dialog_current_dir.clone(),
+                                core.state.last_import_labels_path.clone(),
+                            ),
+                        ));
+                    }
+                    DialogType::ExportLabels { initial_filename } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_export_labels::ExportLabelsDialog::new(
+                                initial_filename,
+                            ),
+                        ));
+                    }
+                    DialogType::SaveAs { initial_filename } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_save_as::SaveAsDialog::new(initial_filename),
+                        ));
+                    }
+                    DialogType::ExportAs { initial_filename } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_export_as::ExportAsDialog::new(initial_filename),
+                        ));
+                    }
+                    DialogType::DocumentSettings => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_document_settings::DocumentSettingsDialog::new(),
+                        ));
+                    }
+                    DialogType::JumpToAddress => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_jump_to_address::JumpToAddressDialog::new(),
+                        ));
+                    }
+                    DialogType::JumpToLine => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_jump_to_line::JumpToLineDialog::new(),
+                        ));
+                    }
+                    DialogType::Search { query, filters } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_search::SearchDialog::new(query, filters),
+                        ));
+                    }
+                    DialogType::GoToSymbol => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_go_to_symbol::GoToSymbolDialog::new(&core.state),
+                        ));
+                    }
+                    DialogType::KeyboardShortcuts => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_keyboard_shortcut::ShortcutsDialog::new(),
+                        ));
+                    }
+                    DialogType::About => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_about::AboutDialog::new(ui_state),
+                        ));
+                    }
+                    _ => {
+                        // Unhandled dialog type in TUI, fall back to old executor for now
+                        execute_menu_action(&mut core.state, ui_state, action.clone());
+                        return;
+                    }
+                }
+            }
+            _ => {
+                // For other events, we might need more handling or they are already applied to core state/view
+                // The TUI loop in events.rs already syncs core.view back to ui_state.core
+            }
+        }
+    }
 }
 
 pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, action: AppAction) {

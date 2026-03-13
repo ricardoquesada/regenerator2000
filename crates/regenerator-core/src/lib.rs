@@ -7,8 +7,12 @@ pub mod analyzer;
 pub mod assets;
 pub mod commands;
 pub mod config;
+pub mod core;
 pub mod cpu;
+
+pub use core::Core;
 pub mod disassembler;
+pub mod event;
 pub mod exporter;
 pub mod navigation;
 pub mod parser;

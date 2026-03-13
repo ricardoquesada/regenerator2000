@@ -1,69 +1,65 @@
-use crate::state::AppState;
 use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use regenerator_core::Core;
 
 use crate::ui::menu::handle_menu_action;
 
-pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &mut UIState) {
+pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIState) {
     match key.code {
         KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(app_state, ui_state, crate::state::actions::AppAction::Exit);
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Exit);
         }
 
         // VICE Debugger begin
         // VICE keyboard shortcuts are global, at least the "F" keys, since they can be used from different views.
         KeyCode::F(2) if key.modifiers.is_empty() => {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ViceToggleBreakpoint,
             );
         }
         KeyCode::F(2) if key.modifiers == KeyModifiers::SHIFT => {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ViceBreakpointDialog,
             );
         }
         KeyCode::F(6) if key.modifiers.is_empty() => {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ViceToggleWatchpoint,
             );
         }
         KeyCode::F(4) if key.modifiers.is_empty() => {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ViceRunToCursor,
             );
         }
         KeyCode::F(7) if key.modifiers.is_empty() => {
-            handle_menu_action(
-                app_state,
-                ui_state,
-                crate::state::actions::AppAction::ViceStep,
-            );
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::ViceStep);
         }
         KeyCode::F(8) if key.modifiers.is_empty() => {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ViceStepOver,
             );
         }
         KeyCode::F(8) if key.modifiers == KeyModifiers::SHIFT => {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ViceStepOut,
             );
         }
         KeyCode::F(9) if key.modifiers.is_empty() => {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ViceContinue,
             );
@@ -160,55 +156,39 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
         }
         KeyCode::Char('x') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::FindReferences,
             );
         }
         KeyCode::Char('p') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                app_state,
-                ui_state,
-                crate::state::actions::AppAction::GoToSymbol,
-            );
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::GoToSymbol);
         }
         // Global Shortcuts
         KeyCode::Char('o') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(app_state, ui_state, crate::state::actions::AppAction::Open);
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Open);
         }
         KeyCode::Char('o')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
                 || key.modifiers == KeyModifiers::ALT =>
         {
-            handle_menu_action(
-                app_state,
-                ui_state,
-                crate::state::actions::AppAction::OpenRecent,
-            );
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::OpenRecent);
         }
         KeyCode::Char('a') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                app_state,
-                ui_state,
-                crate::state::actions::AppAction::Analyze,
-            );
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Analyze);
         }
         KeyCode::Char('s') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(app_state, ui_state, crate::state::actions::AppAction::Save);
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Save);
         }
         KeyCode::Char('s')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
                 || key.modifiers == KeyModifiers::ALT =>
         {
-            handle_menu_action(
-                app_state,
-                ui_state,
-                crate::state::actions::AppAction::SaveAs,
-            );
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::SaveAs);
         }
         KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ExportProject,
             );
@@ -218,7 +198,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                 || key.modifiers == KeyModifiers::ALT =>
         {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ExportProjectAs,
             );
@@ -226,14 +206,14 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
 
         KeyCode::Char(',') if key.modifiers == KeyModifiers::CONTROL => {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::SystemSettings,
             );
         }
         KeyCode::Char('p') if key.modifiers == KeyModifiers::ALT => {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::SystemSettings,
             );
@@ -244,23 +224,23 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
                 || key.modifiers == KeyModifiers::ALT =>
         {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::DocumentSettings,
             );
         }
 
         KeyCode::Char('u') if key.modifiers.is_empty() => {
-            handle_menu_action(app_state, ui_state, crate::state::actions::AppAction::Undo);
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Undo);
         }
         KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(app_state, ui_state, crate::state::actions::AppAction::Redo);
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Redo);
         }
         KeyCode::Char('1')
             if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
         {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ToggleBlocksView,
             );
@@ -269,7 +249,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
         {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ToggleHexDump,
             );
@@ -278,7 +258,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
         {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ToggleSpritesView,
             );
@@ -287,7 +267,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
         {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ToggleCharsetView,
             );
@@ -296,7 +276,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
         {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ToggleBitmapView,
             );
@@ -305,7 +285,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
         {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::ToggleDebuggerView,
             );
@@ -314,7 +294,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
         {
             handle_menu_action(
-                app_state,
+                core,
                 ui_state,
                 crate::state::actions::AppAction::JumpToAddress,
             );
@@ -323,11 +303,7 @@ pub fn handle_global_input(key: KeyEvent, app_state: &mut AppState, ui_state: &m
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
                 || key.modifiers == (KeyModifiers::ALT | KeyModifiers::SHIFT) =>
         {
-            handle_menu_action(
-                app_state,
-                ui_state,
-                crate::state::actions::AppAction::JumpToLine,
-            );
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::JumpToLine);
         }
         KeyCode::Tab => {
             ui_state.active_pane = match ui_state.active_pane {
