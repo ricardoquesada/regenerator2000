@@ -79,7 +79,9 @@ impl Widget for ConfirmationDialog {
                 ui_state.set_status_message("Action cancelled");
                 WidgetResult::Close
             }
-            KeyCode::Enter | KeyCode::Char('y') => WidgetResult::Action(self.action.clone()),
+            KeyCode::Enter | KeyCode::Char('y') => {
+                WidgetResult::Action(AppAction::Confirmed(Box::new(self.action.clone())))
+            }
             _ => WidgetResult::Handled,
         }
     }

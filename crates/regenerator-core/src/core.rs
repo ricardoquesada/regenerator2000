@@ -38,6 +38,12 @@ impl Core {
             return events;
         }
 
+        // Unwrap Confirmed for processing
+        let action = match action {
+            AppAction::Confirmed(inner) => *inner,
+            other => other,
+        };
+
         if action.requires_document() && self.state.raw_data.is_empty() {
             events.push(CoreEvent::StatusMessage("No open document".to_string()));
             return events;

@@ -98,13 +98,20 @@ pub enum AppAction {
     },
     CyclePane,
     Cancel,
+    /// Wraps an action that has been explicitly confirmed by the user.
+    /// Core will bypass destructive checks for this action.
+    Confirmed(Box<AppAction>),
 }
 
 impl AppAction {
     #[must_use]
     pub fn requires_document(&self) -> bool {
+        let action = match self {
+            AppAction::Confirmed(a) => a.as_ref(),
+            other => other,
+        };
         !matches!(
-            self,
+            action,
             AppAction::Exit
                 | AppAction::Open
                 | AppAction::OpenRecent
@@ -127,6 +134,11 @@ impl AppAction {
     /// Whether this action should check for unsaved changes before proceeding.
     #[must_use]
     pub fn is_destructive(&self) -> bool {
+        // Confirmed actions already bypassed the check.
+        if matches!(self, AppAction::Confirmed(_)) {
+            return false;
+        }
+
         matches!(
             self,
             AppAction::Exit | AppAction::Open | AppAction::OpenRecent
@@ -134,16 +146,31 @@ impl AppAction {
     }
 
     /// Whether this action should close the dialog that produced it.
-    ///
-    /// Actions like VICE connect, set-breakpoint, and set-watchpoint resolve
-    /// the dialog — the user is done interacting with it once they confirm.
     #[must_use]
     pub fn closes_dialog(&self) -> bool {
+        let action = match self {
+            AppAction::Confirmed(a) => a.as_ref(),
+            other => other,
+        };
+
         matches!(
-            self,
+            action,
             AppAction::ViceConnectAddress(_)
                 | AppAction::ViceSetWatchpoint { .. }
                 | AppAction::ViceSetBreakpointAt { .. }
+                | AppAction::NavigateToAddress(_)
+                | AppAction::ApplyLabel { .. }
+                | AppAction::ApplyComment { .. }
+                | AppAction::Search
+                | AppAction::ImportViceLabels
+                | AppAction::ExportViceLabels
+                | AppAction::ExportProject
+                | AppAction::ExportProjectAs
+                | AppAction::Save
+                | AppAction::SaveAs
+                | AppAction::ChangeOrigin
+                | AppAction::Open
+                | AppAction::OpenRecent
         )
     }
 }
