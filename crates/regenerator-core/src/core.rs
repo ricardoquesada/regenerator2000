@@ -1,3 +1,4 @@
+use crate::cpu::AddressingMode;
 use crate::event::CoreEvent;
 use crate::state::actions::AppAction;
 use crate::state::{Addr, AppState};
@@ -28,6 +29,42 @@ impl Core {
         match action {
             AppAction::Exit => {
                 events.push(CoreEvent::QuitRequested);
+            }
+            AppAction::Open => {
+                events.push(CoreEvent::DialogRequested(crate::event::DialogType::Open));
+                events.push(CoreEvent::StatusMessage(
+                    "Select a file to open".to_string(),
+                ));
+            }
+            AppAction::OpenRecent => {
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::OpenRecent,
+                ));
+                events.push(CoreEvent::StatusMessage("Open recent project".to_string()));
+            }
+            AppAction::About => {
+                events.push(CoreEvent::DialogRequested(crate::event::DialogType::About));
+                events.push(CoreEvent::StatusMessage(
+                    "About Regenerator 2000".to_string(),
+                ));
+            }
+            AppAction::KeyboardShortcuts => {
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::KeyboardShortcuts,
+                ));
+                events.push(CoreEvent::StatusMessage("Keyboard Shortcuts".to_string()));
+            }
+            AppAction::SystemSettings => {
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::Settings,
+                ));
+                events.push(CoreEvent::StatusMessage("System Settings".to_string()));
+            }
+            AppAction::DocumentSettings => {
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::DocumentSettings,
+                ));
+                events.push(CoreEvent::StatusMessage("Document Settings".to_string()));
             }
             AppAction::Analyze => {
                 let msg = self.state.perform_analysis();
@@ -304,6 +341,29 @@ impl Core {
                     ));
                 }
             }
+            AppAction::ImportViceLabels => {
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::ImportViceLabels,
+                ));
+                events.push(CoreEvent::StatusMessage(
+                    "Select a VICE label file to import".to_string(),
+                ));
+            }
+            AppAction::ExportViceLabels => {
+                let initial = self
+                    .state
+                    .last_export_labels_filename
+                    .clone()
+                    .or_else(|| self.get_default_filename_stem());
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::ExportLabels {
+                        initial_filename: initial,
+                    },
+                ));
+                events.push(CoreEvent::StatusMessage(
+                    "Enter VICE label filename".to_string(),
+                ));
+            }
             AppAction::SaveAs => {
                 let initial = self
                     .state
@@ -339,6 +399,19 @@ impl Core {
                     ));
                     events.push(CoreEvent::StatusMessage("Enter .asm filename".to_string()));
                 }
+            }
+            AppAction::ExportProjectAs => {
+                let initial = self
+                    .state
+                    .last_export_asm_filename
+                    .clone()
+                    .or_else(|| self.get_default_filename_stem());
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::ExportAs {
+                        initial_filename: initial,
+                    },
+                ));
+                events.push(CoreEvent::StatusMessage("Enter .asm filename".to_string()));
             }
             AppAction::ListBookmarks => {
                 events.push(CoreEvent::DialogRequested(
@@ -396,6 +469,34 @@ impl Core {
                 self.view.bitmap_multicolor_mode = !self.view.bitmap_multicolor_mode;
                 events.push(CoreEvent::ViewChanged);
             }
+            AppAction::ToggleBlocksView => {
+                if self.view.right_pane == crate::view_state::RightPane::Blocks {
+                    self.view.right_pane = crate::view_state::RightPane::None;
+                    events.push(CoreEvent::StatusMessage("Blocks View Hidden".to_string()));
+                    if self.view.active_pane == crate::view_state::ActivePane::Blocks {
+                        self.view.active_pane = crate::view_state::ActivePane::Disassembly;
+                    }
+                } else {
+                    self.view.right_pane = crate::view_state::RightPane::Blocks;
+                    self.view.active_pane = crate::view_state::ActivePane::Blocks;
+                    events.push(CoreEvent::StatusMessage("Blocks View Shown".to_string()));
+                }
+                events.push(CoreEvent::ViewChanged);
+            }
+            AppAction::ToggleDebuggerView => {
+                if self.view.right_pane == crate::view_state::RightPane::Debugger {
+                    self.view.right_pane = crate::view_state::RightPane::None;
+                    events.push(CoreEvent::StatusMessage("Debugger View Hidden".to_string()));
+                    if self.view.active_pane == crate::view_state::ActivePane::Debugger {
+                        self.view.active_pane = crate::view_state::ActivePane::Disassembly;
+                    }
+                } else {
+                    self.view.right_pane = crate::view_state::RightPane::Debugger;
+                    self.view.active_pane = crate::view_state::ActivePane::Debugger;
+                    events.push(CoreEvent::StatusMessage("Debugger View Shown".to_string()));
+                }
+                events.push(CoreEvent::ViewChanged);
+            }
             AppAction::NavigateBack => {
                 if let Some((pane, target)) = self.view.navigation_history.pop() {
                     self.view.active_pane = pane;
@@ -451,6 +552,262 @@ impl Core {
                     events.push(CoreEvent::StatusMessage(format!(
                         "Edit Line Comment at ${address:04X}"
                     )));
+                }
+            }
+            AppAction::SetExternalFile => {
+                self.apply_block_type(crate::state::BlockType::ExternalFile, &mut events);
+            }
+            AppAction::ViceConnect => {
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::ViceConnect,
+                ));
+                events.push(CoreEvent::StatusMessage(
+                    "Enter VICE hostname and port".to_string(),
+                ));
+            }
+            AppAction::ViceDisconnect => {
+                self.state.vice_client = None;
+                self.state.vice_state.connected = false;
+                events.push(CoreEvent::StatusMessage(
+                    "Disconnected from VICE".to_string(),
+                ));
+                events.push(CoreEvent::StateChanged);
+            }
+            AppAction::ViceStep => {
+                if let Some(client) = &self.state.vice_client {
+                    client.send_advance_instruction();
+                    self.state.vice_state.running = true;
+                } else {
+                    events.push(CoreEvent::StatusMessage(
+                        "Not connected to VICE".to_string(),
+                    ));
+                }
+            }
+            AppAction::ViceContinue => {
+                if let Some(client) = &self.state.vice_client {
+                    client.send_continue();
+                    self.state.vice_state.running = true;
+                    events.push(CoreEvent::StatusMessage("VICE: Running...".to_string()));
+                } else {
+                    events.push(CoreEvent::StatusMessage(
+                        "Not connected to VICE".to_string(),
+                    ));
+                }
+            }
+            AppAction::ViceStepOver => {
+                if let Some(client) = &self.state.vice_client {
+                    client.send_step_over();
+                    self.state.vice_state.running = true;
+                } else {
+                    events.push(CoreEvent::StatusMessage(
+                        "Not connected to VICE".to_string(),
+                    ));
+                }
+            }
+            AppAction::ViceStepOut => {
+                if let Some(client) = &self.state.vice_client {
+                    client.send_execute_until_return();
+                    self.state.vice_state.running = true;
+                } else {
+                    events.push(CoreEvent::StatusMessage(
+                        "Not connected to VICE".to_string(),
+                    ));
+                }
+            }
+            AppAction::ViceRunToCursor => {
+                if let Some(client) = &self.state.vice_client {
+                    if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
+                        client.send_checkpoint_set_exec_temp(line.address.0);
+                        client.send_continue();
+                        self.state.vice_state.running = true;
+                    }
+                } else {
+                    events.push(CoreEvent::StatusMessage(
+                        "Not connected to VICE".to_string(),
+                    ));
+                }
+            }
+            AppAction::ViceToggleBreakpoint => {
+                if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
+                    let checkpoint_id = self
+                        .state
+                        .vice_state
+                        .breakpoints
+                        .iter()
+                        .find(|bp| bp.address == line.address.0)
+                        .map(|bp| bp.id);
+
+                    if let Some(id) = checkpoint_id {
+                        if let Some(client) = &self.state.vice_client {
+                            client.send_checkpoint_delete(id);
+                        }
+                    } else if let Some(client) = &self.state.vice_client {
+                        client.send_checkpoint_set_exec(line.address.0);
+                    }
+                }
+            }
+            AppAction::ViceBreakpointDialog => {
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::BreakpointAddress(None),
+                ));
+            }
+            AppAction::ViceSetBreakpointAt { address } => {
+                if let Some(client) = &self.state.vice_client {
+                    client.send_checkpoint_set_exec(address.0);
+                }
+            }
+            AppAction::ViceToggleWatchpoint => {
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::WatchpointAddress(None),
+                ));
+            }
+            AppAction::ViceSetWatchpoint { address, kind } => {
+                if let Some(client) = &self.state.vice_client {
+                    match kind {
+                        crate::vice::state::BreakpointKind::Load => {
+                            client.send_checkpoint_set_load(address.0);
+                        }
+                        crate::vice::state::BreakpointKind::Store => {
+                            client.send_checkpoint_set_store(address.0);
+                        }
+                        crate::vice::state::BreakpointKind::LoadStore => {
+                            client.send_checkpoint_set_load_store(address.0);
+                        }
+                        _ => {
+                            client.send_checkpoint_set_load_store(address.0);
+                        }
+                    }
+                }
+            }
+            AppAction::JumpToOperand => {
+                let target_addr = match self.view.active_pane {
+                    crate::view_state::ActivePane::Disassembly => {
+                        if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
+                            if let Some(opcode) = &line.opcode {
+                                match opcode.mode {
+                                    AddressingMode::Immediate => {
+                                        if let Some(fmt) =
+                                            self.state.immediate_value_formats.get(&line.address)
+                                        {
+                                            match fmt {
+                                                crate::state::ImmediateFormat::LowByte(target) => {
+                                                    Some(*target)
+                                                }
+                                                crate::state::ImmediateFormat::HighByte(target) => {
+                                                    Some(*target)
+                                                }
+                                                _ => None,
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    AddressingMode::Absolute
+                                    | AddressingMode::AbsoluteX
+                                    | AddressingMode::AbsoluteY => {
+                                        if line.bytes.len() >= 3 {
+                                            Some(crate::state::Addr(
+                                                u16::from(line.bytes[2]) << 8
+                                                    | u16::from(line.bytes[1]),
+                                            ))
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    AddressingMode::Indirect => {
+                                        if line.bytes.len() >= 3 {
+                                            Some(crate::state::Addr(
+                                                u16::from(line.bytes[2]) << 8
+                                                    | u16::from(line.bytes[1]),
+                                            ))
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    AddressingMode::Relative => {
+                                        if line.bytes.len() >= 2 {
+                                            let offset = line.bytes[1] as i8;
+                                            Some(
+                                                line.address
+                                                    .wrapping_add(2)
+                                                    .wrapping_add(offset as u16),
+                                            )
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    AddressingMode::ZeroPage
+                                    | AddressingMode::ZeroPageX
+                                    | AddressingMode::ZeroPageY
+                                    | AddressingMode::IndirectX
+                                    | AddressingMode::IndirectY => {
+                                        if line.bytes.len() >= 2 {
+                                            Some(crate::state::Addr(u16::from(line.bytes[1])))
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    _ => None,
+                                }
+                            } else {
+                                line.external_label_address
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    crate::view_state::ActivePane::HexDump => {
+                        let origin = self.state.origin.0 as usize;
+                        let alignment_padding = origin % 16;
+                        let aligned_origin = origin - alignment_padding;
+                        Some(crate::state::Addr(
+                            (aligned_origin + self.view.hex_cursor_index * 16) as u16,
+                        ))
+                    }
+                    crate::view_state::ActivePane::Sprites => {
+                        let origin = self.state.origin.0 as usize;
+                        let padding = (64 - (origin % 64)) % 64;
+                        Some(crate::state::Addr(
+                            (origin + padding + self.view.sprites_cursor_index * 64) as u16,
+                        ))
+                    }
+                    crate::view_state::ActivePane::Charset => {
+                        let origin = self.state.origin.0 as usize;
+                        let base_alignment = 0x400;
+                        let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                        Some(crate::state::Addr(
+                            (aligned_start_addr + self.view.charset_cursor_index * 8) as u16,
+                        ))
+                    }
+                    crate::view_state::ActivePane::Blocks => {
+                        let blocks = self.state.get_blocks_view_items();
+                        let idx = self.view.blocks_selected_index.unwrap_or(0);
+                        if idx < blocks.len() {
+                            match blocks[idx] {
+                                crate::state::BlockItem::Block { start, .. } => Some(start),
+                                crate::state::BlockItem::Splitter(addr) => Some(addr),
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    crate::view_state::ActivePane::Bitmap => {
+                        let origin = self.state.origin.0 as usize;
+                        let first_aligned_addr = ((origin / 8192) * 8192)
+                            + if origin.is_multiple_of(8192) { 0 } else { 8192 };
+                        let bitmap_addr =
+                            first_aligned_addr + (self.view.bitmap_cursor_index * 8192);
+                        Some(crate::state::Addr(bitmap_addr as u16))
+                    }
+                    _ => None,
+                };
+
+                if let Some(addr) = target_addr {
+                    self.handle_navigate_to_address(addr, &mut events);
+                } else {
+                    events.push(CoreEvent::StatusMessage(
+                        "No valid operand to jump to".to_string(),
+                    ));
                 }
             }
             AppAction::ApplyLabel { address, name } => {

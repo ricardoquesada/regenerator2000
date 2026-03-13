@@ -112,10 +112,6 @@ pub fn run_app<B: Backend>(
 
         // Render AFTER event processing (only when something changed)
         if should_render {
-            // Ensure TUI's ui_state.core is in sync with core.view before sync_views_before_render
-            ui_state.core = core.view.clone();
-            ui_state.sync_core_to_tui();
-
             sync_views_before_render(&core.state, &mut ui_state);
 
             terminal
