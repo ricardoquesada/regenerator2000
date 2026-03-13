@@ -2,18 +2,18 @@
 #[cfg(test)]
 mod tests {
     use base64::prelude::*;
-    use regenerator2000::mcp::handler::handle_request;
-    use regenerator2000::mcp::types::McpRequest;
-    use regenerator2000::state::AppState;
-    use regenerator2000::theme::Theme;
-    use regenerator2000::ui_state::UIState;
+    use regenerator_core::mcp::handler::handle_request;
+    use regenerator_core::mcp::types::McpRequest;
+    use regenerator_core::state::AppState;
+    use regenerator_tui::theme::Theme;
+    use regenerator_tui::ui_state::UIState;
     use serde_json::json;
     use tokio::sync::oneshot;
 
     #[test]
     fn test_binary_main_resource() {
         let mut app_state = AppState::default();
-        let origin = regenerator2000::state::Addr(0x0801);
+        let origin = regenerator_core::state::Addr(0x0801);
         let data = vec![0x00, 0x01, 0x02, 0x03, 0xFF]; // random bytes
         app_state.load_binary(origin, data.clone()).unwrap();
 

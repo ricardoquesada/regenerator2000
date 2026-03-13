@@ -5,6 +5,12 @@
   "blocks": [
     {
       "start": 0,
+      "end": 255,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 256,
       "end": 445,
       "type_": "Code",
       "collapsed": false
@@ -682,7 +688,7 @@
     ],
     "4096": [
       {
-        "name": "init_vic_video",
+        "name": "TEST_LABEL",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1256,6 +1262,7 @@
     ]
   },
   "user_side_comments": {
+    "4096": "side comment by MCP test",
     "4099": "Clear sprite coordinates ($D000-$D010)",
     "4156": "Enable multi-color mode for text",
     "4167": "Set character memory to $2000",
@@ -1594,7 +1601,7 @@
     "22270": "Final combined key state → key_scan ($7F = no key)"
   },
   "user_line_comments": {
-    "4096": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the VIC-II video chip settings for the game.\nClears sprite coordinates, enables multi-color mode for character display,\nsets up global border and background colors, and configures sprite sizes,\npriorities, and multi-color settings. Also sets the character memory pointer.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies VIC-II registers ($D000-$D026) and Sprite 0 pointer ($07F8)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "4096": "added by MCP test",
     "4178": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the screen display, background colors, and title/game sprites.\nThis routine runs at startup to paint the initial screen layout to Screen RAM\n($0400) and Color RAM ($D800). It establishes the sprite positions and does a\nfade-in effect by shifting bits into the sprite enable register ($D015) before\nswitching to a second screen layout ($2800).\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies Screen RAM ($0400), Color RAM ($D800), and all Sprite\n              registers in ($D000-$D015). Loops through wait delays.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4501": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the game state, memory buffers, and SID audio filters.\nThis routine sets up several 256-byte pages ($0800-$0DFF), clears object/sprite\nbuffers, and resets various variables at the start of $0800. It also initializes\nthe SID chip's filter and volume settings initially calling `$1195` then jumping\nto `$1200` to complete the rest of the work.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies memory regions $0800-$0DFF, $0F50-$0F56, $7400-$7457,\n              and SID registers $D415-$D418.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4608": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes game variables and duplicates memory pages.\nThis routine resets various state variables in the $0800-$09FF range, zeroes\nout specific arrays, and then creates two copies of the $0800-$09FF memory pages\nat $0A00-$0BFF and $0C00-$0DFF. It finally resets the SID filter cutoff frequency.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies memory $0800-$0DFF, $7080-$7082, and SID $D415-$D416.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1660,9 +1667,11 @@
     "bytes_per_line": 8,
     "enabled_features": {},
     "description": "Burnin Rubber is a top-down racing game. Press \"fire\" to jump on top of other cars",
-    "auto_analyze": true
+    "auto_analyze": true,
+    "show_system_comments": true
   },
   "immediate_value_formats": {
+    "4096": "Binary",
     "4753": {
       "HighByte": 21400
     },
@@ -1671,14 +1680,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 20736,
-  "hex_dump_cursor_address": 17776,
-  "sprites_cursor_address": 16384,
-  "charset_cursor_address": 16320,
-  "right_pane_visible": "Blocks",
-  "sprite_multicolor_mode": true,
+  "cursor_address": 4096,
+  "hex_dump_cursor_address": 4096,
+  "sprites_cursor_address": 4096,
+  "charset_cursor_address": 4096,
+  "right_pane_visible": "HexDump",
+  "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],

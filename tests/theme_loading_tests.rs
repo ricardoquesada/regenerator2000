@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use regenerator2000::theme::Theme;
+use regenerator_tui::theme::Theme;
 
 #[test]
 fn all_named_themes_load() {

@@ -20,3 +20,6 @@ pub mod state;
 pub mod utils;
 pub mod vice;
 pub mod view_state;
+
+#[cfg(feature = "mcp")]
+pub mod mcp;

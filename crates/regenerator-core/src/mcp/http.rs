@@ -54,7 +54,6 @@ impl RegeneratorOps {
 }
 
 impl ServerHandler for RegeneratorOps {
-    // ... (rest of implementation remains same, just ensuring imports are correct)
     async fn initialize(
         &self,
         request: InitializeRequestParams,

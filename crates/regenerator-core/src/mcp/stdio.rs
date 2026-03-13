@@ -1,7 +1,7 @@
 use crate::mcp::handler::handle_request;
 use crate::mcp::types::McpRequest;
 use crate::state::AppState;
-use crate::ui_state::UIState;
+use crate::view_state::CoreViewState;
 use serde_json::{Value, json};
 use std::io::{self, BufRead, Write};
 use tokio::sync::mpsc::Sender;
@@ -64,7 +64,7 @@ pub async fn run_stdio_loop(sender: Sender<McpRequest>) {
 }
 
 // For truly headless mode where we don't bridge to a TUI thread
-pub async fn run_headless_stdio_loop(mut app_state: AppState, mut ui_state: UIState) {
+pub async fn run_headless_stdio_loop(mut app_state: AppState, mut view_state: CoreViewState) {
     let stdin = io::stdin();
     let mut reader = stdin.lock();
     let mut line = String::new();
@@ -85,16 +85,17 @@ pub async fn run_headless_stdio_loop(mut app_state: AppState, mut ui_state: UISt
         let params = payload.get("params").cloned().unwrap_or(Value::Null);
 
         if let Some(method) = method {
+            let (tx, _rx) = oneshot::channel();
             let request = McpRequest {
                 method,
                 params,
                 // In headless mode we don't need the oneshot because we handle it synchronously here
-                response_sender: oneshot::channel().0,
+                response_sender: tx,
             };
 
             // We need a slightly different handle_request or just use the existing one but handle the oneshot manually?
             // Actually, handle_request returns McpResponse directly.
-            let response = handle_request(&request, &mut app_state, &mut ui_state);
+            let response = handle_request(&request, &mut app_state, &mut view_state);
 
             let json_resp = if let Some(error) = response.error {
                 json!({

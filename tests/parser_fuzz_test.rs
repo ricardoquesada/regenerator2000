@@ -9,7 +9,7 @@
 /// 2. **Truncated** – valid header then unexpected EOF
 /// 3. **Corrupt fields** – valid structure but bogus lengths / offsets
 /// 4. **Randomised** – pseudo-random blobs at various sizes
-use regenerator2000::parser::{crt, d64, t64, vice_vsf};
+use regenerator_core::parser::{crt, d64, t64, vice_vsf};
 
 // ─────────────────────── helpers ───────────────────────
 
@@ -331,7 +331,7 @@ fn test_vsf_random_data() {
 
 #[test]
 fn test_vice_labels_empty() {
-    let result = regenerator2000::parser::vice_lbl::parse_vice_labels("");
+    let result = regenerator_core::parser::vice_lbl::parse_vice_labels("");
     assert!(result.is_ok());
     assert!(result.unwrap().is_empty());
 }
@@ -339,7 +339,7 @@ fn test_vice_labels_empty() {
 #[test]
 fn test_vice_labels_garbage() {
     let garbage = "this is not a label file\n!@#$%^&*\n\0\0\0";
-    let result = regenerator2000::parser::vice_lbl::parse_vice_labels(garbage);
+    let result = regenerator_core::parser::vice_lbl::parse_vice_labels(garbage);
     assert!(result.is_ok());
     assert!(result.unwrap().is_empty());
 }
@@ -348,7 +348,7 @@ fn test_vice_labels_garbage() {
 fn test_vice_labels_huge_address() {
     // Address bigger than u16 max — should be silently ignored
     let content = "al $FFFFF .too_big\nal $1000 .valid\n";
-    let result = regenerator2000::parser::vice_lbl::parse_vice_labels(content);
+    let result = regenerator_core::parser::vice_lbl::parse_vice_labels(content);
     assert!(result.is_ok());
     let labels = result.unwrap();
     assert_eq!(labels.len(), 1);

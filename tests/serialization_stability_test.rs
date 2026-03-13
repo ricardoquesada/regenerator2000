@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #[cfg(test)]
 mod tests {
-    use regenerator2000::state::{
+    use regenerator_core::state::{
         AppState, BlockType, Label, LabelKind, LabelType, ProjectSaveContext,
     };
     use std::collections::BTreeMap;
@@ -14,14 +14,14 @@ mod tests {
         app_state.project_path = Some(temp_path.clone());
 
         // 1. Setup a complex state with multiple labels at same addresses and comments
-        app_state.origin = regenerator2000::state::Addr(0x1000);
+        app_state.origin = regenerator_core::state::Addr(0x1000);
         app_state.raw_data = vec![0xEA; 100]; // 100 NOPs
         app_state.block_types = vec![BlockType::Code; 100];
 
         // Add labels at same address in NON-ALPHABETICAL order
         let mut labels = BTreeMap::new();
         labels.insert(
-            regenerator2000::state::Addr(0x1000),
+            regenerator_core::state::Addr(0x1000),
             vec![
                 Label {
                     name: "Z_Label".to_string(),
@@ -36,7 +36,7 @@ mod tests {
             ],
         );
         labels.insert(
-            regenerator2000::state::Addr(0x1005),
+            regenerator_core::state::Addr(0x1005),
             vec![Label {
                 name: "M_Label".to_string(),
                 label_type: LabelType::UserDefined,
@@ -47,20 +47,20 @@ mod tests {
 
         // Add comments in random order (BTreeMap will handle address order, but let's be sure)
         app_state.user_side_comments.insert(
-            regenerator2000::state::Addr(0x1005),
+            regenerator_core::state::Addr(0x1005),
             "Comment 2".to_string(),
         );
         app_state.user_side_comments.insert(
-            regenerator2000::state::Addr(0x1000),
+            regenerator_core::state::Addr(0x1000),
             "Comment 1".to_string(),
         );
 
         app_state
             .user_line_comments
-            .insert(regenerator2000::state::Addr(0x1005), "Line 2".to_string());
+            .insert(regenerator_core::state::Addr(0x1005), "Line 2".to_string());
         app_state
             .user_line_comments
-            .insert(regenerator2000::state::Addr(0x1000), "Line 1".to_string());
+            .insert(regenerator_core::state::Addr(0x1000), "Line 1".to_string());
 
         // 2. Save for the first time
         app_state
@@ -75,7 +75,7 @@ mod tests {
                     sprite_multicolor_mode: false,
                     charset_multicolor_mode: false,
                     bitmap_multicolor_mode: false,
-                    hexdump_view_mode: regenerator2000::state::HexdumpViewMode::default(),
+                    hexdump_view_mode: regenerator_core::state::HexdumpViewMode::default(),
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
                     bookmarks: BTreeMap::new(),
@@ -105,7 +105,7 @@ mod tests {
                     sprite_multicolor_mode: false,
                     charset_multicolor_mode: false,
                     bitmap_multicolor_mode: false,
-                    hexdump_view_mode: regenerator2000::state::HexdumpViewMode::default(),
+                    hexdump_view_mode: regenerator_core::state::HexdumpViewMode::default(),
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
                     bookmarks: BTreeMap::new(),

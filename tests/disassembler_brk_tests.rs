@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use regenerator2000::disassembler::Disassembler;
-use regenerator2000::state::Addr;
-use regenerator2000::state::{BlockType, DocumentSettings, Label, LabelKind, LabelType};
+use regenerator_core::disassembler::Disassembler;
+use regenerator_core::state::Addr;
+use regenerator_core::state::{BlockType, DocumentSettings, Label, LabelKind, LabelType};
 use std::collections::BTreeMap;
 
 #[test]
@@ -143,7 +143,7 @@ fn test_brk_patch_brk_with_label() {
 
     let mut labels = BTreeMap::new();
     labels.insert(
-        regenerator2000::state::Addr(0x1001),
+        regenerator_core::state::Addr(0x1001),
         vec![Label {
             name: "b1001".to_string(),
             label_type: LabelType::UserDefined,

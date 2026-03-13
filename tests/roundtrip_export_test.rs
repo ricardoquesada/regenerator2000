@@ -16,8 +16,8 @@
 //! If an assembler is not installed, the corresponding test is skipped
 //! (not failed).
 
-use regenerator2000::exporter::{verify_all_assemblers, verify_roundtrip};
-use regenerator2000::state::{AppState, Assembler};
+use regenerator_core::exporter::{verify_all_assemblers, verify_roundtrip};
+use regenerator_core::state::{AppState, Assembler};
 use std::path::PathBuf;
 
 /// Helper: Load a PRG file and set up an `AppState` suitable for verification.
@@ -190,7 +190,7 @@ fn test_roundtrip_sprmux32_all_assemblers() {
 #[test]
 fn test_roundtrip_synthetic_code() {
     let mut state = AppState::new();
-    state.origin = regenerator2000::state::Addr(0x0801);
+    state.origin = regenerator_core::state::Addr(0x0801);
     // LDA #$00; STA $D020; STA $D021; RTS
     state.raw_data = vec![
         0xA9, 0x00, // LDA #$00
@@ -198,7 +198,7 @@ fn test_roundtrip_synthetic_code() {
         0x8D, 0x21, 0xD0, // STA $D021
         0x60, // RTS
     ];
-    state.block_types = vec![regenerator2000::state::BlockType::Code; state.raw_data.len()];
+    state.block_types = vec![regenerator_core::state::BlockType::Code; state.raw_data.len()];
     state.disassemble();
 
     for asm in Assembler::all() {
@@ -224,10 +224,10 @@ fn test_roundtrip_synthetic_code() {
 
 #[test]
 fn test_roundtrip_synthetic_mixed_code_data() {
-    use regenerator2000::state::BlockType;
+    use regenerator_core::state::BlockType;
 
     let mut state = AppState::new();
-    state.origin = regenerator2000::state::Addr(0xC000);
+    state.origin = regenerator_core::state::Addr(0xC000);
     state.raw_data = vec![
         0xA9, 0x01, // LDA #$01
         0x8D, 0x20, 0xD0, // STA $D020
@@ -271,10 +271,10 @@ fn test_roundtrip_synthetic_mixed_code_data() {
 
 #[test]
 fn test_roundtrip_synthetic_data_words() {
-    use regenerator2000::state::BlockType;
+    use regenerator_core::state::BlockType;
 
     let mut state = AppState::new();
-    state.origin = regenerator2000::state::Addr(0x0800);
+    state.origin = regenerator_core::state::Addr(0x0800);
     state.raw_data = vec![
         0xA9, 0x42, // LDA #$42
         0x60, // RTS

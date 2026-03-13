@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use regenerator2000::disassembler::Disassembler;
-use regenerator2000::state::Addr;
-use regenerator2000::state::{Assembler, BlockType, DocumentSettings};
+use regenerator_core::disassembler::Disassembler;
+use regenerator_core::state::Addr;
+use regenerator_core::state::{Assembler, BlockType, DocumentSettings};
 use std::collections::BTreeMap;
 
 #[test]
@@ -13,7 +13,7 @@ fn test_system_comments_logic() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = regenerator2000::state::Addr(0x1000);
+    let origin = regenerator_core::state::Addr(0x1000);
 
     let mut system_comments = BTreeMap::new();
     // Comment for target address
@@ -67,7 +67,7 @@ fn test_system_comment_on_sta() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = regenerator2000::state::Addr(0x2000);
+    let origin = regenerator_core::state::Addr(0x2000);
 
     let mut system_comments = BTreeMap::new();
     // D020: Border Color

@@ -3,8 +3,8 @@
 ///
 /// Mirrors the test structure of `formatter_ca65_tests.rs` and `formatter_kickasm_tests.rs`,
 /// providing equivalent coverage for the ACME assembler output.
-use regenerator2000::disassembler::Disassembler;
-use regenerator2000::state::{Assembler, DocumentSettings};
+use regenerator_core::disassembler::Disassembler;
+use regenerator_core::state::{Assembler, DocumentSettings};
 use std::collections::BTreeMap;
 
 #[test]
@@ -16,13 +16,13 @@ fn test_format_instructions() {
     let formatter = Disassembler::create_formatter(settings.assembler);
     let labels = BTreeMap::new();
     let immediate_value_formats = BTreeMap::new();
-    let opcodes = regenerator2000::cpu::get_opcodes();
+    let opcodes = regenerator_core::cpu::get_opcodes();
 
     // LDA #$00  (A9 00)
-    let ctx = regenerator2000::disassembler::formatter::FormatContext {
+    let ctx = regenerator_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xA9].as_ref().unwrap(),
         operands: &[0x00],
-        address: regenerator2000::state::Addr(0x1000),
+        address: regenerator_core::state::Addr(0x1000),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -34,10 +34,10 @@ fn test_format_instructions() {
     );
 
     // STA $D020  (8D 20 D0)
-    let ctx = regenerator2000::disassembler::formatter::FormatContext {
+    let ctx = regenerator_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0x8D].as_ref().unwrap(),
         operands: &[0x20, 0xD0],
-        address: regenerator2000::state::Addr(0x1002),
+        address: regenerator_core::state::Addr(0x1002),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -49,10 +49,10 @@ fn test_format_instructions() {
     );
 
     // NOP  (EA) — Implied
-    let ctx = regenerator2000::disassembler::formatter::FormatContext {
+    let ctx = regenerator_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xEA].as_ref().unwrap(),
         operands: &[],
-        address: regenerator2000::state::Addr(0x1005),
+        address: regenerator_core::state::Addr(0x1005),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -64,10 +64,10 @@ fn test_format_instructions() {
     );
 
     // ASL (Accumulator) — ACME uses empty operand (not "a")
-    let ctx = regenerator2000::disassembler::formatter::FormatContext {
+    let ctx = regenerator_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0x0A].as_ref().unwrap(),
         operands: &[],
-        address: regenerator2000::state::Addr(0x1006),
+        address: regenerator_core::state::Addr(0x1006),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -86,11 +86,11 @@ fn test_origin() {
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
     assert_eq!(
-        formatter.format_header_origin(regenerator2000::state::Addr(0x0801)),
+        formatter.format_header_origin(regenerator_core::state::Addr(0x0801)),
         "* = $0801"
     );
     assert_eq!(
-        formatter.format_header_origin(regenerator2000::state::Addr(0xC000)),
+        formatter.format_header_origin(regenerator_core::state::Addr(0xC000)),
         "* = $c000"
     );
 }
@@ -128,14 +128,14 @@ fn test_forced_absolute_plus2() {
     let formatter = Disassembler::create_formatter(settings.assembler);
     let labels = BTreeMap::new();
     let immediate_value_formats = BTreeMap::new();
-    let opcodes = regenerator2000::cpu::get_opcodes();
+    let opcodes = regenerator_core::cpu::get_opcodes();
 
     // ACME uses "+2" suffix for forced 16-bit addressing
     settings.preserve_long_bytes = true;
-    let ctx = regenerator2000::disassembler::formatter::FormatContext {
+    let ctx = regenerator_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
-        address: regenerator2000::state::Addr(0x1000),
+        address: regenerator_core::state::Addr(0x1000),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -149,10 +149,10 @@ fn test_forced_absolute_plus2() {
     // With preserve_long_bytes=false, no +2
     let mut settings_false = settings.clone();
     settings_false.preserve_long_bytes = false;
-    let ctx_false = regenerator2000::disassembler::formatter::FormatContext {
+    let ctx_false = regenerator_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
-        address: regenerator2000::state::Addr(0x1000),
+        address: regenerator_core::state::Addr(0x1000),
         target_context: None,
         labels: &labels,
         settings: &settings_false,
@@ -164,10 +164,10 @@ fn test_forced_absolute_plus2() {
     );
 
     // Absolute,X with forced absolute: STA $0010,X
-    let ctx_x = regenerator2000::disassembler::formatter::FormatContext {
+    let ctx_x = regenerator_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0x9D].as_ref().unwrap(), // STA abs,X
         operands: &[0x10, 0x00],
-        address: regenerator2000::state::Addr(0x1003),
+        address: regenerator_core::state::Addr(0x1003),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -179,10 +179,10 @@ fn test_forced_absolute_plus2() {
     );
 
     // Non-ZP absolute address: should NOT get +2
-    let ctx_normal = regenerator2000::disassembler::formatter::FormatContext {
+    let ctx_normal = regenerator_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x20, 0xD0],
-        address: regenerator2000::state::Addr(0x1006),
+        address: regenerator_core::state::Addr(0x1006),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -203,13 +203,13 @@ fn test_addressing_modes() {
     let formatter = Disassembler::create_formatter(settings.assembler);
     let labels = BTreeMap::new();
     let immediate_value_formats = BTreeMap::new();
-    let opcodes = regenerator2000::cpu::get_opcodes();
+    let opcodes = regenerator_core::cpu::get_opcodes();
 
     // LDA ($20,X) — Indirect X
-    let ctx = regenerator2000::disassembler::formatter::FormatContext {
+    let ctx = regenerator_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xA1].as_ref().unwrap(),
         operands: &[0x20],
-        address: regenerator2000::state::Addr(0x2000),
+        address: regenerator_core::state::Addr(0x2000),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -221,10 +221,10 @@ fn test_addressing_modes() {
     );
 
     // LDA ($20),Y — Indirect Y
-    let ctx = regenerator2000::disassembler::formatter::FormatContext {
+    let ctx = regenerator_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xB1].as_ref().unwrap(),
         operands: &[0x20],
-        address: regenerator2000::state::Addr(0x2002),
+        address: regenerator_core::state::Addr(0x2002),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -236,10 +236,10 @@ fn test_addressing_modes() {
     );
 
     // BNE $2007 — Relative forward
-    let ctx = regenerator2000::disassembler::formatter::FormatContext {
+    let ctx = regenerator_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xD0].as_ref().unwrap(),
         operands: &[0x03],
-        address: regenerator2000::state::Addr(0x2004),
+        address: regenerator_core::state::Addr(0x2004),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -296,7 +296,7 @@ fn test_file_header() {
 
 #[test]
 fn test_text_formatting() {
-    use regenerator2000::disassembler::formatter::TextFragment;
+    use regenerator_core::disassembler::formatter::TextFragment;
 
     let settings = DocumentSettings {
         assembler: Assembler::Acme,
@@ -325,7 +325,7 @@ fn test_text_formatting() {
 
 #[test]
 fn test_text_escaping() {
-    use regenerator2000::disassembler::formatter::TextFragment;
+    use regenerator_core::disassembler::formatter::TextFragment;
 
     let settings = DocumentSettings {
         assembler: Assembler::Acme,
@@ -347,7 +347,7 @@ fn test_text_escaping() {
 
 #[test]
 fn test_screencode_formatting() {
-    use regenerator2000::disassembler::formatter::TextFragment;
+    use regenerator_core::disassembler::formatter::TextFragment;
 
     let settings = DocumentSettings {
         assembler: Assembler::Acme,
@@ -380,7 +380,7 @@ fn test_screencode_formatting() {
 
 #[test]
 fn test_screencode_bytes() {
-    use regenerator2000::disassembler::formatter::TextFragment;
+    use regenerator_core::disassembler::formatter::TextFragment;
 
     let settings = DocumentSettings {
         assembler: Assembler::Acme,
@@ -409,13 +409,13 @@ fn test_lax_immediate_mnemonic() {
     let formatter = Disassembler::create_formatter(settings.assembler);
     let labels = BTreeMap::new();
     let immediate_value_formats = BTreeMap::new();
-    let opcodes = regenerator2000::cpu::get_opcodes();
+    let opcodes = regenerator_core::cpu::get_opcodes();
 
     if let Some(opcode) = opcodes[0xAB].as_ref() {
-        let ctx = regenerator2000::disassembler::formatter::FormatContext {
+        let ctx = regenerator_core::disassembler::formatter::FormatContext {
             opcode,
             operands: &[0x42],
-            address: regenerator2000::state::Addr(0x1000),
+            address: regenerator_core::state::Addr(0x1000),
             target_context: None,
             labels: &labels,
             settings: &settings,

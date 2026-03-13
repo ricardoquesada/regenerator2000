@@ -9,7 +9,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 mod d64_malformed {
-    use regenerator2000::parser::d64::{extract_file, parse_d64_directory};
+    use regenerator_core::parser::d64::{extract_file, parse_d64_directory};
 
     #[test]
     fn empty_data() {
@@ -56,13 +56,13 @@ mod d64_malformed {
     fn extract_file_with_too_small_image() {
         // extract_file requires >= D64_STANDARD_SIZE
         let data = vec![0u8; 1000];
-        let dummy_entry = regenerator2000::parser::d64::D64FileEntry {
+        let dummy_entry = regenerator_core::parser::d64::D64FileEntry {
             filename: "TEST".to_string(),
-            file_type: regenerator2000::parser::d64::FileType::PRG,
+            file_type: regenerator_core::parser::d64::FileType::PRG,
             track: 1,
             sector: 0,
             size_sectors: 1,
-            disk_type: regenerator2000::parser::d64::DiskType::D64,
+            disk_type: regenerator_core::parser::d64::DiskType::D64,
         };
         let res = extract_file(&data, &dummy_entry);
         assert!(res.is_err());
@@ -82,13 +82,13 @@ mod d64_malformed {
             *val = 0xAA;
         }
 
-        let entry = regenerator2000::parser::d64::D64FileEntry {
+        let entry = regenerator_core::parser::d64::D64FileEntry {
             filename: "LOOP".to_string(),
-            file_type: regenerator2000::parser::d64::FileType::PRG,
+            file_type: regenerator_core::parser::d64::FileType::PRG,
             track: 1,
             sector: 0,
             size_sectors: 999,
-            disk_type: regenerator2000::parser::d64::DiskType::D64,
+            disk_type: regenerator_core::parser::d64::DiskType::D64,
         };
         let res = extract_file(&data, &entry);
         // Should hit the 1MB safety check and error out
@@ -122,7 +122,7 @@ mod d64_malformed {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 mod crt_malformed {
-    use regenerator2000::parser::crt::{parse_crt, parse_crt_chips};
+    use regenerator_core::parser::crt::{parse_crt, parse_crt_chips};
 
     #[test]
     fn empty_data() {
@@ -235,7 +235,7 @@ mod crt_malformed {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 mod t64_malformed {
-    use regenerator2000::parser::t64::{parse_t64, parse_t64_directory};
+    use regenerator_core::parser::t64::{parse_t64, parse_t64_directory};
 
     #[test]
     fn empty_data() {
@@ -340,7 +340,7 @@ mod t64_malformed {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 mod vsf_malformed {
-    use regenerator2000::parser::vice_vsf::parse_vsf;
+    use regenerator_core::parser::vice_vsf::parse_vsf;
 
     /// Helper: assert `parse_vsf` returns Err and the error message contains `needle`.
     fn assert_vsf_err(data: &[u8], needle: &str) {

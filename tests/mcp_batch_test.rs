@@ -1,18 +1,18 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #[cfg(test)]
 mod tests {
-    use regenerator2000::mcp::handler::handle_request;
-    use regenerator2000::mcp::types::McpRequest;
-    use regenerator2000::state::AppState;
-    use regenerator2000::theme::Theme;
-    use regenerator2000::ui_state::UIState;
+    use regenerator_core::mcp::handler::handle_request;
+    use regenerator_core::mcp::types::McpRequest;
+    use regenerator_core::state::AppState;
+    use regenerator_tui::theme::Theme;
+    use regenerator_tui::ui_state::UIState;
     use serde_json::json;
     use tokio::sync::oneshot;
 
     #[test]
     fn test_batch_execute() {
         let mut app_state = AppState::default();
-        let origin = regenerator2000::state::Addr(0x1000);
+        let origin = regenerator_core::state::Addr(0x1000);
         let data = vec![0xEA; 10]; // NOPs
         app_state.load_binary(origin, data).unwrap();
 

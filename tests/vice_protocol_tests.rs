@@ -4,7 +4,7 @@
 /// Tests the encode/decode round-trip, edge cases, and error handling
 /// for the `ViceMessage` protocol, as well as `ViceState` and `BreakpointKind` logic.
 mod protocol_tests {
-    use regenerator2000::vice::protocol::{API_VERSION, STX, ViceCommand, ViceCpuOp, ViceMessage};
+    use regenerator_core::vice::protocol::{API_VERSION, STX, ViceCommand, ViceCpuOp, ViceMessage};
 
     #[test]
     fn encode_ping_message() {
@@ -198,7 +198,7 @@ mod protocol_tests {
 }
 
 mod vice_state_tests {
-    use regenerator2000::vice::state::{BreakpointKind, ViceBreakpoint, ViceState};
+    use regenerator_core::vice::state::{BreakpointKind, ViceBreakpoint, ViceState};
 
     #[test]
     fn breakpoint_kind_from_cpu_op() {

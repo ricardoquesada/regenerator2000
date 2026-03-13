@@ -2,11 +2,11 @@
 
 #[cfg(test)]
 mod tests {
-    use regenerator2000::mcp::handler::handle_request;
-    use regenerator2000::mcp::types::McpRequest;
-    use regenerator2000::state::AppState;
-    use regenerator2000::theme::Theme;
-    use regenerator2000::ui_state::UIState;
+    use regenerator_core::mcp::handler::handle_request;
+    use regenerator_core::mcp::types::McpRequest;
+    use regenerator_core::state::AppState;
+    use regenerator_tui::theme::Theme;
+    use regenerator_tui::ui_state::UIState;
     use serde_json::json;
     use tokio::sync::oneshot;
 
@@ -38,7 +38,7 @@ mod tests {
     #[test]
     fn test_block_details() {
         let mut app_state = AppState::default();
-        let origin = regenerator2000::state::Addr(0x1000);
+        let origin = regenerator_core::state::Addr(0x1000);
         // LDA #$00 (A9 00)
         // STA $D020 (8D 20 D0)
         // JMP $1000 (4C 00 10)
@@ -47,15 +47,15 @@ mod tests {
 
         // Add some metadata
         app_state.labels.insert(
-            regenerator2000::state::Addr(0x1000),
-            vec![regenerator2000::state::Label {
+            regenerator_core::state::Addr(0x1000),
+            vec![regenerator_core::state::Label {
                 name: "start".to_string(),
-                kind: regenerator2000::state::LabelKind::User,
-                label_type: regenerator2000::state::LabelType::UserDefined,
+                kind: regenerator_core::state::LabelKind::User,
+                label_type: regenerator_core::state::LabelType::UserDefined,
             }],
         );
         app_state.user_side_comments.insert(
-            regenerator2000::state::Addr(0x1000),
+            regenerator_core::state::Addr(0x1000),
             "Start of loop".to_string(),
         );
 

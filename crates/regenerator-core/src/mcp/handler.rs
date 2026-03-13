@@ -4,18 +4,18 @@ use crate::state::types::{Addr, BlockType, ImmediateFormat};
 use base64::prelude::*;
 use serde_json::{Value, json};
 
-use crate::ui_state::UIState;
+use crate::view_state::CoreViewState;
 
 pub fn handle_request(
     req: &McpRequest,
     app_state: &mut AppState,
-    ui_state: &mut UIState,
+    view_state: &mut CoreViewState,
 ) -> McpResponse {
     let result = match req.method.as_str() {
         "initialize" => Ok(json!({
             "protocolVersion": "2024-11-05",
             "serverInfo": {
-                "name": "regenerator2000-mcp",
+                "name": "regenerator2000-core-mcp",
                 "version": env!("CARGO_PKG_VERSION"),
                 "description": "An interactive disassembler for the MOS 6502 assembly."
             },
@@ -29,7 +29,7 @@ pub fn handle_request(
         "tools/list" => list_tools(),
         "resources/list" => list_resources(),
         // Tools
-        "tools/call" => handle_tool_call(&req.params, app_state, ui_state),
+        "tools/call" => handle_tool_call(&req.params, app_state, view_state),
         // Resources
         "resources/read" => handle_resource_read(&req.params, app_state),
 
@@ -320,7 +320,7 @@ fn list_resources() -> Result<Value, McpError> {
 fn handle_tool_call(
     params: &Value,
     app_state: &mut AppState,
-    ui_state: &mut UIState,
+    view_state: &mut CoreViewState,
 ) -> Result<Value, McpError> {
     let name = params
         .get("name")
@@ -333,14 +333,14 @@ fn handle_tool_call(
 
     let args = params.get("arguments").cloned().unwrap_or(json!({}));
 
-    handle_tool_call_internal(name, args, app_state, ui_state)
+    handle_tool_call_internal(name, args, app_state, view_state)
 }
 
 fn handle_tool_call_internal(
     name: &str,
     args: Value,
     app_state: &mut AppState,
-    ui_state: &mut UIState,
+    view_state: &mut CoreViewState,
 ) -> Result<Value, McpError> {
     match name {
         "r2000_batch_execute" => {
@@ -366,7 +366,7 @@ fn handle_tool_call_internal(
 
                 let tool_args = call.get("arguments").cloned().unwrap_or(json!({}));
 
-                match handle_tool_call_internal(tool_name, tool_args, app_state, ui_state) {
+                match handle_tool_call_internal(tool_name, tool_args, app_state, view_state) {
                     Ok(val) => results.push(json!({ "status": "success", "result": val })),
                     Err(err) => results.push(json!({ "status": "error", "error": err })),
                 }
@@ -518,10 +518,10 @@ fn handle_tool_call_internal(
                 .and_then(|v| v.as_str())
                 .unwrap_or("disasm");
             let text = if view == "hexdump" {
-                let (start, end) = get_selection_range_hexdump(app_state, ui_state)?;
+                let (start, end) = get_selection_range_hexdump(app_state, view_state)?;
                 get_hexdump_text(app_state, start, end)
             } else {
-                let (start, end) = get_selection_range_disasm(app_state, ui_state)?;
+                let (start, end) = get_selection_range_disasm(app_state, view_state)?;
                 get_disassembly_text(app_state, start, end)
             };
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
@@ -577,7 +577,7 @@ fn handle_tool_call_internal(
         }
 
         "r2000_get_disassembly_cursor" => {
-            let idx = ui_state.cursor_index;
+            let idx = view_state.cursor_index;
             if let Some(line) = app_state.disassembly.get(idx) {
                 Ok(json!({
                     "content": [{
@@ -601,8 +601,7 @@ fn handle_tool_call_internal(
                 .or_else(|| app_state.get_line_index_for_address(address))
                 .is_some()
             {
-                crate::navigation::perform_jump_to_address(app_state, &mut ui_state.core, address);
-                ui_state.sync_status_message();
+                crate::navigation::perform_jump_to_address(app_state, view_state, address);
 
                 Ok(json!({
                     "content": [{
@@ -705,7 +704,7 @@ fn handle_tool_call_internal(
                 });
             }
 
-            let ctx = crate::navigation::create_save_context(app_state, &ui_state.core);
+            let ctx = crate::navigation::create_save_context(app_state, view_state);
             app_state.save_project(ctx, true).map_err(|e| McpError {
                 code: -32603,
                 message: format!("Failed to save project: {e}"),
@@ -906,10 +905,10 @@ fn get_disassembly_text(app_state: &AppState, start: Addr, end: Addr) -> String 
 
 fn get_selection_range_disasm(
     app_state: &AppState,
-    ui_state: &UIState,
+    view_state: &CoreViewState,
 ) -> Result<(Addr, Addr), McpError> {
-    let cursor_idx = ui_state.cursor_index;
-    let selection_idx = ui_state.selection_start;
+    let cursor_idx = view_state.cursor_index;
+    let selection_idx = view_state.selection_start;
 
     let (start_idx, end_idx) = if let Some(sel_start) = selection_idx {
         if sel_start < cursor_idx {
@@ -941,10 +940,10 @@ fn get_selection_range_disasm(
 
 fn get_selection_range_hexdump(
     app_state: &AppState,
-    ui_state: &UIState,
+    view_state: &CoreViewState,
 ) -> Result<(Addr, Addr), McpError> {
-    let cursor_row = ui_state.hex_cursor_index;
-    let selection_row = ui_state.hex_selection_start;
+    let cursor_row = view_state.hex_cursor_index;
+    let selection_row = view_state.hex_selection_start;
 
     let (start_row, end_row) = if let Some(sel_start) = selection_row {
         if sel_start < cursor_row {
@@ -1297,8 +1296,8 @@ mod tests {
         state
     }
 
-    fn make_ui_state() -> UIState {
-        UIState::new(crate::theme::Theme::default())
+    fn make_view_state() -> CoreViewState {
+        CoreViewState::new()
     }
 
     // -----------------------------------------------------------------------
@@ -1425,7 +1424,7 @@ mod tests {
     #[test]
     fn test_set_data_type_all_types() {
         let mut app_state = make_app_state(0x1000, 256);
-        let mut ui_state = make_ui_state();
+        let mut view_state = make_view_state();
 
         let types = [
             "code",
@@ -1452,7 +1451,7 @@ mod tests {
                 "r2000_set_data_type",
                 args,
                 &mut app_state,
-                &mut ui_state,
+                &mut view_state,
             );
             assert!(
                 result.is_ok(),
@@ -1464,7 +1463,7 @@ mod tests {
     #[test]
     fn test_set_data_type_unknown_type_returns_error() {
         let mut app_state = make_app_state(0x1000, 256);
-        let mut ui_state = make_ui_state();
+        let mut view_state = make_view_state();
 
         let args = json!({
             "start_address": 0x1000,
@@ -1472,21 +1471,21 @@ mod tests {
             "data_type": "invalid_type_xyz"
         });
         let result =
-            handle_tool_call_internal("r2000_set_data_type", args, &mut app_state, &mut ui_state);
+            handle_tool_call_internal("r2000_set_data_type", args, &mut app_state, &mut view_state);
         assert!(result.is_err(), "Expected Err for unknown data_type");
     }
 
     #[test]
     fn test_set_data_type_missing_data_type() {
         let mut app_state = make_app_state(0x1000, 256);
-        let mut ui_state = make_ui_state();
+        let mut view_state = make_view_state();
 
         let args = json!({
             "start_address": 0x1000,
             "end_address": 0x100F
         });
         let result =
-            handle_tool_call_internal("r2000_set_data_type", args, &mut app_state, &mut ui_state);
+            handle_tool_call_internal("r2000_set_data_type", args, &mut app_state, &mut view_state);
         assert!(result.is_err(), "Expected Err when data_type is missing");
     }
 }

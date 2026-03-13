@@ -46,7 +46,7 @@ pub fn centered_rect_adaptive(
 
 #[must_use]
 pub fn load_logo() -> Option<DynamicImage> {
-    let logo_bytes = include_bytes!("../docs/regenerator2000_logo.png");
+    let logo_bytes = include_bytes!("../../../docs/regenerator2000_logo.png");
     if let Ok(img) = image::load_from_memory(logo_bytes) {
         return Some(img);
     }

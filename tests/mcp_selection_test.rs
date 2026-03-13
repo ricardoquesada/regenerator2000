@@ -2,11 +2,11 @@
 
 #[cfg(test)]
 mod tests {
-    use regenerator2000::mcp::handler::handle_request;
-    use regenerator2000::mcp::types::McpRequest;
-    use regenerator2000::state::AppState;
-    use regenerator2000::theme::Theme;
-    use regenerator2000::ui_state::UIState;
+    use regenerator_core::mcp::handler::handle_request;
+    use regenerator_core::mcp::types::McpRequest;
+    use regenerator_core::state::AppState;
+    use regenerator_tui::theme::Theme;
+    use regenerator_tui::ui_state::UIState;
     use serde_json::json;
     use tokio::sync::oneshot;
 
@@ -14,7 +14,7 @@ mod tests {
     fn test_disasm_selected() {
         let mut app_state = AppState::default();
         // Populate with some data
-        let origin = regenerator2000::state::Addr(0x1000);
+        let origin = regenerator_core::state::Addr(0x1000);
         let data = vec![0xA9, 0x00, 0xAA, 0xCA, 0xE8]; // LDA #$00, TAX, DEX, INX
         app_state.load_binary(origin, data).unwrap();
         // Disassemble (triggered by load_binary)
@@ -33,19 +33,19 @@ mod tests {
         assert_eq!(app_state.disassembly.len(), 4);
         assert_eq!(
             app_state.disassembly[0].address,
-            regenerator2000::state::Addr(0x1000)
+            regenerator_core::state::Addr(0x1000)
         );
         assert_eq!(
             app_state.disassembly[1].address,
-            regenerator2000::state::Addr(0x1002)
+            regenerator_core::state::Addr(0x1002)
         );
         assert_eq!(
             app_state.disassembly[2].address,
-            regenerator2000::state::Addr(0x1003)
+            regenerator_core::state::Addr(0x1003)
         );
         assert_eq!(
             app_state.disassembly[3].address,
-            regenerator2000::state::Addr(0x1004)
+            regenerator_core::state::Addr(0x1004)
         ); // E8
 
         // Select 1002-1003
@@ -86,7 +86,7 @@ mod tests {
     #[test]
     fn test_hexdump_selected() {
         let mut app_state = AppState::default();
-        let origin = regenerator2000::state::Addr(0x1000);
+        let origin = regenerator_core::state::Addr(0x1000);
         // Data: 32 bytes (2 rows)
         let data: Vec<u8> = (0..32).collect();
         app_state.load_binary(origin, data).unwrap();
@@ -145,7 +145,7 @@ mod tests {
     #[test]
     fn test_jump_to_address() {
         let mut app_state = AppState::default();
-        let origin = regenerator2000::state::Addr(0x1000);
+        let origin = regenerator_core::state::Addr(0x1000);
         let data = vec![0xEA; 32]; // NOPs
         app_state.load_binary(origin, data).unwrap();
 
@@ -172,7 +172,7 @@ mod tests {
         assert_eq!(ui_state.scroll_index, 5);
         assert_eq!(
             ui_state.active_pane,
-            regenerator2000::ui_state::ActivePane::Disassembly
+            regenerator_tui::ui_state::ActivePane::Disassembly
         );
     }
 }

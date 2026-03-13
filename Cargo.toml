@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "crates/regenerator-core"]
+members = [".", "crates/regenerator-core", "crates/regenerator-tui"]
 resolver = "3"
 
 [package]
@@ -8,52 +8,21 @@ description = "An interactive disassembler for the CPU 6502, focused mostly on C
 name = "regenerator2000"
 version = "0.8.8"
 edition = "2024"
-license = "MIT OR Apache-2.0"
-homepage = "https://github.com/ricardoquesada/regenerator2000"
-repository = "https://github.com/ricardoquesada/regenerator2000"
-keywords = ["disassembler", "mos6502", "c64", "tui", "commodore"]
-categories = ["development-tools::debugging"]
-readme = "README.md"
-exclude = [
-    "docs/*_screenshot*.png",
-    "docs/*_only.png",
-    "docs/theme_*.png",
-    "docs/regenerator2000_logo_favicon.png",
-    "docs/regenerator2000_logo_noname.png",
-    "tests/6502/*.vsf",
-    "tests/6502/*.d64",
-    "tests/6502/*.d71",
-    "tests/6502/*.d81",
-    "tests/6502/*.crt",
-    "tests/6502/*.t64",
-    ".agent/",
-    ".github/",
-    "site/",
-]
 
 [dependencies]
-regenerator-core = { path = "crates/regenerator-core" }
+regenerator-core = { path = "crates/regenerator-core", features = ["mcp"] }
+regenerator-tui = { path = "crates/regenerator-tui" }
 clap = { version = "4", features = ["derive"] }
-ratatui = "0.30.0"
-crossterm = "0.29"
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-ratatui-image = { version = "10.0", default-features = false, features = ["crossterm"] }
-image = "0.25.9"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+ratatui = "0.30.0"
+crossterm = "0.29"
 base64 = "0.22.1"
-flate2 = "1.1.8"
-directories = "6.0.0"
-ratatui-textarea = "0.8"
-regex = "1.12.2"
 log = "0.4.29"
 simplelog = "0.12.2"
-include_dir = "0.7"
 tokio = { version = "1.49.0", features = ["rt-multi-thread", "sync", "net", "macros"] }
-uuid = { version = "1.20.0", features = ["v4", "fast-rng"] }
-rmcp = { version = "0.15.0", features = ["server", "transport-streamable-http-server"] }
-axum = "0.8.8"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 
 [build-dependencies]
 anyhow = "1.0"

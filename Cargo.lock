@@ -2607,14 +2607,40 @@ name = "regenerator-core"
 version = "0.8.8"
 dependencies = [
  "anyhow",
+ "axum",
  "base64",
  "directories",
  "flate2",
  "include_dir",
  "log",
  "regex",
+ "reqwest",
+ "rmcp",
  "serde",
  "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "regenerator-tui"
+version = "0.8.8"
+dependencies = [
+ "anyhow",
+ "base64",
+ "crossterm",
+ "directories",
+ "flate2",
+ "image",
+ "log",
+ "ratatui",
+ "ratatui-image",
+ "ratatui-textarea",
+ "regenerator-core",
+ "regex",
+ "serde",
+ "serde_json",
+ "tokio",
  "uuid",
 ]
 
@@ -2623,27 +2649,18 @@ name = "regenerator2000"
 version = "0.8.8"
 dependencies = [
  "anyhow",
- "axum",
  "base64",
  "clap",
  "crossterm",
- "directories",
- "flate2",
- "image",
- "include_dir",
  "log",
  "ratatui",
- "ratatui-image",
- "ratatui-textarea",
  "regenerator-core",
- "regex",
+ "regenerator-tui",
  "reqwest",
- "rmcp",
  "serde",
  "serde_json",
  "simplelog",
  "tokio",
- "uuid",
  "vergen",
  "vergen-gitcl",
 ]
