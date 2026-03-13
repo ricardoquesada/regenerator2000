@@ -11,6 +11,19 @@ use ratatui::{
 
 pub struct BookmarksDialog;
 
+impl BookmarksDialog {
+    #[must_use]
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for BookmarksDialog {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Widget for BookmarksDialog {
     fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;

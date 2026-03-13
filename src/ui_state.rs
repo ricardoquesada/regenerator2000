@@ -132,6 +132,18 @@ impl UIState {
         }
     }
 
+    /// Sync TUI-specific state (like ListState) TO CoreViewState.
+    pub fn sync_tui_to_core(&mut self) {
+        self.core.blocks_selected_index = self.blocks_list_state.selected();
+    }
+
+    /// Sync CoreViewState state TO TUI-specific state (like ListState).
+    pub fn sync_core_to_tui(&mut self) {
+        if let Some(idx) = self.core.blocks_selected_index {
+            self.blocks_list_state.select(Some(idx));
+        }
+    }
+
     pub fn restore_session(
         &mut self,
         loaded_data: &crate::state::LoadedProjectData,

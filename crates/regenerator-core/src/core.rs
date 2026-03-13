@@ -428,6 +428,31 @@ impl Core {
                 self.view.bitmap_multicolor_mode = !self.view.bitmap_multicolor_mode;
                 events.push(CoreEvent::ViewChanged);
             }
+            AppAction::NavigateBack => {
+                if let Some((pane, target)) = self.view.navigation_history.pop() {
+                    self.view.active_pane = pane;
+                    match target {
+                        crate::view_state::NavigationTarget::Address(addr) => {
+                            crate::navigation::perform_jump_to_address_no_history(
+                                &self.state,
+                                &mut self.view,
+                                crate::state::Addr(addr),
+                            );
+                        }
+                        crate::view_state::NavigationTarget::Index(idx) => {
+                            self.view.cursor_index = idx;
+                            self.view.scroll_index = idx;
+                            self.view.scroll_sub_index = 0;
+                            self.view.sub_cursor_index = 0;
+                        }
+                    }
+                    self.view.status_message = Some("Navigated back".to_string());
+                    events.push(CoreEvent::ViewChanged);
+                } else {
+                    self.view.status_message = Some("No history".to_string());
+                    events.push(CoreEvent::ViewChanged);
+                }
+            }
             // Add more as needed...
             _ => {}
         }

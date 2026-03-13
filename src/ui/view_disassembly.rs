@@ -1515,40 +1515,7 @@ impl Widget for DisassemblyView {
                 WidgetResult::Handled
             }
             KeyCode::Backspace if key.modifiers.is_empty() => {
-                while let Some((pane, _)) = ui_state.navigation_history.last() {
-                    if *pane == ActivePane::Disassembly {
-                        break;
-                    }
-                    ui_state.navigation_history.pop();
-                }
-
-                if let Some((pane, target)) = ui_state.navigation_history.pop() {
-                    if pane == ActivePane::Disassembly {
-                        use crate::ui_state::NavigationTarget;
-                        match target {
-                            NavigationTarget::Address(addr) => {
-                                // Delegate to shared jump logic (no history push)
-                                crate::ui::menu::perform_jump_to_address_no_history(
-                                    app_state,
-                                    ui_state,
-                                    crate::state::Addr(addr),
-                                );
-                                ui_state.set_status_message("Navigated back");
-                            }
-                            NavigationTarget::Index(idx) => {
-                                if idx < app_state.disassembly.len() {
-                                    ui_state.cursor_index = idx;
-                                    ui_state.set_status_message("Navigated back");
-                                } else {
-                                    ui_state.set_status_message("History invalid");
-                                }
-                            }
-                        }
-                    }
-                } else {
-                    ui_state.set_status_message("No history");
-                }
-                WidgetResult::Handled
+                WidgetResult::Action(AppAction::NavigateBack)
             }
 
             KeyCode::Char('l') if key.modifiers.is_empty() => action_set_label(app_state, ui_state),

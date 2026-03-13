@@ -1,6 +1,6 @@
 use crate::ui_state::{ActivePane, UIState};
 use regenerator_core::Core;
-use regenerator_core::event::{CoreEvent, DialogType};
+use regenerator_core::event::{CommentKind as DialogCommentKind, CoreEvent, DialogType};
 use regenerator_core::state::AppState;
 pub use regenerator_core::state::actions::AppAction;
 
@@ -210,12 +210,79 @@ pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAc
                             crate::ui::dialog_about::AboutDialog::new(ui_state),
                         ));
                     }
+                    DialogType::ViceConnect => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_vice_connect::ViceConnectDialog::new(),
+                        ));
+                    }
+                    DialogType::Label {
+                        address,
+                        initial_name,
+                        ..
+                    } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_label::LabelDialog::new(Some(&initial_name), address),
+                        ));
+                    }
+                    DialogType::Comment {
+                        address: _,
+                        current,
+                        kind,
+                    } => {
+                        let dialog_kind = match kind {
+                            DialogCommentKind::Side => crate::ui::dialog_comment::CommentType::Side,
+                            DialogCommentKind::Line => crate::ui::dialog_comment::CommentType::Line,
+                        };
+                        ui_state.active_dialog =
+                            Some(Box::new(crate::ui::dialog_comment::CommentDialog::new(
+                                current.as_deref(),
+                                dialog_kind,
+                            )));
+                    }
+                    DialogType::Confirmation {
+                        title,
+                        message,
+                        action,
+                    } => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_confirmation::ConfirmationDialog::new(
+                                title, message, action,
+                            ),
+                        ));
+                    }
+                    DialogType::Bookmarks => {
+                        ui_state.active_dialog =
+                            Some(Box::new(crate::ui::dialog_bookmarks::BookmarksDialog::new()));
+                    }
+                    DialogType::FindReferences(addr) => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_find_references::FindReferencesDialog::new(
+                                &core.state,
+                                addr,
+                            ),
+                        ));
+                    }
+                    DialogType::BreakpointAddress(addr) => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_breakpoint_address::BreakpointAddressDialog::new(
+                                addr,
+                            ),
+                        ));
+                    }
+                    DialogType::WatchpointAddress(addr) => {
+                        ui_state.active_dialog = Some(Box::new(
+                            crate::ui::dialog_watchpoint_address::WatchpointAddressDialog::new(
+                                addr,
+                            ),
+                        ));
+                    }
                     _ => {
-                        // Unhandled dialog type in TUI, fall back to old executor for now
-                        execute_menu_action(&mut core.state, ui_state, action.clone());
-                        return;
+                        // All dialogs should be handled here now.
                     }
                 }
+            }
+            CoreEvent::DialogDismissalRequested => {
+                ui_state.active_dialog = None;
             }
             _ => {
                 // For other events, we might need more handling or they are already applied to core state/view
@@ -229,6 +296,28 @@ pub fn execute_menu_action(app_state: &mut AppState, ui_state: &mut UIState, act
     ui_state.set_status_message(format!("Action: {action:?}"));
 
     match action {
+        AppAction::NavigateBack => {
+            // This is primarily handled in Core::apply_action, but included here for completeness
+            // if called via legacy paths.
+            if let Some((pane, target)) = ui_state.navigation_history.pop() {
+                ui_state.active_pane = pane;
+                match target {
+                    crate::ui_state::NavigationTarget::Address(addr) => {
+                        crate::navigation::perform_jump_to_address_no_history(
+                            app_state,
+                            &mut ui_state.core,
+                            crate::state::Addr(addr),
+                        );
+                    }
+                    crate::ui_state::NavigationTarget::Index(idx) => {
+                        ui_state.cursor_index = idx;
+                    }
+                }
+                ui_state.set_status_message("Navigated back");
+            } else {
+                ui_state.set_status_message("No history");
+            }
+        }
         AppAction::Exit => ui_state.should_quit = true,
 
         AppAction::Open => {

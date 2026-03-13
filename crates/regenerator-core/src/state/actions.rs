@@ -86,6 +86,7 @@ pub enum AppAction {
         kind: crate::vice::state::BreakpointKind,
     },
     ToggleDebuggerView,
+    NavigateBack,
 }
 
 impl AppAction {
