@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use regenerator2000::exporter::export_asm;
 use regenerator2000::state::AppState;
 use std::path::PathBuf;

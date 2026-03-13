@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 use regenerator2000::disassembler::{Disassembler, DisassemblyLine};
 use regenerator2000::state::Addr;
 use regenerator2000::state::{Assembler, BlockType, DocumentSettings};

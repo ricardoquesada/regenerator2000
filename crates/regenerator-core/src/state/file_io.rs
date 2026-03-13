@@ -464,7 +464,8 @@ mod load_file_tests {
 #[cfg(test)]
 mod save_project_tests {
     use super::super::app_state::AppState;
-    use super::super::types::{HexdumpViewMode, Label};
+    use super::super::project::Label;
+    use super::super::types::{Addr, HexdumpViewMode, LabelKind, LabelType};
     use std::io::Write;
 
     #[test]

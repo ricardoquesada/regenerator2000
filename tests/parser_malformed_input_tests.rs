@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 /// Malformed-input tests for parsers: D64, CRT, T64, VSF
 ///
 /// These tests ensure that the parsers return clear errors (never panic)
@@ -77,8 +78,8 @@ mod d64_malformed {
         data[0] = 1; // next_track = 1
         data[1] = 0; // next_sector = 0
         // Fill remaining bytes with data
-        for i in 2..256 {
-            data[i] = 0xAA;
+        for val in data.iter_mut().take(256).skip(2) {
+            *val = 0xAA;
         }
 
         let entry = regenerator2000::parser::d64::D64FileEntry {
@@ -215,8 +216,8 @@ mod crt_malformed {
         data[0..16].copy_from_slice(b"C64 CARTRIDGE   ");
         data[0x10..0x14].copy_from_slice(&0x40u32.to_be_bytes());
         // Fill post-header with garbage (not "CHIP")
-        for i in 0x40..0x80 {
-            data[i] = 0xFF;
+        for val in data.iter_mut().take(0x80).skip(0x40) {
+            *val = 0xFF;
         }
 
         let res = parse_crt_chips(&data);

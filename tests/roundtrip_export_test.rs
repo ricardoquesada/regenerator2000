@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 //! Roundtrip Export Verification Tests
 //!
 //! These tests verify the core promise of Regenerator 2000's disassembler:

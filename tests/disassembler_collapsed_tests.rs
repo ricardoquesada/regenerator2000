@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 use regenerator2000::disassembler::Disassembler;
 use regenerator2000::state::{BlockType, DocumentSettings};
 use std::collections::BTreeMap;

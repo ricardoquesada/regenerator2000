@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #[cfg(test)]
 mod tests {
     use regenerator2000::mcp::handler::handle_request;
@@ -16,8 +17,8 @@ mod tests {
         app_state.load_binary(origin, data).unwrap();
 
         // Initial state check
-        assert!(app_state.labels.get(&0x1000).is_none());
-        assert!(app_state.user_side_comments.get(&0x1000).is_none());
+        assert!(!app_state.labels.contains_key(&0x1000));
+        assert!(!app_state.user_side_comments.contains_key(&0x1000));
 
         let mut ui_state = UIState::new(Theme::default());
 

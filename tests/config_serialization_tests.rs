@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 /// Config serialization tests
 ///
 /// Verifies that `SystemConfig` serializes/deserializes correctly,
@@ -23,17 +24,19 @@ fn default_config_values() {
 
 #[test]
 fn serialize_deserialize_roundtrip() {
-    let mut config = SystemConfig::default();
-    config.theme = "Nord".to_string();
-    config.open_last_project = false;
-    config.last_project_path = Some(PathBuf::from("/tmp/test.regen2000proj"));
-    config.sync_charset_view = true;
-    config.entropy_threshold = 6.0;
-    config.recent_projects = vec![
-        PathBuf::from("/tmp/a.regen2000proj"),
-        PathBuf::from("/tmp/b.regen2000proj"),
-    ];
-    config.check_for_updates = false;
+    let config = SystemConfig {
+        theme: "Nord".to_string(),
+        open_last_project: false,
+        last_project_path: Some(PathBuf::from("/tmp/test.regen2000proj")),
+        sync_charset_view: true,
+        entropy_threshold: 6.0,
+        recent_projects: vec![
+            PathBuf::from("/tmp/a.regen2000proj"),
+            PathBuf::from("/tmp/b.regen2000proj"),
+        ],
+        check_for_updates: false,
+        ..Default::default()
+    };
 
     let json = serde_json::to_string_pretty(&config).unwrap();
     let deserialized: SystemConfig = serde_json::from_str(&json).unwrap();
@@ -84,8 +87,10 @@ fn unknown_fields_are_ignored() {
 
 #[test]
 fn config_path_override_is_not_serialized() {
-    let mut config = SystemConfig::default();
-    config.config_path_override = Some(PathBuf::from("/tmp/override.json"));
+    let config = SystemConfig {
+        config_path_override: Some(PathBuf::from("/tmp/override.json")),
+        ..Default::default()
+    };
 
     let json = serde_json::to_string(&config).unwrap();
     assert!(
@@ -104,10 +109,12 @@ fn save_and_load_with_override_path() {
     let _ = std::fs::create_dir_all(&dir);
     let config_path = dir.join("test_config.json");
 
-    let mut config = SystemConfig::default();
-    config.config_path_override = Some(config_path.clone());
-    config.theme = "Monokai".to_string();
-    config.open_last_project = false;
+    let config = SystemConfig {
+        config_path_override: Some(config_path.clone()),
+        theme: "Monokai".to_string(),
+        open_last_project: false,
+        ..Default::default()
+    };
 
     let save_result = config.save();
     assert!(save_result.is_ok(), "Save failed: {:?}", save_result.err());
@@ -184,8 +191,10 @@ fn corrupted_json_does_not_crash_load() {
 
 #[test]
 fn entropy_threshold_serialization() {
-    let mut config = SystemConfig::default();
-    config.entropy_threshold = 5.25;
+    let config = SystemConfig {
+        entropy_threshold: 5.25,
+        ..Default::default()
+    };
 
     let json = serde_json::to_string(&config).unwrap();
     let loaded: SystemConfig = serde_json::from_str(&json).unwrap();

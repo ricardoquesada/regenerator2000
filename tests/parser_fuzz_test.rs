@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 /// Fuzz / edge-case tests for file format parsers (CRT, D64, T64, VSF).
 ///
 /// These tests feed crafted and random-ish data to the parsers to exercise

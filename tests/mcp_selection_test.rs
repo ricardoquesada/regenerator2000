@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+
 #[cfg(test)]
 mod tests {
     use regenerator2000::mcp::handler::handle_request;

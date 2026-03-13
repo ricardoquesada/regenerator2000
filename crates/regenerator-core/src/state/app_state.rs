@@ -217,7 +217,7 @@ impl AppState {
 
 #[cfg(test)]
 mod tests {
-    use super::super::types::{LabelType, Platform};
+    use super::super::types::LabelType;
     use super::*;
 
     #[test]

@@ -287,11 +287,13 @@ mod tests {
 
     #[test]
     fn test_apply_block_type_single_line_cursor_preservation() {
-        let mut app_state = AppState::default();
-        app_state.origin = crate::state::Addr(0xC000);
-        // 3 bytes: A9 00 EA (LDA #$00; NOP)
-        app_state.raw_data = vec![0xA9, 0x00, 0xEA];
-        app_state.block_types = vec![crate::state::BlockType::DataByte; 3];
+        let mut app_state = AppState {
+            origin: crate::state::Addr(0xC000),
+            // 3 bytes: A9 00 EA (LDA #$00; NOP)
+            raw_data: vec![0xA9, 0x00, 0xEA],
+            block_types: vec![crate::state::BlockType::DataByte; 3],
+            ..Default::default()
+        };
         app_state.disassemble();
 
         let mut ui_state = UIState::new(crate::theme::Theme::default());

@@ -1,6 +1,7 @@
 // Stability: deny panic-inducing patterns in production code.
 // Tests are exempt so they can keep using .unwrap() / .expect() ergonomically.
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::panic))]
+#![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
 pub mod analyzer;
 pub mod assets;
