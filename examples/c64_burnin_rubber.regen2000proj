@@ -191,8 +191,14 @@
     },
     {
       "start": 2560,
-      "end": 4095,
+      "end": 4086,
       "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4087,
+      "end": 4095,
+      "type_": "ScreencodeText",
       "collapsed": false
     },
     {
@@ -533,6 +539,20 @@
     }
   ],
   "labels": {
+    "73": [
+      {
+        "name": "p_color_ram_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "74": [
+      {
+        "name": "p_color_ram_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "197": [
       {
         "name": "key_scan",
@@ -571,6 +591,27 @@
     "2087": [
       {
         "name": "scroll_row_counter",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2135": [
+      {
+        "name": "state_cleanup_index",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2144": [
+      {
+        "name": "active_row",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2145": [
+      {
+        "name": "active_col",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -862,6 +903,13 @@
         "kind": "User"
       }
     ],
+    "8183": [
+      {
+        "name": "txt_game_over",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "11304": [
       {
         "name": "txt_enter_high_score_1",
@@ -998,6 +1046,13 @@
     "17936": [
       {
         "name": "show_game_over_and_wait",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "17975": [
+      {
+        "name": "handle_screen_hotspots",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1432,6 +1487,7 @@
     "17929": "Inner busy loop (Y register)",
     "17938": "Read 'GAME OVER' character from $1FF7",
     "17941": "Write char to centered screen row 9",
+    "17944": "color cyan",
     "17954": "Approx 8 * 256 * 256 iterations (~2.6s)",
     "18194": "Check if pickup sprite is active",
     "18200": "Decrement duration timer",
@@ -1661,6 +1717,7 @@
     "17424": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles player acceleration (Up direction) and deceleration (Down direction).\nReads the parsed input state at $00F5. If 'Up' (Bit 0) is pressed, the car\nmoves up the screen (Y position at $D001 decreases until clamped at $90),\nthe scrolling speed $0804 is increased, and the 3-byte visual speedometer array\nat $08E0 is incremented in base-10.\nIf 'Down' is pressed, it branches to $4464 which performs the inverse (speed\narray decrements, car moves down the screen until clamped at $D0).\n\nInputs:  Parsed input state at $00F5\nOutputs: None\nSide Effects: Modifies Sprite 0 Y pos ($D001), speed $0804, and speedometer $08E0\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDynamic delay loop to govern the frame rate and scrolling speed.\nSubtracts the current speed value ($0804) from a base constant ($F3).\nThe resulting value determines how many times a nested busy-wait loop executes.\nThe faster the car is going (higher $0804 value), the smaller the delay count,\nresulting in the frame executing more quickly.\n\nInputs:  Speed variable at $0804\nOutputs: None\nSide Effects: Busy waits (delays CPU execution)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17936": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays the \"GAME OVER\" message centered on row 9 and pauses execution for\napproximately 2.6 seconds.\n\nInputs:  None\nOutputs: None\nSide Effects: Writes to Screen RAM ($0578) and Color RAM ($D978)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "17975": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles screen interactions by calculating Color RAM pointers and checking\nfor specific coordinate hotspots (Row 9, Col $1B/$21) to trigger screen cleanup.\n\nInputs:  active_row ($0860), active_col ($0861), state_cleanup_index ($0857)\nOutputs: p_color_ram ($49/$4A), reset flags at $0858/$0859\nSide Effects: Modifies Screen RAM and internal buffers (erases elements)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18194": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the temporary display timer for a pickup/coin sprite.\nWhen the player hits a specific map tile (e.g., $65), Sprite 7 is spawned as\na visual indicator of the points gained, and state flag $085E is set.\nThis routine runs each frame to tick down its lifespan timer at $085F. \nOnce the timer hits 0, it deactivates the flag and hides Sprite 7 off-screen.\n\nInputs:  Pickup Active Flag at $085E, Timer at $085F\nOutputs: None\nSide Effects: Modifies $085E, $085F, and Sprite 7 X Pos ($D00E)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18262": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain gameplay tick routine.\nThis is the core subroutine called every frame/tick during gameplay to process\nall major game systems. It updates the HUD, increments the score, handles player\ninput and movement, processes jumps and background collisions, applies vertical\noffsets, handles acceleration (if enabled), manages frame delays, and ticks down\nthe pickup/coin visual indicator.\n\nInputs:  None (relies on global state)\nOutputs: None\nSide Effects: Updates player coordinates, animations, score, HUD, and timers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18336": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\naward_collision_score_and_damage_sprite\n\nCalled when the player's car lands on (or collides with) an NPC car.\nOn entry, X = NPC slot index (0-3), Y = car type index from f092C,x.\n\nPhase 1 — Score award:\n  Looks up the NPC's sprite frame byte from f3F18,y:\n    $E3 (small car)  => add 5 points to score array f0825\n    $E4 (medium car) => add 3 points\n    $E5 (large car)  => add 2 points\n  Score is stored as individual BCD-style digits at f0825 (7 bytes,\n  index 4=ones ... index 0=highest). The loop ripple-carries from\n  digit 4 upward for as many iterations as the point value (Y).\n  Then calls update_hud_display to redraw the score on the HUD.\n\nPhase 2 — Sprite damage:\n  After restoring X/Y, re-reads f3F18,y (same frame byte) and\n  falls through to j4E03, which:\n    - Stores the frame byte into a07F9,x (sprite pointer for NPC slot)\n    - Builds a single-bit mask for slot X, inverts it, ANDs it into\n      $D01C (Sprites Multi-Color Select), switching that NPC sprite\n      from multicolor to hires mode (visual 'hit' state)\n    - Increments a0821 (hit sub-counter); when it reaches 10,\n      resets to 0 and increments hud_level_digit\n\nInputs:       X = NPC car slot index (0-3)\n              Y = car type index (f092C,x), used to index f3F18\nOutputs:      None (returns via j4E03/RTS at $4E3C)\nSide Effects: f0825 score digits updated; $D01C multicolor bit cleared\n              for the hit NPC sprite; a0821 and hud_level_digit may\n              increment; HUD redrawn via update_hud_display\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1710,11 +1767,14 @@
     },
     "4758": {
       "LowByte": 21400
+    },
+    "17975": {
+      "HighByte": 55296
     }
   },
   "bookmarks": {},
-  "cursor_address": 7008,
-  "hex_dump_cursor_address": 7008,
+  "cursor_address": 18006,
+  "hex_dump_cursor_address": 18000,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 4096,
   "right_pane_visible": "HexDump",
