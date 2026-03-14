@@ -862,6 +862,34 @@
         "kind": "User"
       }
     ],
+    "11304": [
+      {
+        "name": "txt_enter_high_score_1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11520": [
+      {
+        "name": "txt_enter_high_score_2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11776": [
+      {
+        "name": "txt_enter_high_score_3",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11896": [
+      {
+        "name": "txt_enter_high_score_4",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "14720": [
       {
         "name": "detect_npc_car_collision",
@@ -963,6 +991,13 @@
     "17920": [
       {
         "name": "delay_frame_by_speed",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "17936": [
+      {
+        "name": "show_game_over_and_wait",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1324,6 +1359,7 @@
     "6971": "Check Top-Right Character",
     "6978": "Move to Bottom-Left Character",
     "6989": "Check Bottom-Right Character",
+    "7034": "color yellow",
     "15104": "Skip if crash SFX already playing on Voice 1",
     "15114": "Only check cars in state 1 (on-road/active)",
     "15119": "4 NPC slots (0..3)",
@@ -1394,6 +1430,9 @@
     "17923": "Subtract current speed",
     "17927": "Outer loop count (X register)",
     "17929": "Inner busy loop (Y register)",
+    "17938": "Read 'GAME OVER' character from $1FF7",
+    "17941": "Write char to centered screen row 9",
+    "17954": "Approx 8 * 256 * 256 iterations (~2.6s)",
     "18194": "Check if pickup sprite is active",
     "18200": "Decrement duration timer",
     "18205": "Turn off active flag",
@@ -1609,6 +1648,7 @@
     "6656": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks if the Fire button is pressed to initiate a car jump.\nReads the parsed input state at $00F5 (Bit 4 = Fire button). If the jump\naction is requested and the car is not already jumping (jump state $0805 is 0),\nit initializes the jump animation state machine, sets the initial sprite\npointer for the jump, and slightly shifts the car's X position.\n\nInputs:  Parsed input state at $00F5, jump state at $0805\nOutputs: None\nSide Effects: Modifies $0805 (jump active), $0806 (jump frame),\n              and Sprite 0 X position ($D000).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "6714": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nProcesses the jump animation state machine for Sprite 0.\nThis routine runs continuously in the game loop. If $0805 indicates a jump is\nactive, it decrements the frame timer $0811. Once the timer elapses, it\nadvances the animation frame $0806 and uses a switch statement ($1A51) to update\nthe sprite pointer, sizes, and position to create a jumping arc.\nWhen the animation reaches the end (frame 9), it resets $0805 to 0.\n\nInputs:  Jump state at $0805, animation frame $0806, timer $0811\nOutputs: None\nSide Effects: Modifies Sprite 0 X position ($D000), Sprite Pointer ($07F8),\n              and Sprite Expansion bits ($D017, $D01D).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "6912": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks if the player's car has collided with physical background obstacles.\nFirst, checks if the car is actively jumping (ignores collision if jump state\nis non-zero). If on the ground, transforms Sprite 0's X and Y pixel positions\ninto 40x25 character grid coordinates (column and row). It then calculates\na pointer into Screen RAM ($0400) relative to the car's current position.\nFinally, tests the four corners surrounding the car's footprint by fetching\nthe characters and calling $46DE to see if they are a fatal obstacle tile.\n\nInputs:  Jump State at $0805, Sprite 0 X/Y Positions ($D000, $D001)\nOutputs: None (Direct exit/jump on collision via $46DE)\nSide Effects: Can initiate crash sequence, mutates temp pointers $49 and $4A.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "7008": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nDisplay High Score screen",
     "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCharset",
     "12288": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSprites",
     "15060": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nA small wrapper routine called by the main loop.\nIt manages spawning new enemy cars, and then handles player jump inputs.\n\nInputs:  None\nOutputs: None\nSide Effects: Can spawn entities and mutate player state.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1620,6 +1660,7 @@
     "17408": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies a buffered vertical offset to Sprite 0 (the player's car).\nTakes the accumulated vertical offset stored at $0808, adds it to the current\nY position of Sprite 0 ($D001), and then clears $0808 back to 0. This is\nused to process collision bumps, road bumps, or other vertical shifts pending\nfor the frame.\n\nInputs:  Y position at $D001, offset at $0808\nOutputs: None\nSide Effects: Modifies Sprite 0 Y pos ($D001) and sets $0808 to 0.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17424": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles player acceleration (Up direction) and deceleration (Down direction).\nReads the parsed input state at $00F5. If 'Up' (Bit 0) is pressed, the car\nmoves up the screen (Y position at $D001 decreases until clamped at $90),\nthe scrolling speed $0804 is increased, and the 3-byte visual speedometer array\nat $08E0 is incremented in base-10.\nIf 'Down' is pressed, it branches to $4464 which performs the inverse (speed\narray decrements, car moves down the screen until clamped at $D0).\n\nInputs:  Parsed input state at $00F5\nOutputs: None\nSide Effects: Modifies Sprite 0 Y pos ($D001), speed $0804, and speedometer $08E0\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDynamic delay loop to govern the frame rate and scrolling speed.\nSubtracts the current speed value ($0804) from a base constant ($F3).\nThe resulting value determines how many times a nested busy-wait loop executes.\nThe faster the car is going (higher $0804 value), the smaller the delay count,\nresulting in the frame executing more quickly.\n\nInputs:  Speed variable at $0804\nOutputs: None\nSide Effects: Busy waits (delays CPU execution)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "17936": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays the \"GAME OVER\" message centered on row 9 and pauses execution for\napproximately 2.6 seconds.\n\nInputs:  None\nOutputs: None\nSide Effects: Writes to Screen RAM ($0578) and Color RAM ($D978)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18194": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the temporary display timer for a pickup/coin sprite.\nWhen the player hits a specific map tile (e.g., $65), Sprite 7 is spawned as\na visual indicator of the points gained, and state flag $085E is set.\nThis routine runs each frame to tick down its lifespan timer at $085F. \nOnce the timer hits 0, it deactivates the flag and hides Sprite 7 off-screen.\n\nInputs:  Pickup Active Flag at $085E, Timer at $085F\nOutputs: None\nSide Effects: Modifies $085E, $085F, and Sprite 7 X Pos ($D00E)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18262": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain gameplay tick routine.\nThis is the core subroutine called every frame/tick during gameplay to process\nall major game systems. It updates the HUD, increments the score, handles player\ninput and movement, processes jumps and background collisions, applies vertical\noffsets, handles acceleration (if enabled), manages frame delays, and ticks down\nthe pickup/coin visual indicator.\n\nInputs:  None (relies on global state)\nOutputs: None\nSide Effects: Updates player coordinates, animations, score, HUD, and timers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18336": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\naward_collision_score_and_damage_sprite\n\nCalled when the player's car lands on (or collides with) an NPC car.\nOn entry, X = NPC slot index (0-3), Y = car type index from f092C,x.\n\nPhase 1 — Score award:\n  Looks up the NPC's sprite frame byte from f3F18,y:\n    $E3 (small car)  => add 5 points to score array f0825\n    $E4 (medium car) => add 3 points\n    $E5 (large car)  => add 2 points\n  Score is stored as individual BCD-style digits at f0825 (7 bytes,\n  index 4=ones ... index 0=highest). The loop ripple-carries from\n  digit 4 upward for as many iterations as the point value (Y).\n  Then calls update_hud_display to redraw the score on the HUD.\n\nPhase 2 — Sprite damage:\n  After restoring X/Y, re-reads f3F18,y (same frame byte) and\n  falls through to j4E03, which:\n    - Stores the frame byte into a07F9,x (sprite pointer for NPC slot)\n    - Builds a single-bit mask for slot X, inverts it, ANDs it into\n      $D01C (Sprites Multi-Color Select), switching that NPC sprite\n      from multicolor to hires mode (visual 'hit' state)\n    - Increments a0821 (hit sub-counter); when it reaches 10,\n      resets to 0 and increments hud_level_digit\n\nInputs:       X = NPC car slot index (0-3)\n              Y = car type index (f092C,x), used to index f3F18\nOutputs:      None (returns via j4E03/RTS at $4E3C)\nSide Effects: f0825 score digits updated; $D01C multicolor bit cleared\n              for the hit NPC sprite; a0821 and hud_level_digit may\n              increment; HUD redrawn via update_hud_display\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1660,7 +1701,8 @@
     "bytes_per_line": 8,
     "enabled_features": {},
     "description": "Burnin Rubber is a top-down racing game. Press \"fire\" to jump on top of other cars",
-    "show_analysis_hints": true
+    "auto_analyze": true,
+    "show_system_comments": true
   },
   "immediate_value_formats": {
     "4753": {
@@ -1671,14 +1713,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 20736,
-  "hex_dump_cursor_address": 17776,
-  "sprites_cursor_address": 16384,
-  "charset_cursor_address": 16320,
-  "right_pane_visible": "Blocks",
-  "sprite_multicolor_mode": true,
+  "cursor_address": 7008,
+  "hex_dump_cursor_address": 7008,
+  "sprites_cursor_address": 4096,
+  "charset_cursor_address": 4096,
+  "right_pane_visible": "HexDump",
+  "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
