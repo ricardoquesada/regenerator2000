@@ -178,6 +178,9 @@ fn handle_vice_message(
         // checkpoint — those are handled above. Clear the list here so the
         // incoming 0x11 responses repopulate it cleanly.
         app_state.vice_state.breakpoints.clear();
+    } else if msg.command == crate::vice::ViceCommand::CHECKPOINT_DELETE && msg.error_code == 0 {
+        let id = msg.request_id;
+        app_state.vice_state.breakpoints.retain(|bp| bp.id != id);
     } else if msg.command == crate::vice::ViceCommand::RESUMED {
         app_state.vice_state.running = true;
         app_state.vice_state.stop_reason = None;
@@ -210,9 +213,7 @@ fn handle_vice_message(
         // Silence known commands that need no further handling
         let silent = matches!(
             msg.command,
-            crate::vice::ViceCommand::CHECKPOINT_DELETE
-                | crate::vice::ViceCommand::RESUMED
-                | crate::vice::ViceCommand::EXIT_MONITOR
+            crate::vice::ViceCommand::RESUMED | crate::vice::ViceCommand::EXIT_MONITOR
         );
         if !silent {
             ui_state.set_status_message(format!("VICE Msg: {:02x}", msg.command));

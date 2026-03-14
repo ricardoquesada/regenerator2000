@@ -177,9 +177,10 @@ impl ViceClient {
 
     /// Delete a checkpoint by its ID (returned in the `CHECKPOINT_SET` response).
     pub fn send_checkpoint_delete(&self, id: u32) {
-        self.send(ViceMessage::new(
+        self.send(ViceMessage::with_id(
             ViceCommand::CHECKPOINT_DELETE,
             id.to_le_bytes().to_vec(),
+            id,
         ));
     }
 

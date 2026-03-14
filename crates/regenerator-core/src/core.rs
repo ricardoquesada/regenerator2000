@@ -658,16 +658,28 @@ impl Core {
                         .vice_state
                         .breakpoints
                         .iter()
-                        .find(|bp| bp.address == line.address.0)
+                        .find(|bp| {
+                            bp.address == line.address.0
+                                && bp.kind == crate::vice::state::BreakpointKind::Exec
+                        })
                         .map(|bp| bp.id);
 
                     if let Some(id) = checkpoint_id {
                         if let Some(client) = &self.state.vice_client {
                             client.send_checkpoint_delete(id);
+                            events.push(CoreEvent::StatusMessage(format!(
+                                "Deleting breakpoint #{} at ${:04X}",
+                                id, line.address.0
+                            )));
                         }
                     } else if let Some(client) = &self.state.vice_client {
                         client.send_checkpoint_set_exec(line.address.0);
+                        events.push(CoreEvent::StatusMessage(format!(
+                            "Creating breakpoint at ${:04X}",
+                            line.address.0
+                        )));
                     }
+                    events.push(CoreEvent::StateChanged);
                 }
             }
             AppAction::ViceBreakpointDialog => {
@@ -682,7 +694,31 @@ impl Core {
             }
             AppAction::ViceSetBreakpointAt { address } => {
                 if let Some(client) = &self.state.vice_client {
-                    client.send_checkpoint_set_exec(address.0);
+                    let existing_id = self
+                        .state
+                        .vice_state
+                        .breakpoints
+                        .iter()
+                        .find(|bp| {
+                            bp.address == address.0
+                                && bp.kind == crate::vice::state::BreakpointKind::Exec
+                        })
+                        .map(|bp| bp.id);
+
+                    if let Some(id) = existing_id {
+                        client.send_checkpoint_delete(id);
+                        events.push(CoreEvent::StatusMessage(format!(
+                            "Deleting breakpoint #{} at ${:04X}",
+                            id, address.0
+                        )));
+                    } else {
+                        client.send_checkpoint_set_exec(address.0);
+                        events.push(CoreEvent::StatusMessage(format!(
+                            "Creating breakpoint at ${:04X}",
+                            address.0
+                        )));
+                    }
+                    events.push(CoreEvent::StateChanged);
                 }
             }
             AppAction::ViceToggleWatchpoint => {
@@ -697,20 +733,44 @@ impl Core {
             }
             AppAction::ViceSetWatchpoint { address, kind } => {
                 if let Some(client) = &self.state.vice_client {
-                    match kind {
-                        crate::vice::state::BreakpointKind::Load => {
-                            client.send_checkpoint_set_load(address.0);
+                    let existing_id = self
+                        .state
+                        .vice_state
+                        .breakpoints
+                        .iter()
+                        .find(|bp| {
+                            bp.address == address.0
+                                && bp.kind != crate::vice::state::BreakpointKind::Exec
+                        })
+                        .map(|bp| bp.id);
+
+                    if let Some(id) = existing_id {
+                        client.send_checkpoint_delete(id);
+                        events.push(CoreEvent::StatusMessage(format!(
+                            "Deleting watchpoint #{} at ${:04X}",
+                            id, address.0
+                        )));
+                    } else {
+                        match kind {
+                            crate::vice::state::BreakpointKind::Load => {
+                                client.send_checkpoint_set_load(address.0);
+                            }
+                            crate::vice::state::BreakpointKind::Store => {
+                                client.send_checkpoint_set_store(address.0);
+                            }
+                            crate::vice::state::BreakpointKind::LoadStore => {
+                                client.send_checkpoint_set_load_store(address.0);
+                            }
+                            _ => {
+                                client.send_checkpoint_set_load_store(address.0);
+                            }
                         }
-                        crate::vice::state::BreakpointKind::Store => {
-                            client.send_checkpoint_set_store(address.0);
-                        }
-                        crate::vice::state::BreakpointKind::LoadStore => {
-                            client.send_checkpoint_set_load_store(address.0);
-                        }
-                        _ => {
-                            client.send_checkpoint_set_load_store(address.0);
-                        }
+                        events.push(CoreEvent::StatusMessage(format!(
+                            "Creating watchpoint at ${:04X}",
+                            address.0
+                        )));
                     }
+                    events.push(CoreEvent::StateChanged);
                 }
             }
             AppAction::JumpToOperand => {
