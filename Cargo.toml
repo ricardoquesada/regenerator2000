@@ -11,6 +11,18 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ricardoquesada/regenerator2000"
 homepage = "https://github.com/ricardoquesada/regenerator2000"
+exclude = [
+    "docs/**/*",
+    "tests/**/*",
+    "examples/**/*",
+    ".agent/**/*",
+    ".github/**/*",
+    "mkdocs.yml",
+    ".readthedocs.yaml",
+    ".pre-commit-config.yaml",
+    "AGENTS.md",
+    "CLAUDE.md"
+]
 
 [dependencies]
 regenerator-core = { version = "0.9.1", path = "crates/regenerator-core", features = ["mcp"] }
