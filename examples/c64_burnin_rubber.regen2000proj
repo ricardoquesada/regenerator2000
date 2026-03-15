@@ -305,6 +305,18 @@
     },
     {
       "start": 14240,
+      "end": 14332,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 14333,
+      "end": 14335,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 14336,
       "end": 14557,
       "type_": "Code",
       "collapsed": false
@@ -1127,6 +1139,13 @@
         "kind": "User"
       }
     ],
+    "18405": [
+      {
+        "name": "spr0_anim_frame",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "18623": [
       {
         "name": "dead_snapshot_delta_draft",
@@ -1151,6 +1170,13 @@
     "18752": [
       {
         "name": "advance_distance_counter",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18837": [
+      {
+        "name": "spr0_anim_next_frame",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1864,14 +1890,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 18336,
-  "hex_dump_cursor_address": 18336,
+  "cursor_address": 18403,
+  "hex_dump_cursor_address": 18400,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 4096,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
