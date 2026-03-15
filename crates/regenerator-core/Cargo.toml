@@ -1,8 +1,9 @@
 [package]
 name = "regenerator-core"
-version = "0.8.8"
+version = "0.9.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/ricardoquesada/regenerator2000"
 description = "Core library for Regenerator 2000: state, disassembler, analyzer, commands, parsers, and exporter for 6502/Commodore binaries."
 
 [dependencies]

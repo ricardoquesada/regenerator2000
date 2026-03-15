@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-03-15
+
+### Major Architectural Refactor
+
+- **Core/TUI Separation**: The project has been restructured into a multi-crate workspace:
+  - `regenerator-core`: Contains all UI-agnostic logic, including state management, disassembler, analyzer, commands, and the MCP server.
+  - `regenerator-tui`: Contains the terminal user interface logic, widgets, and event loop.
+  - `regenerator2000`: The main binary crate that ties everything together.
+- **Improved Data Flow**: Transitions to a cleaner unidirectional data flow where the UI dispatches semantic `AppAction`s, which are then applied to the `AppState` via a command system with full undo/redo support.
+- **Type Safety**: Introduced `Addr` and `Platform` newtypes to improve type safety and ensure consistent memory address handling throughout the codebase.
+- **MCP Migration**: Relocated the MCP server to the core crate, making it available for programmatic access without requiring the TUI.
+
+### Features
+
+- **VICE Debugger**: Added support for toggling breakpoints and watchpoints directly within the UI, with synchronization between the TUI and VICE.
+- **UI Enhancements**:
+  - Implemented "smart jump" logic in the disassembly view to minimize unnecessary scrolling when the target address is already visible.
+  - Added new actions for changing origin, cycling through immediate value formats (Hex, Decimal, Binary), and cycling hexdump view modes.
+  - Improved multi-line comment and label support with `ApplyLabel` and `ApplyComment` actions.
+  - Support for toggling collapsed blocks and splitters has been moved to the core semantic action layer.
+- **Analysis**: Refactored disassembler arrow computation for improved efficiency and accuracy.
+- **Theme Previews**: Added screenshots of available themes to the documentation.
+
+### Fixes
+
+- **UX**: Fixed dialog confirmation and closing logic to ensure consistent behavior across all modal windows.
+- **MCP**: Fixed bounds checking for the `set_data_type` MCP tool.
+- **Stability**: Refined Clippy rules and fixed several minor stability issues discovered during the architectural refactoring.
+
+### Documentation
+
+- **Architecture**: Comprehensive update of the architecture documentation, including new Mermaid diagrams and descriptions of the crate structure.
+- **Project Documentation**: Added `AGENTS.md` and updated `CONTRIBUTING.md` with new project instructions and best practices.
+
 ## [0.8.8] - 2026-03-09
 
 ### Features
