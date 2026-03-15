@@ -60,6 +60,7 @@ pub struct CoreViewState {
     pub sub_cursor_index: usize,
     pub scroll_index: usize,
     pub scroll_sub_index: usize,
+    pub disassembly_viewport_height: usize,
     pub selection_start: Option<usize>,
     pub is_visual_mode: bool,
 
@@ -107,6 +108,7 @@ impl CoreViewState {
             sub_cursor_index: 0,
             scroll_index: 0,
             scroll_sub_index: 0,
+            disassembly_viewport_height: 0,
             selection_start: None,
             is_visual_mode: false,
 

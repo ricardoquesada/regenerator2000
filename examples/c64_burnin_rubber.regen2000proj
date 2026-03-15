@@ -560,6 +560,41 @@
         "kind": "User"
       }
     ],
+    "2040": [
+      {
+        "name": "sprite_ptr_0",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2041": [
+      {
+        "name": "sprite_ptr_1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2042": [
+      {
+        "name": "sprite_ptr_2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2043": [
+      {
+        "name": "sprite_ptr_3",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2044": [
+      {
+        "name": "sprite_ptr_4",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "2053": [
       {
         "name": "sfx_voice_1_en",
@@ -1106,6 +1141,34 @@
         "kind": "User"
       }
     ],
+    "18848": [
+      {
+        "name": "update_sprite_animations",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18858": [
+      {
+        "name": "toggle_player_animation",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18884": [
+      {
+        "name": "init_enemy_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18886": [
+      {
+        "name": "enemy_animation_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "18944": [
       {
         "name": "spawn_enemy_cars",
@@ -1574,6 +1637,8 @@
     "18828": "reload current row counter (snapshot must be fresh, not stale in A)",
     "18831": "save as new snapshot for next call",
     "18834": "tail-call: update hi-score if beaten; returns A = hud_level_digit ($0820)",
+    "18863": "If bit 0 set, clear it. Else set it.",
+    "18900": "Toggle frame for active enemy car",
     "18949": "Check if slot is empty (0)",
     "18959": "Generate Random Number (uses BASIC ROM)",
     "18966": "Random 0-7 (enemy car type)",
@@ -1727,6 +1792,7 @@
     "18752": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances the two-digit on-screen distance counter shown in the HUD, driven by\nhow many new road rows have scrolled since the last call.\n\nscroll_row_counter ($0827) is a 0-9 modular counter incremented once per road\nrow by the map scroller.  Each call computes delta = (current - snapshot) mod 10\nto get the number of new rows that have passed.  For each delta tick the\nsub-step counter dist_substep ($0987) is incremented; once it reaches 7 the\nones digit dist_digit_ones ($0823) advances by 1, carrying into the tens digit\ndist_digit_tens ($0822) on overflow.  Every digit advance also fires a short SID\nvoice-1 \"tick\" click via sid_tick_sfx_and_get_ones.\n\nThe routine does NOT end with RTS.  It tail-calls update_hiscore_if_beaten\n($17DD), which compares the 7-digit score ($0825-$082B) against the stored\nhi-score ($0F50-$0F56) and copies the score over if it is higher.  That routine\nreturns with A = hud_level_digit ($0820), which propagates back to the caller\nupdate_hud_display ($16B0) and is written to screen RAM at $0420 as the level\ndigit after adding $30.\n\nInputs:       scroll_row_counter  ($0827)  current 0-9 row counter\n              scroll_row_snapshot ($0986)  row counter value at previous call\n              dist_substep        ($0987)  sub-step accumulator (0-6)\n              dist_digit_ones     ($0823)  ones digit of distance counter (0-9)\n              dist_digit_tens     ($0822)  tens digit of distance counter (0-9)\nOutputs:      A = hud_level_digit ($0820)  (returned via tail-call to $17DD)\n              dist_digit_ones and dist_digit_tens updated in place\nSide Effects: scroll_row_snapshot ($0986) updated to current scroll_row_counter\n              dist_substep ($0987) updated\n              SID voice 1 programmed with tick SFX on each digit advance\n              Hi-score at $0F50-$0F56 overwritten if current score is higher\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18760": "no-wrap path: delta = current - snapshot (0..9)",
     "18770": "wrap path: counter passed through 0; delta = (current - snapshot) + 10",
+    "18848": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates 2-frame animations for player and active enemy car sprites.\nToggles bit 0 of sprite pointers ($07F8-$07FC) to cycle frames.\n\nInputs:  sfx_voice_1_en ($0805) - Player animation enable flag\n         car_state ($0928) - Array of 4 enemy car states (1 = Active)\nOutputs: None\nSide Effects: Modifies sprite pointers in screen memory.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18944": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates through the 4 available enemy car slots ($0928).\nIf it finds an empty slot, it uses the BASIC ROM's random number generator\nrutines ($E097) multiple times to determine the enemy car's sprite shape (0-7),\ninitial starting X coordinate (bounded so it stays on the road), and speed.\n\nInputs:  Enemy active array at $0928\nOutputs: None\nSide Effects: Spawns new enemies, modifies Sprite Pointers $07F9-$07FC,\n              and relies on BASIC ROM state.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "19456": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the position and state of the enemy cars (Sprites 1-4).\nThis routine iterates through up to 4 active enemy entities. For each active\nentity, it updates their horizontal position (swerving left or right) based on\ntheir local state metrics. It then computes their new vertical position on the\nscreen by factoring in the player's current speed/scroll offset ($0804).\nIf an enemy car falls off the top or bottom of the screen (Y < $3A or Y >= $F0),\nthe routine automatically despawns it by clearing its status flag and hiding the\nsprite.\n\nInputs:  Global scroll/speed ($0804), arrays at $0900/0904/0908/090C/0924/0928\nOutputs: None\nSide Effects: Modifies Sprite 1-4 X/Y coordinates ($D002-$D009) and entity states.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "19763": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks whether an enemy car (sprite N, passed in X) is on a drivable road tile.\n\nThe routine converts the sprite's screen-space pixel position (from VIC-II\n$D002/$D003 registers) into a tile column (Y) and tile row (X) by subtracting\na fixed border offset and dividing by 8 (three LSRs). It then computes a\npointer into screen RAM at $0400 using a 16-bit base address in (a49/a4A)\nand multiplies the row by 40 ($28) to find the correct row offset.\n\nA lookup table at $F0904, indexed by sprite number X, provides a half-tile\ncolumn adjustment (+1) to handle wide sprites that straddle two tiles.\n\nThe road tile check reads the screen code at the computed (row, col) position:\n  - $20 (space)  = road tile  -> jump to j4ED3 (car is off-road / blocked)\n  - $65 (letter) = another road variant -> also treated as blocked\n\nIf the car is on road (non-road tile), the routine stores $01 at f0904,x (car\nis on-road flag = active), restores registers, samples bits 0-1 of ZP $8E for\na 2-bit value and stores it at f0908,x (road direction/surface type), then\njumps to j4C9A (continue normal car movement logic).\n\nIf the car is off-road, f0904,x is cleared ($00), and the routine redirects to\nj4ED3 which will handle the out-of-bounds / collision branch.\n\nInputs:  X = sprite/car index (0-3)\nOutputs: f0904,x = 1 if on-road, 0 if off-road; f0908,x = road surface bits\nSide Effects: Reads VIC-II sprite X/Y registers ($D002/$D003); reads screen RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1773,8 +1839,8 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 18006,
-  "hex_dump_cursor_address": 18000,
+  "cursor_address": 18863,
+  "hex_dump_cursor_address": 18848,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 4096,
   "right_pane_visible": "HexDump",

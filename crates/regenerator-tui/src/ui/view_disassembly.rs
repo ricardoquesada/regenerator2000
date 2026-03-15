@@ -257,9 +257,15 @@ impl Navigable for DisassemblyView {
         ui_state.cursor_index = index.min(max);
         ui_state.sub_cursor_index = 0;
 
-        // Reset scroll
-        ui_state.scroll_index = ui_state.cursor_index;
-        ui_state.scroll_sub_index = 0;
+        // Reset scroll if not visible
+        let is_visible = ui_state.disassembly_viewport_height > 0
+            && index >= ui_state.scroll_index
+            && index < ui_state.scroll_index + ui_state.disassembly_viewport_height;
+
+        if !is_visible {
+            ui_state.scroll_index = ui_state.cursor_index;
+            ui_state.scroll_sub_index = 0;
+        }
     }
 
     fn jump_to_user_input(&self, app_state: &AppState, ui_state: &mut UIState, input: usize) {
@@ -277,10 +283,15 @@ impl Navigable for DisassemblyView {
             }
             ui_state.cursor_index = idx;
             ui_state.sub_cursor_index = 0;
+            // Reset scroll if not visible
+            let is_visible = ui_state.disassembly_viewport_height > 0
+                && idx >= ui_state.scroll_index
+                && idx < ui_state.scroll_index + ui_state.disassembly_viewport_height;
 
-            // Reset scroll
-            ui_state.scroll_index = idx;
-            ui_state.scroll_sub_index = 0;
+            if !is_visible {
+                ui_state.scroll_index = idx;
+                ui_state.scroll_sub_index = 0;
+            }
         }
         // If invalid, Navigable trait doesn't currently support error feedback via return.
         // handle_nav_input will print generic success message if not handled differently?
@@ -1394,8 +1405,10 @@ impl Widget for DisassemblyView {
         f.render_widget(list, list_area);
 
         // Update persistent state
+        ui_state.disassembly_area = list_area;
         ui_state.scroll_index = scroll_inst_idx;
         ui_state.scroll_sub_index = scroll_sub_idx;
+        ui_state.disassembly_viewport_height = visible_height;
     }
 
     fn handle_input(

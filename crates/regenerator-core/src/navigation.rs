@@ -45,9 +45,20 @@ pub fn perform_jump_to_address_no_history(
             idx += 1;
         }
 
+        // Smart Jump logic: If the destination is already visible on screen,
+        // don't force a scroll reset. This makes navigation smoother when
+        // following local pointers (e.g. relative branches).
+        // We use a conservative estimate for visibility since we don't know
+        // exactly how many sub-lines (labels, comments) each instruction takes here.
+        let is_visible = view_state.disassembly_viewport_height > 0
+            && idx >= view_state.scroll_index
+            && idx < view_state.scroll_index + view_state.disassembly_viewport_height;
+
         view_state.cursor_index = idx;
-        view_state.scroll_index = idx; // Ensure we jump visually too
-        view_state.scroll_sub_index = 0;
+        if !is_visible {
+            view_state.scroll_index = idx; // Force jump visually
+            view_state.scroll_sub_index = 0;
+        }
 
         // Smart Jump: Select relevant sub-line if applicable
         if let Some(line) = app_state.disassembly.get(idx) {
