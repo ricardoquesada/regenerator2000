@@ -33,45 +33,53 @@ impl AppState {
     pub fn compute_cached_arrows(&mut self) {
         let mut arrows = Vec::new();
 
+        if self.disassembly.is_empty() {
+            self.cached_arrows = arrows;
+            return;
+        }
+
+        // Build a temporary index for efficient lookup.
+        // We prioritize lines with bytes (instructions/data) over label-only lines.
+        // Map: Address -> Line Index
+        let mut addr_to_idx = std::collections::BTreeMap::new();
+        for (i, line) in self.disassembly.iter().enumerate() {
+            if !line.bytes.is_empty() || line.is_collapsed {
+                addr_to_idx.insert(line.address, i);
+            } else {
+                addr_to_idx.entry(line.address).or_insert(i);
+            }
+        }
+
         for (src_idx, line) in self.disassembly.iter().enumerate() {
             if let Some(target_addr) = line.target_address {
                 // Determine if we should draw an arrow
                 let should_draw = if let Some(opcode) = &line.opcode {
                     opcode.is_flow_control_with_target()
                 } else {
-                    // Fallback for JMP without opcode struct (legacy or special case)
                     line.mnemonic.eq_ignore_ascii_case("JMP") && line.operand.contains('(')
                 };
 
                 if should_draw {
-                    // Find target index using binary search
-                    let dst_idx_opt = self
-                        .disassembly
-                        .binary_search_by_key(&target_addr, |l| l.address)
-                        .ok()
-                        .or_else(|| {
-                            // If exact match not found (maybe inside a multi-byte instruction?)
-                            // Try finding the partition point
-                            let idx = self
-                                .disassembly
-                                .partition_point(|l| l.address < target_addr);
-                            if idx > 0 {
-                                let prev = &self.disassembly[idx - 1];
-                                let len = prev.bytes.len() as u16;
-                                if target_addr >= prev.address
-                                    && target_addr < prev.address.wrapping_add(len)
-                                {
-                                    return Some(idx - 1);
-                                }
+                    // 1. Try exact address match using our index
+                    let mut dst_idx_opt = addr_to_idx.get(&target_addr).copied();
+
+                    // 2. If no exact match, it might be a jump into the middle of an instruction
+                    if dst_idx_opt.is_none() {
+                        // Find the last line with address <= target_addr
+                        if let Some((&base_addr, &base_idx)) =
+                            addr_to_idx.range(..=target_addr).next_back()
+                        {
+                            let base_line = &self.disassembly[base_idx];
+                            let len = base_line.bytes.len() as u16;
+                            if target_addr.0 >= base_addr.0
+                                && target_addr.0 < base_addr.0.wrapping_add(len)
+                            {
+                                dst_idx_opt = Some(base_idx);
                             }
-                            None
-                        });
-
-                    if let Some(mut dst_idx) = dst_idx_opt {
-                        while dst_idx > 0 && self.disassembly[dst_idx - 1].address == target_addr {
-                            dst_idx -= 1;
                         }
+                    }
 
+                    if let Some(dst_idx) = dst_idx_opt {
                         arrows.push(CachedArrow {
                             start: src_idx,
                             end: dst_idx,

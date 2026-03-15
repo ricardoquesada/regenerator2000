@@ -1071,6 +1071,20 @@
         "kind": "User"
       }
     ],
+    "17584": [
+      {
+        "name": "init_hud",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "17702": [
+      {
+        "name": "update_tick_and_collisions",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "17920": [
       {
         "name": "delay_frame_by_speed",
@@ -1544,6 +1558,15 @@
     "17459": "Base-10 Increment Speedometer array ($08E0)",
     "17515": "Move Car DOWN 1 pixel",
     "17534": "Base-10 Decrement Speedometer array ($08E0)",
+    "17586": "Loop through 3 digits at $08E0",
+    "17590": "Convert to PETSCII '0'-'9'",
+    "17592": "Store in Row 23, Column 3-5",
+    "17613": "Loop to draw 7 border chars",
+    "17719": "Decrement BCD counter 20 times",
+    "17746": "Check if enemy car is active",
+    "17769": "X-coord collision check (16px)",
+    "17808": "Y-coord collision check (16px)",
+    "17847": "Collision! Set color/state to 2",
     "17920": "Base delay count",
     "17923": "Subtract current speed",
     "17927": "Outer loop count (X register)",
@@ -1780,6 +1803,8 @@
     "16032": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies visual recoil to the player's car after a collision.\nBased on the collision angle ($0988), it shifts the player sprite (Sprite 0)\neither up or down on the screen to simulate a physical bump.\nIt clamps the player's vertical position between $90 and $D0 to keep them\nwithin the visible gameplay area.\n\nInputs:  $0988 (collision angle)\nOutputs: None\nSide Effects: Modifies Sprite 0 Y Pos ($D001).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17408": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies a buffered vertical offset to Sprite 0 (the player's car).\nTakes the accumulated vertical offset stored at $0808, adds it to the current\nY position of Sprite 0 ($D001), and then clears $0808 back to 0. This is\nused to process collision bumps, road bumps, or other vertical shifts pending\nfor the frame.\n\nInputs:  Y position at $D001, offset at $0808\nOutputs: None\nSide Effects: Modifies Sprite 0 Y pos ($D001) and sets $0808 to 0.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17424": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles player acceleration (Up direction) and deceleration (Down direction).\nReads the parsed input state at $00F5. If 'Up' (Bit 0) is pressed, the car\nmoves up the screen (Y position at $D001 decreases until clamped at $90),\nthe scrolling speed $0804 is increased, and the 3-byte visual speedometer array\nat $08E0 is incremented in base-10.\nIf 'Down' is pressed, it branches to $4464 which performs the inverse (speed\narray decrements, car moves down the screen until clamped at $D0).\n\nInputs:  Parsed input state at $00F5\nOutputs: None\nSide Effects: Modifies Sprite 0 Y pos ($D001), speed $0804, and speedometer $08E0\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "17584": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the game's HUD/Dashboard at the bottom of the screen.\nDraws the border graphics and prints the numeric values from $08E0.\n\nInputs:  $08E0..$08E2 (3-byte numeric value)\nOutputs: Screen RAM ($0772-$07CA), Color RAM ($DB72-$DBCA)\nSide Effects: Updates rows 22-24 of the screen display.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "17702": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the game state by decrementing the progress counter and checking for\ncollisions between the player car (Sprite 0) and enemy cars (Sprites 1-4).\n\n1. Decrements the 3-byte BCD counter at $08E0 by 20 units.\n2. Checks for 16x16 pixel overlaps between Sprite 0 and Sprites 1-4.\n3. If collision detected, sets car_state to 2 and calls handler s3EEE.\n\nInputs:  $08E0 (HUD counter), car_state (car status), VIC sprite registers\nOutputs: $08E0 (decremented), car_state (updated on collision)\nSide Effects: Calls collision handler s3EEE on impact.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDynamic delay loop to govern the frame rate and scrolling speed.\nSubtracts the current speed value ($0804) from a base constant ($F3).\nThe resulting value determines how many times a nested busy-wait loop executes.\nThe faster the car is going (higher $0804 value), the smaller the delay count,\nresulting in the frame executing more quickly.\n\nInputs:  Speed variable at $0804\nOutputs: None\nSide Effects: Busy waits (delays CPU execution)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17936": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays the \"GAME OVER\" message centered on row 9 and pauses execution for\napproximately 2.6 seconds.\n\nInputs:  None\nOutputs: None\nSide Effects: Writes to Screen RAM ($0578) and Color RAM ($D978)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17975": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles screen interactions by calculating Color RAM pointers and checking\nfor specific coordinate hotspots (Row 9, Col $1B/$21) to trigger screen cleanup.\n\nInputs:  active_row ($0860), active_col ($0861), state_cleanup_index ($0857)\nOutputs: p_color_ram ($49/$4A), reset flags at $0858/$0859\nSide Effects: Modifies Screen RAM and internal buffers (erases elements)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1839,8 +1864,8 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 18863,
-  "hex_dump_cursor_address": 18848,
+  "cursor_address": 17765,
+  "hex_dump_cursor_address": 17760,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 4096,
   "right_pane_visible": "HexDump",
