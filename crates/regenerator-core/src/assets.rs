@@ -3,7 +3,7 @@ use include_dir::{Dir, include_dir};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
-static SYSTEMS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/../../assets/systems");
+static SYSTEMS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/assets/systems");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LabelOption {
