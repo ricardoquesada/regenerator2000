@@ -11,12 +11,18 @@ Use this skill when the user requests to bump the project version (e.g., "bump v
 
 Ensure the user provided a valid semantic version (e.g., `0.8.0`). If they didn't specify one, determine the correct next version based on recent changes (major/minor/patch) or ask the user for clarification.
 
-## 2. Update Cargo.toml
+## 2. Update Cargo.toml files
 
-In `Cargo.toml`:
+Update the `version` field in the following files:
 
-- Locate the `[package]` section.
-- Update the `version = "..."` field to the new version.
+- Root `Cargo.toml`:
+  - Update `[package].version`.
+  - Update `regenerator-core` and `regenerator-tui` versions in the `[dependencies]` section.
+- `crates/regenerator-core/Cargo.toml`:
+  - Update `[package].version`.
+- `crates/regenerator-tui/Cargo.toml`:
+  - Update `[package].version`.
+  - Update `regenerator-core` version in the `[dependencies]` section.
 
 ## 3. Review Recent Changes
 
