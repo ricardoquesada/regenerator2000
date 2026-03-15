@@ -472,7 +472,7 @@ fn open_image_picker_dialog(
 /// restoring the session or setting an error status message.
 fn apply_initial_load_result(
     ui_state: &mut UIState,
-    app_state: &AppState,
+    core: &mut regenerator_core::Core,
     initial_load_result: Option<
         anyhow::Result<(regenerator_core::state::LoadedProjectData, PathBuf)>,
     >,
@@ -481,7 +481,9 @@ fn apply_initial_load_result(
     if let Some(result) = initial_load_result {
         match result {
             Ok((loaded_data, path)) => {
-                ui_state.restore_session(&loaded_data, app_state);
+                ui_state.restore_session(&loaded_data, &core.state);
+                // Sync the restored view state back to Core so it's not overwritten by run_app
+                core.view = ui_state.core.clone();
                 if !file_was_specified {
                     ui_state.set_status_message(format!("Loaded recent project: {path:?}"));
                 }
@@ -769,7 +771,7 @@ fn main() -> Result<()> {
     // Apply the initial load result to the UI state
     apply_initial_load_result(
         &mut ui_state,
-        &core.state,
+        &mut core,
         initial_load_result,
         file_to_load.is_some(),
     );
