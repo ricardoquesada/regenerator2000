@@ -5,13 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2026-03-16
+
+### Features
+
+- **UI**: Added a check to avoid drawing bookmark tags on wrapped label lines to reduce visual noise.
+
+### Refactor / Internal
+
+- **Crate Renaming**: Renamed internal crates `regenerator-core` and `regenerator-tui` to `regenerator2000-core` and `regenerator2000-tui` for consistency with the project name.
+- **Documentation**: Updated all documentation and agent instructions to reflect the new crate names and structure.
+
 ## [0.9.1] - 2026-03-15
+
+### Features
+
+- **UI**: Added a new TUI logo.
 
 ### Refactor / Internal
 
 - **System Assets**: Relocated system definition assets to `regenerator2000-core` for better separation of concerns and added new system configurations.
-- **Crate Renaming**: Renamed internal crates `regenerator-core` and `regenerator-tui` to `regenerator2000-core` and `regenerator2000-tui` for consistency with the project name.
-- **Documentation**: Updated all documentation and agent instructions to reflect the new crate names and structure.
 
 ## [0.9.0] - 2026-03-15
 
