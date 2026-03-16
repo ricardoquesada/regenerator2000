@@ -553,14 +553,14 @@
   "labels": {
     "73": [
       {
-        "name": "p_color_ram_lo",
+        "name": "p_tmp_lo",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "74": [
       {
-        "name": "p_color_ram_hi",
+        "name": "p_tmp_hi",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1885,19 +1885,78 @@
     "4758": {
       "LowByte": 21400
     },
+    "4873": {
+      "LowByte": 16384
+    },
+    "4877": {
+      "HighByte": 16384
+    },
+    "5005": {
+      "LowByte": 32784
+    },
+    "5009": {
+      "HighByte": 32784
+    },
+    "5381": {
+      "LowByte": 1863
+    },
+    "6928": {
+      "HighByte": 1024
+    },
+    "6932": {
+      "LowByte": 1024
+    },
+    "7743": {
+      "HighByte": 55296
+    },
+    "15405": {
+      "LowByte": 1024
+    },
+    "15409": {
+      "HighByte": 1024
+    },
     "17975": {
       "HighByte": 55296
+    },
+    "18555": {
+      "LowByte": 16384
+    },
+    "18559": {
+      "HighByte": 16384
+    },
+    "18749": {
+      "HighByte": 1863
+    },
+    "19109": {
+      "HighByte": 1104
+    },
+    "19113": {
+      "LowByte": 1104
+    },
+    "19791": {
+      "LowByte": 1024
+    },
+    "19795": {
+      "HighByte": 1024
+    },
+    "19907": {
+      "LowByte": 985
+    },
+    "19911": {
+      "HighByte": 985
     }
   },
-  "bookmarks": {},
-  "cursor_address": 18403,
-  "hex_dump_cursor_address": 18400,
+  "bookmarks": {
+    "4864": ""
+  },
+  "cursor_address": 4096,
+  "hex_dump_cursor_address": 4096,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 4096,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
