@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.1] - 2026-03-15
 
-### Features
-
-- **UI**: Added a new TUI logo.
-
 ### Refactor / Internal
 
 - **System Assets**: Relocated system definition assets to `regenerator-core` for better separation of concerns and added new system configurations.
@@ -29,12 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
-- **VICE Debugger**: Added support for toggling breakpoints and watchpoints directly within the UI, with synchronization between the TUI and VICE.
 - **UI Enhancements**:
   - Implemented "smart jump" logic in the disassembly view to minimize unnecessary scrolling when the target address is already visible.
-  - Added new actions for changing origin, cycling through immediate value formats (Hex, Decimal, Binary), and cycling hexdump view modes.
-  - Improved multi-line comment and label support with `ApplyLabel` and `ApplyComment` actions.
-  - Support for toggling collapsed blocks and splitters has been moved to the core semantic action layer.
 - **Analysis**: Refactored disassembler arrow computation for improved efficiency and accuracy.
 - **Theme Previews**: Added screenshots of available themes to the documentation.
 
