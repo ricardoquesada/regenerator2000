@@ -1949,14 +1949,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 4096,
-  "hex_dump_cursor_address": 4096,
+  "cursor_address": 4864,
+  "hex_dump_cursor_address": 4864,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 4096,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "None",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 0,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],

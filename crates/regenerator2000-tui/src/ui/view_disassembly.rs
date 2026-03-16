@@ -1313,7 +1313,7 @@ impl Widget for DisassemblyView {
                 if label_on_own_line && !label_text.is_empty() {
                     let label_arrow_padding = get_comment_arrow_str(current_inst, None);
                     parts.push(Line::from(vec![
-                        Span::styled(gutter, gutter_style),
+                        Span::styled("     ", base_style),
                         Span::styled(
                             format!("{label_arrow_padding:<arrow_width$} "),
                             base_style.fg(ui_state.theme.arrow),
