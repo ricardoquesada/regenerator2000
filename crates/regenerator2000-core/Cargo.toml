@@ -1,5 +1,5 @@
 [package]
-name = "regenerator-core"
+name = "regenerator2000-core"
 version = "0.9.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"

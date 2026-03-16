@@ -2603,7 +2603,28 @@ dependencies = [
 ]
 
 [[package]]
-name = "regenerator-core"
+name = "regenerator2000"
+version = "0.9.1"
+dependencies = [
+ "anyhow",
+ "base64",
+ "clap",
+ "crossterm",
+ "log",
+ "ratatui",
+ "regenerator2000-core",
+ "regenerator2000-tui",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "simplelog",
+ "tokio",
+ "vergen",
+ "vergen-gitcl",
+]
+
+[[package]]
+name = "regenerator2000-core"
 version = "0.9.1"
 dependencies = [
  "anyhow",
@@ -2623,7 +2644,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "regenerator-tui"
+name = "regenerator2000-tui"
 version = "0.9.1"
 dependencies = [
  "anyhow",
@@ -2636,33 +2657,12 @@ dependencies = [
  "ratatui",
  "ratatui-image",
  "ratatui-textarea",
- "regenerator-core",
+ "regenerator2000-core",
  "regex",
  "serde",
  "serde_json",
  "tokio",
  "uuid",
-]
-
-[[package]]
-name = "regenerator2000"
-version = "0.9.1"
-dependencies = [
- "anyhow",
- "base64",
- "clap",
- "crossterm",
- "log",
- "ratatui",
- "regenerator-core",
- "regenerator-tui",
- "reqwest",
- "serde",
- "serde_json",
- "simplelog",
- "tokio",
- "vergen",
- "vergen-gitcl",
 ]
 
 [[package]]

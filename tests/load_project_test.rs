@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #[cfg(test)]
 mod tests {
-    use regenerator_core::state::{
+    use regenerator2000_core::state::{
         AppState, Block, BlockType, DocumentSettings, LabelKind, ProjectState,
     };
     use std::collections::BTreeMap;
@@ -18,11 +18,11 @@ mod tests {
         // Create raw bytes: 4C 05 10 EA EA EA
         let raw_bytes: Vec<u8> = vec![0x4C, 0x05, 0x10, 0xEA, 0xEA, 0xEA];
         let raw_data_base64 =
-            regenerator_core::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
+            regenerator2000_core::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
 
         let project = ProjectState {
             version: 1,
-            origin: regenerator_core::state::Addr(0x1000),
+            origin: regenerator2000_core::state::Addr(0x1000),
             raw_data: raw_data_base64,
             blocks: vec![Block {
                 start: 0,
@@ -44,7 +44,7 @@ mod tests {
             sprite_multicolor_mode: false,
             charset_multicolor_mode: false,
             bitmap_multicolor_mode: false,
-            hexdump_view_mode: regenerator_core::state::HexdumpViewMode::default(),
+            hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
             splitters: std::collections::BTreeSet::new(),
             blocks_view_cursor: None,
             bookmarks: BTreeMap::new(),

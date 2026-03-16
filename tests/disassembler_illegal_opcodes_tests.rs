@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use regenerator_core::disassembler::Disassembler;
-use regenerator_core::state::Addr;
-use regenerator_core::state::{BlockType, DocumentSettings};
+use regenerator2000_core::disassembler::Disassembler;
+use regenerator2000_core::state::Addr;
+use regenerator2000_core::state::{BlockType, DocumentSettings};
 use std::collections::BTreeMap;
 
 #[test]

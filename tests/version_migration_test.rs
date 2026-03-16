@@ -1,11 +1,11 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #[cfg(test)]
 mod tests {
-    use regenerator_core::state::{AppState, PROJECT_FORMAT_VERSION};
+    use regenerator2000_core::state::{AppState, PROJECT_FORMAT_VERSION};
     use std::collections::BTreeMap;
 
     fn make_test_json(include_version: Option<u32>) -> String {
-        let raw_data_b64 = regenerator_core::state::encode_raw_data_to_base64(&[0xEA]).unwrap();
+        let raw_data_b64 = regenerator2000_core::state::encode_raw_data_to_base64(&[0xEA]).unwrap();
         let version_part = match include_version {
             Some(v) => format!("\"version\": {v},"),
             None => String::new(),
@@ -64,7 +64,7 @@ mod tests {
 
     #[test]
     fn test_save_project_includes_version() {
-        use regenerator_core::state::ProjectSaveContext;
+        use regenerator2000_core::state::ProjectSaveContext;
 
         let mut app_state = AppState::new();
         let mut temp_path = std::env::temp_dir();
@@ -72,9 +72,9 @@ mod tests {
         app_state.project_path = Some(temp_path.clone());
 
         // Minimal data so save doesn't fail
-        app_state.origin = regenerator_core::state::Addr(0x1000);
+        app_state.origin = regenerator2000_core::state::Addr(0x1000);
         app_state.raw_data = vec![0xEA]; // 1 NOP
-        app_state.block_types = vec![regenerator_core::state::BlockType::Code];
+        app_state.block_types = vec![regenerator2000_core::state::BlockType::Code];
 
         app_state
             .save_project(
@@ -88,7 +88,7 @@ mod tests {
                     sprite_multicolor_mode: false,
                     charset_multicolor_mode: false,
                     bitmap_multicolor_mode: false,
-                    hexdump_view_mode: regenerator_core::state::HexdumpViewMode::default(),
+                    hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
                     bookmarks: BTreeMap::new(),

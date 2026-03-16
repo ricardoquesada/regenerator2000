@@ -1,21 +1,21 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use regenerator_core::exporter::export_asm;
-use regenerator_core::state::AppState;
+use regenerator2000_core::exporter::export_asm;
+use regenerator2000_core::state::AppState;
 use std::path::PathBuf;
 
 #[test]
 fn test_export_all_labels_disabled() {
     let mut state = AppState::new();
-    state.origin = regenerator_core::state::Addr(0x1000);
+    state.origin = regenerator2000_core::state::Addr(0x1000);
     state.raw_data = vec![0xEA];
 
     // Define an external label
     state.labels.insert(
-        regenerator_core::state::Addr(0x0010),
-        vec![regenerator_core::state::Label {
+        regenerator2000_core::state::Addr(0x0010),
+        vec![regenerator2000_core::state::Label {
             name: "f10".to_string(),
-            kind: regenerator_core::state::LabelKind::Auto,
-            label_type: regenerator_core::state::LabelType::ZeroPageField,
+            kind: regenerator2000_core::state::LabelKind::Auto,
+            label_type: regenerator2000_core::state::LabelType::ZeroPageField,
         }],
     );
 

@@ -3,7 +3,7 @@
 ///
 /// Verifies that `SystemConfig` serializes/deserializes correctly,
 /// handles missing fields with defaults, and survives round-trips.
-use regenerator_core::config::SystemConfig;
+use regenerator2000_core::config::SystemConfig;
 use std::path::PathBuf;
 
 #[test]

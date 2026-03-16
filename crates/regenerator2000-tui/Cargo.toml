@@ -1,5 +1,5 @@
 [package]
-name = "regenerator-tui"
+name = "regenerator2000-tui"
 version = "0.9.1"
 edition = "2024"
 license = "MIT OR Apache-2.0"
@@ -7,7 +7,7 @@ repository = "https://github.com/ricardoquesada/regenerator2000"
 description = "Terminal User Interface (TUI) for Regenerator 2000 using ratatui."
 
 [dependencies]
-regenerator-core = { version = "0.9.1", path = "../regenerator-core", features = ["mcp"] }
+regenerator2000-core = { version = "0.9.1", path = "../regenerator2000-core", features = ["mcp"] }
 ratatui = "0.30.0"
 crossterm = "0.29"
 anyhow = "1.0"

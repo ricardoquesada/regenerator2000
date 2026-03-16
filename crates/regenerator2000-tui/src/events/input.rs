@@ -1,6 +1,6 @@
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use regenerator_core::Core;
+use regenerator2000_core::Core;
 
 use crate::ui::menu::handle_menu_action;
 

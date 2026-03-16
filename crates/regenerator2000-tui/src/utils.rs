@@ -1,6 +1,6 @@
-// TUI-specific utility functions. Pure-logic utilities live in regenerator_core::utils.
+// TUI-specific utility functions. Pure-logic utilities live in regenerator2000_core::utils.
 // Re-export core utils so `crate::utils::calculate_entropy` etc. keep working.
-pub use regenerator_core::utils::*;
+pub use regenerator2000_core::utils::*;
 
 use image::DynamicImage;
 use ratatui::layout::{Constraint, Direction, Layout, Rect};

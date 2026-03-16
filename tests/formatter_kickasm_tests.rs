@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use regenerator_core::disassembler::Disassembler;
-use regenerator_core::state::Addr;
-use regenerator_core::state::{Assembler, DocumentSettings};
+use regenerator2000_core::disassembler::Disassembler;
+use regenerator2000_core::state::Addr;
+use regenerator2000_core::state::{Assembler, DocumentSettings};
 use std::collections::BTreeMap;
 
 #[test]
@@ -13,13 +13,13 @@ fn test_format_instructions() {
     let formatter = Disassembler::create_formatter(settings.assembler);
     let labels = BTreeMap::new();
     let immediate_value_formats = BTreeMap::new();
-    let opcodes = regenerator_core::cpu::get_opcodes();
+    let opcodes = regenerator2000_core::cpu::get_opcodes();
 
     // LDA #$00
-    let ctx = regenerator_core::disassembler::formatter::FormatContext {
+    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xA9].as_ref().unwrap(),
         operands: &[0x00],
-        address: regenerator_core::state::Addr(0x1000),
+        address: regenerator2000_core::state::Addr(0x1000),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -31,10 +31,10 @@ fn test_format_instructions() {
     );
 
     // STA $D020
-    let ctx = regenerator_core::disassembler::formatter::FormatContext {
+    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0x8D].as_ref().unwrap(),
         operands: &[0x20, 0xD0],
-        address: regenerator_core::state::Addr(0x1002),
+        address: regenerator2000_core::state::Addr(0x1002),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -93,14 +93,14 @@ fn test_forced_absolute() {
     let formatter = Disassembler::create_formatter(settings.assembler);
     let labels = BTreeMap::new();
     let immediate_value_formats = BTreeMap::new();
-    let opcodes = regenerator_core::cpu::get_opcodes();
+    let opcodes = regenerator2000_core::cpu::get_opcodes();
 
     // True functionality: should output .abs
     settings.preserve_long_bytes = true;
-    let ctx = regenerator_core::disassembler::formatter::FormatContext {
+    let ctx = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
-        address: regenerator_core::state::Addr(0x1000),
+        address: regenerator2000_core::state::Addr(0x1000),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -121,10 +121,10 @@ fn test_forced_absolute() {
     // This matches the behavior of "not preserving" the long form.
     let mut settings_false = settings.clone();
     settings_false.preserve_long_bytes = false;
-    let ctx_false = regenerator_core::disassembler::formatter::FormatContext {
+    let ctx_false = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xAD].as_ref().unwrap(),
         operands: &[0x02, 0x00],
-        address: regenerator_core::state::Addr(0x1000),
+        address: regenerator2000_core::state::Addr(0x1000),
         target_context: None,
         labels: &labels,
         settings: &settings_false,
@@ -137,10 +137,10 @@ fn test_forced_absolute() {
 
     // LDA $02 (ZeroPage) -> A5 02
     // Should be formatted as "lda $02"
-    let ctx_zp = regenerator_core::disassembler::formatter::FormatContext {
+    let ctx_zp = regenerator2000_core::disassembler::formatter::FormatContext {
         opcode: opcodes[0xA5].as_ref().unwrap(),
         operands: &[0x02],
-        address: regenerator_core::state::Addr(0x1000),
+        address: regenerator2000_core::state::Addr(0x1000),
         target_context: None,
         labels: &labels,
         settings: &settings,
@@ -161,7 +161,7 @@ fn test_text_encoding() {
     let formatter = Disassembler::create_formatter(settings.assembler);
 
     // Test implicitly creates formatter
-    use regenerator_core::disassembler::formatter::TextFragment;
+    use regenerator2000_core::disassembler::formatter::TextFragment;
 
     // 1. Text Start -> .encoding "ascii" + .text
     let fragments = vec![TextFragment::Text("hello".to_string())];
@@ -196,7 +196,7 @@ fn test_screencode_encoding() {
         ..Default::default()
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
-    use regenerator_core::disassembler::formatter::TextFragment;
+    use regenerator2000_core::disassembler::formatter::TextFragment;
 
     // 1. Screencode Pre -> .encoding "screencode_upper"
     let pre_lines = formatter.format_screencode_pre();
@@ -224,7 +224,7 @@ fn test_screencode_case_swap() {
         ..Default::default()
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
-    use regenerator_core::disassembler::formatter::TextFragment;
+    use regenerator2000_core::disassembler::formatter::TextFragment;
 
     // "Hello World" -> "hELLO wORLD"
     let fragments = vec![TextFragment::Text("Hello World".to_string())];
@@ -243,7 +243,7 @@ fn test_mixed_encoding() {
         ..Default::default()
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
-    use regenerator_core::disassembler::formatter::TextFragment;
+    use regenerator2000_core::disassembler::formatter::TextFragment;
 
     // Mixed text and bytes
     let fragments = vec![
@@ -285,7 +285,7 @@ fn test_quote_escaping() {
         ..Default::default()
     };
     let formatter = Disassembler::create_formatter(settings.assembler);
-    use regenerator_core::disassembler::formatter::TextFragment;
+    use regenerator2000_core::disassembler::formatter::TextFragment;
 
     // String with quotes: He said "Hi"
     let fragments = vec![TextFragment::Text("He said \"Hi\"".to_string())];

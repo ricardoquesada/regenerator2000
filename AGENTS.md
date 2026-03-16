@@ -19,8 +19,8 @@ CI runs fmt check and clippy only on Linux; tests run on macOS, Linux, and Windo
 ## Architecture
 
 The project is split into two main crates:
-- **`regenerator-core`**: Contains all UI-agnostic logic (analysis, disassembly, state, MCP, VICE bridge).
-- **`regenerator-tui`**: Contains all terminal UI-related code (widgets, events, rendering).
+- **`regenerator2000-core`**: Contains all UI-agnostic logic (analysis, disassembly, state, MCP, VICE bridge).
+- **`regenerator2000-tui`**: Contains all terminal UI-related code (widgets, events, rendering).
 
 The application follows a **unidirectional data flow** (Redux/Elm style):
 
@@ -34,35 +34,35 @@ Key Event → Widget::handle_input → WidgetResult::Action(MenuAction)
 
 ### Core separation
 
-- **`AppState`** (`crates/regenerator-core/src/state/`) — single source of truth for all persistent data: raw bytes, block types, labels, comments, cross-refs, bookmarks, undo stack, VICE state. Serialized to `.regen2000proj`.
-- **`UIState`** (`crates/regenerator-tui/src/ui_state.rs`) — transient rendering state only: cursor positions, scroll offsets, active pane, active dialog, navigation history. Never serialized.
+- **`AppState`** (`crates/regenerator2000-core/src/state/`) — single source of truth for all persistent data: raw bytes, block types, labels, comments, cross-refs, bookmarks, undo stack, VICE state. Serialized to `.regen2000proj`.
+- **`UIState`** (`crates/regenerator2000-tui/src/ui_state.rs`) — transient rendering state only: cursor positions, scroll offsets, active pane, active dialog, navigation history. Never serialized.
 
 **Rule**: UI code must never mutate `AppState` directly for logical changes. All mutations go through `Command::apply()` so undo/redo works.
 
-**Best Practice**: UI-agnostic code MUST be added to `regenerator-core`, and UI-related code MUST be added to `regenerator-tui`.
+**Best Practice**: UI-agnostic code MUST be added to `regenerator2000-core`, and UI-related code MUST be added to `regenerator2000-tui`.
 
 ### Key modules
 
 | Path | Purpose |
 |------|---------|
-| `crates/regenerator-core/src/commands.rs` | `Command` enum + `UndoStack`; every undoable action is a variant |
-| `crates/regenerator-tui/src/events.rs` + `crates/regenerator-tui/src/events/` | Main event loop; routes `AppEvent` (crossterm, MCP, VICE, Tick) |
-| `crates/regenerator-tui/src/ui/widget.rs` | `Widget` trait (`render`, `handle_input`, `handle_mouse`); `WidgetResult` |
-| `crates/regenerator-tui/src/ui/menu/menu_action.rs` | `MenuAction` enum — the bridge between raw key events and semantic actions |
-| `crates/regenerator-tui/src/ui/view_*.rs` | The main views: Disassembly, HexDump, Sprites, Charset, Bitmap, Blocks |
-| `crates/regenerator-tui/src/ui/dialog_*.rs` | Modal dialogs; each implements `Widget` and is stored in `UIState::active_dialog` |
-| `crates/regenerator-core/src/analyzer.rs` | Auto-analysis: walks block types to generate labels and cross-refs |
-| `crates/regenerator-core/src/disassembler/` | 6502 decode + per-assembler formatters (64tass, ACME, KickAssembler, ca65) |
-| `crates/regenerator-core/src/cpu.rs` | 6502/6510 opcode table and addressing modes |
-| `crates/regenerator-core/src/parser/` | File parsers: d64, t64, crt, VICE labels (`.lbl`), VICE snapshots (`.vsf`) |
-| `crates/regenerator-core/src/mcp/` | MCP server: HTTP (port 3000) and stdio transports |
-| `crates/regenerator-core/src/vice/` | VICE binary monitor protocol client for live debugging |
-| `crates/regenerator-core/src/state/project.rs` | Project save/load with base64+flate2 compression |
+| `crates/regenerator2000-core/src/commands.rs` | `Command` enum + `UndoStack`; every undoable action is a variant |
+| `crates/regenerator2000-tui/src/events.rs` + `crates/regenerator2000-tui/src/events/` | Main event loop; routes `AppEvent` (crossterm, MCP, VICE, Tick) |
+| `crates/regenerator2000-tui/src/ui/widget.rs` | `Widget` trait (`render`, `handle_input`, `handle_mouse`); `WidgetResult` |
+| `crates/regenerator2000-tui/src/ui/menu/menu_action.rs` | `MenuAction` enum — the bridge between raw key events and semantic actions |
+| `crates/regenerator2000-tui/src/ui/view_*.rs` | The main views: Disassembly, HexDump, Sprites, Charset, Bitmap, Blocks |
+| `crates/regenerator2000-tui/src/ui/dialog_*.rs` | Modal dialogs; each implements `Widget` and is stored in `UIState::active_dialog` |
+| `crates/regenerator2000-core/src/analyzer.rs` | Auto-analysis: walks block types to generate labels and cross-refs |
+| `crates/regenerator2000-core/src/disassembler/` | 6502 decode + per-assembler formatters (64tass, ACME, KickAssembler, ca65) |
+| `crates/regenerator2000-core/src/cpu.rs` | 6502/6510 opcode table and addressing modes |
+| `crates/regenerator2000-core/src/parser/` | File parsers: d64, t64, crt, VICE labels (`.lbl`), VICE snapshots (`.vsf`) |
+| `crates/regenerator2000-core/src/mcp/` | MCP server: HTTP (port 3000) and stdio transports |
+| `crates/regenerator2000-core/src/vice/` | VICE binary monitor protocol client for live debugging |
+| `crates/regenerator2000-core/src/state/project.rs` | Project save/load with base64+flate2 compression |
 
 ### Adding a new feature
 
-1. Add a `Command` variant in `crates/regenerator-core/src/commands.rs` with `apply` (forward) and `undo` (reverse) logic.
-2. Add a `MenuAction` variant in `crates/regenerator-tui/src/ui/menu/menu_action.rs` and handle it in `crates/regenerator-tui/src/events/input.rs`.
+1. Add a `Command` variant in `crates/regenerator2000-core/src/commands.rs` with `apply` (forward) and `undo` (reverse) logic.
+2. Add a `MenuAction` variant in `crates/regenerator2000-tui/src/ui/menu/menu_action.rs` and handle it in `crates/regenerator2000-tui/src/events/input.rs`.
 3. Trigger the action from the relevant `view_*.rs` `handle_input`.
 
 ### Git commit style

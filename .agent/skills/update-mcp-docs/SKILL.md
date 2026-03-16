@@ -1,6 +1,6 @@
 ---
 name: update-mcp-docs
-description: Syncs `docs/mcp.md` with the actual tools exposed by `src/mcp/handler.rs`.
+description: Syncs `docs/mcp.md` with the actual tools exposed by `crates/regenerator2000-core/src/mcp/handler.rs`.
 ---
 
 # Update MCP Docs Skill
@@ -24,4 +24,4 @@ This will:
 
 ## When to Use
 
-Run this skill whenever you add, modify, or remove a tool in `src/mcp/handler.rs` to ensure documentation stays in sync.
+Run this skill whenever you add, modify, or remove a tool in `crates/regenerator2000-core/src/mcp/handler.rs` to ensure documentation stays in sync.

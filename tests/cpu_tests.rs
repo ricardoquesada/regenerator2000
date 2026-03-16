@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use regenerator_core::cpu::{AddressingMode, Opcode, get_opcodes};
+use regenerator2000_core::cpu::{AddressingMode, Opcode, get_opcodes};
 use std::collections::{HashMap, HashSet};
 
 // =============================================================================

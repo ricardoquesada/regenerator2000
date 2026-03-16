@@ -1,6 +1,6 @@
 ---
 name: update-keyboard-shortcuts
-description: Audits and synchronizes keyboard shortcuts across docs/keyboard_shortcuts.md, src/ui/dialog_keyboard_shortcut.rs, src/ui/menu.rs, and the view files (view_disassembly.rs, view_hexdump.rs, view_charset.rs, view_bitmap.rs, view_blocks.rs, view_sprites.rs).
+description: Audits and synchronizes keyboard shortcuts across docs/keyboard_shortcuts.md, crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs, crates/regenerator2000-tui/src/ui/menu.rs, and the view files (view_disassembly.rs, view_hexdump.rs, view_charset.rs, view_bitmap.rs, view_blocks.rs, view_sprites.rs).
 ---
 
 # Update Keyboard Shortcuts Workflow
@@ -19,14 +19,14 @@ The following files all define or document keyboard shortcuts and must be consis
 | File                                 | Role                                                |
 | ------------------------------------ | --------------------------------------------------- |
 | `docs/keyboard_shortcuts.md`         | User-facing documentation (MkDocs table format)     |
-| `src/ui/dialog_keyboard_shortcut.rs` | In-app shortcuts dialog (`get_shortcuts()` fn)      |
-| `src/ui/menu.rs`                     | Menu items with shortcut hints (`MenuState::new()`) |
-| `src/ui/view_disassembly.rs`         | Disassembly view `handle_input()`                   |
-| `src/ui/view_hexdump.rs`             | Hex dump view `handle_input()`                      |
-| `src/ui/view_charset.rs`             | Charset view `handle_input()`                       |
-| `src/ui/view_bitmap.rs`              | Bitmap view `handle_input()`                        |
-| `src/ui/view_blocks.rs`              | Blocks view `handle_input()`                        |
-| `src/ui/view_sprites.rs`             | Sprites view `handle_input()`                       |
+| `crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs` | In-app shortcuts dialog (`get_shortcuts()` fn)      |
+| `crates/regenerator2000-tui/src/ui/menu.rs`                     | Menu items with shortcut hints (`MenuState::new()`) |
+| `crates/regenerator2000-tui/src/ui/view_disassembly.rs`         | Disassembly view `handle_input()`                   |
+| `crates/regenerator2000-tui/src/ui/view_hexdump.rs`             | Hex dump view `handle_input()`                      |
+| `crates/regenerator2000-tui/src/ui/view_charset.rs`             | Charset view `handle_input()`                       |
+| `crates/regenerator2000-tui/src/ui/view_bitmap.rs`              | Bitmap view `handle_input()`                        |
+| `crates/regenerator2000-tui/src/ui/view_blocks.rs`              | Blocks view `handle_input()`                        |
+| `crates/regenerator2000-tui/src/ui/view_sprites.rs`             | Sprites view `handle_input()`                       |
 
 ## 1. Read All Relevant Files
 
@@ -104,7 +104,7 @@ The file uses MkDocs Material `++key++` notation. Format examples:
 - `++period++` for `.`
 - `++question-mark++` for `?`
 
-### Updating `src/ui/dialog_keyboard_shortcut.rs`
+### Updating `crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs`
 
 Edit the `get_shortcuts()` function. Each entry is a `(&str, &str)` tuple:
 
@@ -113,7 +113,7 @@ Edit the `get_shortcuts()` function. Each entry is a `(&str, &str)` tuple:
 - Empty `("", "")` = blank separator line
 - `("Section Header", "")` = section header (rendered bold+underlined)
 
-### Updating `src/ui/menu.rs`
+### Updating `crates/regenerator2000-tui/src/ui/menu.rs`
 
 Edit `MenuState::new()`. Each `MenuItem::new()` call has:
 
@@ -147,7 +147,7 @@ After making changes, do a final cross-check:
 
 ## Known Quirks
 
-- **`ToggleBlocksView`**: The menu shows `Alt+6` but the docs say `Alt+5`. The actual key handling is in the global event handler (not in a view's `handle_input()`), so check `src/ui/menu.rs` and the main event loop for this one.
+- **`ToggleBlocksView`**: The menu shows `Alt+6` but the docs say `Alt+5`. The actual key handling is in the global event handler (not in a view's `handle_input()`), so check `crates/regenerator2000-tui/src/ui/menu.rs` and the main event loop for this one.
 - **Shifted characters**: Some keys like `?`, `<`, `>`, `|`, `;`, `:` are handled with `key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT` because on some terminals/OSes, pressing Shift to get these characters sends a SHIFT modifier. This is intentional.
 - **Global shortcuts** (Ctrl+O, Ctrl+S, etc.) are handled in the main event loop, not in individual view `handle_input()` functions.
 - **Navigation shortcuts** (Up/Down/j/k, PageUp/PageDown, Home/End, G) are handled by the `Navigable` trait via `handle_nav_input()`, not directly in `handle_input()`.

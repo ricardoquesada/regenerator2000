@@ -1,7 +1,7 @@
 use crate::ui_state::UIState;
-use regenerator_core::Core;
-use regenerator_core::event::{CommentKind as DialogCommentKind, CoreEvent, DialogType};
-pub use regenerator_core::state::actions::AppAction;
+use regenerator2000_core::Core;
+use regenerator2000_core::event::{CommentKind as DialogCommentKind, CoreEvent, DialogType};
+pub use regenerator2000_core::state::actions::AppAction;
 
 pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAction) {
     // Dispatch to Core and handle results reactively

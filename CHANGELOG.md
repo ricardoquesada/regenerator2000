@@ -9,15 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactor / Internal
 
-- **System Assets**: Relocated system definition assets to `regenerator-core` for better separation of concerns and added new system configurations.
+- **System Assets**: Relocated system definition assets to `regenerator2000-core` for better separation of concerns and added new system configurations.
+- **Crate Renaming**: Renamed internal crates `regenerator-core` and `regenerator-tui` to `regenerator2000-core` and `regenerator2000-tui` for consistency with the project name.
+- **Documentation**: Updated all documentation and agent instructions to reflect the new crate names and structure.
 
 ## [0.9.0] - 2026-03-15
 
 ### Major Architectural Refactor
 
 - **Core/TUI Separation**: The project has been restructured into a multi-crate workspace:
-  - `regenerator-core`: Contains all UI-agnostic logic, including state management, disassembler, analyzer, commands, and the MCP server.
-  - `regenerator-tui`: Contains the terminal user interface logic, widgets, and event loop.
+  - `regenerator2000-core`: Contains all UI-agnostic logic, including state management, disassembler, analyzer, commands, and the MCP server.
+  - `regenerator2000-tui`: Contains the terminal user interface logic, widgets, and event loop.
   - `regenerator2000`: The main binary crate that ties everything together.
 - **Improved Data Flow**: Transitions to a cleaner unidirectional data flow where the UI dispatches semantic `AppAction`s, which are then applied to the `AppState` via a command system with full undo/redo support.
 - **Type Safety**: Introduced `Addr` and `Platform` newtypes to improve type safety and ensure consistent memory address handling throughout the codebase.

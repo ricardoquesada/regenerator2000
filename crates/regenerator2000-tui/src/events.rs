@@ -5,8 +5,8 @@ use crate::ui_state::{ActivePane, UIState};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, MouseEvent};
 use input::handle_global_input;
 use ratatui::{Terminal, backend::Backend};
-use regenerator_core::Core;
-use regenerator_core::state::AppState;
+use regenerator2000_core::Core;
+use regenerator2000_core::state::AppState;
 use std::io;
 
 pub enum AppEvent {

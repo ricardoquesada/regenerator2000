@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "crates/regenerator-core", "crates/regenerator-tui"]
+members = [".", "crates/regenerator2000-core", "crates/regenerator2000-tui"]
 resolver = "3"
 
 [package]
@@ -25,8 +25,8 @@ exclude = [
 ]
 
 [dependencies]
-regenerator-core = { version = "0.9.1", path = "crates/regenerator-core", features = ["mcp"] }
-regenerator-tui = { version = "0.9.1", path = "crates/regenerator-tui" }
+regenerator2000-core = { version = "0.9.1", path = "crates/regenerator2000-core", features = ["mcp"] }
+regenerator2000-tui = { version = "0.9.1", path = "crates/regenerator2000-tui" }
 clap = { version = "4", features = ["derive"] }
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }

@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use regenerator_core::disassembler::Disassembler;
-use regenerator_core::state::Addr;
-use regenerator_core::state::{
+use regenerator2000_core::disassembler::Disassembler;
+use regenerator2000_core::state::Addr;
+use regenerator2000_core::state::{
     Assembler, BlockType, DocumentSettings, Label, LabelKind, LabelType,
 };
 use std::collections::BTreeMap;
@@ -14,16 +14,16 @@ fn test_tass_label_placement_on_text() {
     };
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
-    let origin = regenerator_core::state::Addr(0x1000);
+    let origin = regenerator2000_core::state::Addr(0x1000);
     let mut cross_refs = BTreeMap::new();
     cross_refs.insert(
-        regenerator_core::state::Addr(0x1000),
-        vec![regenerator_core::state::Addr(0x2000)],
+        regenerator2000_core::state::Addr(0x1000),
+        vec![regenerator2000_core::state::Addr(0x2000)],
     );
 
     // Label at start of text block
     labels.insert(
-        regenerator_core::state::Addr(0x1000),
+        regenerator2000_core::state::Addr(0x1000),
         vec![Label {
             name: "TextLabel".to_string(),
             kind: LabelKind::User,
@@ -86,7 +86,7 @@ fn test_tass_label_placement_on_screencode() {
     };
     let disassembler = Disassembler::new();
     let mut labels = BTreeMap::new();
-    let origin = regenerator_core::state::Addr(0x1000);
+    let origin = regenerator2000_core::state::Addr(0x1000);
 
     // Add side comment
     let mut user_side_comments = BTreeMap::new();
@@ -94,7 +94,7 @@ fn test_tass_label_placement_on_screencode() {
 
     // Label at start of screencode block
     labels.insert(
-        regenerator_core::state::Addr(0x1000),
+        regenerator2000_core::state::Addr(0x1000),
         vec![Label {
             name: "ScreenLabel".to_string(),
             kind: LabelKind::User,

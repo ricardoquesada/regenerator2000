@@ -1,15 +1,15 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #[cfg(test)]
 mod tests {
-    use regenerator_core::state::{AppState, BlockType, ProjectSaveContext};
+    use regenerator2000_core::state::{AppState, BlockType, ProjectSaveContext};
 
     #[test]
     fn test_save_and_restore_cursor() {
         // 1. Setup initial state
         let mut app_state = AppState::new();
-        app_state.origin = regenerator_core::state::Addr(0x1000);
-        let start_cursor_addr = regenerator_core::state::Addr(0x1005);
-        let start_hex_cursor_addr = regenerator_core::state::Addr(0x1010);
+        app_state.origin = regenerator2000_core::state::Addr(0x1000);
+        let start_cursor_addr = regenerator2000_core::state::Addr(0x1005);
+        let start_hex_cursor_addr = regenerator2000_core::state::Addr(0x1010);
 
         // Dummy raw data
         let raw_bytes: Vec<u8> = vec![0xEA; 32]; // Enough bytes for a few rows
@@ -34,7 +34,7 @@ mod tests {
                     sprite_multicolor_mode: false,
                     charset_multicolor_mode: false,
                     bitmap_multicolor_mode: false,
-                    hexdump_view_mode: regenerator_core::state::HexdumpViewMode::default(),
+                    hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
                     splitters: std::collections::BTreeSet::new(),
                     blocks_view_cursor: None,
                     bookmarks: std::collections::BTreeMap::new(),
@@ -67,7 +67,7 @@ mod tests {
         // 5. Test loading legacy project (without cursor_address)
         // Manually create JSON without cursor_address (or hex_cursor_address)
         let legacy_raw_data =
-            regenerator_core::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
+            regenerator2000_core::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
         let json = format!(
             r#"{{
             "origin": 4096,

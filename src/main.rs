@@ -1,9 +1,9 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::panic))]
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
-use regenerator_core::state::AppState;
-use regenerator_tui::events;
-use regenerator_tui::ui_state::UIState;
+use regenerator2000_core::state::AppState;
+use regenerator2000_tui::events;
+use regenerator2000_tui::ui_state::UIState;
 
 use anyhow::Result;
 use crossterm::{
@@ -135,12 +135,12 @@ fn validate_headless_mode(file_str: &str) {
 }
 
 /// Parse an assembler name string into the corresponding `Assembler` enum variant.
-fn parse_assembler_name(name: &str) -> regenerator_core::state::Assembler {
+fn parse_assembler_name(name: &str) -> regenerator2000_core::state::Assembler {
     match name.to_ascii_lowercase().as_str() {
-        "64tass" | "tass64" | "tass" => regenerator_core::state::Assembler::Tass64,
-        "acme" => regenerator_core::state::Assembler::Acme,
-        "ca65" | "cc65" => regenerator_core::state::Assembler::Ca65,
-        "kick" | "kickassembler" | "kickasm" => regenerator_core::state::Assembler::Kick,
+        "64tass" | "tass64" | "tass" => regenerator2000_core::state::Assembler::Tass64,
+        "acme" => regenerator2000_core::state::Assembler::Acme,
+        "ca65" | "cc65" => regenerator2000_core::state::Assembler::Ca65,
+        "kick" | "kickassembler" | "kickasm" => regenerator2000_core::state::Assembler::Kick,
         _ => {
             eprintln!("Error: Unknown assembler '{name}'. Valid values: 64tass, acme, ca65, kick");
             std::process::exit(1);
@@ -154,27 +154,27 @@ fn parse_assembler_name(name: &str) -> regenerator_core::state::Assembler {
 
 /// Parsed data from a disk image (D64/D71/D81).
 type DiskImageData = (
-    Vec<regenerator_core::parser::d64::D64FileEntry>,
+    Vec<regenerator2000_core::parser::d64::D64FileEntry>,
     Vec<u8>,
     PathBuf,
 );
 
 /// Parsed data from a tape image (T64).
 type TapeImageData = (
-    Vec<regenerator_core::parser::t64::T64Entry>,
+    Vec<regenerator2000_core::parser::t64::T64Entry>,
     Vec<u8>,
     PathBuf,
 );
 
 /// Parsed data from a cartridge image (CRT).
-type CartImageData = (regenerator_core::parser::crt::CrtHeader, PathBuf);
+type CartImageData = (regenerator2000_core::parser::crt::CrtHeader, PathBuf);
 
 /// Load and parse a D64/D71/D81 disk image. Returns `None` on error (with
 /// messages printed to stderr). In headless mode, errors cause `exit(1)`.
 fn load_disk_image(file_str: &str, headless: bool) -> Option<DiskImageData> {
     let path = PathBuf::from(file_str);
     match std::fs::read(&path) {
-        Ok(data) => match regenerator_core::parser::d64::parse_d64_directory(&data) {
+        Ok(data) => match regenerator2000_core::parser::d64::parse_d64_directory(&data) {
             Ok(files) => Some((files, data, path)),
             Err(e) => {
                 eprintln!("Error parsing D64/D71/D81 file: {e}");
@@ -198,7 +198,7 @@ fn load_disk_image(file_str: &str, headless: bool) -> Option<DiskImageData> {
 fn load_tape_image(file_str: &str, headless: bool) -> Option<TapeImageData> {
     let path = PathBuf::from(file_str);
     match std::fs::read(&path) {
-        Ok(data) => match regenerator_core::parser::t64::parse_t64_directory(&data) {
+        Ok(data) => match regenerator2000_core::parser::t64::parse_t64_directory(&data) {
             Ok(files) => Some((files, data, path)),
             Err(e) => {
                 eprintln!("Error parsing T64 file: {e}");
@@ -222,7 +222,7 @@ fn load_tape_image(file_str: &str, headless: bool) -> Option<TapeImageData> {
 fn load_cart_image(file_str: &str, headless: bool) -> Option<CartImageData> {
     let path = PathBuf::from(file_str);
     match std::fs::read(&path) {
-        Ok(data) => match regenerator_core::parser::crt::parse_crt_chips(&data) {
+        Ok(data) => match regenerator2000_core::parser::crt::parse_crt_chips(&data) {
             Ok(header) => Some((header, path)),
             Err(e) => {
                 eprintln!("Error parsing CRT file: {e}");
@@ -284,7 +284,7 @@ fn export_labels(app_state: &mut AppState, path_str: String, headless: bool, mcp
 /// Export assembly source from `app_state` to a file.
 fn export_assembly(app_state: &AppState, path_str: String, headless: bool, mcp_server: bool) {
     let path = PathBuf::from(path_str);
-    match regenerator_core::exporter::export_asm(app_state, &path) {
+    match regenerator2000_core::exporter::export_asm(app_state, &path) {
         Ok(()) => {
             if headless && !mcp_server {
                 println!("Assembly exported to {path:?}");
@@ -307,7 +307,7 @@ fn export_assembly(app_state: &AppState, path_str: String, headless: bool, mcp_s
 fn run_verify(app_state: &AppState) -> Result<()> {
     println!("\nRoundtrip Export Verification");
     println!("=============================");
-    let results = regenerator_core::exporter::verify_all_assemblers(app_state);
+    let results = regenerator2000_core::exporter::verify_all_assemblers(app_state);
     let mut all_passed = true;
     let mut any_ran = false;
     for r in &results {
@@ -346,27 +346,28 @@ fn run_verify(app_state: &AppState) -> Result<()> {
 /// Run the MCP server in headless mode (stdio or HTTP, no TUI).
 fn run_headless_mcp(mut app_state: AppState, use_stdio: bool) -> Result<()> {
     if use_stdio {
-        let _theme = regenerator_tui::theme::Theme::from_name(&app_state.system_config.theme);
-        let view_state = regenerator_core::view_state::CoreViewState::new();
+        let _theme = regenerator2000_tui::theme::Theme::from_name(&app_state.system_config.theme);
+        let view_state = regenerator2000_core::view_state::CoreViewState::new();
         let rt = tokio::runtime::Runtime::new()?;
         rt.block_on(async {
-            regenerator_core::mcp::stdio::run_headless_stdio_loop(app_state, view_state).await;
+            regenerator2000_core::mcp::stdio::run_headless_stdio_loop(app_state, view_state).await;
         });
     } else {
-        let mut view_state = regenerator_core::view_state::CoreViewState::new();
+        let mut view_state = regenerator2000_core::view_state::CoreViewState::new();
         let (mcp_req_tx, mut mcp_req_rx) = tokio::sync::mpsc::channel(100);
 
         let rt = tokio::runtime::Runtime::new()?;
         rt.block_on(async {
             tokio::spawn(async move {
-                if let Err(e) = regenerator_core::mcp::http::run_server(3000, mcp_req_tx).await {
+                if let Err(e) = regenerator2000_core::mcp::http::run_server(3000, mcp_req_tx).await
+                {
                     eprintln!("Failed to start MCP server: {e}");
                     std::process::exit(1);
                 }
             });
 
             while let Some(req) = mcp_req_rx.recv().await {
-                let response = regenerator_core::mcp::handler::handle_request(
+                let response = regenerator2000_core::mcp::handler::handle_request(
                     &req,
                     &mut app_state,
                     &mut view_state,
@@ -452,18 +453,18 @@ fn open_image_picker_dialog(
     cart_image_data: Option<CartImageData>,
 ) {
     if let Some((files, disk_data, disk_path)) = disk_image_data {
-        let dialog = regenerator_tui::ui::dialog_d64_picker::D64FilePickerDialog::new(
+        let dialog = regenerator2000_tui::ui::dialog_d64_picker::D64FilePickerDialog::new(
             files, disk_data, disk_path,
         );
         ui_state.active_dialog = Some(Box::new(dialog));
     } else if let Some((files, tape_data, tape_path)) = tape_image_data {
-        let dialog = regenerator_tui::ui::dialog_t64_picker::T64FilePickerDialog::new(
+        let dialog = regenerator2000_tui::ui::dialog_t64_picker::T64FilePickerDialog::new(
             files, tape_data, tape_path,
         );
         ui_state.active_dialog = Some(Box::new(dialog));
     } else if let Some((crt_header, path)) = cart_image_data {
         let dialog =
-            regenerator_tui::ui::dialog_crt_picker::CrtBankPickerDialog::new(crt_header, path);
+            regenerator2000_tui::ui::dialog_crt_picker::CrtBankPickerDialog::new(crt_header, path);
         ui_state.active_dialog = Some(Box::new(dialog));
     }
 }
@@ -472,9 +473,9 @@ fn open_image_picker_dialog(
 /// restoring the session or setting an error status message.
 fn apply_initial_load_result(
     ui_state: &mut UIState,
-    core: &mut regenerator_core::Core,
+    core: &mut regenerator2000_core::Core,
     initial_load_result: Option<
-        anyhow::Result<(regenerator_core::state::LoadedProjectData, PathBuf)>,
+        anyhow::Result<(regenerator2000_core::state::LoadedProjectData, PathBuf)>,
     >,
     file_was_specified: bool,
 ) {
@@ -545,7 +546,7 @@ fn spawn_mcp_server(event_tx: &std::sync::mpsc::Sender<events::AppEvent>) {
             let server_tx = mcp_req_tx.clone();
             let error_tx = mcp_bridge_tx.clone();
             tokio::spawn(async move {
-                if let Err(e) = regenerator_core::mcp::http::run_server(3000, server_tx).await {
+                if let Err(e) = regenerator2000_core::mcp::http::run_server(3000, server_tx).await {
                     let _ = error_tx.send(events::AppEvent::McpError(e.to_string()));
                 }
             });
@@ -568,7 +569,7 @@ fn connect_vice(
     event_tx: &std::sync::mpsc::Sender<events::AppEvent>,
 ) {
     let vice_tx = vice_event_adapter(event_tx);
-    match regenerator_core::vice::ViceClient::connect(vice_addr, vice_tx) {
+    match regenerator2000_core::vice::ViceClient::connect(vice_addr, vice_tx) {
         Ok(client) => {
             app_state.vice_client = Some(client);
             ui_state.set_status_message(format!("Connecting to VICE at {vice_addr}..."));
@@ -583,7 +584,7 @@ fn connect_vice(
 /// forwards them to the given `Sender<AppEvent>`.
 fn vice_event_adapter(
     app_tx: &std::sync::mpsc::Sender<events::AppEvent>,
-) -> std::sync::mpsc::Sender<regenerator_core::vice::ViceEvent> {
+) -> std::sync::mpsc::Sender<regenerator2000_core::vice::ViceEvent> {
     let (vice_tx, vice_rx) = std::sync::mpsc::channel();
     let app_tx = app_tx.clone();
     std::thread::spawn(move || {
@@ -664,8 +665,8 @@ fn main() -> Result<()> {
     }
 
     // Create Core and load the real system config from disk
-    let mut core = regenerator_core::Core::new();
-    core.state.system_config = regenerator_core::config::SystemConfig::load();
+    let mut core = regenerator2000_core::Core::new();
+    core.state.system_config = regenerator2000_core::config::SystemConfig::load();
 
     // 1. Load file / project based on detected file type
     let mut initial_load_result = None;
@@ -752,7 +753,7 @@ fn main() -> Result<()> {
 
     let (mut terminal, keyboard_enhancement_result) = setup_terminal()?;
 
-    let theme = regenerator_tui::theme::Theme::from_name(&core.state.system_config.theme);
+    let theme = regenerator2000_tui::theme::Theme::from_name(&core.state.system_config.theme);
     let mut ui_state = UIState::new(theme);
 
     // Open an image picker dialog if we loaded a container image

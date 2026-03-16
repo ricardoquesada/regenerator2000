@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use regenerator_core::disassembler::Disassembler;
-use regenerator_core::state::Addr;
-use regenerator_core::state::{Assembler, BlockType, DocumentSettings};
+use regenerator2000_core::disassembler::Disassembler;
+use regenerator2000_core::state::Addr;
+use regenerator2000_core::state::{Assembler, BlockType, DocumentSettings};
 use std::collections::BTreeMap;
 
 #[test]
@@ -13,7 +13,7 @@ fn test_user_comments_override_system_comments() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = regenerator_core::state::Addr(0x1000);
+    let origin = regenerator2000_core::state::Addr(0x1000);
 
     let mut system_comments = BTreeMap::new();
     system_comments.insert(Addr(0x1000), "System Comment".to_string());
@@ -52,7 +52,7 @@ fn test_user_comments_fallthrough() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = regenerator_core::state::Addr(0x1000);
+    let origin = regenerator2000_core::state::Addr(0x1000);
 
     let mut system_comments = BTreeMap::new();
     system_comments.insert(Addr(0x1000), "System Comment".to_string());
@@ -91,7 +91,7 @@ fn test_user_comments_referenced_address() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = regenerator_core::state::Addr(0x1000);
+    let origin = regenerator2000_core::state::Addr(0x1000);
 
     // 0x2000 is referenced
     let mut system_comments = BTreeMap::new();

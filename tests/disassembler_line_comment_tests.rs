@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-use regenerator_core::disassembler::Disassembler;
-use regenerator_core::state::Addr;
-use regenerator_core::state::{Assembler, BlockType, DocumentSettings};
+use regenerator2000_core::disassembler::Disassembler;
+use regenerator2000_core::state::Addr;
+use regenerator2000_core::state::{Assembler, BlockType, DocumentSettings};
 use std::collections::BTreeMap;
 
 #[test]
@@ -13,7 +13,7 @@ fn test_user_line_comments_basic() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = regenerator_core::state::Addr(0x1000);
+    let origin = regenerator2000_core::state::Addr(0x1000);
 
     // Map for line comments
     let mut user_line_comments = BTreeMap::new();
@@ -51,7 +51,7 @@ fn test_user_line_and_side_comments_coexist() {
 
     let disassembler = Disassembler::new();
     let labels = BTreeMap::new();
-    let origin = regenerator_core::state::Addr(0x1000);
+    let origin = regenerator2000_core::state::Addr(0x1000);
 
     let mut user_line_comments = BTreeMap::new();
     user_line_comments.insert(Addr(0x1000), "Header".to_string());

@@ -5,7 +5,7 @@ description: Streamlines the process of adding new tools to the MCP server.
 
 # Add MCP Tool Workflow
 
-Use this workflow when adding a new tool to the `src/mcp/handler.rs` server.
+Use this workflow when adding a new tool to the `crates/regenerator2000-core/src/mcp/handler.rs` server.
 
 ## 1. Plan the Tool
 
@@ -18,7 +18,7 @@ Before writing code, confirm with the user:
 
 ## 2. Define the Tool in `list_tools`
 
-In `src/mcp/handler.rs`:
+In `crates/regenerator2000-core/src/mcp/handler.rs`:
 
 - Use `define_tool!` macro or manually add the JSON definition inside the `list_tools` function.
 - Ensure arguments follow the JSON schema format.
@@ -41,7 +41,7 @@ json!({
 
 ## 3. Implement the Handler Logic
 
-In `src/mcp/handler.rs`:
+In `crates/regenerator2000-core/src/mcp/handler.rs`:
 
 - Locate `handle_tool_call_internal`.
 - Add a new match arm for your tool name.
@@ -59,7 +59,7 @@ Example:
 
 ## 4. Create the Implementation Function
 
-In `src/mcp/handler.rs` (or a sub-module):
+In `crates/regenerator2000-core/src/mcp/handler.rs` (or a sub-module):
 
 - Create a function named `[tool_name]_impl`.
 - Accept `&mut AppState` (or `&AppState` if read-only).

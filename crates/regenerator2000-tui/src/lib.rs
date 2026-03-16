@@ -1,8 +1,8 @@
 // TUI library for Regenerator 2000
 
 // Re-export core modules for convenience
-pub use regenerator_core::state;
-pub use regenerator_core::*;
+pub use regenerator2000_core::state;
+pub use regenerator2000_core::*;
 
 pub mod events;
 pub mod theme;

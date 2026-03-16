@@ -17,12 +17,12 @@ Update the `version` field in the following files:
 
 - Root `Cargo.toml`:
   - Update `[package].version`.
-  - Update `regenerator-core` and `regenerator-tui` versions in the `[dependencies]` section.
-- `crates/regenerator-core/Cargo.toml`:
+  - Update `regenerator2000-core` and `regenerator2000-tui` versions in the `[dependencies]` section.
+- `crates/regenerator2000-core/Cargo.toml`:
   - Update `[package].version`.
-- `crates/regenerator-tui/Cargo.toml`:
+- `crates/regenerator2000-tui/Cargo.toml`:
   - Update `[package].version`.
-  - Update `regenerator-core` version in the `[dependencies]` section.
+  - Update `regenerator2000-core` version in the `[dependencies]` section.
 
 ## 3. Review Recent Changes
 

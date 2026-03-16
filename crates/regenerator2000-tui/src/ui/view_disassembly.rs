@@ -14,8 +14,8 @@ use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui::navigable::{Navigable, handle_nav_input};
 
 const PAGE_SCROLL_AMOUNT: usize = 30;
-// LABEL_COLUMN_WIDTH moved to regenerator_core::disassembler
-use regenerator_core::disassembler::LABEL_COLUMN_WIDTH;
+// LABEL_COLUMN_WIDTH moved to regenerator2000_core::disassembler
+use regenerator2000_core::disassembler::LABEL_COLUMN_WIDTH;
 
 pub struct VisualLineCounts {
     pub labels: usize,

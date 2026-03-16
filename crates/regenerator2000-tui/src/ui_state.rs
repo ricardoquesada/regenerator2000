@@ -4,12 +4,12 @@ use crate::ui::widget::Widget;
 use image::DynamicImage;
 use ratatui::widgets::ListState;
 use ratatui_image::picker::Picker;
-pub use regenerator_core::state::actions::AppAction;
+pub use regenerator2000_core::state::actions::AppAction;
 use std::collections::HashMap;
 use std::path::PathBuf;
 
 // Re-export core enums so existing `crate::ui_state::ActivePane` etc. still work.
-pub use regenerator_core::view_state::{
+pub use regenerator2000_core::view_state::{
     ActivePane, CoreViewState, NavigationTarget, RightPane, ScreenRamMode,
 };
 
