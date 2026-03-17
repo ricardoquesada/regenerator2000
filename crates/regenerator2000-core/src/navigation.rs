@@ -11,10 +11,12 @@ pub fn perform_jump_to_address(
 ) {
     // Push CURRENT state to history
     if let Some(current_line) = app_state.disassembly.get(view_state.cursor_index) {
-        view_state.navigation_history.push((
-            ActivePane::Disassembly,
-            NavigationTarget::Address(current_line.address.0),
-        ));
+        let addr = current_line
+            .external_label_address
+            .unwrap_or(current_line.address);
+        view_state
+            .navigation_history
+            .push((ActivePane::Disassembly, NavigationTarget::Address(addr.0)));
     } else {
         view_state.navigation_history.push((
             ActivePane::Disassembly,
@@ -147,5 +149,105 @@ pub fn create_save_context(
         splitters: app_state.splitters.clone(),
         blocks_view_cursor: view_state.blocks_selected_index,
         bookmarks: app_state.bookmarks.clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::{Addr, AppState, BlockType, Label, LabelKind, LabelType};
+    use crate::view_state::CoreViewState;
+
+    #[test]
+    fn test_perform_jump_to_address_pushes_external_label_address() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0801);
+        app_state.raw_data = vec![0xEA]; // One NOP
+        app_state.block_types = vec![BlockType::Code; 1];
+
+        // Add an external label at $D020
+        app_state.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::Field,
+            }],
+        );
+
+        // Enable external labels at top
+        app_state.settings.all_labels = true;
+        app_state.disassemble();
+
+        // Find the index of the external label definition
+        let ext_label_idx = app_state
+            .get_line_index_for_address(Addr(0xD020))
+            .expect("External label should be in disassembly");
+
+        let mut view_state = CoreViewState::default();
+        view_state.cursor_index = ext_label_idx;
+
+        // Verify that jumping from an external label pushes the label's address, not 0
+        perform_jump_to_address(&app_state, &mut view_state, Addr(0x0801));
+
+        assert!(!view_state.navigation_history.is_empty());
+        let (_pane, target) = view_state.navigation_history.last().unwrap();
+        match target {
+            NavigationTarget::Address(addr) => {
+                assert_eq!(
+                    *addr, 0xD020,
+                    "Should have pushed $D020, but pushed ${:04X}",
+                    addr
+                );
+            }
+            _ => panic!("Expected Address target, found {:?}", target),
+        }
+    }
+
+    #[test]
+    fn test_navigate_back_to_external_label() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0801);
+        app_state.raw_data = vec![0xEA];
+        app_state.block_types = vec![BlockType::Code; 1];
+
+        app_state.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::Field,
+            }],
+        );
+
+        app_state.settings.all_labels = true;
+        app_state.disassemble();
+
+        let ext_label_idx = app_state.get_line_index_for_address(Addr(0xD020)).unwrap();
+
+        let mut view_state = CoreViewState::default();
+        view_state.cursor_index = ext_label_idx;
+
+        // 1. Jump away
+        perform_jump_to_address(&app_state, &mut view_state, Addr(0x0801));
+
+        let jumped_idx = app_state.get_line_index_for_address(Addr(0x0801)).unwrap();
+        assert_eq!(view_state.cursor_index, jumped_idx);
+
+        // 2. Perform mock "back"
+        let (_, target) = view_state.navigation_history.pop().unwrap();
+        match target {
+            NavigationTarget::Address(addr) => {
+                perform_jump_to_address_no_history(&app_state, &mut view_state, Addr(addr));
+            }
+            _ => panic!("Expected Address target"),
+        }
+
+        // 3. Verify we are back at ext_label_idx
+        assert_eq!(
+            view_state.cursor_index, ext_label_idx,
+            "Should have returned to external label index {}, instead got {}",
+            ext_label_idx, view_state.cursor_index
+        );
     }
 }

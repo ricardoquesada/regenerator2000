@@ -2076,14 +2076,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 19926,
+  "cursor_address": 0,
   "hex_dump_cursor_address": 4912,
   "sprites_cursor_address": 16576,
   "charset_cursor_address": 17152,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
