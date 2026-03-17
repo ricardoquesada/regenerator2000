@@ -21,7 +21,7 @@ impl AppState {
 
         // Add external label definitions at the top if enabled
         if self.settings.all_labels {
-            let external_lines = self.get_external_label_definitions();
+            let external_lines = self.get_external_label_definitions(true);
             // Prepend external lines
             lines.splice(0..0, external_lines);
         }

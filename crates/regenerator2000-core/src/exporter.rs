@@ -20,7 +20,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
 
     let mut origin_printed = false;
 
-    let external_lines = state.get_external_label_definitions();
+    let external_lines = state.get_external_label_definitions(false);
 
     // Regenerate disassembly without collapsed blocks for export
     let ctx = crate::disassembler::DisassemblyContext {
@@ -1024,7 +1024,7 @@ mod tests {
         }
 
         // Sync external labels into disassembly
-        let externals = state.get_external_label_definitions();
+        let externals = state.get_external_label_definitions(false);
         state.disassembly = externals.into_iter().chain(state.disassembly).collect();
 
         let res = export_asm(&state, &path);
@@ -1267,7 +1267,7 @@ mod tests {
         }
 
         // Sync external labels into disassembly
-        let externals = state.get_external_label_definitions();
+        let externals = state.get_external_label_definitions(false);
         state.disassembly = externals.into_iter().chain(state.disassembly).collect();
 
         let res = export_asm(&state, &path);
@@ -1796,7 +1796,7 @@ mod tests {
         state.settings.assembler = crate::state::Assembler::Tass64;
         state.disassemble();
 
-        let definitions = state.get_external_label_definitions();
+        let definitions = state.get_external_label_definitions(false);
         let has_ext_file_section = definitions
             .iter()
             .any(|l| l.mnemonic.contains("EXTERNAL FILE LABELS"));

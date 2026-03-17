@@ -221,7 +221,7 @@ impl AppState {
     }
 
     #[must_use]
-    pub fn get_external_label_definitions(&self) -> Vec<DisassemblyLine> {
+    pub fn get_external_label_definitions(&self, include_xrefs: bool) -> Vec<DisassemblyLine> {
         let mut candidates: Vec<(Addr, LabelType, &String)> = Vec::new();
 
         for (addr, labels) in &self.labels {
@@ -328,12 +328,25 @@ impl AppState {
 
                 for (addr, name) in group {
                     // Logic for side comment
-                    let mut comment = String::new();
+                    let mut comment_parts = Vec::new();
                     if let Some(user_comment) = self.user_side_comments.get(&Addr(addr)) {
-                        comment = user_comment.clone();
+                        comment_parts.push(user_comment.clone());
                     } else if let Some(sys_comment) = self.system_comments.get(&Addr(addr)) {
-                        comment = sys_comment.clone();
+                        comment_parts.push(sys_comment.clone());
                     }
+
+                    if include_xrefs
+                        && let Some(refs) = self.cross_refs.get(&Addr(addr))
+                        && !refs.is_empty()
+                        && self.settings.max_xref_count > 0
+                    {
+                        comment_parts.push(crate::disassembler::format_cross_references(
+                            refs,
+                            self.settings.max_xref_count,
+                        ));
+                    }
+
+                    let comment = comment_parts.join(&format!(" {} ", formatter.comment_prefix()));
 
                     lines.push(DisassemblyLine {
                         // address field is Addr
@@ -426,5 +439,50 @@ mod tests {
         for bt in &app_state.block_types {
             assert_eq!(*bt, BlockType::LoHiAddress);
         }
+    }
+
+    #[test]
+    fn test_get_external_label_definitions_includes_xrefs() {
+        use super::super::project::Label;
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        state.raw_data = vec![0xEA];
+        state.block_types = vec![BlockType::Code; 1];
+
+        // Add external label at $D020
+        state.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::Field,
+            }],
+        );
+
+        // Add X-Ref to $D020 from $1000
+        state.cross_refs.insert(Addr(0xD020), vec![Addr(0x1000)]);
+        state.settings.max_xref_count = 5;
+
+        // Test with include_xrefs = true
+        let lines_with = state.get_external_label_definitions(true);
+        let border_line_with = lines_with
+            .iter()
+            .find(|l| l.external_label_address == Some(Addr(0xD020)))
+            .unwrap();
+        assert!(
+            border_line_with.comment.contains("x-ref:"),
+            "Should contain X-Ref info"
+        );
+
+        // Test with include_xrefs = false
+        let lines_without = state.get_external_label_definitions(false);
+        let border_line_without = lines_without
+            .iter()
+            .find(|l| l.external_label_address == Some(Addr(0xD020)))
+            .unwrap();
+        assert!(
+            !border_line_without.comment.contains("ref from:"),
+            "Should NOT contain X-Ref info"
+        );
     }
 }
