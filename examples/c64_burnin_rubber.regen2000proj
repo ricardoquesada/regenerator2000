@@ -625,6 +625,13 @@
         "kind": "User"
       }
     ],
+    "2048": [
+      {
+        "name": "level_nr",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "2051": [
       {
         "name": "season_nr",
@@ -641,7 +648,14 @@
     ],
     "2080": [
       {
-        "name": "hud_level_digit",
+        "name": "crashed_cars_tens",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2081": [
+      {
+        "name": "crashed_cars_ones",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -835,9 +849,44 @@
         "kind": "User"
       }
     ],
+    "5344": [
+      {
+        "name": "delay_short",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5346": [
+      {
+        "name": "delay_outer_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5348": [
+      {
+        "name": "delay_inner_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5360": [
+      {
+        "name": "delay_long",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "5376": [
       {
         "name": "scroll_screen_down",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5442": [
+      {
+        "name": "show_next_season_screen",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -865,7 +914,7 @@
     ],
     "5650": [
       {
-        "name": "txt_crash_cars",
+        "name": "txt_you_crash_cars",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1522,16 +1571,31 @@
     "4706": "Copy page $0900 to $0B00, $0D00",
     "4707": "Copy $0900-$09FF to $0B00 and $0D00",
     "4864": "Scroll screen downward",
+    "5344": "10 outer iterations",
+    "5346": "256 inner iterations (Y wraps $00->$FF)",
+    "5360": "X=$00 wraps to 256 outer iterations",
     "5376": "shift colour pipeline; A=$07 on return",
     "5383": "Set pointer to $0747",
     "5391": "Copy byte down one row (40 bytes offset)",
     "5398": "Decrement pointer ($49)",
     "5404": "Decrement pointer MSB ($4A) if needed",
     "5416": "Loop until pointer reaches boundary ($0427)",
+    "5442": "Load season index (0-3)",
+    "5445": "season_nr * 8 = offset into txt_seasons",
+    "5451": "Copy 8-char season name to screen",
+    "5454": "Screen RAM row 16, col 23",
+    "5457": "Yellow text",
+    "5492": "Increment level counter",
+    "5498": "All 32 levels done?",
+    "5502": "Yes: award BONUS 10000",
+    "5515": "Advance to next season",
+    "5521": "Wrap season 4 -> 0",
+    "5530": "Countdown delay: 21 iterations",
     "5577": "Start at least significant digit (index 6)",
     "5583": "Add 1 to the current digit",
     "5585": "Check for base-10 overflow",
     "5594": "Move to next most significant digit (carry)",
+    "5602": "Loop until X=0, then fall through to j16A1",
     "5812": "Convert to Screencode '0'-'9'",
     "5880": "Convert Score to Screencode",
     "5882": "Write Score to Screen",
@@ -1863,7 +1927,10 @@
     "4608": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes game variables and duplicates memory pages.\nThis routine resets various state variables in the $0800-$09FF range, zeroes\nout specific arrays, and then creates two copies of the $0800-$09FF memory pages\nat $0A00-$0BFF and $0C00-$0DFF. It finally resets the SID filter cutoff frequency.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies memory $0800-$0DFF, $7080-$7082, and SID $D415-$D416.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4752": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMAIN ENTRY POINT\nThis code was in the tape loader.\nMoved to the \"main\" binary to have a single-load game",
     "4864": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScrolls the playfield down and fetches the next row of map tile data.\nFirst, it shifts Screen RAM down by one row to create a scrolling effect.\nThen, it computes a pointer to the level map array ($4000) based on the current\nscroll position to grab a 1024-byte map tile ID. Because tile data is located\nat $8010 and stretches underneath the BASIC ROM ($A000-$BFFF), the caller must\nbank out BASIC first. It finally copies 40 bytes of the tile row into Screen RAM \nat $0428 (row 1, leaving the UI row intact) and updates Color RAM.\n\nInputs:  $0800 (Map Block Row), $0801 (Map Block Column), $0802 (Tile Y offset)\nOutputs: None\nSide Effects: Modifies Screen RAM ($0428+), Color RAM, and pointers at $49/$4A.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "5344": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nShort busy-wait delay (~13 ms). Runs a nested loop with X=10 outer iterations\nand Y=256 inner iterations. Shares the loop body with delay_long.\n\nInputs:  None\nOutputs: X=0, Y=0\nSide Effects: None (burns CPU time)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "5360": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLong busy-wait delay (~328 ms). X=$00 wraps to 256 outer iterations, each\nwith 256 inner Y iterations. Falls through into delay_short's loop body.\nUsed for dramatic pauses during level transitions and score displays.\n\nInputs:  None\nOutputs: X=0, Y=0\nSide Effects: None (burns CPU time)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5376": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nShifts a large portion of Screen RAM down by one row (40 bytes) to create the\nscrolling effect. It initializes a zero-page pointer ($49/$4A) to the end of\nthe scrolling region ($0747) and copies memory to pointer + 40 ($28).\nIt iterates backwards until it reaches the HUD boundary at $0427, leaving row 0\n(the HUD) intact.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies Screen RAM ($0428-$076F) and zero-page pointers $49/$4A.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "5442": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLevel transition screen: displays the upcoming season name and \"GOOD LUCK!\"\nmessage. If all 32 levels (ways) are completed, awards a BONUS 10000 score.\nOtherwise, advances season_nr (mod 4), resets level state, plays a countdown\ndelay animation, and re-enters the main game flow for the next level.\n\nInputs:  season_nr ($0803), a0800 ($0800) level counter\nOutputs: season_nr (incremented mod 4), a0800 (incremented), level state reset\nSide Effects: Writes to Screen/Color RAM, busy-wait delays, may award bonus\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5543": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIncrements the player's score by 500 points.\nThis routine calls an internal loop 5 times (controlled by Y register). In each\nloop, it increments the hundreds digit (index 2 of the $0825 score array) by 1.\nOverflows are handled seamlessly via a cascading BCD-like carry lookup. After\nadding 5 to the hundreds position, it refreshes the HUD to display the new score.\n\nInputs:  None (relies on $0825 array)\nOutputs: None\nSide Effects: Modifies the Score array and calls update_hud_display.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5577": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIncrements the player's 7-digit score uniformly.\nBecause the score is stored as an array of 7 individual digits (0-9) at $0825,\nthis routine performs a manual base-10 addition. It starts at the least\nsignificant digit (index 6, $082B), adds 1, and carries over any overflow (10)\nto the next significant digit.\n\nInputs:  Score array at $0825-$082B\nOutputs: Modified Score array\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5808": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the HUD text on the top row of the screen ($0400).\nConverts numeric gameplay variables such as the current score, high score, and\nother state values into screencodes (by adding $30) and writes them directly\nto Screen RAM.\n\nInputs:  Numeric values at $0821, $0822, $0823, $0825-$082B (Score), and $0F50-$0F56 (High Score)\nOutputs: None\nSide Effects: Modifies Screen RAM ($0403-$0427) to update visible UI numbers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1915,7 +1982,7 @@
     "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLevels"
   },
   "settings": {
-    "all_labels": false,
+    "all_labels": true,
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
@@ -2009,14 +2076,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 32768,
+  "cursor_address": 19926,
   "hex_dump_cursor_address": 4912,
   "sprites_cursor_address": 16576,
   "charset_cursor_address": 17152,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 0,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
