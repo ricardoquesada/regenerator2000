@@ -545,6 +545,24 @@
     },
     {
       "start": 18432,
+      "end": 28671,
+      "type_": "ExternalFile",
+      "collapsed": false
+    },
+    {
+      "start": 28672,
+      "end": 28675,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 28676,
+      "end": 28687,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 28688,
       "end": 45055,
       "type_": "ExternalFile",
       "collapsed": false
@@ -1800,7 +1818,8 @@
     "22261": "Drive column 0 ($01)",
     "22266": "Mask out unused bits",
     "22268": "Combine both CIA scans",
-    "22270": "Final combined key state → key_scan ($7F = no key)"
+    "22270": "Final combined key state → key_scan ($7F = no key)",
+    "32772": "CBM80"
   },
   "user_line_comments": {
     "4096": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the VIC-II video chip settings for the game.\nClears sprite coordinates, enables multi-color mode for character display,\nsets up global border and background colors, and configures sprite sizes,\npriorities, and multi-color settings. Also sets the character memory pointer.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies VIC-II registers ($D000-$D026) and Sprite 0 pointer ($07F8)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1949,14 +1968,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 4864,
-  "hex_dump_cursor_address": 4864,
-  "sprites_cursor_address": 4096,
-  "charset_cursor_address": 4096,
-  "right_pane_visible": "None",
-  "sprite_multicolor_mode": false,
+  "cursor_address": 16384,
+  "hex_dump_cursor_address": 16384,
+  "sprites_cursor_address": 16576,
+  "charset_cursor_address": 17152,
+  "right_pane_visible": "HexDump",
+  "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
