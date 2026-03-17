@@ -263,4 +263,72 @@ mod tests {
             "BEQ should produce an arrow"
         );
     }
+
+    #[test]
+    fn test_beq_forward_branch_arrow_with_intervening_instructions() {
+        // Reproduces the pattern from user's binary around $1331-$1340:
+        //   $1331: DEX           (CA)
+        //   $1332: CPX #$00      (E0 00)
+        //   $1334: BEQ +$0A      (F0 0A) -> $1340
+        //   $1336: LDA $4A       (A5 4A)
+        //   $1338: CLC           (18)
+        //   $1339: ADC #$04      (69 04)
+        //   $133B: STA $4A       (85 4A)
+        //   $133D: JMP $1331     (4C 31 13) -> points back to first instruction
+        //   $1340: LDX $0802     (AE 02 08)
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1331);
+        app_state.raw_data = vec![
+            0xCA, // DEX
+            0xE0, 0x00, // CPX #$00
+            0xF0, 0x0A, // BEQ $1340  (target = $1334 + 2 + $0A = $1340)
+            0xA5, 0x4A, // LDA $4A
+            0x18, // CLC
+            0x69, 0x04, // ADC #$04
+            0x85, 0x4A, // STA $4A
+            0x4C, 0x31, 0x13, // JMP $1331
+            0xAE, 0x02, 0x08, // LDX $0802
+        ];
+        app_state.block_types = vec![BlockType::Code; app_state.raw_data.len()];
+
+        app_state.disassemble();
+
+        // There should be at least 2 arrows:
+        // 1. BEQ $1334 -> $1340 (forward branch)
+        // 2. JMP $133D -> $1331 (backward jump)
+        assert!(
+            app_state.cached_arrows.len() >= 2,
+            "Expected at least 2 arrows (BEQ + JMP), got {}",
+            app_state.cached_arrows.len()
+        );
+
+        // Find the BEQ arrow specifically ($1334 -> $1340)
+        let beq_arrow = app_state
+            .cached_arrows
+            .iter()
+            .find(|a| a.target_addr == Some(Addr(0x1340)));
+        assert!(
+            beq_arrow.is_some(),
+            "BEQ $1340 arrow should be present in cached_arrows"
+        );
+
+        let beq = beq_arrow.unwrap();
+        assert!(
+            beq.start < beq.end,
+            "BEQ forward branch should have start < end"
+        );
+
+        // Find the JMP arrow ($133D -> $1331)
+        let jmp_arrow = app_state
+            .cached_arrows
+            .iter()
+            .find(|a| a.target_addr == Some(Addr(0x1331)));
+        assert!(
+            jmp_arrow.is_some(),
+            "JMP $1331 arrow should be present in cached_arrows"
+        );
+
+        let jmp = jmp_arrow.unwrap();
+        assert!(jmp.start > jmp.end, "JMP backward should have start > end");
+    }
 }

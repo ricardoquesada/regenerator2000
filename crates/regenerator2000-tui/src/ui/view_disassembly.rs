@@ -554,11 +554,19 @@ impl Widget for DisassemblyView {
         // overestimates when instructions have multi-row comments, causing arrows to be
         // marked as visible when they are actually off-screen.
         let end_view = {
-            let mut visual_rows = scroll_sub_idx; // Already-consumed sub-rows at top
+            let mut visible_rows_used = 0;
             let mut inst = scroll_inst_idx;
-            while inst < total_items && visual_rows < visible_height {
+            // First instruction: only partial visibility when scroll_sub_idx > 0
+            if inst < total_items {
                 let line = &app_state.disassembly[inst];
-                visual_rows += Self::get_visual_line_count_for_instruction(line, app_state);
+                let count = Self::get_visual_line_count_for_instruction(line, app_state);
+                visible_rows_used += count.saturating_sub(scroll_sub_idx);
+                inst += 1;
+            }
+            // Remaining instructions: full visibility
+            while inst < total_items && visible_rows_used < visible_height {
+                let line = &app_state.disassembly[inst];
+                visible_rows_used += Self::get_visual_line_count_for_instruction(line, app_state);
                 inst += 1;
             }
             inst // exclusive upper bound (instruction index)
