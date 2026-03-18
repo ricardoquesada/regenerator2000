@@ -100,6 +100,10 @@ pub enum AppAction {
     ApplyOrigin(super::Addr),
     CyclePane,
     Cancel,
+    NudgeScopeBoundary {
+        expand: bool,
+    },
+    RemoveScope,
     /// Wraps an action that has been explicitly confirmed by the user.
     /// Core will bypass destructive checks for this action.
     Confirmed(Box<AppAction>),

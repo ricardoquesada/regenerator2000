@@ -55,6 +55,7 @@ pub enum Command {
     AddScope {
         start: Addr,
         end: Addr,
+        old_end: Option<Addr>,
     },
     RemoveScope {
         address: Addr,
@@ -185,7 +186,11 @@ impl Command {
                     state.bookmarks.remove(address);
                 }
             }
-            Command::AddScope { start, end } => {
+            Command::AddScope {
+                start,
+                end,
+                old_end: _,
+            } => {
                 state.scopes.insert(*start, *end);
             }
             Command::RemoveScope {
@@ -318,8 +323,16 @@ impl Command {
                     state.bookmarks.remove(address);
                 }
             }
-            Command::AddScope { start, end: _ } => {
-                state.scopes.remove(start);
+            Command::AddScope {
+                start,
+                end: _,
+                old_end,
+            } => {
+                if let Some(old) = old_end {
+                    state.scopes.insert(*start, *old);
+                } else {
+                    state.scopes.remove(start);
+                }
             }
             Command::RemoveScope { address, old_end } => {
                 state.scopes.insert(*address, *old_end);

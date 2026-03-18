@@ -1377,8 +1377,49 @@ impl Widget for DisassemblyView {
             }
             parts.push(Line::from(inst_spans));
 
+            // Calculate Scope visual gutter connectors
+            let mut is_scope_start = false;
+            let mut is_scope_end = false;
+            let mut is_in_scope = false;
+
+            for (&start, &end) in &app_state.scopes {
+                if line.address == start {
+                    is_scope_start = true;
+                    is_in_scope = true;
+                    break;
+                } else if line.address == end {
+                    is_scope_end = true;
+                    is_in_scope = true;
+                    break;
+                } else if line.address > start && line.address < end {
+                    is_in_scope = true;
+                    break;
+                }
+            }
+
+            let scope_style = base_style.fg(ui_state.theme.comment);
+            let part_count = parts.len();
+
             // --- Emit processed parts ---
             for (idx, part) in parts.into_iter().enumerate() {
+                let current_scope_char = if is_scope_start {
+                    if idx == 0 { "┌─" } else { "│ " }
+                } else if is_scope_end {
+                    if idx == part_count - 1 {
+                        "└─"
+                    } else {
+                        "│ "
+                    }
+                } else if is_in_scope {
+                    "│ "
+                } else {
+                    "  "
+                };
+
+                let mut new_spans = vec![Span::styled(current_scope_char, scope_style)];
+                new_spans.extend(part.spans);
+                let manipulated_part = Line::from(new_spans);
+
                 if idx >= current_sub {
                     // This sub-part is visible
                     // Check highlight for this specific sub-part
@@ -1391,7 +1432,7 @@ impl Widget for DisassemblyView {
                         base_style
                     };
 
-                    items.push(ListItem::new(part).style(style));
+                    items.push(ListItem::new(manipulated_part).style(style));
                     // arrow_calc_offset_map.push(current_inst); // Not used in new logic
                     processed_visual_lines += 1;
 
@@ -1611,10 +1652,19 @@ impl Widget for DisassemblyView {
                 WidgetResult::Action(AppAction::NextImmediateFormat)
             }
             KeyCode::Char('[') if key.modifiers.is_empty() => {
-                WidgetResult::Action(AppAction::PackLoHiAddress)
+                WidgetResult::Action(AppAction::Scope)
             }
             KeyCode::Char(']') if key.modifiers.is_empty() => {
                 WidgetResult::Action(AppAction::PackHiLoAddress)
+            }
+            KeyCode::Up if key.modifiers == KeyModifiers::ALT => {
+                WidgetResult::Action(AppAction::NudgeScopeBoundary { expand: false })
+            }
+            KeyCode::Down if key.modifiers == KeyModifiers::ALT => {
+                WidgetResult::Action(AppAction::NudgeScopeBoundary { expand: true })
+            }
+            KeyCode::Delete if key.modifiers.is_empty() => {
+                WidgetResult::Action(AppAction::RemoveScope)
             }
             KeyCode::Char('D') if key.modifiers == KeyModifiers::SHIFT => {
                 WidgetResult::Action(AppAction::PreviousImmediateFormat)

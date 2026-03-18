@@ -273,6 +273,12 @@ impl Core {
             AppAction::Scope => {
                 self.handle_add_scope(&mut events);
             }
+            AppAction::NudgeScopeBoundary { expand } => {
+                self.handle_nudge_scope_boundary(expand, &mut events);
+            }
+            AppAction::RemoveScope => {
+                self.handle_remove_scope(&mut events);
+            }
             AppAction::Code => self.apply_block_type(crate::state::BlockType::Code, &mut events),
             AppAction::Byte => {
                 self.apply_block_type(crate::state::BlockType::DataByte, &mut events);
@@ -1245,9 +1251,11 @@ impl Core {
                     .wrapping_add(el.bytes.len() as u16)
                     .wrapping_sub(1);
 
+                let old_end = self.state.scopes.get(&start_addr).copied();
                 let command = crate::commands::Command::AddScope {
                     start: start_addr,
                     end: end_addr,
+                    old_end,
                 };
                 command.apply(&mut self.state);
                 self.state.push_command(command);
@@ -1262,10 +1270,130 @@ impl Core {
                 events.push(CoreEvent::StateChanged);
                 events.push(CoreEvent::ViewChanged);
             }
+        } else if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
+            let start_addr = line.address;
+            let end_addr = crate::analyzer::guess_scope_end(&self.state, start_addr);
+
+            let old_end = self.state.scopes.get(&start_addr).copied();
+            let command = crate::commands::Command::AddScope {
+                start: start_addr,
+                end: end_addr,
+                old_end,
+            };
+            command.apply(&mut self.state);
+            self.state.push_command(command);
+
+            events.push(CoreEvent::StatusMessage(format!(
+                "Added Scope from ${:04X} to ${:04X}",
+                start_addr.0, end_addr.0
+            )));
+            events.push(CoreEvent::StateChanged);
+            events.push(CoreEvent::ViewChanged);
         } else {
             events.push(CoreEvent::StatusMessage(
-                "Please select a range to create a Scope".to_string(),
+                "Could not determine starting address for Scope".to_string(),
             ));
+        }
+    }
+
+    fn handle_nudge_scope_boundary(&mut self, expand: bool, events: &mut Vec<CoreEvent>) {
+        if self.view.active_pane != crate::view_state::ActivePane::Disassembly {
+            return;
+        }
+
+        let current_addr = if let Some(l) = self.state.disassembly.get(self.view.cursor_index) {
+            l.address
+        } else {
+            return;
+        };
+
+        let mut target_scope = None;
+        for (&start, &end) in &self.state.scopes {
+            if current_addr >= start && current_addr <= end {
+                target_scope = Some((start, end));
+                break;
+            }
+        }
+
+        if let Some((start, end)) = target_scope {
+            let mut new_end = end;
+            let end_idx_opt = self.state.disassembly.iter().position(|l| l.address == end);
+
+            if let Some(end_idx) = end_idx_opt {
+                if expand {
+                    if end_idx + 1 < self.state.disassembly.len() {
+                        let next_line = &self.state.disassembly[end_idx + 1];
+                        let bytes = next_line.bytes.len() as u16;
+                        if bytes > 0 {
+                            new_end = next_line.address.wrapping_add(bytes).wrapping_sub(1);
+                        } else {
+                            new_end = next_line.address;
+                        }
+                    }
+                } else if end_idx > 0 {
+                    let prev_line = &self.state.disassembly[end_idx - 1];
+                    if prev_line.address >= start {
+                        let bytes = prev_line.bytes.len() as u16;
+                        if bytes > 0 {
+                            new_end = prev_line.address.wrapping_add(bytes).wrapping_sub(1);
+                        } else {
+                            new_end = prev_line.address;
+                        }
+                    }
+                }
+            }
+
+            if new_end != end {
+                let command = crate::commands::Command::AddScope {
+                    start,
+                    end: new_end,
+                    old_end: Some(end),
+                };
+                command.apply(&mut self.state);
+                self.state.push_command(command);
+                events.push(CoreEvent::StatusMessage(format!(
+                    "Resized scope bounds to ${:04X}",
+                    new_end.0
+                )));
+                self.state.disassemble();
+                events.push(CoreEvent::StateChanged);
+                events.push(CoreEvent::ViewChanged);
+            }
+        } else {
+            events.push(CoreEvent::StatusMessage("Not inside a scope".to_string()));
+        }
+    }
+
+    fn handle_remove_scope(&mut self, events: &mut Vec<CoreEvent>) {
+        let current_addr = if let Some(l) = self.state.disassembly.get(self.view.cursor_index) {
+            l.address
+        } else {
+            return;
+        };
+
+        let mut scope_to_remove = None;
+        for (&start, &end) in &self.state.scopes {
+            if current_addr >= start && current_addr <= end {
+                scope_to_remove = Some(start);
+                break;
+            }
+        }
+
+        if let Some(start) = scope_to_remove {
+            if let Some(old_end) = self.state.scopes.get(&start).copied() {
+                let command = crate::commands::Command::RemoveScope {
+                    address: start,
+                    old_end,
+                };
+                command.apply(&mut self.state);
+                self.state.push_command(command);
+                events.push(CoreEvent::StatusMessage("Removed scope".to_string()));
+                self.state.disassemble();
+                events.push(CoreEvent::StateChanged);
+                events.push(CoreEvent::ViewChanged);
+            }
+        } else {
+            events.push(CoreEvent::StatusMessage("Not inside a scope".to_string()));
         }
     }
 

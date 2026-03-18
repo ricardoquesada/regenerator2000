@@ -517,6 +517,41 @@ fn follow_indirect_jumps(
     }
 }
 
+#[must_use]
+pub fn guess_scope_end(state: &AppState, start: Addr) -> Addr {
+    let current_index = state.disassembly.iter().position(|l| l.address == start);
+
+    if let Some(idx) = current_index {
+        for i in idx..state.disassembly.len() {
+            let line = &state.disassembly[i];
+            let addr = line.address;
+
+            // Stop at Splitters or another Scope Start
+            if i > idx && (state.splitters.contains(&addr) || state.scopes.contains_key(&addr)) {
+                let prev_idx = i - 1;
+                let prev_line = &state.disassembly[prev_idx];
+
+                // If the previous line was also visual (size 0), walk back to find addressable
+                // Wait, just doing safe math or skipping back is fine.
+                let bytes = prev_line.bytes.len() as u16;
+                if bytes > 0 {
+                    return prev_line.address.wrapping_add(bytes).wrapping_sub(1);
+                }
+            }
+
+            if let Some(opcode) = &line.opcode
+                && (opcode.mnemonic == "RTS" || opcode.mnemonic == "RTI")
+            {
+                let bytes = line.bytes.len() as u16;
+                return addr.wrapping_add(bytes).wrapping_sub(1);
+            }
+        }
+    }
+
+    let len = state.raw_data.len() as u16;
+    state.origin.wrapping_add(len).wrapping_sub(1)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
