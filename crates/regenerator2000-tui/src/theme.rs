@@ -53,6 +53,7 @@ pub struct Theme {
 
     // Block Types (Foregrounds)
     pub block_code_fg: Color,
+    pub block_routine_fg: Color,
     pub block_data_byte_fg: Color,
     pub block_data_word_fg: Color,
     pub block_address_fg: Color,
@@ -66,6 +67,7 @@ pub struct Theme {
 
     // Block Types (Backgrounds)
     pub block_code_bg: Color,
+    pub block_routine_bg: Color,
     pub block_data_byte_bg: Color,
     pub block_data_word_bg: Color,
     pub block_address_bg: Color,
@@ -309,7 +311,9 @@ impl Theme {
 
             // Blocks - Dark (Bg is slightly lighter than proper background)
             block_code_fg: Solarized::BLUE,
+            block_routine_fg: Solarized::VIOLET,
             block_code_bg: Solarized::BASE03,
+            block_routine_bg: Solarized::BASE03,
             block_data_byte_fg: Solarized::CYAN,
             block_data_byte_bg: Solarized::BASE03,
             block_data_word_fg: Solarized::VIOLET,
@@ -382,7 +386,9 @@ impl Theme {
 
             // Blocks - Light (Bg is slightly darker than proper background)
             block_code_fg: Solarized::BLUE,
+            block_routine_fg: Solarized::VIOLET,
             block_code_bg: Solarized::BASE2,
+            block_routine_bg: Solarized::BASE2,
             block_data_byte_fg: Solarized::CYAN,
             block_data_byte_bg: Solarized::BASE2,
             block_data_word_fg: Solarized::VIOLET,
@@ -469,7 +475,9 @@ impl Theme {
             error_fg: Dracula::RED,
 
             block_code_fg: Dracula::PINK,
+            block_routine_fg: Dracula::PURPLE,
             block_code_bg: Dracula::BACKGROUND,
+            block_routine_bg: Dracula::BACKGROUND,
             block_data_byte_fg: Dracula::CYAN,
             block_data_byte_bg: Dracula::BACKGROUND,
             block_data_word_fg: Dracula::PURPLE,
@@ -541,7 +549,9 @@ impl Theme {
             error_fg: Gruvbox::RED,
 
             block_code_fg: Gruvbox::RED,
+            block_routine_fg: Gruvbox::PURPLE,
             block_code_bg: Gruvbox::BG0,
+            block_routine_bg: Gruvbox::BG0,
             block_data_byte_fg: Gruvbox::PURPLE,
             block_data_byte_bg: Gruvbox::BG0,
             block_data_word_fg: Gruvbox::BLUE,
@@ -614,7 +624,9 @@ impl Theme {
 
             // Blocks - Light (Bg uses slightly darker base)
             block_code_fg: Gruvbox::RED,
+            block_routine_fg: Gruvbox::PURPLE,
             block_code_bg: Gruvbox::BG1_LIGHT,
+            block_routine_bg: Gruvbox::BG1_LIGHT,
             block_data_byte_fg: Gruvbox::PURPLE,
             block_data_byte_bg: Gruvbox::BG1_LIGHT,
             block_data_word_fg: Gruvbox::BLUE,
@@ -686,7 +698,9 @@ impl Theme {
             error_fg: Monokai::RED,
 
             block_code_fg: Monokai::RED,
+            block_routine_fg: Monokai::PURPLE,
             block_code_bg: Monokai::BACKGROUND,
+            block_routine_bg: Monokai::BACKGROUND,
             block_data_byte_fg: Monokai::PURPLE,
             block_data_byte_bg: Monokai::BACKGROUND,
             block_data_word_fg: Monokai::BLUE,
@@ -758,7 +772,9 @@ impl Theme {
             error_fg: Nord::NORD11,
 
             block_code_fg: Nord::NORD9,
+            block_routine_fg: Nord::NORD15,
             block_code_bg: Nord::NORD0,
+            block_routine_bg: Nord::NORD0,
             block_data_byte_fg: Nord::NORD8,
             block_data_byte_bg: Nord::NORD0,
             block_data_word_fg: Nord::NORD15,
@@ -830,7 +846,9 @@ impl Theme {
             error_fg: CatppuccinMocha::RED,
 
             block_code_fg: CatppuccinMocha::BLUE,
+            block_routine_fg: CatppuccinMocha::LAVENDER,
             block_code_bg: CatppuccinMocha::BASE,
+            block_routine_bg: CatppuccinMocha::BASE,
             block_data_byte_fg: CatppuccinMocha::SKY,
             block_data_byte_bg: CatppuccinMocha::BASE,
             block_data_word_fg: CatppuccinMocha::MAUVE,
@@ -902,7 +920,9 @@ impl Theme {
             error_fg: CatppuccinLatte::RED,
 
             block_code_fg: CatppuccinLatte::BLUE,
+            block_routine_fg: CatppuccinLatte::LAVENDER,
             block_code_bg: CatppuccinLatte::CRUST,
+            block_routine_bg: CatppuccinLatte::CRUST,
             block_data_byte_fg: CatppuccinLatte::SKY,
             block_data_byte_bg: CatppuccinLatte::CRUST,
             block_data_word_fg: CatppuccinLatte::MAUVE,

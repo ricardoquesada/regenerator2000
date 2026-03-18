@@ -33,9 +33,8 @@ impl Formatter for TassFormatter {
         let _labels = ctx.labels;
         let settings = ctx.settings;
         let immediate_value_formats = ctx.immediate_value_formats;
-        let get_label = |addr: Addr, _l_type: LabelType| -> Option<String> {
-            ctx.resolve_label(addr).map(|l| l.name.clone())
-        };
+        let get_label =
+            |addr: Addr, _l_type: LabelType| -> Option<String> { ctx.resolve_label(addr) };
 
         match opcode.mode {
             AddressingMode::Implied => String::new(),
@@ -300,5 +299,17 @@ impl Formatter for TassFormatter {
             format!("${value:04x}")
         };
         format!("{name} = {operand}")
+    }
+
+    fn format_local_label(&self, index: usize) -> Option<String> {
+        Some(format!("_l{:02x}", index))
+    }
+
+    fn format_routine_start(&self, _name: &str) -> Option<String> {
+        None
+    }
+
+    fn format_routine_end(&self) -> Option<String> {
+        None
     }
 }

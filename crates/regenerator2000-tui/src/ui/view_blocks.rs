@@ -166,6 +166,7 @@ impl Widget for BlocksView {
                     let end_addr = *end;
                     let color = match type_ {
                         BlockType::Code => ui_state.theme.block_code_fg,
+                        BlockType::Routine => ui_state.theme.block_routine_fg,
                         BlockType::DataByte => ui_state.theme.block_data_byte_fg,
                         BlockType::DataWord => ui_state.theme.block_data_word_fg,
                         BlockType::Address => ui_state.theme.block_address_fg,

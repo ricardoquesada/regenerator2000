@@ -34,9 +34,8 @@ impl Formatter for AcmeFormatter {
         let _settings = ctx.settings;
         let immediate_value_formats = ctx.immediate_value_formats;
 
-        let get_label = |addr: Addr, _l_type: LabelType| -> Option<String> {
-            ctx.resolve_label(addr).map(|l| l.name.clone())
-        };
+        let get_label =
+            |addr: Addr, _l_type: LabelType| -> Option<String> { ctx.resolve_label(addr) };
 
         match opcode.mode {
             AddressingMode::Implied => String::new(),

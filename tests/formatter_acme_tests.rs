@@ -27,6 +27,7 @@ fn test_format_instructions() {
         labels: &labels,
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
+        local_label_names: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -42,6 +43,7 @@ fn test_format_instructions() {
         labels: &labels,
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
+        local_label_names: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -57,6 +59,7 @@ fn test_format_instructions() {
         labels: &labels,
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
+        local_label_names: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -72,6 +75,7 @@ fn test_format_instructions() {
         labels: &labels,
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
+        local_label_names: None,
     };
     let (mnemonic, operand) = formatter.format_instruction(&ctx);
     assert_eq!(mnemonic, "asl");
@@ -140,6 +144,7 @@ fn test_forced_absolute_plus2() {
         labels: &labels,
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
+        local_label_names: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -157,6 +162,7 @@ fn test_forced_absolute_plus2() {
         labels: &labels,
         settings: &settings_false,
         immediate_value_formats: &immediate_value_formats,
+        local_label_names: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx_false),
@@ -172,6 +178,7 @@ fn test_forced_absolute_plus2() {
         labels: &labels,
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
+        local_label_names: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx_x),
@@ -187,6 +194,7 @@ fn test_forced_absolute_plus2() {
         labels: &labels,
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
+        local_label_names: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx_normal),
@@ -214,6 +222,7 @@ fn test_addressing_modes() {
         labels: &labels,
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
+        local_label_names: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -229,6 +238,7 @@ fn test_addressing_modes() {
         labels: &labels,
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
+        local_label_names: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -244,6 +254,7 @@ fn test_addressing_modes() {
         labels: &labels,
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
+        local_label_names: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -420,6 +431,7 @@ fn test_lax_immediate_mnemonic() {
             labels: &labels,
             settings: &settings,
             immediate_value_formats: &immediate_value_formats,
+            local_label_names: None,
         };
         let (mnemonic, _) = formatter.format_instruction(&ctx);
         assert_eq!(mnemonic, "lxa", "ACME should use 'lxa' for opcode $AB");

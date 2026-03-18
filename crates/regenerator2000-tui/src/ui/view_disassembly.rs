@@ -1279,7 +1279,7 @@ impl Widget for DisassemblyView {
                     base_style.fg(ui_state.theme.arrow),
                 ),
                 Span::styled(
-                    address_str,
+                    address_str.clone(),
                     if let Some(next) = app_state.disassembly.get(current_inst + 1)
                         && app_state.splitters.contains(&next.address)
                         && show_address
@@ -1308,7 +1308,17 @@ impl Widget for DisassemblyView {
                 ),
             ];
 
-            if line.is_collapsed {
+            if line.mnemonic == "{splitter}" {
+                let prefix_len = gutter.len() + arrow_width + address_str.len() + 10;
+                let ruler_len = (list_area.width as usize).saturating_sub(prefix_len + 1);
+                let ruler = "─".repeat(ruler_len);
+                inst_spans.push(Span::styled(
+                    ruler,
+                    base_style
+                        .fg(ui_state.theme.comment)
+                        .add_modifier(Modifier::DIM),
+                ));
+            } else if line.is_collapsed {
                 inst_spans.push(Span::styled(
                     line.mnemonic.clone(),
                     base_style
@@ -1541,6 +1551,9 @@ impl Widget for DisassemblyView {
 
             KeyCode::Char('l') if key.modifiers.is_empty() => action_set_label(app_state, ui_state),
             KeyCode::Char('c') if key.modifiers.is_empty() => WidgetResult::Action(AppAction::Code),
+            KeyCode::Char('C') if key.modifiers == KeyModifiers::SHIFT => {
+                WidgetResult::Action(AppAction::Routine)
+            }
             KeyCode::Char('b') if key.modifiers.is_empty() => WidgetResult::Action(AppAction::Byte),
             KeyCode::Char('w') if key.modifiers.is_empty() => WidgetResult::Action(AppAction::Word),
             KeyCode::Char('a') if key.modifiers.is_empty() => {

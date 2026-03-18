@@ -43,6 +43,7 @@ fn handle_split_byte_table(
         label_name,
         side_comment,
         line_comment,
+        local_label_names,
     } = args;
 
     let mut count = 0;
@@ -77,6 +78,7 @@ fn handle_split_byte_table(
                 label_name,
                 side_comment,
                 line_comment,
+                local_label_names,
             },
         );
     }
@@ -101,11 +103,20 @@ fn handle_split_byte_table(
         // Try to resolve label only for Address blocks.
         let is_address_block =
             target_type == BlockType::LoHiAddress || target_type == BlockType::HiLoAddress;
-        let label_part = if is_address_block
-            && let Some(label_vec) = ctx.labels.get(&val)
-            && let Some(label) = crate::disassembler::resolve_label(label_vec, val, ctx.settings)
-        {
-            formatter.format_label(&label.name)
+        let label_part = if is_address_block {
+            let mut resolved = None;
+            if let Some(local_names) = local_label_names
+                && let Some(local_name) = local_names.get(&val)
+            {
+                resolved = Some(local_name.clone());
+            }
+            if resolved.is_none()
+                && let Some(label_vec) = ctx.labels.get(&val)
+                && let Some(label) = crate::disassembler::resolve_label(label_vec, val, ctx.settings)
+            {
+                resolved = Some(formatter.format_label(&label.name));
+            }
+            resolved.unwrap_or_else(|| formatter.format_address(Addr(val)))
         } else {
             formatter.format_address(Addr(val))
         };
@@ -206,6 +217,7 @@ pub fn handle_undefined_byte(
         label_name,
         side_comment,
         line_comment,
+        local_label_names: _,
     } = args;
     let b = ctx.data[pc];
     (

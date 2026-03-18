@@ -55,6 +55,12 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             continue;
         }
 
+        // Special case: Splitter (internal only, not for export)
+        if line.mnemonic == "{splitter}" {
+            i += 1;
+            continue;
+        }
+
         // Special case: Equate (contains =)
         if line.mnemonic.contains('=') {
             output.push_str(&format!("{}\n", line.mnemonic));
@@ -1832,5 +1838,28 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
         let _ = std::fs::remove_file(&bin_path);
+    }
+
+    #[test]
+    fn test_export_excludes_splitters() {
+        let mut state = AppState::new();
+        state.origin = crate::state::Addr(0x1000);
+        state.raw_data = vec![0xEA, 0x60]; // NOP, RTS
+        state.block_types = vec![crate::state::BlockType::Code; 2];
+        state.splitters.insert(crate::state::Addr(0x1001)); // Splitter at RTS
+
+        let path = PathBuf::from("test_splitter_exclude.asm");
+        let _ = std::fs::remove_file(&path);
+
+        let res = export_asm(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        // Disassembly should have nop and rts, but NOT {splitter}
+        assert!(content.contains("nop"));
+        assert!(content.contains("rts"));
+        assert!(!content.contains("{splitter}"));
+
+        let _ = std::fs::remove_file(&path);
     }
 }

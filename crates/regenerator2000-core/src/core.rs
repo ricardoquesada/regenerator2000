@@ -270,6 +270,9 @@ impl Core {
             AppAction::NavigateToAddress(target_addr) => {
                 self.handle_navigate_to_address(target_addr, &mut events);
             }
+            AppAction::Routine => {
+                self.apply_block_type(crate::state::BlockType::Routine, &mut events)
+            }
             AppAction::Code => self.apply_block_type(crate::state::BlockType::Code, &mut events),
             AppAction::Byte => {
                 self.apply_block_type(crate::state::BlockType::DataByte, &mut events);

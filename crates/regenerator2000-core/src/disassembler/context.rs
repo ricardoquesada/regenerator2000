@@ -27,6 +27,7 @@ pub struct HandleArgs<'a> {
     pub label_name: Option<String>,
     pub side_comment: String,
     pub line_comment: Option<String>,
+    pub local_label_names: Option<&'a BTreeMap<Addr, String>>,
 }
 
 impl<'a> DisassemblyContext<'a> {

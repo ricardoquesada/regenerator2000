@@ -15,13 +15,22 @@ pub struct FormatContext<'a> {
     pub labels: &'a BTreeMap<Addr, Vec<Label>>,
     pub settings: &'a crate::state::DocumentSettings,
     pub immediate_value_formats: &'a BTreeMap<Addr, crate::state::ImmediateFormat>,
+    pub local_label_names: Option<&'a BTreeMap<Addr, String>>,
 }
 
 impl<'a> FormatContext<'a> {
     #[must_use]
-    pub fn resolve_label(&self, address: Addr) -> Option<&'a Label> {
+    pub fn resolve_label(&self, address: Addr) -> Option<String> {
+        // First check local label names
+        if let Some(local_names) = self.local_label_names
+            && let Some(local_name) = local_names.get(&address)
+        {
+            return Some(local_name.clone());
+        }
+
+        // Otherwise resolve standard label
         if let Some(v) = self.labels.get(&address) {
-            crate::disassembler::resolve_label(v, address.0, self.settings)
+            crate::disassembler::resolve_label(v, address.0, self.settings).map(|l| l.name.clone())
         } else {
             None
         }
@@ -58,6 +67,21 @@ pub trait Formatter {
     fn format_definition(&self, name: &str, value: u16, is_zp: bool) -> String;
     fn format_relative_label(&self, name: &str, offset: usize) -> String {
         format!("{} =*+${:02x}", self.format_label(name), offset)
+    }
+
+    /// Allows assemblers to define their own local symbol naming (e.g. `_l00` for 64tass).
+    fn format_local_label(&self, _index: usize) -> Option<String> {
+        None
+    }
+
+    /// For assemblers that use `.proc` or similar scoping directives.
+    fn format_routine_start(&self, _name: &str) -> Option<String> {
+        None
+    }
+
+    /// For assemblers that use `.pend` or similar scoping directives.
+    fn format_routine_end(&self) -> Option<String> {
+        None
     }
 
     fn format_instruction(&self, ctx: &FormatContext) -> (String, String) {

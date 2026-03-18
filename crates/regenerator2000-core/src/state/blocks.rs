@@ -110,16 +110,32 @@ impl AppState {
             // Boundary check
             let max_len = self.block_types.len();
             if start < max_len {
-                let valid_end = end.min(max_len);
+                let valid_end = end.min(max_len - 1);
                 let range_end = valid_end + 1;
                 let range = start..range_end;
 
                 let old_types = self.block_types[range.clone()].to_vec();
 
-                let command = crate::commands::Command::SetBlockType {
+                let mut commands = vec![crate::commands::Command::SetBlockType {
                     range: range.clone(),
                     new_type,
                     old_types,
+                }];
+
+                // Add splitter at the end of a Routine block
+                if new_type == BlockType::Routine {
+                    let next_addr = self.origin.wrapping_add((valid_end + 1) as u16);
+                    if (valid_end + 1) < self.raw_data.len() && !self.splitters.contains(&next_addr)
+                    {
+                        commands
+                            .push(crate::commands::Command::ToggleSplitter { address: next_addr });
+                    }
+                }
+
+                let command = if commands.len() == 1 {
+                    commands.into_iter().next().unwrap_or(crate::commands::Command::Batch(vec![]))
+                } else {
+                    crate::commands::Command::Batch(commands)
                 };
 
                 command.apply(self);
