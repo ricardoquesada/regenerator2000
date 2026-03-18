@@ -112,7 +112,8 @@ fn handle_split_byte_table(
             }
             if resolved.is_none()
                 && let Some(label_vec) = ctx.labels.get(&val)
-                && let Some(label) = crate::disassembler::resolve_label(label_vec, val, ctx.settings)
+                && let Some(label) =
+                    crate::disassembler::resolve_label(label_vec, val, ctx.settings)
             {
                 resolved = Some(formatter.format_label(&label.name));
             }

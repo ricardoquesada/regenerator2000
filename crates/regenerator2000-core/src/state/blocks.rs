@@ -133,7 +133,10 @@ impl AppState {
                 }
 
                 let command = if commands.len() == 1 {
-                    commands.into_iter().next().unwrap_or(crate::commands::Command::Batch(vec![]))
+                    commands
+                        .into_iter()
+                        .next()
+                        .unwrap_or(crate::commands::Command::Batch(vec![]))
                 } else {
                     crate::commands::Command::Batch(commands)
                 };
