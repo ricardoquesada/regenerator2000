@@ -426,17 +426,24 @@ impl Disassembler {
                 {
                     end += 1;
                 }
+
+
+
                 current_scope_end_pc = Some(end);
                 current_local_names =
                     Some(self.compute_local_label_names(ctx, pc, end, formatter.as_ref()));
 
                 // Emit routine start if formatter supports it
-                if let Some(label_name) =
-                    self.get_label_name(address, ctx.labels, formatter.as_ref(), ctx.settings)
-                    && let Some((label, mnemonic, operand)) =
-                        formatter.format_routine_start(&label_name)
+                let label_name = self
+                    .get_label_name(address, ctx.labels, formatter.as_ref(), ctx.settings)
+                    .unwrap_or_else(|| crate::state::LabelType::Subroutine.format_label(address.0));
+
+                if let Some((label, mnemonic, operand)) =
+                    formatter.format_routine_start(&label_name)
                 {
+
                     current_routine_name = Some(label_name.clone());
+
                     let line_comment = ctx.user_line_comments.get(&address).cloned();
 
                     lines.push(DisassemblyLine {
