@@ -11,12 +11,12 @@
     },
     {
       "start": 446,
-      "end": 456,
+      "end": 457,
       "type_": "DataByte",
       "collapsed": false
     },
     {
-      "start": 457,
+      "start": 458,
       "end": 493,
       "type_": "Code",
       "collapsed": false
@@ -639,9 +639,16 @@
         "kind": "User"
       }
     ],
+    "2052": [
+      {
+        "name": "player_speed",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "2053": [
       {
-        "name": "sfx_voice_1_en",
+        "name": "player_is_jumping",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1223,6 +1230,13 @@
     "18194": [
       {
         "name": "update_pickup_timer",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18251": [
+      {
+        "name": "is_speed_above_100_else_return",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2076,14 +2090,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 0,
+  "cursor_address": 6705,
   "hex_dump_cursor_address": 4912,
   "sprites_cursor_address": 16576,
   "charset_cursor_address": 17152,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 32768,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
