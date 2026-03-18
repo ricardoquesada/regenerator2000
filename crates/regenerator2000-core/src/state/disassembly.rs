@@ -3,7 +3,6 @@ use super::types::{Addr, CachedArrow};
 
 impl AppState {
     pub fn disassemble(&mut self) {
-        let merged_scopes = self.get_computed_scopes();
         let ctx = crate::disassembler::DisassemblyContext {
             data: &self.raw_data,
             block_types: &self.block_types,
@@ -17,7 +16,7 @@ impl AppState {
             cross_refs: &self.cross_refs,
             collapsed_blocks: &self.collapsed_blocks,
             splitters: &self.splitters,
-            scopes: &merged_scopes,
+            scopes: &self.scopes,
         };
         let mut lines = self.disassembler.disassemble_ctx(&ctx);
 
@@ -169,69 +168,6 @@ impl AppState {
                 address >= start || address < end
             }
         })
-    }
-
-    #[must_use]
-    pub fn get_computed_scopes(&self) -> std::collections::BTreeMap<Addr, Addr> {
-        let mut computed = self.scopes.clone();
-        let data_len = self.raw_data.len();
-        let mut i = 0;
-
-        while i < data_len {
-            if self.block_types[i] == crate::state::BlockType::Routine {
-                let start_pc = i;
-                let start_addr = self.origin.wrapping_add(start_pc as u16);
-
-                // If it's already covered by an explicit scope, skip its start
-                let mut already_covered = false;
-                for (&s, &e) in &computed {
-                    let s_offset = s.0.saturating_sub(self.origin.0) as usize;
-                    let e_offset = e.0.saturating_sub(self.origin.0) as usize;
-                    if start_pc >= s_offset && start_pc <= e_offset {
-                        already_covered = true;
-                        break;
-                    }
-                }
-
-                if already_covered {
-                    i += 1;
-                    continue;
-                }
-
-                // Expand this implicit routine scope
-                let mut end_pc = start_pc;
-                let mut j = start_pc + 1;
-
-                while j < data_len {
-                    let addr = self.origin.wrapping_add(j as u16);
-
-                    if self.splitters.contains(&addr) {
-                        break;
-                    }
-
-                    if let Some(labels) = self.labels.get(&addr)
-                        && labels
-                            .iter()
-                            .any(|l| l.label_type == crate::state::LabelType::Subroutine)
-                    {
-                        break; // A new routine starts here
-                    }
-
-                    if self.block_types[j] == crate::state::BlockType::Routine {
-                        end_pc = j;
-                    }
-                    j += 1;
-                }
-
-                let end_addr = self.origin.wrapping_add(end_pc as u16);
-                computed.insert(start_addr, end_addr);
-                i = end_pc + 1;
-            } else {
-                i += 1;
-            }
-        }
-
-        computed
     }
 }
 

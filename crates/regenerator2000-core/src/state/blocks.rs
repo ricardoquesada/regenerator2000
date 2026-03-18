@@ -116,21 +116,11 @@ impl AppState {
 
                 let old_types = self.block_types[range.clone()].to_vec();
 
-                let mut commands = vec![crate::commands::Command::SetBlockType {
+                let commands = vec![crate::commands::Command::SetBlockType {
                     range: range.clone(),
                     new_type,
                     old_types,
                 }];
-
-                // Add splitter at the end of a Routine block
-                if new_type == BlockType::Routine {
-                    let next_addr = self.origin.wrapping_add((valid_end + 1) as u16);
-                    if (valid_end + 1) < self.raw_data.len() && !self.splitters.contains(&next_addr)
-                    {
-                        commands
-                            .push(crate::commands::Command::ToggleSplitter { address: next_addr });
-                    }
-                }
 
                 let command = if commands.len() == 1 {
                     commands

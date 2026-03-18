@@ -24,10 +24,9 @@ fn test_routine_block_local_symbols_64tass() {
     state.block_types = vec![BlockType::Code; state.raw_data.len()];
     state.disassemble(); // Initial disassembly for set_block_type_region to work
 
-    // Mark the first function as a Routine using set_block_type_region to test auto-splitter
     // 1000-1006 are the first function.
-    // In initial disassembly: 0=1000, 1=1002, 2=1004, 3=1006.
-    state.set_block_type_region(BlockType::Routine, Some(0), 3);
+    state.scopes.insert(Addr(0x1000), Addr(0x1006));
+    state.splitters.insert(Addr(0x1007));
 
     state.settings.assembler = Assembler::Tass64;
 
@@ -112,8 +111,9 @@ fn test_routine_block_local_referenced_from_outside() {
     state.block_types = vec![BlockType::Code; state.raw_data.len()];
     state.disassemble();
 
-    // Mark 1000-1004 as Routine (0,1,2 in disassembly)
-    state.set_block_type_region(BlockType::Routine, Some(0), 2);
+    // Mark 1000-1004 as Scope
+    state.scopes.insert(Addr(0x1000), Addr(0x1004));
+    state.splitters.insert(Addr(0x1005));
     state.settings.assembler = Assembler::Tass64;
 
     let result = regenerator2000_core::analyzer::analyze(&state);
@@ -183,14 +183,10 @@ fn test_routine_split_by_bytes() {
     state.block_types = vec![BlockType::Code; state.raw_data.len()];
     state.disassemble();
 
-    // Set range as Routine initially
-    let start_idx = state
-        .get_line_index_containing_address(Addr(0x1000))
-        .unwrap();
-    let end_idx = state
-        .get_line_index_containing_address(Addr(0x1000 + state.raw_data.len() as u16 - 1))
-        .unwrap();
-    state.set_block_type_region(BlockType::Routine, Some(start_idx), end_idx);
+    // Set range as Scope initially
+    let start_addr = Addr(0x1000);
+    let end_addr = Addr(0x1000 + state.raw_data.len() as u16 - 1);
+    state.scopes.insert(start_addr, end_addr);
 
     // Split with Bytes at $1040-$104F (offset 0x40 to 0x4F)
     let byte_start_idx = state

@@ -44,7 +44,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
             .copied()
             .unwrap_or(BlockType::Code);
 
-        if current_type == BlockType::Code || current_type == BlockType::Routine {
+        if current_type == BlockType::Code {
             let opcode_byte = state.raw_data[pc];
             if let Some(opcode) = &state.disassembler.opcodes[opcode_byte as usize] {
                 if opcode.illegal && !state.settings.use_illegal_opcodes {
@@ -435,7 +435,7 @@ fn follow_indirect_jumps(
             .copied()
             .unwrap_or(BlockType::Code);
 
-        if current_type != BlockType::Code && current_type != BlockType::Routine {
+        if current_type != BlockType::Code {
             pc += 1;
             continue;
         }

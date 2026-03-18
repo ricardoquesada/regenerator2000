@@ -209,25 +209,9 @@ impl AppState {
         self.raw_data = decode_raw_data_from_base64(&project.raw_data)?;
 
         // Expand address types and collapsed blocks
-        let (mut block_types, collapsed_ranges) =
-            expand_blocks(&project.blocks, self.raw_data.len());
+        let (block_types, collapsed_ranges) = expand_blocks(&project.blocks, self.raw_data.len());
 
-        // Migrate legacy Routine blocks to Scopes
         self.scopes = project.scopes;
-        for block in &project.blocks {
-            if block.type_ == BlockType::Routine {
-                let start_addr = Addr((self.origin.0 as usize + block.start) as u16);
-                let end_addr = Addr((self.origin.0 as usize + block.end) as u16);
-                self.scopes.insert(start_addr, end_addr);
-            }
-        }
-
-        // Replace Routine with Code in expanded types
-        for t in &mut block_types {
-            if *t == BlockType::Routine {
-                *t = BlockType::Code;
-            }
-        }
 
         self.block_types = block_types;
         self.labels = project.labels;

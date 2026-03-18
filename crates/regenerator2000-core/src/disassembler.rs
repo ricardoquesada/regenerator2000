@@ -503,7 +503,7 @@ impl Disassembler {
             };
 
             let (bytes_consumed, new_lines) = match current_type {
-                BlockType::Code | BlockType::Routine => self.handle_code(ctx, args),
+                BlockType::Code => self.handle_code(ctx, args),
                 BlockType::DataByte => self.handle_data_byte(ctx, args),
                 BlockType::DataWord => self.handle_data_word(ctx, args),
                 BlockType::Address => self.handle_address(ctx, args),
@@ -678,7 +678,6 @@ impl Disassembler {
                 let mut collision = false;
                 if let Some(t) = block_types.get(pc + 1)
                     && *t != BlockType::Code
-                    && *t != BlockType::Routine
                 {
                     collision = true;
                 }
@@ -757,7 +756,6 @@ impl Disassembler {
                 for i in 1..opcode.size {
                     if let Some(t) = block_types.get(pc + i as usize)
                         && *t != BlockType::Code
-                        && *t != BlockType::Routine
                     {
                         collision = true;
                         break;
@@ -781,7 +779,7 @@ impl Disassembler {
                         let mut is_code_target = false;
                         if target_idx < data.len()
                             && let Some(bt) = block_types.get(target_idx)
-                            && (*bt == BlockType::Code || *bt == BlockType::Routine)
+                            && *bt == BlockType::Code
                         {
                             is_code_target = true;
                         }

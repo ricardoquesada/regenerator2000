@@ -305,7 +305,6 @@ impl Assembler {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BlockType {
     Code,
-    Routine, // Deprecated: For project migration only
     DataByte,
     DataWord,
     Address,
@@ -327,7 +326,6 @@ impl std::fmt::Display for BlockType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BlockType::Code => write!(f, "Code"),
-            BlockType::Routine => write!(f, "Routine"),
             BlockType::DataByte => write!(f, "Byte"),
             BlockType::DataWord => write!(f, "Word"),
             BlockType::Address => write!(f, "Address"),
