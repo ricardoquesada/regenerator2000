@@ -33,6 +33,7 @@ fn test_brk_default_behavior() {
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -70,6 +71,7 @@ fn test_brk_patch_brk_enabled() {
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 2);
@@ -111,6 +113,7 @@ fn test_brk_single_byte_enabled() {
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 2);
@@ -164,6 +167,7 @@ fn test_brk_patch_brk_with_label() {
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 2);

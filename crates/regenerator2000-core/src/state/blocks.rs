@@ -219,7 +219,10 @@ impl AppState {
 
         // Add Scopes
         for (start_addr, end_addr) in &self.scopes {
-            let name = self.labels.get(start_addr).and_then(|l| l.first().map(|l| l.name.clone()));
+            let name = self
+                .labels
+                .get(start_addr)
+                .and_then(|l| l.first().map(|l| l.name.clone()));
             items.push(BlockItem::Scope {
                 start: *start_addr,
                 end: *end_addr,

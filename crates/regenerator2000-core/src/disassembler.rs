@@ -263,7 +263,6 @@ impl Disassembler {
     }
 
     #[must_use]
-    #[must_use]
     pub fn compute_scope_names(
         &self,
         ctx: &DisassemblyContext,
@@ -405,8 +404,9 @@ impl Disassembler {
                     Some(self.compute_local_label_names(ctx, pc, end, formatter.as_ref()));
 
                 // Emit scope start if formatter supports it
-                let label_name_opt = self.get_label_name(address, ctx.labels, formatter.as_ref(), ctx.settings);
-                
+                let label_name_opt =
+                    self.get_label_name(address, ctx.labels, formatter.as_ref(), ctx.settings);
+
                 if let Some((label, mnemonic, operand)) =
                     formatter.format_scope_start(label_name_opt.as_deref())
                 {
@@ -678,6 +678,7 @@ impl Disassembler {
                 let mut collision = false;
                 if let Some(t) = block_types.get(pc + 1)
                     && *t != BlockType::Code
+                    && *t != BlockType::Routine
                 {
                     collision = true;
                 }
@@ -756,6 +757,7 @@ impl Disassembler {
                 for i in 1..opcode.size {
                     if let Some(t) = block_types.get(pc + i as usize)
                         && *t != BlockType::Code
+                        && *t != BlockType::Routine
                     {
                         collision = true;
                         break;
@@ -779,7 +781,7 @@ impl Disassembler {
                         let mut is_code_target = false;
                         if target_idx < data.len()
                             && let Some(bt) = block_types.get(target_idx)
-                            && *bt == BlockType::Code
+                            && (*bt == BlockType::Code || *bt == BlockType::Routine)
                         {
                             is_code_target = true;
                         }

@@ -188,7 +188,10 @@ impl Command {
             Command::AddScope { start, end } => {
                 state.scopes.insert(*start, *end);
             }
-            Command::RemoveScope { address, old_end: _ } => {
+            Command::RemoveScope {
+                address,
+                old_end: _,
+            } => {
                 state.scopes.remove(address);
             }
             Command::Batch(commands) => {

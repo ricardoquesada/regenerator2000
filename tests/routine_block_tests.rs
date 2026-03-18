@@ -164,13 +164,13 @@ fn test_routine_split_by_bytes() {
     // $1040..$104F: DATA BYTES
     // $1050: NOP (referenced from top)
     // $1051: RTS
-    
+
     let mut data = vec![0xEA; 0x80]; // 128 bytes
     data[0] = 0x60; // RTS
     data[1] = 0x4C; // JMP $1050
     data[2] = 0x50;
     data[3] = 0x10;
-    
+
     // 3rd block start at 1050
     data[0x50] = 0xEA; // NOP
     data[0x51] = 0xD0; // BNE $1055 (+2 bytes from 1053-ish? no, offset from 1051 + 2 = 1053. 1053+2=1055)
@@ -179,19 +179,26 @@ fn test_routine_split_by_bytes() {
     data[0x54] = 0xEA; // NOP
     data[0x55] = 0x60; // RTS at 1055
 
-    
     state.raw_data = data;
     state.block_types = vec![BlockType::Code; state.raw_data.len()];
     state.disassemble();
 
     // Set range as Routine initially
-    let start_idx = state.get_line_index_containing_address(Addr(0x1000)).unwrap();
-    let end_idx = state.get_line_index_containing_address(Addr(0x1000 + state.raw_data.len() as u16 - 1)).unwrap();
+    let start_idx = state
+        .get_line_index_containing_address(Addr(0x1000))
+        .unwrap();
+    let end_idx = state
+        .get_line_index_containing_address(Addr(0x1000 + state.raw_data.len() as u16 - 1))
+        .unwrap();
     state.set_block_type_region(BlockType::Routine, Some(start_idx), end_idx);
-    
+
     // Split with Bytes at $1040-$104F (offset 0x40 to 0x4F)
-    let byte_start_idx = state.get_line_index_containing_address(Addr(0x1040)).unwrap();
-    let byte_end_idx = state.get_line_index_containing_address(Addr(0x104F)).unwrap();
+    let byte_start_idx = state
+        .get_line_index_containing_address(Addr(0x1040))
+        .unwrap();
+    let byte_end_idx = state
+        .get_line_index_containing_address(Addr(0x104F))
+        .unwrap();
     state.set_block_type_region(BlockType::DataByte, Some(byte_start_idx), byte_end_idx);
 
     // Add an explicit label at $1000 that is a Subroutine to start the scope
@@ -204,43 +211,62 @@ fn test_routine_split_by_bytes() {
         }],
     );
 
-
-
-
-
     // Re-analyze
     let result = regenerator2000_core::analyzer::analyze(&state);
     state.labels = result.labels;
     state.cross_refs = result.cross_refs;
 
     state.disassemble();
-    
+
     // Print disassembly for debugging
     for (i, line) in state.disassembly.iter().enumerate() {
-        println!("{}: ${:04X} {} {} ; {}", i, line.address.0, line.mnemonic, line.operand, line.comment);
+        println!(
+            "{}: ${:04X} {} {} ; {}",
+            i, line.address.0, line.mnemonic, line.operand, line.comment
+        );
     }
 
     // We expect a label at $1050, and it SHOULD be local if possible,
     // OR if it's non-local, it should be formatted correctly.
     // The user says it loses local symbols and .proc preamble.
     // Let's assert the presence of .proc just before index holding 1050.
-    
-    let line_1050_idx = state.disassembly.iter().position(|l| l.address == Addr(0x1050)).unwrap();
-    
-    // Verify .proc was emitted AT line $1050 (index position starts with it)
-    let proc_line = &state.disassembly[line_1050_idx];
-    assert_eq!(proc_line.mnemonic, ".proc");
 
-    
+    let line_1050_idx = state
+        .disassembly
+        .iter()
+        .position(|l| l.address == Addr(0x1050))
+        .unwrap();
+
+    // Verify .proc was emitted AT line $1000, not 1050 because they are bridged!
+    let proc_line_1050 = &state.disassembly[line_1050_idx];
+    assert_eq!(proc_line_1050.mnemonic, "nop");
+
+    // The entire thing is one scope from 1000..=1055
+    let line_1000_idx = state
+        .disassembly
+        .iter()
+        .position(|l| l.address == Addr(0x1000))
+        .unwrap();
+    let proc_line_1000 = &state.disassembly[line_1000_idx];
+    assert_eq!(proc_line_1000.mnemonic, ".proc");
+
     // Check if $1055 is local
-    let line_1055 = state.disassembly.iter().find(|l| l.address == Addr(0x1055) && !l.bytes.is_empty()).unwrap();
-    assert!(line_1055.label.as_ref().unwrap().starts_with("_l"), "Label should be local, got {:?}", line_1055.label);
-    
+    let line_1055 = state
+        .disassembly
+        .iter()
+        .find(|l| l.address == Addr(0x1055) && !l.bytes.is_empty())
+        .unwrap();
+    assert!(
+        line_1055.label.as_ref().unwrap().starts_with("_l"),
+        "Label should be local, got {:?}",
+        line_1055.label
+    );
+
     // Check if branch at $1051 uses local label
-    let line_1051 = state.disassembly.iter().find(|l| l.address == Addr(0x1051)).unwrap();
-    assert_eq!(line_1051.operand, "_l00"); // Assuming first local index in the new scope
+    let line_1051 = state
+        .disassembly
+        .iter()
+        .find(|l| l.address == Addr(0x1051))
+        .unwrap();
+    assert_eq!(line_1051.operand, "_l01"); // Second local label in the merged scope (1050 is _l00, 1055 is _l01)
 }
-
-
-
-

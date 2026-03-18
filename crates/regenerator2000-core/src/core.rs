@@ -1225,7 +1225,9 @@ impl Core {
 
     fn handle_add_scope(&mut self, events: &mut Vec<CoreEvent>) {
         if self.view.active_pane == crate::view_state::ActivePane::Blocks {
-            events.push(CoreEvent::StatusMessage("Adding Scope only supported in Disassembly view".to_string()));
+            events.push(CoreEvent::StatusMessage(
+                "Adding Scope only supported in Disassembly view".to_string(),
+            ));
             return;
         }
 
@@ -1238,7 +1240,10 @@ impl Core {
 
             if let (Some(sl), Some(el)) = (start_line, end_line) {
                 let start_addr = sl.address;
-                let end_addr = el.address.wrapping_add(el.bytes.len() as u16).wrapping_sub(1);
+                let end_addr = el
+                    .address
+                    .wrapping_add(el.bytes.len() as u16)
+                    .wrapping_sub(1);
 
                 let command = crate::commands::Command::AddScope {
                     start: start_addr,
@@ -1258,7 +1263,9 @@ impl Core {
                 events.push(CoreEvent::ViewChanged);
             }
         } else {
-             events.push(CoreEvent::StatusMessage("Please select a range to create a Scope".to_string()));
+            events.push(CoreEvent::StatusMessage(
+                "Please select a range to create a Scope".to_string(),
+            ));
         }
     }
 

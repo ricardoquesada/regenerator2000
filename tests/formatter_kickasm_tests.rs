@@ -25,8 +25,8 @@ fn test_format_instructions() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -43,8 +43,8 @@ fn test_format_instructions() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -112,8 +112,8 @@ fn test_forced_absolute() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -139,8 +139,8 @@ fn test_forced_absolute() {
         settings: &settings_false,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx_false),
@@ -158,8 +158,8 @@ fn test_forced_absolute() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx_zp),

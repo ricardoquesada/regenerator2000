@@ -48,6 +48,7 @@ mod tests {
             splitters: std::collections::BTreeSet::new(),
             blocks_view_cursor: None,
             bookmarks: BTreeMap::new(),
+            scopes: BTreeMap::new(),
         };
 
         let json = serde_json::to_string(&project).unwrap();

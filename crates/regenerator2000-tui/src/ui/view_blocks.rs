@@ -172,12 +172,16 @@ impl Widget for BlocksView {
                     type_,
                     collapsed,
                 } => {
-                    if let Some(scope_end) = current_scope_end {
-                        if *start > scope_end {
-                            current_scope_end = None;
-                        }
+                    if let Some(scope_end) = current_scope_end
+                        && *start > scope_end
+                    {
+                        current_scope_end = None;
                     }
-                    let indent = if current_scope_end.is_some() { "  " } else { "" };
+                    let indent = if current_scope_end.is_some() {
+                        "  "
+                    } else {
+                        ""
+                    };
                     let start_addr = *start;
                     let end_addr = *end;
                     let color = match type_ {
@@ -203,12 +207,16 @@ impl Widget for BlocksView {
                     ListItem::new(Line::from(Span::styled(text, Style::default().fg(color))))
                 }
                 crate::state::BlockItem::Splitter(addr) => {
-                    if let Some(scope_end) = current_scope_end {
-                        if *addr > scope_end {
-                            current_scope_end = None;
-                        }
+                    if let Some(scope_end) = current_scope_end
+                        && *addr > scope_end
+                    {
+                        current_scope_end = None;
                     }
-                    let indent = if current_scope_end.is_some() { "  " } else { "" };
+                    let indent = if current_scope_end.is_some() {
+                        "  "
+                    } else {
+                        ""
+                    };
                     let text = format!("{indent}  ${addr:04X} -----------------");
                     ListItem::new(Line::from(Span::styled(
                         text,

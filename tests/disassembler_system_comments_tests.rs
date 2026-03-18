@@ -38,6 +38,7 @@ fn test_system_comments_logic() {
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);
@@ -90,6 +91,7 @@ fn test_system_comment_on_sta() {
         &BTreeMap::new(),
         &[],
         &std::collections::BTreeSet::new(),
+        &BTreeMap::new(),
     );
 
     assert_eq!(lines.len(), 1);

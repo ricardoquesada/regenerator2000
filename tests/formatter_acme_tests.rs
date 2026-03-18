@@ -28,8 +28,8 @@ fn test_format_instructions() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -46,8 +46,8 @@ fn test_format_instructions() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -64,8 +64,8 @@ fn test_format_instructions() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -82,8 +82,8 @@ fn test_format_instructions() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     let (mnemonic, operand) = formatter.format_instruction(&ctx);
     assert_eq!(mnemonic, "asl");
@@ -153,8 +153,8 @@ fn test_forced_absolute_plus2() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -173,8 +173,8 @@ fn test_forced_absolute_plus2() {
         settings: &settings_false,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx_false),
@@ -191,8 +191,8 @@ fn test_forced_absolute_plus2() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx_x),
@@ -209,8 +209,8 @@ fn test_forced_absolute_plus2() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx_normal),
@@ -239,8 +239,8 @@ fn test_addressing_modes() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -257,8 +257,8 @@ fn test_addressing_modes() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -275,8 +275,8 @@ fn test_addressing_modes() {
         settings: &settings,
         immediate_value_formats: &immediate_value_formats,
         local_label_names: None,
-        label_routine_names: None,
-        current_routine_name: None,
+        label_scope_names: None,
+        current_scope_name: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -454,8 +454,8 @@ fn test_lax_immediate_mnemonic() {
             settings: &settings,
             immediate_value_formats: &immediate_value_formats,
             local_label_names: None,
-            label_routine_names: None,
-            current_routine_name: None,
+            label_scope_names: None,
+            current_scope_name: None,
         };
         let (mnemonic, _) = formatter.format_instruction(&ctx);
         assert_eq!(mnemonic, "lxa", "ACME should use 'lxa' for opcode $AB");
