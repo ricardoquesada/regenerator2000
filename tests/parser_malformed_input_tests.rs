@@ -1,8 +1,8 @@
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
-/// Malformed-input tests for parsers: D64, CRT, T64, VSF
-///
-/// These tests ensure that the parsers return clear errors (never panic)
-/// when given truncated, corrupted, or completely invalid data.
+// Malformed-input tests for parsers: D64, CRT, T64, VSF
+//
+// These tests ensure that the parsers return clear errors (never panic)
+// when given truncated, corrupted, or completely invalid data.
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // D64 Parser

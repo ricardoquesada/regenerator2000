@@ -28,6 +28,8 @@ pub struct HandleArgs<'a> {
     pub side_comment: String,
     pub line_comment: Option<String>,
     pub local_label_names: Option<&'a BTreeMap<Addr, String>>,
+    pub label_routine_names: Option<&'a BTreeMap<Addr, String>>,
+    pub current_routine_name: Option<String>,
 }
 
 impl<'a> DisassemblyContext<'a> {

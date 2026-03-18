@@ -44,6 +44,8 @@ fn handle_split_byte_table(
         side_comment,
         line_comment,
         local_label_names,
+        label_routine_names,
+        current_routine_name,
     } = args;
 
     let mut count = 0;
@@ -79,6 +81,8 @@ fn handle_split_byte_table(
                 side_comment,
                 line_comment,
                 local_label_names,
+                label_routine_names,
+                current_routine_name: current_routine_name.clone(),
             },
         );
     }
@@ -104,20 +108,15 @@ fn handle_split_byte_table(
         let is_address_block =
             target_type == BlockType::LoHiAddress || target_type == BlockType::HiLoAddress;
         let label_part = if is_address_block {
-            let mut resolved = None;
-            if let Some(local_names) = local_label_names
-                && let Some(local_name) = local_names.get(&val)
-            {
-                resolved = Some(local_name.clone());
-            }
-            if resolved.is_none()
-                && let Some(label_vec) = ctx.labels.get(&val)
-                && let Some(label) =
-                    crate::disassembler::resolve_label(label_vec, val, ctx.settings)
-            {
-                resolved = Some(formatter.format_label(&label.name));
-            }
-            resolved.unwrap_or_else(|| formatter.format_address(Addr(val)))
+            crate::disassembler::resolve_label_name(
+                Addr(val),
+                ctx.labels,
+                ctx.settings,
+                local_label_names,
+                label_routine_names,
+                current_routine_name.as_deref(),
+            )
+            .unwrap_or_else(|| formatter.format_address(Addr(val)))
         } else {
             formatter.format_address(Addr(val))
         };
@@ -219,6 +218,8 @@ pub fn handle_undefined_byte(
         side_comment,
         line_comment,
         local_label_names: _,
+        label_routine_names: _,
+        current_routine_name: _,
     } = args;
     let b = ctx.data[pc];
     (

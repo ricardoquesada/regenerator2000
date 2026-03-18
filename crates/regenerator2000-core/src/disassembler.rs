@@ -69,6 +69,40 @@ pub fn resolve_label<'a>(
     best_label
 }
 
+#[must_use]
+pub fn resolve_label_name(
+    address: Addr,
+    labels: &BTreeMap<Addr, Vec<Label>>,
+    settings: &DocumentSettings,
+    local_label_names: Option<&BTreeMap<Addr, String>>,
+    label_routine_names: Option<&BTreeMap<Addr, String>>,
+    current_routine_name: Option<&str>,
+) -> Option<String> {
+    // 1. Local label names (from formatter, e.g. _l01)
+    if let Some(names) = local_label_names
+        && let Some(name) = names.get(&address)
+    {
+        return Some(name.clone());
+    }
+
+    // 2. Standard label resolution
+    let base_name = labels
+        .get(&address)
+        .and_then(|v| resolve_label(v, address.0, settings).map(|l| l.name.clone()))?;
+
+    // 3. Routine scoping
+    if let Some(routine_names) = label_routine_names
+        && let Some(routine_name) = routine_names.get(&address)
+    {
+        let same_routine = current_routine_name.is_some_and(|curr| curr == routine_name);
+        if !same_routine && &base_name != routine_name {
+            return Some(format!("{}.{}", routine_name, base_name));
+        }
+    }
+
+    Some(base_name)
+}
+
 pub use context::DisassemblyContext;
 pub use context::HandleArgs;
 
@@ -228,6 +262,53 @@ impl Disassembler {
         local_names
     }
 
+    #[must_use]
+    pub fn compute_routine_names(
+        &self,
+        ctx: &DisassemblyContext,
+        _formatter: &dyn Formatter,
+    ) -> BTreeMap<Addr, String> {
+        let mut routine_names = BTreeMap::new();
+        let mut pc = 0;
+        while pc < ctx.data.len() {
+            if pc < ctx.block_types.len() && ctx.block_types[pc] == BlockType::Routine {
+                let start_pc = pc;
+                let address = ctx.origin.wrapping_add(pc as u16);
+
+                // Resolve label name for the routine entry point
+                if let Some(v) = ctx.labels.get(&address)
+                    && let Some(label) = resolve_label(v, address.0, ctx.settings)
+                {
+                    let name = label.name.clone();
+
+                    // Find end of block (exclusive of next block type or splitter)
+                    let mut end = pc;
+                    while end + 1 < ctx.data.len()
+                        && end + 1 < ctx.block_types.len()
+                        && ctx.block_types[end + 1] == BlockType::Routine
+                        && !ctx
+                            .splitters
+                            .contains(&ctx.origin.wrapping_add((end + 1) as u16))
+                    {
+                        end += 1;
+                    }
+
+                    // Map all addresses in this block to the routine name
+                    for i in start_pc..=end {
+                        let addr = ctx.origin.wrapping_add(i as u16);
+                        routine_names.insert(addr, name.clone());
+                    }
+                    pc = end + 1;
+                } else {
+                    pc += 1;
+                }
+            } else {
+                pc += 1;
+            }
+        }
+        routine_names
+    }
+
     #[allow(clippy::too_many_arguments)]
     #[must_use]
     pub fn disassemble(
@@ -270,6 +351,15 @@ impl Disassembler {
         let mut pc = 0;
         let mut current_local_names: Option<BTreeMap<Addr, String>> = None;
         let mut current_scope_end_pc: Option<usize> = None;
+        let mut current_routine_name: Option<String> = None;
+
+        // Compute routine names for scoping
+        let supports_routines = formatter.supports_routines();
+        let label_routine_names = if supports_routines {
+            self.compute_routine_names(ctx, formatter.as_ref())
+        } else {
+            BTreeMap::new()
+        };
 
         while pc < ctx.data.len() {
             let address = ctx.origin.wrapping_add(pc as u16);
@@ -296,6 +386,7 @@ impl Disassembler {
                 }
                 current_scope_end_pc = None;
                 current_local_names = None;
+                current_routine_name = None;
             }
 
             // Render splitter if exists at this address
@@ -316,12 +407,19 @@ impl Disassembler {
                 });
             }
 
+            // Flags for routine start logic
+            let mut suppress_label = false;
+            let mut suppress_line_comment = false;
+
             // Check if we are starting a NEW Routine scope
-            if ctx.block_types[pc] == BlockType::Routine && current_scope_end_pc.is_none() {
+            if supports_routines
+                && ctx.block_types.get(pc) == Some(&BlockType::Routine)
+                && current_scope_end_pc.is_none()
+            {
                 // Entering a new Routine block range
                 let mut end = pc;
                 while end + 1 < ctx.data.len()
-                    && ctx.block_types[end + 1] == BlockType::Routine
+                    && ctx.block_types.get(end + 1) == Some(&BlockType::Routine)
                     && !ctx
                         .splitters
                         .contains(&ctx.origin.wrapping_add((end + 1) as u16))
@@ -335,22 +433,30 @@ impl Disassembler {
                 // Emit routine start if formatter supports it
                 if let Some(label_name) =
                     self.get_label_name(address, ctx.labels, formatter.as_ref(), ctx.settings)
-                    && let Some(proc_start) = formatter.format_routine_start(&label_name)
+                    && let Some((label, mnemonic, operand)) =
+                        formatter.format_routine_start(&label_name)
                 {
+                    current_routine_name = Some(label_name.clone());
+                    let line_comment = ctx.user_line_comments.get(&address).cloned();
+
                     lines.push(DisassemblyLine {
                         address,
                         bytes: vec![],
-                        mnemonic: proc_start,
-                        operand: String::new(),
+                        mnemonic,
+                        operand: operand.unwrap_or_default(),
                         comment: String::new(),
-                        line_comment: None,
-                        label: None,
+                        line_comment,
+                        label,
                         opcode: None,
                         show_bytes: false,
                         target_address: None,
                         external_label_address: None,
                         is_collapsed: false,
                     });
+
+                    // Requirement (b): hide the label in the instruction
+                    suppress_label = true;
+                    suppress_line_comment = true;
                 }
             }
 
@@ -388,7 +494,9 @@ impl Disassembler {
             let address = ctx.origin.wrapping_add(pc as u16);
 
             // Resolve label name (checking local names first if in a scope)
-            let label_name = if let Some(local_names) = &current_local_names {
+            let label_name = if suppress_label {
+                None
+            } else if let Some(local_names) = &current_local_names {
                 if let Some(local_name) = local_names.get(&address) {
                     Some(local_name.clone())
                 } else {
@@ -399,7 +507,11 @@ impl Disassembler {
             };
 
             let side_comment = self.get_side_comment(address, ctx, formatter.comment_prefix());
-            let line_comment = ctx.user_line_comments.get(&address).cloned();
+            let line_comment = if suppress_line_comment {
+                None
+            } else {
+                ctx.user_line_comments.get(&address).cloned()
+            };
 
             let current_type = ctx.block_types.get(pc).copied().unwrap_or(BlockType::Code);
 
@@ -411,6 +523,8 @@ impl Disassembler {
                 side_comment,
                 line_comment,
                 local_label_names: current_local_names.as_ref(),
+                label_routine_names: Some(&label_routine_names),
+                current_routine_name: current_routine_name.clone(),
             };
 
             let (bytes_consumed, new_lines) = match current_type {
@@ -565,6 +679,8 @@ impl Disassembler {
             mut side_comment,
             line_comment,
             local_label_names,
+            label_routine_names,
+            current_routine_name,
         } = args;
         let data = ctx.data;
         let block_types = ctx.block_types;
@@ -767,6 +883,8 @@ impl Disassembler {
                         settings,
                         immediate_value_formats,
                         local_label_names,
+                        label_routine_names,
+                        current_routine_name: current_routine_name.as_deref(),
                     };
                     let (mnemonic, operand_str) = formatter.format_instruction(&ctx);
 
@@ -829,6 +947,7 @@ impl Disassembler {
             side_comment,
             line_comment,
             local_label_names: _,
+            ..
         } = args;
         let data = ctx.data;
         let block_types = ctx.block_types;
@@ -904,6 +1023,7 @@ impl Disassembler {
             side_comment,
             line_comment,
             local_label_names: _,
+            ..
         } = args;
         let data = ctx.data;
         let block_types = ctx.block_types;
@@ -1006,6 +1126,7 @@ impl Disassembler {
             side_comment,
             line_comment,
             local_label_names: _,
+            ..
         } = args;
         let data = ctx.data;
         let block_types = ctx.block_types;
@@ -1080,6 +1201,8 @@ impl Disassembler {
             mut side_comment,
             line_comment,
             local_label_names,
+            label_routine_names,
+            current_routine_name,
         } = args;
         let data = ctx.data;
         let block_types = ctx.block_types;
@@ -1133,23 +1256,15 @@ impl Disassembler {
             bytes.push(low);
             bytes.push(high);
 
-            let operand = if let Some(local_names) = local_label_names {
-                if let Some(local_name) = local_names.get(&val) {
-                    local_name.clone()
-                } else if let Some(label_vec) = labels.get(&val)
-                    && let Some(label) = resolve_label(label_vec, val, settings)
-                {
-                    formatter.format_label(&label.name)
-                } else {
-                    formatter.format_address(Addr(val))
-                }
-            } else if let Some(label_vec) = labels.get(&val)
-                && let Some(label) = resolve_label(label_vec, val, settings)
-            {
-                formatter.format_label(&label.name)
-            } else {
-                formatter.format_address(Addr(val))
-            };
+            let operand = resolve_label_name(
+                Addr(val),
+                labels,
+                settings,
+                local_label_names,
+                label_routine_names,
+                current_routine_name.as_deref(),
+            )
+            .unwrap_or_else(|| formatter.format_address(Addr(val)));
             operands.push(operand);
 
             count += 1;
@@ -1203,6 +1318,7 @@ impl Disassembler {
             side_comment,
             line_comment,
             local_label_names: _,
+            ..
         } = args;
         let data = ctx.data;
         let block_types = ctx.block_types;
@@ -1349,6 +1465,7 @@ impl Disassembler {
             side_comment,
             line_comment,
             local_label_names: _,
+            ..
         } = args;
         let data = ctx.data;
         let block_types = ctx.block_types;

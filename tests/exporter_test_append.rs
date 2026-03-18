@@ -8,6 +8,7 @@ fn test_export_all_labels_disabled() {
     let mut state = AppState::new();
     state.origin = regenerator2000_core::state::Addr(0x1000);
     state.raw_data = vec![0xEA];
+    state.block_types = vec![regenerator2000_core::state::BlockType::Code; state.raw_data.len()];
 
     // Define an external label
     state.labels.insert(

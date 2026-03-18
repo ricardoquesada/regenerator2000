@@ -57,34 +57,42 @@ fn test_routine_block_local_symbols_64tass() {
     state.disassemble();
     let disasm = &state.disassembly;
 
-    // Indexes:
-    // 0: s1000 lda #$00 (1000)
-    // 1: _l00  bne _l00 (1002)
-    // 2: _l01  bne _l01 (1004)
-    // 3:       rts      (1006)
-    // 4:       --- splitter --- (1007)
-    // 5: s1007 lda #$01 (1007)
-    // 6:       bne s1007 (1009)
-    // 7:       rts      (100B)
+    // 0: s1000 .proc    (1000)
+    // 1:       lda #$00 (1000)
+    // 2: _l00  bne _l00 (1002)
+    // 3: _l01  bne _l01 (1004)
+    // 4:       rts      (1006)
+    // 5:       .pend    (1006)
+    // 6:       --- splitter --- (1007)
+    // 7: s1007 lda #$01 (1007)
+    // 8:       bne s1007 (1009)
+    // 9:       rts      (100B)
 
-    // Check entry point is NOT local
+    // Check entry point is in .proc
     assert_eq!(disasm[0].label, Some("s1000".to_string()));
+    assert_eq!(disasm[0].mnemonic, ".proc");
 
-    // Check local labels
-    assert_eq!(disasm[1].label, Some("_l00".to_string()));
-    assert_eq!(disasm[2].label, Some("_l01".to_string()));
+    // Check instruction has NO label (suppressed)
+    assert_eq!(disasm[1].label, None);
+
+    // Check local labels (index shifted by 1)
+    assert_eq!(disasm[2].label, Some("_l00".to_string()));
+    assert_eq!(disasm[3].label, Some("_l01".to_string()));
 
     // Check operands use local labels
-    assert_eq!(disasm[1].operand, "_l00");
-    assert_eq!(disasm[2].operand, "_l01");
+    assert_eq!(disasm[2].operand, "_l00");
+    assert_eq!(disasm[3].operand, "_l01");
+
+    // Check .pend
+    assert_eq!(disasm[5].mnemonic, ".pend");
 
     // Check splitter
     assert!(state.splitters.contains(&Addr(0x1007)));
-    assert_eq!(disasm[4].mnemonic, "{splitter}");
+    assert_eq!(disasm[6].mnemonic, "{splitter}");
 
     // Check second function (not a routine)
-    assert_eq!(disasm[5].label, Some("s1007".to_string()));
-    assert_eq!(disasm[6].operand, "s1007");
+    assert_eq!(disasm[7].label, Some("s1007".to_string()));
+    assert_eq!(disasm[8].operand, "s1007");
 }
 
 #[test]
@@ -127,14 +135,18 @@ fn test_routine_block_local_referenced_from_outside() {
     // $1002 is referenced from $1005 (outside the routine scope [1000-1004])
     // So it should NOT be local.
     // Indexes:
-    // 0: s1000 lda #$00 (1000)
-    // 1: b1002 bne b1002 (1002)
-    // 2:       rts      (1004)
-    // 3:       --- splitter --- (1005)
-    // 4:       jmp b1002 (1005)
+    // 0: s1000 .proc    (1000)
+    // 1:       lda #$00 (1000)
+    // 2: b1002 bne b1002 (1002)
+    // 3:       rts      (1004)
+    // 4:       .pend    (1004)
+    // 5:       --- splitter --- (1005)
+    // 6:       jmp b1002 (1005)
 
-    assert_eq!(disasm[1].label, Some("b1002".to_string()));
-    assert_eq!(disasm[1].operand, "b1002");
-    assert_eq!(disasm[3].mnemonic, "{splitter}");
-    assert_eq!(disasm[4].operand, "b1002");
+    assert_eq!(disasm[0].label, Some("s1000".to_string()));
+    assert_eq!(disasm[2].label, Some("b1002".to_string()));
+    assert_eq!(disasm[2].operand, "b1002");
+    assert_eq!(disasm[4].mnemonic, ".pend");
+    assert_eq!(disasm[5].mnemonic, "{splitter}");
+    assert_eq!(disasm[6].operand, "s1000.b1002");
 }

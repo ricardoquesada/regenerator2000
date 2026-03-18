@@ -1,8 +1,7 @@
 use crate::state::AppState;
 use std::path::PathBuf;
 
-/// Column width for label definitions in exported assembly.
-const LABEL_COLUMN_WIDTH: usize = 24;
+use crate::disassembler::LABEL_COLUMN_WIDTH;
 /// Column width for the instruction+label portion before side comments.
 const INSTRUCTION_COLUMN_WIDTH: usize = 40;
 
