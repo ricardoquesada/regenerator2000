@@ -16,8 +16,8 @@ pub struct FormatContext<'a> {
     pub settings: &'a crate::state::DocumentSettings,
     pub immediate_value_formats: &'a BTreeMap<Addr, crate::state::ImmediateFormat>,
     pub local_label_names: Option<&'a BTreeMap<Addr, String>>,
-    pub label_routine_names: Option<&'a BTreeMap<Addr, String>>,
-    pub current_routine_name: Option<&'a str>,
+    pub label_scope_names: Option<&'a BTreeMap<Addr, String>>,
+    pub current_scope_name: Option<&'a str>,
 }
 
 impl<'a> FormatContext<'a> {
@@ -28,8 +28,8 @@ impl<'a> FormatContext<'a> {
             self.labels,
             self.settings,
             self.local_label_names,
-            self.label_routine_names,
-            self.current_routine_name,
+            self.label_scope_names,
+            self.current_scope_name,
         )
     }
 }
@@ -71,21 +71,21 @@ pub trait Formatter {
         None
     }
 
-    /// For assemblers that use `.proc` or similar scoping directives.
+    /// For assemblers that use `.block` or similar scoping directives.
     /// Returns (label, mnemonic, operand) if supported.
-    fn format_routine_start(
+    fn format_scope_start(
         &self,
-        _name: &str,
+        _name: Option<&str>,
     ) -> Option<(Option<String>, String, Option<String>)> {
         None
     }
 
-    /// For assemblers that use `.pend` or similar scoping directives.
-    fn format_routine_end(&self) -> Option<String> {
+    /// For assemblers that use `.bend` or similar scoping directives.
+    fn format_scope_end(&self) -> Option<String> {
         None
     }
 
-    fn supports_routines(&self) -> bool {
+    fn supports_scopes(&self) -> bool {
         false
     }
 

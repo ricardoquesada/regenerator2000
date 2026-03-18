@@ -114,6 +114,7 @@ impl Widget for DebuggerView {
             let empty_xrefs: BTreeMap<crate::state::Addr, Vec<crate::state::Addr>> =
                 BTreeMap::new();
             let empty_splitters: BTreeSet<crate::state::Addr> = BTreeSet::new();
+            let empty_scopes: BTreeMap<crate::state::Addr, crate::state::Addr> = BTreeMap::new();
             let settings = DocumentSettings::default();
             let collapsed: Vec<(usize, usize)> = Vec::new();
 
@@ -130,6 +131,7 @@ impl Widget for DebuggerView {
                 &empty_xrefs,
                 &collapsed,
                 &empty_splitters,
+                &empty_scopes,
             );
 
             let pc_live_idx = live_lines.iter().position(|l| l.address == pc).unwrap_or(0);

@@ -371,6 +371,7 @@ pub fn search_collapsed_content(
         cross_refs: &app_state.cross_refs,
         collapsed_blocks: &[],
         splitters: &app_state.splitters,
+        scopes: &app_state.scopes,
     };
     let expanded_lines = app_state.disassembler.disassemble_ctx(&ctx);
 

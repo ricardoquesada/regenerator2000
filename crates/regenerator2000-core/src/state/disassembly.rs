@@ -16,6 +16,7 @@ impl AppState {
             cross_refs: &self.cross_refs,
             collapsed_blocks: &self.collapsed_blocks,
             splitters: &self.splitters,
+            scopes: &self.scopes,
         };
         let mut lines = self.disassembler.disassemble_ctx(&ctx);
 

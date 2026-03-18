@@ -17,6 +17,7 @@ pub struct DisassemblyContext<'a> {
     pub cross_refs: &'a BTreeMap<Addr, Vec<Addr>>,
     pub collapsed_blocks: &'a [(usize, usize)],
     pub splitters: &'a BTreeSet<Addr>,
+    pub scopes: &'a BTreeMap<Addr, Addr>,
 }
 
 /// Per-iteration values computed in the disassembly loop and passed to each handler.
@@ -28,8 +29,8 @@ pub struct HandleArgs<'a> {
     pub side_comment: String,
     pub line_comment: Option<String>,
     pub local_label_names: Option<&'a BTreeMap<Addr, String>>,
-    pub label_routine_names: Option<&'a BTreeMap<Addr, String>>,
-    pub current_routine_name: Option<String>,
+    pub label_scope_names: Option<&'a BTreeMap<Addr, String>>,
+    pub current_scope_name: Option<String>,
 }
 
 impl<'a> DisassemblyContext<'a> {
@@ -48,6 +49,7 @@ impl<'a> DisassemblyContext<'a> {
         cross_refs: &'a BTreeMap<Addr, Vec<Addr>>,
         collapsed_blocks: &'a [(usize, usize)],
         splitters: &'a BTreeSet<Addr>,
+        scopes: &'a BTreeMap<Addr, Addr>,
     ) -> Self {
         Self {
             data,
@@ -62,6 +64,7 @@ impl<'a> DisassemblyContext<'a> {
             cross_refs,
             collapsed_blocks,
             splitters,
+            scopes,
         }
     }
 }

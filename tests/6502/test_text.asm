@@ -21,3 +21,11 @@
 	lda $801
 	lda $810
 	lda $81f
+
+.block
+	lda #$00
+.bend
+
+cacho .block
+	lda #$00
+.bend

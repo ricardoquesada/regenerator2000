@@ -305,15 +305,16 @@ impl Formatter for TassFormatter {
         Some(format!("_l{:02x}", index))
     }
 
-    fn format_routine_start(&self, name: &str) -> Option<(Option<String>, String, Option<String>)> {
-        Some((Some(name.to_string()), ".proc".to_string(), None))
+    fn format_scope_start(&self, name: Option<&str>) -> Option<(Option<String>, String, Option<String>)> {
+        let label = name.map(|n| n.to_string());
+        Some((label, ".block".to_string(), None))
     }
 
-    fn format_routine_end(&self) -> Option<String> {
-        Some(".pend".to_string())
+    fn format_scope_end(&self) -> Option<String> {
+        Some(".bend".to_string())
     }
 
-    fn supports_routines(&self) -> bool {
+    fn supports_scopes(&self) -> bool {
         true
     }
 }

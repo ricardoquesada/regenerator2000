@@ -44,8 +44,8 @@ fn handle_split_byte_table(
         side_comment,
         line_comment,
         local_label_names,
-        label_routine_names,
-        current_routine_name,
+        label_scope_names,
+        current_scope_name,
     } = args;
 
     let mut count = 0;
@@ -81,8 +81,8 @@ fn handle_split_byte_table(
                 side_comment,
                 line_comment,
                 local_label_names,
-                label_routine_names,
-                current_routine_name: current_routine_name.clone(),
+                label_scope_names,
+                current_scope_name: current_scope_name.clone(),
             },
         );
     }
@@ -113,8 +113,8 @@ fn handle_split_byte_table(
                 ctx.labels,
                 ctx.settings,
                 local_label_names,
-                label_routine_names,
-                current_routine_name.as_deref(),
+                label_scope_names,
+                current_scope_name.as_deref(),
             )
             .unwrap_or_else(|| formatter.format_address(Addr(val)))
         } else {
@@ -218,8 +218,8 @@ pub fn handle_undefined_byte(
         side_comment,
         line_comment,
         local_label_names: _,
-        label_routine_names: _,
-        current_routine_name: _,
+        label_scope_names: _,
+        current_scope_name: _,
     } = args;
     let b = ctx.data[pc];
     (

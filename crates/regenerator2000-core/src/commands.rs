@@ -52,6 +52,14 @@ pub enum Command {
         new_labels: Vec<(Addr, crate::state::Label)>,
         old_labels: BTreeMap<Addr, Vec<crate::state::Label>>,
     },
+    AddScope {
+        start: Addr,
+        end: Addr,
+    },
+    RemoveScope {
+        address: Addr,
+        old_end: Addr,
+    },
     SetBookmark {
         address: Addr,
         new_name: Option<String>,
@@ -177,6 +185,12 @@ impl Command {
                     state.bookmarks.remove(address);
                 }
             }
+            Command::AddScope { start, end } => {
+                state.scopes.insert(*start, *end);
+            }
+            Command::RemoveScope { address, old_end: _ } => {
+                state.scopes.remove(address);
+            }
             Command::Batch(commands) => {
                 for command in commands {
                     command.apply(state);
@@ -300,6 +314,12 @@ impl Command {
                 } else {
                     state.bookmarks.remove(address);
                 }
+            }
+            Command::AddScope { start, end: _ } => {
+                state.scopes.remove(start);
+            }
+            Command::RemoveScope { address, old_end } => {
+                state.scopes.insert(*address, *old_end);
             }
             Command::Batch(commands) => {
                 for command in commands.iter().rev() {

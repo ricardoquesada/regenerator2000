@@ -110,11 +110,9 @@ impl Widget for BlocksView {
                     ui_state.blocks_list_state.select(Some(index));
 
                     let target_addr = match blocks[index] {
-                        crate::state::BlockItem::Block { start, .. } => {
-                            // start is u16 (offset from origin)
-                            Some(start)
-                        }
+                        crate::state::BlockItem::Block { start, .. } => Some(start),
                         crate::state::BlockItem::Splitter(addr) => Some(addr),
+                        crate::state::BlockItem::Scope { start, .. } => Some(start),
                     };
 
                     if let Some(addr) = target_addr {
@@ -153,20 +151,38 @@ impl Widget for BlocksView {
 
         // Filter logic if needed? For now just list provided by AppState
         let block_items = app_state.get_blocks_view_items();
+        let mut current_scope_end: Option<crate::state::types::Addr> = None;
         let items: Vec<ListItem> = block_items
             .iter()
             .map(|item| match item {
+                crate::state::BlockItem::Scope { start, end, name } => {
+                    current_scope_end = Some(*end);
+                    let name_str = name.as_deref().unwrap_or("Unnamed");
+                    let text = format!(" Scope: ${start:04X} - ${end:04X} [{name_str}]");
+                    ListItem::new(Line::from(Span::styled(
+                        text,
+                        Style::default()
+                            .fg(ui_state.theme.label_def)
+                            .add_modifier(ratatui::style::Modifier::BOLD),
+                    )))
+                }
                 crate::state::BlockItem::Block {
                     start,
                     end,
                     type_,
                     collapsed,
                 } => {
+                    if let Some(scope_end) = current_scope_end {
+                        if *start > scope_end {
+                            current_scope_end = None;
+                        }
+                    }
+                    let indent = if current_scope_end.is_some() { "  " } else { "" };
                     let start_addr = *start;
                     let end_addr = *end;
                     let color = match type_ {
                         BlockType::Code => ui_state.theme.block_code_fg,
-                        BlockType::Routine => ui_state.theme.block_routine_fg,
+                        BlockType::Routine => ui_state.theme.block_scope_fg, // Deprecated
                         BlockType::DataByte => ui_state.theme.block_data_byte_fg,
                         BlockType::DataWord => ui_state.theme.block_data_word_fg,
                         BlockType::Address => ui_state.theme.block_address_fg,
@@ -181,12 +197,19 @@ impl Widget for BlocksView {
                     };
 
                     let collapse_char = if *collapsed { "+" } else { " " };
-                    let text =
-                        format!("{collapse_char} ${start_addr:04X} - ${end_addr:04X} [{type_}]");
+                    let text = format!(
+                        "{indent}{collapse_char} ${start_addr:04X} - ${end_addr:04X} [{type_}]"
+                    );
                     ListItem::new(Line::from(Span::styled(text, Style::default().fg(color))))
                 }
                 crate::state::BlockItem::Splitter(addr) => {
-                    let text = format!("  ${addr:04X} -----------------");
+                    if let Some(scope_end) = current_scope_end {
+                        if *addr > scope_end {
+                            current_scope_end = None;
+                        }
+                    }
+                    let indent = if current_scope_end.is_some() { "  " } else { "" };
+                    let text = format!("{indent}  ${addr:04X} -----------------");
                     ListItem::new(Line::from(Span::styled(
                         text,
                         Style::default().fg(ui_state.theme.block_splitter_fg),
@@ -229,11 +252,9 @@ impl Widget for BlocksView {
                 let idx = ui_state.blocks_list_state.selected().unwrap_or(0);
                 if idx < blocks.len() {
                     let target_addr = match blocks[idx] {
-                        crate::state::BlockItem::Block { start, .. } => {
-                            // start is u16 (offset from origin)
-                            Some(start)
-                        }
+                        crate::state::BlockItem::Block { start, .. } => Some(start),
                         crate::state::BlockItem::Splitter(addr) => Some(addr),
+                        crate::state::BlockItem::Scope { start, .. } => Some(start),
                     };
 
                     if let Some(addr) = target_addr {

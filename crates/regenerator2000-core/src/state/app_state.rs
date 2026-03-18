@@ -15,6 +15,11 @@ pub enum BlockItem {
         collapsed: bool,
     },
     Splitter(Addr),
+    Scope {
+        start: Addr,
+        end: Addr,
+        name: Option<String>,
+    },
 }
 
 pub struct AppState {
@@ -37,6 +42,7 @@ pub struct AppState {
     pub immediate_value_formats: BTreeMap<Addr, ImmediateFormat>,
     pub cross_refs: BTreeMap<Addr, Vec<Addr>>,
     pub bookmarks: BTreeMap<Addr, String>,
+    pub scopes: BTreeMap<Addr, Addr>, // start -> end
 
     pub system_config: SystemConfig,
 
@@ -92,6 +98,7 @@ impl AppState {
             immediate_value_formats: BTreeMap::new(),
             cross_refs: BTreeMap::new(),
             bookmarks: BTreeMap::new(),
+            scopes: BTreeMap::new(),
             system_config: default_config,
             undo_stack: crate::commands::UndoStack::new(),
             last_saved_pointer: 0,

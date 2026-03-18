@@ -35,6 +35,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         cross_refs: &state.cross_refs,
         collapsed_blocks: &[], // Ignore collapsed_blocks
         splitters: &state.splitters,
+        scopes: &state.scopes,
     };
     let full_disassembly = state.disassembler.disassemble_ctx(&ctx);
 
@@ -599,6 +600,7 @@ fn clone_state_for_verify(state: &crate::state::AppState) -> crate::state::AppSt
     clone.cross_refs = state.cross_refs.clone();
     clone.collapsed_blocks = state.collapsed_blocks.clone();
     clone.splitters = state.splitters.clone();
+    clone.scopes = state.scopes.clone();
     clone.disassembly = state.disassembly.clone();
     clone
 }

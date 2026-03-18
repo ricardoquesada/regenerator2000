@@ -80,6 +80,8 @@ pub struct ProjectState {
     pub splitters: BTreeSet<Addr>,
     #[serde(default)]
     pub blocks_view_cursor: Option<usize>,
+    #[serde(default)]
+    pub scopes: BTreeMap<Addr, Addr>,
 }
 
 #[derive(Debug)]

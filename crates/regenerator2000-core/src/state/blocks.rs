@@ -217,6 +217,41 @@ impl AppState {
             }
         }
 
+        // Add Scopes
+        for (start_addr, end_addr) in &self.scopes {
+            let name = self.labels.get(start_addr).and_then(|l| l.first().map(|l| l.name.clone()));
+            items.push(BlockItem::Scope {
+                start: *start_addr,
+                end: *end_addr,
+                name,
+            });
+        }
+
+        // Sort items by start address
+        items.sort_by(|a, b| {
+            let addr_a = match a {
+                BlockItem::Block { start, .. } => *start,
+                BlockItem::Splitter(addr) => *addr,
+                BlockItem::Scope { start, .. } => *start,
+            };
+            let addr_b = match b {
+                BlockItem::Block { start, .. } => *start,
+                BlockItem::Splitter(addr) => *addr,
+                BlockItem::Scope { start, .. } => *start,
+            };
+
+            if addr_a != addr_b {
+                addr_a.cmp(&addr_b)
+            } else {
+                let type_rank = |item: &BlockItem| match item {
+                    BlockItem::Scope { .. } => 0,
+                    BlockItem::Splitter(_) => 1,
+                    BlockItem::Block { .. } => 2,
+                };
+                type_rank(a).cmp(&type_rank(b))
+            }
+        });
+
         items
     }
 
@@ -236,6 +271,15 @@ impl AppState {
                 }
             }
             BlockItem::Splitter(addr) => *addr == address,
+            BlockItem::Scope { start, end, .. } => {
+                let s = *start;
+                let e = *end;
+                if s <= e {
+                    address >= s && address <= e
+                } else {
+                    address >= s || address <= e
+                }
+            }
         })
     }
 

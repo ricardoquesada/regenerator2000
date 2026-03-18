@@ -12,7 +12,7 @@ pub enum AppAction {
     Undo,
     Redo,
     Code,
-    Routine,
+    Scope,
     Byte,
     Word,
     Address,

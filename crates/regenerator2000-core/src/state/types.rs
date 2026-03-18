@@ -305,7 +305,7 @@ impl Assembler {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BlockType {
     Code,
-    Routine,
+    Routine, // Deprecated: For project migration only
     DataByte,
     DataWord,
     Address,

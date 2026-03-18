@@ -270,8 +270,8 @@ impl Core {
             AppAction::NavigateToAddress(target_addr) => {
                 self.handle_navigate_to_address(target_addr, &mut events);
             }
-            AppAction::Routine => {
-                self.apply_block_type(crate::state::BlockType::Routine, &mut events)
+            AppAction::Scope => {
+                self.handle_add_scope(&mut events);
             }
             AppAction::Code => self.apply_block_type(crate::state::BlockType::Code, &mut events),
             AppAction::Byte => {
@@ -883,6 +883,7 @@ impl Core {
                             match blocks[idx] {
                                 crate::state::BlockItem::Block { start, .. } => Some(start),
                                 crate::state::BlockItem::Splitter(addr) => Some(addr),
+                                crate::state::BlockItem::Scope { start, .. } => Some(start),
                             }
                         } else {
                             None
@@ -1219,6 +1220,45 @@ impl Core {
             }
             events.push(CoreEvent::StateChanged);
             events.push(CoreEvent::ViewChanged);
+        }
+    }
+
+    fn handle_add_scope(&mut self, events: &mut Vec<CoreEvent>) {
+        if self.view.active_pane == crate::view_state::ActivePane::Blocks {
+            events.push(CoreEvent::StatusMessage("Adding Scope only supported in Disassembly view".to_string()));
+            return;
+        }
+
+        if let Some(start_index) = self.view.selection_start {
+            let start = start_index.min(self.view.cursor_index);
+            let end = start_index.max(self.view.cursor_index);
+
+            let start_line = self.state.disassembly.get(start);
+            let end_line = self.state.disassembly.get(end);
+
+            if let (Some(sl), Some(el)) = (start_line, end_line) {
+                let start_addr = sl.address;
+                let end_addr = el.address.wrapping_add(el.bytes.len() as u16).wrapping_sub(1);
+
+                let command = crate::commands::Command::AddScope {
+                    start: start_addr,
+                    end: end_addr,
+                };
+                command.apply(&mut self.state);
+                self.state.push_command(command);
+
+                self.view.selection_start = None;
+                self.view.is_visual_mode = false;
+
+                events.push(CoreEvent::StatusMessage(format!(
+                    "Added Scope from ${:04X} to ${:04X}",
+                    start_addr.0, end_addr.0
+                )));
+                events.push(CoreEvent::StateChanged);
+                events.push(CoreEvent::ViewChanged);
+            }
+        } else {
+             events.push(CoreEvent::StatusMessage("Please select a range to create a Scope".to_string()));
         }
     }
 
