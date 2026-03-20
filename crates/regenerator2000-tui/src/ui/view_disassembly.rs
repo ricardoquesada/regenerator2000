@@ -1384,11 +1384,11 @@ impl Widget for DisassemblyView {
             let mut is_scope_end = false;
             let mut is_in_scope = false;
 
-            if let Some(pend_str) = formatter.format_scope_end() {
-                if line.mnemonic == pend_str {
-                    is_scope_end = true;
-                    is_in_scope = true;
-                }
+            if let Some(pend_str) = formatter.format_scope_end()
+                && line.mnemonic == pend_str
+            {
+                is_scope_end = true;
+                is_in_scope = true;
             }
 
             if !is_scope_end {

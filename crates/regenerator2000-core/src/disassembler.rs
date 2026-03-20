@@ -926,7 +926,6 @@ impl Disassembler {
         let block_types = ctx.block_types;
         let labels = ctx.labels;
         let origin = ctx.origin;
-        let splitters = ctx.splitters;
         let settings = ctx.settings;
         let user_line_comments = ctx.user_line_comments;
         let address = origin.wrapping_add(pc as u16);
@@ -1002,7 +1001,6 @@ impl Disassembler {
         let block_types = ctx.block_types;
         let labels = ctx.labels;
         let origin = ctx.origin;
-        let splitters = ctx.splitters;
         let settings = ctx.settings;
         let user_line_comments = ctx.user_line_comments;
         let mut bytes = Vec::new();
@@ -1105,7 +1103,6 @@ impl Disassembler {
         let block_types = ctx.block_types;
         let labels = ctx.labels;
         let origin = ctx.origin;
-        let splitters = ctx.splitters;
         let settings = ctx.settings;
         let user_line_comments = ctx.user_line_comments;
         let address = origin.wrapping_add(pc as u16);
@@ -1298,7 +1295,7 @@ impl Disassembler {
         let labels = ctx.labels;
         let origin = ctx.origin;
         let settings = ctx.settings;
-        let splitters = ctx.splitters;
+        
         let user_line_comments = ctx.user_line_comments;
 
         let mut fragments = Vec::new();
@@ -1445,7 +1442,7 @@ impl Disassembler {
         let labels = ctx.labels;
         let origin = ctx.origin;
         let settings = ctx.settings;
-        let splitters = ctx.splitters;
+        
         let user_line_comments = ctx.user_line_comments;
 
         let mut fragments = Vec::new();
