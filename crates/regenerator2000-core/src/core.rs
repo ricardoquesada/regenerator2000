@@ -1273,7 +1273,7 @@ impl Core {
             let has_label = state.labels.get(&start_addr).is_some_and(|l| !l.is_empty());
             if !has_label {
                 let label = crate::state::Label {
-                    name: format!("j{:04X}", start_addr.0),
+                    name: format!("scope_{:04X}", start_addr.0),
                     kind: crate::state::LabelKind::User,
                     label_type: crate::state::LabelType::UserDefined,
                 };
@@ -1992,5 +1992,39 @@ impl Core {
 impl Default for Core {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::Addr;
+    use crate::view_state::ActivePane;
+
+    #[test]
+    fn test_handle_add_scope_default_label() {
+        let mut core = Core::new();
+        let origin = Addr(0x1000);
+        let code_data = vec![0xEA, 0xEA, 0xEA, 0xEA]; // A few NOPs
+
+        // Use state.load_binary which handles setup
+        core.state.load_binary(origin, code_data).unwrap();
+
+        core.view.active_pane = ActivePane::Disassembly;
+        core.view.cursor_index = 0; // Pointing to first instruction
+
+        core.apply_action(AppAction::Scope);
+
+        // Origin doesn't have a label by default, so it should generate "scope_1000"
+        let label = core
+            .state
+            .labels
+            .get(&origin)
+            .expect("Expected label at start of scope");
+        let first_label = label.first().expect("Expected at least one label");
+
+        assert_eq!(first_label.name, format!("scope_{:04X}", origin.0));
+        assert_eq!(first_label.kind, crate::state::LabelKind::User);
+        assert_eq!(first_label.label_type, crate::state::LabelType::UserDefined);
     }
 }
