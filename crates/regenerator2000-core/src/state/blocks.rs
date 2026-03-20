@@ -50,7 +50,7 @@ impl AppState {
         new_type: BlockType,
         selection_start: Option<usize>,
         cursor_index: usize,
-    ) {
+    ) -> Option<crate::commands::Command> {
         let range_opt = if let Some(selection_start) = selection_start {
             let (s, e) = if selection_start < cursor_index {
                 (selection_start, cursor_index)
@@ -129,11 +129,11 @@ impl AppState {
                 };
 
                 command.apply(self);
-                self.push_command(command);
-
                 self.disassemble();
+                return Some(command);
             }
         }
+        None
     }
 
     pub fn toggle_splitter(&mut self, address: Addr) {

@@ -105,7 +105,8 @@ impl Core {
                     .get(self.view.cursor_index)
                     .map(|l| l.address);
 
-                let msg = self.state.perform_analysis();
+                let (cmd, msg) = self.state.perform_analysis();
+                self.state.push_command(cmd);
 
                 if let Some(addr) = current_addr {
                     if let Some(idx) = self.state.get_line_index_containing_address(addr) {
@@ -1151,11 +1152,17 @@ impl Core {
                     )));
                     return;
                 }
-                self.state.set_block_type_region(
+                let cmd1 = self.state.set_block_type_region(
                     block_type,
                     Some(start.offset_from(self.state.origin)),
                     end.offset_from(self.state.origin),
                 );
+                let (cmd2, _) = self.state.perform_analysis();
+                if let Some(cmd) = cmd1 {
+                    self.state.push_command(crate::commands::Command::Batch(vec![cmd, cmd2]));
+                } else {
+                    self.state.push_command(cmd2);
+                }
                 events.push(CoreEvent::StatusMessage(format!(
                     "Set block type to {block_type}"
                 )));
@@ -1181,13 +1188,20 @@ impl Core {
                 crate::state::Addr::ZERO
             };
 
-            self.state
+            let cmd1 = self.state
                 .set_block_type_region(block_type, Some(start), end);
             self.view.selection_start = None;
             self.view.is_visual_mode = false;
 
             if let Some(idx) = self.state.get_line_index_containing_address(target_address) {
                 self.view.cursor_index = idx;
+            }
+
+            let (cmd2, _) = self.state.perform_analysis();
+            if let Some(cmd) = cmd1 {
+                self.state.push_command(crate::commands::Command::Batch(vec![cmd, cmd2]));
+            } else {
+                self.state.push_command(cmd2);
             }
 
             events.push(CoreEvent::StatusMessage(format!(
@@ -1210,11 +1224,19 @@ impl Core {
                 .get(self.view.cursor_index)
                 .map(|l| l.address);
 
-            self.state.set_block_type_region(
+            let cmd1 = self.state.set_block_type_region(
                 block_type,
                 None, // selection_start is None
                 self.view.cursor_index,
             );
+            
+            let (cmd2, _) = self.state.perform_analysis();
+            if let Some(cmd) = cmd1 {
+                self.state.push_command(crate::commands::Command::Batch(vec![cmd, cmd2]));
+            } else {
+                self.state.push_command(cmd2);
+            }
+
             events.push(CoreEvent::StatusMessage(format!(
                 "Set block type to {block_type}"
             )));
@@ -1288,16 +1310,18 @@ impl Core {
 
                 let command = process_scope(&mut self.state, start_addr, end_addr);
                 command.apply(&mut self.state);
-                self.state.push_command(command);
 
                 self.view.selection_start = None;
                 self.view.is_visual_mode = false;
+
+                let (analysis_cmd, msg) = self.state.perform_analysis();
+                self.state.push_command(crate::commands::Command::Batch(vec![command, analysis_cmd]));
 
                 events.push(CoreEvent::StatusMessage(format!(
                     "Added Scope from ${:04X} to ${:04X}. {}",
                     start_addr.0,
                     end_addr.0,
-                    self.state.perform_analysis()
+                    msg
                 )));
                 events.push(CoreEvent::StateChanged);
                 events.push(CoreEvent::ViewChanged);
@@ -1308,13 +1332,15 @@ impl Core {
 
             let command = process_scope(&mut self.state, start_addr, end_addr);
             command.apply(&mut self.state);
-            self.state.push_command(command);
+
+            let (analysis_cmd, msg) = self.state.perform_analysis();
+            self.state.push_command(crate::commands::Command::Batch(vec![command, analysis_cmd]));
 
             events.push(CoreEvent::StatusMessage(format!(
                 "Added Scope from ${:04X} to ${:04X}. {}",
                 start_addr.0,
                 end_addr.0,
-                self.state.perform_analysis()
+                msg
             )));
             events.push(CoreEvent::StateChanged);
             events.push(CoreEvent::ViewChanged);
@@ -1379,8 +1405,10 @@ impl Core {
                     old_end: Some(end),
                 };
                 command.apply(&mut self.state);
-                self.state.push_command(command);
-                let msg = self.state.perform_analysis();
+                
+                let (analysis_cmd, msg) = self.state.perform_analysis();
+                self.state.push_command(crate::commands::Command::Batch(vec![command, analysis_cmd]));
+                
                 events.push(CoreEvent::StatusMessage(format!(
                     "Resized scope bounds to ${:04X}. {}",
                     new_end.0, msg
@@ -1416,8 +1444,10 @@ impl Core {
                     old_end,
                 };
                 command.apply(&mut self.state);
-                self.state.push_command(command);
-                let msg = self.state.perform_analysis();
+                
+                let (analysis_cmd, msg) = self.state.perform_analysis();
+                self.state.push_command(crate::commands::Command::Batch(vec![command, analysis_cmd]));
+                
                 events.push(CoreEvent::StatusMessage(format!("Removed scope. {}", msg)));
                 self.state.disassemble();
                 events.push(CoreEvent::StateChanged);

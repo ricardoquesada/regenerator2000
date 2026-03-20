@@ -151,7 +151,7 @@ impl AppState {
         Disassembler::create_formatter(self.settings.assembler)
     }
 
-    pub fn perform_analysis(&mut self) -> String {
+    pub fn perform_analysis(&mut self) -> (crate::commands::Command, String) {
         let result = crate::analyzer::analyze(self);
 
         // Capture old labels (more idiomatic with iterator)
@@ -171,9 +171,8 @@ impl AppState {
             old_cross_refs,
         };
         command.apply(self);
-        self.push_command(command);
         self.disassemble();
-        "Analysis Complete".to_string()
+        (command, "Analysis Complete".to_string())
     }
 
     pub fn undo_last_command(&mut self) -> String {
