@@ -24,10 +24,9 @@ impl AppState {
         let mut start = index;
         let mut end = index;
 
-        // Search backward
         while start > 0
             && self.block_types[start - 1] == target_type
-            && !self.splitters.contains(&origin.wrapping_add(start as u16))
+            && !self.is_virtual_splitter(origin.wrapping_add(start as u16))
         {
             start -= 1;
         }
@@ -35,9 +34,7 @@ impl AppState {
         // Search forward
         while end < self.block_types.len() - 1
             && self.block_types[end + 1] == target_type
-            && !self
-                .splitters
-                .contains(&origin.wrapping_add((end + 1) as u16))
+            && !self.is_virtual_splitter(origin.wrapping_add((end + 1) as u16))
         {
             end += 1;
         }
@@ -161,12 +158,14 @@ impl AppState {
 
             let current_end_idx = block.end;
 
-            // Filter splitters relevant to this block range
-            let relevant_splitters: Vec<Addr> = self
-                .splitters
-                .range(block_start..=block_end)
-                .copied()
-                .collect();
+            // Find all virtual splitters in this block range
+            let mut relevant_splitters = Vec::new();
+            for offset in block_start.0..=block_end.0 {
+                let addr = Addr(offset);
+                if self.is_virtual_splitter(addr) {
+                    relevant_splitters.push(addr);
+                }
+            }
 
             let origin = self.origin;
             let mut sub_block_start = block.start;
@@ -190,8 +189,10 @@ impl AppState {
                     });
                 }
 
-                // Emit Splitter
-                items.push(BlockItem::Splitter(splitter_addr));
+                // Emit Splitter only if it's a manual splitter (not a virtual one)
+                if self.splitters.contains(&splitter_addr) {
+                    items.push(BlockItem::Splitter(splitter_addr));
+                }
 
                 sub_block_start = splitter_idx;
             }

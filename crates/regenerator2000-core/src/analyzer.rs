@@ -526,8 +526,8 @@ pub fn guess_scope_end(state: &AppState, start: Addr) -> Addr {
             let line = &state.disassembly[i];
             let addr = line.address;
 
-            // Stop at Splitters or another Scope Start
-            if i > idx && (state.splitters.contains(&addr) || state.scopes.contains_key(&addr)) {
+            // Stop at Splitters or another Scope Start/End BOUNDARY
+            if i > idx && state.is_virtual_splitter(addr) {
                 let prev_idx = i - 1;
                 let prev_line = &state.disassembly[prev_idx];
 

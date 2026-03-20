@@ -55,7 +55,7 @@ fn handle_split_byte_table(
 
         if count > 0 {
             let current_addr = ctx.origin.wrapping_add(current_pc as u16);
-            if ctx.splitters.contains(&current_addr) {
+            if ctx.is_virtual_splitter(current_addr) {
                 break;
             }
             if ctx.user_line_comments.contains_key(&current_addr) {

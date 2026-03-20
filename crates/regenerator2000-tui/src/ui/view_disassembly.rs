@@ -1216,6 +1216,8 @@ impl Widget for DisassemblyView {
                 }
             }
 
+            let prefix_parts_count = parts.len();
+
             // 3. Instruction
             let show_address = !line.bytes.is_empty() || line.is_collapsed || line.label.is_some();
             let address_str = if show_address {
@@ -1382,28 +1384,59 @@ impl Widget for DisassemblyView {
             let mut is_scope_end = false;
             let mut is_in_scope = false;
 
-            for (&start, &end) in &app_state.scopes {
-                if line.address == start {
-                    is_scope_start = true;
-                    is_in_scope = true;
-                    break;
-                } else if line.address == end {
+            if let Some(pend_str) = formatter.format_scope_end() {
+                if line.mnemonic == pend_str {
                     is_scope_end = true;
                     is_in_scope = true;
-                    break;
-                } else if line.address > start && line.address < end {
-                    is_in_scope = true;
-                    break;
                 }
             }
 
-            let scope_style = base_style.fg(ui_state.theme.comment);
+            if !is_scope_end {
+                for (&start, &end) in &app_state.scopes {
+                    if line.address == start
+                        && current_inst > 0
+                        && app_state.disassembly[current_inst - 1].address == start
+                    {
+                        is_in_scope = true;
+                        break;
+                    } else if line.address == start {
+                        is_scope_start = true;
+                        is_in_scope = true;
+                        break;
+                    } else if line.address == end
+                        && current_inst + 1 < app_state.disassembly.len()
+                        && app_state.disassembly[current_inst + 1].address == end
+                    {
+                        is_in_scope = true;
+                        break;
+                    } else if line.address == end {
+                        if formatter.format_scope_end().is_some() {
+                            is_in_scope = true;
+                        } else {
+                            is_scope_end = true;
+                            is_in_scope = true;
+                        }
+                        break;
+                    } else if line.address > start && line.address < end {
+                        is_in_scope = true;
+                        break;
+                    }
+                }
+            }
+
+            let scope_style = base_style.fg(ui_state.theme.block_scope_fg);
             let part_count = parts.len();
 
             // --- Emit processed parts ---
             for (idx, part) in parts.into_iter().enumerate() {
                 let current_scope_char = if is_scope_start {
-                    if idx == 0 { "┌─" } else { "│ " }
+                    if idx < prefix_parts_count {
+                        "  "
+                    } else if idx == prefix_parts_count {
+                        "┌─"
+                    } else {
+                        "│ "
+                    }
                 } else if is_scope_end {
                     if idx == part_count - 1 {
                         "└─"

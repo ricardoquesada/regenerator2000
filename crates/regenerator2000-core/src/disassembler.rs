@@ -371,7 +371,7 @@ impl Disassembler {
             }
 
             // Render splitter if exists at this address
-            if ctx.splitters.contains(&address) {
+            if ctx.is_virtual_splitter(address) {
                 lines.push(DisassemblyLine {
                     address,
                     bytes: vec![],
@@ -944,7 +944,7 @@ impl Disassembler {
             }
 
             // Stop if splitter exists (except start)
-            if count > 0 && splitters.contains(&current_address) {
+            if count > 0 && ctx.is_virtual_splitter(current_address) {
                 break;
             }
 
@@ -1022,13 +1022,13 @@ impl Disassembler {
 
             if count > 0 {
                 // Check if splitter exists at start of this word
-                if splitters.contains(&current_address) {
+                if ctx.is_virtual_splitter(current_address) {
                     break;
                 }
             }
 
             // Check if splitter exists in the middle of this word
-            if splitters.contains(&next_address) {
+            if ctx.is_virtual_splitter(next_address) {
                 break;
             }
 
@@ -1123,7 +1123,7 @@ impl Disassembler {
             }
 
             // Stop if splitter exists (except start)
-            if count > 0 && splitters.contains(&current_address) {
+            if count > 0 && ctx.is_virtual_splitter(current_address) {
                 break;
             }
 
@@ -1313,7 +1313,7 @@ impl Disassembler {
                 break;
             }
 
-            if count > 0 && splitters.contains(&current_address) {
+            if count > 0 && ctx.is_virtual_splitter(current_address) {
                 break;
             }
 
@@ -1460,7 +1460,7 @@ impl Disassembler {
                 break;
             }
 
-            if count > 0 && splitters.contains(&current_address) {
+            if count > 0 && ctx.is_virtual_splitter(current_address) {
                 break;
             }
 

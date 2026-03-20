@@ -67,4 +67,20 @@ impl<'a> DisassemblyContext<'a> {
             scopes,
         }
     }
+
+    #[must_use]
+    pub fn is_virtual_splitter(&self, addr: Addr) -> bool {
+        if self.splitters.contains(&addr) {
+            return true;
+        }
+        if self.scopes.contains_key(&addr) {
+            return true;
+        }
+        for &end in self.scopes.values() {
+            if end.wrapping_add(1) == addr {
+                return true;
+            }
+        }
+        false
+    }
 }

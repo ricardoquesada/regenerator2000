@@ -214,6 +214,22 @@ impl AppState {
         self.undo_stack.get_pointer() != self.last_saved_pointer
     }
 
+    #[must_use]
+    pub fn is_virtual_splitter(&self, addr: Addr) -> bool {
+        if self.splitters.contains(&addr) {
+            return true;
+        }
+        if self.scopes.contains_key(&addr) {
+            return true;
+        }
+        for &end in self.scopes.values() {
+            if end.wrapping_add(1) == addr {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn push_command(&mut self, command: crate::commands::Command) {
         if self.undo_stack.get_pointer() < self.last_saved_pointer {
             self.last_saved_pointer = usize::MAX;

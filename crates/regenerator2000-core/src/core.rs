@@ -1264,8 +1264,10 @@ impl Core {
                 self.view.is_visual_mode = false;
 
                 events.push(CoreEvent::StatusMessage(format!(
-                    "Added Scope from ${:04X} to ${:04X}",
-                    start_addr.0, end_addr.0
+                    "Added Scope from ${:04X} to ${:04X}. {}",
+                    start_addr.0,
+                    end_addr.0,
+                    self.state.perform_analysis()
                 )));
                 events.push(CoreEvent::StateChanged);
                 events.push(CoreEvent::ViewChanged);
@@ -1284,8 +1286,10 @@ impl Core {
             self.state.push_command(command);
 
             events.push(CoreEvent::StatusMessage(format!(
-                "Added Scope from ${:04X} to ${:04X}",
-                start_addr.0, end_addr.0
+                "Added Scope from ${:04X} to ${:04X}. {}",
+                start_addr.0,
+                end_addr.0,
+                self.state.perform_analysis()
             )));
             events.push(CoreEvent::StateChanged);
             events.push(CoreEvent::ViewChanged);
@@ -1351,9 +1355,10 @@ impl Core {
                 };
                 command.apply(&mut self.state);
                 self.state.push_command(command);
+                let msg = self.state.perform_analysis();
                 events.push(CoreEvent::StatusMessage(format!(
-                    "Resized scope bounds to ${:04X}",
-                    new_end.0
+                    "Resized scope bounds to ${:04X}. {}",
+                    new_end.0, msg
                 )));
                 self.state.disassemble();
                 events.push(CoreEvent::StateChanged);
@@ -1387,7 +1392,8 @@ impl Core {
                 };
                 command.apply(&mut self.state);
                 self.state.push_command(command);
-                events.push(CoreEvent::StatusMessage("Removed scope".to_string()));
+                let msg = self.state.perform_analysis();
+                events.push(CoreEvent::StatusMessage(format!("Removed scope. {}", msg)));
                 self.state.disassemble();
                 events.push(CoreEvent::StateChanged);
                 events.push(CoreEvent::ViewChanged);

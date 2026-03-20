@@ -67,31 +67,32 @@ fn test_routine_block_local_symbols_64tass() {
     // 8:       bne s1007 (1009)
     // 9:       rts      (100B)
 
-    // Check entry point is in .proc
-    assert_eq!(disasm[0].label, Some("s1000".to_string()));
-    assert_eq!(disasm[0].mnemonic, ".proc");
+    // Check entry point is in .proc (now index 1 due to virtual splitter at start)
+    assert_eq!(disasm[0].mnemonic, "{splitter}");
+    assert_eq!(disasm[1].label, Some("s1000".to_string()));
+    assert_eq!(disasm[1].mnemonic, ".proc");
 
     // Check instruction has NO label (suppressed)
-    assert_eq!(disasm[1].label, None);
+    assert_eq!(disasm[2].label, None);
 
-    // Check local labels (index shifted by 1)
-    assert_eq!(disasm[2].label, Some("_l00".to_string()));
-    assert_eq!(disasm[3].label, Some("_l01".to_string()));
+    // Check local labels
+    assert_eq!(disasm[3].label, Some("_l00".to_string()));
+    assert_eq!(disasm[4].label, Some("_l01".to_string()));
 
     // Check operands use local labels
-    assert_eq!(disasm[2].operand, "_l00");
-    assert_eq!(disasm[3].operand, "_l01");
+    assert_eq!(disasm[3].operand, "_l00");
+    assert_eq!(disasm[4].operand, "_l01");
 
     // Check .pend
-    assert_eq!(disasm[5].mnemonic, ".pend");
+    assert_eq!(disasm[6].mnemonic, ".pend");
 
     // Check splitter
     assert!(state.splitters.contains(&Addr(0x1007)));
-    assert_eq!(disasm[6].mnemonic, "{splitter}");
+    assert_eq!(disasm[7].mnemonic, "{splitter}");
 
     // Check second function (not a routine)
-    assert_eq!(disasm[7].label, Some("s1007".to_string()));
-    assert_eq!(disasm[8].operand, "s1007");
+    assert_eq!(disasm[8].label, Some("s1007".to_string()));
+    assert_eq!(disasm[9].operand, "s1007");
 }
 
 #[test]
@@ -143,12 +144,13 @@ fn test_routine_block_local_referenced_from_outside() {
     // 5:       --- splitter --- (1005)
     // 6:       jmp b1002 (1005)
 
-    assert_eq!(disasm[0].label, Some("s1000".to_string()));
-    assert_eq!(disasm[2].label, Some("b1002".to_string()));
-    assert_eq!(disasm[2].operand, "b1002");
-    assert_eq!(disasm[4].mnemonic, ".pend");
-    assert_eq!(disasm[5].mnemonic, "{splitter}");
-    assert_eq!(disasm[6].operand, "s1000.b1002");
+    assert_eq!(disasm[0].mnemonic, "{splitter}");
+    assert_eq!(disasm[1].label, Some("s1000".to_string()));
+    assert_eq!(disasm[3].label, Some("b1002".to_string()));
+    assert_eq!(disasm[3].operand, "b1002");
+    assert_eq!(disasm[5].mnemonic, ".pend");
+    assert_eq!(disasm[6].mnemonic, "{splitter}");
+    assert_eq!(disasm[7].operand, "s1000.b1002");
 }
 
 #[test]
@@ -241,7 +243,7 @@ fn test_routine_split_by_bytes() {
     let line_1000_idx = state
         .disassembly
         .iter()
-        .position(|l| l.address == Addr(0x1000))
+        .position(|l| l.address == Addr(0x1000) && l.mnemonic == ".proc")
         .unwrap();
     let proc_line_1000 = &state.disassembly[line_1000_idx];
     assert_eq!(proc_line_1000.mnemonic, ".proc");
