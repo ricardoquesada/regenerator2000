@@ -310,11 +310,11 @@ impl Formatter for TassFormatter {
         name: Option<&str>,
     ) -> Option<(Option<String>, String, Option<String>)> {
         let label = name.map(|n| n.to_string());
-        Some((label, ".proc".to_string(), None))
+        Some((label, ".block".to_string(), None))
     }
 
     fn format_scope_end(&self) -> Option<String> {
-        Some(".pend".to_string())
+        Some(".bend".to_string())
     }
 
     fn supports_scopes(&self) -> bool {

@@ -70,7 +70,7 @@ fn test_routine_block_local_symbols_64tass() {
     // Check entry point is in .proc (now index 1 due to virtual splitter at start)
     assert_eq!(disasm[0].mnemonic, "{splitter}");
     assert_eq!(disasm[1].label, Some("s1000".to_string()));
-    assert_eq!(disasm[1].mnemonic, ".proc");
+    assert_eq!(disasm[1].mnemonic, ".block");
 
     // Check instruction has NO label (suppressed)
     assert_eq!(disasm[2].label, None);
@@ -84,7 +84,7 @@ fn test_routine_block_local_symbols_64tass() {
     assert_eq!(disasm[4].operand, "_l01");
 
     // Check .pend
-    assert_eq!(disasm[6].mnemonic, ".pend");
+    assert_eq!(disasm[6].mnemonic, ".bend");
 
     // Check splitter
     assert!(state.splitters.contains(&Addr(0x1007)));
@@ -148,7 +148,7 @@ fn test_routine_block_local_referenced_from_outside() {
     assert_eq!(disasm[1].label, Some("s1000".to_string()));
     assert_eq!(disasm[3].label, Some("b1002".to_string()));
     assert_eq!(disasm[3].operand, "b1002");
-    assert_eq!(disasm[5].mnemonic, ".pend");
+    assert_eq!(disasm[5].mnemonic, ".bend");
     assert_eq!(disasm[6].mnemonic, "{splitter}");
     assert_eq!(disasm[7].operand, "s1000.b1002");
 }
@@ -243,10 +243,10 @@ fn test_routine_split_by_bytes() {
     let line_1000_idx = state
         .disassembly
         .iter()
-        .position(|l| l.address == Addr(0x1000) && l.mnemonic == ".proc")
+        .position(|l| l.address == Addr(0x1000) && l.mnemonic == ".block")
         .unwrap();
     let proc_line_1000 = &state.disassembly[line_1000_idx];
-    assert_eq!(proc_line_1000.mnemonic, ".proc");
+    assert_eq!(proc_line_1000.mnemonic, ".block");
 
     // Check if $1055 is local
     let line_1055 = state
