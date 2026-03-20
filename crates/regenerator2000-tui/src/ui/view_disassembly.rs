@@ -1497,7 +1497,6 @@ impl Widget for DisassemblyView {
         f.render_widget(list, list_area);
 
         // Update persistent state
-        ui_state.disassembly_area = list_area;
         ui_state.scroll_index = scroll_inst_idx;
         ui_state.scroll_sub_index = scroll_sub_idx;
         ui_state.disassembly_viewport_height = visible_height;
