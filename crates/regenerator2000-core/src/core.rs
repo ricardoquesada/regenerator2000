@@ -1237,9 +1237,12 @@ impl Core {
             return;
         }
 
-        let process_scope = |state: &mut crate::state::AppState, start_addr: crate::state::Addr, end_addr: crate::state::Addr| -> crate::commands::Command {
+        let process_scope = |state: &mut crate::state::AppState,
+                             start_addr: crate::state::Addr,
+                             end_addr: crate::state::Addr|
+         -> crate::commands::Command {
             let mut commands = Vec::new();
-            
+
             // Generate a default label for the scope if one does not exist
             let has_label = state.labels.get(&start_addr).is_some_and(|l| !l.is_empty());
             if !has_label {
