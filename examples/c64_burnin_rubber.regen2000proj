@@ -2090,14 +2090,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 6714,
+  "cursor_address": 6415,
   "hex_dump_cursor_address": 4912,
   "sprites_cursor_address": 16576,
   "charset_cursor_address": 17152,
   "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 0,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
@@ -2105,8 +2105,9 @@
     17975,
     18683
   ],
-  "blocks_view_cursor": 32,
+  "blocks_view_cursor": 29,
   "scopes": {
+    "6656": 6713,
     "6714": 6910
   }
 }
