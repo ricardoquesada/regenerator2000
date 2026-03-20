@@ -1237,6 +1237,38 @@ impl Core {
             return;
         }
 
+        let process_scope = |state: &mut crate::state::AppState, start_addr: crate::state::Addr, end_addr: crate::state::Addr| -> crate::commands::Command {
+            let mut commands = Vec::new();
+            
+            // Generate a default label for the scope if one does not exist
+            let has_label = state.labels.get(&start_addr).is_some_and(|l| !l.is_empty());
+            if !has_label {
+                let label = crate::state::Label {
+                    name: format!("j{:04X}", start_addr.0),
+                    kind: crate::state::LabelKind::User,
+                    label_type: crate::state::LabelType::UserDefined,
+                };
+                commands.push(crate::commands::Command::SetLabel {
+                    address: start_addr,
+                    new_label: Some(vec![label]),
+                    old_label: None,
+                });
+            }
+
+            let old_end = state.scopes.get(&start_addr).copied();
+            commands.push(crate::commands::Command::AddScope {
+                start: start_addr,
+                end: end_addr,
+                old_end,
+            });
+
+            if commands.len() == 1 {
+                commands.remove(0)
+            } else {
+                crate::commands::Command::Batch(commands)
+            }
+        };
+
         if let Some(start_index) = self.view.selection_start {
             let start = start_index.min(self.view.cursor_index);
             let end = start_index.max(self.view.cursor_index);
@@ -1251,12 +1283,7 @@ impl Core {
                     .wrapping_add(el.bytes.len() as u16)
                     .wrapping_sub(1);
 
-                let old_end = self.state.scopes.get(&start_addr).copied();
-                let command = crate::commands::Command::AddScope {
-                    start: start_addr,
-                    end: end_addr,
-                    old_end,
-                };
+                let command = process_scope(&mut self.state, start_addr, end_addr);
                 command.apply(&mut self.state);
                 self.state.push_command(command);
 
@@ -1276,12 +1303,7 @@ impl Core {
             let start_addr = line.address;
             let end_addr = crate::analyzer::guess_scope_end(&self.state, start_addr);
 
-            let old_end = self.state.scopes.get(&start_addr).copied();
-            let command = crate::commands::Command::AddScope {
-                start: start_addr,
-                end: end_addr,
-                old_end,
-            };
+            let command = process_scope(&mut self.state, start_addr, end_addr);
             command.apply(&mut self.state);
             self.state.push_command(command);
 
