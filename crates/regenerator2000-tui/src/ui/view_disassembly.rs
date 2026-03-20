@@ -1625,7 +1625,9 @@ impl Widget for DisassemblyView {
 
             KeyCode::Char('l') if key.modifiers.is_empty() => action_set_label(app_state, ui_state),
             KeyCode::Char('c') if key.modifiers.is_empty() => WidgetResult::Action(AppAction::Code),
-            KeyCode::Char('C') if key.modifiers == KeyModifiers::SHIFT => {
+            KeyCode::Char('{')
+                if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
+            {
                 WidgetResult::Action(AppAction::Scope)
             }
             KeyCode::Char('b') if key.modifiers.is_empty() => WidgetResult::Action(AppAction::Byte),
@@ -1685,7 +1687,7 @@ impl Widget for DisassemblyView {
                 WidgetResult::Action(AppAction::NextImmediateFormat)
             }
             KeyCode::Char('[') if key.modifiers.is_empty() => {
-                WidgetResult::Action(AppAction::Scope)
+                WidgetResult::Action(AppAction::PackLoHiAddress)
             }
             KeyCode::Char(']') if key.modifiers.is_empty() => {
                 WidgetResult::Action(AppAction::PackHiLoAddress)

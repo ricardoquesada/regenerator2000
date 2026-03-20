@@ -31,6 +31,7 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Toggle Bitmap View**                                                                  | ++alt+5++ or ++ctrl+5++                                       |
 |                                    | **Toggle Debugger Panel**                                                               | ++alt+6++ or ++ctrl+6++                                       |
 | **View: Disassembly** (editing)    | **Convert to Code**                                                                     | ++c++                                                         |
+|                                    | **Add Scope**                                                                           | ++open-brace++                                                |
 |                                    | **Convert to Byte**                                                                     | ++b++                                                         |
 |                                    | **Convert to Word**                                                                     | ++w++                                                         |
 |                                    | **Convert to Address**                                                                  | ++a++                                                         |
@@ -60,6 +61,8 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Jump to Line**                                                                        | ++ctrl+shift+g++ or ++alt+shift+g++                           |
 |                                    | **Jump to Line / End of File**                                                          | number + ++shift+g++                                          |
 |                                    | **Jump to Operand**                                                                     | ++enter++                                                     |
+|                                    | **Nudge Scope Boundary**                                                              | ++alt+up++ / ++alt+down++                                     |
+|                                    | **Remove Scope**                                                                      | ++delete++                                                    |
 |                                    | **Jump Back (History)**                                                                 | ++backspace++                                                 |
 |                                    | **Previous/Next 10 Lines**                                                              | ++ctrl+u++ / ++ctrl+d++                                       |
 | **View: Hexdump**                  | **Convert to Byte**                                                                     | ++b++                                                         |
