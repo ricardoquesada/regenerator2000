@@ -1295,7 +1295,7 @@ impl Disassembler {
         let labels = ctx.labels;
         let origin = ctx.origin;
         let settings = ctx.settings;
-        
+
         let user_line_comments = ctx.user_line_comments;
 
         let mut fragments = Vec::new();
@@ -1442,7 +1442,7 @@ impl Disassembler {
         let labels = ctx.labels;
         let origin = ctx.origin;
         let settings = ctx.settings;
-        
+
         let user_line_comments = ctx.user_line_comments;
 
         let mut fragments = Vec::new();
