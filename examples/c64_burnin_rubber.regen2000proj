@@ -2183,13 +2183,13 @@
     "4864": ""
   },
   "cursor_address": 18378,
-  "hex_dump_cursor_address": 16144,
+  "hex_dump_cursor_address": 18368,
   "sprites_cursor_address": 14592,
   "charset_cursor_address": 17152,
-  "right_pane_visible": "Debugger",
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
