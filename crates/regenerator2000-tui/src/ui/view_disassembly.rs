@@ -1624,7 +1624,7 @@ impl Widget for DisassemblyView {
 
             KeyCode::Char('l') if key.modifiers.is_empty() => action_set_label(app_state, ui_state),
             KeyCode::Char('c') if key.modifiers.is_empty() => WidgetResult::Action(AppAction::Code),
-            KeyCode::Char('{')
+            KeyCode::Char('r')
                 if key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT =>
             {
                 WidgetResult::Action(AppAction::Scope)

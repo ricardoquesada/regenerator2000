@@ -61,7 +61,7 @@ impl MenuState {
                         MenuItem::new("Redo", Some("Ctrl+R"), Some(AppAction::Redo)),
                         MenuItem::separator(),
                         MenuItem::new("Code", Some("C"), Some(AppAction::Code)),
-                        MenuItem::new("Scope", Some("{"), Some(AppAction::Scope)),
+                        MenuItem::new("Scope", Some("r"), Some(AppAction::Scope)),
                         MenuItem::new("Byte", Some("B"), Some(AppAction::Byte)),
                         MenuItem::new("Word", Some("W"), Some(AppAction::Word)),
                         MenuItem::new("Address", Some("A"), Some(AppAction::Address)),

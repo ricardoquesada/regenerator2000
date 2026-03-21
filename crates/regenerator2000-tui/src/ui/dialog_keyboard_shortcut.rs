@@ -76,7 +76,7 @@ impl ShortcutsDialog {
             ("Shift+v", "Toggle Visual Selection Mode"),
             ("Shift+Arrows", "Select Text"),
             ("c", "Code"),
-            ("{", "Add Scope"),
+            ("r", "Add Scope"),
             ("b", "Byte"),
             ("w", "Word"),
             ("a", "Address"),
