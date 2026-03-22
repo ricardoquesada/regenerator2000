@@ -60,7 +60,6 @@ impl ShortcutsDialog {
             ("Alt+Shift+g (Ctrl+Shift+g)", "Jump to Line"),
             ("[Number] Shift+g", "Jump to Line / End"),
             ("Enter", "Jump to Operand / Jump to Disasm"),
-            ("Alt+Up/Down", "Nudge Scope Boundary"),
             ("Delete", "Remove Scope"),
             ("Backspace", "Navigate Back"),
             ("", ""),

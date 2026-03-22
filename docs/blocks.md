@@ -672,3 +672,57 @@ graph TD
 - **Scope**: This is a **visual-only** feature for the Disassembly View. It does **not** affect:
     -   The exported assembly code (all code is always exported).
     -   Other views (e.g., Hex Dump, Character Set).
+
+### Scopes
+
+- **Create Scope**: ++r++
+- **Remove Scope**: ++delete++
+
+Scopes allow you to group instructions and data into logical blocks, typically representing routines or functions. The primary purpose of scopes is to restrict the visibility of local labels, preventing naming conflicts between different parts of the code.
+
+When you export your disassembly, scopes are directly translated into the corresponding directives of your chosen assembler.
+
+!!! example
+
+    === "64tass"
+
+        In 64tass, scopes are mapped to the `.block` and `.bend` directives. If a name is provided, it's placed as a label just before the `.block`.
+
+        ```asm
+        my_routine
+            .block
+            lda #$00
+            sta $d020
+            rts
+            .bend
+        ```
+
+    === "ACME"
+
+        ACME does **not** support scopes. Any scopes defined in your project will be ignored during export if you select ACME as your assembler.
+
+    === "KickAssembler"
+
+        In Kick Assembler, scopes are represented using curly braces `{` and `}`. The scope name is placed right before the opening brace.
+
+        ```asm
+        my_routine
+            {
+            lda #$00
+            sta $d020
+            rts
+            }
+        ```
+
+    === "ca65"
+
+        In ca65, scopes are mapped to the `.proc` and `.endproc` directives. The scope name is passed as an argument to `.proc`. Unnamed scopes are automatically named `unnamed_scope`.
+
+        ```asm
+            .proc my_routine
+            lda #$00
+            sta $d020
+            rts
+            .endproc
+        ```
+

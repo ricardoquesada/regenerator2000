@@ -61,7 +61,6 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Jump to Line**                                                                        | ++ctrl+shift+g++ or ++alt+shift+g++                           |
 |                                    | **Jump to Line / End of File**                                                          | number + ++shift+g++                                          |
 |                                    | **Jump to Operand**                                                                     | ++enter++                                                     |
-|                                    | **Nudge Scope Boundary**                                                              | ++alt+up++ / ++alt+down++                                     |
 |                                    | **Remove Scope**                                                                      | ++delete++                                                    |
 |                                    | **Jump Back (History)**                                                                 | ++backspace++                                                 |
 |                                    | **Previous/Next 10 Lines**                                                              | ++ctrl+u++ / ++ctrl+d++                                       |
