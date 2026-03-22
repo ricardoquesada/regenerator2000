@@ -1328,8 +1328,9 @@ impl Widget for DisassemblyView {
                         .add_modifier(Modifier::BOLD),
                 ));
             } else {
-                // If the label is too long for the column, put it on its own line
-                let label_on_own_line = label_text.len() >= LABEL_COLUMN_WIDTH;
+                let is_unindented_scope = line.mnemonic == "{" || line.mnemonic == "}";
+                // If the label is too long for the column, or if it's an unindented scope and has a label, put it on its own line
+                let label_on_own_line = label_text.len() >= LABEL_COLUMN_WIDTH || (is_unindented_scope && !label_text.is_empty());
                 if label_on_own_line && !label_text.is_empty() {
                     let label_arrow_padding = get_comment_arrow_str(current_inst, None);
                     parts.push(Line::from(vec![
@@ -1348,18 +1349,34 @@ impl Widget for DisassemblyView {
                     ]));
                 }
 
-                inst_spans.push(Span::styled(
-                    if label_on_own_line || label_text.is_empty() {
-                        format!("{: <width$}", "", width = LABEL_COLUMN_WIDTH)
-                    } else {
-                        format!("{label_text: <LABEL_COLUMN_WIDTH$}")
-                    },
+                let label_column_text = if is_unindented_scope {
+                    format!("{:<LABEL_COLUMN_WIDTH$}", line.mnemonic)
+                } else if label_on_own_line || label_text.is_empty() {
+                    format!("{: <width$}", "", width = LABEL_COLUMN_WIDTH)
+                } else {
+                    format!("{label_text: <LABEL_COLUMN_WIDTH$}")
+                };
+
+                let label_style = if is_unindented_scope {
+                    base_style
+                        .fg(ui_state.theme.mnemonic)
+                        .add_modifier(Modifier::BOLD)
+                } else {
                     base_style
                         .fg(ui_state.theme.label_def)
-                        .add_modifier(Modifier::BOLD),
-                ));
+                        .add_modifier(Modifier::BOLD)
+                };
+
+                inst_spans.push(Span::styled(label_column_text, label_style));
+
+                let mnemonic_text = if is_unindented_scope {
+                    "     ".to_string()
+                } else {
+                    format!("{: <4} ", line.mnemonic)
+                };
+
                 inst_spans.push(Span::styled(
-                    format!("{: <4} ", line.mnemonic),
+                    mnemonic_text,
                     base_style
                         .fg(ui_state.theme.mnemonic)
                         .add_modifier(Modifier::BOLD),
