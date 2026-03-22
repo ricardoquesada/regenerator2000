@@ -268,3 +268,163 @@ fn test_routine_split_by_bytes() {
         .unwrap();
     assert_eq!(line_1051.operand, "l01"); // Second local label in the merged scope (1050 is l00, 1055 is l01)
 }
+
+#[test]
+fn test_routine_block_local_symbols_ca65() {
+    let mut state = AppState::new();
+    state.origin = Addr(0x1000);
+    // 1000: s1000: lda #$00
+    // 1002: b1002: bne b1002
+    // 1004: b1004: bne b1004
+    // 1006: rts
+    // 1007: s1007: lda #$01
+    // 1009: b1009: bne b1007
+    // 100b: rts
+    state.raw_data = vec![
+        0xA9, 0x00, // 1000: LDA #$00
+        0xD0, 0xFE, // 1002: BNE $1002
+        0xD0, 0xFE, // 1004: BNE $1004
+        0x60, // 1006: RTS
+        0xA9, 0x01, // 1007: LDA #$01
+        0xD0, 0xFC, // 1009: BNE $1007
+        0x60, // 100B: RTS
+    ];
+    state.block_types = vec![BlockType::Code; state.raw_data.len()];
+    state.disassemble(); // Initial disassembly for set_block_type_region to work
+
+    // 1000-1006 are the first function.
+    state.scopes.insert(Addr(0x1000), Addr(0x1006));
+    state.splitters.insert(Addr(0x1007));
+
+    state.settings.assembler = Assembler::Ca65;
+
+    // First analysis to generate auto labels
+    let result = regenerator2000_core::analyzer::analyze(&state);
+    state.labels = result.labels;
+    state.cross_refs = result.cross_refs;
+
+    // Add manual label for entry point to avoid None
+    state.labels.insert(
+        Addr(0x1000),
+        vec![regenerator2000_core::state::Label {
+            name: "s1000".to_string(),
+            label_type: regenerator2000_core::state::LabelType::Subroutine,
+            kind: regenerator2000_core::state::LabelKind::Auto,
+        }],
+    );
+    state.labels.insert(
+        Addr(0x1007),
+        vec![regenerator2000_core::state::Label {
+            name: "s1007".to_string(),
+            label_type: regenerator2000_core::state::LabelType::Subroutine,
+            kind: regenerator2000_core::state::LabelKind::Auto,
+        }],
+    );
+
+    state.disassemble();
+    let disasm = &state.disassembly;
+
+    // Check entry point is in .proc (now index 1 due to virtual splitter at start)
+    assert_eq!(disasm[0].mnemonic, "{splitter}");
+    assert_eq!(disasm[1].label, None); // ca65 emits .proc with operand
+    assert_eq!(disasm[1].mnemonic, ".proc");
+    assert_eq!(disasm[1].operand, "s1000");
+
+    // Check instruction has NO label (suppressed)
+    assert_eq!(disasm[2].label, None);
+
+    // Check local labels
+    assert_eq!(disasm[3].label, Some("l00".to_string()));
+    assert_eq!(disasm[4].label, Some("l01".to_string()));
+
+    // Check operands use local labels
+    assert_eq!(disasm[3].operand, "l00");
+    assert_eq!(disasm[4].operand, "l01");
+
+    // Check .endproc
+    assert_eq!(disasm[6].mnemonic, ".endproc");
+
+    // Check splitter
+    assert!(state.splitters.contains(&Addr(0x1007)));
+    assert_eq!(disasm[7].mnemonic, "{splitter}");
+
+    // Check second function (not a routine)
+    assert_eq!(disasm[8].label, Some("s1007".to_string()));
+    assert_eq!(disasm[9].operand, "s1007");
+}
+
+#[test]
+fn test_routine_block_local_symbols_kickasm() {
+    let mut state = AppState::new();
+    state.origin = Addr(0x1000);
+    state.raw_data = vec![
+        0xA9, 0x00, // 1000: LDA #$00
+        0xD0, 0xFE, // 1002: BNE $1002
+        0xD0, 0xFE, // 1004: BNE $1004
+        0x60, // 1006: RTS
+        0xA9, 0x01, // 1007: LDA #$01
+        0xD0, 0xFC, // 1009: BNE $1007
+        0x60, // 100B: RTS
+    ];
+    state.block_types = vec![BlockType::Code; state.raw_data.len()];
+    state.disassemble(); // Initial disassembly for set_block_type_region to work
+
+    // 1000-1006 are the first function.
+    state.scopes.insert(Addr(0x1000), Addr(0x1006));
+    state.splitters.insert(Addr(0x1007));
+
+    state.settings.assembler = Assembler::Kick;
+
+    // First analysis to generate auto labels
+    let result = regenerator2000_core::analyzer::analyze(&state);
+    state.labels = result.labels;
+    state.cross_refs = result.cross_refs;
+
+    // Add manual label for entry point to avoid None
+    state.labels.insert(
+        Addr(0x1000),
+        vec![regenerator2000_core::state::Label {
+            name: "s1000".to_string(),
+            label_type: regenerator2000_core::state::LabelType::Subroutine,
+            kind: regenerator2000_core::state::LabelKind::Auto,
+        }],
+    );
+    state.labels.insert(
+        Addr(0x1007),
+        vec![regenerator2000_core::state::Label {
+            name: "s1007".to_string(),
+            label_type: regenerator2000_core::state::LabelType::Subroutine,
+            kind: regenerator2000_core::state::LabelKind::Auto,
+        }],
+    );
+
+    state.disassemble();
+    let disasm = &state.disassembly;
+
+    // Check entry point is in scope (now index 1 due to virtual splitter at start)
+    assert_eq!(disasm[0].mnemonic, "{splitter}");
+    assert_eq!(disasm[1].label, Some("s1000".to_string()));
+    assert_eq!(disasm[1].mnemonic, "{");
+
+    // Check instruction has NO label (suppressed)
+    assert_eq!(disasm[2].label, None);
+
+    // Check local labels
+    assert_eq!(disasm[3].label, Some("l00".to_string()));
+    assert_eq!(disasm[4].label, Some("l01".to_string()));
+
+    // Check operands use local labels
+    assert_eq!(disasm[3].operand, "l00");
+    assert_eq!(disasm[4].operand, "l01");
+
+    // Check }
+    assert_eq!(disasm[6].mnemonic, "}");
+
+    // Check splitter
+    assert!(state.splitters.contains(&Addr(0x1007)));
+    assert_eq!(disasm[7].mnemonic, "{splitter}");
+
+    // Check second function (not a routine)
+    assert_eq!(disasm[8].label, Some("s1007".to_string()));
+    assert_eq!(disasm[9].operand, "s1007");
+}

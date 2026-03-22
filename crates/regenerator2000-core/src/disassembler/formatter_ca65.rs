@@ -433,6 +433,22 @@ impl Formatter for Ca65Formatter {
 
         (mnemonic, operand)
     }
+
+    fn supports_scopes(&self) -> bool {
+        true
+    }
+
+    fn format_scope_start(
+        &self,
+        name: Option<&str>,
+    ) -> Option<(Option<String>, String, Option<String>)> {
+        let label = name.unwrap_or("unnamed_scope").to_string();
+        Some((None, ".proc".to_string(), Some(label)))
+    }
+
+    fn format_scope_end(&self) -> Option<String> {
+        Some(".endproc".to_string())
+    }
 }
 
 #[cfg(test)]

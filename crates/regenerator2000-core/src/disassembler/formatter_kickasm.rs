@@ -367,6 +367,22 @@ impl Formatter for KickAsmFormatter {
 
         (mnemonic, operand)
     }
+
+    fn supports_scopes(&self) -> bool {
+        true
+    }
+
+    fn format_scope_start(
+        &self,
+        name: Option<&str>,
+    ) -> Option<(Option<String>, String, Option<String>)> {
+        let label = name.map(|n| n.to_string());
+        Some((label, "{".to_string(), None))
+    }
+
+    fn format_scope_end(&self) -> Option<String> {
+        Some("}".to_string())
+    }
 }
 
 impl KickAsmFormatter {
