@@ -131,6 +131,18 @@ fn list_tools() -> Result<Value, McpError> {
                 "inputSchema": { "type": "object", "properties": {} }
             },
             {
+                "name": "r2000_add_scope",
+                "description": "Adds a scope covering the specified memory range. Useful for a piece of code that is a routine. Starts a lexical level where all new symbols within this range are in the local lexical level and are accessible from outside only via explicit scope specification. Nested scopes are not supported.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "start_address": { "type": "integer", "description": "Start address of the scope (inclusive), decimal." },
+                        "end_address":   { "type": "integer", "description": "End address of the scope (inclusive), decimal." }
+                    },
+                    "required": ["start_address", "end_address"]
+                }
+            },
+            {
                 "name": "r2000_redo",
                 "description": "Redoes the latest undone operation.",
                 "inputSchema": { "type": "object", "properties": {} }
@@ -482,6 +494,78 @@ fn handle_tool_call_internal(
             app_state.disassemble();
             Ok(
                 json!({ "content": [{ "type": "text", "text": format!("Splitter toggled at ${:04X}", address) }] }),
+            )
+        }
+
+        "r2000_add_scope" => {
+            let start_addr = get_address(&args, "start_address")?;
+            let end_addr = get_address(&args, "end_address")?;
+
+            if start_addr > end_addr {
+                return Err(McpError {
+                    code: -32602,
+                    message: "start_address must be <= end_address".to_string(),
+                    data: None,
+                });
+            }
+
+            let mut overlaps = false;
+            for (&s, &e) in &app_state.scopes {
+                if start_addr <= e && end_addr >= s {
+                    overlaps = true;
+                    break;
+                }
+            }
+
+            if overlaps {
+                return Err(McpError {
+                    code: -32602,
+                    message: "Cannot create scope: overlaps with an existing scope".to_string(),
+                    data: None,
+                });
+            }
+
+            let mut commands = Vec::new();
+
+            // Generate a default label for the scope if one does not exist
+            let has_label = app_state
+                .labels
+                .get(&start_addr)
+                .is_some_and(|l| !l.is_empty());
+            if !has_label {
+                let label = crate::state::Label {
+                    name: format!("scope_{:04X}", start_addr.0),
+                    kind: crate::state::LabelKind::User,
+                    label_type: crate::state::LabelType::UserDefined,
+                };
+                commands.push(crate::commands::Command::SetLabel {
+                    address: start_addr,
+                    new_label: Some(vec![label]),
+                    old_label: None,
+                });
+            }
+
+            let old_end = app_state.scopes.get(&start_addr).copied();
+            commands.push(crate::commands::Command::AddScope {
+                start: start_addr,
+                end: end_addr,
+                old_end,
+            });
+
+            let command = if commands.len() == 1 {
+                commands.remove(0)
+            } else {
+                crate::commands::Command::Batch(commands)
+            };
+
+            command.apply(app_state);
+
+            let (analysis_cmd, msg) = app_state.perform_analysis();
+            app_state.push_command(crate::commands::Command::Batch(vec![command, analysis_cmd]));
+            app_state.disassemble();
+
+            Ok(
+                json!({ "content": [{ "type": "text", "text": format!("Added Scope from ${:04X} to ${:04X}. {}", start_addr.0, end_addr.0, msg) }] }),
             )
         }
 

@@ -274,6 +274,7 @@ EXPECTED_TOOLS = {
     "r2000_get_all_comments",
     "r2000_save_project",
     "r2000_batch_execute",
+    "r2000_add_scope",
 }
 
 REMOVED_TOOLS = {
@@ -771,6 +772,25 @@ def test_toggle_splitter(client):
         print(f"FAIL: {res}")
 
 
+def test_add_scope(client):
+    print("\nTesting r2000_add_scope...")
+    res = client.rpc("tools/call", {
+        "name": "r2000_add_scope",
+        "arguments": {"start_address": 0x1000, "end_address": 0x1010}
+    })
+    if res and "result" in res:
+        content = res["result"].get("content", [])
+        text = content[0].get("text", "") if content else ""
+        if "Added Scope" in text:
+            print(f"PASS: {text}")
+        else:
+            print(f"FAIL: unexpected response: {text}")
+    elif res and "error" in res:
+        print(f"FAIL: {res['error']['message']}")
+    else:
+        print(f"FAIL: {res}")
+
+
 def test_undo_redo(client):
     print("\nTesting r2000_undo / r2000_redo...")
     res = client.rpc("tools/call", {"name": "r2000_undo", "arguments": {}})
@@ -802,5 +822,6 @@ if __name__ == "__main__":
     test_jump_to_address(client)
     test_misc_tools(client)
     test_toggle_splitter(client)
+    test_add_scope(client)
     test_undo_redo(client)
     test_batch_execute(client)
