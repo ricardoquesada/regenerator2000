@@ -2182,14 +2182,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 18455,
-  "hex_dump_cursor_address": 18448,
+  "cursor_address": 18508,
+  "hex_dump_cursor_address": 18496,
   "sprites_cursor_address": 14592,
   "charset_cursor_address": 17152,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
