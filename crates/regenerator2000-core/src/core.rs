@@ -1312,6 +1312,24 @@ impl Core {
                     .wrapping_add(el.bytes.len() as u16)
                     .wrapping_sub(1);
 
+                let mut overlaps = false;
+                for (&s, &e) in &self.state.scopes {
+                    if start_addr <= e && end_addr >= s {
+                        overlaps = true;
+                        break;
+                    }
+                }
+
+                if overlaps {
+                    events.push(CoreEvent::StatusMessage(
+                        "Cannot create scope: overlaps with an existing scope".to_string(),
+                    ));
+                    self.view.selection_start = None;
+                    self.view.is_visual_mode = false;
+                    events.push(CoreEvent::ViewChanged);
+                    return;
+                }
+
                 let command = process_scope(&mut self.state, start_addr, end_addr);
                 command.apply(&mut self.state);
 
@@ -1332,6 +1350,21 @@ impl Core {
         } else if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
             let start_addr = line.address;
             let end_addr = crate::analyzer::guess_scope_end(&self.state, start_addr);
+
+            let mut overlaps = false;
+            for (&s, &e) in &self.state.scopes {
+                if start_addr <= e && end_addr >= s {
+                    overlaps = true;
+                    break;
+                }
+            }
+
+            if overlaps {
+                events.push(CoreEvent::StatusMessage(
+                    "Cannot create scope: overlaps with an existing scope".to_string(),
+                ));
+                return;
+            }
 
             let command = process_scope(&mut self.state, start_addr, end_addr);
             command.apply(&mut self.state);
@@ -1400,7 +1433,19 @@ impl Core {
                 }
             }
 
-            if new_end != end {
+            let mut overlaps = false;
+            for (&s, &e) in &self.state.scopes {
+                if s != start && start <= e && new_end >= s {
+                    overlaps = true;
+                    break;
+                }
+            }
+
+            if overlaps {
+                events.push(CoreEvent::StatusMessage(
+                    "Cannot nudge scope: overlaps with another scope".to_string(),
+                ));
+            } else if new_end != end {
                 let command = crate::commands::Command::AddScope {
                     start,
                     end: new_end,
