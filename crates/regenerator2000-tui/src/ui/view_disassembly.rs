@@ -1221,15 +1221,7 @@ impl Widget for DisassemblyView {
             // 3. Instruction
             let show_address = !line.bytes.is_empty() || line.is_collapsed || line.label.is_some();
             let address_str = if show_address {
-                format!(
-                    "${:04X}{} ",
-                    line.address,
-                    if app_state.splitters.contains(&line.address) {
-                        "*"
-                    } else {
-                        " "
-                    }
-                )
+                format!("${:04X}  ", line.address)
             } else {
                 "       ".to_string()
             };
@@ -1280,23 +1272,7 @@ impl Widget for DisassemblyView {
                     format!("{arrow_padding:<arrow_width$} "),
                     base_style.fg(ui_state.theme.arrow),
                 ),
-                Span::styled(
-                    address_str.clone(),
-                    if let Some(next) = app_state.disassembly.get(current_inst + 1)
-                        && app_state.splitters.contains(&next.address)
-                        && show_address
-                    {
-                        base_style
-                            .fg(ui_state.theme.address)
-                            .add_modifier(Modifier::UNDERLINED)
-                    } else if app_state.splitters.contains(&line.address) && show_address {
-                        base_style
-                            .fg(ui_state.theme.address)
-                            .add_modifier(Modifier::BOLD)
-                    } else {
-                        base_style.fg(ui_state.theme.address)
-                    },
-                ),
+                Span::styled(address_str.clone(), base_style.fg(ui_state.theme.address)),
                 Span::styled(
                     format!(
                         "{: <10}",
@@ -1330,7 +1306,8 @@ impl Widget for DisassemblyView {
             } else {
                 let is_unindented_scope = line.mnemonic == "{" || line.mnemonic == "}";
                 // If the label is too long for the column, or if it's an unindented scope and has a label, put it on its own line
-                let label_on_own_line = label_text.len() >= LABEL_COLUMN_WIDTH || (is_unindented_scope && !label_text.is_empty());
+                let label_on_own_line = label_text.len() >= LABEL_COLUMN_WIDTH
+                    || (is_unindented_scope && !label_text.is_empty());
                 if label_on_own_line && !label_text.is_empty() {
                     let label_arrow_padding = get_comment_arrow_str(current_inst, None);
                     parts.push(Line::from(vec![
