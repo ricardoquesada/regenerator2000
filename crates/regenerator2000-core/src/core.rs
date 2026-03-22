@@ -2087,4 +2087,43 @@ mod tests {
         assert_eq!(first_label.kind, crate::state::LabelKind::User);
         assert_eq!(first_label.label_type, crate::state::LabelType::UserDefined);
     }
+
+    #[test]
+    fn test_handle_add_scope_overlapping() {
+        let mut core = Core::new();
+        let origin = Addr(0x1000);
+        let code_data = vec![0xEA, 0xEA, 0xEA, 0xEA, 0xEA, 0xEA];
+
+        core.state.load_binary(origin, code_data).unwrap();
+
+        core.state.scopes.insert(Addr(0x1001), Addr(0x1002));
+
+        core.view.active_pane = ActivePane::Disassembly;
+        core.view.is_visual_mode = true;
+
+        core.view.selection_start = Some(0);
+        core.view.cursor_index = 2;
+        let events = core.apply_action(AppAction::Scope);
+
+        assert_eq!(core.state.scopes.len(), 1);
+        assert_eq!(core.state.scopes.get(&Addr(0x1001)), Some(&Addr(0x1002)));
+        assert!(events.iter().any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("overlaps"))));
+
+        core.view.is_visual_mode = true;
+        core.view.selection_start = Some(2);
+        core.view.cursor_index = 4;
+        let events = core.apply_action(AppAction::Scope);
+
+        assert_eq!(core.state.scopes.len(), 1);
+        assert!(events.iter().any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("overlaps"))));
+
+        core.view.is_visual_mode = true;
+        core.view.selection_start = Some(3);
+        core.view.cursor_index = 4;
+        let events = core.apply_action(AppAction::Scope);
+
+        assert_eq!(core.state.scopes.len(), 2);
+        assert_eq!(core.state.scopes.get(&Addr(0x1003)), Some(&Addr(0x1004)));
+        assert!(!events.iter().any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("overlaps"))));
+    }
 }
