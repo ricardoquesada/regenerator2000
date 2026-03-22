@@ -68,7 +68,7 @@ pub trait Formatter {
 
     /// Allows assemblers to define their own local symbol naming (e.g. `l15` instead of `_l0f`).
     fn format_local_label(&self, index: usize) -> Option<String> {
-        Some(format!("l{}", index))
+        Some(format!("l{:02}", index))
     }
 
     /// For assemblers that use `.block` or similar scoping directives.

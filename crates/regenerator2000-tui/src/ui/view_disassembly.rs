@@ -1711,10 +1711,10 @@ impl Widget for DisassemblyView {
                         .format_scope_end()
                         .map(|m| m == line.mnemonic)
                         .unwrap_or(false);
-                    
+
                     allow_delete = is_start || is_end;
                 }
-                
+
                 if allow_delete {
                     WidgetResult::Action(AppAction::RemoveScope)
                 } else {

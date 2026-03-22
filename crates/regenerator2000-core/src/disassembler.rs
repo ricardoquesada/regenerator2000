@@ -239,7 +239,8 @@ impl Disassembler {
                 // Check if there are any labels at this address
                 if let Some(labels_at_addr) = ctx.labels.get(&current_addr) {
                     let has_user_or_system = labels_at_addr.iter().any(|l| {
-                        l.kind == crate::state::LabelKind::User || l.kind == crate::state::LabelKind::System
+                        l.kind == crate::state::LabelKind::User
+                            || l.kind == crate::state::LabelKind::System
                     });
 
                     if !has_user_or_system {
@@ -344,7 +345,12 @@ impl Disassembler {
             for (&start_addr, &end_addr) in ctx.scopes {
                 let start_pc = start_addr.0.saturating_sub(ctx.origin.0) as usize;
                 let end_pc = end_addr.0.saturating_sub(ctx.origin.0) as usize;
-                locals.extend(self.compute_local_label_names(ctx, start_pc, end_pc, formatter.as_ref()));
+                locals.extend(self.compute_local_label_names(
+                    ctx,
+                    start_pc,
+                    end_pc,
+                    formatter.as_ref(),
+                ));
             }
             if !locals.is_empty() {
                 all_local_names = Some(locals);
