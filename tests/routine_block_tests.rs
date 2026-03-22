@@ -76,12 +76,12 @@ fn test_routine_block_local_symbols_64tass() {
     assert_eq!(disasm[2].label, None);
 
     // Check local labels
-    assert_eq!(disasm[3].label, Some("_l00".to_string()));
-    assert_eq!(disasm[4].label, Some("_l01".to_string()));
+    assert_eq!(disasm[3].label, Some("l0".to_string()));
+    assert_eq!(disasm[4].label, Some("l1".to_string()));
 
     // Check operands use local labels
-    assert_eq!(disasm[3].operand, "_l00");
-    assert_eq!(disasm[4].operand, "_l01");
+    assert_eq!(disasm[3].operand, "l0");
+    assert_eq!(disasm[4].operand, "l1");
 
     // Check .pend
     assert_eq!(disasm[6].mnemonic, ".bend");
@@ -146,11 +146,11 @@ fn test_routine_block_local_referenced_from_outside() {
 
     assert_eq!(disasm[0].mnemonic, "{splitter}");
     assert_eq!(disasm[1].label, Some("s1000".to_string()));
-    assert_eq!(disasm[3].label, Some("b1002".to_string()));
-    assert_eq!(disasm[3].operand, "b1002");
+    assert_eq!(disasm[3].label, Some("l0".to_string()));
+    assert_eq!(disasm[3].operand, "l0");
     assert_eq!(disasm[5].mnemonic, ".bend");
     assert_eq!(disasm[6].mnemonic, "{splitter}");
-    assert_eq!(disasm[7].operand, "s1000.b1002");
+    assert_eq!(disasm[7].operand, "s1000.l0");
 }
 
 #[test]
@@ -255,7 +255,7 @@ fn test_routine_split_by_bytes() {
         .find(|l| l.address == Addr(0x1055) && !l.bytes.is_empty())
         .unwrap();
     assert!(
-        line_1055.label.as_ref().unwrap().starts_with("_l"),
+        line_1055.label.as_ref().unwrap().starts_with("l"),
         "Label should be local, got {:?}",
         line_1055.label
     );
@@ -266,5 +266,5 @@ fn test_routine_split_by_bytes() {
         .iter()
         .find(|l| l.address == Addr(0x1051))
         .unwrap();
-    assert_eq!(line_1051.operand, "_l01"); // Second local label in the merged scope (1050 is _l00, 1055 is _l01)
+    assert_eq!(line_1051.operand, "l1"); // Second local label in the merged scope (1050 is l0, 1055 is l1)
 }

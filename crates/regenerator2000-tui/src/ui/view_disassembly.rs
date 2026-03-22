@@ -1698,7 +1698,28 @@ impl Widget for DisassemblyView {
                 WidgetResult::Action(AppAction::NudgeScopeBoundary { expand: true })
             }
             KeyCode::Delete if key.modifiers.is_empty() => {
-                WidgetResult::Action(AppAction::RemoveScope)
+                let mut allow_delete = false;
+                if !app_state.raw_data.is_empty()
+                    && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+                {
+                    let formatter = app_state.get_formatter();
+                    let is_start = formatter
+                        .format_scope_start(None)
+                        .map(|(_, m, _)| m == line.mnemonic)
+                        .unwrap_or(false);
+                    let is_end = formatter
+                        .format_scope_end()
+                        .map(|m| m == line.mnemonic)
+                        .unwrap_or(false);
+                    
+                    allow_delete = is_start || is_end;
+                }
+                
+                if allow_delete {
+                    WidgetResult::Action(AppAction::RemoveScope)
+                } else {
+                    WidgetResult::Ignored
+                }
             }
             KeyCode::Char('D') if key.modifiers == KeyModifiers::SHIFT => {
                 WidgetResult::Action(AppAction::PreviousImmediateFormat)

@@ -1440,6 +1440,21 @@ impl Core {
             }
         }
 
+        // If the cursor is on the `.bend` or `.pend` line, its address might be immediately after the scope ends.
+        // We can find the scope by checking the previous disassembly line, which must be inside the scope.
+        if scope_to_remove.is_none()
+            && self.view.cursor_index > 0
+            && let Some(prev_line) = self.state.disassembly.get(self.view.cursor_index - 1)
+        {
+            let prev_addr = prev_line.address;
+            for (&start, &end) in &self.state.scopes {
+                if prev_addr >= start && prev_addr <= end {
+                    scope_to_remove = Some(start);
+                    break;
+                }
+            }
+        }
+
         if let Some(start) = scope_to_remove {
             if let Some(old_end) = self.state.scopes.get(&start).copied() {
                 let command = crate::commands::Command::RemoveScope {

@@ -301,10 +301,6 @@ impl Formatter for TassFormatter {
         format!("{name} = {operand}")
     }
 
-    fn format_local_label(&self, index: usize) -> Option<String> {
-        Some(format!("_l{:02x}", index))
-    }
-
     fn format_scope_start(
         &self,
         name: Option<&str>,

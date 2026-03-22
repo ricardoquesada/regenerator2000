@@ -78,17 +78,23 @@ pub fn resolve_label_name(
     label_scope_names: Option<&BTreeMap<Addr, String>>,
     current_scope_name: Option<&str>,
 ) -> Option<String> {
-    // 1. Local label names (from formatter, e.g. _l01)
+    let mut base_name_opt = None;
+
+    // 1. Local label names (from formatter, e.g. l15)
     if let Some(names) = local_label_names
         && let Some(name) = names.get(&address)
     {
-        return Some(name.clone());
+        base_name_opt = Some(name.clone());
     }
 
     // 2. Standard label resolution
-    let base_name = labels
-        .get(&address)
-        .and_then(|v| resolve_label(v, address.0, settings).map(|l| l.name.clone()))?;
+    if base_name_opt.is_none() {
+        base_name_opt = labels
+            .get(&address)
+            .and_then(|v| resolve_label(v, address.0, settings).map(|l| l.name.clone()));
+    }
+
+    let base_name = base_name_opt?;
 
     // 3. Scope scoping
     if let Some(scope_names) = label_scope_names
@@ -207,12 +213,9 @@ impl Disassembler {
         let mut local_names = BTreeMap::new();
         let mut local_count = 0;
 
-        let start_addr = ctx.origin.wrapping_add(start_pc as u16);
-        let end_addr = ctx.origin.wrapping_add(end_pc as u16);
-
         // Iterate through all addresses in the routine block
         let mut current_pc = start_pc;
-        while current_pc <= end_pc {
+        while current_pc <= end_pc && current_pc < ctx.data.len() {
             // Check all addresses covered by this opcode (if any)
             let bytes_consumed = if let Some(opcode) = &self.opcodes[ctx.data[current_pc] as usize]
             {
@@ -234,26 +237,19 @@ impl Disassembler {
                 }
 
                 // Check if there are any labels at this address
-                if let Some(_labels) = ctx.labels.get(&current_addr) {
-                    // Rule: NOT local if referenced from outside
-                    let mut referenced_from_outside = false;
-                    if let Some(refs) = ctx.cross_refs.get(&current_addr) {
-                        for &ref_addr in refs {
-                            if ref_addr < start_addr || ref_addr > end_addr {
-                                referenced_from_outside = true;
-                                break;
-                            }
-                        }
-                    }
+                if let Some(labels_at_addr) = ctx.labels.get(&current_addr) {
+                    let has_user_or_system = labels_at_addr.iter().any(|l| {
+                        l.kind == crate::state::LabelKind::User || l.kind == crate::state::LabelKind::System
+                    });
 
-                    if !referenced_from_outside {
+                    if !has_user_or_system {
                         // All labels at this address treated as a single local label
                         // and named using the formatter's local label name logic.
                         if let Some(name) = formatter.format_local_label(local_count) {
                             local_names.insert(current_addr, name);
-                            local_count += 1;
                         }
                     }
+                    local_count += 1;
                 }
             }
             current_pc += bytes_consumed;
@@ -330,7 +326,6 @@ impl Disassembler {
 
         let mut lines = Vec::new();
         let mut pc = 0;
-        let mut current_local_names: Option<BTreeMap<Addr, String>> = None;
         let mut current_scope_end_pc: Option<usize> = None;
         let mut current_scope_name: Option<String> = None;
 
@@ -341,6 +336,20 @@ impl Disassembler {
         } else {
             BTreeMap::new()
         };
+
+        // Compute ALL local names initially, so they can be resolved from anywhere
+        let mut all_local_names: Option<BTreeMap<Addr, String>> = None;
+        if supports_scopes {
+            let mut locals = BTreeMap::new();
+            for (&start_addr, &end_addr) in ctx.scopes {
+                let start_pc = start_addr.0.saturating_sub(ctx.origin.0) as usize;
+                let end_pc = end_addr.0.saturating_sub(ctx.origin.0) as usize;
+                locals.extend(self.compute_local_label_names(ctx, start_pc, end_pc, formatter.as_ref()));
+            }
+            if !locals.is_empty() {
+                all_local_names = Some(locals);
+            }
+        }
 
         while pc < ctx.data.len() {
             let address = ctx.origin.wrapping_add(pc as u16);
@@ -366,7 +375,6 @@ impl Disassembler {
                     });
                 }
                 current_scope_end_pc = None;
-                current_local_names = None;
                 current_scope_name = None;
             }
 
@@ -400,8 +408,6 @@ impl Disassembler {
                 // Entering a new Scope range
                 let end = end_addr.0.saturating_sub(ctx.origin.0) as usize;
                 current_scope_end_pc = Some(end);
-                current_local_names =
-                    Some(self.compute_local_label_names(ctx, pc, end, formatter.as_ref()));
 
                 // Emit scope start if formatter supports it
                 let label_name_opt =
@@ -471,7 +477,7 @@ impl Disassembler {
             // Resolve label name (checking local names first if in a scope)
             let label_name = if suppress_label {
                 None
-            } else if let Some(local_names) = &current_local_names {
+            } else if let Some(local_names) = &all_local_names {
                 if let Some(local_name) = local_names.get(&address) {
                     Some(local_name.clone())
                 } else {
@@ -497,7 +503,7 @@ impl Disassembler {
                 label_name,
                 side_comment,
                 line_comment,
-                local_label_names: current_local_names.as_ref(),
+                local_label_names: all_local_names.as_ref(),
                 label_scope_names: Some(&label_scope_names),
                 current_scope_name: current_scope_name.clone(),
             };

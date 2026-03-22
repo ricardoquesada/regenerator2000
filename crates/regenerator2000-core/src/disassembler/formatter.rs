@@ -66,9 +66,9 @@ pub trait Formatter {
         format!("{} =*+${:02x}", self.format_label(name), offset)
     }
 
-    /// Allows assemblers to define their own local symbol naming (e.g. `_l00` for 64tass).
-    fn format_local_label(&self, _index: usize) -> Option<String> {
-        None
+    /// Allows assemblers to define their own local symbol naming (e.g. `l15` instead of `_l0f`).
+    fn format_local_label(&self, index: usize) -> Option<String> {
+        Some(format!("l{}", index))
     }
 
     /// For assemblers that use `.block` or similar scoping directives.
