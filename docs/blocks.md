@@ -692,7 +692,11 @@ When you export your disassembly, scopes are directly translated into the corres
         my_routine
             .block
             lda #$00
+            beq l00
+            bne l11
+        l00
             sta $d020
+        l11
             rts
             .bend
         ```
@@ -709,7 +713,11 @@ When you export your disassembly, scopes are directly translated into the corres
         my_routine
             {
             lda #$00
+            beq l00
+            bne l11
+        l00:
             sta $d020
+        l11:
             rts
             }
         ```
@@ -721,7 +729,11 @@ When you export your disassembly, scopes are directly translated into the corres
         ```asm
             .proc my_routine
             lda #$00
+            beq l00
+            bne l11
+        l00:
             sta $d020
+        l11:
             rts
             .endproc
         ```
