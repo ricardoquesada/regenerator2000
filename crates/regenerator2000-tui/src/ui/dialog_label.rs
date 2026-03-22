@@ -5,23 +5,25 @@ use ratatui::{
     Frame,
     layout::Rect,
     style::{Modifier, Style},
-    widgets::Paragraph,
 };
+use ratatui_textarea::{CursorMove, TextArea};
 
 use crate::ui::widget::{Widget, WidgetResult};
 
 pub struct LabelDialog {
-    pub input: String,
+    pub textarea: TextArea<'static>,
     pub address: Addr,
 }
 
 impl LabelDialog {
     #[must_use]
     pub fn new(current_label: Option<&str>, address: Addr) -> Self {
-        Self {
-            input: current_label.unwrap_or("").to_string(),
-            address,
+        let mut textarea = TextArea::default();
+        if let Some(label) = current_label {
+            textarea.insert_str(label);
+            textarea.move_cursor(CursorMove::End);
         }
+        Self { textarea, address }
     }
 }
 
@@ -34,15 +36,17 @@ impl Widget for LabelDialog {
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 
-        let input = Paragraph::new(self.input.clone()).block(block).style(
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD),
-        );
-        f.render_widget(input, area);
+        let mut textarea = self.textarea.clone();
+        textarea.set_block(block);
 
-        // Show blinking cursor at end of input
-        f.set_cursor_position((area.x + 1 + self.input.len() as u16, area.y + 1));
+        let style = Style::default()
+            .fg(theme.highlight_fg)
+            .add_modifier(Modifier::BOLD);
+        textarea.set_style(style);
+        textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
+        textarea.set_cursor_line_style(Style::default());
+
+        f.render_widget(&textarea, area);
     }
 
     fn handle_input(
@@ -56,19 +60,24 @@ impl Widget for LabelDialog {
                 ui_state.set_status_message("Ready");
                 WidgetResult::Close
             }
-            KeyCode::Enter => WidgetResult::Action(crate::state::actions::AppAction::ApplyLabel {
-                address: self.address,
-                name: self.input.clone(),
-            }),
-            KeyCode::Backspace => {
-                self.input.pop();
-                WidgetResult::Handled
+            KeyCode::Enter => {
+                let lines = self.textarea.lines();
+                let label_name = lines.join("").trim().to_string();
+                WidgetResult::Action(crate::state::actions::AppAction::ApplyLabel {
+                    address: self.address,
+                    name: label_name,
+                })
             }
             KeyCode::Char(c) => {
-                self.input.push(c);
+                if c.is_ascii_alphanumeric() || c == '_' {
+                    self.textarea.input(key);
+                }
                 WidgetResult::Handled
             }
-            _ => WidgetResult::Handled,
+            _ => {
+                self.textarea.input(key);
+                WidgetResult::Handled
+            }
         }
     }
 }

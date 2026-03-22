@@ -23,7 +23,7 @@ pub struct DocumentSettingsDialog {
     pub is_editing_bytes_per_line: bool,
     pub bytes_per_line_input: String,
     pub is_editing_description: bool,
-    pub description_input: String,
+    pub description_input: ratatui_textarea::TextArea<'static>,
 }
 
 impl Default for DocumentSettingsDialog {
@@ -50,7 +50,7 @@ impl DocumentSettingsDialog {
             is_editing_bytes_per_line: false,
             bytes_per_line_input: String::new(),
             is_editing_description: false,
-            description_input: String::new(),
+            description_input: ratatui_textarea::TextArea::default(),
         }
     }
 
@@ -265,13 +265,6 @@ impl Widget for DocumentSettingsDialog {
 
         // Description uses layout[2]
         let desc_selected = self.selected_index == idx_description;
-        let desc_value_str = if self.is_editing_description {
-            self.description_input.clone()
-        } else if settings.description.is_empty() {
-            "(empty)".to_string()
-        } else {
-            settings.description.clone()
-        };
 
         let desc_title = if self.is_editing_description {
             "Description (Enter to save):"
@@ -297,22 +290,38 @@ impl Widget for DocumentSettingsDialog {
             Rect::new(desc_chunk.x + 2, desc_chunks[0].y, desc_chunk.width - 4, 1),
         );
 
-        let desc_style = if self.is_editing_description {
-            Style::default()
+        if self.is_editing_description {
+            let mut textarea = self.description_input.clone();
+            let style = Style::default()
                 .fg(theme.highlight_fg)
-                .bg(theme.menu_selected_bg)
-        } else if desc_selected {
-            Style::default()
-                .fg(theme.highlight_fg)
-                .add_modifier(Modifier::BOLD)
+                .bg(theme.menu_selected_bg);
+            textarea.set_style(style);
+            textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
+            textarea.set_cursor_line_style(Style::default());
+            f.render_widget(
+                &textarea,
+                Rect::new(desc_chunk.x + 2, desc_chunks[1].y, desc_chunk.width - 4, 1),
+            );
         } else {
-            Style::default().fg(theme.dialog_fg)
-        };
+            let desc_value_str = if settings.description.is_empty() {
+                "(empty)".to_string()
+            } else {
+                settings.description.clone()
+            };
 
-        f.render_widget(
-            Paragraph::new(desc_value_str).style(desc_style),
-            Rect::new(desc_chunk.x + 2, desc_chunks[1].y, desc_chunk.width - 4, 1),
-        );
+            let desc_style = if desc_selected {
+                Style::default()
+                    .fg(theme.highlight_fg)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.dialog_fg)
+            };
+
+            f.render_widget(
+                Paragraph::new(desc_value_str).style(desc_style),
+                Rect::new(desc_chunk.x + 2, desc_chunks[1].y, desc_chunk.width - 4, 1),
+            );
+        }
 
         // X-Refs uses layout[3] (layout[1] is spacer, layout[2] is description)
         let xref_selected = self.selected_index == idx_xref;
@@ -580,23 +589,33 @@ impl Widget for DocumentSettingsDialog {
             }
         };
 
+        if self.is_editing_description {
+            match key.code {
+                KeyCode::Esc => {
+                    self.is_editing_description = false;
+                    self.description_input = ratatui_textarea::TextArea::default();
+                    ui_state.set_status_message("Ready");
+                    return WidgetResult::Handled;
+                }
+                KeyCode::Enter => {
+                    app_state.settings.description =
+                        self.description_input.lines().join("").trim().to_string();
+                    self.is_editing_description = false;
+                    return WidgetResult::Handled;
+                }
+                _ => {
+                    self.description_input.input(key);
+                    return WidgetResult::Handled;
+                }
+            }
+        }
+
         match key.code {
-            KeyCode::Char(c) if self.is_editing_description => {
-                self.description_input.push(c);
-                return WidgetResult::Handled;
-            }
-            KeyCode::Backspace if self.is_editing_description => {
-                self.description_input.pop();
-                return WidgetResult::Handled;
-            }
             KeyCode::Esc => {
                 if self.is_selecting_platform {
                     self.is_selecting_platform = false;
                 } else if self.is_selecting_assembler {
                     self.is_selecting_assembler = false;
-                } else if self.is_editing_description {
-                    self.is_editing_description = false;
-                    self.description_input.clear();
                 } else if self.is_editing_xref_count {
                     self.is_editing_xref_count = false;
                     self.xref_count_input.clear();
@@ -901,9 +920,6 @@ impl Widget for DocumentSettingsDialog {
                             self.bytes_per_line_input = "Invalid (1-40)".to_string();
                         }
                     }
-                } else if self.is_editing_description {
-                    app_state.settings.description = self.description_input.clone();
-                    self.is_editing_description = false;
                 } else {
                     // Toggle checkbox or enter mode
                     match self.selected_index {
@@ -984,7 +1000,10 @@ impl Widget for DocumentSettingsDialog {
                         }
                         idx if idx == idx_description => {
                             self.is_editing_description = true;
-                            self.description_input = app_state.settings.description.clone();
+                            let mut textarea = ratatui_textarea::TextArea::default();
+                            textarea.insert_str(&app_state.settings.description);
+                            textarea.move_cursor(ratatui_textarea::CursorMove::End);
+                            self.description_input = textarea;
                         }
                         idx if idx == idx_xref => {
                             self.is_editing_xref_count = true;
