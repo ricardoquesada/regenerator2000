@@ -30,8 +30,8 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Toggle Charset View**                                                                 | ++alt+4++ or ++ctrl+4++                                       |
 |                                    | **Toggle Bitmap View**                                                                  | ++alt+5++ or ++ctrl+5++                                       |
 |                                    | **Toggle Debugger Panel**                                                               | ++alt+6++ or ++ctrl+6++                                       |
-| **View: Disassembly** (editing)    | **Convert to Code**                                                                     | ++c++                                                         |
-|                                    | **Add Scope**                                                                           | ++r++                                                         |
+| **View: Disassembly** (editing)    | **Create Scope**                                                                        | ++r++                                                         |
+|                                    | **Convert to Code**                                                                     | ++c++                                                         |
 |                                    | **Convert to Byte**                                                                     | ++b++                                                         |
 |                                    | **Convert to Word**                                                                     | ++w++                                                         |
 |                                    | **Convert to Address**                                                                  | ++a++                                                         |

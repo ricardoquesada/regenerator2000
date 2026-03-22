@@ -2107,7 +2107,11 @@ mod tests {
 
         assert_eq!(core.state.scopes.len(), 1);
         assert_eq!(core.state.scopes.get(&Addr(0x1001)), Some(&Addr(0x1002)));
-        assert!(events.iter().any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("overlaps"))));
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("overlaps")))
+        );
 
         core.view.is_visual_mode = true;
         core.view.selection_start = Some(2);
@@ -2115,7 +2119,11 @@ mod tests {
         let events = core.apply_action(AppAction::Scope);
 
         assert_eq!(core.state.scopes.len(), 1);
-        assert!(events.iter().any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("overlaps"))));
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("overlaps")))
+        );
 
         core.view.is_visual_mode = true;
         core.view.selection_start = Some(3);
@@ -2124,6 +2132,10 @@ mod tests {
 
         assert_eq!(core.state.scopes.len(), 2);
         assert_eq!(core.state.scopes.get(&Addr(0x1003)), Some(&Addr(0x1004)));
-        assert!(!events.iter().any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("overlaps"))));
+        assert!(
+            !events
+                .iter()
+                .any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("overlaps")))
+        );
     }
 }
