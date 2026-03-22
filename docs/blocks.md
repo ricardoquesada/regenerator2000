@@ -711,7 +711,7 @@ When you export your disassembly, scopes are directly translated into the corres
 
         ```asm
         my_routine
-            {
+        {
             lda #$00
             beq l00
             bne l11
@@ -719,7 +719,7 @@ When you export your disassembly, scopes are directly translated into the corres
             sta $d020
         l11:
             rts
-            }
+        }
         ```
 
     === "ca65"

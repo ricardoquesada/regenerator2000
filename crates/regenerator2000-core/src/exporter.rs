@@ -248,7 +248,13 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             format!("{} {}", line.mnemonic, line.operand)
         };
 
-        let line_out = if label_part.len() < LABEL_COLUMN_WIDTH {
+        let line_out = if line.mnemonic == "{" || line.mnemonic == "}" {
+            if label_part.is_empty() {
+                line.mnemonic.clone()
+            } else {
+                format!("{label_part}\n{}", line.mnemonic)
+            }
+        } else if label_part.len() < LABEL_COLUMN_WIDTH {
             format!("{label_part:<LABEL_COLUMN_WIDTH$}{instruction_part}")
         } else {
             format!("{label_part} {instruction_part}")
