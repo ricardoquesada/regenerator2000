@@ -437,6 +437,18 @@
     },
     {
       "start": 15454,
+      "end": 15511,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 15512,
+      "end": 15513,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 15514,
       "end": 15596,
       "type_": "Code",
       "collapsed": false
@@ -486,7 +498,7 @@
     {
       "start": 16976,
       "end": 17007,
-      "type_": "HiLoAddress",
+      "type_": "HiLoWord",
       "collapsed": false
     },
     {
@@ -676,6 +688,20 @@
     "2048": [
       {
         "name": "level_nr",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2049": [
+      {
+        "name": "level_block_idx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2050": [
+      {
+        "name": "rows_to_scroll",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -893,6 +919,13 @@
     "4501": [
       {
         "name": "init_game_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4592": [
+      {
+        "name": "init_hud_and_scroll_screen_down",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1257,6 +1290,13 @@
     "16324": [
       {
         "name": "sid_tick_sfx_and_get_ones",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "16384": [
+      {
+        "name": "level_tile_tbl",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1659,6 +1699,13 @@
         "label_type": "UserDefined",
         "kind": "User"
       }
+    ],
+    "32784": [
+      {
+        "name": "level_tile_definition_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
     ]
   },
   "user_side_comments": {
@@ -1804,6 +1851,38 @@
     "15863": "Collision effect complete — deactivate",
     "16346": "$DF = %11011111 (bit 5 clear)",
     "16350": "$EF = %11101111 (bit 4 clear)",
+    "16384": "level 0",
+    "16416": "level 1",
+    "16448": "level 2",
+    "16480": "level 3",
+    "16512": "level 4",
+    "16544": "level 5",
+    "16576": "level 6",
+    "16608": "level 7",
+    "16640": "level 8",
+    "16672": "level 9",
+    "16704": "level 10",
+    "16736": "level 11",
+    "16768": "level 12",
+    "16800": "level 13",
+    "16832": "level 14",
+    "16864": "level 15",
+    "16896": "level 16",
+    "16928": "level 17",
+    "16960": "level 18",
+    "16992": "level 19",
+    "17024": "level 20",
+    "17056": "level 21",
+    "17088": "level 22",
+    "17120": "level 23",
+    "17152": "level 24",
+    "17184": "level 25",
+    "17216": "level 26",
+    "17248": "level 27",
+    "17280": "level 28",
+    "17312": "level 29",
+    "17344": "level 30",
+    "17376": "level 31",
     "17412": "Add offset buffered in $0808",
     "17418": "Clear the buffered offset",
     "17427": "Check Bit 0 (Up/Forward)",
@@ -2044,7 +2123,7 @@
     "4501": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the game state, memory buffers, and SID audio filters.\nThis routine sets up several 256-byte pages ($0800-$0DFF), clears object/sprite\nbuffers, and resets various variables at the start of $0800. It also initializes\nthe SID chip's filter and volume settings initially calling `$1195` then jumping\nto `$1200` to complete the rest of the work.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies memory regions $0800-$0DFF, $0F50-$0F56, $7400-$7457,\n              and SID registers $D415-$D418.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4608": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes game variables and duplicates memory pages.\nThis routine resets various state variables in the $0800-$09FF range, zeroes\nout specific arrays, and then creates two copies of the $0800-$09FF memory pages\nat $0A00-$0BFF and $0C00-$0DFF. It finally resets the SID filter cutoff frequency.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies memory $0800-$0DFF, $7080-$7082, and SID $D415-$D416.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4752": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMAIN ENTRY POINT\nThis code was in the tape loader.\nMoved to the \"main\" binary to have a single-load game",
-    "4864": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScrolls the playfield down and fetches the next row of map tile data.\nFirst, it shifts Screen RAM down by one row to create a scrolling effect.\nThen, it computes a pointer to the level map array ($4000) based on the current\nscroll position to grab a 1024-byte map tile ID. Because tile data is located\nat $8010 and stretches underneath the BASIC ROM ($A000-$BFFF), the caller must\nbank out BASIC first. It finally copies 40 bytes of the tile row into Screen RAM \nat $0428 (row 1, leaving the UI row intact) and updates Color RAM.\n\nInputs:  $0800 (Map Block Row), $0801 (Map Block Column), $0802 (Tile Y offset)\nOutputs: None\nSide Effects: Modifies Screen RAM ($0428+), Color RAM, and pointers at $49/$4A.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "4864": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScrolls the playfield down and fetches the next row of map tile data.\nFirst, it shifts Screen RAM down by one row to create a scrolling effect.\nThen, it computes a pointer to the level map array ($4000) based on the current\nscroll position to grab a 1024-byte map tile ID. Because tile data is located\nat $8010 and stretches underneath the BASIC ROM ($A000-$BFFF), the caller must\nbank out BASIC first. It finally copies 40 bytes of the tile row into Screen RAM \nat $0428 (row 1, leaving the UI row intact) and updates Color RAM.\n\nInputs:  $0800 (level nr), $0801 (Map Block Column), $0802 (Tile Y offset)\nOutputs: None\nSide Effects: Modifies Screen RAM ($0428+), Color RAM, and pointers at $49/$4A.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5344": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nShort busy-wait delay (~13 ms). Runs a nested loop with X=10 outer iterations\nand Y=256 inner iterations. Shares the loop body with delay_long.\n\nInputs:  None\nOutputs: X=0, Y=0\nSide Effects: None (burns CPU time)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5360": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLong busy-wait delay (~328 ms). X=$00 wraps to 256 outer iterations, each\nwith 256 inner Y iterations. Falls through into delay_short's loop body.\nUsed for dramatic pauses during level transitions and score displays.\n\nInputs:  None\nOutputs: X=0, Y=0\nSide Effects: None (burns CPU time)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5376": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nShifts a large portion of Screen RAM down by one row (40 bytes) to create the\nscrolling effect. It initializes a zero-page pointer ($49/$4A) to the end of\nthe scrolling region ($0747) and copies memory to pointer + 40 ($28).\nIt iterates backwards until it reaches the HUD boundary at $0427, leaving row 0\n(the HUD) intact.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies Screen RAM ($0428-$076F) and zero-page pointers $49/$4A.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -2069,6 +2148,7 @@
     "15792": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame player horizontal recoil. Called every frame from the main loop\nwhile a collision is active (col_active != 0). Slides the player sprite X\nby col_step_px pixels in the direction of the hit, for col_frames_left frames.\n\n  col_quadrant 1 or 3 (NPC was LEFT of player):\n      dec $D000 col_step_px times; calls apply_collision_recoil (Y nudge) each step\n  col_quadrant 2 or 4 (NPC was RIGHT of player):\n      inc $D000 col_step_px times; no Y nudge (3x NOP — possible bug)\n\nDecrements col_frames_left each call; when it reaches zero, clears col_active\nto end the effect.\n\nInputs:       col_active, col_quadrant, col_step_px, col_frames_left\nOutputs:      $D000 (Sprite 0 X Pos)\nSide Effects: Calls apply_collision_recoil for left-side hits; clears\n              col_active when col_frames_left expires\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "15872": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies speed and score adjustments upon bumping into a car.\nThis block is jumped to from the collision detection loop. Based on the angle\nof impact ($0988) and the car type, it either slows the player down (subtracting\nspeed and score penalties) or speeds the player up (adding speed and score bonuses).\n\nInputs:  $0988 (collision angle), X (enemy index), Y (amount modifier)\nOutputs: None\nSide Effects: Modifies player speed ($0804) and score digits ($08E0). Returns via JMP back to collision loop.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "16032": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies visual recoil to the player's car after a collision.\nBased on the collision angle ($0988), it shifts the player sprite (Sprite 0)\neither up or down on the screen to simulate a physical bump.\nIt clamps the player's vertical position between $90 and $D0 to keep them\nwithin the visible gameplay area.\n\nInputs:  $0988 (collision angle)\nOutputs: None\nSide Effects: Modifies Sprite 0 Y Pos ($D001).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "16384": "tile map (?).\nEach level has $20 bytes, there are 32 levels: 1024 bytes in total",
     "17408": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies a buffered vertical offset to Sprite 0 (the player's car).\nTakes the accumulated vertical offset stored at $0808, adds it to the current\nY position of Sprite 0 ($D001), and then clears $0808 back to 0. This is\nused to process collision bumps, road bumps, or other vertical shifts pending\nfor the frame.\n\nInputs:  Y position at $D001, offset at $0808\nOutputs: None\nSide Effects: Modifies Sprite 0 Y pos ($D001) and sets $0808 to 0.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17424": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles player acceleration (Up direction) and deceleration (Down direction).\nReads the parsed input state at $00F5. If 'Up' (Bit 0) is pressed, the car\nmoves up the screen (Y position at $D001 decreases until clamped at $90),\nthe scrolling speed $0804 is increased, and the 3-byte visual speedometer array\nat $08E0 is incremented in base-10.\nIf 'Down' is pressed, it branches to $4464 which performs the inverse (speed\narray decrements, car moves down the screen until clamped at $D0).\n\nInputs:  Parsed input state at $00F5\nOutputs: None\nSide Effects: Modifies Sprite 0 Y pos ($D001), speed $0804, and speedometer $08E0\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17584": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the game's HUD/Dashboard at the bottom of the screen.\nDraws the border graphics and prints the numeric values from $08E0.\n\nInputs:  $08E0..$08E2 (3-byte numeric value)\nOutputs: Screen RAM ($0772-$07CA), Color RAM ($DB72-$DBCA)\nSide Effects: Updates rows 22-24 of the screen display.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -2101,7 +2181,23 @@
     "21504": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ-driven melody player for SID Voices 2 & 3.\n\nCalled every IRQ frame. Steps through a looping note sequence in the melody\ntable at $5500 using a self-modifying pointer ($5445/$5446). A rate-limiting\ntimer controls the pace: 8 ticks per note, then a 3-tick gate-off gap.\nNotes alternate between Voice 2 and Voice 3 so the prior note's release\nenvelope can finish on one voice while the next note starts on the other.\n\nTable encoding:\n  $30        = rest (silent tick, exit immediately)\n  $00-$2F    = pitch index into sid_freq2_lo/hi_tbl\n  >= $40     = end-of-sequence; wrap pointer back to $5500\n\nKey $BF toggles playback on/off; pressing it immediately gates both voices.\nWaveform: triangle ($21), A=0/D=0, Sustain=$B, Release=$A.\n\nInputs:       $C5 (key scan), sfx_prev_key, sfx_v23_en, sfx_v23_timer,\n              sfx_v23_idx, sfx_v23_toggle; self-mod melody ptr at $5445/$5446\nOutputs:      SID Voice 2 regs ($D407-$D40D), Voice 3 regs ($D40E-$D414)\nSide Effects: Advances self-modifying melody pointer through $5500+;\n              updates sfx_prev_key, sfx_v23_en, sfx_v23_timer,\n              sfx_v23_idx, sfx_v23_toggle\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "22208": "Scans CIA1 keyboard matrix by driving Port B (rows) and reading Port A (cols).\nA = DDR-B mask (row to drive). Returns stable column byte in A (debounced).",
     "22225": "Scans CIA1 keyboard matrix by driving Port A (cols) and reading Port B (rows).\nA = DDR-A mask (column to drive). Returns stable row byte in A (debounced).",
-    "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLevels"
+    "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLevels",
+    "32784": "Each \"tile\" consists of $0400 (1024) bytes, what fits in a screen.\nEach level consists of different \"tiles\" that are defined in $4000\nblock idx #00",
+    "33808": "block idx #01",
+    "34832": "block idx #02",
+    "35856": "block idx #03",
+    "36880": "block idx #04",
+    "37904": "block idx #05",
+    "38928": "block idx #06",
+    "39952": "block idx #07",
+    "40976": "block idx #08",
+    "42000": "block idx #09",
+    "43024": "block idx #10 ($0a)",
+    "44048": "block idx #11 ($0b)",
+    "45072": "block idx #12 ($0c)",
+    "46096": "block idx #13 ($0d)",
+    "47120": "block idx #14 ($0e)",
+    "48144": "block idx #15 ($0f)"
   },
   "settings": {
     "all_labels": true,
@@ -2122,6 +2218,7 @@
     "show_system_comments": true
   },
   "immediate_value_formats": {
+    "4618": "Decimal",
     "4753": {
       "HighByte": 21400
     },
@@ -2140,6 +2237,7 @@
     "4909": {
       "HighByte": 32784
     },
+    "4979": "Decimal",
     "5005": {
       "LowByte": 32784
     },
@@ -2149,6 +2247,8 @@
     "5381": {
       "LowByte": 1863
     },
+    "5498": "Decimal",
+    "5510": "Decimal",
     "6928": {
       "HighByte": 1024
     },
@@ -2167,6 +2267,7 @@
     "17975": {
       "HighByte": 55296
     },
+    "18547": "Decimal",
     "18555": {
       "LowByte": 16384
     },
@@ -2198,14 +2299,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 18516,
+  "cursor_address": 16384,
   "hex_dump_cursor_address": 18496,
   "sprites_cursor_address": 14400,
   "charset_cursor_address": 17152,
   "right_pane_visible": "Sprites",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 40960,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
