@@ -98,6 +98,16 @@ impl Widget for DebuggerView {
 
         // Render live disassembly panel if we have live memory
         if let (Some(live_rect), Some(live_bytes)) = (live_area, &vs.live_memory) {
+            let (disasm_rect, dump_rect) = if live_rect.width > 50 {
+                let ch = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+                    .split(live_rect);
+                (ch[0], Some(ch[1]))
+            } else {
+                (live_rect, None)
+            };
+
             let mem_start = vs.live_memory_start;
             let pc = vs.pc.unwrap_or(mem_start);
 
@@ -187,7 +197,58 @@ impl Widget for DebuggerView {
 
             let live_para =
                 Paragraph::new(live_rendered).style(Style::default().bg(theme.background));
-            f.render_widget(live_para, live_rect);
+            f.render_widget(live_para, disasm_rect);
+
+            // Render memory dump if we have space
+            if let Some(d_rect) = dump_rect {
+                let mut dump_rendered: Vec<Line> = Vec::new();
+                if let Some(dump_addr) = vs.dump_address {
+                    dump_rendered.push(Line::from(Span::styled(
+                        format!("Dump @ ${dump_addr:04X} ──────────────"),
+                        header_style,
+                    )));
+
+                    if let Some(dump_bytes) = &vs.dump_memory {
+                        for i in 0..8 {
+                            let row_addr = dump_addr + (i * 8) as u16;
+                            let start_idx = i * 8;
+                            let end_idx = (start_idx + 8).min(dump_bytes.len());
+
+                            if start_idx < dump_bytes.len() {
+                                let hex_str = dump_bytes[start_idx..end_idx]
+                                    .iter()
+                                    .map(|b| format!("{b:02X}"))
+                                    .collect::<Vec<_>>()
+                                    .join(" ");
+                                dump_rendered.push(Line::from(vec![
+                                    Span::styled(format!("  ${row_addr:04X}  "), dim_style),
+                                    Span::styled(hex_str, dim_style),
+                                ]));
+                            }
+                        }
+                    } else {
+                        dump_rendered
+                            .push(Line::from(Span::styled("  (waiting for data)", dim_style)));
+                    }
+                } else {
+                    dump_rendered.push(Line::from(Span::styled(
+                        "Dump ───────────────────",
+                        header_style,
+                    )));
+                    dump_rendered.push(Line::from(Span::styled(
+                        "  (press 'm' to config)",
+                        dim_style,
+                    )));
+                }
+
+                while dump_rendered.len() < LIVE_PANEL_HEIGHT as usize {
+                    dump_rendered.push(Line::from(Span::styled("", dim_style)));
+                }
+
+                let dump_para =
+                    Paragraph::new(dump_rendered).style(Style::default().bg(theme.background));
+                f.render_widget(dump_para, d_rect);
+            }
         }
 
         let fmt_byte = |v: Option<u8>| -> String {
@@ -400,6 +461,10 @@ impl Widget for DebuggerView {
                 Span::styled("Watchpoint...", dim_style),
             ]),
             Line::from(vec![
+                Span::styled("  m   ", label_style),
+                Span::styled("change memory dump address", dim_style),
+            ]),
+            Line::from(vec![
                 Span::styled("  F7  ", label_style),
                 Span::styled("Step into", dim_style),
             ]),
@@ -568,11 +633,15 @@ impl Widget for DebuggerView {
 
     fn handle_input(
         &mut self,
-        _key: KeyEvent,
+        key: KeyEvent,
         _app_state: &mut AppState,
         _ui_state: &mut UIState,
     ) -> WidgetResult {
-        WidgetResult::Ignored
+        if key.code == crossterm::event::KeyCode::Char('m') {
+            WidgetResult::Action(crate::state::actions::AppAction::ViceMemoryDumpDialog)
+        } else {
+            WidgetResult::Ignored
+        }
     }
 }
 
@@ -593,6 +662,12 @@ mod tests {
         assert_eq!(
             view.handle_input(key1, &mut app_state, &mut ui_state),
             WidgetResult::Ignored
+        );
+
+        let key_m = KeyEvent::new(KeyCode::Char('m'), KeyModifiers::NONE);
+        assert_eq!(
+            view.handle_input(key_m, &mut app_state, &mut ui_state),
+            WidgetResult::Action(crate::state::actions::AppAction::ViceMemoryDumpDialog)
         );
 
         let key2 = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);

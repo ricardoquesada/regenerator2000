@@ -86,6 +86,10 @@ pub enum AppAction {
         address: super::Addr,
         kind: crate::vice::state::BreakpointKind,
     },
+    ViceMemoryDumpDialog,
+    ViceSetMemoryDumpAddress {
+        address: super::Addr,
+    },
     ToggleDebuggerView,
     NavigateBack,
     ApplyLabel {
@@ -134,6 +138,7 @@ impl AppAction {
                 | AppAction::ViceBreakpointDialog
                 | AppAction::ViceSetBreakpointAt { .. }
                 | AppAction::ViceToggleWatchpoint
+                | AppAction::ViceMemoryDumpDialog
         )
     }
 
@@ -164,6 +169,7 @@ impl AppAction {
             AppAction::ViceConnectAddress(_)
                 | AppAction::ViceSetWatchpoint { .. }
                 | AppAction::ViceSetBreakpointAt { .. }
+                | AppAction::ViceSetMemoryDumpAddress { .. }
                 | AppAction::NavigateToAddress(_)
                 | AppAction::ApplyLabel { .. }
                 | AppAction::ApplyComment { .. }

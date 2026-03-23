@@ -741,6 +741,25 @@ impl Core {
                     crate::event::DialogType::WatchpointAddress(prefill),
                 ));
             }
+            AppAction::ViceMemoryDumpDialog => {
+                let prefill = self.state.vice_state.dump_address;
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::MemoryDumpAddress(prefill),
+                ));
+            }
+            AppAction::ViceSetMemoryDumpAddress { address } => {
+                self.state.vice_state.dump_address = Some(address.0);
+                if let Some(client) = &self.state.vice_client
+                    && !self.state.vice_state.running
+                {
+                    client.send_memory_get(address.0, address.0.saturating_add(63), 6);
+                }
+                events.push(CoreEvent::StatusMessage(format!(
+                    "Memory dump set to ${:04X}",
+                    address.0
+                )));
+                events.push(CoreEvent::StateChanged);
+            }
             AppAction::ViceSetWatchpoint { address, kind } => {
                 if let Some(client) = &self.state.vice_client {
                     let existing_id = self

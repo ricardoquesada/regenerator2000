@@ -281,6 +281,11 @@ impl MenuState {
                             Some("F6"),
                             Some(AppAction::ViceToggleWatchpoint),
                         ),
+                        MenuItem::new(
+                            "Memory Dump...",
+                            Some("M"),
+                            Some(AppAction::ViceMemoryDumpDialog),
+                        ),
                     ],
                 },
                 MenuCategory {
@@ -437,7 +442,8 @@ impl MenuState {
                             AppAction::ViceDisconnect
                             | AppAction::ViceToggleBreakpoint
                             | AppAction::ViceBreakpointDialog
-                            | AppAction::ViceToggleWatchpoint => {
+                            | AppAction::ViceToggleWatchpoint
+                            | AppAction::ViceMemoryDumpDialog => {
                                 item.disabled = app_state.vice_client.is_none();
                             }
                             AppAction::ViceStep

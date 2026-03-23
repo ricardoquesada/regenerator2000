@@ -144,6 +144,11 @@ pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAc
                         crate::ui::dialog_watchpoint_address::WatchpointAddressDialog::new(addr),
                     ));
                 }
+                DialogType::MemoryDumpAddress(addr) => {
+                    ui_state.active_dialog = Some(Box::new(
+                        crate::ui::dialog_memory_dump_address::MemoryDumpAddressDialog::new(addr),
+                    ));
+                }
                 DialogType::Settings => {
                     ui_state.active_dialog =
                         Some(Box::new(crate::ui::dialog_settings::SettingsDialog::new()));

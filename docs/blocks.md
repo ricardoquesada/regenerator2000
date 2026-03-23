@@ -596,10 +596,84 @@ You can add comments to any line to annotate your disassembly.
 !!! note
     **Line Comments** also function as **Splitters**. Inserting a line comment into a grouped block (like a sequence of bytes) will split the block at that point, preventing the auto-merger from combining them.
 
+### Scopes
+
+- **Create Scope**: ++r++
+- **Remove Scope**: ++delete++ (only at the beginning or end of a scope)
+
+!!! note
+
+    **Scopes** are not a different type of block. Instead they "encapsulate" existing blocks within a scope (AKA "namespace", "proc", etc).
+
+Scopes allow you to group instructions and data into logical blocks, typically representing routines or functions. The primary purpose of scopes is to restrict the visibility of local labels, preventing naming conflicts between different parts of the code.
+
+When you export your disassembly, scopes are directly translated into the corresponding directives of your chosen assembler.
+
+!!! example
+
+    === "64tass"
+
+        In 64tass, scopes are mapped to the `.block` and `.bend` directives. If a name is provided, it's placed as a label just before the `.block`.
+
+        ```asm
+        my_routine
+            .block
+            lda #$00
+            beq l00
+            bne l11
+        l00
+            sta $d020
+        l11
+            rts
+            .bend
+
+            jmp my_routine.l00
+        ```
+
+    === "ACME"
+
+        ACME does **not** support scopes. Any scopes defined in your project will be ignored during export if you select ACME as your assembler.
+
+    === "KickAssembler"
+
+        In Kick Assembler, scopes are represented using curly braces `{` and `}`. The scope name is placed right before the opening brace.
+
+        ```asm
+        my_routine
+        {
+            lda #$00
+            beq l00
+            bne l11
+        l00:
+            sta $d020
+        l11:
+            rts
+        }
+            jmp my_routine.l00
+        ```
+
+    === "ca65"
+
+        In ca65, scopes are mapped to the `.proc` and `.endproc` directives. The scope name is passed as an argument to `.proc`. Unnamed scopes are automatically named `unnamed_scope`.
+
+        ```asm
+            .proc my_routine
+            lda #$00
+            beq l00
+            bne l11
+        l00:
+            sta $d020
+        l11:
+            rts
+            .endproc
+
+            jmp my_routine.l00
+        ```
+
 ### Splitters and Auto-Merging
- 
+
 - **Shortcut**: ++pipe++
- 
+
 In Regenerator 2000, adjacent blocks of the same type are **automatically merged** into a single contiguous block. This feature keeps the disassembly clean (e.g., combining adjacent Byte blocks into single Byte block).
 
 !!! note
@@ -611,15 +685,15 @@ graph LR
     A[Byte Block A <br/> $1000-$1FFF] -->|Auto-Merge| M[Merged Byte Block <br/> $1000-$2FFF]
     B[Byte Block B <br/> $2000-$2FFF] --> M
 ```
- 
+
 **Splitters** (and **Line Comments**) are used to prevent this behavior when needed. They serve two purposes:
- 
+
 1.  **Visual Separation**: Inserts a visual separator (newline) in the disassembly view.
 2.  **Logical Separation**: Acts as a barrier that **stops the auto-merger**.
- 
+
 **Example**:
 Imagine you have a Lo/Hi table right after another. Without a splitter, they become one. With a splitter, they remain separate.
- 
+
 ```mermaid
 graph TD
     subgraph Without Splitter
@@ -672,69 +746,3 @@ graph TD
 - **Scope**: This is a **visual-only** feature for the Disassembly View. It does **not** affect:
     -   The exported assembly code (all code is always exported).
     -   Other views (e.g., Hex Dump, Character Set).
-
-### Scopes
-
-- **Create Scope**: ++r++
-- **Remove Scope**: ++delete++
-
-Scopes allow you to group instructions and data into logical blocks, typically representing routines or functions. The primary purpose of scopes is to restrict the visibility of local labels, preventing naming conflicts between different parts of the code.
-
-When you export your disassembly, scopes are directly translated into the corresponding directives of your chosen assembler.
-
-!!! example
-
-    === "64tass"
-
-        In 64tass, scopes are mapped to the `.block` and `.bend` directives. If a name is provided, it's placed as a label just before the `.block`.
-
-        ```asm
-        my_routine
-            .block
-            lda #$00
-            beq l00
-            bne l11
-        l00
-            sta $d020
-        l11
-            rts
-            .bend
-        ```
-
-    === "ACME"
-
-        ACME does **not** support scopes. Any scopes defined in your project will be ignored during export if you select ACME as your assembler.
-
-    === "KickAssembler"
-
-        In Kick Assembler, scopes are represented using curly braces `{` and `}`. The scope name is placed right before the opening brace.
-
-        ```asm
-        my_routine
-        {
-            lda #$00
-            beq l00
-            bne l11
-        l00:
-            sta $d020
-        l11:
-            rts
-        }
-        ```
-
-    === "ca65"
-
-        In ca65, scopes are mapped to the `.proc` and `.endproc` directives. The scope name is passed as an argument to `.proc`. Unnamed scopes are automatically named `unnamed_scope`.
-
-        ```asm
-            .proc my_routine
-            lda #$00
-            beq l00
-            bne l11
-        l00:
-            sta $d020
-        l11:
-            rts
-            .endproc
-        ```
-

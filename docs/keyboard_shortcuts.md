@@ -83,6 +83,7 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 | **Debugger**                       | **Toggle Breakpoint**                                                                   | ++f2++                                                        |
 |                                    | **Toggle Breakpoint...**                                                                | ++shift+f2++                                                  |
 |                                    | **Watchpoint**                                                                          | ++f6++                                                        |
+|                                    | **Memory Dump...**                                                                      | ++m++                                                         |
 |                                    | **Run to Cursor**                                                                       | ++f4++                                                        |
 |                                    | **Step Instruction**                                                                    | ++f7++                                                        |
 |                                    | **Step Over**                                                                           | ++f8++                                                        |

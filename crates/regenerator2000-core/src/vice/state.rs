@@ -61,6 +61,10 @@ pub struct ViceState {
     pub zp00_01: Option<Vec<u8>>,
     pub vectors: Option<Vec<u8>>,
 
+    // User-requested memory dump (32 bytes)
+    pub dump_address: Option<u16>,
+    pub dump_memory: Option<Vec<u8>>,
+
     // Persistent breakpoints (excludes temporary run-to-cursor checkpoints)
     pub breakpoints: Vec<ViceBreakpoint>,
 
@@ -97,6 +101,8 @@ impl ViceState {
             io_memory: None,
             zp00_01: None,
             vectors: None,
+            dump_address: Some(0x0000),
+            dump_memory: None,
             breakpoints: Vec::new(),
             temporary_breakpoints: Vec::new(),
             stop_reason: None,
@@ -118,6 +124,8 @@ impl ViceState {
         self.io_memory = None;
         self.zp00_01 = None;
         self.vectors = None;
+        self.dump_address = Some(0x0000);
+        self.dump_memory = None;
         self.breakpoints.clear();
         self.temporary_breakpoints.clear();
         self.stop_reason = None;

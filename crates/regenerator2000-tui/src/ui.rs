@@ -18,6 +18,7 @@ pub mod dialog_jump_to_address;
 pub mod dialog_jump_to_line;
 pub mod dialog_keyboard_shortcut;
 pub mod dialog_label;
+pub mod dialog_memory_dump_address;
 pub mod dialog_open;
 pub mod dialog_open_recent;
 pub mod dialog_origin;

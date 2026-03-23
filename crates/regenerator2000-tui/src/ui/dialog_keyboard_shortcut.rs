@@ -103,6 +103,7 @@ impl ShortcutsDialog {
             ("F2", "Toggle Breakpoint"),
             ("Shift+F2", "Toggle Breakpoint..."),
             ("F6", "Watchpoint"),
+            ("m", "Memory Dump..."),
             ("F4", "Run to Cursor"),
             ("F7", "Step Instruction"),
             ("F8", "Step Over"),

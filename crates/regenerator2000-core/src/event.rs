@@ -66,6 +66,7 @@ pub enum DialogType {
     Origin,
     ViceConnect,
     WatchpointAddress(Option<u16>),
+    MemoryDumpAddress(Option<u16>),
     CompleteAddress {
         known_byte: u8,
         lo_first: bool,

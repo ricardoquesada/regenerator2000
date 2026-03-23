@@ -311,6 +311,10 @@ fn handle_vice_registers_get(
 
         client.send_memory_get(0xFFFA, 0xFFFF, 5);
 
+        if let Some(dump_addr) = app_state.vice_state.dump_address {
+            client.send_memory_get(dump_addr, dump_addr.saturating_add(63), 6);
+        }
+
         app_state.vice_state.live_memory_start = mem_start;
     }
 }
@@ -338,6 +342,9 @@ fn handle_vice_memory_get(msg: &crate::vice::ViceMessage, app_state: &mut AppSta
         }
         5 => {
             app_state.vice_state.vectors = Some(resp.bytes);
+        }
+        6 => {
+            app_state.vice_state.dump_memory = Some(resp.bytes);
         }
         _ => {}
     }
