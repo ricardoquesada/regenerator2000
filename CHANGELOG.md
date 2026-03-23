@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] - 2026-03-23
+
+### Features
+
+- **Debugger**: Added memory dump viewer to the debugger UI.
+- **Scopes**: Added comprehensive support across 64tass, ca65, and KickAssembler. Scope is like a namespace, think of ".proc" / ".endproc" in ca65.
+- **Scopes**: Added TUI support for adding, renaming, and deleting scopes with proper indentation, splitters, gutters, boundaries, and default `scope_{ADDRESS}` auto-generated labels.
+- **MCP Server**: Added `r2000_add_scope` MCP tool.
+- **UI**: Improved text input widgets with full cursor movement and editing capabilities for document settings and labels.
+- **UI**: Simplified splitter rendering in disassembly view.
+
+### Fixes
+
+- **UI**: Fix disassembly view arrow display bugs.
+- **Navigation**: Store correct external label addresses in navigation history instead of default addresses.
+- **Stability**: Fix dependency vulnerabilities in `rustls-webpki`.
+- **Undo/Redo**: Fix redundant undo actions by grouping state and analysis commands.
+
+### Documentation
+
+- **API**: Added comprehensive module-level documentation and enforced clippy lints for core and TUI crates.
+- **User Guide**: Documented the new Scope feature and updated keyboard shortcuts.
+- **Examples**: Updated example projects to demonstrate scopes, local labels, and new features.
+
+### Refactor / Internal
+
+- **Testing**: Added unit tests for overlapping and nested scopes checking.
+
 ## [0.9.2] - 2026-03-16
 
 ### Features
