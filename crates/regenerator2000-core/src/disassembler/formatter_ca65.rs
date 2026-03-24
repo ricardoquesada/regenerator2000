@@ -438,6 +438,10 @@ impl Formatter for Ca65Formatter {
         true
     }
 
+    fn scope_resolution_separator(&self) -> &'static str {
+        "::"
+    }
+
     fn format_scope_start(
         &self,
         name: Option<&str>,

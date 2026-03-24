@@ -30,6 +30,7 @@ fn test_format_instructions() {
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
+        scope_separator: ".",
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -48,6 +49,7 @@ fn test_format_instructions() {
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
+        scope_separator: ".",
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -66,6 +68,7 @@ fn test_format_instructions() {
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
+        scope_separator: ".",
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -84,6 +87,7 @@ fn test_format_instructions() {
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
+        scope_separator: ".",
     };
     let (mnemonic, operand) = formatter.format_instruction(&ctx);
     assert_eq!(mnemonic, "asl");
@@ -155,6 +159,7 @@ fn test_forced_absolute_plus2() {
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
+        scope_separator: ".",
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -175,6 +180,7 @@ fn test_forced_absolute_plus2() {
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
+        scope_separator: ".",
     };
     assert_eq!(
         formatter.format_instruction(&ctx_false),
@@ -193,6 +199,7 @@ fn test_forced_absolute_plus2() {
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
+        scope_separator: ".",
     };
     assert_eq!(
         formatter.format_instruction(&ctx_x),
@@ -211,6 +218,7 @@ fn test_forced_absolute_plus2() {
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
+        scope_separator: ".",
     };
     assert_eq!(
         formatter.format_instruction(&ctx_normal),
@@ -241,6 +249,7 @@ fn test_addressing_modes() {
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
+        scope_separator: ".",
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -259,6 +268,7 @@ fn test_addressing_modes() {
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
+        scope_separator: ".",
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -277,6 +287,7 @@ fn test_addressing_modes() {
         local_label_names: None,
         label_scope_names: None,
         current_scope_name: None,
+        scope_separator: ".",
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -456,6 +467,7 @@ fn test_lax_immediate_mnemonic() {
             local_label_names: None,
             label_scope_names: None,
             current_scope_name: None,
+            scope_separator: ".",
         };
         let (mnemonic, _) = formatter.format_instruction(&ctx);
         assert_eq!(mnemonic, "lxa", "ACME should use 'lxa' for opcode $AB");

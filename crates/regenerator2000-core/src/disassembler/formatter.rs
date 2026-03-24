@@ -18,6 +18,7 @@ pub struct FormatContext<'a> {
     pub local_label_names: Option<&'a BTreeMap<Addr, String>>,
     pub label_scope_names: Option<&'a BTreeMap<Addr, String>>,
     pub current_scope_name: Option<&'a str>,
+    pub scope_separator: &'a str,
 }
 
 impl<'a> FormatContext<'a> {
@@ -30,6 +31,7 @@ impl<'a> FormatContext<'a> {
             self.local_label_names,
             self.label_scope_names,
             self.current_scope_name,
+            self.scope_separator,
         )
     }
 }
@@ -45,6 +47,10 @@ pub trait Formatter {
     fn format_mnemonic(&self, mnemonic: &str) -> String;
     fn format_label(&self, name: &str) -> String;
     fn format_label_definition(&self, name: &str) -> String;
+
+    fn scope_resolution_separator(&self) -> &'static str {
+        "."
+    }
 
     fn format_text(
         &self,

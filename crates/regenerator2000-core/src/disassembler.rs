@@ -77,6 +77,7 @@ pub fn resolve_label_name(
     local_label_names: Option<&BTreeMap<Addr, String>>,
     label_scope_names: Option<&BTreeMap<Addr, String>>,
     current_scope_name: Option<&str>,
+    scope_separator: &str,
 ) -> Option<String> {
     let mut base_name_opt = None;
 
@@ -102,7 +103,7 @@ pub fn resolve_label_name(
     {
         let same_scope = current_scope_name.is_some_and(|curr| curr == scope_name);
         if !same_scope && &base_name != scope_name {
-            return Some(format!("{}.{}", scope_name, base_name));
+            return Some(format!("{}{}{}", scope_name, scope_separator, base_name));
         }
     }
 
@@ -870,6 +871,7 @@ impl Disassembler {
                         local_label_names,
                         label_scope_names,
                         current_scope_name: current_scope_name.as_deref(),
+                        scope_separator: formatter.scope_resolution_separator(),
                     };
                     let (mnemonic, operand_str) = formatter.format_instruction(&ctx);
 
@@ -1245,6 +1247,7 @@ impl Disassembler {
                 local_label_names,
                 label_scope_names,
                 current_scope_name.as_deref(),
+                formatter.scope_resolution_separator(),
             )
             .unwrap_or_else(|| formatter.format_address(Addr(val)));
             operands.push(operand);
