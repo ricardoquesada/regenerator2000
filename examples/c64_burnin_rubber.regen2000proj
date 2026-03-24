@@ -1009,7 +1009,7 @@
     ],
     "5543": [
       {
-        "name": "increment_score_by_500",
+        "name": "increment_score_by_50000",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1079,21 +1079,21 @@
     ],
     "5744": [
       {
-        "name": "tbl_sprite2_ptr",
+        "name": "tbl_level_comple__sprite2_ptr",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "5748": [
       {
-        "name": "tbl_sprite1_ptr",
+        "name": "tbl_level_complete_sprite1_ptr",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "5752": [
       {
-        "name": "tbl_sprite1_color",
+        "name": "tbl_level_complete_sprite1_color",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1769,6 +1769,7 @@
     "5585": "Check for base-10 overflow",
     "5594": "Move to next most significant digit (carry)",
     "5602": "Loop until X=0, then fall through to j16A1",
+    "5610": "hero sprite frame #0",
     "5812": "Convert to Screencode '0'-'9'",
     "5880": "Convert Score to Screencode",
     "5882": "Write Score to Screen",
@@ -2070,6 +2071,7 @@
     "21108": "Loop while no key",
     "21260": "$F7 = %11110111 (bit 3 clear)",
     "21326": "$F7 held — wait for release",
+    "21367": "BUG: Message says \"BONUS 10000\", but it actually increments 100,000",
     "21403": "If sf_voice_1_en is clear, reset state",
     "21408": "If state > 0 (already playing), branch to modulation",
     "21410": "Clear internal freq_lo component",
@@ -2142,7 +2144,7 @@
     "5360": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLong busy-wait delay (~328 ms). X=$00 wraps to 256 outer iterations, each\nwith 256 inner Y iterations. Falls through into delay_short's loop body.\nUsed for dramatic pauses during level transitions and score displays.\n\nInputs:  None\nOutputs: X=0, Y=0\nSide Effects: None (burns CPU time)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5376": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nShifts a large portion of Screen RAM down by one row (40 bytes) to create the\nscrolling effect. It initializes a zero-page pointer ($49/$4A) to the end of\nthe scrolling region ($0747) and copies memory to pointer + 40 ($28).\nIt iterates backwards until it reaches the HUD boundary at $0427, leaving row 0\n(the HUD) intact.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies Screen RAM ($0428-$076F) and zero-page pointers $49/$4A.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5442": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLevel transition screen: displays the upcoming season name and \"GOOD LUCK!\"\nmessage. If all 32 levels (ways) are completed, awards a BONUS 10000 score.\nOtherwise, advances season_nr (mod 4), resets level state, plays a countdown\ndelay animation, and re-enters the main game flow for the next level.\n\nInputs:  season_nr ($0803), a0800 ($0800) level counter\nOutputs: season_nr (incremented mod 4), a0800 (incremented), level state reset\nSide Effects: Writes to Screen/Color RAM, busy-wait delays, may award bonus\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "5543": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIncrements the player's score by 500 points.\nThis routine calls an internal loop 5 times (controlled by Y register). In each\nloop, it increments the hundreds digit (index 2 of the $0825 score array) by 1.\nOverflows are handled seamlessly via a cascading BCD-like carry lookup. After\nadding 5 to the hundreds position, it refreshes the HUD to display the new score.\n\nInputs:  None (relies on $0825 array)\nOutputs: None\nSide Effects: Modifies the Score array and calls update_hud_display.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "5543": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIncrements the player's score by 50000 points.\nThis routine calls an internal loop 5 times (controlled by Y register). In each\nloop, it increments the ten-thousand digit (index 2 of the $0825 score array) by 1.\nOverflows are handled seamlessly via a cascading BCD-like carry lookup. After\nadding 5 to the ten-thousand position, it refreshes the HUD to display the new score.\n\nInputs:  None (relies on $0825 array)\nOutputs: None\nSide Effects: Modifies the Score array and calls update_hud_display.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5577": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIncrements the player's 7-digit score uniformly.\nBecause the score is stored as an array of 7 individual digits (0-9) at $0825,\nthis routine performs a manual base-10 addition. It starts at the least\nsignificant digit (index 6, $082B), adds 1, and carries over any overflow (10)\nto the next significant digit.\n\nInputs:  Score array at $0825-$082B\nOutputs: Modified Score array\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5808": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the HUD text on the top row of the screen ($0400).\nConverts numeric gameplay variables such as the current score, high score, and\nother state values into screencodes (by adding $30) and writes them directly\nto Screen RAM.\n\nInputs:  Numeric values at $0821, $0822, $0823, $0825-$082B (Score), and $0F50-$0F56 (High Score)\nOutputs: None\nSide Effects: Modifies Screen RAM ($0403-$0427) to update visible UI numbers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "6048": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles horizontal movement for the player car (Sprite 0).\nChecks the game state flag at $098A. If active, reads the parsed input state\nat zero page $00F5. Bit 2 ($04) corresponds to Left, Bit 3 ($08) to Right.\nIf left is pressed, Sprite 0's X position ($D000) is moved left by 6 pixels,\nclamping at 0. If right is pressed, it is moved right by 6 pixels, clamping\nat $FF (255).\n\nInputs:  State flag $098A, Parsed Input state at $00F5\nOutputs: None\nSide Effects: Modifies Sprite 0 X position ($D000)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -2191,7 +2193,7 @@
     "20736": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles a scroll direction change event, triggered from the countdown/wait\nloop at $51E6 once it expires. It checks two state variables to decide how\nto swap the map scroll buffers, then reloads the game level via s170C.\n\n$0F00 = current scroll mode (must be $02 = \"switching direction\" to act)\n$0F01 = current scroll direction ($01 = scrolling up/reverse, $02 = forward)\n\nIf $0F00 != $02: bail out immediately to j1803 (re-init video).\n\nIf $0F00 == $02, four paths based on $0F01 + pending car data:\n\n  PATH A ($0F01 != $01, pending cars at $0A22/$0A23):\n    Set $0F01 = $01, copy work buffer $0800 -> $0C00,\n    copy car table $0900 -> $0D00, then reload level (s170C).\n\n  PATH B ($0F01 != $01, pending cars at $0A22/$0A23 absent):\n    Copy work buffer $0800 -> $0A00,\n    copy car table $0900 -> $0B00, then reload level (s170C).\n    Set $0F01 = $02.\n\n  PATH C ($0F01 == $01, pending cars at $0C22/$0C23):\n    Copy work buffer $0800 -> $0A00,\n    copy car table $0900 -> $0B00, then reload level (s170C).\n\n  PATH D ($0F01 == $01, no pending cars):\n    Set $0F01 = $01, copy work buffer $0800 -> $0C00,\n    copy car table $0900 -> $0D00, then reload level (s170C).\n\nIn all active paths, the 256-byte buffers are fully copied via a DEX/BNE loop.\n\nInputs:  $0F00 = scroll mode flag; $0F01 = direction; $0A22/$0A23, $0C22/$0C23\n         = pending NPC car presence flags; $0800, $0900 = source work buffers\nOutputs: $0A00/$0B00 or $0C00/$0D00 = updated scroll/car buffers;\n         $0F01 = updated direction state\nSide Effects: Calls s170C (restore_game_vars + level reload), re-entering the\n              main game flow from the top of the level\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "21049": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain-loop input synchronizer. Called every frame from j4FB0.\n\nTies the main loop's execution pace to player key input:\n  - If any key is currently held (key_scan != $7F): returns immediately,\n    allowing the game loop to run at full speed.\n  - If no key is held (key_scan == $7F): spins through a full\n    press -> release -> press cycle before returning.\n\nThe CIA keyboard scanner (j56E2) runs inside the IRQ, so key_scan is\nupdated even during the spin-waits — sprite animation continues unaffected.\n\nPhase 1 ($5239): bail immediately if a key is already held\nPhase 2 ($523F): spin until any key is pressed\nPhase 3 ($5245): spin until key is released\nPhase 4 (j5270): spin until key is pressed again, then return\n\nInputs:       key_scan ($C5)\nOutputs:      A = key_scan on early exit; undefined on full wait path\nSide Effects: Stalls main loop execution until a fresh keypress cycle\n              completes when no key is being held\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "21248": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles user input during the main menu / selection screen.\nThis routine monitors a specific key press (flagged as $F7 in the keyboard\nmatrix byte $C5, likely the F1 key or spacebar) to increment a 2-digit number\nstored in $49 and $4A as ASCII/Screen Code characters. The number cycles\nfrom '01' up to '16', and wraps back around. It then renders those digits directly\nto Video RAM at $0651 and $0652 to provide visual feedback of the selection\n(e.g., selecting a starting level or difficulty).\n\nInputs:  $C5 (Current Key Pressed)\nOutputs: None\nSide Effects: Modifies $49 (units), $4A (tens), and Video RAM $0651-$0652.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "21344": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays a \"BONUS 10000\" message and awards bonus points.\nThis routine copies the \"BONUS 10000\" text to the screen ($0756 area) and colors\nit purple ($04). It then calls the score increment routine twice to award the\npoints, performs a nested delay loop to leave the text on-screen momentarily,\nand finally jumps back to the main flow.\n\nInputs:  None\nOutputs: None\nSide Effects: Updates Screen RAM, Color RAM, Score array, and delays execution.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "21344": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays a \"BONUS 10000\" message and awards bonus points.\nThis routine copies the \"BONUS 10000\" text to the screen ($0756 area) and colors\nit purple ($04). It then calls the score increment routine twice to award the\npoints, performs a nested delay loop to leave the text on-screen momentarily,\nand finally jumps back to the main flow.\n\nInputs:  None\nOutputs: None\nSide Effects: Updates Screen RAM, Color RAM, Score array, and delays execution.\nBugs: Message says \"BONUS 10000\", but it actually increases it by 100000          \n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "21400": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSFX Engine Voice 1 (Engine Sound) Handler\n\nInitializes and modulates Voice 1 on the SID to create a continuous sound\nwhile sfx_voice_1_en is non-zero. When zeroed, it resets the local state.\n\nInputs:  sfx_voice_1_en ($0805) - Enable flag for the Voice 1 SFX\nOutputs: sfx_voice_1_state ($7080), sfx_voice_1_freq_lo ($7081),\n         sfx_voice_1_freq_mod ($7082)\nSide Effects: Updates Voice 1 registers (Frequency, Control, Attack/Decay, Sustain/Release)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "21504": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ-driven melody player for SID Voices 2 & 3.\n\nCalled every IRQ frame. Steps through a looping note sequence in the melody\ntable at $5500 using a self-modifying pointer ($5445/$5446). A rate-limiting\ntimer controls the pace: 8 ticks per note, then a 3-tick gate-off gap.\nNotes alternate between Voice 2 and Voice 3 so the prior note's release\nenvelope can finish on one voice while the next note starts on the other.\n\nTable encoding:\n  $30        = rest (silent tick, exit immediately)\n  $00-$2F    = pitch index into sid_freq2_lo/hi_tbl\n  >= $40     = end-of-sequence; wrap pointer back to $5500\n\nKey $BF toggles playback on/off; pressing it immediately gates both voices.\nWaveform: triangle ($21), A=0/D=0, Sustain=$B, Release=$A.\n\nInputs:       $C5 (key scan), sfx_prev_key, sfx_v23_en, sfx_v23_timer,\n              sfx_v23_idx, sfx_v23_toggle; self-mod melody ptr at $5445/$5446\nOutputs:      SID Voice 2 regs ($D407-$D40D), Voice 3 regs ($D40E-$D414)\nSide Effects: Advances self-modifying melody pointer through $5500+;\n              updates sfx_prev_key, sfx_v23_en, sfx_v23_timer,\n              sfx_v23_idx, sfx_v23_toggle\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "22208": "Scans CIA1 keyboard matrix by driving Port B (rows) and reading Port A (cols).\nA = DDR-B mask (row to drive). Returns stable column byte in A (debounced).",
@@ -2314,14 +2316,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 17104,
+  "cursor_address": 18435,
   "hex_dump_cursor_address": 18496,
   "sprites_cursor_address": 14400,
   "charset_cursor_address": 17152,
   "right_pane_visible": "Sprites",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
