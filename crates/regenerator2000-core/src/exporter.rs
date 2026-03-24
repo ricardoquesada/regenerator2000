@@ -257,11 +257,24 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         } else if label_part.len() < LABEL_COLUMN_WIDTH {
             format!("{label_part:<LABEL_COLUMN_WIDTH$}{instruction_part}")
         } else {
-            format!("{label_part} {instruction_part}")
+            // Label is too long for the column — put it on its own line
+            format!(
+                "{label_part}\n{:<LABEL_COLUMN_WIDTH$}{instruction_part}",
+                ""
+            )
         };
 
         if line.comment.is_empty() {
             output.push_str(&format!("{line_out}\n"));
+        } else if let Some((label_line, inst_line)) = line_out.split_once('\n') {
+            // Long label on its own line — emit label, then instruction with comment
+            output.push_str(&format!("{label_line}\n"));
+            output.push_str(&format!(
+                "{:<INSTRUCTION_COLUMN_WIDTH$} {} {}\n",
+                inst_line,
+                formatter.comment_prefix(),
+                line.comment
+            ));
         } else {
             output.push_str(&format!(
                 "{:<INSTRUCTION_COLUMN_WIDTH$} {} {}\n",

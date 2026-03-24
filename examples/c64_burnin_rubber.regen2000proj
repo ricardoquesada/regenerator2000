@@ -951,6 +951,13 @@
         "kind": "User"
       }
     ],
+    "4609": [
+      {
+        "name": "level_nr_self_modifiying",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "4752": [
       {
         "name": "boot",
@@ -2303,14 +2310,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 18936,
-  "hex_dump_cursor_address": 18928,
+  "cursor_address": 4608,
+  "hex_dump_cursor_address": 4608,
   "sprites_cursor_address": 22528,
   "charset_cursor_address": 22784,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
