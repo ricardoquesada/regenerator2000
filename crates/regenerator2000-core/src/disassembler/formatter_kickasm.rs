@@ -242,6 +242,12 @@ impl Formatter for KickAsmFormatter {
         vec![(".encoding".to_string(), "\"screencode_mixed\"".to_string())]
     }
 
+    fn screencode_byte_threshold(&self) -> u8 {
+        // KickAssembler's screencode_mixed encoding can only round-trip
+        // screen codes $00-$3F correctly. Values $40+ are remapped.
+        0x40
+    }
+
     fn format_screencode(
         &self,
         fragments: &[super::formatter::TextFragment],

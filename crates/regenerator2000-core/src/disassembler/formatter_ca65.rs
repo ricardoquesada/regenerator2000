@@ -204,11 +204,17 @@ impl Formatter for Ca65Formatter {
         let mut tokens = Vec::new();
         for fragment in fragments {
             match fragment {
-                // ca65 doesn't support PETSCII, so we need to convert ASCII to PETSCII
+                // ca65 with C64 target maps source ASCII to PETSCII.
+                // Only $20-$5A round-trip correctly:
+                //   $20-$3F: space, digits, punctuation (same in ASCII and PETSCII)
+                //   $40: @ (same in ASCII and PETSCII)
+                //   $41-$5A: A-Z → lowercased to a-z, ca65 maps a-z back to $41-$5A
+                // Characters $5B-$5F are remapped by ca65's C64 charset
+                // (e.g. _ → $A4, \ → $A9) and don't round-trip.
                 TextFragment::Text(s) => {
                     for c in s.chars() {
                         let b = c as u8;
-                        if (0x20..=0x5f).contains(&b) {
+                        if (0x20..=0x5a).contains(&b) {
                             tokens.push(Token::Char(c.to_ascii_lowercase()));
                         } else {
                             tokens.push(Token::Byte(b));
@@ -240,7 +246,7 @@ impl Formatter for Ca65Formatter {
                                 parts.push("$22".to_string());
                             }
                             if !part.is_empty() {
-                                parts.push(format!("\"{}\"", part.replace('\\', "\\\\")));
+                                parts.push(format!("\"{part}\""));
                             }
                             first = false;
                         }
@@ -302,6 +308,13 @@ impl Formatter for Ca65Formatter {
 
     fn format_screencode_pre(&self) -> Vec<(String, String)> {
         Vec::new()
+    }
+
+    fn screencode_byte_threshold(&self) -> u8 {
+        // ca65's scrcode macro (from cbm macpack) can only round-trip
+        // screen codes $00-$3F correctly. Values $40+ map to characters
+        // that ca65's C64 charset remaps to different byte values.
+        0x40
     }
 
     fn format_screencode(
@@ -464,7 +477,7 @@ mod tests {
     fn test_format_text_petscii() {
         let formatter = Ca65Formatter;
 
-        // Test case 1: Range $40-$5f (should be lowercase)
+        // Test case 1: Range $41-$5a (should be lowercase text)
         let fragments = vec![TextFragment::Text("A".to_string())];
         let result = formatter.format_text(&fragments, true, true);
 
@@ -491,11 +504,8 @@ mod tests {
         let fragments = vec![TextFragment::Text("Aa".to_string())];
         let result = formatter.format_text(&fragments, true, true);
 
-        // Should have two parts or combined correctly?
-        // Based on plan: separate them.
         // First part: .byte "a"
         // Second part: .byte $61
-        // (Order matters)
         let part1 = &result[0];
         assert_eq!(part1.0, ".byte");
         assert!(part1.1.contains("\"a\""));
@@ -503,5 +513,22 @@ mod tests {
         let part2 = &result[1];
         assert_eq!(part2.0, ".byte");
         assert!(part2.1.contains("$61"));
+    }
+
+    #[test]
+    fn test_format_text_petscii_unsafe_chars() {
+        let formatter = Ca65Formatter;
+
+        // PETSCII $5B-$5F ([, \, ], ^, _) don't round-trip through ca65's C64
+        // charset mapping, so they must be emitted as raw bytes.
+        // In handle_petscii_text, these PETSCII bytes become ASCII chars:
+        //   $5B -> '[', $5C -> '\', $5D -> ']', $5E -> '^', $5F -> '_'
+        let fragments = vec![TextFragment::Text("[\\]^_".to_string())];
+        let result = formatter.format_text(&fragments, true, true);
+
+        // All should be raw bytes
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].0, ".byte");
+        assert_eq!(result[0].1, "$5b, $5c, $5d, $5e, $5f");
     }
 }

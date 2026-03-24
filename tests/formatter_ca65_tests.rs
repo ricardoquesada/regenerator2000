@@ -223,9 +223,12 @@ fn test_format_text_escaping() {
     // We expect: .byte "he said ", $22, "hi", $22
     assert_eq!(lines[0].1, "\"he said \", $22, \"hi\", $22");
 
-    // Case 2: Backslash
-    // Expected: "C:\DOS" (no escaping for backslash)
+    // Case 2: Backslash ($5C) is outside the safe text range ($20-$5A),
+    // so it's emitted as a raw byte. "C:\DOS" -> "c:", .byte $5c, "dos"
     let fragments = vec![TextFragment::Text("C:\\DOS".to_string())];
     let lines = formatter.format_text(&fragments, true, true);
-    assert_eq!(lines[0].1, "\"c:\\\\dos\"");
+    assert_eq!(lines.len(), 3);
+    assert_eq!(lines[0].1, "\"c:\"");
+    assert_eq!(lines[1].1, "$5c");
+    assert_eq!(lines[2].1, "\"dos\"");
 }

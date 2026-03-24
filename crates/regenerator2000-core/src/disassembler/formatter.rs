@@ -61,6 +61,18 @@ pub trait Formatter {
     fn format_screencode_pre(&self) -> Vec<(String, String)>;
     fn format_screencode(&self, fragments: &[TextFragment]) -> Vec<(String, String, bool)>;
     fn format_screencode_post(&self) -> Vec<(String, String)>;
+
+    /// Screen code values >= this threshold are emitted as raw `.byte` values
+    /// rather than being converted to text characters. Each assembler's
+    /// screencode directive (`!scr`, `scrcode`, `.text` with screen encoding,
+    /// etc.) handles different character ranges, so this lets each formatter
+    /// define the safe upper bound.
+    ///
+    /// Default is `0x5f` (screen codes $00–$5E are text, $5F+ are raw bytes),
+    /// which works for 64tass and ACME.
+    fn screencode_byte_threshold(&self) -> u8 {
+        0x5f
+    }
     fn format_header_origin(&self, origin: Addr) -> String;
     fn format_file_header(&self, file_name: &str, use_illegal_opcodes: bool) -> String {
         let _ = file_name;

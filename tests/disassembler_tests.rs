@@ -1280,10 +1280,11 @@ fn test_tass_screencode_single_byte_special() {
         &BTreeMap::new(),
     );
 
-    // Expected:
+    // 64tass has threshold $5F, so $4F < $5F is text.
+    // Screencode $4F -> ASCII $4F + $20 = $6F = 'o'
     // .ENCODE
     // .ENC SCREEN
-    // .BYTE $4F
+    // .TEXT "o"
     // .ENDENCODE
 
     assert_eq!(lines.len(), 4);
@@ -1336,6 +1337,8 @@ fn test_tass_screencode_case_mapping() {
     assert_eq!(lines_a[3].mnemonic, ".endencode");
 
     // Case B: 30 2d 39 2c 20 48 4f 4c 41 20 43 4f 4d 4f (0-9, hola como)
+    // 64tass has threshold $5F, so $40-$5E are text.
+    // $48->$68='h', $4F->$6F='o', $4C->$6C='l', $41->$61='a', etc.
     let bytes_b = vec![
         0x30, 0x2d, 0x39, 0x2c, 0x20, 0x48, 0x4F, 0x4C, 0x41, 0x20, 0x43, 0x4F, 0x4D, 0x4F,
     ];
@@ -1363,7 +1366,7 @@ fn test_tass_screencode_case_mapping() {
     assert_eq!(lines_b[2].operand, "\"0-9, hola como\"");
 }
 #[test]
-fn test_screencode_limit_0x5f() {
+fn test_screencode_threshold_per_formatter() {
     let settings = DocumentSettings {
         assembler: Assembler::Tass64,
         ..Default::default()
@@ -1373,9 +1376,10 @@ fn test_screencode_limit_0x5f() {
     let labels = BTreeMap::new();
     let origin = regenerator2000_core::state::Addr(0x1000);
 
-    // 0x5E (94) -> < 0x5f. Maps to '~' (126). Text.
-    // 0x5F (95) -> >= 0x5f. Byte.
-    // 0x60 (96) -> >= 0x5f. Byte.
+    // 64tass has threshold $5F:
+    // 0x5E -> < 0x5F. Maps to ASCII $5E + $20 = $7E = '~'. Text.
+    // 0x5F -> >= 0x5F. Byte.
+    // 0x60 -> >= 0x5F. Byte.
     let code = vec![0x5E, 0x5F, 0x60];
     let block_types = vec![BlockType::ScreencodeText; 3];
 
@@ -1414,13 +1418,14 @@ fn test_acme_screencode_case_inversion() {
     let labels = BTreeMap::new();
     let origin = regenerator2000_core::state::Addr(0x1000);
 
+    // ACME has threshold $5F, so $00-$5E are all text.
     // Screencodes:
-    // 0x01 -> 'A' (handle_screencode) -> "a" (format_screencode inverted)
-    // 0x41 -> 'a' (handle_screencode) -> "A" (format_screencode inverted)
-    // 0x1B -> '[' (handle_screencode 27+64=91) -> "['" (format_screencode not special)
-    // 0x1E -> '^' (handle_screencode 30+64=94) -> "^" (format_screencode not special)
-    // 0x5B -> '{' (handle_screencode 91+32=123) -> $5b (format_screencode hex)
-    // 0x5E -> '~' (handle_screencode 94+32=126) -> $5e (format_screencode hex)
+    // 0x01 -> 'A' (sc 0x01+0x40=0x41) -> "a" (format_screencode inverted)
+    // 0x41 -> 'a' (sc 0x41+0x20=0x61) -> "A" (format_screencode inverted)
+    // 0x1B -> '[' (sc 0x1B+0x40=0x5B) -> "[" (format_screencode: special char -> $5b)
+    // 0x1E -> '^' (sc 0x1E+0x40=0x5E) -> "^" (format_screencode: not special)
+    // 0x5B -> '{' (sc 0x5B+0x20=0x7B) -> $5b (format_screencode: special char -> hex)
+    // 0x5E -> '~' (sc 0x5E+0x20=0x7E) -> $5e (format_screencode: special char -> hex)
 
     let code = vec![
         0x01, 0x41, // aA

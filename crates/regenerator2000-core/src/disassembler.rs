@@ -1486,8 +1486,12 @@ impl Disassembler {
 
             let b = data[current_pc];
 
-            // bytes >= $5f should be treated as bytes. Not as screencodes.
-            if b >= 0x5f {
+            // Screen code values >= the formatter's threshold are emitted as
+            // raw bytes.  Each assembler's screencode directive handles a
+            // different character range (e.g. 64tass/ACME up to $5E,
+            // ca65/KickAssembler only up to $3F).
+            let threshold = formatter.screencode_byte_threshold();
+            if b >= threshold {
                 if !current_literal.is_empty() {
                     fragments.push(TextFragment::Text(current_literal.clone()));
                     current_literal.clear();
@@ -1497,18 +1501,16 @@ impl Disassembler {
                 continue;
             }
 
-            // Map Screen Code to ASCII
-            // 0-31 (@..left arrow) -> 64..95
-            // 32-63 (space..?) -> 32..63
-            let ascii = if b < 32 {
-                b + 64
-            } else if b < 64 {
+            // Map Screen Code to ASCII (only values below the threshold reach here)
+            // 0x00-0x1F (@A-Z[£]↑←) -> 0x40-0x5F
+            // 0x20-0x3F (space..?)   -> 0x20-0x3F
+            // 0x40-0x5E (graphics)   -> 0x60-0x7E  (only for assemblers with threshold > 0x40)
+            let ascii = if b < 0x20 {
+                b + 0x40
+            } else if b < 0x40 {
                 b
-            } else if b < 96 {
-                b + 32
             } else {
-                // Extended/Reverse codes -> raw byte
-                b
+                b + 0x20
             };
 
             if (0x20..=0x7E).contains(&ascii) {
