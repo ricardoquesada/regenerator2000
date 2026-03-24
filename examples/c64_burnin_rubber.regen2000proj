@@ -607,7 +607,7 @@
       "start": 18432,
       "end": 28671,
       "type_": "ExternalFile",
-      "collapsed": false
+      "collapsed": true
     },
     {
       "start": 28672,
@@ -1699,6 +1699,13 @@
         "label_type": "UserDefined",
         "kind": "User"
       }
+    ],
+    "57495": [
+      {
+        "name": "ROM_RND",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
     ]
   },
   "user_side_comments": {
@@ -2162,7 +2169,7 @@
     "18760": "no-wrap path: delta = current - snapshot (0..9)",
     "18770": "wrap path: counter passed through 0; delta = (current - snapshot) + 10",
     "18848": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates 2-frame animations for player and active enemy car sprites.\nToggles bit 0 of sprite pointers ($07F8-$07FC) to cycle frames.\n\nInputs:  sfx_voice_1_en ($0805) - Player animation enable flag\n         car_state ($0928) - Array of 4 enemy car states (1 = Active)\nOutputs: None\nSide Effects: Modifies sprite pointers in screen memory.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "18944": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates through the 4 available enemy car slots ($0928).\nIf it finds an empty slot, it uses the BASIC ROM's random number generator\nrutines ($E097) multiple times to determine the enemy car's sprite shape (0-7),\ninitial starting X coordinate (bounded so it stays on the road), and speed.\n\nInputs:  Enemy active array at $0928\nOutputs: None\nSide Effects: Spawns new enemies, modifies Sprite Pointers $07F9-$07FC,\n              and relies on BASIC ROM state.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18944": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates through the 4 available enemy car slots ($0928).\nIf it finds an empty slot, it uses the KERNAL ROM's random number generator\nrutines ($E097) multiple times to determine the enemy car's sprite shape (0-7),\ninitial starting X coordinate (bounded so it stays on the road), and speed.\n\nInputs:  Enemy active array at $0928\nOutputs: None\nSide Effects: Spawns new enemies, modifies Sprite Pointers $07F9-$07FC,\n              and relies on KERNAL ROM state.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "19456": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the position and state of the enemy cars (Sprites 1-4).\nThis routine iterates through up to 4 active enemy entities. For each active\nentity, it updates their horizontal position (swerving left or right) based on\ntheir local state metrics. It then computes their new vertical position on the\nscreen by factoring in the player's current speed/scroll offset ($0804).\nIf an enemy car falls off the top or bottom of the screen (Y < $3A or Y >= $F0),\nthe routine automatically despawns it by clearing its status flag and hiding the\nsprite.\n\nInputs:  Global scroll/speed ($0804), arrays at $0900/0904/0908/090C/0924/0928\nOutputs: None\nSide Effects: Modifies Sprite 1-4 X/Y coordinates ($D002-$D009) and entity states.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "19763": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks whether an enemy car (sprite N, passed in X) is on a drivable road tile.\n\nThe routine converts the sprite's screen-space pixel position (from VIC-II\n$D002/$D003 registers) into a tile column (Y) and tile row (X) by subtracting\na fixed border offset and dividing by 8 (three LSRs). It then computes a\npointer into screen RAM at $0400 using a 16-bit base address in (a49/a4A)\nand multiplies the row by 40 ($28) to find the correct row offset.\n\nA lookup table at $F0904, indexed by sprite number X, provides a half-tile\ncolumn adjustment (+1) to handle wide sprites that straddle two tiles.\n\nThe road tile check reads the screen code at the computed (row, col) position:\n  - $20 (space)  = road tile  -> jump to j4ED3 (car is off-road / blocked)\n  - $65 (letter) = another road variant -> also treated as blocked\n\nIf the car is on road (non-road tile), the routine stores $01 at f0904,x (car\nis on-road flag = active), restores registers, samples bits 0-1 of ZP $8E for\na 2-bit value and stores it at f0908,x (road direction/surface type), then\njumps to j4C9A (continue normal car movement logic).\n\nIf the car is off-road, f0904,x is cleared ($00), and the routine redirects to\nj4ED3 which will handle the out-of-bounds / collision branch.\n\nInputs:  X = sprite/car index (0-3)\nOutputs: f0904,x = 1 if on-road, 0 if off-road; f0908,x = road surface bits\nSide Effects: Reads VIC-II sprite X/Y registers ($D002/$D003); reads screen RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "20053": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates explosion and projectile animation timers.\nFirst, it checks the enemy pool (Sprites 1-4). If an enemy is in state $02\n(exploding), it ticks down a duration timer at $0930. When the timer reaches 0, \nit resets their state, restores their default multi-color bit config, and hides them.\nThen, it runs a second loop over a pool of 3 secondary objects (Sprites 5-7),\nticking their timers and dropping them downward visually by adding to their Y Pos.\n\nInputs:  Enemy states at $0928, Timers at $0930 and $0983\nOutputs: None\nSide Effects: Modifies Sprites 1-7 coordinates and multi-color registers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -2177,7 +2184,8 @@
     "21504": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ-driven melody player for SID Voices 2 & 3.\n\nCalled every IRQ frame. Steps through a looping note sequence in the melody\ntable at $5500 using a self-modifying pointer ($5445/$5446). A rate-limiting\ntimer controls the pace: 8 ticks per note, then a 3-tick gate-off gap.\nNotes alternate between Voice 2 and Voice 3 so the prior note's release\nenvelope can finish on one voice while the next note starts on the other.\n\nTable encoding:\n  $30        = rest (silent tick, exit immediately)\n  $00-$2F    = pitch index into sid_freq2_lo/hi_tbl\n  >= $40     = end-of-sequence; wrap pointer back to $5500\n\nKey $BF toggles playback on/off; pressing it immediately gates both voices.\nWaveform: triangle ($21), A=0/D=0, Sustain=$B, Release=$A.\n\nInputs:       $C5 (key scan), sfx_prev_key, sfx_v23_en, sfx_v23_timer,\n              sfx_v23_idx, sfx_v23_toggle; self-mod melody ptr at $5445/$5446\nOutputs:      SID Voice 2 regs ($D407-$D40D), Voice 3 regs ($D40E-$D414)\nSide Effects: Advances self-modifying melody pointer through $5500+;\n              updates sfx_prev_key, sfx_v23_en, sfx_v23_timer,\n              sfx_v23_idx, sfx_v23_toggle\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "22208": "Scans CIA1 keyboard matrix by driving Port B (rows) and reading Port A (cols).\nA = DDR-B mask (row to drive). Returns stable column byte in A (debounced).",
     "22225": "Scans CIA1 keyboard matrix by driving Port A (cols) and reading Port B (rows).\nA = DDR-A mask (column to drive). Returns stable row byte in A (debounced).",
-    "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUnused (?)",
+    "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPart of the orignal encrypted code. No longer used once the game was\nloaded + decrypted",
+    "28800": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "32784": "Each \"tile\" consists of $0400 (1024) bytes, what fits in a screen.\nEach level consists of different \"tiles\" that are defined in $4000\nblock idx #00",
     "33808": "block idx #01",
     "34832": "block idx #02",
@@ -2295,14 +2303,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 22528,
-  "hex_dump_cursor_address": 22528,
+  "cursor_address": 18936,
+  "hex_dump_cursor_address": 18928,
   "sprites_cursor_address": 22528,
   "charset_cursor_address": 22784,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 32768,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
