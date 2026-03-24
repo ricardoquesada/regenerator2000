@@ -2177,7 +2177,7 @@
     "21504": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ-driven melody player for SID Voices 2 & 3.\n\nCalled every IRQ frame. Steps through a looping note sequence in the melody\ntable at $5500 using a self-modifying pointer ($5445/$5446). A rate-limiting\ntimer controls the pace: 8 ticks per note, then a 3-tick gate-off gap.\nNotes alternate between Voice 2 and Voice 3 so the prior note's release\nenvelope can finish on one voice while the next note starts on the other.\n\nTable encoding:\n  $30        = rest (silent tick, exit immediately)\n  $00-$2F    = pitch index into sid_freq2_lo/hi_tbl\n  >= $40     = end-of-sequence; wrap pointer back to $5500\n\nKey $BF toggles playback on/off; pressing it immediately gates both voices.\nWaveform: triangle ($21), A=0/D=0, Sustain=$B, Release=$A.\n\nInputs:       $C5 (key scan), sfx_prev_key, sfx_v23_en, sfx_v23_timer,\n              sfx_v23_idx, sfx_v23_toggle; self-mod melody ptr at $5445/$5446\nOutputs:      SID Voice 2 regs ($D407-$D40D), Voice 3 regs ($D40E-$D414)\nSide Effects: Advances self-modifying melody pointer through $5500+;\n              updates sfx_prev_key, sfx_v23_en, sfx_v23_timer,\n              sfx_v23_idx, sfx_v23_toggle\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "22208": "Scans CIA1 keyboard matrix by driving Port B (rows) and reading Port A (cols).\nA = DDR-B mask (row to drive). Returns stable column byte in A (debounced).",
     "22225": "Scans CIA1 keyboard matrix by driving Port A (cols) and reading Port B (rows).\nA = DDR-A mask (column to drive). Returns stable row byte in A (debounced).",
-    "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLevels",
+    "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUnused (?)",
     "32784": "Each \"tile\" consists of $0400 (1024) bytes, what fits in a screen.\nEach level consists of different \"tiles\" that are defined in $4000\nblock idx #00",
     "33808": "block idx #01",
     "34832": "block idx #02",
@@ -2295,11 +2295,11 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 22317,
-  "hex_dump_cursor_address": 18496,
-  "sprites_cursor_address": 14400,
-  "charset_cursor_address": 17152,
-  "right_pane_visible": "Blocks",
+  "cursor_address": 22528,
+  "hex_dump_cursor_address": 22528,
+  "sprites_cursor_address": 22528,
+  "charset_cursor_address": 22784,
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
   "bitmap_cursor_address": 24576,
@@ -2310,7 +2310,7 @@
     17975,
     18683
   ],
-  "blocks_view_cursor": 111,
+  "blocks_view_cursor": 108,
   "scopes": {
     "18656": 18682,
     "18688": 18751
