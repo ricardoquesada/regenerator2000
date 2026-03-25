@@ -189,6 +189,10 @@ fn handle_vice_message(
     } else if msg.command == crate::vice::ViceCommand::STOPPED {
         app_state.vice_state.running = false;
 
+        // Take a snapshot of the current state right before we start fetching new state,
+        // so the debugger can highlight changed values.
+        app_state.vice_state.previous = Some(app_state.vice_state.snapshot());
+
         // Start flash countdown for the debugger status line
         ui_state.debugger_flash_remaining = 8;
 

@@ -80,6 +80,9 @@ pub struct ViceState {
     // response). Used to build `stop_reason` for watchpoints, where the PC
     // differs from the watched address.
     pub last_hit_checkpoint_id: Option<u32>,
+
+    // Snapshot of the state from the previous stop, used to highlight changed registers/memory.
+    pub previous: Option<Box<ViceState>>,
 }
 
 impl ViceState {
@@ -107,6 +110,7 @@ impl ViceState {
             temporary_breakpoints: Vec::new(),
             stop_reason: None,
             last_hit_checkpoint_id: None,
+            previous: None,
         }
     }
 
@@ -130,6 +134,16 @@ impl ViceState {
         self.temporary_breakpoints.clear();
         self.stop_reason = None;
         self.last_hit_checkpoint_id = None;
+        self.previous = None;
+    }
+
+    /// Creates a clone of this state without the `previous` field, suitable for saving
+    /// as the new `previous` state.
+    #[must_use]
+    pub fn snapshot(&self) -> Box<ViceState> {
+        let mut snap = self.clone();
+        snap.previous = None;
+        Box::new(snap)
     }
 
     /// Returns true if there is a persistent breakpoint at `addr`.

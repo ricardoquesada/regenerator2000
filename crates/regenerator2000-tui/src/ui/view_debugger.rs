@@ -209,21 +209,33 @@ impl Widget for DebuggerView {
                     )));
 
                     if let Some(dump_bytes) = &vs.dump_memory {
+                        let prev_dump = vs
+                            .previous
+                            .as_deref()
+                            .and_then(|p| p.dump_memory.as_deref());
                         for i in 0..8 {
                             let row_addr = dump_addr + (i * 8) as u16;
                             let start_idx = i * 8;
                             let end_idx = (start_idx + 8).min(dump_bytes.len());
 
                             if start_idx < dump_bytes.len() {
-                                let hex_str = dump_bytes[start_idx..end_idx]
-                                    .iter()
-                                    .map(|b| format!("{b:02X}"))
-                                    .collect::<Vec<_>>()
-                                    .join(" ");
-                                dump_rendered.push(Line::from(vec![
-                                    Span::styled(format!("  ${row_addr:04X}  "), dim_style),
-                                    Span::styled(hex_str, dim_style),
-                                ]));
+                                let mut spans =
+                                    vec![Span::styled(format!("  ${row_addr:04X}  "), dim_style)];
+                                for (j, &b) in dump_bytes[start_idx..end_idx].iter().enumerate() {
+                                    let global_idx = start_idx + j;
+                                    let prev_b =
+                                        prev_dump.and_then(|pd| pd.get(global_idx).copied());
+                                    // Default to foreground (grey) or highlight if changed
+                                    let style = if vs.previous.is_some() && Some(b) != prev_b {
+                                        Style::default()
+                                            .fg(theme.highlight_fg)
+                                            .add_modifier(Modifier::BOLD)
+                                    } else {
+                                        Style::default().fg(theme.foreground)
+                                    };
+                                    spans.push(Span::styled(format!("{b:02X} "), style));
+                                }
+                                dump_rendered.push(Line::from(spans));
                             }
                         }
                     } else {
@@ -281,7 +293,8 @@ impl Widget for DebuggerView {
         };
 
         let label_style = Style::default().fg(theme.foreground);
-        let value_style = Style::default()
+        let default_val_style = Style::default().fg(theme.foreground);
+        let changed_val_style = Style::default()
             .fg(theme.highlight_fg)
             .add_modifier(Modifier::BOLD);
         let dim_style = Style::default().fg(theme.comment);
@@ -289,23 +302,42 @@ impl Widget for DebuggerView {
             .fg(theme.label)
             .add_modifier(Modifier::BOLD);
 
+        let has_prev = vs.previous.is_some();
+        macro_rules! val_style {
+            ($cur:expr, $prev:expr) => {
+                if has_prev && $cur != $prev {
+                    changed_val_style
+                } else {
+                    default_val_style
+                }
+            };
+        }
+
+        let prev = vs.previous.as_deref();
+
         let mut lines: Vec<Line> = vec![
             Line::from(Span::styled("CPU Registers", heading_style)),
             Line::from(vec![
                 Span::styled("  PC  ", label_style),
-                Span::styled(fmt_word(vs.pc), value_style),
+                Span::styled(fmt_word(vs.pc), val_style!(vs.pc, prev.and_then(|p| p.pc))),
             ]),
             Line::from(vec![
                 Span::styled("  A   ", label_style),
-                Span::styled(format!("{:<6}", fmt_byte(vs.a)), value_style),
+                Span::styled(
+                    format!("{:<6}", fmt_byte(vs.a)),
+                    val_style!(vs.a, prev.and_then(|p| p.a)),
+                ),
                 Span::styled("X   ", label_style),
-                Span::styled(fmt_byte(vs.x), value_style),
+                Span::styled(fmt_byte(vs.x), val_style!(vs.x, prev.and_then(|p| p.x))),
             ]),
             Line::from(vec![
                 Span::styled("  Y   ", label_style),
-                Span::styled(format!("{:<6}", fmt_byte(vs.y)), value_style),
+                Span::styled(
+                    format!("{:<6}", fmt_byte(vs.y)),
+                    val_style!(vs.y, prev.and_then(|p| p.y)),
+                ),
                 Span::styled("SP  ", label_style),
-                Span::styled(fmt_byte(vs.sp), value_style),
+                Span::styled(fmt_byte(vs.sp), val_style!(vs.sp, prev.and_then(|p| p.sp))),
             ]),
             Line::from(""),
             Line::from(vec![
@@ -314,7 +346,7 @@ impl Widget for DebuggerView {
             ]),
             Line::from(vec![
                 Span::styled("      ", label_style),
-                Span::styled(p_flags_str, value_style),
+                Span::styled(p_flags_str, val_style!(vs.p, prev.and_then(|p| p.p))),
             ]),
             Line::from(vec![
                 Span::styled("      ", label_style),
@@ -350,7 +382,7 @@ impl Widget for DebuggerView {
                 lines.push(Line::from(vec![
                     Span::styled(format!("  {flag} "), bp_style),
                     Span::styled(format!("#{:<3}", bp.id), dim_style),
-                    Span::styled(format!("${:04X}", bp.address), value_style),
+                    Span::styled(format!("${:04X}", bp.address), default_val_style),
                 ]));
             }
         }
@@ -373,7 +405,7 @@ impl Widget for DebuggerView {
                 lines.push(Line::from(vec![
                     Span::styled(format!("  {flag} "), bp_style),
                     Span::styled(format!("#{:<3}", bp.id), dim_style),
-                    Span::styled(format!("${:04X}", bp.address), value_style),
+                    Span::styled(format!("${:04X}", bp.address), default_val_style),
                     Span::styled(format!(" [{}]", bp.kind.label()), bp_style),
                 ]));
             }
@@ -387,7 +419,10 @@ impl Widget for DebuggerView {
             let sp_addr = 0x0100u16 + u16::from(sp);
             lines.push(Line::from(vec![
                 Span::styled("  SP  ", label_style),
-                Span::styled(format!("${sp:02X}"), value_style),
+                Span::styled(
+                    format!("${sp:02X}"),
+                    val_style!(vs.sp, prev.and_then(|p| p.sp)),
+                ),
                 Span::styled(format!("  →${sp_addr:04X}"), dim_style),
             ]));
 
@@ -404,16 +439,15 @@ impl Widget for DebuggerView {
                     let entry_addr = stack_top_addr + i as u16;
                     let byte_idx = (entry_addr - 0x0100) as usize;
                     let byte = stack_mem.get(byte_idx).copied();
+                    let prev_byte = prev
+                        .and_then(|p| p.stack_memory.as_deref())
+                        .and_then(|m| m.get(byte_idx).copied());
                     let is_top = i == 0;
-                    let addr_span = Span::styled(
-                        format!("  ${entry_addr:04X}  "),
-                        if is_top { value_style } else { dim_style },
-                    );
+                    let addr_span = Span::styled(format!("  ${entry_addr:04X}  "), dim_style);
                     let val_span = match byte {
-                        Some(b) => Span::styled(
-                            format!("${b:02X}"),
-                            if is_top { value_style } else { dim_style },
-                        ),
+                        Some(b) => {
+                            Span::styled(format!("${b:02X}"), val_style!(Some(b), prev_byte))
+                        }
                         None => Span::styled("??", dim_style),
                     };
                     if is_top {
@@ -501,20 +535,31 @@ impl Widget for DebuggerView {
             if let Some(vecs) = &vs.vectors
                 && vecs.len() >= 6
             {
+                let prev_vecs = prev.and_then(|p| p.vectors.as_deref());
+                let np = |i: usize, j: usize| {
+                    prev_vecs.and_then(|v| {
+                        if v.len() >= 6 {
+                            Some(u16::from_le_bytes([v[i], v[j]]))
+                        } else {
+                            None
+                        }
+                    })
+                };
+
                 let nmi = u16::from_le_bytes([vecs[0], vecs[1]]);
                 let res = u16::from_le_bytes([vecs[2], vecs[3]]);
                 let irq = u16::from_le_bytes([vecs[4], vecs[5]]);
                 right_lines.push(Line::from(vec![
                     Span::styled("  NMI  ", label_style),
-                    Span::styled(format!("${nmi:04X}"), value_style),
+                    Span::styled(format!("${nmi:04X}"), val_style!(Some(nmi), np(0, 1))),
                 ]));
                 right_lines.push(Line::from(vec![
                     Span::styled("  RES  ", label_style),
-                    Span::styled(format!("${res:04X}"), value_style),
+                    Span::styled(format!("${res:04X}"), val_style!(Some(res), np(2, 3))),
                 ]));
                 right_lines.push(Line::from(vec![
                     Span::styled("  IRQ  ", label_style),
-                    Span::styled(format!("${irq:04X}"), value_style),
+                    Span::styled(format!("${irq:04X}"), val_style!(Some(irq), np(4, 5))),
                 ]));
             }
 
@@ -527,9 +572,13 @@ impl Widget for DebuggerView {
                 if let Some(zp) = &vs.zp00_01
                     && zp.len() >= 2
                 {
+                    let prev_zp = prev.and_then(|p| p.zp00_01.as_deref());
+                    let p_reg00 = prev_zp.and_then(|z| z.first().copied());
+                    let p_reg01 = prev_zp.and_then(|z| z.get(1).copied());
+
                     right_lines.push(Line::from(vec![
                         Span::styled("  $00  ", label_style),
-                        Span::styled(format!("${:02X}", zp[0]), value_style),
+                        Span::styled(format!("${:02X}", zp[0]), val_style!(Some(zp[0]), p_reg00)),
                         Span::styled("  (DDR)", dim_style),
                     ]));
                     let reg01 = zp[1];
@@ -547,7 +596,7 @@ impl Widget for DebuggerView {
                     let bits_str = format!("{loram}|{hiram}|{charen}");
                     right_lines.push(Line::from(vec![
                         Span::styled("  $01  ", label_style),
-                        Span::styled(format!("${reg01:02X}  "), value_style),
+                        Span::styled(format!("${reg01:02X}  "), val_style!(Some(reg01), p_reg01)),
                         Span::styled(bits_str, dim_style),
                     ]));
                 }
@@ -557,38 +606,80 @@ impl Widget for DebuggerView {
                     let cia1 = crate::vice::CiaState::decode(io_mem, 0xDC00 - 0xD000);
                     let cia2 = crate::vice::CiaState::decode(io_mem, 0xDD00 - 0xD000);
 
+                    let prev_io = prev.and_then(|p| p.io_memory.as_deref());
+                    let p_vic = prev_io.map(crate::vice::Vic2State::decode);
+                    let p_cia1 = prev_io.map(|m| crate::vice::CiaState::decode(m, 0xDC00 - 0xD000));
+                    let p_cia2 = prev_io.map(|m| crate::vice::CiaState::decode(m, 0xDD00 - 0xD000));
+
                     right_lines.push(Line::from(Span::styled("VIC-II Registers", heading_style)));
                     right_lines.push(Line::from(vec![
                         Span::styled("  Mode  ", label_style),
-                        Span::styled(if vic.bitmap_mode { "Bitmap" } else { "Text" }, value_style),
+                        Span::styled(
+                            if vic.bitmap_mode { "Bitmap" } else { "Text" },
+                            val_style!(
+                                Some(vic.bitmap_mode),
+                                p_vic.as_ref().map(|v| v.bitmap_mode)
+                            ),
+                        ),
                         Span::styled(
                             if vic.multicolor_mode { " MC" } else { " Hires" },
-                            value_style,
+                            val_style!(
+                                Some(vic.multicolor_mode),
+                                p_vic.as_ref().map(|v| v.multicolor_mode)
+                            ),
                         ),
                     ]));
                     right_lines.push(Line::from(vec![
                         Span::styled("  Color ", label_style),
                         Span::styled(
-                            if vic.extended_bg_color { "ExtBG " } else { "" },
-                            value_style,
+                            if vic.extended_bg_color {
+                                "ExtBG "
+                            } else {
+                                "      "
+                            },
+                            val_style!(
+                                Some(vic.extended_bg_color),
+                                p_vic.as_ref().map(|v| v.extended_bg_color)
+                            ),
                         ),
                         Span::styled(
                             format!("Border: {} BG: {}", vic.border_color, vic.bg_color),
-                            dim_style,
+                            val_style!(
+                                Some((vic.border_color, vic.bg_color)),
+                                p_vic.as_ref().map(|v| (v.border_color, v.bg_color))
+                            ),
                         ),
                     ]));
                     right_lines.push(Line::from(vec![
                         Span::styled("  Scrl  ", label_style),
                         Span::styled(
                             format!("X: {} Y: {}", vic.x_scroll, vic.y_scroll),
-                            value_style,
+                            val_style!(
+                                Some((vic.x_scroll, vic.y_scroll)),
+                                p_vic.as_ref().map(|v| (v.x_scroll, v.y_scroll))
+                            ),
                         ),
-                        Span::styled(format!(" {}x{}", vic.columns, vic.rows), dim_style),
+                        Span::styled(
+                            format!(" {}x{}", vic.columns, vic.rows),
+                            val_style!(
+                                Some((vic.columns, vic.rows)),
+                                p_vic.as_ref().map(|v| (v.columns, v.rows))
+                            ),
+                        ),
                     ]));
                     right_lines.push(Line::from(vec![
                         Span::styled("  Rast  ", label_style),
-                        Span::styled(format!("{}", vic.raster_line), value_style),
-                        Span::styled(if vic.blanking { " (Blank)" } else { "" }, dim_style),
+                        Span::styled(
+                            format!("{}", vic.raster_line),
+                            val_style!(
+                                Some(vic.raster_line),
+                                p_vic.as_ref().map(|v| v.raster_line)
+                            ),
+                        ),
+                        Span::styled(
+                            if vic.blanking { " (Blank)" } else { "" },
+                            val_style!(Some(vic.blanking), p_vic.as_ref().map(|v| v.blanking)),
+                        ),
                     ]));
                     right_lines.push(Line::from(vec![
                         Span::styled("  Mem   ", label_style),
@@ -597,7 +688,12 @@ impl Widget for DebuggerView {
                                 "Scrn: ${:04X} Char: ${:04X}",
                                 vic.screen_mem_address, vic.charset_address
                             ),
-                            dim_style,
+                            val_style!(
+                                Some((vic.screen_mem_address, vic.charset_address)),
+                                p_vic
+                                    .as_ref()
+                                    .map(|v| (v.screen_mem_address, v.charset_address))
+                            ),
                         ),
                     ]));
 
@@ -605,18 +701,27 @@ impl Widget for DebuggerView {
                     right_lines.push(Line::from(Span::styled("CIA 1 ($DC00)", heading_style)));
                     right_lines.push(Line::from(vec![
                         Span::styled("  PRA   ", label_style),
-                        Span::styled(format!("${:02X} (Joy2/P1)", cia1.pra), value_style),
+                        Span::styled(
+                            format!("${:02X} (Joy2/P1)", cia1.pra),
+                            val_style!(Some(cia1.pra), p_cia1.as_ref().map(|c| c.pra)),
+                        ),
                     ]));
                     right_lines.push(Line::from(vec![
                         Span::styled("  PRB   ", label_style),
-                        Span::styled(format!("${:02X} (Joy1/P2)", cia1.prb), value_style),
+                        Span::styled(
+                            format!("${:02X} (Joy1/P2)", cia1.prb),
+                            val_style!(Some(cia1.prb), p_cia1.as_ref().map(|c| c.prb)),
+                        ),
                     ]));
 
                     right_lines.push(Line::from(""));
                     right_lines.push(Line::from(Span::styled("CIA 2 ($DD00)", heading_style)));
                     right_lines.push(Line::from(vec![
                         Span::styled("  PRA   ", label_style),
-                        Span::styled(format!("${:02X} (VIC Bank)", cia2.pra), value_style),
+                        Span::styled(
+                            format!("${:02X} (VIC Bank)", cia2.pra),
+                            val_style!(Some(cia2.pra), p_cia2.as_ref().map(|c| c.pra)),
+                        ),
                     ]));
                 } else {
                     right_lines.push(Line::from(Span::styled(
