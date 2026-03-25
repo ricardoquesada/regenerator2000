@@ -627,6 +627,7 @@ When you export your disassembly, scopes are directly translated into the corres
             rts
             .bend
 
+            jsr my_routine
             jmp my_routine.l00
         ```
 
@@ -649,6 +650,8 @@ When you export your disassembly, scopes are directly translated into the corres
         l11:
             rts
         }
+
+            jsr my_routine
             jmp my_routine.l00
         ```
 
@@ -667,6 +670,10 @@ When you export your disassembly, scopes are directly translated into the corres
             rts
             .endproc
 
+            jsr my_routine
+            ; IMPORTANT: ca65 is a one-pass assembler, so if calling a label defined in a scope,
+            ; the label must be defined before the call. Otherwise, it will be treated as an undefined label,
+            ; and the assembly will fail.
             jmp my_routine.l00
         ```
 
