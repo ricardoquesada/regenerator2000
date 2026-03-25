@@ -206,6 +206,7 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   - **[`dialog_jump_to_line.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_jump_to_line.rs)**: Jump to a specific line number.
   - **[`dialog_keyboard_shortcut.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs)**: Keyboard shortcuts reference.
   - **[`dialog_label.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_label.rs)**: Add/edit labels.
+  - **[`dialog_memory_dump_address.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_memory_dump_address.rs)**: Set memory dump address for the VICE debugger panel.
   - **[`dialog_open.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_open.rs)**: Open file browser.
   - **[`dialog_open_recent.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_open_recent.rs)**: Open recent projects list.
   - **[`dialog_origin.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_origin.rs)**: Set the load address.

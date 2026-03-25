@@ -7,7 +7,7 @@ Regenerator 2000 has two types of settings (like most modern editors):
 
 ## Program Settings
 
-The Settings dialog allows you to configure global preferences for the application. It can be accessed via `File -> Settings` or using the shortcut ++alt+o++ or ++ctrl+comma++.
+The Settings dialog allows you to configure global preferences for the application. It can be accessed via `File -> Settings` or using the shortcut ++alt+p++ or ++ctrl+comma++.
 
 ```text
 ┌ Settings ----------------------------------------┐

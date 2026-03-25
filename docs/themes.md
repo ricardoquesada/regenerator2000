@@ -1,7 +1,7 @@
 # Themes
 
 Regenerator 2000 ships with **9 built-in color themes**. You can switch between them in **File → Settings**
-(++alt+o++ or ++ctrl+comma++) under the **Theme** option.
+(++alt+p++ or ++ctrl+comma++) under the **Theme** option.
 
 ## Available Themes
 
@@ -61,7 +61,7 @@ Regenerator 2000 ships with **9 built-in color themes**. You can switch between 
 
 ## How to Change the Theme
 
-1. Open **File → Settings** (++alt+o++ or ++ctrl+comma++).
+1. Open **File → Settings** (++alt+p++ or ++ctrl+comma++).
 2. Navigate to the **Theme** option.
 3. You can change the theme in two ways:
     - Press ++left++ / ++right++ to cycle through themes instantly (live preview).

@@ -373,9 +373,12 @@ See [MCP Integration](mcp.md) for the full list of available tools and resources
 | ++b++             | **B**yte                             |
 | ++w++             | **W**ord                             |
 | ++a++             | **A**ddress                          |
+| ++r++             | Create Scope                         |
 | ++l++             | **L**abel                            |
 | ++semicolon++     | Side Comment                         |
 | ++colon++         | Line Comment                         |
+| ++d++             | Cycle Immediate Format (hex/dec/bin) |
+| ++open-bracket++  | Pack Lo/Hi Address                   |
 | ++shift+v++       | Visual Mode (selection)              |
 | ++enter++         | Follow Jump / Jump to Operand        |
 | ++backspace++     | Go Back                              |

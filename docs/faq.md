@@ -168,6 +168,38 @@ Bookmarks let you mark addresses you want to return to quickly:
 
 ---
 
+## Scopes
+
+### What are scopes?
+
+Scopes (also called namespaces or procedures) allow you to group code into logical blocks, typically representing
+routines or functions. Labels defined inside a scope are **local** to that scope, preventing naming conflicts. For
+example, two different routines can both have a local label called `loop` without collision.
+
+### How do I create a scope?
+
+1. Select the range of code using ++shift+v++ (Visual Mode).
+2. Press ++r++ to create a scope over the selection.
+
+A default label is created at the scope's start address if one doesn't already exist. You can rename it with ++l++.
+
+### How do I remove a scope?
+
+Place the cursor on the first or last line of the scope and press ++delete++.
+
+### Which assemblers support scopes?
+
+| Assembler     | Scope Syntax              |
+| :------------ | :------------------------ |
+| 64tass        | `.block` / `.bend`        |
+| KickAssembler | `{` / `}`                 |
+| ca65          | `.proc` / `.endproc`      |
+| ACME          | Not supported (ignored)   |
+
+See [Block Types — Scopes](blocks.md#scopes) for detailed examples in each assembler's syntax.
+
+---
+
 ## Views
 
 ### How do I switch between views?

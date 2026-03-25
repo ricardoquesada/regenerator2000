@@ -328,7 +328,7 @@ The available Block Types are:
 
 ## 9. Lo/Hi Word Table
 
-- **Shortcut**: ++t++
+- **Shortcut**: ++comma++
 - **Description**: Marks the selected bytes as the **Low / High** word table. Must have a size divisible by 4.
   The first half will be the lo words, the second half will be the hi words.
 - **Use Case**: The C64 SID frequency table.
@@ -377,7 +377,7 @@ The available Block Types are:
 
 ## 10. Hi/Lo Word Table
 
-- **Shortcut**: ++shift+t++
+- **Shortcut**: ++period++
 - **Description**: Marks the selected bytes as the **High / Low** word table. Must have a size divisible by 4.
   The first half will be the hi words, the second half will be the lo words.
 - **Use Case**: The C64 SID frequency table.

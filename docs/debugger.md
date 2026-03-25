@@ -58,6 +58,22 @@ The main **Disassembly** view also reflects the debugger when connected: the cur
 You can toggle a breakpoint at the cursor with ++f2++, or toggle a breakpoint at any address with ++shift+f2++.
 And do the same with watchpoints with ++f6++.
 
+## Memory Dump
+
+When connected and paused, the Debugger panel can show a **Memory Dump** alongside the live disassembly.
+Press ++m++ (while the Debugger pane is focused) to open the **Memory Dump Address** dialog and enter
+a memory address (e.g., `0400` for Screen RAM, or `D000` for VIC-II registers).
+
+The dump displays 64 bytes (8 rows × 8 bytes) starting from the specified address, refreshing
+automatically every time the emulator stops (e.g., after a step or breakpoint hit).
+
+If no memory dump address has been set, the panel shows `(press 'm' to config)`.
+
+## Stack
+
+The Debugger panel also displays the **Stack** contents when connected and paused. It shows the
+current stack pointer value and up to 5 entries from the top of the stack.
+
 ## Keyboard Shortcuts
 
 All debugger actions are available from the **Debugger** menu and have keyboard shortcuts. For the full list, see [Keyboard Shortcuts](keyboard_shortcuts.md). Summary:
@@ -68,6 +84,7 @@ All debugger actions are available from the **Debugger** menu and have keyboard 
 | Toggle Breakpoint... | ++shift+f2++ |
 | Run to Cursor        | ++f4++       |
 | Watchpoint           | ++f6++       |
+| Memory Dump...       | ++m++        |
 | Step Instruction     | ++f7++       |
 | Step Over            | ++f8++       |
 | Step Out             | ++shift+f8++ |
