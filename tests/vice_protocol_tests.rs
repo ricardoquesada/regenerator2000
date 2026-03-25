@@ -342,4 +342,3 @@ mod vice_state_tests {
         assert_eq!(state.previous.as_ref().unwrap().a, Some(0x30)); // previous stays old
     }
 }
-

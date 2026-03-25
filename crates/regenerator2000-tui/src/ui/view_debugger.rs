@@ -316,7 +316,14 @@ impl Widget for DebuggerView {
         let prev = vs.previous.as_deref();
 
         let mut lines: Vec<Line> = vec![
-            Line::from(Span::styled(format!("CPU Registers (has_prev={}, eq={})", has_prev, vs.a == prev.and_then(|p| p.a)), heading_style)),
+            Line::from(Span::styled(
+                format!(
+                    "CPU Registers (has_prev={}, eq={})",
+                    has_prev,
+                    vs.a == prev.and_then(|p| p.a)
+                ),
+                heading_style,
+            )),
             Line::from(vec![
                 Span::styled("  PC  ", label_style),
                 Span::styled(fmt_word(vs.pc), val_style!(vs.pc, prev.and_then(|p| p.pc))),
