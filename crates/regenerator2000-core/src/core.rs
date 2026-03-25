@@ -609,6 +609,7 @@ impl Core {
             }
             AppAction::ViceStep => {
                 if let Some(client) = &self.state.vice_client {
+                    self.state.vice_state.previous = Some(self.state.vice_state.snapshot());
                     client.send_advance_instruction();
                     self.state.vice_state.running = true;
                 } else {
@@ -619,6 +620,7 @@ impl Core {
             }
             AppAction::ViceContinue => {
                 if let Some(client) = &self.state.vice_client {
+                    self.state.vice_state.previous = Some(self.state.vice_state.snapshot());
                     client.send_continue();
                     self.state.vice_state.running = true;
                     events.push(CoreEvent::StatusMessage("VICE: Running...".to_string()));
@@ -630,6 +632,7 @@ impl Core {
             }
             AppAction::ViceStepOver => {
                 if let Some(client) = &self.state.vice_client {
+                    self.state.vice_state.previous = Some(self.state.vice_state.snapshot());
                     client.send_step_over();
                     self.state.vice_state.running = true;
                 } else {
@@ -640,6 +643,7 @@ impl Core {
             }
             AppAction::ViceStepOut => {
                 if let Some(client) = &self.state.vice_client {
+                    self.state.vice_state.previous = Some(self.state.vice_state.snapshot());
                     client.send_execute_until_return();
                     self.state.vice_state.running = true;
                 } else {
@@ -651,6 +655,7 @@ impl Core {
             AppAction::ViceRunToCursor => {
                 if let Some(client) = &self.state.vice_client {
                     if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
+                        self.state.vice_state.previous = Some(self.state.vice_state.snapshot());
                         client.send_checkpoint_set_exec_temp(line.address.0);
                         client.send_continue();
                         self.state.vice_state.running = true;

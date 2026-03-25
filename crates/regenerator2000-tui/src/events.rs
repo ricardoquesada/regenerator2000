@@ -187,21 +187,16 @@ fn handle_vice_message(
         app_state.vice_state.last_hit_checkpoint_id = None;
         ui_state.debugger_flash_remaining = 0;
     } else if msg.command == crate::vice::ViceCommand::STOPPED {
+        let was_running = app_state.vice_state.running;
         app_state.vice_state.running = false;
-
-        // Take a snapshot of the current state right before we start fetching new state,
-        // so the debugger can highlight changed values.
-        app_state.vice_state.previous = Some(app_state.vice_state.snapshot());
 
         // Start flash countdown for the debugger status line
         ui_state.debugger_flash_remaining = 8;
 
-        if let Some(client) = &app_state.vice_client {
+        if let Some(client) = &app_state.vice_client
+            && was_running
+        {
             // If we had any pending temporary breakpoints, delete them.
-            // VICE auto-deletes temp breakpoints when they are hit, but it
-            // does NOT delete them if the CPU stopped for another reason
-            // (e.g. user manually paused, or another breakpoint was hit).
-            // Deleting a breakpoint that was already auto-deleted is harmless.
             for id in &app_state.vice_state.temporary_breakpoints {
                 client.send_checkpoint_delete(*id);
             }
@@ -760,6 +755,9 @@ fn dispatch_menu_action(
             }
         });
         if let Ok(client) = crate::vice::ViceClient::connect(&addr, vice_tx) {
+            // Snapshot empty state so the first update appears as changed (yellow)
+            core.state.vice_state.previous = Some(core.state.vice_state.snapshot());
+
             if send_registers_on_connect {
                 client.send_registers_get();
             }

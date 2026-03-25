@@ -312,4 +312,34 @@ mod vice_state_tests {
         assert!(!state.connected);
         assert!(state.pc.is_none());
     }
+
+    #[test]
+    fn vice_state_snapshot_behavior() {
+        // simulate the sequence of events
+        // 1. start
+        let mut state = ViceState::new();
+        state.a = Some(0x20);
+
+        // 2. STOPPED occurs
+        state.previous = Some(state.snapshot());
+        assert_eq!(state.previous.as_ref().unwrap().a, Some(0x20));
+        assert!(state.previous.as_ref().unwrap().previous.is_none());
+
+        // 3. REGISTERS_GET occurs
+        state.a = Some(0x30);
+        assert_eq!(state.previous.as_ref().unwrap().a, Some(0x20)); // previous stays old
+
+        // 4. RESUMED occurs
+        // (no-op affecting previous)
+        assert_eq!(state.previous.as_ref().unwrap().a, Some(0x20)); // previous still old
+
+        // 5. STOPPED occurs again
+        state.previous = Some(state.snapshot());
+        assert_eq!(state.previous.as_ref().unwrap().a, Some(0x30)); // previous becomes the new old
+
+        // 6. REGISTERS_GET occurs again
+        state.a = Some(0x40);
+        assert_eq!(state.previous.as_ref().unwrap().a, Some(0x30)); // previous stays old
+    }
 }
+
