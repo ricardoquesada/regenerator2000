@@ -1576,7 +1576,9 @@ impl Core {
                         "Jumped to ${target_addr:04X}"
                     )));
                 } else {
-                    events.push(CoreEvent::StatusMessage(format!("Address ${target_addr:04X} out of range")));
+                    events.push(CoreEvent::StatusMessage(format!(
+                        "Address ${target_addr:04X} out of range"
+                    )));
                 }
             }
             ActivePane::Sprites => {
@@ -1614,7 +1616,9 @@ impl Core {
                         "Jumped to char at ${target_addr:04X}"
                     )));
                 } else {
-                    events.push(CoreEvent::StatusMessage(format!("Address ${target_addr:04X} out of range")));
+                    events.push(CoreEvent::StatusMessage(format!(
+                        "Address ${target_addr:04X} out of range"
+                    )));
                 }
             }
             ActivePane::Blocks => {
