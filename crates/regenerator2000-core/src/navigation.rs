@@ -74,7 +74,13 @@ pub fn perform_jump_to_address_no_history(
 
         view_state.status_message = Some(format!("Jumped to ${target_addr:04X}"));
     } else if !app_state.disassembly.is_empty() {
-        view_state.status_message = Some(format!("Address ${target_addr:04X} not found"));
+        let end = app_state
+            .origin
+            .wrapping_add(app_state.raw_data.len().saturating_sub(1) as u16);
+        view_state.status_message = Some(format!(
+            "Address ${target_addr:04X} out of range (${:04X}-${:04X})",
+            app_state.origin.0, end.0
+        ));
     }
 }
 

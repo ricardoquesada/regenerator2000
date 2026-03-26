@@ -1576,7 +1576,7 @@ impl Core {
                         "Jumped to ${target_addr:04X}"
                     )));
                 } else {
-                    events.push(CoreEvent::StatusMessage("Address out of range".to_string()));
+                    events.push(CoreEvent::StatusMessage(format!("Address ${target_addr:04X} out of range")));
                 }
             }
             ActivePane::Sprites => {
@@ -1594,9 +1594,9 @@ impl Core {
                         "Jumped to sprite at ${target_addr:04X}"
                     )));
                 } else {
-                    events.push(CoreEvent::StatusMessage(
-                        "Address out of range or unaligned".to_string(),
-                    ));
+                    events.push(CoreEvent::StatusMessage(format!(
+                        "Address ${target_addr:04X} out of range or unaligned"
+                    )));
                 }
             }
             ActivePane::Charset => {
@@ -1614,7 +1614,7 @@ impl Core {
                         "Jumped to char at ${target_addr:04X}"
                     )));
                 } else {
-                    events.push(CoreEvent::StatusMessage("Address out of range".to_string()));
+                    events.push(CoreEvent::StatusMessage(format!("Address ${target_addr:04X} out of range")));
                 }
             }
             ActivePane::Blocks => {

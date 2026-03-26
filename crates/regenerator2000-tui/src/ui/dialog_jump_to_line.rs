@@ -76,7 +76,7 @@ impl Widget for JumpToLineDialog {
                         ui_state.cursor_index = target_idx;
                         ui_state.set_status_message(format!("Jumped to visual line {line_num}"));
                     } else {
-                        ui_state.set_status_message("Line number out of range");
+                        ui_state.set_status_message(format!("Line {line_num} out of range"));
                     }
                 } else if !input.is_empty() {
                     ui_state.set_status_message("Invalid Line Number");

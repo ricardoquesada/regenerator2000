@@ -176,6 +176,7 @@ pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAc
             CoreEvent::ViewChanged | CoreEvent::StateChanged => {
                 ui_state.core = core.view.clone();
                 ui_state.sync_core_to_tui();
+                ui_state.sync_status_message();
             }
         }
     }
