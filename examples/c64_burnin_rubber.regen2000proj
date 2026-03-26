@@ -191,8 +191,14 @@
     },
     {
       "start": 2560,
-      "end": 4086,
+      "end": 4073,
       "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4074,
+      "end": 4086,
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -341,6 +347,18 @@
     },
     {
       "start": 13597,
+      "end": 13821,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 13822,
+      "end": 13823,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 13824,
       "end": 14207,
       "type_": "Code",
       "collapsed": false
@@ -646,6 +664,13 @@
     "197": [
       {
         "name": "key_scan",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "245": [
+      {
+        "name": "joy_state",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1644,6 +1669,20 @@
         "kind": "User"
       }
     ],
+    "21573": [
+      {
+        "name": "melody_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21574": [
+      {
+        "name": "melody_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "21760": [
       {
         "name": "melody_tbl",
@@ -1675,6 +1714,13 @@
     "22225": [
       {
         "name": "cia1_scan_col",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "22242": [
+      {
+        "name": "scan_keyboard_joystick",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1904,6 +1950,7 @@
     "17590": "Convert to PETSCII '0'-'9'",
     "17592": "Store in Row 23, Column 3-5",
     "17613": "Loop to draw 7 border chars",
+    "17665": "yellow",
     "17719": "Decrement BCD counter 20 times",
     "17746": "Check if enemy car is active",
     "17769": "X-coord collision check (16px)",
@@ -1917,6 +1964,7 @@
     "17941": "Write char to centered screen row 9",
     "17944": "color cyan",
     "17954": "Approx 8 * 256 * 256 iterations (~2.6s)",
+    "18006": "Jumps to a location that jumps to the next instruction",
     "18194": "Check if pickup sprite is active",
     "18200": "Decrement duration timer",
     "18205": "Turn off active flag",
@@ -2085,7 +2133,7 @@
     "21493": "Reset Voice 1 state",
     "21504": "Load current key pressed",
     "21509": "If key unchanged, skip to processing",
-    "21514": "Check if specific key ($BF) was pressed",
+    "21514": "Check if F5 was pressed",
     "21520": "Gate OFF Voice 2",
     "21523": "Gate OFF Voice 3",
     "21526": "Toggle the enable flag",
@@ -2117,13 +2165,31 @@
     "21683": "Clear toggle → next note plays on V3",
     "21692": "Set toggle (non-zero) → next note plays on V2",
     "21695": "Gate off Voice 3 (it was playing)",
-    "22252": "Drive row 4 ($10)",
-    "22257": "Set idle bits high ($7F mask); active key clears a bit",
+    "22242": "Clear CIA1 ports $DC00-$DC03 (via $DBFF+X, X=4..1)",
+    "22252": "Drive row 4 → read joystick fire + key row",
+    "22257": "Keep bit 7 (fire); idle bits high",
     "22259": "First scan result → key_scan",
-    "22261": "Drive column 0 ($01)",
-    "22266": "Mask out unused bits",
-    "22268": "Combine both CIA scans",
+    "22261": "Drive column 0",
+    "22266": "Mask unused bits 3-6",
+    "22268": "Combine row + column scans → final key code",
     "22270": "Final combined key state → key_scan ($7F = no key)",
+    "22272": "Scan full row 0 to check for any key",
+    "22277": "Key pressed → skip joystick decode",
+    "22281": "Scan full column 0",
+    "22288": "Key pressed → skip joystick decode",
+    "22290": "Drive row 2 for direction bits",
+    "22296": "Isolate bit 4 (joy right)",
+    "22301": "Shift raw bits right ×3 for bits 2-3",
+    "22304": "Isolate bits 2-3 (joy up/down)",
+    "22306": "Merge direction bits",
+    "22310": "Drive column 5 for left direction",
+    "22315": "Shift into position",
+    "22317": "Isolate bit 0 (joy up)",
+    "22323": "Shift right ×2 more",
+    "22326": "Isolate bit 1 (joy down)",
+    "22328": "Final merge of all direction bits",
+    "22330": "Set upper 3 bits high (unused, always 1)",
+    "22334": "Continue into KERNAL keyboard scan completion",
     "32772": "CBM80"
   },
   "user_line_comments": {
@@ -2166,6 +2232,7 @@
     "17936": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays the \"GAME OVER\" message centered on row 9 and pauses execution for\napproximately 2.6 seconds.\n\nInputs:  None\nOutputs: None\nSide Effects: Writes to Screen RAM ($0578) and Color RAM ($D978)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17975": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles screen interactions by calculating Color RAM pointers and checking\nfor specific coordinate hotspots (Row 9, Col $1B/$21) to trigger screen cleanup.\n\nInputs:  active_row ($0860), active_col ($0861), state_cleanup_index ($0857)\nOutputs: p_color_ram ($49/$4A), reset flags at $0858/$0859\nSide Effects: Modifies Screen RAM and internal buffers (erases elements)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18194": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the temporary display timer for a pickup/coin sprite.\nWhen the player hits a specific map tile (e.g., $65), Sprite 7 is spawned as\na visual indicator of the points gained, and state flag $085E is set.\nThis routine runs each frame to tick down its lifespan timer at $085F. \nOnce the timer hits 0, it deactivates the flag and hides Sprite 7 off-screen.\n\nInputs:  Pickup Active Flag at $085E, Timer at $085F\nOutputs: None\nSide Effects: Modifies $085E, $085F, and Sprite 7 X Pos ($D00E)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18251": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "18262": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain gameplay tick routine.\nThis is the core subroutine called every frame/tick during gameplay to process\nall major game systems. It updates the HUD, increments the score, handles player\ninput and movement, processes jumps and background collisions, applies vertical\noffsets, handles acceleration (if enabled), manages frame delays, and ticks down\nthe pickup/coin visual indicator.\n\nInputs:  None (relies on global state)\nOutputs: None\nSide Effects: Updates player coordinates, animations, score, HUD, and timers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18336": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\naward_collision_score_and_damage_sprite\n\nCalled when the player's car lands on (or collides with) an NPC car.\nOn entry, X = NPC slot index (0-3), Y = car type index from f092C,x.\n\nPhase 1 — Score award:\n  Looks up the NPC's sprite frame byte from f3F18,y:\n    $E3 (small car)  => add 5 points to score array f0825\n    $E4 (medium car) => add 3 points\n    $E5 (large car)  => add 2 points\n  Score is stored as individual BCD-style digits at f0825 (7 bytes,\n  index 4=ones ... index 0=highest). The loop ripple-carries from\n  digit 4 upward for as many iterations as the point value (Y).\n  Then calls update_hud_display to redraw the score on the HUD.\n\nPhase 2 — Sprite damage:\n  After restoring X/Y, re-reads f3F18,y (same frame byte) and\n  falls through to j4E03, which:\n    - Stores the frame byte into a07F9,x (sprite pointer for NPC slot)\n    - Builds a single-bit mask for slot X, inverts it, ANDs it into\n      $D01C (Sprites Multi-Color Select), switching that NPC sprite\n      from multicolor to hires mode (visual 'hit' state)\n    - Increments a0821 (hit sub-counter); when it reaches 10,\n      resets to 0 and increments hud_level_digit\n\nInputs:       X = NPC car slot index (0-3)\n              Y = car type index (f092C,x), used to index f3F18\nOutputs:      None (returns via j4E03/RTS at $4E3C)\nSide Effects: f0825 score digits updated; $D01C multicolor bit cleared\n              for the hit NPC sprite; a0821 and hud_level_digit may\n              increment; HUD redrawn via update_hud_display\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18432": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles the player's death sequence: decrements lives, plays an explosion\nanimation based on the hazard, and jumps to either \"Game Over\" or scans\nbackward through level map data (starting at $4000) for a valid respawn\ncheckpoint.\n\nInputs:  lives_ones, lives_tens, (p_tmp_lo),Y (hazard type), level_nr, a0801\nOutputs: lives_ones, lives_tens, a0801 (respawn offset), p_tmp_lo/hi\nSide Effects: Modifies sprite_ptr_0 ($07F8), disables sprites ($D015 = 0)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -2176,6 +2243,7 @@
     "18760": "no-wrap path: delta = current - snapshot (0..9)",
     "18770": "wrap path: counter passed through 0; delta = (current - snapshot) + 10",
     "18848": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates 2-frame animations for player and active enemy car sprites.\nToggles bit 0 of sprite pointers ($07F8-$07FC) to cycle frames.\n\nInputs:  sfx_voice_1_en ($0805) - Player animation enable flag\n         car_state ($0928) - Array of 4 enemy car states (1 = Active)\nOutputs: None\nSide Effects: Modifies sprite pointers in screen memory.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18925": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "18944": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates through the 4 available enemy car slots ($0928).\nIf it finds an empty slot, it uses the KERNAL ROM's random number generator\nrutines ($E097) multiple times to determine the enemy car's sprite shape (0-7),\ninitial starting X coordinate (bounded so it stays on the road), and speed.\n\nInputs:  Enemy active array at $0928\nOutputs: None\nSide Effects: Spawns new enemies, modifies Sprite Pointers $07F9-$07FC,\n              and relies on KERNAL ROM state.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "19456": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the position and state of the enemy cars (Sprites 1-4).\nThis routine iterates through up to 4 active enemy entities. For each active\nentity, it updates their horizontal position (swerving left or right) based on\ntheir local state metrics. It then computes their new vertical position on the\nscreen by factoring in the player's current speed/scroll offset ($0804).\nIf an enemy car falls off the top or bottom of the screen (Y < $3A or Y >= $F0),\nthe routine automatically despawns it by clearing its status flag and hiding the\nsprite.\n\nInputs:  Global scroll/speed ($0804), arrays at $0900/0904/0908/090C/0924/0928\nOutputs: None\nSide Effects: Modifies Sprite 1-4 X/Y coordinates ($D002-$D009) and entity states.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "19763": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks whether an enemy car (sprite N, passed in X) is on a drivable road tile.\n\nThe routine converts the sprite's screen-space pixel position (from VIC-II\n$D002/$D003 registers) into a tile column (Y) and tile row (X) by subtracting\na fixed border offset and dividing by 8 (three LSRs). It then computes a\npointer into screen RAM at $0400 using a 16-bit base address in (a49/a4A)\nand multiplies the row by 40 ($28) to find the correct row offset.\n\nA lookup table at $F0904, indexed by sprite number X, provides a half-tile\ncolumn adjustment (+1) to handle wide sprites that straddle two tiles.\n\nThe road tile check reads the screen code at the computed (row, col) position:\n  - $20 (space)  = road tile  -> jump to j4ED3 (car is off-road / blocked)\n  - $65 (letter) = another road variant -> also treated as blocked\n\nIf the car is on road (non-road tile), the routine stores $01 at f0904,x (car\nis on-road flag = active), restores registers, samples bits 0-1 of ZP $8E for\na 2-bit value and stores it at f0908,x (road direction/surface type), then\njumps to j4C9A (continue normal car movement logic).\n\nIf the car is off-road, f0904,x is cleared ($00), and the routine redirects to\nj4ED3 which will handle the out-of-bounds / collision branch.\n\nInputs:  X = sprite/car index (0-3)\nOutputs: f0904,x = 1 if on-road, 0 if off-road; f0908,x = road surface bits\nSide Effects: Reads VIC-II sprite X/Y registers ($D002/$D003); reads screen RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -2191,6 +2259,7 @@
     "21504": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ-driven melody player for SID Voices 2 & 3.\n\nCalled every IRQ frame. Steps through a looping note sequence in the melody\ntable at $5500 using a self-modifying pointer ($5445/$5446). A rate-limiting\ntimer controls the pace: 8 ticks per note, then a 3-tick gate-off gap.\nNotes alternate between Voice 2 and Voice 3 so the prior note's release\nenvelope can finish on one voice while the next note starts on the other.\n\nTable encoding:\n  $30        = rest (silent tick, exit immediately)\n  $00-$2F    = pitch index into sid_freq2_lo/hi_tbl\n  >= $40     = end-of-sequence; wrap pointer back to $5500\n\nKey $BF toggles playback on/off; pressing it immediately gates both voices.\nWaveform: triangle ($21), A=0/D=0, Sustain=$B, Release=$A.\n\nInputs:       $C5 (key scan), sfx_prev_key, sfx_v23_en, sfx_v23_timer,\n              sfx_v23_idx, sfx_v23_toggle; self-mod melody ptr at $5445/$5446\nOutputs:      SID Voice 2 regs ($D407-$D40D), Voice 3 regs ($D40E-$D414)\nSide Effects: Advances self-modifying melody pointer through $5500+;\n              updates sfx_prev_key, sfx_v23_en, sfx_v23_timer,\n              sfx_v23_idx, sfx_v23_toggle\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "22208": "Scans CIA1 keyboard matrix by driving Port B (rows) and reading Port A (cols).\nA = DDR-B mask (row to drive). Returns stable column byte in A (debounced).",
     "22225": "Scans CIA1 keyboard matrix by driving Port A (cols) and reading Port B (rows).\nA = DDR-A mask (column to drive). Returns stable row byte in A (debounced).",
+    "22242": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCustom keyboard/joystick scanner. Replaces part of the KERNAL's standard\nkeyboard scan by directly driving the CIA1 matrix to read joystick port 2\nand specific keyboard rows/columns. Builds a combined key code and a\njoystick-format direction byte, then tail-calls into the KERNAL at $EA7E.\n\nInputs:  CIA1 hardware registers ($DC00-$DC03)\nOutputs: key_scan ($C5) = current key matrix code ($7F = no key)\n         joy_state ($F5) = joystick state (active-low bits 0-4: U/D/L/R/Fire)\nSide Effects: Modifies CIA1 DDRs; tail-calls KERNAL $EA7E (no RTS)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPart of the orignal encrypted code. No longer used once the game was\nloaded + decrypted",
     "28800": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "32784": "Each \"tile\" consists of $0400 (1024) bytes, what fits in a screen.\nEach level consists of different \"tiles\" that are defined in $4000\nblock idx #00",
@@ -2278,6 +2347,7 @@
     "17975": {
       "HighByte": 55296
     },
+    "18254": "Decimal",
     "18547": "Decimal",
     "18555": {
       "LowByte": 16384
@@ -2305,29 +2375,42 @@
     },
     "19911": {
       "HighByte": 985
-    }
+    },
+    "22257": "Binary",
+    "22266": "Binary",
+    "22304": "Binary",
+    "22310": "Binary",
+    "22317": "Binary",
+    "22326": "Binary",
+    "22330": "Binary"
   },
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 4608,
-  "hex_dump_cursor_address": 4608,
+  "cursor_address": 20346,
+  "hex_dump_cursor_address": 21504,
   "sprites_cursor_address": 22528,
   "charset_cursor_address": 22784,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "Debugger",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
     17936,
     17975,
-    18683
+    18683,
+    22049
   ],
   "blocks_view_cursor": 108,
   "scopes": {
+    "17920": 17935,
+    "17936": 17974,
     "18656": 18682,
-    "18688": 18751
+    "18688": 18751,
+    "22208": 22224,
+    "22225": 22241,
+    "22242": 22336
   }
 }
