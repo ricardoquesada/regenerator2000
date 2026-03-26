@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2026-03-26
+
+### Features
+
+- **Debugger**: Highlight changed register, memory, and vector values in the debugger view by comparing with previous state.
+- **Exporter**: Place long labels on their own row in exported `.asm` files for better readability.
+
+### Fixes
+
+- **UI**: Show the offending address and valid range in the status bar when jump-to-address or jump-to-line targets are out of range (e.g. `Address $FE00 out of range ($0801-$2800)`).
+- **Exporter**: Fix screencode and PETSCII roundtrip for ca65 and KickAssembler by emitting problematic characters as raw hex bytes.
+
+### Documentation
+
+- **User Guide**: Updated keyboard shortcuts, documented memory dump and scope features, and fixed settings shortcut mapping.
+- **User Guide**: Added ca65 warning about one-pass assembler limitations.
+
+### Refactor / Internal
+
+- **Assembler**: Moved scope resolution separator to assembler-specific formatters instead of hardcoding.
+
 ## [0.9.3] - 2026-03-23
 
 ### Features
