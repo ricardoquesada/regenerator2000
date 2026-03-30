@@ -14,13 +14,12 @@ To achieve this without compromising code quality, we are planning a major archi
 - Stabilize existing features for Commodore 8-bit machines (C64, C128, Plus/4).
 - Finalize documentation and tutorial.
 - General UX polish and bug fixes.
-- This will be the definitive "Commodore 8-bit" release.
+- This will be the definitive "Commodore 8-bit" release. We might need different v1.x releases for each machine.
 
 ### 🏗️ v2.0 - The Architectural Refactor (Plugin System)
 To scale to other platforms properly, we need a robust abstraction layer.
 - **Modular Views**: Abstract views (Charset, Sprites, Bitmaps) so they are not hardcoded to Commodore/VIC-II.
 - **Platform Definitions**: Each platform (C64, Apple II, NES) will define its own memory maps, CPU variants, and supported views.
-- **De-coupling**: Separate core disassembly logic from UI rendering constraints.
 
 ---
 
@@ -38,7 +37,7 @@ Moving to processors that are similar to the 6502 but offer unique extensions:
 
 ---
 
-### 🌌 Phase 5 - The Ultimate Goal: Commodore Amiga
+### 🌌 Phase 5 - The Ultimate Goal: Commodore Amiga, and other 68k machines
 - Support for the **Motorola 68000 (68k)** architecture.
 - Full visualization of custom chips (Copper, Blitter, etc.).
 - This will leverage the v2.0 plugin system to its fullest extent.
