@@ -9,16 +9,22 @@ To achieve this without compromising code quality, we are planning a major archi
 
 ## 📅 Development Phases
 
-### 📦 v1.0 - Polishing & Stability (Current Focus)
-*Target: ~1 month*
-- Stabilize existing features for Commodore 8-bit machines (C64, C128, Plus/4).
+### 📦 v1.0 - Polishing & Stability for Commodore 64 (Current Focus)
+*Target: May 2026*
+- Stabilize existing features for Commodore 64.
 - Finalize documentation and tutorial.
 - General UX polish and bug fixes.
-- This will be the definitive "Commodore 8-bit" release. We might need different v1.x releases for each machine.
+
+### 📦 v1.x - Add support for other Commodore 8-bit machines
+- Add support for other Commodore 8-bit machines: VIC-20, C128, Plus/4, PET
+- Each minor release will focus on one machine.
+- Adding support for a new machine will require:
+    - Adding a new memory map.
+    - Adding new or updated views.
 
 ### 🏗️ v2.0 - The Architectural Refactor (Plugin System)
 To scale to other platforms properly, we need a robust abstraction layer.
-- **Modular Views**: Abstract views (Charset, Sprites, Bitmaps) so they are not hardcoded to Commodore/VIC-II.
+- **Modular Views**: Abstract views (Charset, Sprites, Bitmaps) so they are not hardcoded to Commodore.
 - **Platform Definitions**: Each platform (C64, Apple II, NES) will define its own memory maps, CPU variants, and supported views.
 
 ---
@@ -27,6 +33,9 @@ To scale to other platforms properly, we need a robust abstraction layer.
 Once the v2.0 architecture is in place, we will expand to other classic 6502 machines:
 - **Apple II**: Text, Lo-Res, and Hi-Res graphics rendering.
 - **NES (Nintendo Entertainment System)**: PPU visualization, Pattern/Name tables.
+- **Atari 8-bit family** (Atari 2600/400/800/XL/XE):
+- **BBC Micro**:
+- **Oric-1**:
 
 ---
 
