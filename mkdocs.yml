@@ -68,6 +68,7 @@ nav:
   - Development & Internals:
       - Architecture: architecture.md
       - Requirements: requirements.md
+      - Roadmap: roadmap.md
       - Changelog: changelog.md
 
 markdown_extensions:
