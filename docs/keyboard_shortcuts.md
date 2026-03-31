@@ -37,7 +37,8 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Convert to Address**                                                                  | ++a++                                                         |
 |                                    | **Convert to PETSCII Text**                                                             | ++p++                                                         |
 |                                    | **Convert to Screencode Text**                                                          | ++s++                                                         |
-|                                    | **Next/Prev Immediate Mode Format** (Hex, Decimal, Binary)                              | ++d++ / ++shift+d++                                           |
+|                                    | **Disassemble Address (flow analysis)**                                                 | ++d++                                                         |
+|                                    | **Next/Prev Immediate Mode Format** (Hex, Decimal, Binary)                              | ++i++ / ++shift+i++                                           |
 |                                    | **Pack Lo/Hi Address (Immediate Mode)**                                                 | ++open-bracket++                                              |
 |                                    | **Pack Hi/Lo Address (Immediate Mode)**                                                 | ++close-bracket++                                             |
 |                                    | **Set Lo/Hi Word Table**                                                                | ++comma++                                                     |

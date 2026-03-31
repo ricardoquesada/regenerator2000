@@ -98,13 +98,18 @@ impl MenuState {
                         MenuItem::new("Undefined", Some("?"), Some(AppAction::Undefined)),
                         MenuItem::separator(),
                         MenuItem::new(
+                            "Disassemble Address",
+                            Some("d"),
+                            Some(AppAction::DisassembleAddress),
+                        ),
+                        MenuItem::new(
                             "Next Imm. Mode Format",
-                            Some("D"),
+                            Some("i"),
                             Some(AppAction::NextImmediateFormat),
                         ),
                         MenuItem::new(
                             "Prev Imm. Mode Format",
-                            Some("Shift+D"),
+                            Some("Shift+I"),
                             Some(AppAction::PreviousImmediateFormat),
                         ),
                         MenuItem::separator(),

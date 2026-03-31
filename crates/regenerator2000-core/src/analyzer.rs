@@ -552,6 +552,124 @@ pub fn guess_scope_end(state: &AppState, start: Addr) -> Addr {
     state.origin.wrapping_add(len).wrapping_sub(1)
 }
 
+pub fn flow_analyze(state: &AppState, start: Addr) -> Vec<std::ops::Range<usize>> {
+    let mut visited = std::collections::HashSet::new();
+    let mut queue = std::collections::VecDeque::new();
+    let mut ranges = Vec::new();
+
+    let origin = state.origin;
+    let data_len = state.raw_data.len();
+    let end_addr = origin.wrapping_add(data_len as u16);
+
+    let to_offset = |addr: Addr| -> Option<usize> {
+        let in_bounds = if origin < end_addr {
+            addr.0 >= origin.0 && addr.0 < end_addr.0
+        } else {
+            addr.0 >= origin.0 || addr.0 < end_addr.0
+        };
+        if in_bounds {
+            Some(addr.0.wrapping_sub(origin.0) as usize)
+        } else {
+            None
+        }
+    };
+
+    if let Some(offset) = to_offset(start) {
+        queue.push_back(offset);
+    } else {
+        return ranges;
+    }
+
+    while let Some(mut pc) = queue.pop_front() {
+        if visited.contains(&pc) {
+            continue;
+        }
+
+        let segment_start = pc;
+
+        loop {
+            if pc >= data_len || visited.contains(&pc) {
+                if pc > segment_start {
+                    ranges.push(segment_start..pc);
+                }
+                break;
+            }
+
+            visited.insert(pc);
+
+            let opcode_byte = state.raw_data[pc];
+            let op_opt = &state.disassembler.opcodes[opcode_byte as usize];
+
+            let Some(op) = op_opt.as_ref() else {
+                if pc > segment_start {
+                    ranges.push(segment_start..pc);
+                }
+                break;
+            };
+
+            if pc + op.size as usize > data_len {
+                if pc > segment_start {
+                    ranges.push(segment_start..pc);
+                }
+                break;
+            }
+
+            let next_pc = pc + op.size as usize;
+
+            match op.mnemonic {
+                "JMP" => {
+                    if op.mode == crate::cpu::AddressingMode::Absolute && op.size == 3 {
+                        let lo = state.raw_data[pc + 1];
+                        let hi = state.raw_data[pc + 2];
+                        let target_addr = Addr(u16::from(hi) << 8 | u16::from(lo));
+                        if let Some(target_offset) = to_offset(target_addr) {
+                            queue.push_back(target_offset);
+                        }
+                    }
+                    if next_pc > segment_start {
+                        ranges.push(segment_start..next_pc);
+                    }
+                    break;
+                }
+                "RTS" | "RTI" => {
+                    if next_pc > segment_start {
+                        ranges.push(segment_start..next_pc);
+                    }
+                    break;
+                }
+                "JSR" => {
+                    if op.size == 3 {
+                        let lo = state.raw_data[pc + 1];
+                        let hi = state.raw_data[pc + 2];
+                        let target_addr = Addr(u16::from(hi) << 8 | u16::from(lo));
+                        if let Some(target_offset) = to_offset(target_addr) {
+                            queue.push_back(target_offset);
+                        }
+                    }
+                    pc = next_pc;
+                }
+                _ => {
+                    if op.mode == crate::cpu::AddressingMode::Relative {
+                        let rel_offset = state.raw_data[pc + 1] as i8;
+                        let current_addr_u16 = origin.0.wrapping_add(pc as u16);
+                        let target_addr = Addr(
+                            (current_addr_u16.wrapping_add(2)).wrapping_add(rel_offset as u16),
+                        );
+                        if let Some(target_offset) = to_offset(target_addr) {
+                            queue.push_back(target_offset);
+                        }
+                        pc = next_pc;
+                    } else {
+                        pc = next_pc;
+                    }
+                }
+            }
+        }
+    }
+
+    ranges
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

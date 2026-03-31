@@ -1677,7 +1677,10 @@ impl Widget for DisassemblyView {
                 WidgetResult::Action(AppAction::JumpToOperand)
             }
             KeyCode::Char('d') if key.modifiers.is_empty() => {
-                WidgetResult::Action(AppAction::NextImmediateFormat)
+                WidgetResult::Action(crate::state::actions::AppAction::DisassembleAddress)
+            }
+            KeyCode::Char('i') if key.modifiers.is_empty() => {
+                WidgetResult::Action(crate::state::actions::AppAction::NextImmediateFormat)
             }
             KeyCode::Char('[') if key.modifiers.is_empty() => {
                 WidgetResult::Action(AppAction::PackLoHiAddress)
@@ -1715,7 +1718,7 @@ impl Widget for DisassemblyView {
                     WidgetResult::Ignored
                 }
             }
-            KeyCode::Char('D') if key.modifiers == KeyModifiers::SHIFT => {
+            KeyCode::Char('I') if key.modifiers == KeyModifiers::SHIFT => {
                 WidgetResult::Action(AppAction::PreviousImmediateFormat)
             }
 

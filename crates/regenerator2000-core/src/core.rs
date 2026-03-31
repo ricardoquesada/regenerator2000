@@ -281,6 +281,44 @@ impl Core {
                 self.handle_remove_scope(&mut events);
             }
             AppAction::Code => self.apply_block_type(crate::state::BlockType::Code, &mut events),
+            AppAction::DisassembleAddress => {
+                let addr = if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
+                    line.address
+                } else {
+                    events.push(CoreEvent::StatusMessage(
+                        "Invalid cursor position".to_string(),
+                    ));
+                    return events;
+                };
+                let ranges = crate::analyzer::flow_analyze(&self.state, addr);
+                let mut commands = Vec::new();
+                for range in ranges {
+                    let old_types = self.state.block_types[range.start..range.end].to_vec();
+                    commands.push(crate::commands::Command::SetBlockType {
+                        range: range.clone(),
+                        new_type: crate::state::BlockType::Code,
+                        old_types,
+                    });
+                }
+                if !commands.is_empty() {
+                    let batch = crate::commands::Command::Batch(commands);
+                    batch.apply(&mut self.state);
+                    let (analysis_cmd, _) = self.state.perform_analysis();
+                    let final_cmd = crate::commands::Command::Batch(vec![batch, analysis_cmd]);
+                    self.state.push_command(final_cmd);
+                    events.push(CoreEvent::StatusMessage(format!(
+                        "Flow analyzed from ${:04X}",
+                        addr.0
+                    )));
+                    events.push(CoreEvent::StateChanged);
+                    events.push(CoreEvent::ViewChanged);
+                } else {
+                    events.push(CoreEvent::StatusMessage(format!(
+                        "No new code found from ${:04X}",
+                        addr.0
+                    )));
+                }
+            }
             AppAction::Byte => {
                 self.apply_block_type(crate::state::BlockType::DataByte, &mut events);
             }
