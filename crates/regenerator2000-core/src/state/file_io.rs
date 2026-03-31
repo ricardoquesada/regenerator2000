@@ -48,6 +48,17 @@ impl AppState {
                 return res;
             }
 
+            if ext.eq_ignore_ascii_case("dis65") {
+                let res = self.load_dis65_project(path.clone());
+                if res.is_ok() {
+                    let abs_path = std::fs::canonicalize(&path).unwrap_or(path.clone());
+                    self.system_config.last_project_path = Some(abs_path.clone());
+                    self.system_config.add_recent_project(abs_path);
+                    let _ = self.system_config.save();
+                }
+                return res;
+            }
+
             if ext.eq_ignore_ascii_case("prg") && data.len() >= 2 {
                 self.origin = Addr(u16::from(data[1]) << 8 | u16::from(data[0]));
                 self.raw_data = data[2..].to_vec();
@@ -72,7 +83,7 @@ impl AppState {
                 self.raw_data = data;
             } else {
                 return Err(anyhow::anyhow!(
-                    "Unsupported file extension: .{ext}\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .regen2000proj"
+                    "Unsupported file extension: .{ext}\nSupported extensions: .prg, .crt, .vsf, .t64, .d64, .d71, .d81, .bin, .raw, .dis65, .regen2000proj"
                 ));
             }
         } else {
@@ -266,6 +277,116 @@ impl AppState {
             hexdump_view_mode: project.hexdump_view_mode,
             blocks_view_cursor: project.blocks_view_cursor,
             entropy_warning: None,
+        })
+    }
+
+    pub fn load_dis65_project(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
+        let content = std::fs::read_to_string(&path)?;
+        let project = crate::parser::dis65::parse_dis65(&content)?;
+
+        let mut binary_path = path.clone();
+        binary_path.set_extension(""); // Strip .dis65
+        if !binary_path.exists() {
+            return Err(anyhow::anyhow!("Binary file not found next to .dis65"));
+        }
+
+        let binary_data = std::fs::read(&binary_path)?;
+        let calculated_crc = crate::utils::calculate_crc32(&binary_data);
+        if calculated_crc != project.file_data_crc32 {
+            return Err(anyhow::anyhow!(
+                "CRC32 mismatch: expected {}, got {}",
+                project.file_data_crc32,
+                calculated_crc
+            ));
+        }
+
+        self.raw_data = binary_data;
+
+        if let Some(first_map) = project.address_map.first() {
+            self.origin = Addr(first_map.addr);
+        } else {
+            self.origin = Addr::ZERO;
+        }
+
+        self.block_types = vec![BlockType::DataByte; self.raw_data.len()]; // Default to bytes
+        for hint in project.type_hints {
+            let start = hint.low;
+            let end = hint.high;
+            if start < self.raw_data.len() && end < self.raw_data.len() {
+                let ty = match hint.hint.as_str() {
+                    "Code" => BlockType::Code,
+                    "Data" => BlockType::DataByte,
+                    _ => BlockType::DataByte,
+                };
+                for i in start..=end {
+                    self.block_types[i] = ty;
+                }
+            }
+        }
+
+        for (offset_str, label_entry) in project.user_labels {
+            if let Ok(offset) = offset_str.parse::<usize>()
+                && offset < self.raw_data.len()
+            {
+                let addr = Addr(label_entry.value);
+                self.labels
+                    .entry(addr)
+                    .or_default()
+                    .push(super::project::Label {
+                        name: label_entry.label,
+                        kind: LabelKind::User,
+                        label_type: if label_entry.label_type == "Subroutine" {
+                            LabelType::Subroutine
+                        } else {
+                            LabelType::UserDefined
+                        },
+                    });
+            }
+        }
+
+        for (offset_str, comment) in project.comments {
+            if let Ok(offset) = offset_str.parse::<usize>()
+                && offset < self.raw_data.len()
+            {
+                let addr = self.origin + offset as u16;
+                self.user_side_comments.insert(addr, comment);
+            }
+        }
+
+        for (offset_str, long_comment) in project.long_comments {
+            if let Ok(offset) = offset_str.parse::<usize>()
+                && offset < self.raw_data.len()
+            {
+                let addr = self.origin + offset as u16;
+                self.user_line_comments.insert(addr, long_comment.text);
+            }
+        }
+
+        self.undo_stack = crate::commands::UndoStack::new();
+        self.last_saved_pointer = 0;
+
+        self.load_system_assets();
+        self.disassemble();
+        self.load_system_assets();
+        self.disassemble();
+
+        if self.settings.auto_analyze {
+            self.perform_analysis();
+        }
+
+        Ok(LoadedProjectData {
+            cursor_address: Some(self.origin),
+            hex_dump_cursor_address: None,
+            sprites_cursor_address: None,
+            right_pane_visible: None,
+            charset_cursor_address: None,
+            bitmap_cursor_address: None,
+            sprite_multicolor_mode: false,
+            charset_multicolor_mode: false,
+            bitmap_multicolor_mode: Some(false),
+            hexdump_view_mode: HexdumpViewMode::default(),
+            blocks_view_cursor: None,
+            entropy_warning: self.check_entropy(),
         })
     }
 

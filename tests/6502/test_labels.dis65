@@ -1,0 +1,38 @@
+### 6502bench SourceGen dis65 v1.0 ###
+{
+  "_ContentVersion": 3,
+  "FileDataLength": 538,
+  "FileDataCrc32": 3345467459,
+  "ProjectProps": {
+    "CpuName": "6502"
+  },
+  "AddressMap": [
+    {
+      "Offset": 0,
+      "Addr": 2049
+    }
+  ],
+  "TypeHints": [
+    {
+      "Low": 0,
+      "High": 537,
+      "Hint": "Code"
+    }
+  ],
+  "Comments": {
+    "10": "Test comment"
+  },
+  "LongComments": {
+    "20": {
+      "Text": "Test long comment"
+    }
+  },
+  "UserLabels": {
+    "100": {
+      "Label": "my_label",
+      "Value": 2149,
+      "Source": "User",
+      "Type": "LocalOrGlobalAddr"
+    }
+  }
+}
