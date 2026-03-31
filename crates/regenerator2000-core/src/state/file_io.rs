@@ -92,7 +92,12 @@ impl AppState {
             ));
         }
 
-        self.block_types = vec![BlockType::Code; self.raw_data.len()];
+        let initial_block_type = if self.system_config.default_is_unexplored {
+            BlockType::Undefined
+        } else {
+            BlockType::Code
+        };
+        self.block_types = vec![initial_block_type; self.raw_data.len()];
         self.undo_stack = crate::commands::UndoStack::new();
         self.last_saved_pointer = 0;
 
@@ -128,7 +133,12 @@ impl AppState {
     ) -> anyhow::Result<LoadedProjectData> {
         self.origin = origin;
         self.raw_data = data;
-        self.block_types = vec![BlockType::Code; self.raw_data.len()];
+        let initial_block_type = if self.system_config.default_is_unexplored {
+            BlockType::Undefined
+        } else {
+            BlockType::Code
+        };
+        self.block_types = vec![initial_block_type; self.raw_data.len()];
         self.undo_stack = crate::commands::UndoStack::new();
         self.last_saved_pointer = 0;
         self.project_path = None;

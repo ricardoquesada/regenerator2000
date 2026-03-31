@@ -38,6 +38,7 @@ mod tests {
     #[test]
     fn test_block_details() {
         let mut app_state = AppState::default();
+        app_state.system_config.default_is_unexplored = false;
         let origin = regenerator2000_core::state::Addr(0x1000);
         // LDA #$00 (A9 00)
         // STA $D020 (8D 20 D0)

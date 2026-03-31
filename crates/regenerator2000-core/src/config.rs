@@ -26,6 +26,8 @@ pub struct SystemConfig {
     pub recent_projects: Vec<PathBuf>,
     #[serde(default = "default_true")]
     pub check_for_updates: bool,
+    #[serde(default = "default_true")]
+    pub default_is_unexplored: bool,
 }
 
 fn default_true() -> bool {
@@ -59,6 +61,7 @@ impl Default for SystemConfig {
             config_path_override: None,
             recent_projects: Vec::new(),
             check_for_updates: true,
+            default_is_unexplored: true,
         }
     }
 }

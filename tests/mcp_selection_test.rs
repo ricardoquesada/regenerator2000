@@ -13,6 +13,7 @@ mod tests {
     #[test]
     fn test_disasm_selected() {
         let mut app_state = AppState::default();
+        app_state.system_config.default_is_unexplored = false;
         // Populate with some data
         let origin = regenerator2000_core::state::Addr(0x1000);
         let data = vec![0xA9, 0x00, 0xAA, 0xCA, 0xE8]; // LDA #$00, TAX, DEX, INX

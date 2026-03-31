@@ -22,12 +22,12 @@ impl SettingsDialog {
     }
 
     pub fn next(&mut self) {
-        let max_items = 9;
+        let max_items = 10;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 9;
+        let max_items = 10;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {
@@ -100,6 +100,14 @@ impl Widget for SettingsDialog {
             format!(
                 "{} Check for updates",
                 if app_state.system_config.check_for_updates {
+                    "[X]"
+                } else {
+                    "[ ]"
+                }
+            ),
+            format!(
+                "{} Default is Unexplored (for new files)",
+                if app_state.system_config.default_is_unexplored {
                     "[X]"
                 } else {
                     "[ ]"
@@ -211,12 +219,12 @@ impl Widget for SettingsDialog {
                 WidgetResult::Handled
             }
             KeyCode::Left => {
-                if !self.is_selecting_theme && self.selected_index == 7 {
+                if !self.is_selecting_theme && self.selected_index == 8 {
                     // Decrease entropy threshold
                     app_state.system_config.entropy_threshold =
                         (app_state.system_config.entropy_threshold - 0.1).max(0.0);
                     let _ = app_state.system_config.save();
-                } else if !self.is_selecting_theme && self.selected_index == 8 {
+                } else if !self.is_selecting_theme && self.selected_index == 9 {
                     // Previous theme
                     let themes = crate::theme::Theme::all_names();
                     let current = app_state.system_config.theme.as_str();
@@ -230,12 +238,12 @@ impl Widget for SettingsDialog {
                 WidgetResult::Handled
             }
             KeyCode::Right => {
-                if !self.is_selecting_theme && self.selected_index == 7 {
+                if !self.is_selecting_theme && self.selected_index == 8 {
                     // Increase entropy threshold
                     app_state.system_config.entropy_threshold =
                         (app_state.system_config.entropy_threshold + 0.1).min(8.0);
                     let _ = app_state.system_config.save();
-                } else if !self.is_selecting_theme && self.selected_index == 8 {
+                } else if !self.is_selecting_theme && self.selected_index == 9 {
                     // Next theme
                     let themes = crate::theme::Theme::all_names();
                     let current = app_state.system_config.theme.as_str();
@@ -279,7 +287,11 @@ impl Widget for SettingsDialog {
                     app_state.system_config.check_for_updates =
                         !app_state.system_config.check_for_updates;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 8 {
+                } else if self.selected_index == 7 {
+                    app_state.system_config.default_is_unexplored =
+                        !app_state.system_config.default_is_unexplored;
+                    let _ = app_state.system_config.save();
+                } else if self.selected_index == 9 {
                     self.is_selecting_theme = true;
                 }
                 WidgetResult::Handled
