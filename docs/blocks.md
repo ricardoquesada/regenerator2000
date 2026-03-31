@@ -531,10 +531,10 @@ The available Block Types are:
 
 ### Cycle Data Types for immediate mode instructions
 
-- **Shortcut**: ++d++ / ++shift+d++
+- **Shortcut**: ++i++ / ++shift+i++
 - **Description**: Cycles the current immediate mode instruction through the available representations (Hex, Decimal, Binary):
-    - **++d++**: Cycles forward.
-    - **++shift+d++**: Cycles backward.
+    - **++i++**: Cycles forward.
+    - **++shift+i++**: Cycles backward.
 - **Use Case**: Sometimes a decimal, or binary representation makes more sense than an hexadecimal one.
 
 | Representation    | Name                |

@@ -13,14 +13,14 @@ The Settings dialog allows you to configure global preferences for the applicati
 ┌ Settings ----------------------------------------┐
 │                                                  │
 │  [X] Open the latest file on startup             │
-│  [X] Auto-analyze on load                        │
 │  [X] Sync Hex Dump View                          │
 │  [ ] Sync Charset View                           │
 │  [ ] Sync Sprites View                           │
 │  [ ] Sync Bitmap View                            │
 │  [X] Sync Blocks View                            │
 │  [X] Check for updates                           │
-│  Entropy Warning Threshold: < 6.9 >              │
+│  [X] Default is Unexplored (for new files)       │
+│  Entropy Warning Threshold: < 7.5 >              │
 │  Theme: < Dracula >                              │
 │                                                  │
 └──────────────────────────────────────────────────┘
@@ -33,12 +33,7 @@ The Settings dialog allows you to configure global preferences for the applicati
          last project you were working on when it starts up. This allows you to quickly
          resume your work.
 
-2. **Auto-analyze on load**
-       - **Description**: If checked, the application will automatically perform a code analysis
-         when a file is loaded. Analysis includes creating labels, cross-references,
-         and other analysis data.
-
-3. **Sync View Options**
+2. **Sync View Options**
        - **Description**: The following options control whether different views automatically
          synchronize their cursor with the main Disassembly View.
          When enabled, navigating in the Disassembly View will update the others to show
@@ -49,9 +44,14 @@ The Settings dialog allows you to configure global preferences for the applicati
        - **Sync Bitmap View**: Synchronizes the Bitmap view.
        - **Sync Blocks View**: Synchronizes the Blocks view.
 
-4. **Check for updates**
+3. **Check for updates**
        - **Description**: When enabled, the application checks for new releases on startup and displays
          the latest available version in the top-right corner if an update is available.
+
+4. **Default is Unexplored (for new files)**
+       - **Description**: When enabled, newly loaded files will treat all memory regions as
+         Undefined/Unexplored rather than assuming they are Code. This is useful
+         when you want to start disassembly from scratch without any automatic assumptions.
 
 5. **Entropy Warning Threshold**
        - **Description**: Sets the Shannon entropy value above which a memory region is
@@ -82,6 +82,7 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
 │  [x] BRK single byte                                                   │
 │  [ ] Patch BRK                                                         │
 │  [ ] Use Illegal Opcodes                                               │
+│  [x] Auto-generate Labels & Cross-refs                                 │
 │                                                                        │
 │  Description:                                                          │
 │  (empty)                                                               │
@@ -230,31 +231,36 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
          jmp $083e
          ```
 
-7. **Max X-Refs**
+7. **Auto-generate Labels & Cross-refs**
+       - **Description**: When enabled, the application will automatically perform a code analysis
+         to generate auto-labels, cross-references, and other analysis data when the project is loaded or
+         as needed.
+
+8. **Max X-Refs**
        - **Description**: The maximum number of Cross-References (addresses that call/jump to a location) to display in the
          side comments for any given line.
 
-8. **Arrow Columns**
+9. **Arrow Columns**
        - **Description**: The number of character columns reserved on the left side of the disassembly view for drawing
          control flow arrows (branches and jumps). Increasing this can make complex control flow easier to read.
 
-9. **Text Line Limit**
-       - **Description**: The maximum number of characters to display on a single line for Text block types before wrapping
-         or truncating.
+10. **Text Line Limit**
+        - **Description**: The maximum number of characters to display on a single line for Text block types before wrapping
+          or truncating.
 
-10. **Words/Addrs per line**
+11. **Words/Addrs per line**
         - **Description**: Controls how many 16-bit values (Words or Addresses) are displayed on a single line when using
           that Block Type. Range: 1-8.
 
-11. **Bytes per line**
+12. **Bytes per line**
         - **Description**: Controls how many 8-bit values (Bytes) are displayed on a single line when using the Byte Block
           Type. Range: 1-40.
 
-12. **Assembler**
+13. **Assembler**
         - **Description**: Selects the target assembler syntax for export. Supported assemblers include **64tass**,
           **ACME**, **KickAssembler**, and **ca65**. Changing this updates the syntax used in the disassembly view to match
           the target.
 
-13. **Platform**
+14. **Platform**
         - **Description**: Defines the target hardware platform (e.g., C64). This helps the analyzer identify
           system-specific memory maps, hardware registers (like VIC-II or SID), and ROM routines.
