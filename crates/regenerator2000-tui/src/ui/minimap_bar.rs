@@ -52,9 +52,10 @@ impl Widget for MinimapBar {
                 crate::state::BlockType::ScreencodeText => ui_state.theme.block_screencode_text_fg,
                 crate::state::BlockType::LoHiAddress => ui_state.theme.block_lohi_fg,
                 crate::state::BlockType::HiLoAddress => ui_state.theme.block_hilo_fg,
+                crate::state::BlockType::LoHiWord => ui_state.theme.block_lohi_fg,
+                crate::state::BlockType::HiLoWord => ui_state.theme.block_hilo_fg,
                 crate::state::BlockType::ExternalFile => ui_state.theme.block_external_file_fg,
                 crate::state::BlockType::Undefined => ui_state.theme.block_undefined_fg,
-                _ => Color::DarkGray, // Fallback for other block types
             };
 
             let is_cursor = x == cursor_x && cursor_offset < total_bytes;
