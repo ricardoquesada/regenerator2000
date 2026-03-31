@@ -306,6 +306,13 @@ impl Core {
                     let (analysis_cmd, _) = self.state.perform_analysis();
                     let final_cmd = crate::commands::Command::Batch(vec![batch, analysis_cmd]);
                     self.state.push_command(final_cmd);
+
+                    if let Some(idx) = self.state.get_line_index_containing_address(addr) {
+                        self.view.cursor_index = idx;
+                    } else if let Some(idx) = self.state.get_line_index_for_address(addr) {
+                        self.view.cursor_index = idx;
+                    }
+
                     events.push(CoreEvent::StatusMessage(format!(
                         "Flow analyzed from ${:04X}",
                         addr.0

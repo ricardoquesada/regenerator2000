@@ -1111,13 +1111,23 @@ impl Widget for DisassemblyView {
                 false
             };
 
-            let base_style = if is_selected_block {
+            let offset = line.address.0.saturating_sub(app_state.origin.0) as usize;
+            let is_unexplored = matches!(
+                app_state.block_types.get(offset),
+                Some(&regenerator2000_core::state::BlockType::Undefined)
+            );
+
+            let mut base_style = if is_selected_block {
                 Style::default()
                     .bg(ui_state.theme.selection_bg)
                     .fg(ui_state.theme.selection_fg)
             } else {
                 Style::default()
             };
+
+            if is_unexplored && !is_selected_block {
+                base_style = base_style.add_modifier(Modifier::DIM);
+            }
 
             // 1. Labels
             if line.bytes.len() > 1 {
