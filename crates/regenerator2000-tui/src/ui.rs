@@ -31,6 +31,7 @@ pub mod dialog_warning;
 pub mod dialog_watchpoint_address;
 pub mod graphics_common;
 pub mod menu;
+pub mod minimap_bar;
 pub mod navigable;
 pub mod statusbar;
 pub mod view_bitmap;
@@ -54,18 +55,21 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1), // Menu
+            Constraint::Length(1), // Minimap Bar
             Constraint::Min(0),    // Main content
             Constraint::Length(1), // Status bar
         ])
         .split(f.area());
 
     ui_state.menu_area = chunks[0];
-    ui_state.main_area = chunks[1];
-    ui_state.status_bar_area = chunks[2];
+    let minimap_area = chunks[1];
+    ui_state.main_area = chunks[2];
+    ui_state.status_bar_area = chunks[3];
 
     menu::Menu.render(f, chunks[0], app_state, ui_state);
-    render_main_view(f, chunks[1], app_state, ui_state);
-    statusbar::StatusBar.render(f, chunks[2], app_state, ui_state);
+    minimap_bar::MinimapBar.render(f, minimap_area, app_state, ui_state);
+    render_main_view(f, chunks[2], app_state, ui_state);
+    statusbar::StatusBar.render(f, chunks[3], app_state, ui_state);
 
     // Menu Popup is now handled here to ensure it's on top
     // Menu Popup is now handled here to ensure it's on top
