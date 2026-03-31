@@ -308,18 +308,17 @@ impl AppState {
             self.origin = Addr::ZERO;
         }
 
-        self.block_types = vec![BlockType::DataByte; self.raw_data.len()]; // Default to bytes
-        for hint in project.type_hints {
-            let start = hint.low;
-            let end = hint.high;
-            if start < self.raw_data.len() && end < self.raw_data.len() {
-                let ty = match hint.hint.as_str() {
-                    "Code" => BlockType::Code,
-                    "Data" => BlockType::DataByte,
-                    _ => BlockType::DataByte,
-                };
-                for i in start..=end {
-                    self.block_types[i] = ty;
+        let (block_types, seeds) =
+            project.to_block_types_and_seeds(self.raw_data.len(), self.origin);
+        self.block_types = block_types;
+
+        for seed_addr in seeds {
+            let ranges = crate::analyzer::flow_analyze(self, seed_addr);
+            for range in ranges {
+                for i in range.start..range.end {
+                    if i < self.block_types.len() {
+                        self.block_types[i] = BlockType::Code;
+                    }
                 }
             }
         }

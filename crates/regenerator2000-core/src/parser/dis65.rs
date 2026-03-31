@@ -23,6 +23,42 @@ pub struct Dis65Project {
     pub user_labels: BTreeMap<String, UserLabelEntry>,
 }
 
+impl Dis65Project {
+    pub fn to_block_types_and_seeds(
+        &self,
+        raw_data_len: usize,
+        origin: crate::state::types::Addr,
+    ) -> (
+        Vec<crate::state::types::BlockType>,
+        Vec<crate::state::types::Addr>,
+    ) {
+        use crate::state::types::BlockType;
+
+        let mut block_types = vec![BlockType::DataByte; raw_data_len];
+        let mut seeds = Vec::new();
+
+        for hint in &self.type_hints {
+            let start = hint.low;
+            let end = hint.high;
+            if start < raw_data_len && end < raw_data_len {
+                if hint.hint == "Code" && start == end {
+                    let addr = origin.wrapping_add(start as u16);
+                    seeds.push(addr);
+                } else {
+                    let ty = match hint.hint.as_str() {
+                        "Code" => BlockType::Code,
+                        _ => BlockType::DataByte,
+                    };
+                    for item in &mut block_types[start..=end] {
+                        *item = ty;
+                    }
+                }
+            }
+        }
+        (block_types, seeds)
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct ProjectProps {
     #[serde(rename = "CpuName")]
