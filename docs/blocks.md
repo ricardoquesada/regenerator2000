@@ -518,7 +518,16 @@ The available Block Types are:
         .byte $ff
         ```
 
-## 13. Helpers for Immediate Mode instructions
+## 13. Disassemble Address (Flow Analysis)
+
+- **Shortcut**: ++d++
+- **Description**: Starting from the current cursor address, simulated execution follows standard 6502 branches and jumps to discover all reachable execution paths. It traces relative branches and absolute jumps, queuing subroutine targets. As soon as it encounters an invalid opcode, it stops the current trace. All discovered ranges of valid instructions are converted into **Code blocks**!
+- **Use Case**: When you encounter unmapped data bytes that you suspect are actually code, place the cursor on the entry point and press ++d++. This is much more robust than manually selecting regions and pressing ++c++ because it will skip static data tables hidden between routines!
+
+!!! note
+    Unconditional breaks like `RTS` or `RTI` will terminate the current segment trace. If there is dead code after a return, it will remain unmapped (unless it is explicitly jumped to from somewhere else).
+
+## 14. Helpers for Immediate Mode instructions
 
 ### Cycle Data Types for immediate mode instructions
 

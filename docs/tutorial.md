@@ -86,6 +86,14 @@ $C000  A9 00 85 D0 ...
 
 If you suspect this is code, place your cursor on the line and press: ++c++.
 
+Regenerator 2000 will disassemble the single line starting from that location.
+
+### Disassembling by Flow Analysis (Recommended)
+
+While pressing ++c++ converts a single line to code, physical key ++d++ running **Flow Analysis** is much more powerful. Starting from the cursor address, it follows all relative branches and absolute jumps, automatically discovering all execution paths until it hits an invalid opcode or a return.
+
+It is highly recommended to use ++d++ when you find a new subroutine entry point! It will skip data tables hidden between routines, ensuring your disassembly remains clean!
+
 Regenerator 2000 will disassemble the bytes starting from that location. It will follow the code flow (jumps and
 branches) to automatically disassemble reachable instructions.
 
@@ -377,7 +385,8 @@ See [MCP Integration](mcp.md) for the full list of available tools and resources
 | ++l++             | **L**abel                            |
 | ++semicolon++     | Side Comment                         |
 | ++colon++         | Line Comment                         |
-| ++d++             | Cycle Immediate Format (hex/dec/bin) |
+| ++d++             | Disassemble Address (Flow Analysis)  |
+| ++i++ / ++shift+i++| Cycle Immediate Format (hex/dec/bin) |
 | ++open-bracket++  | Pack Lo/Hi Address                   |
 | ++shift+v++       | Visual Mode (selection)              |
 | ++enter++         | Follow Jump / Jump to Operand        |
