@@ -60,6 +60,11 @@ impl MenuState {
                         MenuItem::new("Undo", Some("U"), Some(AppAction::Undo)),
                         MenuItem::new("Redo", Some("Ctrl+R"), Some(AppAction::Redo)),
                         MenuItem::separator(),
+                        MenuItem::new(
+                            "Disassemble Address",
+                            Some("D"),
+                            Some(AppAction::DisassembleAddress),
+                        ),
                         MenuItem::new("Scope", Some("R"), Some(AppAction::Scope)),
                         MenuItem::separator(),
                         MenuItem::new("Code", Some("C"), Some(AppAction::Code)),
@@ -97,11 +102,6 @@ impl MenuState {
                         MenuItem::new("External File", Some("E"), Some(AppAction::SetExternalFile)),
                         MenuItem::new("Undefined", Some("?"), Some(AppAction::Undefined)),
                         MenuItem::separator(),
-                        MenuItem::new(
-                            "Disassemble Address",
-                            Some("d"),
-                            Some(AppAction::DisassembleAddress),
-                        ),
                         MenuItem::new(
                             "Next Imm. Mode Format",
                             Some("i"),
