@@ -25,6 +25,7 @@ Regenerator 2000 supports the following formats:
 | `.t64`           | Tape image container (pick a PRG from within)                   |
 | `.vsf`           | VICE snapshot — extracts RAM and uses PC as start address        |
 | `.bin` / `.raw`  | Raw binary — requires manually setting the origin               |
+| `.dis65`         | 6502bench SourceGen project file                              |
 | `.regen2000proj` | Regenerator 2000 project file (includes all labels and comments) |
 
 ### What platforms are supported?

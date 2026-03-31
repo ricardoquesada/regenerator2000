@@ -38,6 +38,7 @@ regenerator2000 [OPTIONS] [FILE]
 - `.d81`: Commodore 64 disk image files (80 tracks). It allows the user to pick a `.prg` file from the disk container.
 - `.t64`: Commodore 64 tape image files. It allows the user to pick a `.prg` from the container.
 - `.vsf`: VICE snapshot files. It extracts the 64KB RAM and uses the Program Counter (PC) as the start address.
+- `.dis65`: 6502bench SourceGen project file.
 - `.bin` and `.raw`: pure binary files. Requires that the user sets the origin manually. Menu -> Edit -> Change Origin
 - `.regen2000proj`: Regenerator 2000 project file
 

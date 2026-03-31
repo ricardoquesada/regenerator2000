@@ -33,7 +33,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
   - Side-by-side view with disassembly.
 - **Debugger**: Connect to VICE for live disassembly, breakpoints, run/step (F2–F9); Debugger panel in the right pane.
 - **Platforms**: Supports Commodore 8-bit machines like C64, C128, Plus/4, etc.
-- **Import**: Load `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, `.dis65`, `.bin`, `.raw`, and
+- **Import**: Load `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, 6502bench (`.dis65`), `.bin`, `.raw`, and
   `.regen2000proj` files.
   - D64: 35/40-track disk images
   - D71: 70-track double-sided disk images
@@ -130,7 +130,7 @@ regenerator2000 [OPTIONS] [path/to/file.prg]
 -   `--mcp-server-stdio`: Run MCP server via stdio
 -   `--vice <HOST:PORT>`: Auto-connect to VICE binary monitor at startup (e.g. `--vice localhost:6502`)
 
-Supported file formats: `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, `.dis65`, `.bin`, `.raw`, and `.regen2000proj`.
+Supported file formats: `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, 6502bench (`.dis65`), `.bin`, `.raw`, and `.regen2000proj`.
 
 ## Keyboard Shortcuts
 
