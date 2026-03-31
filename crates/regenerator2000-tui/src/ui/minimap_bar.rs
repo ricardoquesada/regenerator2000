@@ -70,10 +70,7 @@ impl Widget for MinimapBar {
                     _ => "│",
                 };
 
-                Span::styled(
-                    tick_char,
-                    Style::default().fg(Color::White).bg(fg_color),
-                )
+                Span::styled(tick_char, Style::default().fg(Color::White).bg(fg_color))
             } else {
                 Span::styled(
                     "█", // Filled block
