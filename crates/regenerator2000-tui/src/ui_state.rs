@@ -62,6 +62,7 @@ pub struct UIState {
     pub disassembly_area: ratatui::layout::Rect,
     pub right_pane_area: ratatui::layout::Rect,
     pub active_dialog_area: ratatui::layout::Rect,
+    pub minimap_area: ratatui::layout::Rect,
 }
 
 // ---------------------------------------------------------------------------
@@ -115,6 +116,7 @@ impl UIState {
             disassembly_area: ratatui::layout::Rect::default(),
             right_pane_area: ratatui::layout::Rect::default(),
             active_dialog_area: ratatui::layout::Rect::default(),
+            minimap_area: ratatui::layout::Rect::default(),
         }
     }
 

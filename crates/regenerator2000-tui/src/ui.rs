@@ -62,12 +62,12 @@ pub fn ui(f: &mut Frame, app_state: &AppState, ui_state: &mut UIState) {
         .split(f.area());
 
     ui_state.menu_area = chunks[0];
-    let minimap_area = chunks[1];
+    ui_state.minimap_area = chunks[1];
     ui_state.main_area = chunks[2];
     ui_state.status_bar_area = chunks[3];
 
     menu::Menu.render(f, chunks[0], app_state, ui_state);
-    minimap_bar::MinimapBar.render(f, minimap_area, app_state, ui_state);
+    minimap_bar::MinimapBar.render(f, ui_state.minimap_area, app_state, ui_state);
     render_main_view(f, chunks[2], app_state, ui_state);
     statusbar::StatusBar.render(f, chunks[3], app_state, ui_state);
 

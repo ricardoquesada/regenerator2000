@@ -93,4 +93,40 @@ impl Widget for MinimapBar {
     ) -> WidgetResult {
         WidgetResult::Ignored
     }
+
+    fn handle_mouse(
+        &mut self,
+        mouse: crossterm::event::MouseEvent,
+        app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> WidgetResult {
+        if mouse.kind != crossterm::event::MouseEventKind::Down(crossterm::event::MouseButton::Left)
+        {
+            return WidgetResult::Ignored;
+        }
+
+        if app_state.block_types.is_empty() || ui_state.minimap_area.width == 0 {
+            return WidgetResult::Ignored;
+        }
+
+        let total_bytes = app_state.block_types.len();
+        let width = ui_state.minimap_area.width as usize;
+        let chunk_size = total_bytes / width;
+        let chunk_size = if chunk_size == 0 { 1 } else { chunk_size };
+
+        let rel_x = (mouse.column - ui_state.minimap_area.x) as usize;
+        let byte_offset = rel_x * chunk_size;
+        let addr = app_state.origin.0 as usize + byte_offset;
+
+        if let Some(idx) = app_state.get_line_index_for_address(crate::state::Addr(addr as u16)) {
+            ui_state.cursor_index = idx;
+            ui_state.scroll_index = idx;
+            ui_state.sub_cursor_index = 0;
+            ui_state.scroll_sub_index = 0;
+            ui_state.active_pane = crate::ui_state::ActivePane::Disassembly;
+            return WidgetResult::Handled;
+        }
+
+        WidgetResult::Ignored
+    }
 }

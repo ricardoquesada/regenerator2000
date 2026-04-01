@@ -664,7 +664,10 @@ fn handle_mouse_views(
     let prev_active_pane = ui_state.active_pane;
 
     if widget_result == crate::ui::widget::WidgetResult::Ignored {
-        if is_inside(ui_state.disassembly_area, col, row) {
+        if is_inside(ui_state.minimap_area, col, row) {
+            use crate::ui::minimap_bar::MinimapBar;
+            widget_result = MinimapBar.handle_mouse(mouse, &mut core.state, ui_state);
+        } else if is_inside(ui_state.disassembly_area, col, row) {
             ui_state.active_pane = ActivePane::Disassembly;
             use crate::ui::view_disassembly::DisassemblyView;
             widget_result = DisassemblyView.handle_mouse(mouse, &mut core.state, ui_state);
