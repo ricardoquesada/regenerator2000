@@ -91,9 +91,12 @@ pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAc
                     initial_name,
                     ..
                 } => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_label::LabelDialog::new(Some(&initial_name), address),
-                    ));
+                    ui_state.active_dialog =
+                        Some(Box::new(crate::ui::dialog_label::LabelDialog::new(
+                            Some(&initial_name),
+                            address,
+                            false,
+                        )));
                 }
                 DialogType::Comment {
                     address,

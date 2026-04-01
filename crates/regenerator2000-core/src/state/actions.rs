@@ -96,6 +96,7 @@ pub enum AppAction {
     ApplyLabel {
         address: super::Addr,
         name: String,
+        is_local: bool,
     },
     ApplyComment {
         address: super::Addr,

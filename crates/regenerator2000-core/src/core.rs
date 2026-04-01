@@ -984,8 +984,12 @@ impl Core {
                     ));
                 }
             }
-            AppAction::ApplyLabel { address, name } => {
-                self.handle_apply_label(address, name, &mut events);
+            AppAction::ApplyLabel {
+                address,
+                name,
+                is_local,
+            } => {
+                self.handle_apply_label(address, name, is_local, &mut events);
             }
             AppAction::ApplyComment {
                 address,
@@ -1818,7 +1822,13 @@ impl Core {
         }
     }
 
-    fn handle_apply_label(&mut self, address: Addr, name: String, events: &mut Vec<CoreEvent>) {
+    fn handle_apply_label(
+        &mut self,
+        address: Addr,
+        name: String,
+        is_local: bool,
+        events: &mut Vec<CoreEvent>,
+    ) {
         let label_name = name.trim().to_string();
 
         let old_label_vec = self.state.labels.get(&address).cloned();
@@ -1848,7 +1858,11 @@ impl Core {
             let new_label_entry = crate::state::Label {
                 name: label_name,
                 kind: crate::state::LabelKind::User,
-                label_type: crate::state::LabelType::UserDefined,
+                label_type: if is_local {
+                    crate::state::LabelType::LocalUserDefined
+                } else {
+                    crate::state::LabelType::UserDefined
+                },
             };
 
             if new_label_vec.is_empty() {

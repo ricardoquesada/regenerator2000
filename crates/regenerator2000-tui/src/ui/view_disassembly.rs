@@ -1798,14 +1798,16 @@ pub fn action_set_label(app_state: &AppState, ui_state: &mut UIState) -> WidgetR
             }
         }
 
-        let text = app_state
-            .labels
-            .get(&target_addr)
-            .and_then(|v| v.first())
-            .map(|l| l.name.as_str());
+        let label = app_state.labels.get(&target_addr).and_then(|v| v.first());
+        let text = label.map(|l| l.name.as_str());
+        let is_local = label
+            .map(|l| l.label_type == regenerator2000_core::state::LabelType::LocalUserDefined)
+            .unwrap_or(false);
+
         ui_state.active_dialog = Some(Box::new(crate::ui::dialog_label::LabelDialog::new(
             text,
             target_addr,
+            is_local,
         )));
         ui_state.set_status_message("Enter Label");
         WidgetResult::Handled
