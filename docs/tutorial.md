@@ -135,6 +135,12 @@ Instead of remembering `$C015` is "Main Loop", give it a name!
 
 Now, every instruction that jumps to `$C015` will read `JMP main_loop` instead of `JMP $C015`.
 
+!!! tip "Local vs. Global Labels"
+
+    When creating a label, you can toggle its scope between **Local** and **Global** by pressing ++tab++ to focus
+    the checkbox and ++space++ to cycle its state. Use local labels for loop counters or temporary variables to
+    keep your disassembly tidy!
+
 ### Using Cross-References (X-Refs)
 
 Regenerator 2000 automatically tracks **X-Refs**. If you are at a subroutine `draw_sprite`, you can see exactly _who_
@@ -368,32 +374,32 @@ See [MCP Integration](mcp.md) for the full list of available tools and resources
 
 ## Summary of Key Keys
 
-| Key               | Action                               |
-| :---------------- | :----------------------------------- |
-| ++d++             | Disassemble Address                  |
-| ++b++             | **B**yte                             |
-| ++w++             | **W**ord                             |
-| ++a++             | **A**ddress                          |
-| ++r++             | Create Scope                         |
-| ++l++             | **L**abel                            |
-| ++semicolon++     | Side Comment                         |
-| ++colon++         | Line Comment                         |
-| ++i++ / ++shift+i++| Cycle Immediate Format (hex/dec/bin) |
-| ++open-bracket++  | Pack Lo/Hi Address                   |
-| ++shift+v++       | Visual Mode (selection)              |
-| ++enter++         | Follow Jump / Jump to Operand        |
-| ++backspace++     | Go Back                              |
-| ++ctrl+g++        | Jump to Address                      |
-| ++ctrl+p++        | Go to Symbol                         |
-| ++ctrl+x++        | Find Cross-References                |
-| ++slash++         | Search                               |
-| ++ctrl+b++        | Toggle Bookmark                      |
-| ++ctrl+k++        | Collapse / Uncollapse Block          |
-| ++pipe++          | Toggle Splitter                      |
-| ++ctrl+s++        | Save Project                         |
-| ++ctrl+e++        | Export to ASM                        |
-| ++f2++            | Toggle Breakpoint                    |
-| ++f7++ / ++f8++   | Step Into / Step Over                |
-| ++f9++            | Run / Continue                       |
+| Key                 | Action                               |
+| :------------------ | :----------------------------------- |
+| ++d++               | Disassemble Address                  |
+| ++b++               | **B**yte                             |
+| ++w++               | **W**ord                             |
+| ++a++               | **A**ddress                          |
+| ++r++               | Create Scope                         |
+| ++l++               | **L**abel                            |
+| ++semicolon++       | Side Comment                         |
+| ++colon++           | Line Comment                         |
+| ++i++ / ++shift+i++ | Cycle Immediate Format (hex/dec/bin) |
+| ++open-bracket++    | Pack Lo/Hi Address                   |
+| ++shift+v++         | Visual Mode (selection)              |
+| ++enter++           | Follow Jump / Jump to Operand        |
+| ++backspace++       | Go Back                              |
+| ++ctrl+g++          | Jump to Address                      |
+| ++ctrl+p++          | Go to Symbol                         |
+| ++ctrl+x++          | Find Cross-References                |
+| ++slash++           | Search                               |
+| ++ctrl+b++          | Toggle Bookmark                      |
+| ++ctrl+k++          | Collapse / Uncollapse Block          |
+| ++pipe++            | Toggle Splitter                      |
+| ++ctrl+s++          | Save Project                         |
+| ++ctrl+e++          | Export to ASM                        |
+| ++f2++              | Toggle Breakpoint                    |
+| ++f7++ / ++f8++     | Step Into / Step Over                |
+| ++f9++              | Run / Continue                       |
 
 Happy Hacking!

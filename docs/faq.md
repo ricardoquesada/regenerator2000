@@ -15,17 +15,17 @@ regenerator2000 my_game.prg
 
 Regenerator 2000 supports the following formats:
 
-| Format           | Description                                                     |
-| :--------------- | :-------------------------------------------------------------- |
-| `.prg`           | Standard Commodore program (first 2 bytes = load address)       |
-| `.crt`           | C64 cartridge image with bank selection                         |
-| `.d64`           | 35/40-track disk image (pick a PRG from within)                 |
-| `.d71`           | 70-track double-sided disk image                                |
-| `.d81`           | 80-track disk image                                             |
-| `.t64`           | Tape image container (pick a PRG from within)                   |
+| Format           | Description                                                      |
+| :--------------- | :--------------------------------------------------------------- |
+| `.prg`           | Standard Commodore program (first 2 bytes = load address)        |
+| `.crt`           | C64 cartridge image with bank selection                          |
+| `.d64`           | 35/40-track disk image (pick a PRG from within)                  |
+| `.d71`           | 70-track double-sided disk image                                 |
+| `.d81`           | 80-track disk image                                              |
+| `.t64`           | Tape image container (pick a PRG from within)                    |
 | `.vsf`           | VICE snapshot — extracts RAM and uses PC as start address        |
-| `.bin` / `.raw`  | Raw binary — requires manually setting the origin               |
-| `.dis65`         | 6502bench SourceGen project file                              |
+| `.bin` / `.raw`  | Raw binary — requires manually setting the origin                |
+| `.dis65`         | 6502bench SourceGen project file                                 |
 | `.regen2000proj` | Regenerator 2000 project file (includes all labels and comments) |
 
 ### What platforms are supported?
@@ -66,20 +66,20 @@ projects.
 Place the cursor on the desired line (or select a range with ++shift+v++ for Visual Mode) and press the corresponding
 key:
 
-| Key              | Block Type             |
-| :--------------- | :--------------------- |
-| ++c++            | Code                   |
-| ++b++            | Byte                   |
-| ++w++            | Word                   |
-| ++a++            | Address                |
-| ++p++            | PETSCII Text           |
-| ++s++            | Screencode Text        |
-| ++less-than++    | Lo/Hi Address Table    |
-| ++greater-than++ | Hi/Lo Address Table    |
-| ++comma++        | Lo/Hi Word Table       |
-| ++period++       | Hi/Lo Word Table       |
-| ++e++            | External File          |
-| ++question-mark++| Undefined (reset)      |
+| Key               | Block Type          |
+| :---------------- | :------------------ |
+| ++c++             | Code                |
+| ++b++             | Byte                |
+| ++w++             | Word                |
+| ++a++             | Address             |
+| ++p++             | PETSCII Text        |
+| ++s++             | Screencode Text     |
+| ++less-than++     | Lo/Hi Address Table |
+| ++greater-than++  | Hi/Lo Address Table |
+| ++comma++         | Lo/Hi Word Table    |
+| ++period++        | Hi/Lo Word Table    |
+| ++e++             | External File       |
+| ++question-mark++ | Undefined (reset)   |
 
 See [Block Types](blocks.md) for detailed explanations and assembler-specific examples.
 
@@ -98,29 +98,41 @@ globally — every instruction that references that address will use the new nam
 
 Auto-generated labels use a single-letter prefix to indicate how they are referenced:
 
-| Prefix | Meaning                                           |
-| :----- | :------------------------------------------------ |
-| `s`    | Subroutine target (referenced by `JSR`)           |
-| `j`    | Jump target (referenced by `JMP`)                 |
-| `b`    | Branch target (referenced by `BNE`, `BEQ`, etc.)  |
-| `f`    | Field / indexed address (`LDA fXXXX,x`)           |
-| `a`    | Absolute address (`LDA aXXXX`)                    |
-| `p`    | Pointer / indirect address (`LDA (pXX),y`)        |
-| `e`    | External address (outside the loaded file)        |
+| Prefix | Meaning                                          |
+| :----- | :----------------------------------------------- |
+| `s`    | Subroutine target (referenced by `JSR`)          |
+| `j`    | Jump target (referenced by `JMP`)                |
+| `b`    | Branch target (referenced by `BNE`, `BEQ`, etc.) |
+| `f`    | Field / indexed address (`LDA fXXXX,x`)          |
+| `a`    | Absolute address (`LDA aXXXX`)                   |
+| `p`    | Pointer / indirect address (`LDA (pXX),y`)       |
+| `e`    | External address (outside the loaded file)       |
+
+### What is the difference between a local and a global label?
+
+- **Global Labels**: Top-level symbols accessible from anywhere in the program.
+- **Local Labels** (e.g., `_loop`, `.skip` depending on the assembler): Belong to the nearest **Global Label** above them
+  and are only visible between that global label and the next one. They are useful for loop targets or temporary variables
+  to avoid name collisions between different subroutines.
+- **Scope Labels**: When a global label is used _inside_ a custom scope block (such as an explicit procedure or block),
+  it becomes a scope label and must be accessed via `scope_name.label_name` from the outside, rather than being a truly global one.
+
+In the TUI, you can toggle between local and global scope when creating a label or editing an existing one.
+Press ++l++ to open the label dialog, and then use ++tab++ to focus the checkbox and ++space++ to toggle it.
 
 ### How do I navigate the disassembly?
 
-| Action                  | Shortcut                  |
-| :---------------------- | :------------------------ |
-| Jump to address         | ++ctrl+g++ or ++alt+g++   |
-| Jump to line number     | ++ctrl+shift+g++          |
-| Follow a jump/branch    | ++enter++                 |
-| Go back in history      | ++backspace++             |
-| Go to symbol by name    | ++ctrl+p++                |
-| Find cross-references   | ++ctrl+x++                |
-| Search (Vim-style)      | ++slash++                 |
-| Search dialog           | ++ctrl+f++                |
-| Next / previous match   | ++n++ / ++shift+n++       |
+| Action                | Shortcut                |
+| :-------------------- | :---------------------- |
+| Jump to address       | ++ctrl+g++ or ++alt+g++ |
+| Jump to line number   | ++ctrl+shift+g++        |
+| Follow a jump/branch  | ++enter++               |
+| Go back in history    | ++backspace++           |
+| Go to symbol by name  | ++ctrl+p++              |
+| Find cross-references | ++ctrl+x++              |
+| Search (Vim-style)    | ++slash++               |
+| Search dialog         | ++ctrl+f++              |
+| Next / previous match | ++n++ / ++shift+n++     |
 
 ### What are arrows in the disassembly view?
 
@@ -190,12 +202,12 @@ Place the cursor on the first or last line of the scope and press ++delete++.
 
 ### Which assemblers support scopes?
 
-| Assembler     | Scope Syntax              |
-| :------------ | :------------------------ |
-| 64tass        | `.block` / `.bend`        |
-| KickAssembler | `{` / `}`                 |
-| ca65          | `.proc` / `.endproc`      |
-| ACME          | Not supported (ignored)   |
+| Assembler     | Scope Syntax            |
+| :------------ | :---------------------- |
+| 64tass        | `.block` / `.bend`      |
+| KickAssembler | `{` / `}`               |
+| ca65          | `.proc` / `.endproc`    |
+| ACME          | Not supported (ignored) |
 
 See [Block Types — Scopes](blocks.md#scopes) for detailed examples in each assembler's syntax.
 
@@ -208,8 +220,8 @@ See [Block Types — Scopes](blocks.md#scopes) for detailed examples in each ass
 Use ++tab++ to switch focus between the Disassembly View (left) and the right pane. Toggle which view appears in the
 right pane using:
 
-| Shortcut              | View     |
-| :-------------------- | :------- |
+| Shortcut                | View     |
+| :---------------------- | :------- |
 | ++alt+1++ or ++ctrl+1++ | Blocks   |
 | ++alt+2++ or ++ctrl+2++ | Hex Dump |
 | ++alt+3++ or ++ctrl+3++ | Sprites  |
@@ -226,13 +238,13 @@ view independently in **File → Settings** (++alt+p++ or ++ctrl+comma++).
 
 Entropy measures how "random" a block of data is (Shannon entropy, 0.0–8.0):
 
-| Symbol | Entropy Level         | Typical Content                          |
-| :----- | :-------------------- | :--------------------------------------- |
-| (empty)| Low (< 2.0)           | Repetitive data, zeroed memory           |
-| `░`    | Moderate (< 4.0)      | Text, simple data tables                 |
-| `▒`    | Mixed (< 6.0)         | Code, structured data                    |
-| `▓`    | High (< 7.5)          | Graphics, music data                     |
-| `█`    | Very High (≥ 7.5)     | Compressed or encrypted data             |
+| Symbol  | Entropy Level     | Typical Content                |
+| :------ | :---------------- | :----------------------------- |
+| (empty) | Low (< 2.0)       | Repetitive data, zeroed memory |
+| `░`     | Moderate (< 4.0)  | Text, simple data tables       |
+| `▒`     | Mixed (< 6.0)     | Code, structured data          |
+| `▓`     | High (< 7.5)      | Graphics, music data           |
+| `█`     | Very High (≥ 7.5) | Compressed or encrypted data   |
 
 If a file has overall high entropy, Regenerator 2000 displays a warning suggesting it may be packed or compressed.
 You can adjust the threshold in Settings.
