@@ -31,6 +31,7 @@ fn test_format_instructions() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -50,6 +51,7 @@ fn test_format_instructions() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -69,6 +71,7 @@ fn test_format_instructions() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -88,6 +91,7 @@ fn test_format_instructions() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -107,6 +111,7 @@ fn test_format_instructions() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -126,6 +131,7 @@ fn test_format_instructions() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -218,6 +224,7 @@ fn test_forced_absolute() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -239,6 +246,7 @@ fn test_forced_absolute() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx_false),
@@ -270,6 +278,7 @@ fn test_addressing_modes() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -289,6 +298,7 @@ fn test_addressing_modes() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -308,6 +318,7 @@ fn test_addressing_modes() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -327,6 +338,7 @@ fn test_addressing_modes() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -346,6 +358,7 @@ fn test_addressing_modes() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -365,6 +378,7 @@ fn test_addressing_modes() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -397,6 +411,7 @@ fn test_relative_branch() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -416,6 +431,7 @@ fn test_relative_branch() {
         label_scope_names: None,
         current_scope_name: None,
         scope_separator: ".",
+        local_prefix: None,
     };
     assert_eq!(
         formatter.format_instruction(&ctx),

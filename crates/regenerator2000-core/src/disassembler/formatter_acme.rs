@@ -351,4 +351,8 @@ impl Formatter for AcmeFormatter {
 
         (mnemonic, operand)
     }
+
+    fn local_label_prefix(&self) -> Option<&'static str> {
+        Some(".")
+    }
 }

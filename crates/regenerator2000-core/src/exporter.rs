@@ -224,10 +224,14 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                     && let Some(label) =
                         crate::disassembler::resolve_label(label_vec, mid_addr.0, &state.settings)
                 {
-                    output.push_str(&format!(
-                        "{}\n",
-                        formatter.format_relative_label(&label.name, j)
-                    ));
+                    let mut name = label.name.clone();
+                    if label.label_type == crate::state::LabelType::LocalUserDefined
+                        && let Some(p) = formatter.local_label_prefix()
+                        && !name.starts_with(p)
+                    {
+                        name = format!("{}{}", p, name);
+                    }
+                    output.push_str(&format!("{}\n", formatter.format_relative_label(&name, j)));
                 }
             }
         }

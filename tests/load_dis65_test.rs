@@ -127,6 +127,18 @@ mod tests {
         std::fs::write(&dis65_path, dis65_json).unwrap();
 
         let res = app_state.load_file(dis65_path.clone());
+
+        let dispatch_addr = Addr(7536);
+        let loop_addr = Addr(7538);
+
+        println!("Labels at 7536: {:?}", app_state.labels.get(&dispatch_addr));
+        println!("Labels at 7538: {:?}", app_state.labels.get(&loop_addr));
+        println!(
+            "Xrefs to 7536: {:?}",
+            app_state.cross_refs.get(&dispatch_addr)
+        );
+        println!("Xrefs to 7538: {:?}", app_state.cross_refs.get(&loop_addr));
+
         assert!(
             res.is_ok(),
             "Failed to load .dis65 with BOM: {:?}",

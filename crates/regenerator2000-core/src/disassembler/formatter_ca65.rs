@@ -451,6 +451,10 @@ impl Formatter for Ca65Formatter {
         true
     }
 
+    fn local_label_prefix(&self) -> Option<&'static str> {
+        Some("@")
+    }
+
     fn scope_resolution_separator(&self) -> &'static str {
         "::"
     }

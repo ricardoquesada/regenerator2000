@@ -116,6 +116,7 @@ fn handle_split_byte_table(
                 label_scope_names,
                 current_scope_name.as_deref(),
                 formatter.scope_resolution_separator(),
+                formatter.local_label_prefix(),
             )
             .unwrap_or_else(|| formatter.format_address(Addr(val)))
         } else {

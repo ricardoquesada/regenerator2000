@@ -362,6 +362,7 @@ pub enum LabelType {
     ExternalJump = 9,
     Predefined = 10,
     UserDefined = 11,
+    LocalUserDefined = 12,
 }
 
 impl LabelType {
@@ -380,6 +381,7 @@ impl LabelType {
             LabelType::Branch => 'b',
             LabelType::Predefined => 'L',
             LabelType::UserDefined => 'L',
+            LabelType::LocalUserDefined => 'L',
         }
     }
 

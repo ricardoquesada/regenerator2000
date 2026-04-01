@@ -1,5 +1,5 @@
 use crate::cpu::{Opcode, get_opcodes};
-use crate::state::{Addr, Assembler, BlockType, DocumentSettings, Label};
+use crate::state::{Addr, Assembler, BlockType, DocumentSettings, Label, LabelType};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub mod context;
@@ -70,6 +70,7 @@ pub fn resolve_label<'a>(
 }
 
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn resolve_label_name(
     address: Addr,
     labels: &BTreeMap<Addr, Vec<Label>>,
@@ -78,8 +79,10 @@ pub fn resolve_label_name(
     label_scope_names: Option<&BTreeMap<Addr, String>>,
     current_scope_name: Option<&str>,
     scope_separator: &str,
+    local_prefix: Option<&str>,
 ) -> Option<String> {
     let mut base_name_opt = None;
+    let mut is_local_user_defined = false;
 
     // 1. Local label names (from formatter, e.g. l15)
     if let Some(names) = local_label_names
@@ -89,13 +92,22 @@ pub fn resolve_label_name(
     }
 
     // 2. Standard label resolution
-    if base_name_opt.is_none() {
-        base_name_opt = labels
-            .get(&address)
-            .and_then(|v| resolve_label(v, address.0, settings).map(|l| l.name.clone()));
+    if base_name_opt.is_none()
+        && let Some(v) = labels.get(&address)
+        && let Some(l) = resolve_label(v, address.0, settings)
+    {
+        base_name_opt = Some(l.name.clone());
+        is_local_user_defined = l.label_type == LabelType::LocalUserDefined;
     }
 
-    let base_name = base_name_opt?;
+    let mut base_name = base_name_opt?;
+
+    if is_local_user_defined
+        && let Some(p) = local_prefix
+        && !base_name.starts_with(p)
+    {
+        base_name = format!("{}{}", p, base_name);
+    }
 
     // 3. Scope scoping
     if let Some(scope_names) = label_scope_names
@@ -625,7 +637,16 @@ impl Disassembler {
         settings: &DocumentSettings,
     ) -> Option<String> {
         labels.get(&address).and_then(|v| {
-            resolve_label(v, address.0, settings).map(|l| formatter.format_label(&l.name))
+            resolve_label(v, address.0, settings).map(|l| {
+                let mut name = l.name.clone();
+                if l.label_type == LabelType::LocalUserDefined
+                    && let Some(p) = formatter.local_label_prefix()
+                    && !name.starts_with(p)
+                {
+                    name = format!("{}{}", p, name);
+                }
+                formatter.format_label(&name)
+            })
         })
     }
 
@@ -872,6 +893,7 @@ impl Disassembler {
                         label_scope_names,
                         current_scope_name: current_scope_name.as_deref(),
                         scope_separator: formatter.scope_resolution_separator(),
+                        local_prefix: formatter.local_label_prefix(),
                     };
                     let (mnemonic, operand_str) = formatter.format_instruction(&ctx);
 
@@ -1248,6 +1270,7 @@ impl Disassembler {
                 label_scope_names,
                 current_scope_name.as_deref(),
                 formatter.scope_resolution_separator(),
+                formatter.local_label_prefix(),
             )
             .unwrap_or_else(|| formatter.format_address(Addr(val)));
             operands.push(operand);

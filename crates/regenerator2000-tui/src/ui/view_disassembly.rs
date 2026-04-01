@@ -1182,7 +1182,14 @@ impl Widget for DisassemblyView {
                                 base_style.fg(ui_state.theme.bytes)
                             };
 
-                            let label_def = format!("{} =*+${:02x}", label.name, offset);
+                            let mut name = label.name.clone();
+                            if label.label_type == crate::state::LabelType::LocalUserDefined
+                                && let Some(p) = formatter.local_label_prefix()
+                                && !name.starts_with(p)
+                            {
+                                name = format!("{}{}", p, name);
+                            }
+                            let label_def = format!("{} =*+${:02x}", name, offset);
                             let mut spans = vec![
                                 Span::styled(gutter, gutter_style),
                                 Span::styled(

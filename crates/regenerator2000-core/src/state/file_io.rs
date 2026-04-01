@@ -333,11 +333,20 @@ impl AppState {
             }
         }
 
+        let mut candidates = std::collections::BTreeSet::new();
+        let mut trusted_locals = std::collections::BTreeSet::new();
+
         for (offset_str, label_entry) in project.user_labels {
             if let Ok(offset) = offset_str.parse::<usize>()
                 && offset < self.raw_data.len()
             {
                 let addr = Addr(label_entry.value);
+                if label_entry.label_type == "LocalOrGlobalAddr" {
+                    candidates.insert(addr);
+                } else if label_entry.label_type == "NonUniqueLocalAddr" {
+                    trusted_locals.insert(addr);
+                }
+
                 self.labels
                     .entry(addr)
                     .or_default()
@@ -346,6 +355,10 @@ impl AppState {
                         kind: LabelKind::User,
                         label_type: if label_entry.label_type == "Subroutine" {
                             LabelType::Subroutine
+                        } else if label_entry.label_type == "NonUniqueLocalAddr"
+                            || label_entry.label_type == "LocalOrGlobalAddr"
+                        {
+                            LabelType::LocalUserDefined
                         } else {
                             LabelType::UserDefined
                         },
@@ -379,9 +392,50 @@ impl AppState {
         self.load_system_assets();
         self.disassemble();
 
-        if self.settings.auto_analyze {
-            self.perform_analysis();
+        self.perform_analysis(); // We need xrefs first!
+
+        // === LocalOrGlobalAddr Heuristic (Iterative Fixed-Point) ===
+        // Always run the Candidate Heuristic for `.dis65` loads to resolve LocalOrGlobalAddr candidates.
+        let mut must_be_local = trusted_locals.clone();
+        let mut changed = true;
+
+        while changed {
+            changed = false;
+            let mut newbies = Vec::new();
+            for &l in &must_be_local {
+                if let Some(refs) = self.cross_refs.get(&l) {
+                    for &r in refs {
+                        for &c in &candidates {
+                            if !must_be_local.contains(&c)
+                                && !newbies.contains(&c)
+                                && ((r < c && c < l) || (l < c && c < r))
+                            {
+                                newbies.push(c);
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+            for c in newbies {
+                must_be_local.insert(c);
+            }
         }
+
+        // Demote candidates that are not in must_be_local
+        for c in candidates {
+            if !must_be_local.contains(&c)
+                && let Some(labels) = self.labels.get_mut(&c)
+            {
+                for label in labels {
+                    if label.label_type == LabelType::LocalUserDefined {
+                        label.label_type = LabelType::UserDefined; // Demote to Global
+                    }
+                }
+            }
+        }
+
+        self.disassemble();
 
         Ok(LoadedProjectData {
             cursor_address: Some(self.origin),

@@ -316,4 +316,8 @@ impl Formatter for TassFormatter {
     fn supports_scopes(&self) -> bool {
         true
     }
+
+    fn local_label_prefix(&self) -> Option<&'static str> {
+        Some("_")
+    }
 }
