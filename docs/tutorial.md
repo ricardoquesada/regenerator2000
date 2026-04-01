@@ -19,7 +19,7 @@ flowchart TD
     Start((Start)) --> Load[Load Binary]
     Load --> Explore[Explore & Analyze]
     Explore --> Define{Identify Region}
-    Define -- "Looks like Code" --> Code[Convert to Code 'c']
+    Define -- "Looks like Code" --> Code[Disassemble Address 'd']
     Define -- "Looks like Data" --> Data[Convert to Byte 'b']
     Define -- "Standard Routines" --> Label[Label 'l']
     Define -- "Weird Stuff" --> Graphics[Check Graphics Views]
@@ -76,7 +76,7 @@ If auto-analyze is disabled, you can trigger it manually with ++ctrl+a++.
 
 Your primary job is to tell Regenerator 2000 what is **Code** and what is **Data**.
 
-### Converting to Code
+### Disassembling Address
 
 You might see a block of bytes that looks like this:
 
@@ -84,18 +84,11 @@ You might see a block of bytes that looks like this:
 $C000  A9 00 85 D0 ...
 ```
 
-If you suspect this is code, place your cursor on the line and press: ++c++.
+If you suspect this is code, place your cursor on the line and press: ++d++.
 
-Regenerator 2000 will disassemble the single line starting from that location.
+Regenerator 2000 will disassemble the bytes starting from that location using **Flow Analysis**. It follows all relative branches and absolute jumps, automatically discovering all execution paths until it hits an invalid opcode or a return.
 
-### Disassembling by Flow Analysis (Recommended)
-
-While pressing ++c++ converts a single line to code, physical key ++d++ running **Flow Analysis** is much more powerful. Starting from the cursor address, it follows all relative branches and absolute jumps, automatically discovering all execution paths until it hits an invalid opcode or a return.
-
-It is highly recommended to use ++d++ when you find a new subroutine entry point! It will skip data tables hidden between routines, ensuring your disassembly remains clean!
-
-Regenerator 2000 will disassemble the bytes starting from that location. It will follow the code flow (jumps and
-branches) to automatically disassemble reachable instructions.
+It is highly recommended to use ++d++ when you find a new subroutine entry point! It will skip data tables hidden between routines, making your disassembly process much faster and cleaner.
 
 ### Converting to Data
 
@@ -116,7 +109,7 @@ To mark a region as raw bytes:
 Visual Mode (++shift+v++) is essential for working with ranges of data. Once in Visual Mode:
 
 - **Extend selection**: Use ++arrow-up++ / ++arrow-down++ or ++j++ / ++k++ to grow the selection.
-- **Apply block type**: Press any block-type key (++c++, ++b++, ++w++, ++a++, ++p++, ++s++, etc.) to convert the entire
+- **Apply block type**: Press any block-type key (++d++, ++b++, ++w++, ++a++, ++p++, ++s++, etc.) to convert the entire
   selected region.
 - **Exit**: Press ++escape++ to leave Visual Mode without making changes.
 
@@ -377,7 +370,7 @@ See [MCP Integration](mcp.md) for the full list of available tools and resources
 
 | Key               | Action                               |
 | :---------------- | :----------------------------------- |
-| ++c++             | **C**ode                             |
+| ++d++             | Disassemble Address                  |
 | ++b++             | **B**yte                             |
 | ++w++             | **W**ord                             |
 | ++a++             | **A**ddress                          |
@@ -385,7 +378,6 @@ See [MCP Integration](mcp.md) for the full list of available tools and resources
 | ++l++             | **L**abel                            |
 | ++semicolon++     | Side Comment                         |
 | ++colon++         | Line Comment                         |
-| ++d++             | Disassemble Address (Flow Analysis)  |
 | ++i++ / ++shift+i++| Cycle Immediate Format (hex/dec/bin) |
 | ++open-bracket++  | Pack Lo/Hi Address                   |
 | ++shift+v++       | Visual Mode (selection)              |
