@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.5] - 2026-03-31
+
+### Features
+
+- **Project**: Added support for 6502bench (`.dis65`) project files.
+- **Navigation**: Added support for "Disassemble address" (keyboard shortcut 'd') and flow analysis for code block detection.
+- **UI**: Added a high-precision horizontal minimap bar with sub-character precision ticks.
+- **UI**: Added configurable default block type and updated TUI settings menu.
+- **UI**: Dim unexplored code blocks in disassembly view.
+
+### Fixes
+
+- **UI**: Fix block type color consistency in minimap bar.
+- **UI**: Update cursor position after analysis.
+
+### Documentation
+
+- **User Guide**: Updated tutorial, settings, and roadmap to reflect new features and keyboard shortcuts.
+- **Roadmap**: Expanded phase 5 scope and added platform-specific v1.x releases.
+
 ## [0.9.4] - 2026-03-26
 
 ### Features
