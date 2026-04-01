@@ -6,7 +6,23 @@ engine how to interpret that byte. You can change the Block Type for any region 
 
 The available Block Types are:
 
-## 1. Code
+## 1. Disassemble Address (Flow Analysis)
+
+- **Shortcut**: ++d++
+- **Description**: Starting from the current cursor address, simulated execution follows standard 6502 branches and
+  jumps to discover all reachable execution paths. It traces relative branches and absolute jumps, queuing subroutine
+  targets. As soon as it encounters an invalid opcode, it stops the current trace. All discovered ranges of valid
+  instructions are converted into **Code blocks**!
+- **Use Case**: When you encounter unmapped data bytes that you suspect are actually code, place the cursor on the
+  entry point and press ++d++. This is much more robust than manually selecting regions and pressing ++c++ because it
+  will skip static data tables hidden between routines!
+
+!!! note
+
+    Unconditional breaks like `RTS` or `RTI` will terminate the current segment trace. If there is dead code after
+    a return, it will remain unmapped (unless it is explicitly jumped to from somewhere else).
+
+## 2. Code
 
 - **Shortcut**: ++c++
 - **Description**: Interprets the bytes as MOS 6502/6510 instructions.
@@ -46,7 +62,7 @@ The available Block Types are:
         sta aD020
         ```
 
-## 2. Data Byte
+## 3. Data Byte
 
 - **Shortcut**: ++b++
 - **Description**: Represents data as single 8-bit values.
@@ -83,7 +99,7 @@ The available Block Types are:
         .byte $80, $40, $a2, $ff
         ```
 
-## 3. Data Word
+## 4. Data Word
 
 - **Shortcut**: ++w++
 - **Description**: Represents data as 16-bit Little-Endian values.
@@ -119,7 +135,7 @@ The available Block Types are:
         .word $1234, $ffaa, $5678, $0000, $abcd
         ```
 
-## 4. Address
+## 5. Address
 
 - **Shortcut**: ++a++
 - **Description**: Represents data as 16-bit addresses. Unlike "Data Word", this type explicitly tells the analyzer that
@@ -157,7 +173,7 @@ The available Block Types are:
         .word a1234, aFFAA, a5678, a0000, aABCD
         ```
 
-## 5. PETSCII Text
+## 6. PETSCII Text
 
 - **Shortcut**: ++p++
 - **Description**: Interprets bytes as PETSCII text sequences.
@@ -192,7 +208,7 @@ The available Block Types are:
         .byte "hello world"
         ```
 
-## 6. Screencode Text
+## 7. Screencode Text
 
 - **Shortcut**: ++s++
 - **Description**: Interprets bytes as Commodore Screen Codes (Matrix codes) text.
@@ -228,7 +244,7 @@ The available Block Types are:
         scrcode "hello world"
         ```
 
-## 7. Lo/Hi Address Table
+## 8. Lo/Hi Address Table
 
 - **Shortcut**: ++less-than++
 - **Description**: Marks the selected bytes as the **Low / High** address table. Must have an even number of bytes.
@@ -277,7 +293,7 @@ The available Block Types are:
         .byte >aC000, >aD101, >aE202, >aF303
         ```
 
-## 8. Hi/Lo Address Table
+## 9. Hi/Lo Address Table
 
 - **Shortcut**: ++greater-than++
 - **Description**: Marks the selected bytes as the **High / Low** address table. Must have an even number of bytes.
@@ -326,7 +342,7 @@ The available Block Types are:
         .byte <a00C0, <a01D1, <a02E2, <a03F3
         ```
 
-## 9. Lo/Hi Word Table
+## 10. Lo/Hi Word Table
 
 - **Shortcut**: ++comma++
 - **Description**: Marks the selected bytes as the **Low / High** word table. Must have a size divisible by 4.
@@ -375,7 +391,7 @@ The available Block Types are:
         .byte >$C000, >$D101, >$E202, >$F303
         ```
 
-## 10. Hi/Lo Word Table
+## 11. Hi/Lo Word Table
 
 - **Shortcut**: ++period++
 - **Description**: Marks the selected bytes as the **High / Low** word table. Must have a size divisible by 4.
@@ -424,7 +440,7 @@ The available Block Types are:
         .byte <$00C0, <$01D1, <$02E2, <$03F3
         ```
 
-## 11. External File
+## 12. External File
 
 - **Shortcut**: ++e++
 - **Description**: Treats the selected region as external binary data.
@@ -473,7 +489,7 @@ The available Block Types are:
         .incbin "export-$1000-$1007.bin"
         ```
 
-## 12. Undefined
+## 13. Undefined
 
 - **Shortcut**: ++question-mark++
 - **Description**: Resets the block to an "Unknown" state.
@@ -518,23 +534,14 @@ The available Block Types are:
         .byte $ff
         ```
 
-## 13. Disassemble Address (Flow Analysis)
-
-- **Shortcut**: ++d++
-- **Description**: Starting from the current cursor address, simulated execution follows standard 6502 branches and jumps to discover all reachable execution paths. It traces relative branches and absolute jumps, queuing subroutine targets. As soon as it encounters an invalid opcode, it stops the current trace. All discovered ranges of valid instructions are converted into **Code blocks**!
-- **Use Case**: When you encounter unmapped data bytes that you suspect are actually code, place the cursor on the entry point and press ++d++. This is much more robust than manually selecting regions and pressing ++c++ because it will skip static data tables hidden between routines!
-
-!!! note
-    Unconditional breaks like `RTS` or `RTI` will terminate the current segment trace. If there is dead code after a return, it will remain unmapped (unless it is explicitly jumped to from somewhere else).
-
 ## 14. Helpers for Immediate Mode instructions
 
 ### Cycle Data Types for immediate mode instructions
 
 - **Shortcut**: ++i++ / ++shift+i++
 - **Description**: Cycles the current immediate mode instruction through the available representations (Hex, Decimal, Binary):
-    - **++i++**: Cycles forward.
-    - **++shift+i++**: Cycles backward.
+  - **++i++**: Cycles forward.
+  - **++shift+i++**: Cycles backward.
 - **Use Case**: Sometimes a decimal, or binary representation makes more sense than an hexadecimal one.
 
 | Representation    | Name                |
@@ -550,8 +557,8 @@ The available Block Types are:
 
 - **Shortcut**: ++bracket-left++ / ++bracket-right++
 - **Description**: Quickly assigns a "lo/hi" or "hi/lo" address to the selection.
-    - **++bracket-left++**: For **Lo/Hi Address**.
-    - **++bracket-right++**: For **Hi/Lo Address**.
+  - **++bracket-left++**: For **Lo/Hi Address**.
+  - **++bracket-right++**: For **Hi/Lo Address**.
 - **Use Case**: When manually setting 16-bit pointers. See exmaple.
 
 Example:
@@ -585,8 +592,8 @@ p1480
 
 You can also revert the change by pressing:
 
-* ++u++ to undo
-* or press ++d++ to remove the hi/lo or lo/hi address, and represent it as hexadecimal again.
+- ++u++ to undo
+- or press ++d++ to remove the hi/lo or lo/hi address, and represent it as hexadecimal again.
 
 ## Organization Tools
 
@@ -603,6 +610,7 @@ You can add comments to any line to annotate your disassembly.
 - **Line Comments**: Displayed on a separate line above the instruction or data.
 
 !!! note
+
     **Line Comments** also function as **Splitters**. Inserting a line comment into a grouped block (like a sequence of bytes) will split the block at that point, preventing the auto-merger from combining them.
 
 ### Scopes
@@ -726,7 +734,10 @@ graph TD
 ```
 
 !!! important
-    Splitters are especially critical for **Lo/Hi** and **Hi/Lo Address/Word Table** blocks. Because these blocks calculate the split point between the Low and High parts based on the total length of the block, merging two independent tables would result in an incorrect calculation of addresses.
+
+    Splitters are especially critical for **Lo/Hi** and **Hi/Lo Address/Word Table** blocks. Because these blocks
+    calculate the split point between the Low and High parts based on the total length of the block, merging two
+    independent tables would result in an incorrect calculation of addresses.
 
 ### Collapsing Blocks
 
@@ -760,5 +771,5 @@ graph TD
 
 - **Use Case**: Use this to hide large tables, long text strings, or finished subroutines to keep your workspace clean and focus on the code you are currently analyzing.
 - **Scope**: This is a **visual-only** feature for the Disassembly View. It does **not** affect:
-    -   The exported assembly code (all code is always exported).
-    -   Other views (e.g., Hex Dump, Character Set).
+  - The exported assembly code (all code is always exported).
+  - Other views (e.g., Hex Dump, Character Set).
