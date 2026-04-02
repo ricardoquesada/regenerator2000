@@ -78,6 +78,7 @@ pub struct Theme {
     pub block_external_file_bg: Color,
     pub block_undefined_bg: Color,
     pub block_splitter_bg: Color,
+    pub minimap_cursor_fg: Color,
 }
 
 impl Default for Theme {
@@ -334,6 +335,7 @@ impl Theme {
             block_undefined_bg: Solarized::BASE03,
             block_splitter_fg: Solarized::BASE1,
             block_splitter_bg: Solarized::BASE03,
+            minimap_cursor_fg: Color::White,
         }
     }
 
@@ -409,6 +411,7 @@ impl Theme {
             block_undefined_bg: Solarized::BASE2,
             block_splitter_fg: Solarized::BASE1,
             block_splitter_bg: Solarized::BASE2,
+            minimap_cursor_fg: Color::Black,
         }
     }
 
@@ -498,6 +501,7 @@ impl Theme {
             block_undefined_bg: Dracula::BACKGROUND,
             block_splitter_fg: Dracula::COMMENT,
             block_splitter_bg: Dracula::BACKGROUND,
+            minimap_cursor_fg: Dracula::BACKGROUND,
         }
     }
 
@@ -572,6 +576,7 @@ impl Theme {
             block_undefined_bg: Gruvbox::BG0,
             block_splitter_fg: Gruvbox::GRAY,
             block_splitter_bg: Gruvbox::BG0,
+            minimap_cursor_fg: Color::White,
         }
     }
 
@@ -647,6 +652,7 @@ impl Theme {
             block_undefined_bg: Gruvbox::BG1_LIGHT,
             block_splitter_fg: Gruvbox::GRAY,
             block_splitter_bg: Gruvbox::BG1_LIGHT,
+            minimap_cursor_fg: Color::Black,
         }
     }
 
@@ -721,6 +727,7 @@ impl Theme {
             block_undefined_bg: Monokai::BACKGROUND,
             block_splitter_fg: Monokai::COMMENT,
             block_splitter_bg: Monokai::BACKGROUND,
+            minimap_cursor_fg: Monokai::BACKGROUND,
         }
     }
 
@@ -795,6 +802,7 @@ impl Theme {
             block_undefined_bg: Nord::NORD0,
             block_splitter_fg: Nord::NORD3,
             block_splitter_bg: Nord::NORD0,
+            minimap_cursor_fg: Nord::NORD6,
         }
     }
 
@@ -869,6 +877,7 @@ impl Theme {
             block_undefined_bg: CatppuccinMocha::BASE,
             block_splitter_fg: CatppuccinMocha::OVERLAY0,
             block_splitter_bg: CatppuccinMocha::BASE,
+            minimap_cursor_fg: CatppuccinMocha::BASE,
         }
     }
 
@@ -943,6 +952,7 @@ impl Theme {
             block_undefined_bg: CatppuccinLatte::CRUST,
             block_splitter_fg: CatppuccinLatte::OVERLAY0,
             block_splitter_bg: CatppuccinLatte::CRUST,
+            minimap_cursor_fg: CatppuccinLatte::TEXT,
         }
     }
 }

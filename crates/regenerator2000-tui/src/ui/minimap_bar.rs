@@ -2,13 +2,7 @@ use crate::state::AppState;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
 use crossterm::event::KeyEvent;
-use ratatui::{
-    Frame,
-    layout::Rect,
-    style::{Color, Style},
-    text::Span,
-    widgets::Paragraph,
-};
+use ratatui::{Frame, layout::Rect, style::Style, text::Span, widgets::Paragraph};
 
 pub struct MinimapBar;
 
@@ -70,7 +64,12 @@ impl Widget for MinimapBar {
                     _ => "│",
                 };
 
-                Span::styled(tick_char, Style::default().fg(Color::White).bg(fg_color))
+                Span::styled(
+                    tick_char,
+                    Style::default()
+                        .fg(ui_state.theme.minimap_cursor_fg)
+                        .bg(fg_color),
+                )
             } else {
                 Span::styled(
                     "█", // Filled block
