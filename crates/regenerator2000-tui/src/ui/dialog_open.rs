@@ -358,6 +358,9 @@ impl Widget for OpenDialog {
                                             .to_string_lossy();
                                         ui_state.set_status_message(format!("Loaded: {filename}"));
 
+                                        ui_state.restore_session(&loaded_data, &app_state);
+
+                                        /*
                                         let loaded_cursor = loaded_data.cursor_address;
                                         let loaded_hex_cursor = loaded_data.hex_dump_cursor_address;
                                         let loaded_sprites_cursor =
@@ -490,6 +493,22 @@ impl Widget for OpenDialog {
                                             loaded_data.entropy_warning,
                                             ui_state,
                                         );
+
+                                        let is_project = selected_path
+                                            .extension()
+                                            .map(|e| e == "regen2000proj")
+                                            .unwrap_or(false);
+                                        if !is_project && ui_state.active_dialog.is_none() {
+                                            ui_state.active_dialog = Some(Box::new(
+                                                crate::ui::dialog_import_context::ImportContextDialog::new(
+                                                    &app_state.settings.platform.to_string(),
+                                                    app_state.origin,
+                                                ),
+                                            ));
+                                        }
+
+                                        WidgetResult::Close
+                                        */
 
                                         WidgetResult::Close
                                     }

@@ -20,6 +20,7 @@ pub struct UIState {
 
     // --- TUI-only state below ---
     pub active_dialog: Option<Box<dyn Widget>>,
+    pub dialog_queue: Vec<Box<dyn Widget>>,
     pub file_dialog_current_dir: PathBuf,
 
     pub menu: MenuState,
@@ -89,6 +90,7 @@ impl UIState {
             core: CoreViewState::new(),
 
             active_dialog: None,
+            dialog_queue: Vec::new(),
             file_dialog_current_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
 
             menu: MenuState::new(),
@@ -117,6 +119,14 @@ impl UIState {
             right_pane_area: ratatui::layout::Rect::default(),
             active_dialog_area: ratatui::layout::Rect::default(),
             minimap_area: ratatui::layout::Rect::default(),
+        }
+    }
+
+    pub fn push_dialog(&mut self, dialog: Box<dyn Widget>) {
+        if self.active_dialog.is_none() {
+            self.active_dialog = Some(dialog);
+        } else {
+            self.dialog_queue.push(dialog);
         }
     }
 
@@ -248,6 +258,24 @@ impl UIState {
                 let offset = addr - aligned_start_addr;
                 self.bitmap_cursor_index = offset / 8192;
             }
+        }
+
+        // --- Centralized File Load hooks ---
+
+        // Import Context Setup (Wizard for raw files)
+        let ext = app_state.file_path.as_ref()
+            .and_then(|p| p.extension())
+            .and_then(|e| e.to_str())
+            .unwrap_or("");
+
+        if ext != "regen2000proj" {
+            self.push_dialog(Box::new(
+                crate::ui::dialog_import_context::ImportContextDialog::new(
+                    &app_state.settings.platform.to_string(),
+                    app_state.origin,
+                    loaded_data.entropy_warning,
+                ),
+            ));
         }
     }
 }

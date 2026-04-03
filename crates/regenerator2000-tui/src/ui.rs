@@ -14,6 +14,7 @@ pub mod dialog_export_as;
 pub mod dialog_export_labels;
 pub mod dialog_find_references;
 pub mod dialog_go_to_symbol;
+pub mod dialog_import_context;
 pub mod dialog_jump_to_address;
 pub mod dialog_jump_to_line;
 pub mod dialog_keyboard_shortcut;

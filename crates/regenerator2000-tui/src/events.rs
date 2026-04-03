@@ -451,6 +451,9 @@ fn handle_key_event(
             crate::ui::widget::WidgetResult::Close => {
                 // Dialog closed.
                 *should_render = true;
+                if !ui_state.dialog_queue.is_empty() {
+                    ui_state.active_dialog = Some(ui_state.dialog_queue.remove(0));
+                }
             }
             crate::ui::widget::WidgetResult::Action(action) => {
                 if !action.closes_dialog() {

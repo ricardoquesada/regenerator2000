@@ -231,12 +231,8 @@ impl Widget for D64FilePickerDialog {
                         {
                             Ok(loaded_data) => {
                                 // Apply loaded UI state if needed (like cursor pos), though load_binary defaults them.
-                                crate::ui::dialog_warning::WarningDialog::show_if_needed(
-                                    loaded_data.entropy_warning,
-                                    ui_state,
-                                );
-
                                 app_state.file_path = Some(self.disk_path.clone());
+                                ui_state.restore_session(&loaded_data, &app_state);
                                 WidgetResult::Close
                             }
                             Err(e) => {
