@@ -777,8 +777,6 @@ fn main() -> Result<()> {
         file_to_load.is_some(),
     );
 
-
-
     // Unified Event Channel
     let (event_tx, event_rx) = std::sync::mpsc::channel::<events::AppEvent>();
 

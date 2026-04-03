@@ -216,7 +216,7 @@ impl Widget for T64FilePickerDialog {
                         {
                             Ok(loaded_data) => {
                                 app_state.file_path = Some(self.disk_path.clone());
-                                ui_state.restore_session(&loaded_data, &app_state);
+                                ui_state.restore_session(&loaded_data, app_state);
                                 WidgetResult::Close
                             }
                             Err(e) => {

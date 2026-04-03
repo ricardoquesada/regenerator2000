@@ -177,11 +177,16 @@ impl Widget for ImportContextDialog {
         // --- High Entropy Warning ---
         if let Some(ent) = self.entropy {
             use ratatui::widgets::Paragraph;
-            let warn_text = Line::from(vec![
-                Span::styled(format!("⚠️ High Entropy ({ent:.2}). Possibly packed or compressed."), 
-                Style::default().fg(ratatui::style::Color::Yellow).add_modifier(Modifier::BOLD))
-            ]);
-            f.render_widget(Paragraph::new(warn_text).alignment(ratatui::layout::Alignment::Center), layout[9]);
+            let warn_text = Line::from(vec![Span::styled(
+                format!("⚠️ High Entropy ({ent:.2}). Possibly packed or compressed."),
+                Style::default()
+                    .fg(ratatui::style::Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )]);
+            f.render_widget(
+                Paragraph::new(warn_text).alignment(ratatui::layout::Alignment::Center),
+                layout[9],
+            );
         }
 
         // Show blinking cursor at end of input
@@ -240,10 +245,8 @@ impl Widget for ImportContextDialog {
                 if self.active_field == 0 && !self.platforms.is_empty() {
                     self.selected_platform_idx =
                         (self.selected_platform_idx + 1) % self.platforms.len();
-                } else if self.active_field == 4 || self.active_field == 5 {
-                    if self.active_field == 4 {
-                        self.active_field = 5;
-                    }
+                } else if self.active_field == 4 {
+                    self.active_field = 5;
                 }
                 WidgetResult::Handled
             }

@@ -358,7 +358,7 @@ impl Widget for OpenDialog {
                                             .to_string_lossy();
                                         ui_state.set_status_message(format!("Loaded: {filename}"));
 
-                                        ui_state.restore_session(&loaded_data, &app_state);
+                                        ui_state.restore_session(&loaded_data, app_state);
 
                                         /*
                                         let loaded_cursor = loaded_data.cursor_address;

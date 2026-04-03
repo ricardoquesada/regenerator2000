@@ -263,7 +263,9 @@ impl UIState {
         // --- Centralized File Load hooks ---
 
         // Import Context Setup (Wizard for raw files)
-        let ext = app_state.file_path.as_ref()
+        let ext = app_state
+            .file_path
+            .as_ref()
             .and_then(|p| p.extension())
             .and_then(|e| e.to_str())
             .unwrap_or("");
