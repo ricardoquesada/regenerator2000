@@ -29,6 +29,7 @@ impl AppState {
 
         let mut cursor_start = None;
         let hex_cursor_start = None;
+        let mut suggested_platform = None;
 
         if let Some(ext) = self
             .file_path
@@ -73,6 +74,14 @@ impl AppState {
                 self.origin = Addr::ZERO;
                 self.raw_data = vsf_data.memory;
                 cursor_start = vsf_data.start_address;
+                suggested_platform = match vsf_data.machine_name.as_str() {
+                    "C64" => Some("Commodore 64".to_string()),
+                    "C128" => Some("Commodore 128".to_string()),
+                    "VIC20" => Some("Commodore VIC-20".to_string()),
+                    "PET" => Some("Commodore PET 4.0".to_string()),
+                    "PLUS4" => Some("Commodore Plus4".to_string()),
+                    _ => None,
+                };
             } else if ext.eq_ignore_ascii_case("t64") {
                 let (load_address, raw_data) = crate::parser::t64::parse_t64(&data)
                     .map_err(|e| anyhow::anyhow!("Failed to parse T64: {e}"))?;
@@ -124,6 +133,7 @@ impl AppState {
             blocks_view_cursor: None,
             entropy_warning: self.check_entropy(),
             suggested_entry_point: cursor_start.map(Addr),
+            suggested_platform,
         })
     }
 
@@ -181,6 +191,7 @@ impl AppState {
             blocks_view_cursor: None,
             entropy_warning: self.check_entropy(),
             suggested_entry_point: None,
+            suggested_platform: None,
         })
     }
 
@@ -290,6 +301,7 @@ impl AppState {
             blocks_view_cursor: project.blocks_view_cursor,
             entropy_warning: None,
             suggested_entry_point: None,
+            suggested_platform: None,
         })
     }
 
@@ -454,6 +466,7 @@ impl AppState {
             blocks_view_cursor: None,
             entropy_warning: self.check_entropy(),
             suggested_entry_point: None,
+            suggested_platform: None,
         })
     }
 

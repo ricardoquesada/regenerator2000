@@ -276,6 +276,7 @@ impl UIState {
                     &app_state.settings.platform.to_string(),
                     app_state.origin,
                     loaded_data.suggested_entry_point,
+                    loaded_data.suggested_platform.clone(),
                     loaded_data.entropy_warning,
                 ),
             ));

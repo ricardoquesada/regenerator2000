@@ -3,6 +3,7 @@ use anyhow::{Result, anyhow};
 pub struct VsfData {
     pub memory: Vec<u8>,
     pub start_address: Option<u16>,
+    pub machine_name: String,
 }
 
 pub fn parse_vsf(data: &[u8]) -> Result<VsfData> {
@@ -23,12 +24,10 @@ pub fn parse_vsf(data: &[u8]) -> Result<VsfData> {
     // Offset 20: Minor Version
     // Offset 21: Machine Name (16 bytes)
 
-    let machine_name = &data[21..37];
-    // We expect "C64" but let's be lenient or just check if it starts with C64
-    if !machine_name.starts_with(b"C64") {
-        // It might be valid to load other machines (like VIC20) if the user wants,
-        // but we primarily support C64. Let's warn or fail?
-    }
+    let machine_name_bytes = &data[21..37];
+    let machine_name = String::from_utf8_lossy(machine_name_bytes)
+        .trim_matches(char::from(0))
+        .to_string();
 
     let mut current_offset = 37; // 19 + 1 + 1 + 16
 
@@ -155,6 +154,7 @@ pub fn parse_vsf(data: &[u8]) -> Result<VsfData> {
         Ok(VsfData {
             memory: mem,
             start_address: pc,
+            machine_name,
         })
     } else {
         Err(anyhow!("C64MEM module not found in VSF file"))
@@ -245,7 +245,7 @@ mod tests {
         let data_size = 20; // Needs to be > 14
         let total_size = 22 + data_size;
         data.extend_from_slice(&(total_size as u32).to_le_bytes());
-        
+
         // MAINCPU data
         let mut cpu_data = vec![0u8; data_size];
         cpu_data[12] = 0x34; // PC Lo
@@ -256,6 +256,7 @@ mod tests {
         assert!(result.is_ok());
         let vsf = result.unwrap();
         assert_eq!(vsf.start_address, Some(0x1234));
+        assert_eq!(vsf.machine_name, "C64");
     }
 
     #[test]

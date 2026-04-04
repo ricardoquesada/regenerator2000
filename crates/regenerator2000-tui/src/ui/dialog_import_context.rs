@@ -23,11 +23,18 @@ pub struct ImportContextDialog {
 
 impl ImportContextDialog {
     #[must_use]
-    pub fn new(current_platform: &str, current_origin: Addr, suggested_entry: Option<Addr>, entropy: Option<f32>) -> Self {
+    pub fn new(
+        current_platform: &str,
+        current_origin: Addr,
+        suggested_entry: Option<Addr>,
+        suggested_platform: Option<String>,
+        entropy: Option<f32>,
+    ) -> Self {
         let platforms = crate::assets::get_available_platforms();
+        let target_platform = suggested_platform.as_deref().unwrap_or(current_platform);
         let selected_platform_idx = platforms
             .iter()
-            .position(|p| p == current_platform)
+            .position(|p| p == target_platform)
             .unwrap_or(0);
 
         Self {

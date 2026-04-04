@@ -99,6 +99,7 @@ pub struct LoadedProjectData {
     pub blocks_view_cursor: Option<usize>,
     pub entropy_warning: Option<f32>,
     pub suggested_entry_point: Option<Addr>,
+    pub suggested_platform: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
