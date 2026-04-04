@@ -39,16 +39,21 @@ impl D64FilePickerDialog {
                 let mut entropy = None;
 
                 if entry.file_type == FileType::PRG
-                    && let Ok((start, data)) = crate::parser::d64::extract_file(&disk_data, &entry)
+                    && let Ok(prg_bytes) = crate::parser::d64::extract_file(&disk_data, &entry)
+                    && let Ok(prg_data) = crate::parser::prg::parse_prg(&prg_bytes)
                 {
-                    start_addr = Some(start);
-                    if data.is_empty() {
-                        // Empty file (just load address?)
-                        end_addr = Some(start);
+                    start_addr = Some(prg_data.origin);
+                    if prg_data.raw_data.is_empty() {
+                        end_addr = Some(prg_data.origin);
                         entropy = Some(0.0);
                     } else {
-                        end_addr = Some(start.wrapping_add(data.len() as u16).wrapping_sub(1));
-                        entropy = Some(crate::utils::calculate_entropy(&data));
+                        end_addr = Some(
+                            prg_data
+                                .origin
+                                .wrapping_add(prg_data.raw_data.len() as u16)
+                                .wrapping_sub(1),
+                        );
+                        entropy = Some(crate::utils::calculate_entropy(&prg_data.raw_data));
                     }
                 }
 
@@ -223,24 +228,31 @@ impl Widget for D64FilePickerDialog {
                 }
 
                 match crate::parser::d64::extract_file(&self.disk_data, selected_entry) {
-                    Ok((load_address, program_data)) => {
-                        // Set origin and raw data
-                        app_state.origin = crate::state::Addr(load_address);
-                        // Let's redo.
-                        match app_state.load_binary(crate::state::Addr(load_address), program_data)
-                        {
-                            Ok(loaded_data) => {
-                                // Apply loaded UI state if needed (like cursor pos), though load_binary defaults them.
-                                app_state.file_path = Some(self.disk_path.clone());
-                                ui_state.restore_session(&loaded_data, app_state);
-                                WidgetResult::Close
-                            }
-                            Err(e) => {
-                                ui_state.set_status_message(format!("Error loading file: {e}"));
-                                WidgetResult::Handled
+                    Ok(prg_bytes) => match crate::parser::prg::parse_prg(&prg_bytes) {
+                        Ok(prg_data) => {
+                            app_state.origin = crate::state::Addr(prg_data.origin);
+                            match app_state
+                                .load_binary(crate::state::Addr(prg_data.origin), prg_data.raw_data)
+                            {
+                                Ok(mut loaded_data) => {
+                                    loaded_data.suggested_platform = prg_data.suggested_platform;
+                                    loaded_data.suggested_entry_point =
+                                        prg_data.suggested_entry_point.map(crate::state::Addr);
+                                    app_state.file_path = Some(self.disk_path.clone());
+                                    ui_state.restore_session(&loaded_data, app_state);
+                                    WidgetResult::Close
+                                }
+                                Err(e) => {
+                                    ui_state.set_status_message(format!("Error loading file: {e}"));
+                                    WidgetResult::Handled
+                                }
                             }
                         }
-                    }
+                        Err(e) => {
+                            ui_state.set_status_message(format!("Error parsing PRG: {e}"));
+                            WidgetResult::Handled
+                        }
+                    },
                     Err(e) => {
                         ui_state.set_status_message(format!("Error loading file: {e}"));
                         WidgetResult::Handled

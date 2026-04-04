@@ -38,13 +38,15 @@ impl T64FilePickerDialog {
 
                 // Extract to calculate entropy and size
                 // T64 file type 1 is normal file. Others might be special.
-                if let Ok((_start, data)) = crate::parser::t64::extract_file(&disk_data, &entry) {
-                    if data.is_empty() {
+                if let Ok(prg_bytes) = crate::parser::t64::extract_file(&disk_data, &entry)
+                    && let Ok(prg_data) = crate::parser::prg::parse_prg(&prg_bytes)
+                {
+                    if prg_data.raw_data.is_empty() {
                         entropy = Some(0.0);
                     } else {
-                        entropy = Some(crate::utils::calculate_entropy(&data));
+                        entropy = Some(crate::utils::calculate_entropy(&prg_data.raw_data));
                     }
-                    size = data.len();
+                    size = prg_data.raw_data.len();
                 }
 
                 T64FilePickerEntry {
@@ -210,21 +212,31 @@ impl Widget for T64FilePickerDialog {
                 }
 
                 match crate::parser::t64::extract_file(&self.disk_data, selected_entry) {
-                    Ok((load_address, program_data)) => {
-                        app_state.origin = crate::state::Addr(load_address);
-                        match app_state.load_binary(crate::state::Addr(load_address), program_data)
-                        {
-                            Ok(loaded_data) => {
-                                app_state.file_path = Some(self.disk_path.clone());
-                                ui_state.restore_session(&loaded_data, app_state);
-                                WidgetResult::Close
-                            }
-                            Err(e) => {
-                                ui_state.set_status_message(format!("Error loading file: {e}"));
-                                WidgetResult::Handled
+                    Ok(prg_bytes) => match crate::parser::prg::parse_prg(&prg_bytes) {
+                        Ok(prg_data) => {
+                            app_state.origin = crate::state::Addr(prg_data.origin);
+                            match app_state
+                                .load_binary(crate::state::Addr(prg_data.origin), prg_data.raw_data)
+                            {
+                                Ok(mut loaded_data) => {
+                                    loaded_data.suggested_platform = prg_data.suggested_platform;
+                                    loaded_data.suggested_entry_point =
+                                        prg_data.suggested_entry_point.map(crate::state::Addr);
+                                    app_state.file_path = Some(self.disk_path.clone());
+                                    ui_state.restore_session(&loaded_data, app_state);
+                                    WidgetResult::Close
+                                }
+                                Err(e) => {
+                                    ui_state.set_status_message(format!("Error loading file: {e}"));
+                                    WidgetResult::Handled
+                                }
                             }
                         }
-                    }
+                        Err(e) => {
+                            ui_state.set_status_message(format!("Error parsing PRG: {e}"));
+                            WidgetResult::Handled
+                        }
+                    },
                     Err(e) => {
                         ui_state.set_status_message(format!("Error loading file: {e}"));
                         WidgetResult::Handled

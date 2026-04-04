@@ -60,43 +60,21 @@ impl AppState {
                 return res;
             }
 
-            if ext.eq_ignore_ascii_case("prg") && data.len() >= 2 {
-                let load_address = u16::from(data[1]) << 8 | u16::from(data[0]);
-                self.origin = Addr(load_address);
-                self.raw_data = data[2..].to_vec();
-
-                suggested_platform = match load_address {
-                    0x0801 => Some("Commodore 64".to_string()),
-                    0x1C01 => Some("Commodore 128".to_string()),
-                    0x1001 => Some("Commodore Plus4".to_string()),
-                    0x0401 => Some("Commodore PET 4.0".to_string()),
-                    0x1201 => Some("Commodore VIC-20".to_string()),
-                    _ => None,
+            if ext.eq_ignore_ascii_case("prg") || ext.eq_ignore_ascii_case("t64") {
+                let prg_bytes_holder;
+                let prg_ref = if ext.eq_ignore_ascii_case("prg") {
+                    &data
+                } else {
+                    prg_bytes_holder = crate::parser::t64::parse_t64(&data)
+                        .map_err(|e| anyhow::anyhow!("Failed to parse T64: {e}"))?;
+                    &prg_bytes_holder
                 };
-
-                // Try to find SYS address if it looks like a BASIC program
-                if suggested_platform.is_some() && data.len() >= 9 {
-                    // data[2..] is BASIC program
-                    // 2 bytes pointer + 2 bytes line number + 1 byte token
-                    // So token should be at data[6]
-                    if data[6] == 0x9E {
-                        let mut addr_str = String::new();
-                        let mut parsing_digits = false;
-                        for &b in &data[7..] {
-                            if b.is_ascii_digit() {
-                                addr_str.push(b as char);
-                                parsing_digits = true;
-                            } else if b == b' ' && !parsing_digits {
-                                continue; // skip spaces before digits
-                            } else {
-                                break;
-                            }
-                        }
-                        if let Ok(sys_addr) = addr_str.parse::<u16>() {
-                            cursor_start = Some(sys_addr);
-                        }
-                    }
-                }
+                let prg_data = crate::parser::prg::parse_prg(prg_ref)
+                    .map_err(|e| anyhow::anyhow!("Failed to parse PRG: {e}"))?;
+                self.origin = Addr(prg_data.origin);
+                self.raw_data = prg_data.raw_data;
+                suggested_platform = prg_data.suggested_platform;
+                cursor_start = prg_data.suggested_entry_point;
             } else if ext.eq_ignore_ascii_case("crt") {
                 let (origin, raw_data) = crate::parser::crt::parse_crt(&data)
                     .map_err(|e| anyhow::anyhow!("Failed to parse CRT: {e}"))?;
@@ -116,11 +94,6 @@ impl AppState {
                     "PLUS4" => Some("Commodore Plus4".to_string()),
                     _ => None,
                 };
-            } else if ext.eq_ignore_ascii_case("t64") {
-                let (load_address, raw_data) = crate::parser::t64::parse_t64(&data)
-                    .map_err(|e| anyhow::anyhow!("Failed to parse T64: {e}"))?;
-                self.origin = Addr(load_address);
-                self.raw_data = raw_data;
             } else if ext.eq_ignore_ascii_case("bin") || ext.eq_ignore_ascii_case("raw") {
                 self.origin = Addr::ZERO; // Default for .bin
                 self.raw_data = data;

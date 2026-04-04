@@ -265,7 +265,7 @@ pub fn parse_d64_directory(data: &[u8]) -> Result<Vec<D64FileEntry>> {
 }
 
 /// Extract a specific file from the disk image
-pub fn extract_file(data: &[u8], entry: &D64FileEntry) -> Result<(u16, Vec<u8>)> {
+pub fn extract_file(data: &[u8], entry: &D64FileEntry) -> Result<Vec<u8>> {
     if data.len() < D64_STANDARD_SIZE {
         return Err(anyhow!("Invalid D64/D71/D81 file size"));
     }
@@ -313,15 +313,12 @@ pub fn extract_file(data: &[u8], entry: &D64FileEntry) -> Result<(u16, Vec<u8>)>
         }
     }
 
-    // Extract load address from first two bytes (little-endian)
+    // Verify it has at least a load address
     if file_data.len() < 2 {
         return Err(anyhow!("File too small (no load address)"));
     }
 
-    let load_address = u16::from_le_bytes([file_data[0], file_data[1]]);
-    let program_data = file_data[2..].to_vec();
-
-    Ok((load_address, program_data))
+    Ok(file_data)
 }
 
 /// Convert PETSCII bytes to UTF-8 string
@@ -450,7 +447,9 @@ mod tests {
         assert_eq!(files[0].sector, 0);
 
         // Extract
-        let (load_addr, extracted_data) = extract_file(&data, &files[0]).unwrap();
+        let prg_bytes = extract_file(&data, &files[0]).unwrap();
+        let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
+        let extracted_data = prg_bytes[2..].to_vec();
         assert_eq!(load_addr, 0x0801);
         assert_eq!(extracted_data, vec![0xEA, 0xEA, 0x60]);
     }
@@ -521,7 +520,9 @@ mod tests {
         assert_eq!(files[0].track, 36);
 
         // Extract
-        let (load_addr, extracted_data) = extract_file(&data, &files[0]).unwrap();
+        let prg_bytes = extract_file(&data, &files[0]).unwrap();
+        let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
+        let extracted_data = prg_bytes[2..].to_vec();
         assert_eq!(load_addr, 0x1000);
         assert_eq!(extracted_data, vec![0x42]);
     }
@@ -607,7 +608,9 @@ mod tests {
         assert_eq!(files[0].disk_type, DiskType::D81);
 
         // Extract
-        let (load_addr, extracted) = extract_file(&data, &files[0]).unwrap();
+        let prg_bytes = extract_file(&data, &files[0]).unwrap();
+        let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
+        let extracted = prg_bytes[2..].to_vec();
         assert_eq!(load_addr, 0x2000);
         assert_eq!(extracted, vec![0xFF]);
     }

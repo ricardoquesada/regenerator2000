@@ -90,7 +90,7 @@ pub fn parse_t64_directory(data: &[u8]) -> Result<Vec<T64Entry>> {
     Ok(entries)
 }
 
-pub fn extract_file(data: &[u8], entry: &T64Entry) -> Result<(u16, Vec<u8>)> {
+pub fn extract_file(data: &[u8], entry: &T64Entry) -> Result<Vec<u8>> {
     let offset = entry.offset as usize;
     // T64 end address is inclusive or exclusive? usually exclusive (address of byte AFTER last byte? or last byte?)
     // Docs say: "End address of the file in memory". Usually this means LAST BYTE address.
@@ -118,10 +118,13 @@ pub fn extract_file(data: &[u8], entry: &T64Entry) -> Result<(u16, Vec<u8>)> {
     }
 
     let file_content = data[offset..offset + calc_len].to_vec();
-    Ok((entry.start_address, file_content))
+    let mut prg_data = Vec::with_capacity(file_content.len() + 2);
+    prg_data.extend_from_slice(&entry.start_address.to_le_bytes());
+    prg_data.extend_from_slice(&file_content);
+    Ok(prg_data)
 }
 
-pub fn parse_t64(data: &[u8]) -> Result<(u16, Vec<u8>)> {
+pub fn parse_t64(data: &[u8]) -> Result<Vec<u8>> {
     let entries = parse_t64_directory(data)?;
 
     // Find first valid "PRG" like entry (type 1)
@@ -173,8 +176,9 @@ mod tests {
         // Data
         data.extend_from_slice(&content);
 
-        let (load_addr, extracted_data) = parse_t64(&data).expect("Should parse successfully");
-
+        let prg_bytes = parse_t64(&data).expect("Should parse successfully");
+        let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
+        let extracted_data = prg_bytes[2..].to_vec();
         assert_eq!(load_addr, 0x0801);
         assert_eq!(extracted_data, content);
     }
