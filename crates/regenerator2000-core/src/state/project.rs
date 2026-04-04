@@ -98,6 +98,7 @@ pub struct LoadedProjectData {
     pub hexdump_view_mode: HexdumpViewMode,
     pub blocks_view_cursor: Option<usize>,
     pub entropy_warning: Option<f32>,
+    pub suggested_entry_point: Option<Addr>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

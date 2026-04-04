@@ -207,6 +207,57 @@ mod tests {
         assert_eq!(vsf.memory[0], 0xEA);
         assert_eq!(vsf.memory[65535], 0xEA);
     }
+
+    #[test]
+    fn test_parse_vsf_with_pc() {
+        let mut data = Vec::new();
+        // Magic
+        data.extend_from_slice(b"VICE Snapshot File\x1a");
+        // Major/Minor
+        data.push(0);
+        data.push(0);
+        // Machine Name "C64" + padding
+        data.extend_from_slice(b"C64");
+        data.extend_from_slice(&[0u8; 13]);
+
+        // Module "C64MEM"
+        let mod_name = b"C64MEM";
+        data.extend_from_slice(mod_name);
+        data.extend_from_slice(&[0u8; 10]); // padding to 16
+        data.push(0); // Major
+        data.push(0); // Minor
+        let data_size = 4 + 65536;
+        let total_size = 22 + data_size;
+        data.extend_from_slice(&(total_size as u32).to_le_bytes());
+        data.push(0x37); // CPUDATA
+        data.push(0x2F); // CPUDIR
+        data.push(0); // EXROM
+        data.push(0); // GAME
+        let ram = vec![0xEA; 65536];
+        data.extend_from_slice(&ram);
+
+        // Module "MAINCPU"
+        let mod_name = b"MAINCPU";
+        data.extend_from_slice(mod_name);
+        data.extend_from_slice(&[0u8; 9]); // padding to 16
+        data.push(0); // Major
+        data.push(0); // Minor
+        let data_size = 20; // Needs to be > 14
+        let total_size = 22 + data_size;
+        data.extend_from_slice(&(total_size as u32).to_le_bytes());
+        
+        // MAINCPU data
+        let mut cpu_data = vec![0u8; data_size];
+        cpu_data[12] = 0x34; // PC Lo
+        cpu_data[13] = 0x12; // PC Hi
+        data.extend_from_slice(&cpu_data);
+
+        let result = parse_vsf(&data);
+        assert!(result.is_ok());
+        let vsf = result.unwrap();
+        assert_eq!(vsf.start_address, Some(0x1234));
+    }
+
     #[test]
     fn test_repro_frogger() {
         let path = std::path::Path::new("tests/frogger.vsf");

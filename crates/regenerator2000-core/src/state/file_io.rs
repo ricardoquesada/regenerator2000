@@ -123,6 +123,7 @@ impl AppState {
             hexdump_view_mode: HexdumpViewMode::default(),
             blocks_view_cursor: None,
             entropy_warning: self.check_entropy(),
+            suggested_entry_point: cursor_start.map(Addr),
         })
     }
 
@@ -179,6 +180,7 @@ impl AppState {
             hexdump_view_mode: HexdumpViewMode::default(),
             blocks_view_cursor: None,
             entropy_warning: self.check_entropy(),
+            suggested_entry_point: None,
         })
     }
 
@@ -287,6 +289,7 @@ impl AppState {
             hexdump_view_mode: project.hexdump_view_mode,
             blocks_view_cursor: project.blocks_view_cursor,
             entropy_warning: None,
+            suggested_entry_point: None,
         })
     }
 
@@ -450,6 +453,7 @@ impl AppState {
             hexdump_view_mode: HexdumpViewMode::default(),
             blocks_view_cursor: None,
             entropy_warning: self.check_entropy(),
+            suggested_entry_point: None,
         })
     }
 

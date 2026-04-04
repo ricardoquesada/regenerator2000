@@ -275,6 +275,7 @@ impl UIState {
                 crate::ui::dialog_import_context::ImportContextDialog::new(
                     &app_state.settings.platform.to_string(),
                     app_state.origin,
+                    loaded_data.suggested_entry_point,
                     loaded_data.entropy_warning,
                 ),
             ));

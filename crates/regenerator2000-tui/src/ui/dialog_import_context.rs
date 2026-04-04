@@ -23,7 +23,7 @@ pub struct ImportContextDialog {
 
 impl ImportContextDialog {
     #[must_use]
-    pub fn new(current_platform: &str, current_origin: Addr, entropy: Option<f32>) -> Self {
+    pub fn new(current_platform: &str, current_origin: Addr, suggested_entry: Option<Addr>, entropy: Option<f32>) -> Self {
         let platforms = crate::assets::get_available_platforms();
         let selected_platform_idx = platforms
             .iter()
@@ -34,7 +34,7 @@ impl ImportContextDialog {
             platforms,
             selected_platform_idx,
             origin_input: format!("{:04X}", current_origin.0),
-            start_input: format!("{:04X}", current_origin.0), // Default start to origin
+            start_input: format!("{:04X}", suggested_entry.unwrap_or(current_origin).0),
             disassemble_sequence: true,
             active_field: 0,
             entropy,
