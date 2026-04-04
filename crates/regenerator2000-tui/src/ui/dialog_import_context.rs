@@ -1,4 +1,4 @@
-use crate::state::{Addr, AppState};
+use crate::state::{Addr, AppState, Platform};
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
@@ -27,7 +27,7 @@ impl ImportContextDialog {
         current_platform: &str,
         current_origin: Addr,
         suggested_entry: Option<Addr>,
-        suggested_platform: Option<String>,
+        suggested_platform: Option<Platform>,
         entropy: Option<f32>,
     ) -> Self {
         let platforms = crate::assets::get_available_platforms();

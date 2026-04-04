@@ -3,6 +3,7 @@
 
 use crate::parser::t64::T64Entry;
 use crate::state::AppState;
+use crate::state::types::Platform;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
 use ratatui::{
@@ -219,7 +220,9 @@ impl Widget for T64FilePickerDialog {
                                 .load_binary(crate::state::Addr(prg_data.origin), prg_data.raw_data)
                             {
                                 Ok(mut loaded_data) => {
-                                    loaded_data.suggested_platform = prg_data.suggested_platform;
+                                    loaded_data.suggested_platform = prg_data
+                                        .suggested_platform
+                                        .or(Some(Platform::new(Platform::C64)));
                                     loaded_data.suggested_entry_point =
                                         prg_data.suggested_entry_point.map(crate::state::Addr);
                                     app_state.file_path = Some(self.disk_path.clone());

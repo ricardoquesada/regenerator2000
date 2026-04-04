@@ -14,6 +14,14 @@ use serde::{Deserialize, Serialize};
 pub struct Platform(String);
 
 impl Platform {
+    pub const C64: &'static str = "Commodore 64";
+    pub const C128: &'static str = "Commodore 128";
+    pub const VIC20: &'static str = "Commodore VIC-20";
+    pub const PET: &'static str = "Commodore PET 4.0";
+    pub const PLUS4: &'static str = "Commodore Plus4";
+    pub const C1541: &'static str = "Commodore 1541";
+    pub const PET20: &'static str = "Commodore PET 2.0";
+
     #[must_use]
     pub fn new(name: impl Into<String>) -> Self {
         Self(name.into())
@@ -83,7 +91,7 @@ impl From<String> for Platform {
 
 #[must_use]
 pub fn default_platform() -> Platform {
-    Platform::new("Commodore 64")
+    Platform::new(Platform::C64)
 }
 
 // =============================================================================

@@ -1,5 +1,7 @@
 use super::settings::DocumentSettings;
-use super::types::{Addr, BlockType, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType};
+use super::types::{
+    Addr, BlockType, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType, Platform,
+};
 use base64::{Engine as _, engine::general_purpose};
 use flate2::Compression;
 use flate2::read::GzDecoder;
@@ -99,7 +101,7 @@ pub struct LoadedProjectData {
     pub blocks_view_cursor: Option<usize>,
     pub entropy_warning: Option<f32>,
     pub suggested_entry_point: Option<Addr>,
-    pub suggested_platform: Option<String>,
+    pub suggested_platform: Option<Platform>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

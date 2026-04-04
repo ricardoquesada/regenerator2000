@@ -73,7 +73,12 @@ impl AppState {
                     .map_err(|e| anyhow::anyhow!("Failed to parse PRG: {e}"))?;
                 self.origin = Addr(prg_data.origin);
                 self.raw_data = prg_data.raw_data;
-                suggested_platform = prg_data.suggested_platform;
+                let default_platform = if ext.eq_ignore_ascii_case("t64") {
+                    Some(Platform::new(Platform::C64))
+                } else {
+                    None
+                };
+                suggested_platform = prg_data.suggested_platform.or(default_platform);
                 cursor_start = prg_data.suggested_entry_point;
             } else if ext.eq_ignore_ascii_case("crt") {
                 let (origin, raw_data) = crate::parser::crt::parse_crt(&data)
@@ -87,11 +92,11 @@ impl AppState {
                 self.raw_data = vsf_data.memory;
                 cursor_start = vsf_data.start_address;
                 suggested_platform = match vsf_data.machine_name.as_str() {
-                    "C64" => Some("Commodore 64".to_string()),
-                    "C128" => Some("Commodore 128".to_string()),
-                    "VIC20" => Some("Commodore VIC-20".to_string()),
-                    "PET" => Some("Commodore PET 4.0".to_string()),
-                    "PLUS4" => Some("Commodore Plus4".to_string()),
+                    "C64" => Some(Platform::new(Platform::C64)),
+                    "C128" => Some(Platform::new(Platform::C128)),
+                    "VIC20" => Some(Platform::new(Platform::VIC20)),
+                    "PET" => Some(Platform::new(Platform::PET)),
+                    "PLUS4" => Some(Platform::new(Platform::PLUS4)),
                     _ => None,
                 };
             } else if ext.eq_ignore_ascii_case("bin") || ext.eq_ignore_ascii_case("raw") {
@@ -264,13 +269,13 @@ impl AppState {
 
         // Migration for legacy platform names
         match self.settings.platform.as_str() {
-            "Commodore64" => self.settings.platform = Platform::new("Commodore 64"),
-            "Commodore128" => self.settings.platform = Platform::new("Commodore 128"),
-            "Commodore1541" => self.settings.platform = Platform::new("Commodore 1541"),
-            "CommodorePET20" => self.settings.platform = Platform::new("Commodore PET 2.0"),
-            "CommodorePET40" => self.settings.platform = Platform::new("Commodore PET 4.0"),
-            "CommodorePlus4" => self.settings.platform = Platform::new("Commodore Plus4"),
-            "CommodoreVIC20" => self.settings.platform = Platform::new("Commodore VIC-20"),
+            "Commodore64" => self.settings.platform = Platform::new(Platform::C64),
+            "Commodore128" => self.settings.platform = Platform::new(Platform::C128),
+            "Commodore1541" => self.settings.platform = Platform::new(Platform::C1541),
+            "CommodorePET20" => self.settings.platform = Platform::new(Platform::PET20),
+            "CommodorePET40" => self.settings.platform = Platform::new(Platform::PET),
+            "CommodorePlus4" => self.settings.platform = Platform::new(Platform::PLUS4),
+            "CommodoreVIC20" => self.settings.platform = Platform::new(Platform::VIC20),
             _ => {}
         }
 
