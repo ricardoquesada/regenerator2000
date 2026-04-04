@@ -6,7 +6,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Clear, Paragraph},
+    widgets::{Clear, List, ListItem, ListState, Paragraph},
 };
 
 use crate::ui::widget::{Widget, WidgetResult};
@@ -17,8 +17,9 @@ pub struct ImportContextDialog {
     pub origin_input: String,
     pub start_input: String,
     pub disassemble_sequence: bool,
-    pub active_field: usize, // 0: Platform, 2: Origin, 3: Start, 4: Checkbox
+    pub active_field: usize, // 0: Platform, 1: Origin, 2: Start, 3: Checkbox, 4: Confirm, 5: Cancel
     pub entropy: Option<f32>,
+    pub is_selecting_platform: bool,
 }
 
 impl ImportContextDialog {
@@ -43,8 +44,9 @@ impl ImportContextDialog {
             origin_input: format!("{:04X}", current_origin.0),
             start_input: format!("{:04X}", suggested_entry.unwrap_or(current_origin).0),
             disassemble_sequence: true,
-            active_field: 0,
+            active_field: 4, // Default to Confirm button
             entropy,
+            is_selecting_platform: false,
         }
     }
 }
@@ -196,6 +198,38 @@ impl Widget for ImportContextDialog {
             );
         }
 
+        // Platform Popup
+        if self.is_selecting_platform {
+            let popup_area = crate::utils::centered_rect_adaptive(40, 50, 50, 10, area);
+            f.render_widget(Clear, popup_area);
+            let block = crate::ui::widget::create_dialog_block(" Select Platform ", theme);
+
+            let list_items: Vec<ListItem> = self
+                .platforms
+                .iter()
+                .enumerate()
+                .map(|(i, p)| {
+                    let is_selected = self.selected_platform_idx == i;
+                    let style = if is_selected {
+                        Style::default()
+                            .bg(theme.menu_selected_bg)
+                            .fg(theme.menu_selected_fg)
+                    } else {
+                        Style::default().bg(theme.menu_bg).fg(theme.menu_fg)
+                    };
+                    ListItem::new(p.clone()).style(style)
+                })
+                .collect();
+
+            let mut list_state = ListState::default();
+            list_state.select(Some(self.selected_platform_idx));
+
+            let list = List::new(list_items)
+                .block(block)
+                .highlight_style(Style::default().add_modifier(Modifier::BOLD));
+            f.render_stateful_widget(list, popup_area, &mut list_state);
+        }
+
         // Show blinking cursor at end of input
         if origin_selected {
             f.set_cursor_position((
@@ -216,6 +250,33 @@ impl Widget for ImportContextDialog {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
+        if self.is_selecting_platform {
+            match key.code {
+                KeyCode::Esc | KeyCode::Enter => {
+                    self.is_selecting_platform = false;
+                    return WidgetResult::Handled;
+                }
+                KeyCode::Up => {
+                    if !self.platforms.is_empty() {
+                        if self.selected_platform_idx == 0 {
+                            self.selected_platform_idx = self.platforms.len() - 1;
+                        } else {
+                            self.selected_platform_idx -= 1;
+                        }
+                    }
+                    return WidgetResult::Handled;
+                }
+                KeyCode::Down => {
+                    if !self.platforms.is_empty() {
+                        self.selected_platform_idx =
+                            (self.selected_platform_idx + 1) % self.platforms.len();
+                    }
+                    return WidgetResult::Handled;
+                }
+                _ => return WidgetResult::Handled,
+            }
+        }
+
         match key.code {
             KeyCode::Esc => {
                 ui_state.set_status_message("Ready");
@@ -269,9 +330,11 @@ impl Widget for ImportContextDialog {
                 if self.active_field == 3 {
                     self.disassemble_sequence = !self.disassemble_sequence;
                     WidgetResult::Handled
+                } else if self.active_field == 0 {
+                    self.is_selecting_platform = true;
+                    WidgetResult::Handled
                 } else if self.active_field == 4
-                    || (key.code == KeyCode::Enter
-                        && (self.active_field == 1 || self.active_field == 2))
+                    || (key.code == KeyCode::Enter && self.active_field != 5)
                 {
                     // Apply changes
                     if let Ok(new_origin) = u16::from_str_radix(&self.origin_input, 16) {
