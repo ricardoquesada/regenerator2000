@@ -61,8 +61,42 @@ impl AppState {
             }
 
             if ext.eq_ignore_ascii_case("prg") && data.len() >= 2 {
-                self.origin = Addr(u16::from(data[1]) << 8 | u16::from(data[0]));
+                let load_address = u16::from(data[1]) << 8 | u16::from(data[0]);
+                self.origin = Addr(load_address);
                 self.raw_data = data[2..].to_vec();
+
+                suggested_platform = match load_address {
+                    0x0801 => Some("Commodore 64".to_string()),
+                    0x1C01 => Some("Commodore 128".to_string()),
+                    0x1001 => Some("Commodore Plus4".to_string()),
+                    0x0401 => Some("Commodore PET 4.0".to_string()),
+                    0x1201 => Some("Commodore VIC-20".to_string()),
+                    _ => None,
+                };
+
+                // Try to find SYS address if it looks like a BASIC program
+                if suggested_platform.is_some() && data.len() >= 9 {
+                    // data[2..] is BASIC program
+                    // 2 bytes pointer + 2 bytes line number + 1 byte token
+                    // So token should be at data[6]
+                    if data[6] == 0x9E {
+                        let mut addr_str = String::new();
+                        let mut parsing_digits = false;
+                        for &b in &data[7..] {
+                            if b.is_ascii_digit() {
+                                addr_str.push(b as char);
+                                parsing_digits = true;
+                            } else if b == b' ' && !parsing_digits {
+                                continue; // skip spaces before digits
+                            } else {
+                                break;
+                            }
+                        }
+                        if let Ok(sys_addr) = addr_str.parse::<u16>() {
+                            cursor_start = Some(sys_addr);
+                        }
+                    }
+                }
             } else if ext.eq_ignore_ascii_case("crt") {
                 let (origin, raw_data) = crate::parser::crt::parse_crt(&data)
                     .map_err(|e| anyhow::anyhow!("Failed to parse CRT: {e}"))?;
@@ -630,6 +664,79 @@ mod load_file_tests {
         assert!(app_state.last_export_asm_filename.is_none());
 
         // Cleanup
+        let _ = std::fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn test_load_file_suggests_platform() {
+        let mut app_state = AppState::new();
+        let dir = std::env::temp_dir();
+        let file_path = dir.join("test_platform.prg");
+        {
+            let mut f = std::fs::File::create(&file_path).unwrap();
+            // Write load address $0801 + BASIC line: 10 SYS 2061
+            f.write_all(&[
+                0x01, 0x08, // Load address $0801
+                0x0B, 0x08, // Next line pointer
+                0x0A, 0x00, // Line number 10
+                0x9E, // SYS token
+                0x32, 0x30, 0x36, 0x31, // "2061"
+                0x00, // Terminator
+            ])
+            .unwrap();
+        }
+
+        let result = app_state.load_file(file_path.clone());
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.suggested_platform, Some("Commodore 64".to_string()));
+        assert_eq!(data.suggested_entry_point, Some(Addr(2061)));
+
+        let _ = std::fs::remove_file(file_path);
+    }
+
+    #[test]
+    fn test_load_file_vsf_suggests_platform() {
+        let mut app_state = AppState::new();
+        let dir = std::env::temp_dir();
+        let file_path = dir.join("test_platform.vsf");
+        {
+            let mut f = std::fs::File::create(&file_path).unwrap();
+
+            let mut data = Vec::new();
+            // Magic
+            data.extend_from_slice(b"VICE Snapshot File\x1a");
+            // Major/Minor
+            data.push(0);
+            data.push(0);
+            // Machine Name "C64" + padding
+            data.extend_from_slice(b"C64");
+            data.extend_from_slice(&[0u8; 13]);
+
+            // Module "C64MEM"
+            let mod_name = b"C64MEM";
+            data.extend_from_slice(mod_name);
+            data.extend_from_slice(&[0u8; 10]); // padding to 16
+            data.push(0); // Major
+            data.push(0); // Minor
+            let data_size = 4 + 65536;
+            let total_size = 22 + data_size;
+            data.extend_from_slice(&(total_size as u32).to_le_bytes());
+            data.push(0x37); // CPUDATA
+            data.push(0x2F); // CPUDIR
+            data.push(0); // EXROM
+            data.push(0); // GAME
+            let ram = vec![0xEA; 65536];
+            data.extend_from_slice(&ram);
+
+            f.write_all(&data).unwrap();
+        }
+
+        let result = app_state.load_file(file_path.clone());
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.suggested_platform, Some("Commodore 64".to_string()));
+
         let _ = std::fs::remove_file(file_path);
     }
 
