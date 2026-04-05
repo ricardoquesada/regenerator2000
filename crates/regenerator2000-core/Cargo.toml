@@ -1,6 +1,6 @@
 [package]
 name = "regenerator2000-core"
-version = "0.9.5"
+version = "0.9.6"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ricardoquesada/regenerator2000"

@@ -55,7 +55,7 @@ appears.
 ### Basic Movement
 
 - **Scroll**: Use ++arrow-up++ / ++arrow-down++ or ++page-up++ / ++page-down++ keys.
-- **Jump to Address**: Press ++ctrl+g++, type an address (e.g., `c000` or `$c000`), and hit `Enter`.
+- **Jump to Address**: Press ++ctrl+g++, type an address in hex format (e.g., `c000`), and hit `Enter`.
 - **Follow Flow**: Highlighting a `JMP` or `JSR` instruction? Press `Enter` to jump to its target.
 - **Go Back**: Press `Backspace` to return to where you were before the jump.
 

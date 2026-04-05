@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.6] - 2026-04-04
+
+### Features
+
+- **Import**: Automatically detect platform from VSF header and suggest entry point by parsing SYS address in PRG files.
+- **Import**: New Import Context dialog that asks for Platform, Origin, Entry Point when importing a new file.
+- **UI**: Added local/global scope selection to the label dialog.
+- **UI**: Implemented mouse interaction for the minimap to navigate the disassembly view.
+
+### Fixes
+
+- **UI**: Fixed `LocalOrGlobalAddr` label heuristic and visual equates for .dis65.
+
+### UI / UX
+
+- **UI**: Made minimap cursor color theme-dependent.
+
+### Documentation
+
+- **User Guide**: Added documentation for local vs. global label scoping and cleaned up formatting in tutorial and FAQ.
+- **User Guide**: Updated screenshots in documentation.
+
+### Refactor / Internal
+
+- **Refactor**: Centralized PRG parsing and refactored container formats.
+- **Refactor**: Used strongly-typed `Platform` for suggested platforms.
+- **Refactor**: Removed redundant manual session restoration logic in favor of `ui_state.restore_session`.
+
 ## [0.9.5] - 2026-03-31
 
 ### Features
