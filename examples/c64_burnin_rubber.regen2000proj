@@ -215,6 +215,42 @@
     },
     {
       "start": 2816,
+      "end": 3561,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3562,
+      "end": 3563,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 3564,
+      "end": 3578,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3579,
+      "end": 3579,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 3580,
+      "end": 3600,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3601,
+      "end": 3602,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 3603,
       "end": 3807,
       "type_": "Code",
       "collapsed": false
@@ -874,7 +910,42 @@
     ],
     "2135": [
       {
-        "name": "state_cleanup_index",
+        "name": "name_entry_substate",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2136": [
+      {
+        "name": "highscore_timer_tens",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2137": [
+      {
+        "name": "highscore_timer_ones",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2138": [
+      {
+        "name": "scroll_switch_timer_2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2142": [
+      {
+        "name": "pickup_mode_active",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2143": [
+      {
+        "name": "pickup_display_timer",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -903,6 +974,13 @@
     "2260": [
       {
         "name": "collision_rel_y",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2266": [
+      {
+        "name": "joy_poll_timeout",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1036,6 +1114,13 @@
     "4178": [
       {
         "name": "init_screen_and_sprites",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4397": [
+      {
+        "name": "init_title_screen",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1483,7 +1568,7 @@
     ],
     "7539": [
       {
-        "name": "input_loop",
+        "name": "highscore_input_loop",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1495,37 +1580,86 @@
         "kind": "User"
       }
     ],
-    "7653": [
+    "7660": [
       {
-        "name": "display_timer_and_cursor",
+        "name": "highscore_joy_up",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7663": [
+      {
+        "name": "highscore_joy_down",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7666": [
+      {
+        "name": "highscore_joy_left",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7669": [
+      {
+        "name": "highscore_joy_right",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7672": [
+      {
+        "name": "highscore_joy_fire",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7676": [
+      {
+        "name": "show_not_in_top_5_message",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7699": [
+      {
+        "name": "delay_then_switch_scroll",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "7717": [
       {
-        "name": "handle_joy_up",
+        "name": "draw_highscore_timer_and_cursor",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
-    "7736": [
+    "7781": [
       {
-        "name": "handle_joy_down",
+        "name": "highscore_move_up",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
-    "7755": [
+    "7800": [
       {
-        "name": "handle_joy_left",
+        "name": "highscore_move_down",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
-    "7777": [
+    "7819": [
       {
-        "name": "handle_joy_right",
+        "name": "highscore_move_left",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7841": [
+      {
+        "name": "highscore_move_right",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1537,6 +1671,13 @@
         "kind": "User"
       }
     ],
+    "7925": [
+      {
+        "name": "handle_name_letter_selection",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "8183": [
       {
         "name": "txt_game_over",
@@ -1544,30 +1685,65 @@
         "kind": "User"
       }
     ],
+    "10240": [
+      {
+        "name": "instructions_screen_1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "10496": [
+      {
+        "name": "instructions_screen_2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "10752": [
+      {
+        "name": "instructions_screen_3",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "10992": [
+      {
+        "name": "instructions_screen_4",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "11304": [
       {
-        "name": "txt_enter_high_score_1",
+        "name": "enter_high_score_screen_1",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "11520": [
       {
-        "name": "txt_enter_high_score_2",
+        "name": "enter_high_score_screen_2",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "11776": [
       {
-        "name": "txt_enter_high_score_3",
+        "name": "enter_high_score_screen_3",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "11896": [
       {
-        "name": "txt_enter_high_score_4",
+        "name": "enter_high_score_screen_4",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12240": [
+      {
+        "name": "txt_you_arent_in_the_five_best_scores",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1691,9 +1867,44 @@
         "kind": "User"
       }
     ],
+    "16286": [
+      {
+        "name": "play_click_sfx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "16318": [
+      {
+        "name": "highscore_fire_pressed",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "16324": [
       {
         "name": "sid_tick_sfx_and_get_ones",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "16331": [
+      {
+        "name": "title_screen_menu",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "16354": [
+      {
+        "name": "select_1_player",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "16365": [
+      {
+        "name": "select_2_players",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1757,6 +1968,34 @@
     "17975": [
       {
         "name": "handle_screen_hotspots",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18119": [
+      {
+        "name": "terminate_name_entry",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18132": [
+      {
+        "name": "name_entry_backspace",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18142": [
+      {
+        "name": "check_tile_is_obstacle",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "18156": [
+      {
+        "name": "sync_player_overlay_sprite",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1918,6 +2157,20 @@
     "20736": [
       {
         "name": "handle_scroll_direction_switch",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20961": [
+      {
+        "name": "poll_joy_for_scroll_switch",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20992": [
+      {
+        "name": "update_jump_sfx_pitch",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2678,7 +2931,7 @@
     "7415": "--- Shift 3-char name entries down in the name table ($7430) ---",
     "7500": "--- \"YOU AREN'T IN THE FIVE BEST SCORES\" ---",
     "7502": "--- Check if player qualified; if so, enter initials ---",
-    "7539": "--- Main input loop: display cursor, read joystick ---",
+    "7539": "High Score input loop: display cursor, read joystick",
     "7580": "--- Decrement countdown timer; end entry when expired ---",
     "7653": "--- Show timer digits on screen, highlight cursor cell via Color RAM ---",
     "7863": "--- Set Color RAM at (active_row, active_col) to yellow ---",
@@ -2860,14 +3113,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 6814,
+  "cursor_address": 18262,
   "hex_dump_cursor_address": 20384,
   "sprites_cursor_address": 13440,
   "charset_cursor_address": 22784,
   "right_pane_visible": "Sprites",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 40960,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
