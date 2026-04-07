@@ -160,9 +160,107 @@
         "kind": "User"
       }
     ],
+    "8729": [
+      {
+        "name": "irq_handler_fb",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8797": [
+      {
+        "name": "irq_handler_40",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8870": [
+      {
+        "name": "irq_handler_46",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8901": [
+      {
+        "name": "irq_handler_6e",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8927": [
+      {
+        "name": "irq_handler_96",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8961": [
+      {
+        "name": "irq_handler_a0",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8987": [
+      {
+        "name": "irq_handler_a6",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9009": [
+      {
+        "name": "irq_handler_b6",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9047": [
+      {
+        "name": "irq_handler_c6",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9076": [
+      {
+        "name": "irq_handler_d6",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9106": [
+      {
+        "name": "irq_handler_e6",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9140": [
+      {
+        "name": "irq_handler_f0",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9157": [
+      {
+        "name": "irq_hanlder_f8",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "11776": [
       {
         "name": "main_init",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11930": [
+      {
+        "name": "set_next_irq_state",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -182,7 +280,10 @@
       }
     ]
   },
-  "user_side_comments": {},
+  "user_side_comments": {
+    "9169": "clear intr flags, pop y, pop x, pop a, rti",
+    "11793": "clear screen"
+  },
   "user_line_comments": {
     "9216": "screen",
     "10240": "charset",
@@ -213,6 +314,78 @@
     "3759": {
       "HighByte": 12032
     },
+    "8790": {
+      "LowByte": 8797
+    },
+    "8792": {
+      "HighByte": 8797
+    },
+    "8863": {
+      "LowByte": 8870
+    },
+    "8865": {
+      "HighByte": 8870
+    },
+    "8894": {
+      "LowByte": 8901
+    },
+    "8896": {
+      "HighByte": 8901
+    },
+    "8920": {
+      "LowByte": 8927
+    },
+    "8922": {
+      "HighByte": 8927
+    },
+    "8954": {
+      "LowByte": 8961
+    },
+    "8956": {
+      "HighByte": 8961
+    },
+    "8980": {
+      "LowByte": 8987
+    },
+    "8982": {
+      "HighByte": 8987
+    },
+    "9002": {
+      "LowByte": 9009
+    },
+    "9004": {
+      "HighByte": 9009
+    },
+    "9040": {
+      "LowByte": 9047
+    },
+    "9042": {
+      "HighByte": 9047
+    },
+    "9069": {
+      "LowByte": 9076
+    },
+    "9071": {
+      "HighByte": 9076
+    },
+    "9099": {
+      "LowByte": 9106
+    },
+    "9101": {
+      "HighByte": 9106
+    },
+    "9133": {
+      "LowByte": 9140
+    },
+    "9135": {
+      "HighByte": 9140
+    },
+    "9159": {
+      "LowByte": 8729
+    },
+    "9161": {
+      "HighByte": 8729
+    },
     "11884": {
       "LowByte": 9157
     },
@@ -227,14 +400,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 2048,
+  "cursor_address": 5659,
   "hex_dump_cursor_address": 11776,
   "sprites_cursor_address": 2048,
   "charset_cursor_address": 10240,
   "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
@@ -244,6 +417,6 @@
     8192,
     9172
   ],
-  "blocks_view_cursor": 0,
+  "blocks_view_cursor": 11,
   "scopes": {}
 }
