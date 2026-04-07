@@ -41,12 +41,24 @@
     },
     {
       "start": 2112,
-      "end": 3610,
+      "end": 3623,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 3611,
+      "start": 3624,
+      "end": 6583,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 6584,
+      "end": 6623,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 6624,
       "end": 6655,
       "type_": "DataByte",
       "collapsed": false
@@ -59,6 +71,18 @@
     },
     {
       "start": 7124,
+      "end": 7159,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 7160,
+      "end": 7161,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7162,
       "end": 9727,
       "type_": "DataByte",
       "collapsed": false
@@ -97,7 +121,7 @@
         "kind": "User"
       }
     ],
-    "3903": [
+    "3904": [
       {
         "name": "sine_table",
         "label_type": "UserDefined",
@@ -120,7 +144,7 @@
     ],
     "4128": [
       {
-        "name": "txt_credits",
+        "name": "txt_sid_credits",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -139,16 +163,9 @@
         "kind": "User"
       }
     ],
-    "5659": [
+    "8632": [
       {
-        "name": "music_data",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
-    "8192": [
-      {
-        "name": "sprite_data",
+        "name": "txt_credits_exit",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -251,6 +268,48 @@
         "kind": "User"
       }
     ],
+    "9172": [
+      {
+        "name": "tbl_background_color_0",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9178": [
+      {
+        "name": "tbl_background_color_1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9184": [
+      {
+        "name": "tbl_background_color_2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9190": [
+      {
+        "name": "tbl_background_color_0_bis",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9196": [
+      {
+        "name": "tbl_background_color_1_bis",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9202": [
+      {
+        "name": "tbl_background_color_2_bis",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "11776": [
       {
         "name": "main_init",
@@ -261,6 +320,20 @@
     "11930": [
       {
         "name": "set_next_irq_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11940": [
+      {
+        "name": "wait_frame_or_exit",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11958": [
+      {
+        "name": "handle_exit",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -282,7 +355,11 @@
   },
   "user_side_comments": {
     "9169": "clear intr flags, pop y, pop x, pop a, rti",
-    "11793": "clear screen"
+    "11793": "clear screen",
+    "11979": "Clear screen",
+    "11982": "set default IRQ vector",
+    "11992": "set VIC registers to default ones",
+    "12003": "screen color"
   },
   "user_line_comments": {
     "9216": "screen",
@@ -400,23 +477,21 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 5659,
-  "hex_dump_cursor_address": 11776,
-  "sprites_cursor_address": 2048,
+  "cursor_address": 8192,
+  "hex_dump_cursor_address": 8192,
+  "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
-  "right_pane_visible": "Blocks",
+  "right_pane_visible": "Sprites",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 32768,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
-    3903,
     4064,
-    5659,
     8192,
     9172
   ],
-  "blocks_view_cursor": 11,
+  "blocks_view_cursor": 0,
   "scopes": {}
 }
