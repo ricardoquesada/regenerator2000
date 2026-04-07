@@ -250,21 +250,23 @@ impl AppState {
     }
 
     #[must_use]
-    pub fn get_block_index_for_address(&self, address: Addr) -> Option<usize> {
+    pub fn get_block_index_for_address(&self, address: Addr, is_splitter: bool) -> Option<usize> {
         let items = self.get_blocks_view_items();
         items.iter().position(|item| match item {
             BlockItem::Block { start, end, .. } => {
-                let s = *start;
-                let e = *end;
-                // Check if address is within [s, e]
-                if s <= e {
-                    address >= s && address <= e
+                if !is_splitter {
+                    let s = *start;
+                    let e = *end;
+                    if s <= e {
+                        address >= s && address <= e
+                    } else {
+                        address >= s || address <= e
+                    }
                 } else {
-                    // Wrap around
-                    address >= s || address <= e
+                    false
                 }
             }
-            BlockItem::Splitter(addr) => *addr == address,
+            BlockItem::Splitter(addr) => is_splitter && *addr == address,
             BlockItem::Scope { start, end, .. } => {
                 let s = *start;
                 let e = *end;

@@ -109,17 +109,30 @@ impl Widget for BlocksView {
                 if index < blocks.len() {
                     ui_state.blocks_list_state.select(Some(index));
 
-                    let target_addr = match blocks[index] {
-                        crate::state::BlockItem::Block { start, .. } => Some(start),
-                        crate::state::BlockItem::Splitter(addr) => Some(addr),
-                        crate::state::BlockItem::Scope { start, .. } => Some(start),
+                    let (target_addr, line_idx) = match &blocks[index] {
+                        crate::state::BlockItem::Block { start, .. } => {
+                            let idx = app_state.disassembly.iter().position(|line| {
+                                line.address == *start
+                                    && (!line.bytes.is_empty() || line.is_collapsed)
+                            });
+                            (*start, idx)
+                        }
+                        crate::state::BlockItem::Splitter(addr) => {
+                            let idx = app_state.disassembly.iter().position(|line| {
+                                line.address == *addr && line.mnemonic == "{splitter}"
+                            });
+                            (*addr, idx)
+                        }
+                        crate::state::BlockItem::Scope { start, .. } => {
+                            (*start, app_state.get_line_index_containing_address(*start))
+                        }
                     };
 
-                    if let Some(addr) = target_addr {
-                        crate::ui::navigable::jump_to_disassembly_at_address(
-                            app_state, ui_state, addr,
-                        );
-                    }
+                    crate::ui::navigable::jump_to_disassembly_at_line_idx(
+                        ui_state,
+                        line_idx,
+                        target_addr,
+                    );
                     WidgetResult::Handled
                 } else {
                     WidgetResult::Ignored
@@ -258,17 +271,30 @@ impl Widget for BlocksView {
             KeyCode::Enter if key.modifiers.is_empty() => {
                 let idx = ui_state.blocks_list_state.selected().unwrap_or(0);
                 if idx < blocks.len() {
-                    let target_addr = match blocks[idx] {
-                        crate::state::BlockItem::Block { start, .. } => Some(start),
-                        crate::state::BlockItem::Splitter(addr) => Some(addr),
-                        crate::state::BlockItem::Scope { start, .. } => Some(start),
+                    let (target_addr, line_idx) = match &blocks[idx] {
+                        crate::state::BlockItem::Block { start, .. } => {
+                            let idx = app_state.disassembly.iter().position(|line| {
+                                line.address == *start
+                                    && (!line.bytes.is_empty() || line.is_collapsed)
+                            });
+                            (*start, idx)
+                        }
+                        crate::state::BlockItem::Splitter(addr) => {
+                            let idx = app_state.disassembly.iter().position(|line| {
+                                line.address == *addr && line.mnemonic == "{splitter}"
+                            });
+                            (*addr, idx)
+                        }
+                        crate::state::BlockItem::Scope { start, .. } => {
+                            (*start, app_state.get_line_index_containing_address(*start))
+                        }
                     };
 
-                    if let Some(addr) = target_addr {
-                        crate::ui::navigable::jump_to_disassembly_at_address(
-                            app_state, ui_state, addr,
-                        );
-                    }
+                    crate::ui::navigable::jump_to_disassembly_at_line_idx(
+                        ui_state,
+                        line_idx,
+                        target_addr,
+                    );
                 }
                 WidgetResult::Handled
             }

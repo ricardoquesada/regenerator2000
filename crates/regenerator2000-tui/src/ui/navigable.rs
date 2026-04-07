@@ -125,7 +125,16 @@ pub fn jump_to_disassembly_at_address(
     ui_state: &mut UIState,
     target_addr: crate::state::Addr,
 ) -> WidgetResult {
-    if let Some(line_idx) = app_state.get_line_index_containing_address(target_addr) {
+    let line_idx = app_state.get_line_index_containing_address(target_addr);
+    jump_to_disassembly_at_line_idx(ui_state, line_idx, target_addr)
+}
+
+pub fn jump_to_disassembly_at_line_idx(
+    ui_state: &mut UIState,
+    line_idx: Option<usize>,
+    target_addr: crate::state::Addr,
+) -> WidgetResult {
+    if let Some(line_idx) = line_idx {
         let cursor_idx = ui_state.core.cursor_index;
         ui_state.core.navigation_history.push((
             crate::ui_state::ActivePane::Disassembly,
