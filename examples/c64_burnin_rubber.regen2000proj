@@ -167,6 +167,18 @@
     },
     {
       "start": 1697,
+      "end": 2006,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2007,
+      "end": 2012,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 2013,
       "end": 2044,
       "type_": "Code",
       "collapsed": false
@@ -191,6 +203,30 @@
     },
     {
       "start": 2560,
+      "end": 2814,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2815,
+      "end": 2815,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 2816,
+      "end": 3807,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3808,
+      "end": 3828,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 3829,
       "end": 4073,
       "type_": "Code",
       "collapsed": false
@@ -752,6 +788,27 @@
         "kind": "User"
       }
     ],
+    "2054": [
+      {
+        "name": "jump_anim_frame",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2064": [
+      {
+        "name": "jump_timer_base",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2065": [
+      {
+        "name": "jump_frame_timer",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "2080": [
       {
         "name": "crashed_cars_tens",
@@ -790,6 +847,27 @@
     "2087": [
       {
         "name": "scroll_row_counter",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2096": [
+      {
+        "name": "crashed_cars_bonus_10k",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2097": [
+      {
+        "name": "crashed_cars_bonus_1k",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2098": [
+      {
+        "name": "crashed_cars_bonus_100",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -867,6 +945,13 @@
     "2344": [
       {
         "name": "tbl_enemy_car_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2348": [
+      {
+        "name": "tbl_enemy_car_type",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -986,6 +1071,20 @@
     "4752": [
       {
         "name": "boot",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4800": [
+      {
+        "name": "silence_voice1_or_bail_if_jumping",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4848": [
+      {
+        "name": "cartridge_reset_entry",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1158,6 +1257,13 @@
         "kind": "User"
       }
     ],
+    "6094": [
+      {
+        "name": "check_acceleration_conditions",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "6109": [
       {
         "name": "update_hiscore_if_beaten",
@@ -1168,6 +1274,13 @@
     "6144": [
       {
         "name": "main",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6147": [
+      {
+        "name": "game_init_and_loop",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1189,6 +1302,69 @@
     "6714": [
       {
         "name": "update_jump_animation",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6789": [
+      {
+        "name": "jump_anim_frame_1_2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6804": [
+      {
+        "name": "jump_anim_expand_sprite",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6827": [
+      {
+        "name": "jump_anim_frame_4_5",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6833": [
+      {
+        "name": "jump_anim_shrink_sprite",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6856": [
+      {
+        "name": "jump_anim_frame_6_or_8",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6871": [
+      {
+        "name": "jump_anim_terminate",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6891": [
+      {
+        "name": "increment_jump_frame",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6898": [
+      {
+        "name": "jump_anim_frame_0",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6904": [
+      {
+        "name": "set_jump_timer_base",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1410,6 +1586,13 @@
         "kind": "User"
       }
     ],
+    "15088": [
+      {
+        "name": "update_enemies_and_check_jump",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "15104": [
       {
         "name": "detect_player_car_collision",
@@ -1452,9 +1635,23 @@
         "kind": "User"
       }
     ],
+    "15985": [
+      {
+        "name": "reset_voice1_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "16032": [
       {
         "name": "apply_collision_recoil",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "16081": [
+      {
+        "name": "play_crash_sfx",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1676,6 +1873,13 @@
         "kind": "User"
       }
     ],
+    "20173": [
+      {
+        "name": "main_loop_apply_recoil",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "20204": [
       {
         "name": "spawn_npc_car",
@@ -1686,6 +1890,13 @@
     "20228": [
       {
         "name": "draw_car_overtake_mark",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20400": [
+      {
+        "name": "main_loop_finalize_and_repeat",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1707,6 +1918,13 @@
     "20736": [
       {
         "name": "handle_scroll_direction_switch",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "21040": [
+      {
+        "name": "set_collision_state_and_play_sfx",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1997,8 +2215,10 @@
     "6734": "Increment animation frame (in A)",
     "6789": "Animation Frame 1 & 2: Draw ascending sprite",
     "6804": "Animation Frame 3: Max height, expand sprite",
+    "6821": "Compensate for center shift on expansion",
     "6827": "Animation Frame 4 & 5: Expanded descending",
     "6833": "Animation Frame 7: Shrink sprite back",
+    "6850": "Compensate for center shift on shrink",
     "6871": "Animation Frame 9 (End): Reset sequence",
     "6912": "Ignore collision if jumping",
     "6918": "Convert Pixel X to Char Column (divide by 8)",
@@ -2428,11 +2648,14 @@
     "32772": "CBM80"
   },
   "user_line_comments": {
+    "2096": "3-digit decimal counter for crashed cars bonus score. Represents Ten-Thousands, Thousands, and Hundreds digits. Units and Tens are implied zeros.",
     "4096": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the VIC-II video chip settings for the game.\nClears sprite coordinates, enables multi-color mode for character display,\nsets up global border and background colors, and configures sprite sizes,\npriorities, and multi-color settings. Also sets the character memory pointer.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies VIC-II registers ($D000-$D026) and Sprite 0 pointer ($07F8)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4178": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the screen display, background colors, and title/game sprites.\nThis routine runs at startup to paint the initial screen layout to Screen RAM\n($0400) and Color RAM ($D800). It establishes the sprite positions and does a\nfade-in effect by shifting bits into the sprite enable register ($D015) before\nswitching to a second screen layout ($2800).\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies Screen RAM ($0400), Color RAM ($D800), and all Sprite\n              registers in ($D000-$D015). Loops through wait delays.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4501": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the game state, memory buffers, and SID audio filters.\nThis routine sets up several 256-byte pages ($0800-$0DFF), clears object/sprite\nbuffers, and resets various variables at the start of $0800. It also initializes\nthe SID chip's filter and volume settings initially calling `$1195` then jumping\nto `$1200` to complete the rest of the work.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies memory regions $0800-$0DFF, $0F50-$0F56, $7400-$7457,\n              and SID registers $D415-$D418.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4608": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes game variables and duplicates memory pages.\nThis routine resets various state variables in the $0800-$09FF range, zeroes\nout specific arrays, and then creates two copies of the $0800-$09FF memory pages\nat $0A00-$0BFF and $0C00-$0DFF. It finally resets the SID filter cutoff frequency.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies memory $0800-$0DFF, $7080-$7082, and SID $D415-$D416.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4752": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMAIN ENTRY POINT\nThis code was in the tape loader.\nMoved to the \"main\" binary to have a single-load game",
+    "4800": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSilences SID Voice 1.\nHowever, if the player is jumping, it pops 4 bytes from the stack to bypass\nboth this routine and its caller (reset_voice1_state) and returns directly\nto the caller of reset_voice1_state (e.g., play_crash_sfx).\nThis prevents crash sounds from playing while jumping.\n\nInputs:  player_is_jumping\nOutputs: None\nSide Effects: Silences Voice 1 or manipulates stack to bail early.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "4848": "Cartridge cold-start entry point (referenced by vector at $8002)",
     "4864": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScrolls the playfield down and fetches the next row of map tile data.\nFirst, it shifts Screen RAM down by one row to create a scrolling effect.\nThen, it computes a pointer to the level map array ($4000) based on the current\nscroll position to grab a 1024-byte map tile ID. Because tile data is located\nat $8010 and stretches underneath the BASIC ROM ($A000-$BFFF), the caller must\nbank out BASIC first. It finally copies 40 bytes of the tile row into Screen RAM \nat $0428 (row 1, leaving the UI row intact) and updates Color RAM.\n\nInputs:  $0800 (level nr), $0801 (Map Block Column), $0802 (Tile Y offset)\nOutputs: None\nSide Effects: Modifies Screen RAM ($0428+), Color RAM, and pointers at $49/$4A.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5344": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nShort busy-wait delay (~13 ms). Runs a nested loop with X=10 outer iterations\nand Y=256 inner iterations. Shares the loop body with delay_long.\n\nInputs:  None\nOutputs: X=0, Y=0\nSide Effects: None (burns CPU time)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5360": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLong busy-wait delay (~328 ms). X=$00 wraps to 256 outer iterations, each\nwith 256 inner Y iterations. Falls through into delay_short's loop body.\nUsed for dramatic pauses during level transitions and score displays.\n\nInputs:  None\nOutputs: X=0, Y=0\nSide Effects: None (burns CPU time)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -2459,8 +2682,10 @@
     "7580": "--- Decrement countdown timer; end entry when expired ---",
     "7653": "--- Show timer digits on screen, highlight cursor cell via Color RAM ---",
     "7863": "--- Set Color RAM at (active_row, active_col) to yellow ---",
+    "7904": "dead code",
     "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCharset",
     "12288": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSprites",
+    "14720": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDetects collisions between NPC cars (enemy slots 0..2 vs 1..3).\nIf two active cars are within 16x16 pixels, calculates a bounce response,\nsetting new directions, step counts, and lifetimes based on car types.\n\nInputs:  tbl_enemy_car_state, Sprite X/Y regs ($D002/$D003), f092C, tbl_sprite_step_count_0\nOutputs: tbl_enemy_sprite_direction, tbl_enemy_sprite_active, tbl_enemy_sprite_step_count, tbl_enemy_sprite_lifetime\nSide Effects: Calls $5230 and updates tbl_enemy_sprite_state if both cars were collision-inactive.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "15060": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nA small wrapper routine called by the main loop.\nIt manages spawning new enemy cars, and then handles player jump inputs.\n\nInputs:  None\nOutputs: None\nSide Effects: Can spawn entities and mutate player state.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "15072": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "15084": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
@@ -2470,6 +2695,7 @@
     "15792": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame player horizontal recoil. Called every frame from the main loop\nwhile a collision is active (col_active != 0). Slides the player sprite X\nby col_step_px pixels in the direction of the hit, for col_frames_left frames.\n\n  col_quadrant 1 or 3 (NPC was LEFT of player):\n      dec $D000 col_step_px times; calls apply_collision_recoil (Y nudge) each step\n  col_quadrant 2 or 4 (NPC was RIGHT of player):\n      inc $D000 col_step_px times; no Y nudge (3x NOP — possible bug)\n\nDecrements col_frames_left each call; when it reaches zero, clears col_active\nto end the effect.\n\nInputs:       col_active, col_quadrant, col_step_px, col_frames_left\nOutputs:      $D000 (Sprite 0 X Pos)\nSide Effects: Calls apply_collision_recoil for left-side hits; clears\n              col_active when col_frames_left expires\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "15872": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies speed and score adjustments upon bumping into a car.\nThis block is jumped to from the collision detection loop. Based on the angle\nof impact ($0988) and the car type, it either slows the player down (subtracting\nspeed and score penalties) or speeds the player up (adding speed and score bonuses).\n\nInputs:  $0988 (collision angle), X (enemy index), Y (amount modifier)\nOutputs: None\nSide Effects: Modifies player speed ($0804) and score digits ($08E0). Returns via JMP back to collision loop.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "16032": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies visual recoil to the player's car after a collision.\nBased on the collision angle ($0988), it shifts the player sprite (Sprite 0)\neither up or down on the screen to simulate a physical bump.\nIt clamps the player's vertical position between $90 and $D0 to keep them\nwithin the visible gameplay area.\n\nInputs:  $0988 (collision angle)\nOutputs: None\nSide Effects: Modifies Sprite 0 Y Pos ($D001).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "16081": "Plays crash SFX on SID Voice 1 (Noise, Freq=$0112, A=1/D=8)",
     "16384": "tile map (?).\nEach level has $20 bytes, there are 32 levels: 1024 bytes in total",
     "17408": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies a buffered vertical offset to Sprite 0 (the player's car).\nTakes the accumulated vertical offset stored at $0808, adds it to the current\nY position of Sprite 0 ($D001), and then clears $0808 back to 0. This is\nused to process collision bumps, road bumps, or other vertical shifts pending\nfor the frame.\n\nInputs:  Y position at $D001, offset at $0808\nOutputs: None\nSide Effects: Modifies Sprite 0 Y pos ($D001) and sets $0808 to 0.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17424": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles player acceleration (Up direction) and deceleration (Down direction).\nReads the parsed input state at $00F5. If 'Up' (Bit 0) is pressed, the car\nmoves up the screen (Y position at $D001 decreases until clamped at $90),\nthe scrolling speed $0804 is increased, and the 3-byte visual speedometer array\nat $08E0 is incremented in base-10.\nIf 'Down' is pressed, it branches to $4464 which performs the inverse (speed\narray decrements, car moves down the screen until clamped at $D0).\n\nInputs:  Parsed input state at $00F5\nOutputs: None\nSide Effects: Modifies Sprite 0 Y pos ($D001), speed $0804, and speedometer $08E0\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -2634,14 +2860,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 7008,
+  "cursor_address": 6814,
   "hex_dump_cursor_address": 20384,
-  "sprites_cursor_address": 13376,
+  "sprites_cursor_address": 13440,
   "charset_cursor_address": 22784,
-  "right_pane_visible": "Blocks",
+  "right_pane_visible": "Sprites",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
