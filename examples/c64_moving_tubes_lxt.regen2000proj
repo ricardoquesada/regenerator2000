@@ -170,6 +170,13 @@
         "kind": "User"
       }
     ],
+    "8672": [
+      {
+        "name": "txt_credits_exit",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "8704": [
       {
         "name": "sine_scroller_update",
@@ -317,6 +324,13 @@
         "kind": "User"
       }
     ],
+    "11921": [
+      {
+        "name": "main_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "11930": [
       {
         "name": "set_next_irq_state",
@@ -356,6 +370,8 @@
   "user_side_comments": {
     "9169": "clear intr flags, pop y, pop x, pop a, rti",
     "11793": "clear screen",
+    "11796": "Points to rti",
+    "11908": "Enable logo/effect via self-mod",
     "11979": "Clear screen",
     "11982": "set default IRQ vector",
     "11992": "set VIC registers to default ones",
@@ -463,6 +479,9 @@
     "9161": {
       "HighByte": 8729
     },
+    "11796": {
+      "LowByte": 65217
+    },
     "11884": {
       "LowByte": 9157
     },
@@ -477,14 +496,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8192,
+  "cursor_address": 11796,
   "hex_dump_cursor_address": 8192,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
   "right_pane_visible": "Sprites",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
