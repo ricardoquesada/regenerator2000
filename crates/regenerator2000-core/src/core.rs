@@ -1225,11 +1225,15 @@ impl Core {
                     )));
                     return;
                 }
-                let cmd1 = self.state.set_block_type_region(
-                    block_type,
-                    Some(start.offset_from(self.state.origin)),
-                    end.offset_from(self.state.origin),
-                );
+                let start_offset = start.offset_from(self.state.origin);
+                let end_offset = end.offset_from(self.state.origin) + 1;
+                let range = start_offset..end_offset;
+                let old_types = self.state.block_types[range.clone()].to_vec();
+                let cmd1 = Some(crate::commands::Command::SetBlockType {
+                    range,
+                    new_type: block_type,
+                    old_types,
+                });
                 let (cmd2, _) = self.state.perform_analysis();
                 if let Some(cmd) = cmd1 {
                     self.state
@@ -1245,9 +1249,12 @@ impl Core {
         } else if let Some(start_index) = self.view.selection_start {
             let start = start_index.min(self.view.cursor_index);
             let end = start_index.max(self.view.cursor_index);
-            let len = end - start + 1;
+            let total_bytes: usize = (start..=end)
+                .filter_map(|i| self.state.disassembly.get(i))
+                .map(|l| l.bytes.len())
+                .sum();
 
-            if needs_even && len % 2 != 0 {
+            if needs_even && !total_bytes.is_multiple_of(2) {
                 events.push(CoreEvent::StatusMessage(format!(
                     "Error: {block_type} requires even number of bytes"
                 )));
@@ -2224,5 +2231,44 @@ mod tests {
                 .iter()
                 .any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("overlaps")))
         );
+    }
+
+    #[test]
+    fn test_apply_block_type_with_splitter_even_check() {
+        let mut core = Core::new();
+        let origin = Addr(0x1000);
+        let data = vec![
+            0x54, 0xA1, 0xDA, 0x19, 0x19, 0x19, // 6 bytes
+            0x51, 0x9E, 0xD7, 0x19, 0x19, 0x19, // 6 bytes
+        ];
+        core.state.load_binary(origin, data).unwrap();
+
+        // Set block types to DataByte so they show up as individual bytes (1 line per byte)
+        core.state.block_types = vec![crate::state::BlockType::DataByte; 12];
+
+        // Disassemble to populate disassembly vector
+        core.state.disassemble();
+
+        // Add splitter at $1006
+        core.state.toggle_splitter(Addr(0x1006));
+
+        // Re-disassemble to include splitter in disassembly vector
+        core.state.disassemble();
+
+        core.view.active_pane = ActivePane::Disassembly;
+        core.view.is_visual_mode = true;
+
+        core.view.selection_start = Some(0); // $1000
+        core.view.cursor_index = 12; // $100B (last byte, line index 12 because of splitter at index 6)
+
+        let events = core.apply_action(crate::state::AppAction::SetLoHiAddress);
+
+        // Verify that we did NOT get the error message
+        let has_error = events.iter().any(|e| match e {
+            CoreEvent::StatusMessage(msg) => msg.contains("requires even number of bytes"),
+            _ => false,
+        });
+
+        assert!(!has_error, "Expected no even byte error, but got one");
     }
 }

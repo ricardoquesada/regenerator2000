@@ -97,11 +97,17 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
             } else if current_type == BlockType::DataWord {
                 pc += 2;
             } else if current_type == BlockType::LoHiAddress {
-                // Determine the full length of this LoHi block
+                // Determine the full length of this LoHi block, respecting splitters
                 let mut count = 0;
                 while pc + count < data_len
                     && state.block_types.get(pc + count) == Some(&BlockType::LoHiAddress)
                 {
+                    if count > 0 {
+                        let current_addr = origin.wrapping_add((pc + count) as u16);
+                        if state.is_virtual_splitter(current_addr) {
+                            break;
+                        }
+                    }
                     count += 1;
                 }
 
@@ -116,7 +122,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                             update_usage(
                                 &mut usage_map,
                                 val,
-                                LabelType::AbsoluteAddress, // Or External? Analyzer figures out external vs internal later in loop.
+                                LabelType::AbsoluteAddress,
                                 origin.wrapping_add((pc + i) as u16),
                             );
                         }
@@ -124,11 +130,17 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                 }
                 pc += count;
             } else if current_type == BlockType::HiLoAddress {
-                // Determine the full length of this HiLo block
+                // Determine the full length of this HiLo block, respecting splitters
                 let mut count = 0;
                 while pc + count < data_len
                     && state.block_types.get(pc + count) == Some(&BlockType::HiLoAddress)
                 {
+                    if count > 0 {
+                        let current_addr = origin.wrapping_add((pc + count) as u16);
+                        if state.is_virtual_splitter(current_addr) {
+                            break;
+                        }
+                    }
                     count += 1;
                 }
 
@@ -151,11 +163,17 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                 }
                 pc += count;
             } else if current_type == BlockType::LoHiWord || current_type == BlockType::HiLoWord {
-                // Skip the whole block
+                // Skip the whole block, respecting splitters
                 let mut count = 0;
                 while pc + count < data_len
                     && state.block_types.get(pc + count) == Some(&current_type)
                 {
+                    if count > 0 {
+                        let current_addr = origin.wrapping_add((pc + count) as u16);
+                        if state.is_virtual_splitter(current_addr) {
+                            break;
+                        }
+                    }
                     count += 1;
                 }
                 pc += count;
@@ -1356,5 +1374,39 @@ mod tests {
                 .map(|l| l.name.as_str()),
             Some("aD001")
         );
+    }
+
+    #[test]
+    fn test_analyze_lohi_address_with_splitter() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // Two blocks of LoHiAddress, 6 bytes each.
+        // Block 1: $1000-$1005 -> addresses $1954, $19A1, $19DA
+        // Block 2: $1006-$100B -> addresses $1951, $199E, $19D7
+        let data = vec![
+            0x54, 0xA1, 0xDA, 0x19, 0x19, 0x19, // Block 1
+            0x51, 0x9E, 0xD7, 0x19, 0x19, 0x19, // Block 2
+        ];
+        state.raw_data = data;
+        state.block_types = vec![BlockType::LoHiAddress; 12];
+
+        // Add splitter at $1006 (start of block 2)
+        state.toggle_splitter(Addr(0x1006));
+
+        let result = analyze(&state);
+        let labels = result.labels;
+
+        // Verify labels generated for Block 1 targets
+        assert!(labels.contains_key(&0x1954));
+        assert!(labels.contains_key(&0x19A1));
+        assert!(labels.contains_key(&0x19DA));
+
+        // Verify labels generated for Block 2 targets
+        assert!(labels.contains_key(&0x1951));
+        assert!(labels.contains_key(&0x199E));
+        assert!(labels.contains_key(&0x19D7));
+
+        // Verify NO labels generated for the wrong pairings (e.g., $5154 from data[0]+data[6])
+        assert!(!labels.contains_key(&0x5154));
     }
 }
