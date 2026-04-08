@@ -59,6 +59,12 @@
     },
     {
       "start": 6624,
+      "end": 6650,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6651,
       "end": 6655,
       "type_": "DataByte",
       "collapsed": false
@@ -89,8 +95,14 @@
     },
     {
       "start": 9728,
-      "end": 9983,
+      "end": 9982,
       "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 9983,
+      "end": 9983,
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -172,7 +184,7 @@
     ],
     "8672": [
       {
-        "name": "txt_credits_exit",
+        "name": "cleanup_reloc_0340",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -277,42 +289,42 @@
     ],
     "9172": [
       {
-        "name": "tbl_background_color_0",
+        "name": "tbl_background_color_46_0",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "9178": [
       {
-        "name": "tbl_background_color_1",
+        "name": "tbl_background_color_46_1",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "9184": [
       {
-        "name": "tbl_background_color_2",
+        "name": "tbl_background_color_46_2",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "9190": [
       {
-        "name": "tbl_background_color_0_bis",
+        "name": "tbl_background_color_6e_0",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "9196": [
       {
-        "name": "tbl_background_color_1_bis",
+        "name": "tbl_background_color_6e_1",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "9202": [
       {
-        "name": "tbl_background_color_2_bis",
+        "name": "tbl_background_color_6e_2",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -368,6 +380,7 @@
     ]
   },
   "user_side_comments": {
+    "8696": "reset (64738)",
     "9169": "clear intr flags, pop y, pop x, pop a, rti",
     "11793": "clear screen",
     "11796": "Points to rti",
@@ -496,14 +509,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 11796,
-  "hex_dump_cursor_address": 8192,
+  "cursor_address": 11992,
+  "hex_dump_cursor_address": 11984,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
-  "right_pane_visible": "Sprites",
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
