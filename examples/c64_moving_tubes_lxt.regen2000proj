@@ -163,9 +163,93 @@
         "kind": "User"
       }
     ],
+    "3605": [
+      {
+        "name": "fill_top_tube_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3637": [
+      {
+        "name": "fill_mid_tube_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3669": [
+      {
+        "name": "fill_bot_tube_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3690": [
+      {
+        "name": "rotate_tube_bitmap",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3725": [
+      {
+        "name": "scroll_text_left",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3749": [
+      {
+        "name": "fetch_next_char",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3766": [
+      {
+        "name": "decode_char",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3794": [
+      {
+        "name": "render_char_column",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3819": [
+      {
+        "name": "rotate_tube_shift_regs",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3822": [
+      {
+        "name": "rotate_shift_reg",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "3904": [
       {
         "name": "sine_table",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4080": [
+      {
+        "name": "tube_shift_reg_0",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4088": [
+      {
+        "name": "tube_shift_reg_1",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1080,6 +1164,13 @@
         "kind": "User"
       }
     ],
+    "9012": [
+      {
+        "name": "smooth_scroll_phase",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "9047": [
       {
         "name": "irq_handler_c6",
@@ -1157,6 +1248,48 @@
         "kind": "User"
       }
     ],
+    "9216": [
+      {
+        "name": "font_row_0",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9418": [
+      {
+        "name": "font_row_1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9620": [
+      {
+        "name": "font_row_2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9822": [
+      {
+        "name": "font_row_3",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "10112": [
+      {
+        "name": "char_to_font_idx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "10176": [
+      {
+        "name": "char_col_width",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "11776": [
       {
         "name": "main_init",
@@ -1208,6 +1341,40 @@
     ]
   },
   "user_side_comments": {
+    "3592": "Sine phase for top tube (self-mod at $0E09)",
+    "3594": "Returns A=fine scroll, Y=coarse offset",
+    "3597": "Save updated sine phase (self-mod)",
+    "3600": "Patch $D016 scroll in irq_handler_fb",
+    "3606": "4-char repeating tile pattern",
+    "3610": "Top row of tube band (screen row 0)",
+    "3615": "Bottom row of tube band (screen row 1)",
+    "3620": "39 columns",
+    "3624": "Sine phase for middle tube (self-mod)",
+    "3632": "Patch $D016 scroll in irq_handler_96",
+    "3642": "Screen row 12",
+    "3647": "Screen row 13",
+    "3656": "Sine phase for bottom tube (self-mod)",
+    "3664": "Patch $D016 scroll in irq_handler_e6",
+    "3674": "Screen row 23",
+    "3679": "Screen row 24",
+    "3691": "Sign bit → carry for seamless rotation",
+    "3698": "Write rotated byte back",
+    "3711": "Subtract 3 pixels per frame",
+    "3716": "No underflow = skip char fetch",
+    "3718": "Wrap to 0-7 range",
+    "3725": "Shift screen row left by 1 char",
+    "3749": "Read next char from scroller_txt",
+    "3752": "Zero = end of message",
+    "3754": "Reset pointer to start of message",
+    "3766": "Mask to 6-bit screen code index",
+    "3777": "Look up column width for this char",
+    "3783": "Look up font bitmap start index",
+    "3789": "$FF = end-of-string marker",
+    "3795": "Font row 0 → screen $06A7",
+    "3800": "Font row 1 → screen $06CF",
+    "3806": "Font row 2 → screen $06F7",
+    "3812": "Font row 3 → screen $071F",
+    "3819": "JSR trick: calls rotate_shift_reg twice",
     "4316": "start with voice 2, count down to 0",
     "4318": "save ZP pointers used for pattern data",
     "4324": "check if voice X is active",
@@ -1298,6 +1465,10 @@
     "12003": "screen color"
   },
   "user_line_comments": {
+    "3592": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates three sine-wave-scrolled \"tube\" bands on screen and advances the\nhorizontal text scroller. Called every frame from the main loop.\n\n1) For each of three tube bands (top/mid/bot), advances a sine phase index,\n   calls sine_scroller_update to get fine-scroll + coarse offset, patches\n   the VIC $D016 scroll value into the corresponding IRQ handler via\n   self-modifying code, and fills two adjacent screen rows with a 4-char\n   repeating tile pattern offset by the coarse sine value.\n\n2) Rotates two 8-byte shift register arrays (tube_shift_reg_0/1) that\n   drive animated bitmap patterns within the tube bands.\n\n3) Smooth-scrolls a proportional-width text message across 4 screen rows.\n   Decrements a pixel counter by 3 each frame; on underflow, shifts the\n   screen left by one char and renders the next font column from a\n   character mapping table and 4 font bitmap row tables.\n\nInputs:  Self-modified sine phases at $0E09/$0E29/$0E49,\n         scroller pointer at $0EA6/$0EA7, scroll counter at $2334\nOutputs: Screen RAM updated, VIC $D016 values patched in IRQ handlers\nSide Effects: Modifies screen RAM $0400-$0798 and $061F-$071F,\n              self-modifies code at multiple locations\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "3690": "Rotate 8 bytes of tube bitmap pattern",
+    "3704": "Advance text scroller",
+    "3794": "Render 4 font rows to screen",
     "4096": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nSID Music Player - Architecture Overview\n\n                     +---------------------+\n                     | Entry: LDX #$02     |\n                     | (voice 2, 1, 0)     |\n                     +---------------------+\n                               |\n                     +---------------------+\n                     | Save $FB/$FC        |\n                     +---------------------+\n                               |\n                     +---------------------+\n                     | Voice active?       |\n                     | voice_active,x != 0 |\n                     +-----+---------------+\n                      Yes  |           No \\\n                           |              +---> next_voice\n                     +-----v---------------+      (DEX, loop\n                     | Speed counter       |       or RTS)\n                     | voice_speed_ctr != 0|\n                     +-----+--------+------+\n                      == 0 |        | != 0\n                           |        +---> Sustain: dec ctr,\n                           |              check release tick\n                     +-----v---------------+\n                     | Fetch next command   |\n                     | from pattern data    |\n                     +-----+---------------+\n                           |\n             +-------------+-------------+\n             |             |             |\n        +----v----+   +----v----+   +----v--------+\n        | Note    |   | Rest    |   | Control     |\n        | $01-$7D |   | $00     |   | $80+        |\n        | gate on |   | gate off|   +------+------+\n        +----+----+   +----+----+          |\n             |             |     +---------+---------+\n             |             |     |         |         |\n             +------+------+ +--v---+ +---v---+ +---v------+\n                    |         |Speed | |Instr. | |Effects   |\n                    |         |$80   | |$A0    | |$C0+      |\n                    |         +------+ +-------+ +---+------+\n                    |                                 |\n                    |              +------+------+----+----+\n                    |              |      |      |         |\n                    |          +---v--+ +-v---+ +v------+ +v-------+\n                    |          |Vibr. | |Porta| |Release| |Arpeggio|\n                    |          +------+ +-----+ +-------+ +--------+\n                    |\n              +-----v--------------+\n              | Calc frequency     |\n              | from freq table    |\n              | + apply effects    |\n              +-----+--------------+\n                    |\n              +-----v--------------+\n              | Write SID regs     |\n              | $D400-$D418        |\n              | Freq, PW, Filter,  |\n              | Control, ADSR      |\n              +-----+--------------+\n                    |\n              +-----v--------------+\n              | next_voice: DEX    |\n              | loop or RTS        |\n              +--------------------+\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "4316": "SID Music Player - Main Entry\nProcesses all 3 voices (X=2,1,0) per call.\nHandles sequencing, effects, and SID register output.",
     "4324": "--- Voice Processing Loop ---",
@@ -1453,8 +1624,8 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 4096,
-  "hex_dump_cursor_address": 4096,
+  "cursor_address": 3592,
+  "hex_dump_cursor_address": 3584,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
   "right_pane_visible": "HexDump",
