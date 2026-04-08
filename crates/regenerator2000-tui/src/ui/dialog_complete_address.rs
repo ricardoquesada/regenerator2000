@@ -103,7 +103,11 @@ impl Widget for CompleteAddressDialog {
         f.render_widget(ratatui::widgets::Clear, area);
 
         let display_text = self.get_display_text();
-        let cursor_offset = display_text.len() as u16;
+        let cursor_offset = if self.lo_first {
+            16 + self.input.len() as u16
+        } else {
+            18 + self.input.len() as u16
+        };
         let input = Paragraph::new(display_text).block(block).style(
             Style::default()
                 .fg(theme.highlight_fg)
