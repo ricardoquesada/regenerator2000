@@ -47,6 +47,36 @@
     },
     {
       "start": 3624,
+      "end": 3815,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 3816,
+      "end": 3816,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 3817,
+      "end": 3828,
+      "type_": "LoHiAddress",
+      "collapsed": false
+    },
+    {
+      "start": 3829,
+      "end": 4629,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 4630,
+      "end": 4701,
+      "type_": "LoHiAddress",
+      "collapsed": false
+    },
+    {
+      "start": 4702,
       "end": 6583,
       "type_": "DataByte",
       "collapsed": false
@@ -154,6 +184,76 @@
         "kind": "User"
       }
     ],
+    "4102": [
+      {
+        "name": "voice_active",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4105": [
+      {
+        "name": "sid_volume",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4106": [
+      {
+        "name": "sid_filter_route",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4107": [
+      {
+        "name": "temp_byte",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4108": [
+      {
+        "name": "voice_freq_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4111": [
+      {
+        "name": "voice_freq_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4116": [
+      {
+        "name": "voice_note",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4119": [
+      {
+        "name": "voice_transpose",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4122": [
+      {
+        "name": "voice_gate_mask",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4125": [
+      {
+        "name": "voice_instr_idx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "4128": [
       {
         "name": "txt_sid_credits",
@@ -171,6 +271,734 @@
     "4316": [
       {
         "name": "sid_player_main",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4324": [
+      {
+        "name": "voice_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4332": [
+      {
+        "name": "check_tempo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4356": [
+      {
+        "name": "dec_speed_ctr",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4362": [
+      {
+        "name": "advance_pattern",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4403": [
+      {
+        "name": "lookup_pattern_ptr",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4414": [
+      {
+        "name": "parse_pattern_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4449": [
+      {
+        "name": "cmd_tie",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4452": [
+      {
+        "name": "set_gate_on",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4460": [
+      {
+        "name": "cmd_rest",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4489": [
+      {
+        "name": "advance_and_done",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4492": [
+      {
+        "name": "cmd_control",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4524": [
+      {
+        "name": "ctrl_instrument",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4535": [
+      {
+        "name": "next_pattern_byte",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4540": [
+      {
+        "name": "ctrl_effect",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4596": [
+      {
+        "name": "effect_portamento",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4662": [
+      {
+        "name": "effect_release",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4681": [
+      {
+        "name": "effect_arpeggio",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4706": [
+      {
+        "name": "advance_pat_pos",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4763": [
+      {
+        "name": "check_pat_marker",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4781": [
+      {
+        "name": "check_tie_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4814": [
+      {
+        "name": "trigger_note",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4832": [
+      {
+        "name": "load_instrument",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4877": [
+      {
+        "name": "setup_filter_route",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "4971": [
+      {
+        "name": "write_adsr_gate",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5003": [
+      {
+        "name": "process_effects",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5014": [
+      {
+        "name": "update_pwm_params",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5088": [
+      {
+        "name": "apply_pwm",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5118": [
+      {
+        "name": "pwm_subtract",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5141": [
+      {
+        "name": "pwm_flip_dir",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5160": [
+      {
+        "name": "update_filter",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5238": [
+      {
+        "name": "apply_filter",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5260": [
+      {
+        "name": "filter_subtract",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5275": [
+      {
+        "name": "filter_flip_dir",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5283": [
+      {
+        "name": "process_arpeggio",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5322": [
+      {
+        "name": "arpeggio_relative",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5352": [
+      {
+        "name": "calc_note_freq",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5363": [
+      {
+        "name": "lookup_freq",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5385": [
+      {
+        "name": "process_vibrato",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5429": [
+      {
+        "name": "vib_subtract",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5448": [
+      {
+        "name": "apply_vib_to_freq",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5475": [
+      {
+        "name": "calc_portamento",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5511": [
+      {
+        "name": "divide_interval",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5523": [
+      {
+        "name": "update_vib_period",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5542": [
+      {
+        "name": "apply_vibrato",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5569": [
+      {
+        "name": "vibrato_sub",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5588": [
+      {
+        "name": "add_vib_to_freq",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5617": [
+      {
+        "name": "write_sid_regs",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5659": [
+      {
+        "name": "next_voice",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5665": [
+      {
+        "name": "player_exit",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5672": [
+      {
+        "name": "sid_freq_table",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5864": [
+      {
+        "name": "temp_interval",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5865": [
+      {
+        "name": "voice_pat_ptr_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5868": [
+      {
+        "name": "voice_pat_ptr_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5871": [
+      {
+        "name": "voice_loop_ptr_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5874": [
+      {
+        "name": "voice_loop_ptr_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5877": [
+      {
+        "name": "voice_filter_bit",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5880": [
+      {
+        "name": "voice_filter_mask",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5883": [
+      {
+        "name": "voice_sid_offset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5886": [
+      {
+        "name": "voice_tie_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5889": [
+      {
+        "name": "voice_porta_mode",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5892": [
+      {
+        "name": "voice_vibrato_en",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5895": [
+      {
+        "name": "voice_release_tick",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5898": [
+      {
+        "name": "voice_waveform",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5901": [
+      {
+        "name": "voice_pat_pos",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5904": [
+      {
+        "name": "voice_rel_adsr",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5907": [
+      {
+        "name": "voice_speed_val",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5910": [
+      {
+        "name": "voice_speed_ctr",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5913": [
+      {
+        "name": "voice_vib_period_ctr",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5916": [
+      {
+        "name": "voice_vib_period",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5919": [
+      {
+        "name": "voice_vib_depth_inc",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5922": [
+      {
+        "name": "voice_vib_accum",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5925": [
+      {
+        "name": "voice_vib_dir",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5928": [
+      {
+        "name": "voice_vib_offset_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5931": [
+      {
+        "name": "voice_vib_offset_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5934": [
+      {
+        "name": "voice_vib_rate_div",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5937": [
+      {
+        "name": "voice_pwm_min_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5940": [
+      {
+        "name": "voice_pwm_max_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5943": [
+      {
+        "name": "voice_pwm_step",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5946": [
+      {
+        "name": "voice_pwm_dir",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5949": [
+      {
+        "name": "voice_pwm_tbl_idx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5952": [
+      {
+        "name": "voice_pwm_delay",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5955": [
+      {
+        "name": "voice_pulse_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5958": [
+      {
+        "name": "voice_pulse_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5961": [
+      {
+        "name": "filter_min",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5962": [
+      {
+        "name": "filter_max",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5963": [
+      {
+        "name": "filter_step",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5964": [
+      {
+        "name": "filter_dir",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5965": [
+      {
+        "name": "filter_tbl_idx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5966": [
+      {
+        "name": "filter_delay",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5967": [
+      {
+        "name": "filter_cutoff",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5968": [
+      {
+        "name": "voice_arp_pos",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5971": [
+      {
+        "name": "voice_vib_delta_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5974": [
+      {
+        "name": "voice_vib_delta_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5977": [
+      {
+        "name": "voice_vib_sub_dir",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5980": [
+      {
+        "name": "voice_vib_sub_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5983": [
+      {
+        "name": "voice_vib_sub_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5986": [
+      {
+        "name": "voice_finetune",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5989": [
+      {
+        "name": "speed_lookup",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6027": [
+      {
+        "name": "arp_sequence",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6127": [
+      {
+        "name": "waveform_data",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6465": [
+      {
+        "name": "effect_cmd_1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6466": [
+      {
+        "name": "effect_cmd_2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6678": [
+      {
+        "name": "song_ptr_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6714": [
+      {
+        "name": "song_ptr_hi",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -380,10 +1208,89 @@
     ]
   },
   "user_side_comments": {
+    "4316": "start with voice 2, count down to 0",
+    "4318": "save ZP pointers used for pattern data",
+    "4324": "check if voice X is active",
+    "4329": "voice inactive, skip",
+    "4332": "speed countdown still running?",
+    "4337": "zero = time for next pattern row",
+    "4339": "reached release tick?",
+    "4342": "not yet, just dec counter",
+    "4344": "clear release tick marker",
+    "4349": "write sustain/release ADSR",
+    "4362": "reload speed into countdown",
+    "4368": "load pattern ptr into $FB/$FC",
+    "4380": "clear tie flag",
+    "4384": "read pattern byte",
+    "4386": "bit7 clear = note index",
+    "4388": "bit7 set = transpose value",
+    "4403": "use as index into song ptr table",
+    "4404": "pattern addr lo",
+    "4409": "pattern addr hi",
+    "4419": "bit7 set = control cmd",
+    "4421": "zero = rest",
+    "4423": "$7E = tie (sustain)",
+    "4427": "store note number",
+    "4449": "inc tie flag, don't retrigger",
+    "4452": "gate mask = $FF (all bits on)",
+    "4460": "inc tie flag (marks rest)",
+    "4466": "gate mask = $FE (gate off)",
+    "4495": "check bits 7-5",
+    "4497": "$80 = speed command",
+    "4507": "bits 0-3 = speed value",
+    "4509": "set speed + repeat counter",
+    "4524": "$A0 = instrument select",
+    "4529": "extract instrument idx (bits 0-4) * 8",
+    "4600": "porta mode = 2 (slide)",
+    "4666": "bits 0-3 = release tick",
+    "4672": "param 2 = sustain/release ADSR",
+    "4714": "$7F = end of pattern",
+    "4747": "$FF = end of song, loop",
+    "4763": "$FE = stop voice",
+    "4817": "ADSR = $00/$0F (instant release)",
+    "4829": "control = $08 (noise, gate off)",
+    "4997": "control = $09 (gate on)",
+    "5003": "PWM delay counter",
+    "5141": "flip PWM direction at bounds",
+    "5275": "flip filter direction at bounds",
+    "5283": "arpeggio enabled for this instr?",
+    "5352": "add base note number",
+    "5356": "* 2 (word index)",
+    "5358": "add transpose offset",
+    "5367": "freq lo from table",
+    "5370": "add finetune offset",
+    "5385": "read waveform ctrl byte from table",
+    "5395": "vibrato enabled?",
+    "5398": "no vibrato, check portamento",
+    "5475": "portamento mode active?",
+    "5480": "note * 2 = word offset",
+    "5485": "freq[note+1] - freq[note]",
+    "5511": "right-shift loop (divide by 2^rate)",
+    "5523": "dec period counter",
+    "5530": "flip vibrato direction",
+    "5542": "direction flag: 0=add, 1=sub",
+    "5588": "freq += vibrato offset",
+    "5659": "next voice (2->1->0)",
+    "5660": "all done when X < 0",
+    "5665": "restore ZP pointers and return",
+    "5672": "C-0 (ref for slide calc)",
+    "5674": "C#0 - start of indexed table (note*2)",
+    "5696": "Octave 1: C-1 to B-1",
+    "5720": "Octave 2: C-2 to B-2",
+    "5744": "Octave 3: C-3 to B-3",
+    "5768": "Octave 4: C-4 to B-4",
+    "5792": "Octave 5: C-5 to B-5",
+    "5816": "Octave 6: C-6 to B-6",
+    "5840": "Octave 7: C-7 to B-7",
     "8696": "reset (64738)",
     "9169": "clear intr flags, pop y, pop x, pop a, rti",
-    "11793": "clear screen",
-    "11796": "Points to rti",
+    "11776": "Disable interrupts for setup",
+    "11779": "Blank screen during init",
+    "11793": "Clear screen using KERNAL",
+    "11796": "Disable NMI (Restore key)",
+    "11871": "Enable raster interrupt",
+    "11893": "Initialize SID music",
+    "11899": "Enable interrupts",
     "11908": "Enable logo/effect via self-mod",
     "11979": "Clear screen",
     "11982": "set default IRQ vector",
@@ -391,9 +1298,45 @@
     "12003": "screen color"
   },
   "user_line_comments": {
+    "4316": "SID Music Player - Main Entry\nProcesses all 3 voices (X=2,1,0) per call.\nHandles sequencing, effects, and SID register output.",
+    "4324": "--- Voice Processing Loop ---",
+    "4332": "--- Tempo / Speed Counter ---",
+    "4362": "--- Fetch Next Pattern Command ---",
+    "4403": "--- Lookup Pattern Pointer ---",
+    "4414": "--- Parse Pattern Byte ---\nDispatches: $01-$7D=note, $7E=tie, $00=rest, $80+=control",
+    "4460": "--- Rest Command ---",
+    "4492": "--- Control Commands ($80+) ---\nBits 7-5 determine subtype:\n$80=speed, $A0=instrument, $C0-$FF=effects",
+    "4524": "--- Select Instrument ---",
+    "4540": "--- Effect Commands ---\nBits 7-6 of param byte 1 determine type:\n%00=vibrato, %01=portamento, %10=release, %11=arpeggio",
+    "4596": "--- Effect: Portamento ---",
+    "4662": "--- Effect: Release Timing ---",
+    "4681": "--- Effect: Arpeggio Setup ---",
+    "4706": "--- Pattern Position Advance ---",
+    "4814": "--- Trigger New Note ---\nGate off, set ADSR for quick silence, then load instrument.",
+    "4832": "--- Load Instrument Data ---",
+    "4877": "--- Setup Filter Routing ---",
+    "4971": "--- Write ADSR & Gate On ---",
+    "5003": "--- Process Effects (PWM, Filter, Arpeggio, Vibrato) ---",
+    "5014": "--- Update PWM Parameters ---",
+    "5088": "--- Apply PWM (Triangle Wave Oscillator) ---",
+    "5160": "--- Update Filter Sweep ---",
+    "5238": "--- Apply Filter (Triangle Wave) ---",
+    "5283": "--- Process Arpeggio & Frequency ---",
+    "5322": "--- Arpeggio: Relative Mode ---",
+    "5352": "--- Calculate Note Frequency ---\nnote_idx = (arp_val + base_note) * 2 + transpose",
+    "5363": "--- Lookup Frequency from Table ---",
+    "5385": "--- Process Vibrato / Portamento ---",
+    "5475": "--- Calculate Portamento ---\nCompute semitone interval from freq table, divide by rate",
+    "5511": "--- Divide Interval by Rate ---",
+    "5523": "--- Update Vibrato Period ---",
+    "5542": "--- Apply Vibrato Offset ---",
+    "5588": "--- Add Vibrato to Base Frequency ---",
+    "5617": "--- Write SID Registers ---\nOutput pulse width, filter cutoff, frequency, and control.",
+    "5659": "--- Next Voice / Exit ---",
+    "5672": "SID frequency table for PAL system.\n96 entries (8 octaves x 12 notes), 16-bit little-endian.\nNote index 0 = C-0 ($0116 = 278), up to B-7 ($FD2E = 64814).\nFirst entry is used as a reference for portamento/slide calculations.\nAccessed via note index * 2 as word offset.",
     "9216": "screen",
     "10240": "charset",
-    "11776": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nmain\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
+    "11776": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain entry point, initialization, and execution loop of the demo.\nSets up VIC-II, clears screen, initializes tables, hooks raster IRQ,\nand runs the main loop with scroller and effect updates.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies VIC-II, SID, Screen RAM, Color RAM, and hooks IRQ.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
   },
   "settings": {
     "all_labels": false,
@@ -509,20 +1452,20 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 11992,
-  "hex_dump_cursor_address": 11984,
+  "cursor_address": 11796,
+  "hex_dump_cursor_address": 11792,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 57344,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
     4064,
-    8192,
-    9172
+    5871,
+    8192
   ],
   "blocks_view_cursor": 0,
   "scopes": {}
