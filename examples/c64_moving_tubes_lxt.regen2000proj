@@ -1298,6 +1298,7 @@
     "12003": "screen color"
   },
   "user_line_comments": {
+    "4096": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nSID Music Player - Architecture Overview\n\n                     +---------------------+\n                     | Entry: LDX #$02     |\n                     | (voice 2, 1, 0)     |\n                     +---------------------+\n                               |\n                     +---------------------+\n                     | Save $FB/$FC        |\n                     +---------------------+\n                               |\n                     +---------------------+\n                     | Voice active?       |\n                     | voice_active,x != 0 |\n                     +-----+---------------+\n                      Yes  |           No \\\n                           |              +---> next_voice\n                     +-----v---------------+      (DEX, loop\n                     | Speed counter       |       or RTS)\n                     | voice_speed_ctr != 0|\n                     +-----+--------+------+\n                      == 0 |        | != 0\n                           |        +---> Sustain: dec ctr,\n                           |              check release tick\n                     +-----v---------------+\n                     | Fetch next command   |\n                     | from pattern data    |\n                     +-----+---------------+\n                           |\n             +-------------+-------------+\n             |             |             |\n        +----v----+   +----v----+   +----v--------+\n        | Note    |   | Rest    |   | Control     |\n        | $01-$7D |   | $00     |   | $80+        |\n        | gate on |   | gate off|   +------+------+\n        +----+----+   +----+----+          |\n             |             |     +---------+---------+\n             |             |     |         |         |\n             +------+------+ +--v---+ +---v---+ +---v------+\n                    |         |Speed | |Instr. | |Effects   |\n                    |         |$80   | |$A0    | |$C0+      |\n                    |         +------+ +-------+ +---+------+\n                    |                                 |\n                    |              +------+------+----+----+\n                    |              |      |      |         |\n                    |          +---v--+ +-v---+ +v------+ +v-------+\n                    |          |Vibr. | |Porta| |Release| |Arpeggio|\n                    |          +------+ +-----+ +-------+ +--------+\n                    |\n              +-----v--------------+\n              | Calc frequency     |\n              | from freq table    |\n              | + apply effects    |\n              +-----+--------------+\n                    |\n              +-----v--------------+\n              | Write SID regs     |\n              | $D400-$D418        |\n              | Freq, PW, Filter,  |\n              | Control, ADSR      |\n              +-----+--------------+\n                    |\n              +-----v--------------+\n              | next_voice: DEX    |\n              | loop or RTS        |\n              +--------------------+\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "4316": "SID Music Player - Main Entry\nProcesses all 3 voices (X=2,1,0) per call.\nHandles sequencing, effects, and SID register output.",
     "4324": "--- Voice Processing Loop ---",
     "4332": "--- Tempo / Speed Counter ---",
@@ -1452,14 +1453,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 11796,
-  "hex_dump_cursor_address": 11792,
+  "cursor_address": 4096,
+  "hex_dump_cursor_address": 4096,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
