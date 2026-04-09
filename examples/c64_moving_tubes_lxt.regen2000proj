@@ -1637,14 +1637,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8677,
-  "hex_dump_cursor_address": 8672,
+  "cursor_address": 8588,
+  "hex_dump_cursor_address": 8576,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
