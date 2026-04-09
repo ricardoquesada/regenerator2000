@@ -22,6 +22,7 @@ pub struct OpenDialog {
     pub selected_index: usize,
     pub filter_extensions: Vec<String>,
     pub mode: OpenMode,
+    pub history: Vec<PathBuf>,
 }
 
 impl OpenDialog {
@@ -44,6 +45,7 @@ impl OpenDialog {
                 "regen2000proj".to_string(),
             ],
             mode: OpenMode::ProjectOrFile,
+            history: Vec::new(),
         };
         dialog.refresh_files();
         dialog
@@ -62,6 +64,7 @@ impl OpenDialog {
             selected_index: 0,
             filter_extensions: vec!["lbl".to_string()],
             mode: OpenMode::ViceLabels,
+            history: Vec::new(),
         };
         dialog.refresh_files();
 
@@ -79,6 +82,11 @@ impl OpenDialog {
 
     pub fn refresh_files(&mut self) {
         self.files = crate::utils::list_files(&self.current_dir, &self.filter_extensions);
+
+        if self.current_dir.parent().is_some() {
+            self.files.insert(0, self.current_dir.join(".."));
+        }
+
         // Reset selection if out of bounds
         if self.selected_index >= self.files.len() {
             self.selected_index = 0;
@@ -131,15 +139,20 @@ impl Widget for OpenDialog {
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area); // Clear background
 
+        let parent_path = self.current_dir.join("..");
         let items: Vec<ListItem> = self
             .files
             .iter()
             .map(|path| {
-                let name = path.file_name().unwrap_or_default().to_string_lossy();
-                let name = if path.is_dir() {
-                    format!("{name}/")
+                let name = if path == &parent_path {
+                    "..".to_string()
                 } else {
-                    name.to_string()
+                    let name = path.file_name().unwrap_or_default().to_string_lossy();
+                    if path.is_dir() {
+                        format!("{name}/")
+                    } else {
+                        name.to_string()
+                    }
                 };
 
                 ListItem::new(name)
@@ -200,9 +213,8 @@ impl Widget for OpenDialog {
                 WidgetResult::Handled
             }
             KeyCode::Backspace => {
-                // Go to parent dir
-                if let Some(parent) = self.current_dir.parent().map(std::path::Path::to_path_buf) {
-                    self.current_dir = parent;
+                if let Some(prev_dir) = self.history.pop() {
+                    self.current_dir = prev_dir;
                     self.refresh_files();
                     self.selected_index = 0;
                     // Persist to UIState
@@ -216,6 +228,7 @@ impl Widget for OpenDialog {
                 } else {
                     let selected_path = self.files[self.selected_index].clone();
                     if selected_path.is_dir() {
+                        self.history.push(self.current_dir.clone());
                         self.current_dir = selected_path;
                         self.refresh_files();
                         self.selected_index = 0;
