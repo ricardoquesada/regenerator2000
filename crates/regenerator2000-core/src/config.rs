@@ -68,6 +68,9 @@ impl Default for SystemConfig {
 
 impl SystemConfig {
     pub fn add_recent_project(&mut self, path: PathBuf) {
+        if path.extension().is_none_or(|ext| ext != "regen2000proj") {
+            return;
+        }
         let canon = std::fs::canonicalize(&path).unwrap_or(path);
         self.recent_projects.retain(|p| p != &canon);
         self.recent_projects.insert(0, canon);
@@ -79,6 +82,11 @@ impl SystemConfig {
         self.recent_projects.retain(|p| p != &canon);
     }
 
+    pub fn clean_recent_projects(&mut self) {
+        self.recent_projects
+            .retain(|p| p.extension().is_some_and(|ext| ext == "regen2000proj"));
+    }
+
     #[must_use]
     pub fn load() -> Self {
         if let Some(proj_dirs) = ProjectDirs::from("", "", "regenerator2000") {
@@ -87,7 +95,10 @@ impl SystemConfig {
                 && let Ok(data) = std::fs::read_to_string(&config_path)
             {
                 match serde_json::from_str::<Self>(&data) {
-                    Ok(config) => return config,
+                    Ok(mut config) => {
+                        config.clean_recent_projects();
+                        return config;
+                    }
                     Err(e) => {
                         let backup_path = config_path.with_extension("json.bak");
                         let _ = std::fs::copy(&config_path, &backup_path);

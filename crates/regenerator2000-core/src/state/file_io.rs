@@ -53,8 +53,7 @@ impl AppState {
                 let res = self.load_dis65_project(path.clone());
                 if res.is_ok() {
                     let abs_path = std::fs::canonicalize(&path).unwrap_or(path.clone());
-                    self.system_config.last_project_path = Some(abs_path.clone());
-                    self.system_config.add_recent_project(abs_path);
+                    self.system_config.last_project_path = Some(abs_path);
                     let _ = self.system_config.save();
                 }
                 return res;

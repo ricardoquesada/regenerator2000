@@ -181,6 +181,45 @@ fn remove_recent_project() {
 }
 
 #[test]
+fn add_recent_project_filters_non_regen2000proj() {
+    let mut config = SystemConfig::default();
+    let path_proj = std::env::temp_dir().join("test.regen2000proj");
+    let path_dis = std::env::temp_dir().join("test.dis65");
+
+    config.add_recent_project(path_proj.clone());
+    config.add_recent_project(path_dis.clone());
+
+    // Should only contain the .regen2000proj file
+    assert_eq!(config.recent_projects.len(), 1);
+    assert_eq!(
+        config.recent_projects[0],
+        std::fs::canonicalize(&path_proj).unwrap_or(path_proj)
+    );
+}
+
+#[test]
+fn clean_recent_projects_filters_non_regen2000proj() {
+    let mut config = SystemConfig::default();
+    config.recent_projects = vec![
+        PathBuf::from("/tmp/a.regen2000proj"),
+        PathBuf::from("/tmp/b.dis65"),
+        PathBuf::from("/tmp/c.regen2000proj"),
+    ];
+
+    config.clean_recent_projects();
+
+    assert_eq!(config.recent_projects.len(), 2);
+    assert_eq!(
+        config.recent_projects[0],
+        PathBuf::from("/tmp/a.regen2000proj")
+    );
+    assert_eq!(
+        config.recent_projects[1],
+        PathBuf::from("/tmp/c.regen2000proj")
+    );
+}
+
+#[test]
 fn corrupted_json_does_not_crash_load() {
     // SystemConfig::load() reads from the config directory,
     // so we test the JSON parsing directly
