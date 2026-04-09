@@ -7,6 +7,7 @@ use input::handle_global_input;
 use ratatui::{Terminal, backend::Backend};
 use regenerator2000_core::Core;
 use regenerator2000_core::state::AppState;
+use regenerator2000_core::state::types::Platform;
 use std::io;
 
 pub enum AppEvent {
@@ -301,9 +302,9 @@ fn handle_vice_registers_get(
         client.send_memory_get(mem_start, mem_end, 1);
         client.send_memory_get(0x0100, 0x01FF, 2);
 
-        let is_commodore = app_state.settings.platform == "Commodore 64"
-            || app_state.settings.platform == "Commodore 128";
-        if is_commodore {
+        if app_state.settings.platform == Platform::C64
+            || app_state.settings.platform == Platform::C128
+        {
             client.send_memory_get(0xD000, 0xDFFF, 3);
             client.send_memory_get(0x0000, 0x0001, 4);
         }

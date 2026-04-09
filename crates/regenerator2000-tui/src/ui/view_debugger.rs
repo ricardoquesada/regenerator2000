@@ -8,6 +8,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
+use regenerator2000_core::state::types::Platform;
 
 use crate::ui::widget::{Widget, WidgetResult};
 
@@ -512,8 +513,8 @@ impl Widget for DebuggerView {
             ]),
         ]);
 
-        let is_commodore = app_state.settings.platform == "Commodore 64"
-            || app_state.settings.platform == "Commodore 128";
+        let is_c64_or_128 = app_state.settings.platform == Platform::C64
+            || app_state.settings.platform == Platform::C128;
 
         let (stack_rect, hw_rect) = if debugger_area.width > 50 {
             let ch = Layout::default()
@@ -563,7 +564,7 @@ impl Widget for DebuggerView {
                 ]));
             }
 
-            if is_commodore {
+            if is_c64_or_128 {
                 right_lines.push(Line::from(""));
                 right_lines.push(Line::from(Span::styled(
                     "6510/8502 Registers",

@@ -666,7 +666,7 @@ mod load_file_tests {
         let result = app_state.load_file(file_path.clone());
         assert!(result.is_ok());
         let data = result.unwrap();
-        assert_eq!(data.suggested_platform, Some("Commodore 64".to_string()));
+        assert_eq!(data.suggested_platform, Some(Platform::new(Platform::C64)));
         assert_eq!(data.suggested_entry_point, Some(Addr(2061)));
 
         let _ = std::fs::remove_file(file_path);
@@ -712,7 +712,7 @@ mod load_file_tests {
         let result = app_state.load_file(file_path.clone());
         assert!(result.is_ok());
         let data = result.unwrap();
-        assert_eq!(data.suggested_platform, Some("Commodore 64".to_string()));
+        assert_eq!(data.suggested_platform, Some(Platform::new(Platform::C64)));
 
         let _ = std::fs::remove_file(file_path);
     }
