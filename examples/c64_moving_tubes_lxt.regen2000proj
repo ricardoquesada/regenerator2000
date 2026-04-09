@@ -1462,6 +1462,18 @@
     "8722": "Keep bits 2-0 (fine scroll 0-7)",
     "8724": "Invert: VIC scrolls opposite direction",
     "8726": "Set bit 4 = multicolor mode for $D016",
+    "8729": "screen ram: $0400, charset: $0800",
+    "8749": "self-modifying, multicolor, 38-cols",
+    "8887": "multicolor, 38-cols",
+    "8927": "screen ram: $0400, charset: $0800",
+    "8947": "self-modifying, multicolor, 38-cols",
+    "8995": "hi-res, 38-cols",
+    "9011": "self-modifying, for smooth scroll",
+    "9013": "multicolor",
+    "9018": "screen ram: $0400, charset: $2800",
+    "9082": "hi-res, 38-cols",
+    "9087": "screen ram: $0400, charset: $0800",
+    "9106": "self-modifying, multicolor, 38-cols",
     "9169": "clear intr flags, pop y, pop x, pop a, rti",
     "11776": "Disable interrupts for setup",
     "11779": "Blank screen during init",
@@ -1519,6 +1531,13 @@
     "5659": "--- Next Voice / Exit ---",
     "5672": "SID frequency table for PAL system.\n96 entries (8 octaves x 12 notes), 16-bit little-endian.\nNote index 0 = C-0 ($0116 = 278), up to B-7 ($FD2E = 64814).\nFirst entry is used as a reference for portamento/slide calculations.\nAccessed via note index * 2 as word offset.",
     "8704": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances a sine wave phase index and splits the corresponding table value\ninto a fine scroll value (for VIC-II $D016) and a coarse character offset\n(for screen tile positioning). Used by all three tube bands.\n\nInputs:  X = current sine phase index (0-159, maintained via self-mod by caller)\nOutputs: A = $D016 value (fine scroll 0-7 inverted | multicolor bit),\n         Y = coarse character offset (0-31),\n         X = updated phase index\nSide Effects: None (pure computation)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "8797": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nUpper tube",
+    "8870": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nUpper Laxity logo (blue)",
+    "8901": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nBottom Laxity logo (red)",
+    "8927": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nMiddle tube",
+    "9009": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nUpper scroller (blue)",
+    "9047": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nBottom scroller (red)",
+    "9106": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nBottom tube",
     "9216": "screen",
     "10240": "charset",
     "11776": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain entry point, initialization, and execution loop of the demo.\nSets up VIC-II, clears screen, initializes tables, hooks raster IRQ,\nand runs the main loop with scroller and effect updates.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies VIC-II, SID, Screen RAM, Color RAM, and hooks IRQ.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
@@ -1548,6 +1567,8 @@
     "3759": {
       "HighByte": 12032
     },
+    "8729": "Binary",
+    "8749": "Binary",
     "8790": {
       "LowByte": 8797
     },
@@ -1560,6 +1581,7 @@
     "8865": {
       "HighByte": 8870
     },
+    "8887": "Binary",
     "8894": {
       "LowByte": 8901
     },
@@ -1572,6 +1594,8 @@
     "8922": {
       "HighByte": 8927
     },
+    "8927": "Binary",
+    "8947": "Binary",
     "8954": {
       "LowByte": 8961
     },
@@ -1584,12 +1608,14 @@
     "8982": {
       "HighByte": 8987
     },
+    "8995": "Binary",
     "9002": {
       "LowByte": 9009
     },
     "9004": {
       "HighByte": 9009
     },
+    "9018": "Binary",
     "9040": {
       "LowByte": 9047
     },
@@ -1602,12 +1628,15 @@
     "9071": {
       "HighByte": 9076
     },
+    "9082": "Binary",
+    "9087": "Binary",
     "9099": {
       "LowByte": 9106
     },
     "9101": {
       "HighByte": 9106
     },
+    "9106": "Binary",
     "9133": {
       "LowByte": 9140
     },
@@ -1637,14 +1666,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8588,
+  "cursor_address": 8907,
   "hex_dump_cursor_address": 8576,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "Debugger",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 40960,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
