@@ -602,100 +602,34 @@ impl Widget for DebuggerView {
                 }
                 right_lines.push(Line::from(""));
                 if let Some(io_mem) = &vs.io_memory {
-                    let vic = crate::vice::Vic2State::decode(io_mem);
                     let cia1 = crate::vice::CiaState::decode(io_mem, 0xDC00 - 0xD000);
                     let cia2 = crate::vice::CiaState::decode(io_mem, 0xDD00 - 0xD000);
 
                     let prev_io = prev.and_then(|p| p.io_memory.as_deref());
-                    let p_vic = prev_io.map(crate::vice::Vic2State::decode);
                     let p_cia1 = prev_io.map(|m| crate::vice::CiaState::decode(m, 0xDC00 - 0xD000));
                     let p_cia2 = prev_io.map(|m| crate::vice::CiaState::decode(m, 0xDD00 - 0xD000));
 
                     right_lines.push(Line::from(Span::styled("VIC-II Registers", heading_style)));
-                    right_lines.push(Line::from(vec![
-                        Span::styled("  Mode  ", label_style),
-                        Span::styled(
-                            if vic.bitmap_mode { "Bitmap" } else { "Text" },
-                            val_style!(
-                                Some(vic.bitmap_mode),
-                                p_vic.as_ref().map(|v| v.bitmap_mode)
-                            ),
-                        ),
-                        Span::styled(
-                            if vic.multicolor_mode { " MC" } else { " Hires" },
-                            val_style!(
-                                Some(vic.multicolor_mode),
-                                p_vic.as_ref().map(|v| v.multicolor_mode)
-                            ),
-                        ),
-                    ]));
-                    right_lines.push(Line::from(vec![
-                        Span::styled("  Color ", label_style),
-                        Span::styled(
-                            if vic.extended_bg_color {
-                                "ExtBG "
-                            } else {
-                                "      "
-                            },
-                            val_style!(
-                                Some(vic.extended_bg_color),
-                                p_vic.as_ref().map(|v| v.extended_bg_color)
-                            ),
-                        ),
-                        Span::styled(
-                            format!("Border: {} BG: {}", vic.border_color, vic.bg_color),
-                            val_style!(
-                                Some((vic.border_color, vic.bg_color)),
-                                p_vic.as_ref().map(|v| (v.border_color, v.bg_color))
-                            ),
-                        ),
-                    ]));
-                    right_lines.push(Line::from(vec![
-                        Span::styled("  Scrl  ", label_style),
-                        Span::styled(
-                            format!("X: {} Y: {}", vic.x_scroll, vic.y_scroll),
-                            val_style!(
-                                Some((vic.x_scroll, vic.y_scroll)),
-                                p_vic.as_ref().map(|v| (v.x_scroll, v.y_scroll))
-                            ),
-                        ),
-                        Span::styled(
-                            format!(" {}x{}", vic.columns, vic.rows),
-                            val_style!(
-                                Some((vic.columns, vic.rows)),
-                                p_vic.as_ref().map(|v| (v.columns, v.rows))
-                            ),
-                        ),
-                    ]));
-                    right_lines.push(Line::from(vec![
-                        Span::styled("  Rast  ", label_style),
-                        Span::styled(
-                            format!("{}", vic.raster_line),
-                            val_style!(
-                                Some(vic.raster_line),
-                                p_vic.as_ref().map(|v| v.raster_line)
-                            ),
-                        ),
-                        Span::styled(
-                            if vic.blanking { " (Blank)" } else { "" },
-                            val_style!(Some(vic.blanking), p_vic.as_ref().map(|v| v.blanking)),
-                        ),
-                    ]));
-                    right_lines.push(Line::from(vec![
-                        Span::styled("  Mem   ", label_style),
-                        Span::styled(
-                            format!(
-                                "Scrn: ${:04X} Char: ${:04X}",
-                                vic.screen_mem_address, vic.charset_address
-                            ),
-                            val_style!(
-                                Some((vic.screen_mem_address, vic.charset_address)),
-                                p_vic
-                                    .as_ref()
-                                    .map(|v| (v.screen_mem_address, v.charset_address))
-                            ),
-                        ),
-                    ]));
+
+                    for i in 0..7 {
+                        let row_addr = 0xD000 + (i * 8) as u16;
+                        let start_idx = (i * 8) as usize;
+                        let end_idx = (start_idx + 8).min(49);
+
+                        if start_idx < io_mem.len() {
+                            let mut spans =
+                                vec![Span::styled(format!("  ${row_addr:04X}  "), dim_style)];
+                            for j in start_idx..end_idx {
+                                if j < io_mem.len() {
+                                    let b = io_mem[j];
+                                    let prev_b = prev_io.and_then(|p| p.get(j).copied());
+                                    let style = val_style!(Some(b), prev_b);
+                                    spans.push(Span::styled(format!("{b:02X} "), style));
+                                }
+                            }
+                            right_lines.push(Line::from(spans));
+                        }
+                    }
 
                     right_lines.push(Line::from(""));
                     right_lines.push(Line::from(Span::styled("CIA 1 ($DC00)", heading_style)));
