@@ -1080,10 +1080,10 @@ impl Core {
             let current = self.state.immediate_value_formats.get(&address);
 
             let next = match (current, forward) {
-                (None, true) => Some(ImmediateFormat::Hex),
-                (None, false) => Some(ImmediateFormat::HighByte(Addr::ZERO)),
+                (None, true) => Some(ImmediateFormat::InvertedHex),
+                (None, false) => Some(ImmediateFormat::InvertedBinary),
                 (Some(ImmediateFormat::Hex), true) => Some(ImmediateFormat::InvertedHex),
-                (Some(ImmediateFormat::Hex), false) => None,
+                (Some(ImmediateFormat::Hex), false) => Some(ImmediateFormat::InvertedBinary),
                 (Some(ImmediateFormat::InvertedHex), true) => Some(ImmediateFormat::Decimal),
                 (Some(ImmediateFormat::InvertedHex), false) => Some(ImmediateFormat::Hex),
                 (Some(ImmediateFormat::Decimal), true) => Some(ImmediateFormat::NegativeDecimal),
@@ -1092,17 +1092,14 @@ impl Core {
                 (Some(ImmediateFormat::NegativeDecimal), false) => Some(ImmediateFormat::Decimal),
                 (Some(ImmediateFormat::Binary), true) => Some(ImmediateFormat::InvertedBinary),
                 (Some(ImmediateFormat::Binary), false) => Some(ImmediateFormat::NegativeDecimal),
-                (Some(ImmediateFormat::InvertedBinary), true) => {
-                    Some(ImmediateFormat::LowByte(Addr::ZERO))
-                }
+                (Some(ImmediateFormat::InvertedBinary), true) => Some(ImmediateFormat::Hex),
                 (Some(ImmediateFormat::InvertedBinary), false) => Some(ImmediateFormat::Binary),
-                (Some(ImmediateFormat::LowByte(_)), true) => {
-                    Some(ImmediateFormat::HighByte(Addr::ZERO))
-                }
+                // Fallbacks for LowByte/HighByte if they were set by other means
+                (Some(ImmediateFormat::LowByte(_)), true) => Some(ImmediateFormat::Hex),
                 (Some(ImmediateFormat::LowByte(_)), false) => Some(ImmediateFormat::InvertedBinary),
-                (Some(ImmediateFormat::HighByte(_)), true) => None,
+                (Some(ImmediateFormat::HighByte(_)), true) => Some(ImmediateFormat::Hex),
                 (Some(ImmediateFormat::HighByte(_)), false) => {
-                    Some(ImmediateFormat::LowByte(Addr::ZERO))
+                    Some(ImmediateFormat::InvertedBinary)
                 }
             };
 
@@ -1118,10 +1115,6 @@ impl Core {
 
             if let Some(fmt) = next {
                 events.push(CoreEvent::StatusMessage(format!("Set format to {fmt:?}")));
-            } else {
-                events.push(CoreEvent::StatusMessage(
-                    "Reset format to default".to_string(),
-                ));
             }
         }
     }
@@ -2270,5 +2263,80 @@ mod tests {
         });
 
         assert!(!has_error, "Expected no even byte error, but got one");
+    }
+
+    #[test]
+    fn test_cycle_immediate_format() {
+        use crate::state::types::ImmediateFormat;
+        let mut core = Core::new();
+        let origin = Addr(0x1000);
+        let code_data = vec![0xA9, 0x05]; // LDA #$05
+
+        core.state.load_binary(origin, code_data).unwrap();
+
+        core.view.active_pane = ActivePane::Disassembly;
+        core.view.cursor_index = 0; // Pointing to the LDA instruction
+
+        let mut events = Vec::new();
+
+        // Initial state: None (effectively Hex)
+        assert_eq!(core.state.immediate_value_formats.get(&origin), None);
+
+        // Cycle forward
+        core.cycle_immediate_format(true, &mut events);
+        assert_eq!(
+            core.state.immediate_value_formats.get(&origin),
+            Some(&ImmediateFormat::InvertedHex)
+        );
+
+        core.cycle_immediate_format(true, &mut events);
+        assert_eq!(
+            core.state.immediate_value_formats.get(&origin),
+            Some(&ImmediateFormat::Decimal)
+        );
+
+        core.cycle_immediate_format(true, &mut events);
+        assert_eq!(
+            core.state.immediate_value_formats.get(&origin),
+            Some(&ImmediateFormat::NegativeDecimal)
+        );
+
+        core.cycle_immediate_format(true, &mut events);
+        assert_eq!(
+            core.state.immediate_value_formats.get(&origin),
+            Some(&ImmediateFormat::Binary)
+        );
+
+        core.cycle_immediate_format(true, &mut events);
+        assert_eq!(
+            core.state.immediate_value_formats.get(&origin),
+            Some(&ImmediateFormat::InvertedBinary)
+        );
+
+        core.cycle_immediate_format(true, &mut events);
+        assert_eq!(
+            core.state.immediate_value_formats.get(&origin),
+            Some(&ImmediateFormat::Hex)
+        );
+
+        // Loop back to InvertedHex
+        core.cycle_immediate_format(true, &mut events);
+        assert_eq!(
+            core.state.immediate_value_formats.get(&origin),
+            Some(&ImmediateFormat::InvertedHex)
+        );
+
+        // Test backward cycling from InvertedHex
+        core.cycle_immediate_format(false, &mut events);
+        assert_eq!(
+            core.state.immediate_value_formats.get(&origin),
+            Some(&ImmediateFormat::Hex)
+        );
+
+        core.cycle_immediate_format(false, &mut events);
+        assert_eq!(
+            core.state.immediate_value_formats.get(&origin),
+            Some(&ImmediateFormat::InvertedBinary)
+        );
     }
 }

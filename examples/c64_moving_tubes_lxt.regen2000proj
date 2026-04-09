@@ -1588,6 +1588,7 @@
     "8896": {
       "HighByte": 8901
     },
+    "8907": "Hex",
     "8920": {
       "LowByte": 8927
     },
@@ -1667,13 +1668,13 @@
   },
   "bookmarks": {},
   "cursor_address": 8907,
-  "hex_dump_cursor_address": 8576,
+  "hex_dump_cursor_address": 8896,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
-  "right_pane_visible": "Debugger",
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
