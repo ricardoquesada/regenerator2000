@@ -35,6 +35,8 @@ impl MenuState {
                         ),
                         MenuItem::new("Export to .lst", None, Some(AppAction::ExportLst)),
                         MenuItem::new("Export to .lst as...", None, Some(AppAction::ExportLstAs)),
+                        MenuItem::new("Export to .html", None, Some(AppAction::ExportHtml)),
+                        MenuItem::new("Export to .html as...", None, Some(AppAction::ExportHtmlAs)),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Import VICE Labels...",

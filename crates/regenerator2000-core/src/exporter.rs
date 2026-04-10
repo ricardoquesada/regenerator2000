@@ -430,6 +430,213 @@ pub fn export_lst(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     std::fs::write(path, output)
 }
 
+pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
+    let formatter = state.get_formatter();
+    let mut output = String::new();
+
+    output.push_str(r#"<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Regenerator 2000 Disassembly</title>
+<style>
+body { font-family: 'Courier New', Courier, monospace; background-color: #1e1e1e; color: #d4d4d4; margin: 0; padding: 20px; }
+table { border-collapse: collapse; width: 100%; max-width: 1200px; margin: 0 auto; }
+td { padding: 0px 8px; line-height: 1.4; vertical-align: top; }
+a { color: #4ec9b0; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.address { color: #9cdcfe; width: 80px; text-align: left; }
+.bytes { color: #b5cea8; width: 120px; text-align: left; }
+.mnemonic { color: #569cd6; width: 60px; text-align: left; }
+.operand { color: #ce9178; width: 140px; text-align: left; }
+.comment { color: #6a9955; }
+.label { color: #dcdcaa; font-weight: bold; }
+.mid-label { color: #c586c0; }
+.separator-row { height: 15px; }
+</style>
+</head>
+<body>
+<table>
+"#);
+
+    let ctx = crate::disassembler::DisassemblyContext {
+        data: &state.raw_data,
+        block_types: &state.block_types,
+        labels: &state.labels,
+        origin: state.origin,
+        settings: &state.settings,
+        system_comments: &state.system_comments,
+        user_side_comments: &state.user_side_comments,
+        user_line_comments: &state.user_line_comments,
+        immediate_value_formats: &state.immediate_value_formats,
+        cross_refs: &state.cross_refs,
+        collapsed_blocks: &[], // Always uncollapse for export
+        splitters: &state.splitters,
+        scopes: &state.scopes,
+    };
+    let full_disassembly = state.disassembler.disassemble_ctx(&ctx);
+    let external_lines = state.get_external_label_definitions(false);
+
+    let all_lines: Vec<&crate::disassembler::DisassemblyLine> = external_lines
+        .iter()
+        .chain(full_disassembly.iter())
+        .collect();
+
+    for line in all_lines {
+        // Special case: Empty line (separator)
+        if line.mnemonic.is_empty() && line.bytes.is_empty() && line.comment.is_empty() {
+            output.push_str("<tr class=\"separator-row\"><td colspan=\"5\"></td></tr>\n");
+            continue;
+        }
+
+        // Special case: Splitter (internal only)
+        if line.mnemonic == "{splitter}" {
+            continue;
+        }
+
+        // 1. Mid-instruction labels
+        if line.bytes.len() > 1 {
+            for j in 1..line.bytes.len() {
+                let mid_addr = line.address.wrapping_add(j as u16);
+                if let Some(label_vec) = state.labels.get(&mid_addr)
+                    && let Some(label) =
+                        crate::disassembler::resolve_label(label_vec, mid_addr.0, &state.settings)
+                {
+                    let mut name = label.name.clone();
+                    if label.label_type == crate::state::LabelType::LocalUserDefined
+                        && let Some(p) = formatter.local_label_prefix()
+                        && !name.starts_with(p)
+                    {
+                        name = format!("{}{}", p, name);
+                    }
+                    let label_def = format!("{} =*+${:02x}", name, j);
+                    output.push_str(&format!("<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"mid-label\">{}</td></tr>\n", label_def));
+                }
+            }
+        }
+
+        // 2. User line comments
+        if let Some(comment) = &line.line_comment {
+            for comment_line in comment.lines() {
+                output.push_str(&format!(
+                    "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"comment\">{} {}</td></tr>\n",
+                    formatter.comment_prefix(),
+                    comment_line
+                ));
+            }
+        }
+
+        // 3. Labels on top (assume enabled)
+        let label_text = if let Some(label) = &line.label {
+            formatter.format_label_definition(label)
+        } else {
+            String::new()
+        };
+
+        if !label_text.is_empty() {
+            output.push_str(&format!("<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"label\" id=\"L{:04X}\">{}</td></tr>\n", line.address.0, label_text));
+        }
+
+        // 4. Address part
+        let address_td = if !line.bytes.is_empty() || line.label.is_some() {
+            format!(
+                "<td class=\"address\" id=\"L{:04X}\">${:04X}</td>",
+                line.address.0, line.address.0
+            )
+        } else {
+            "<td class=\"address\"></td>".to_string()
+        };
+
+        // 5. Bytes part
+        let bytes_td = if line.show_bytes {
+            let bytes_formatted = line
+                .bytes
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect::<Vec<_>>()
+                .join(" ");
+            format!("<td class=\"bytes\">{}</td>", bytes_formatted)
+        } else {
+            "<td class=\"bytes\"></td>".to_string()
+        };
+
+        // 6. Instruction part
+        let mut operand_str = line.operand.clone();
+        if let Some(target) = line.target_address {
+            let origin_val = state.origin.0;
+            let size = state.raw_data.len() as u16;
+            if target.0 >= origin_val && target.0 < origin_val + size {
+                operand_str = format!("<a href=\"#L{:04X}\">{}</a>", target.0, line.operand);
+            }
+        }
+        // 6. Instruction part
+        let (instruction_cells, is_assignment) = if line.mnemonic.contains('=') {
+            (
+                format!(
+                    "<td class=\"label\" colspan=\"4\">{} {}</td>",
+                    line.mnemonic, operand_str
+                ),
+                true,
+            )
+        } else {
+            (
+                format!(
+                    "<td class=\"mnemonic\">{}</td><td class=\"operand\">{}</td>",
+                    line.mnemonic, operand_str
+                ),
+                false,
+            )
+        };
+
+        // 7. Comment part
+        let mut comment_str = line.comment.clone();
+        // Format x-refs in comments as hyperlinks if they are internal
+        if comment_str.contains("x-ref:") {
+            let origin_val = state.origin.0;
+            let size = state.raw_data.len() as u16;
+            let words: Vec<String> = comment_str
+                .split(' ')
+                .map(|w| {
+                    if w.starts_with('$') {
+                        let hex_str = w.trim_matches(|c| c == '$' || c == ',' || c == ';');
+                        if let Ok(addr) = u16::from_str_radix(hex_str, 16)
+                            && addr >= origin_val
+                            && addr < origin_val + size
+                        {
+                            return format!("<a href=\"#L{:04X}\">${:04X}</a>", addr, addr)
+                                + if w.ends_with(',') { "," } else { "" };
+                        }
+                    }
+                    w.to_string()
+                })
+                .collect();
+            comment_str = words.join(" ");
+        }
+
+        let comment_td = if comment_str.is_empty() {
+            "<td class=\"comment\"></td>".to_string()
+        } else {
+            format!(
+                "<td class=\"comment\">{} {}</td>",
+                formatter.comment_prefix(),
+                comment_str
+            )
+        };
+
+        if is_assignment {
+            output.push_str(&format!("<tr>{}{}</tr>\n", instruction_cells, comment_td));
+        } else {
+            output.push_str(&format!(
+                "<tr>{}{}{} {}</tr>\n",
+                address_td, bytes_td, instruction_cells, comment_td
+            ));
+        }
+    }
+
+    output.push_str("</table>\n</body>\n</html>\n");
+    std::fs::write(path, output)
+}
+
 /// Result of a roundtrip verification for a single assembler
 #[derive(Debug)]
 pub struct VerifyResult {
@@ -2051,6 +2258,46 @@ mod tests {
         assert!(content.contains("sta"));
         assert!(content.contains("rts"));
         assert!(content.contains("Start"));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn test_export_html() {
+        let mut state = AppState::new();
+        state.origin = crate::state::Addr(0x1000);
+        state.raw_data = vec![0xA9, 0x00, 0x8D, 0x20, 0xD0, 0x60];
+        state.block_types = vec![crate::state::BlockType::Code; 6];
+
+        state.labels.insert(
+            crate::state::Addr(0x1000),
+            vec![crate::state::Label {
+                name: "Start".to_string(),
+                kind: crate::state::LabelKind::User,
+                label_type: crate::state::LabelType::UserDefined,
+            }],
+        );
+
+        let path = PathBuf::from("test_output.html");
+        let _ = std::fs::remove_file(&path);
+
+        let res = export_html(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        assert!(content.contains("<!DOCTYPE html>"));
+        assert!(content.contains("<table>"));
+        assert!(content.contains("</table>"));
+
+        assert!(content.contains("id=\"L1000\""));
+        assert!(content.contains("id=\"L1002\""));
+
+        assert!(content.contains("a9 00"));
+        assert!(content.contains("8d 20 d0"));
+
+        assert!(content.contains("class=\"mnemonic\""));
+        assert!(content.contains("class=\"operand\""));
 
         let _ = std::fs::remove_file(&path);
     }

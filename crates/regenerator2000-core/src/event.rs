@@ -24,6 +24,7 @@ pub enum CoreEvent {
 pub enum ExportFormat {
     Asm,
     Lst,
+    Html,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -535,6 +535,47 @@ impl Core {
                 ));
                 events.push(CoreEvent::StatusMessage("Enter .lst filename".to_string()));
             }
+            AppAction::ExportHtml => {
+                if let Some(mut path) = self.state.export_path.clone() {
+                    path.set_extension("html");
+                    match crate::exporter::export_html(&self.state, &path) {
+                        Ok(_) => {
+                            let filename = path.file_name().unwrap_or_default().to_string_lossy();
+                            events.push(CoreEvent::StatusMessage(format!("Exported: {filename}")));
+                        }
+                        Err(e) => {
+                            events.push(CoreEvent::StatusMessage(format!("Error exporting: {e}")));
+                        }
+                    }
+                } else {
+                    let initial = self
+                        .state
+                        .last_export_asm_filename
+                        .clone()
+                        .or_else(|| self.get_default_filename_stem());
+                    events.push(CoreEvent::DialogRequested(
+                        crate::event::DialogType::ExportAs {
+                            initial_filename: initial,
+                            format: crate::event::ExportFormat::Html,
+                        },
+                    ));
+                    events.push(CoreEvent::StatusMessage("Enter .html filename".to_string()));
+                }
+            }
+            AppAction::ExportHtmlAs => {
+                let initial = self
+                    .state
+                    .last_export_asm_filename
+                    .clone()
+                    .or_else(|| self.get_default_filename_stem());
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::ExportAs {
+                        initial_filename: initial,
+                        format: crate::event::ExportFormat::Html,
+                    },
+                ));
+                events.push(CoreEvent::StatusMessage("Enter .html filename".to_string()));
+            }
             AppAction::ListBookmarks => {
                 events.push(CoreEvent::DialogRequested(
                     crate::event::DialogType::Bookmarks,

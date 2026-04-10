@@ -11,6 +11,8 @@ pub enum AppAction {
     ExportAsmAs,
     ExportLst,
     ExportLstAs,
+    ExportHtml,
+    ExportHtmlAs,
     Undo,
     Redo,
     Code,
@@ -184,6 +186,8 @@ impl AppAction {
                 | AppAction::ExportAsmAs
                 | AppAction::ExportLst
                 | AppAction::ExportLstAs
+                | AppAction::ExportHtml
+                | AppAction::ExportHtmlAs
                 | AppAction::Save
                 | AppAction::SaveAs
                 | AppAction::ChangeOrigin
