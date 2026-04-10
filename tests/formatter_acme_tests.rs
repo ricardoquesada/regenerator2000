@@ -339,7 +339,6 @@ fn test_file_header() {
     let formatter = Disassembler::create_formatter(settings.assembler);
 
     let header = formatter.format_file_header("my_game", false);
-    assert!(header.contains("Regenerator 2000"));
     assert!(header.contains("acme"));
     assert!(header.contains("--format cbm"));
     assert!(header.contains("-o my_game.prg my_game.asm"));

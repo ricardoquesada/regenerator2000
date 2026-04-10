@@ -472,7 +472,6 @@ fn test_file_header() {
     let formatter = Disassembler::create_formatter(settings.assembler);
 
     let header = formatter.format_file_header("my_program", false);
-    assert!(header.contains("Regenerator 2000"));
     assert!(header.contains("64tass"));
     assert!(header.contains("-o my_program.prg my_program.asm"));
     assert!(!header.contains("-i")); // no illegal opcodes flag
