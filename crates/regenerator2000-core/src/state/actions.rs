@@ -9,8 +9,6 @@ pub enum AppAction {
     SaveAs,
     ExportAsm,
     ExportAsmAs,
-    ExportLst,
-    ExportLstAs,
     ExportHtml,
     ExportHtmlAs,
     Undo,
@@ -184,8 +182,6 @@ impl AppAction {
                 | AppAction::ExportViceLabels
                 | AppAction::ExportAsm
                 | AppAction::ExportAsmAs
-                | AppAction::ExportLst
-                | AppAction::ExportLstAs
                 | AppAction::ExportHtml
                 | AppAction::ExportHtmlAs
                 | AppAction::Save

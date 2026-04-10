@@ -37,7 +37,6 @@ impl Widget for ExportAsDialog {
         let theme = &ui_state.theme;
         let block_title = match self.format {
             crate::event::ExportFormat::Asm => " Export to .asm as... ",
-            crate::event::ExportFormat::Lst => " Export to .lst as... ",
             crate::event::ExportFormat::Html => " Export to .html as... ",
         };
         let block = crate::ui::widget::create_dialog_block(block_title, theme);
@@ -93,7 +92,6 @@ impl Widget for ExportAsDialog {
 
         let ext_text = match self.format {
             crate::event::ExportFormat::Asm => ".asm",
-            crate::event::ExportFormat::Lst => ".lst",
             crate::event::ExportFormat::Html => ".html",
         };
         let extension = Paragraph::new(ext_text).style(Style::default().fg(Color::Gray));
@@ -120,7 +118,6 @@ impl Widget for ExportAsDialog {
                     if path.extension().is_none() {
                         let ext = match self.format {
                             crate::event::ExportFormat::Asm => "asm",
-                            crate::event::ExportFormat::Lst => "lst",
                             crate::event::ExportFormat::Html => "html",
                         };
                         path.set_extension(ext);
@@ -129,9 +126,6 @@ impl Widget for ExportAsDialog {
                     let res = match self.format {
                         crate::event::ExportFormat::Asm => {
                             crate::exporter::export_asm(app_state, &path)
-                        }
-                        crate::event::ExportFormat::Lst => {
-                            crate::exporter::export_lst(app_state, &path)
                         }
                         crate::event::ExportFormat::Html => {
                             crate::exporter::export_html(app_state, &path)

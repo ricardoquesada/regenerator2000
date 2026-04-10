@@ -494,47 +494,7 @@ impl Core {
                 ));
                 events.push(CoreEvent::StatusMessage("Enter .asm filename".to_string()));
             }
-            AppAction::ExportLst => {
-                if let Some(mut path) = self.state.export_path.clone() {
-                    path.set_extension("lst");
-                    match crate::exporter::export_lst(&self.state, &path) {
-                        Ok(_) => {
-                            let filename = path.file_name().unwrap_or_default().to_string_lossy();
-                            events.push(CoreEvent::StatusMessage(format!("Exported: {filename}")));
-                        }
-                        Err(e) => {
-                            events.push(CoreEvent::StatusMessage(format!("Error exporting: {e}")));
-                        }
-                    }
-                } else {
-                    let initial = self
-                        .state
-                        .last_export_asm_filename
-                        .clone()
-                        .or_else(|| self.get_default_filename_stem());
-                    events.push(CoreEvent::DialogRequested(
-                        crate::event::DialogType::ExportAs {
-                            initial_filename: initial,
-                            format: crate::event::ExportFormat::Lst,
-                        },
-                    ));
-                    events.push(CoreEvent::StatusMessage("Enter .lst filename".to_string()));
-                }
-            }
-            AppAction::ExportLstAs => {
-                let initial = self
-                    .state
-                    .last_export_asm_filename
-                    .clone()
-                    .or_else(|| self.get_default_filename_stem());
-                events.push(CoreEvent::DialogRequested(
-                    crate::event::DialogType::ExportAs {
-                        initial_filename: initial,
-                        format: crate::event::ExportFormat::Lst,
-                    },
-                ));
-                events.push(CoreEvent::StatusMessage("Enter .lst filename".to_string()));
-            }
+
             AppAction::ExportHtml => {
                 if let Some(mut path) = self.state.export_path.clone() {
                     path.set_extension("html");
