@@ -440,22 +440,48 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
 <meta charset="utf-8">
 <title>Regenerator 2000 Disassembly</title>
 <style>
-body { font-family: 'Courier New', Courier, monospace; background-color: #1e1e1e; color: #d4d4d4; margin: 0; padding: 20px; }
+:root {
+  --bg-color: #ffffff;
+  --text-color: #000000;
+  --address-color: #098658;
+  --bytes-color: #001080;
+  --mnemonic-color: #0000ff;
+  --operand-color: #a31515;
+  --comment-color: #008000;
+  --label-color: #795e26;
+  --link-color: #005fb8;
+  --mid-label-color: #af00db;
+}
+[data-theme="dark"] {
+  --bg-color: #1e1e1e;
+  --text-color: #d4d4d4;
+  --address-color: #9cdcfe;
+  --bytes-color: #b5cea8;
+  --mnemonic-color: #569cd6;
+  --operand-color: #ce9178;
+  --comment-color: #6a9955;
+  --label-color: #dcdcaa;
+  --link-color: #4ec9b0;
+  --mid-label-color: #c586c0;
+}
+body { font-family: 'Courier New', Courier, monospace; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
 table { border-collapse: collapse; width: 100%; max-width: 1200px; margin: 0 auto; }
 td { padding: 0px 8px; line-height: 1.4; vertical-align: top; }
-a { color: #4ec9b0; text-decoration: none; }
+a { color: var(--link-color); text-decoration: none; }
 a:hover { text-decoration: underline; }
-.address { color: #9cdcfe; width: 80px; text-align: left; }
-.bytes { color: #b5cea8; width: 120px; text-align: left; }
-.mnemonic { color: #569cd6; width: 60px; text-align: left; }
-.operand { color: #ce9178; width: 140px; text-align: left; }
-.comment { color: #6a9955; }
-.label { color: #dcdcaa; font-weight: bold; }
-.mid-label { color: #c586c0; }
+.address { color: var(--address-color); text-align: left; }
+.bytes { color: var(--bytes-color); text-align: left; }
+.mnemonic { color: var(--mnemonic-color); text-align: left; }
+.operand { color: var(--operand-color); text-align: left; }
+.comment { color: var(--comment-color); }
+.label { color: var(--label-color); font-weight: bold; }
+.mid-label { color: var(--mid-label-color); }
 .separator-row { height: 15px; }
+#theme-toggle { position: fixed; top: 20px; right: 20px; padding: 8px 16px; background-color: var(--text-color); color: var(--bg-color); border: 1px solid var(--text-color); cursor: pointer; font-family: inherit; font-weight: bold; }
 </style>
 </head>
 <body>
+<button id="theme-toggle">Toggle Theme</button>
 <table>
 "#);
 
@@ -476,6 +502,13 @@ a:hover { text-decoration: underline; }
     };
     let full_disassembly = state.disassembler.disassemble_ctx(&ctx);
     let external_lines = state.get_external_label_definitions(false);
+
+    let mut label_name_to_addr = std::collections::HashMap::new();
+    for (addr, label_vec) in &state.labels {
+        for l in label_vec {
+            label_name_to_addr.insert(l.name.clone(), *addr);
+        }
+    }
 
     let all_lines: Vec<&crate::disassembler::DisassemblyLine> = external_lines
         .iter()
@@ -568,6 +601,38 @@ a:hover { text-decoration: underline; }
             if target.0 >= origin_val && target.0 < origin_val + size {
                 operand_str = format!("<a href=\"#L{:04X}\">{}</a>", target.0, line.operand);
             }
+        } else {
+            let mut new_op = String::new();
+            let mut current_word = String::new();
+            for c in line.operand.chars() {
+                if c.is_alphanumeric() || c == '_' {
+                    current_word.push(c);
+                } else {
+                    if !current_word.is_empty() {
+                        if let Some(addr) = label_name_to_addr.get(&current_word) {
+                            new_op.push_str(&format!(
+                                "<a href=\"#L{:04X}\">{}</a>",
+                                addr.0, current_word
+                            ));
+                        } else {
+                            new_op.push_str(&current_word);
+                        }
+                        current_word.clear();
+                    }
+                    new_op.push(c);
+                }
+            }
+            if !current_word.is_empty() {
+                if let Some(addr) = label_name_to_addr.get(&current_word) {
+                    new_op.push_str(&format!(
+                        "<a href=\"#L{:04X}\">{}</a>",
+                        addr.0, current_word
+                    ));
+                } else {
+                    new_op.push_str(&current_word);
+                }
+            }
+            operand_str = new_op;
         }
         // 6. Instruction part
         let (instruction_cells, is_assignment) = if line.mnemonic.contains('=') {
@@ -633,7 +698,30 @@ a:hover { text-decoration: underline; }
         }
     }
 
-    output.push_str("</table>\n</body>\n</html>\n");
+    output.push_str(
+        r#"</table>
+<script>
+const toggleBtn = document.getElementById('theme-toggle');
+const urlParams = new URLSearchParams(window.location.search);
+let currentTheme = urlParams.get('theme') || 'dark';
+
+document.documentElement.setAttribute('data-theme', currentTheme);
+toggleBtn.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+
+toggleBtn.addEventListener('click', () => {
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  toggleBtn.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+
+  const newUrl = new URL(window.location.href);
+  newUrl.searchParams.set('theme', currentTheme);
+  window.history.pushState({}, '', newUrl);
+});
+</script>
+</body>
+</html>
+"#,
+    );
     std::fs::write(path, output)
 }
 
