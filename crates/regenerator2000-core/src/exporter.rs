@@ -654,13 +654,28 @@ const toggleBtn = document.getElementById('theme-toggle');
 const urlParams = new URLSearchParams(window.location.search);
 let currentTheme = urlParams.get('theme') || 'dark';
 
+function updateLinks() {
+  document.querySelectorAll('a').forEach(link => {
+    let href = link.getAttribute('href');
+    if (href && !href.startsWith('#')) {
+      let parts = href.split('?');
+      let base = parts[0];
+      let params = new URLSearchParams(parts[1] || '');
+      params.set('theme', currentTheme);
+      link.setAttribute('href', base + '?' + params.toString());
+    }
+  });
+}
+
 document.documentElement.setAttribute('data-theme', currentTheme);
 toggleBtn.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+updateLinks();
 
 toggleBtn.addEventListener('click', () => {
   currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', currentTheme);
   toggleBtn.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+  updateLinks();
 
   const newUrl = new URL(window.location.href);
   newUrl.searchParams.set('theme', currentTheme);
