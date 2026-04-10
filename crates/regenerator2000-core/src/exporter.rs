@@ -430,11 +430,7 @@ pub fn export_lst(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     std::fs::write(path, output)
 }
 
-pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
-    let formatter = state.get_formatter();
-    let mut output = String::new();
-
-    output.push_str(r#"<!DOCTYPE html>
+const HTML_START: &str = r#"<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -483,7 +479,13 @@ a:hover { text-decoration: underline; }
 <body>
 <button id="theme-toggle">Toggle Theme</button>
 <table>
-"#);
+"#;
+
+pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
+    let formatter = state.get_formatter();
+    let mut output = String::new();
+
+    output.push_str(HTML_START);
 
     let ctx = crate::disassembler::DisassemblyContext {
         data: &state.raw_data,
@@ -515,15 +517,19 @@ a:hover { text-decoration: underline; }
         .chain(full_disassembly.iter())
         .collect();
 
-    for line in all_lines {
+    let mut formatted_rows = Vec::new();
+    for line in &all_lines {
+        let mut row_str = String::new();
         // Special case: Empty line (separator)
         if line.mnemonic.is_empty() && line.bytes.is_empty() && line.comment.is_empty() {
-            output.push_str("<tr class=\"separator-row\"><td colspan=\"5\"></td></tr>\n");
+            row_str.push_str("<tr class=\"separator-row\"><td colspan=\"5\"></td></tr>\n");
+            formatted_rows.push(row_str);
             continue;
         }
 
         // Special case: Splitter (internal only)
         if line.mnemonic == "{splitter}" {
+            formatted_rows.push(row_str);
             continue;
         }
 
@@ -543,7 +549,7 @@ a:hover { text-decoration: underline; }
                         name = format!("{}{}", p, name);
                     }
                     let label_def = format!("{} =*+${:02x}", name, j);
-                    output.push_str(&format!("<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"mid-label\">{}</td></tr>\n", label_def));
+                    row_str.push_str(&format!("<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"mid-label\">{}</td></tr>\n", label_def));
                 }
             }
         }
@@ -551,7 +557,7 @@ a:hover { text-decoration: underline; }
         // 2. User line comments
         if let Some(comment) = &line.line_comment {
             for comment_line in comment.lines() {
-                output.push_str(&format!(
+                row_str.push_str(&format!(
                     "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"comment\">{} {}</td></tr>\n",
                     formatter.comment_prefix(),
                     comment_line
@@ -567,7 +573,7 @@ a:hover { text-decoration: underline; }
         };
 
         if !label_text.is_empty() {
-            output.push_str(&format!("<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"label\" id=\"L{:04X}\">{}</td></tr>\n", line.address.0, label_text));
+            row_str.push_str(&format!("<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"label\" id=\"L{:04X}\">{}</td></tr>\n", line.address.0, label_text));
         }
 
         // 4. Address part
@@ -689,17 +695,80 @@ a:hover { text-decoration: underline; }
         };
 
         if is_assignment {
-            output.push_str(&format!("<tr>{}{}</tr>\n", instruction_cells, comment_td));
+            row_str.push_str(&format!("<tr>{}{}</tr>\n", instruction_cells, comment_td));
         } else {
-            output.push_str(&format!(
+            row_str.push_str(&format!(
                 "<tr>{}{}{} {}</tr>\n",
                 address_td, bytes_td, instruction_cells, comment_td
             ));
         }
+        formatted_rows.push(row_str);
+    }
+    let mut i = 0;
+    while i < all_lines.len() {
+        let line = all_lines[i];
+        let offset = line.address.0 as isize - state.origin.0 as isize;
+        let is_external = if offset >= 0 && (offset as usize) < state.block_types.len() {
+            state.block_types[offset as usize] == crate::state::BlockType::ExternalFile
+        } else {
+            false
+        };
+
+        if is_external {
+            let start_idx = i;
+            let mut end_idx = i;
+            while end_idx < all_lines.len() {
+                let next_line = all_lines[end_idx];
+                let next_offset = next_line.address.0 as isize - state.origin.0 as isize;
+                let next_external = if next_offset >= 0
+                    && (next_offset as usize) < state.block_types.len()
+                {
+                    state.block_types[next_offset as usize] == crate::state::BlockType::ExternalFile
+                } else {
+                    false
+                };
+                if !next_external {
+                    break;
+                }
+                end_idx += 1;
+            }
+
+            let mut external_rows = String::new();
+            for row in formatted_rows.iter().take(end_idx).skip(start_idx) {
+                external_rows.push_str(row);
+            }
+
+            let base_name = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("export");
+            let start_addr = all_lines[start_idx].address;
+            let ext_filename = format!("{base_name}_{start_addr:04x}.html");
+            let ext_path = path
+                .parent()
+                .unwrap_or(&std::path::PathBuf::from("."))
+                .join(&ext_filename);
+
+            let mut ext_output = String::new();
+            ext_output.push_str(HTML_START);
+            ext_output.push_str(&external_rows);
+            ext_output.push_str(HTML_END);
+            let _ = std::fs::write(&ext_path, ext_output);
+
+            let link_row = format!(
+                "<tr><td class=\"address\">${:04X}</td><td colspan=\"4\"><a href=\"{}\">Linked External Module: {}</a></td></tr>\n",
+                start_addr.0, ext_filename, ext_filename
+            );
+            output.push_str(&link_row);
+
+            i = end_idx;
+        } else {
+            output.push_str(&formatted_rows[i]);
+            i += 1;
+        }
     }
 
-    output.push_str(
-        r#"</table>
+    const HTML_END: &str = r#"</table>
 <script>
 const toggleBtn = document.getElementById('theme-toggle');
 const urlParams = new URLSearchParams(window.location.search);
@@ -720,8 +789,9 @@ toggleBtn.addEventListener('click', () => {
 </script>
 </body>
 </html>
-"#,
-    );
+"#;
+
+    output.push_str(HTML_END);
     std::fs::write(path, output)
 }
 
