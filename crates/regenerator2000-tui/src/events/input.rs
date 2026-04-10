@@ -187,11 +187,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
             handle_menu_action(core, ui_state, crate::state::actions::AppAction::SaveAs);
         }
         KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(
-                core,
-                ui_state,
-                crate::state::actions::AppAction::ExportProject,
-            );
+            handle_menu_action(core, ui_state, crate::state::actions::AppAction::ExportAsm);
         }
         KeyCode::Char('e')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
@@ -200,7 +196,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
             handle_menu_action(
                 core,
                 ui_state,
-                crate::state::actions::AppAction::ExportProjectAs,
+                crate::state::actions::AppAction::ExportAsmAs,
             );
         }
 

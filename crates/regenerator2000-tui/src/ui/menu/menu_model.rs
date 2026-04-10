@@ -27,16 +27,14 @@ impl MenuState {
                         MenuItem::new("Save", Some("Ctrl+S"), Some(AppAction::Save)),
                         MenuItem::new("Save As...", Some("Alt+S"), Some(AppAction::SaveAs)),
                         MenuItem::separator(),
+                        MenuItem::new("Export to .asm", Some("Ctrl+E"), Some(AppAction::ExportAsm)),
                         MenuItem::new(
-                            "Export Project",
-                            Some("Ctrl+E"),
-                            Some(AppAction::ExportProject),
-                        ),
-                        MenuItem::new(
-                            "Export Project As...",
+                            "Export to .asm as...",
                             Some("Alt+E"),
-                            Some(AppAction::ExportProjectAs),
+                            Some(AppAction::ExportAsmAs),
                         ),
+                        MenuItem::new("Export to .lst", None, Some(AppAction::ExportLst)),
+                        MenuItem::new("Export to .lst as...", None, Some(AppAction::ExportLstAs)),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Import VICE Labels...",

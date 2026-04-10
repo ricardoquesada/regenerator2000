@@ -41,9 +41,12 @@ pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAc
                         crate::ui::dialog_save_as::SaveAsDialog::new(initial_filename),
                     ));
                 }
-                DialogType::ExportAs { initial_filename } => {
+                DialogType::ExportAs {
+                    initial_filename,
+                    format,
+                } => {
                     ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_export_as::ExportAsDialog::new(initial_filename),
+                        crate::ui::dialog_export_as::ExportAsDialog::new(initial_filename, format),
                     ));
                 }
                 DialogType::DocumentSettings => {

@@ -16,8 +16,8 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 | **General**                        | **Open File**                                                                           | ++ctrl+o++                                                    |
 |                                    | **Save Project**                                                                        | ++ctrl+s++                                                    |
 |                                    | **Save Project As**                                                                     | ++alt+s++ or ++ctrl+shift+s++                                 |
-|                                    | **Export Project (ASM)**                                                                | ++ctrl+e++                                                    |
-|                                    | **Export Project As (ASM)**                                                             | ++alt+e++ or ++ctrl+shift+e++                                 |
+|                                    | **Export to .asm**                                                                      | ++ctrl+e++                                                    |
+|                                    | **Export to .asm as...**                                                                | ++alt+e++ or ++ctrl+shift+e++                                 |
 |                                    | **Document Settings**                                                                   | ++alt+d++ or ++ctrl+shift+d++                                 |
 |                                    | **Settings**                                                                            | ++alt+p++ or ++ctrl+comma++                                   |
 |                                    | **Open Recent Projects**                                                                | ++alt+o++ or ++ctrl+shift+o++                                 |

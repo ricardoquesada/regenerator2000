@@ -13,19 +13,21 @@ use crate::ui::widget::{Widget, WidgetResult};
 
 pub struct ExportAsDialog {
     pub input: String,
+    pub format: crate::event::ExportFormat,
 }
 
 impl Default for ExportAsDialog {
     fn default() -> Self {
-        Self::new(None)
+        Self::new(None, crate::event::ExportFormat::Asm)
     }
 }
 
 impl ExportAsDialog {
     #[must_use]
-    pub fn new(initial_filename: Option<String>) -> Self {
+    pub fn new(initial_filename: Option<String>, format: crate::event::ExportFormat) -> Self {
         Self {
             input: initial_filename.unwrap_or_default(),
+            format,
         }
     }
 }
@@ -33,7 +35,11 @@ impl ExportAsDialog {
 impl Widget for ExportAsDialog {
     fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
-        let block = crate::ui::widget::create_dialog_block(" Export Project As... ", theme);
+        let block_title = match self.format {
+            crate::event::ExportFormat::Asm => " Export to .asm as... ",
+            crate::event::ExportFormat::Lst => " Export to .lst as... ",
+        };
+        let block = crate::ui::widget::create_dialog_block(block_title, theme);
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -84,7 +90,11 @@ impl Widget for ExportAsDialog {
             input_layout[0].y,
         ));
 
-        let extension = Paragraph::new(".asm").style(Style::default().fg(Color::Gray));
+        let ext_text = match self.format {
+            crate::event::ExportFormat::Asm => ".asm",
+            crate::event::ExportFormat::Lst => ".lst",
+        };
+        let extension = Paragraph::new(ext_text).style(Style::default().fg(Color::Gray));
         f.render_widget(extension, input_layout[1]);
     }
 
@@ -106,10 +116,22 @@ impl Widget for ExportAsDialog {
                 } else {
                     let mut path = ui_state.file_dialog_current_dir.join(&filename);
                     if path.extension().is_none() {
-                        path.set_extension("asm");
+                        let ext = match self.format {
+                            crate::event::ExportFormat::Asm => "asm",
+                            crate::event::ExportFormat::Lst => "lst",
+                        };
+                        path.set_extension(ext);
                     }
                     app_state.export_path = Some(path.clone());
-                    if let Err(e) = crate::exporter::export_asm(app_state, &path) {
+                    let res = match self.format {
+                        crate::event::ExportFormat::Asm => {
+                            crate::exporter::export_asm(app_state, &path)
+                        }
+                        crate::event::ExportFormat::Lst => {
+                            crate::exporter::export_lst(app_state, &path)
+                        }
+                    };
+                    if let Err(e) = res {
                         ui_state.set_status_message(format!("Error exporting: {e}"));
                         WidgetResult::Handled
                     } else {

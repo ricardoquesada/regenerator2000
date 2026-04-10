@@ -7,8 +7,10 @@ pub enum AppAction {
     OpenRecent,
     Save,
     SaveAs,
-    ExportProject,
-    ExportProjectAs,
+    ExportAsm,
+    ExportAsmAs,
+    ExportLst,
+    ExportLstAs,
     Undo,
     Redo,
     Code,
@@ -178,8 +180,10 @@ impl AppAction {
                 | AppAction::Search
                 | AppAction::ImportViceLabels
                 | AppAction::ExportViceLabels
-                | AppAction::ExportProject
-                | AppAction::ExportProjectAs
+                | AppAction::ExportAsm
+                | AppAction::ExportAsmAs
+                | AppAction::ExportLst
+                | AppAction::ExportLstAs
                 | AppAction::Save
                 | AppAction::SaveAs
                 | AppAction::ChangeOrigin

@@ -20,6 +20,12 @@ pub enum CoreEvent {
     QuitRequested,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportFormat {
+    Asm,
+    Lst,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DialogType {
     About,
@@ -38,6 +44,7 @@ pub enum DialogType {
     DocumentSettings,
     ExportAs {
         initial_filename: Option<String>,
+        format: ExportFormat,
     },
     ExportLabels {
         initial_filename: Option<String>,
