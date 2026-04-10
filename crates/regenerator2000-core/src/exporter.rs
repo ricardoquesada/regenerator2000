@@ -2014,4 +2014,44 @@ mod tests {
 
         let _ = std::fs::remove_file(&path);
     }
+
+    #[test]
+    fn test_export_lst() {
+        let mut state = AppState::new();
+        state.origin = crate::state::Addr(0x1000);
+        state.raw_data = vec![0xA9, 0x00, 0x8D, 0x20, 0xD0, 0x60];
+        state.block_types = vec![crate::state::BlockType::Code; 6];
+
+        state.labels.insert(
+            crate::state::Addr(0x1000),
+            vec![crate::state::Label {
+                name: "Start".to_string(),
+                kind: crate::state::LabelKind::User,
+                label_type: crate::state::LabelType::UserDefined,
+            }],
+        );
+
+        let path = PathBuf::from("test_output.lst");
+        let _ = std::fs::remove_file(&path);
+
+        let res = export_lst(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        assert!(content.contains("$1000"));
+        assert!(content.contains("$1002"));
+        assert!(content.contains("$1005"));
+
+        assert!(content.contains("a9 00"));
+        assert!(content.contains("8d 20 d0"));
+        assert!(content.contains("60"));
+
+        assert!(content.contains("lda"));
+        assert!(content.contains("sta"));
+        assert!(content.contains("rts"));
+        assert!(content.contains("Start"));
+
+        let _ = std::fs::remove_file(&path);
+    }
 }
