@@ -466,7 +466,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
 }
 body { font-family: 'Courier New', Courier, monospace; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
 table { border-collapse: collapse; width: 100%; max-width: 1200px; margin: 0 auto; }
-td { padding: 0px 8px; line-height: 1.4; vertical-align: top; }
+td { padding: 0px 8px; line-height: 1.4; vertical-align: top; white-space: nowrap; }
 a { color: var(--link-color); text-decoration: none; }
 a:hover { text-decoration: underline; }
 .address { color: var(--address-color); text-align: left; }
