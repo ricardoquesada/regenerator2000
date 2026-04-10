@@ -26,6 +26,7 @@ impl AppState {
         self.last_export_labels_filename = None;
         self.last_save_as_filename = None;
         self.last_export_asm_filename = None;
+        self.last_export_html_filename = None;
 
         let mut cursor_start = None;
         let hex_cursor_start = None;
@@ -178,6 +179,7 @@ impl AppState {
         self.last_export_labels_filename = None;
         self.last_save_as_filename = None;
         self.last_export_asm_filename = None;
+        self.last_export_html_filename = None;
 
         self.load_system_assets();
         self.disassemble();
@@ -283,6 +285,7 @@ impl AppState {
         self.last_export_labels_filename = None;
         self.last_save_as_filename = None;
         self.last_export_asm_filename = None;
+        self.last_export_html_filename = None;
 
         self.load_system_assets();
 

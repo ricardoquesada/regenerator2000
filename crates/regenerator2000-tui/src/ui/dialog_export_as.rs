@@ -135,7 +135,14 @@ impl Widget for ExportAsDialog {
                         ui_state.set_status_message(format!("Error exporting: {e}"));
                         WidgetResult::Handled
                     } else {
-                        app_state.last_export_asm_filename = Some(filename.clone());
+                        match self.format {
+                            crate::event::ExportFormat::Asm => {
+                                app_state.last_export_asm_filename = Some(filename.clone());
+                            }
+                            crate::event::ExportFormat::Html => {
+                                app_state.last_export_html_filename = Some(filename.clone());
+                            }
+                        }
                         let saved_filename = path.file_name().unwrap_or_default().to_string_lossy();
                         ui_state.set_status_message(format!("Exported: {saved_filename}"));
                         WidgetResult::Close

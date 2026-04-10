@@ -510,7 +510,7 @@ impl Core {
                 } else {
                     let initial = self
                         .state
-                        .last_export_asm_filename
+                        .last_export_html_filename
                         .clone()
                         .or_else(|| self.get_default_filename_stem());
                     events.push(CoreEvent::DialogRequested(
@@ -525,7 +525,7 @@ impl Core {
             AppAction::ExportHtmlAs => {
                 let initial = self
                     .state
-                    .last_export_asm_filename
+                    .last_export_html_filename
                     .clone()
                     .or_else(|| self.get_default_filename_stem());
                 events.push(CoreEvent::DialogRequested(
