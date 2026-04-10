@@ -473,6 +473,14 @@ a:hover { text-decoration: underline; }
 .label { color: var(--label-color); font-weight: bold; }
 .mid-label { color: var(--mid-label-color); }
 .separator-row { height: 15px; }
+.code-cell { display: flex; align-items: top; padding: 0 !important; }
+.code-cell .inline-label { width: 18ch; flex-shrink: 0; color: var(--label-color); font-weight: bold; }
+.code-cell .mnemonic { min-width: 8ch; flex-shrink: 0; padding: 0 8px; }
+.code-cell .operand { min-width: 32ch; flex-shrink: 0; padding: 0 8px; }
+.code-cell .comment { padding: 0 8px; margin-left: 4ch; }
+.code-cell.assignment { padding: 0 8px !important; }
+.code-cell.assignment .label { min-width: 40ch; flex-shrink: 0; }
+.code-cell.block-header .comment { margin-left: 0ch; }
 #theme-toggle { position: fixed; top: 20px; right: 20px; padding: 8px 16px; background-color: var(--text-color); color: var(--bg-color); border: 1px solid var(--text-color); cursor: pointer; font-family: inherit; font-weight: bold; }
 </style>
 </head>
@@ -558,22 +566,35 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         if let Some(comment) = &line.line_comment {
             for comment_line in comment.lines() {
                 row_str.push_str(&format!(
-                    "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"comment\">{} {}</td></tr>\n",
+                    "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell block-header\"><span class=\"comment\">{}{}</span></td></tr>\n",
                     formatter.comment_prefix(),
                     comment_line
                 ));
             }
         }
 
-        // 3. Labels on top (assume enabled)
+        // 3. Labels on top or inline
         let label_text = if let Some(label) = &line.label {
             formatter.format_label_definition(label)
         } else {
             String::new()
         };
 
+        let mut inline_label_html = String::new();
         if !label_text.is_empty() {
-            row_str.push_str(&format!("<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"label\" id=\"L{:04X}\">{}</td></tr>\n", line.address.0, label_text));
+            let label_on_own_line = label_text.len() > 18; // LABEL_COLUMN_WIDTH = 18
+            if label_on_own_line {
+                row_str.push_str(&format!("<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"label\" id=\"L{:04X}\">{}</td></tr>\n", line.address.0, label_text));
+            } else {
+                inline_label_html = format!(
+                    "<span class=\"inline-label\" id=\"L{:04X}\">{}</span>",
+                    line.address.0, label_text
+                );
+            }
+        }
+
+        if inline_label_html.is_empty() {
+            inline_label_html = String::from("<span class=\"inline-label\"></span>");
         }
 
         // 4. Address part
@@ -641,23 +662,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             operand_str = new_op;
         }
         // 6. Instruction part
-        let (instruction_cells, is_assignment) = if line.mnemonic.contains('=') {
-            (
-                format!(
-                    "<td class=\"label\" colspan=\"4\">{} {}</td>",
-                    line.mnemonic, operand_str
-                ),
-                true,
-            )
-        } else {
-            (
-                format!(
-                    "<td class=\"mnemonic\">{}</td><td class=\"operand\">{}</td>",
-                    line.mnemonic, operand_str
-                ),
-                false,
-            )
-        };
+        let is_assignment = line.mnemonic.contains('=');
 
         // 7. Comment part
         let mut comment_str = line.comment.clone();
@@ -684,22 +689,25 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             comment_str = words.join(" ");
         }
 
-        let comment_td = if comment_str.is_empty() {
-            "<td class=\"comment\"></td>".to_string()
+        let comment_part = if comment_str.is_empty() {
+            String::new()
         } else {
             format!(
-                "<td class=\"comment\">{} {}</td>",
+                "<span class=\"comment\">{} {}</span>",
                 formatter.comment_prefix(),
                 comment_str
             )
         };
 
         if is_assignment {
-            row_str.push_str(&format!("<tr>{}{}</tr>\n", instruction_cells, comment_td));
+            row_str.push_str(&format!(
+                "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell assignment\"><span class=\"label\">{} {}</span>{}</td></tr>\n",
+                line.mnemonic, operand_str, comment_part
+            ));
         } else {
             row_str.push_str(&format!(
-                "<tr>{}{}{} {}</tr>\n",
-                address_td, bytes_td, instruction_cells, comment_td
+                "<tr>{}{}<td colspan=\"3\" class=\"code-cell\">{}<span class=\"mnemonic\">{}</span><span class=\"operand\">{}</span>{}</td></tr>\n",
+                address_td, bytes_td, inline_label_html, line.mnemonic, operand_str, comment_part
             ));
         }
         formatted_rows.push(row_str);
