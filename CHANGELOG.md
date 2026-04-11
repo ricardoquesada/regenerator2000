@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-04-??
+
+### Features
+
+- **Disassembly**: Add `.fill` directive support for contiguous identical byte runs (configurable threshold, default 8); runs are suppressed when a cross-reference, line-comment, or side-comment is present at any interior address. Assembler-specific directives: `.fill` (64tass, KickAssembler), `!fill` (ACME), `.res` (ca65).
+
 ## [0.9.8] - 2026-04-11
 
 ### Features
@@ -12,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **UI**: Implement interactive cursor navigation and text editing capabilities in all dialog prompts.
 - **HTML Export**: Added assembler homepage hyperlinks to generated HTML headers.
 - **HTML Export**: Improved aesthetics to match GitHub themes and implemented clickable instruction anchors.
-- **Disassembly**: Add `.fill` directive support for contiguous identical byte runs (configurable threshold, default 8); runs are suppressed when a cross-reference, line-comment, or side-comment is present at any interior address. Assembler-specific directives: `.fill` (64tass, KickAssembler), `!fill` (ACME), `.res` (ca65).
 
 ### Fixes
 
