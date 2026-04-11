@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **HTML Export**: Added standalone HTML external file modules, inline hyperlink navigation, anchors, theme toggling, anchors, variable links, and dynamic layout logic.
 - **Import**: Automatically suggest entry points by parsing SYS addresses in multi-line BASIC PRGs.
 - **Navigation**: Added support for directory navigation history and parent folder rules in open dialogs.
+- **Agent**: Added skill to parse BASIC tokens.
 
 ### Fixes
 
