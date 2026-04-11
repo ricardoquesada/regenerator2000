@@ -57,7 +57,6 @@ nav:
       - Tutorial: tutorial.md
       - Views: views.md
       - Blocks: blocks.md
-  - Examples: examples.md
   - User Reference:
       - Keyboard Shortcuts: keyboard_shortcuts.md
       - Debugger (VICE): debugger.md
@@ -66,6 +65,7 @@ nav:
       - Assemblers: assemblers.md
       - MCP Integration: mcp.md
       - FAQ: faq.md
+  - Examples: examples.md
   - Development & Internals:
       - Architecture: architecture.md
       - Requirements: requirements.md
