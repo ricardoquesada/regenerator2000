@@ -1245,7 +1245,17 @@ impl Disassembler {
             let val = u16::from(high) << 8 | u16::from(low);
 
             // START: Append comment for the address value
-            let target_comment = if let Some(c) = user_side_comments.get(&val) {
+            let target_idx = if val >= origin.0 {
+                (val - origin.0) as usize
+            } else {
+                usize::MAX
+            };
+
+            let target_comment = if target_idx < data.len() {
+                // Target is inside our disassembled data. Avoid appending user side comments
+                // to prevent duplication and propagation (e.g. in BASIC next pointers).
+                system_comments.get(&val)
+            } else if let Some(c) = user_side_comments.get(&val) {
                 Some(c)
             } else {
                 system_comments.get(&val)
