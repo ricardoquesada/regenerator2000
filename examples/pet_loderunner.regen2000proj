@@ -179,8 +179,32 @@
     },
     {
       "start": 4238,
-      "end": 4641,
+      "end": 4266,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 4267,
+      "end": 4295,
       "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 4296,
+      "end": 4361,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 4362,
+      "end": 4443,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 4444,
+      "end": 4641,
+      "type_": "ScreencodeText",
       "collapsed": false
     },
     {
@@ -264,7 +288,7 @@
     {
       "start": 9538,
       "end": 9545,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -728,6 +752,83 @@
         "kind": "User"
       }
     ],
+    "5263": [
+      {
+        "name": "txt_lode_runner_pet",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5292": [
+      {
+        "name": "txt_horizontal_bar",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5321": [
+      {
+        "name": "txt_jim_orlando_gmail",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5343": [
+      {
+        "name": "txt_40_columns",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5354": [
+      {
+        "name": "txt_select_move_right",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5469": [
+      {
+        "name": "txt_select_move_left",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5502": [
+      {
+        "name": "txt_select_move_up",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5535": [
+      {
+        "name": "txt_select_move_down",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5568": [
+      {
+        "name": "txt_select_dig_right",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5601": [
+      {
+        "name": "txt_select_dig_left",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5634": [
+      {
+        "name": "txt_select_pause",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "5667": [
       {
         "name": "irq_counter",
@@ -1059,14 +1160,14 @@
     ],
     "10549": [
       {
-        "name": "txt__level",
+        "name": "txt_level_points",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "10556": [
       {
-        "name": "txt__total",
+        "name": "txt_total_points",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1530,14 +1631,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 1025,
-  "hex_dump_cursor_address": 1024,
-  "sprites_cursor_address": 1728,
+  "cursor_address": 1454,
+  "hex_dump_cursor_address": 1440,
+  "sprites_cursor_address": 1792,
   "charset_cursor_address": 1024,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 32768,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],

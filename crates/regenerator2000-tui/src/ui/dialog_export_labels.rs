@@ -150,13 +150,19 @@ impl Widget for ExportLabelsDialog {
 
         let list = List::new(items)
             .block(list_block)
-            .highlight_style(
+            .highlight_style(if self.focus == ExportLabelsFocus::DirectoryList {
                 Style::default()
                     .bg(theme.menu_selected_bg)
                     .fg(theme.menu_selected_fg)
-                    .add_modifier(Modifier::BOLD),
-            )
-            .highlight_symbol(">> ");
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            })
+            .highlight_symbol(if self.focus == ExportLabelsFocus::DirectoryList {
+                ">> "
+            } else {
+                "   "
+            });
 
         let mut state = ListState::default();
         state.select(Some(self.selected_index));
