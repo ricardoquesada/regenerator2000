@@ -5,6 +5,144 @@
   "blocks": [
     {
       "start": 0,
+      "end": 1,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 2,
+      "end": 3,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 4,
+      "end": 33,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 34,
+      "end": 34,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 35,
+      "end": 36,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 37,
+      "end": 38,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 39,
+      "end": 61,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 62,
+      "end": 62,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 63,
+      "end": 64,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 65,
+      "end": 66,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 67,
+      "end": 92,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 93,
+      "end": 93,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 94,
+      "end": 95,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 96,
+      "end": 97,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 98,
+      "end": 114,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 115,
+      "end": 115,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 116,
+      "end": 117,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 118,
+      "end": 119,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 120,
+      "end": 126,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 127,
+      "end": 127,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 128,
+      "end": 129,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 130,
+      "end": 131,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 132,
+      "end": 139,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 140,
       "end": 510,
       "type_": "Undefined",
       "collapsed": false
@@ -1195,7 +1333,14 @@
       }
     ]
   },
-  "user_side_comments": {},
+  "user_side_comments": {
+    "1025": "10 REM LODE RUNNER ON COMMODORE PET",
+    "1060": "20 REM JIM.ORLANDO@GMAIL.COM",
+    "1088": "30 REM TESTED ON 3032,4032,8032",
+    "1119": "40 PRINT CHR$(142):PRINT CHR$(147)",
+    "1141": "50 PRINT CHR$(42)",
+    "1153": "60 SYS 1536"
+  },
   "user_line_comments": {
     "1536": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nEntry point of Lode Runner for PET. Initializes hardware and state, sets up IRQ, and enters main loop.\n\nInputs:  None\nOutputs: $50 (random seed), $67 (game state flag), $90/$91 (IRQ vector)\nSide Effects: Configures VIA registers ($E84C, $E84B, $E84A, $E848), enables interrupts.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "1586": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInterface/Menu Orchestration Tick.\nFires on hardware interrupt vector when game is in state 0 (title/menus).\nSequentially orchestrates static frame rendering and keyboard sequences.\n\nInputs:  None.\nOutputs: Orchestrates menu sub-states loops.\nSide Effects: Acknowledges VIA interrupt by reading $E812. Restores Y, X, A registers sequence.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1352,14 +1497,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 1536,
-  "hex_dump_cursor_address": 1536,
-  "sprites_cursor_address": 1472,
+  "cursor_address": 1037,
+  "hex_dump_cursor_address": 1024,
+  "sprites_cursor_address": 1536,
   "charset_cursor_address": 1024,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 57344,
+  "bitmap_cursor_address": 0,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
