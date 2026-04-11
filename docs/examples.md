@@ -19,6 +19,7 @@ Main take aways:
   - There is a `.T0400,07FF,2C00` monitor command [in the code][c64_burning_rubber_monitor_cmd]
   - There are `JMP` opcodes in different places that are typical of monitor-based code
 - The code is not "clean", not a good place to start looking to code C64 video games.
+  - but the code is great to understand how monitor-based C64 games were made.
 
 Source:
 
