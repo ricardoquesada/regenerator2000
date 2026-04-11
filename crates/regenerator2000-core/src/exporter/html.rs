@@ -176,7 +176,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                         name = format!("{}{}", p, name);
                     }
                     let label_def = format!("{} =*+${:02x}", name, j);
-                    row_str.push_str(&format!("<tr id=\"L{:04X}\"><td colspan=\"2\"></td><td colspan=\"3\" class=\"mid-label\">{}</td></tr>\n", mid_addr.0, label_def));
+                    row_str.push_str(&format!("<tr id=\"L{:04X}\"><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell mid-label\">{}</td></tr>\n", mid_addr.0, label_def));
                 }
             }
         }
@@ -204,7 +204,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             let label_on_own_line = label_text.len() > 18; // LABEL_COLUMN_WIDTH = 18
             if label_on_own_line {
                 row_str.push_str(&format!(
-                    "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"label\">{}</td></tr>\n",
+                    "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell label\">{}</td></tr>\n",
                     label_text
                 ));
             } else {
