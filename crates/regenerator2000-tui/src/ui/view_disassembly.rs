@@ -47,7 +47,7 @@ impl DisassemblyView {
             let line = &app_state.disassembly[ui_state.cursor_index];
             let visual_len = Self::get_visual_line_count_for_instruction(line, app_state);
 
-            if ui_state.sub_cursor_index + 1 < visual_len {
+            if ui_state.sub_cursor_index + 1 < visual_len && ui_state.selection_start.is_none() {
                 // Move to next line within same instruction (comment/label/etc)
                 ui_state.sub_cursor_index += 1;
             } else {
@@ -85,7 +85,7 @@ impl DisassemblyView {
         }
 
         for _ in 0..amount {
-            if ui_state.sub_cursor_index > 0 {
+            if ui_state.sub_cursor_index > 0 && ui_state.selection_start.is_none() {
                 ui_state.sub_cursor_index -= 1;
             } else if ui_state.cursor_index > 0 {
                 let mut prev_idx = ui_state.cursor_index - 1;
@@ -1910,5 +1910,91 @@ mod tests {
             let result = view.handle_input(key_with_shift, &mut app_state, &mut ui_state);
             assert_eq!(result, WidgetResult::Action(expected_action));
         }
+    }
+    #[test]
+    fn test_visual_selection_skips_sub_cursor() {
+        let mut app_state = AppState::default();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        let view = DisassemblyView;
+
+        // Create line with 3 comment lines and a label (short)
+        let line_with_comments = DisassemblyLine {
+            address: crate::state::Addr(0x0632),
+            bytes: vec![0x20, 0x3C, 0x11],
+            mnemonic: "JSR".to_string(),
+            operand: "draw_tile".to_string(),
+            comment: String::new(),
+            line_comment: Some("Line 1\nLine 2\nLine 3".to_string()),
+            label: Some("tick_menu".to_string()),
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+        let line_prev = DisassemblyLine {
+            address: crate::state::Addr(0x062F),
+            bytes: vec![0x4C, 0x12, 0x06],
+            mnemonic: "JMP".to_string(),
+            operand: "main_loop".to_string(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        };
+
+        app_state.disassembly = vec![line_prev, line_with_comments];
+
+        // Case 1: Extending visual selection UP should skip sub-lines
+        ui_state.cursor_index = 1;
+        ui_state.sub_cursor_index = 3; // Instruction line of block 1
+        ui_state.selection_start = Some(1); // Selection active!
+
+        view.move_cursor_up(&app_state, &mut ui_state, 1);
+        // Should jump directly to instruction block 0
+        assert_eq!(
+            ui_state.cursor_index, 0,
+            "Visual selection UP should jump directly to previous block"
+        );
+        assert_eq!(
+            ui_state.sub_cursor_index, 0,
+            "Visual selection UP should land on last line of previous block"
+        );
+
+        // Case 2: Normal movement UP should respect sub-lines
+        ui_state.cursor_index = 1;
+        ui_state.sub_cursor_index = 3;
+        ui_state.selection_start = None; // Normal movement!
+
+        view.move_cursor_up(&app_state, &mut ui_state, 1);
+        // Should stay on instruction block 1 but move up visual line
+        assert_eq!(
+            ui_state.cursor_index, 1,
+            "Normal movement UP should stay on same block if it has sub-lines"
+        );
+        assert_eq!(
+            ui_state.sub_cursor_index, 2,
+            "Normal movement UP should just decrement sub-cursor"
+        );
+
+        // Case 3: Extending visual selection DOWN should skip sub-lines
+        ui_state.cursor_index = 0;
+        ui_state.sub_cursor_index = 0;
+        ui_state.selection_start = Some(0); // Selection active!
+
+        view.move_cursor_down(&app_state, &mut ui_state, 1);
+        // Should jump directly to instruction block 1
+        assert_eq!(
+            ui_state.cursor_index, 1,
+            "Visual selection DOWN should jump directly to next block"
+        );
+        assert_eq!(
+            ui_state.sub_cursor_index, 0,
+            "Visual selection DOWN should land on first line of next block"
+        );
     }
 }

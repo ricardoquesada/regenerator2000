@@ -6,11 +6,12 @@ use ratatui::{
     Frame,
     layout::Rect,
     style::{Modifier, Style},
-    widgets::Paragraph,
 };
 
+use ratatui_textarea::{CursorMove, TextArea};
+
 pub struct ViceConnectDialog {
-    pub input: String,
+    pub textarea: TextArea<'static>,
 }
 
 impl Default for ViceConnectDialog {
@@ -22,9 +23,10 @@ impl Default for ViceConnectDialog {
 impl ViceConnectDialog {
     #[must_use]
     pub fn new() -> Self {
-        Self {
-            input: "localhost:6502".to_string(),
-        }
+        let mut textarea = TextArea::default();
+        textarea.insert_str("localhost:6502");
+        textarea.move_cursor(CursorMove::End);
+        Self { textarea }
     }
 }
 
@@ -37,15 +39,17 @@ impl Widget for ViceConnectDialog {
         ui_state.active_dialog_area = area;
         f.render_widget(ratatui::widgets::Clear, area);
 
-        let input = Paragraph::new(self.input.clone()).block(block).style(
+        let mut textarea = self.textarea.clone();
+        textarea.set_block(block);
+        textarea.set_style(
             Style::default()
                 .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD),
         );
-        f.render_widget(input, area);
+        textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
+        textarea.set_cursor_line_style(Style::default());
 
-        // Show blinking cursor at end of input
-        f.set_cursor_position((area.x + 1 + self.input.len() as u16, area.y + 1));
+        f.render_widget(&textarea, area);
     }
 
     fn handle_input(
@@ -60,7 +64,7 @@ impl Widget for ViceConnectDialog {
                 WidgetResult::Close
             }
             KeyCode::Enter => {
-                let input = self.input.clone();
+                let input = self.textarea.lines().join("").trim().to_string();
                 if input.is_empty() {
                     WidgetResult::Close
                 } else {
@@ -69,17 +73,16 @@ impl Widget for ViceConnectDialog {
                     ))
                 }
             }
-            KeyCode::Backspace => {
-                self.input.pop();
-                WidgetResult::Handled
-            }
             KeyCode::Char(c) => {
                 if c.is_ascii_alphanumeric() || c == '.' || c == ':' || c == '-' {
-                    self.input.push(c);
+                    self.textarea.input(key);
                 }
                 WidgetResult::Handled
             }
-            _ => WidgetResult::Handled,
+            _ => {
+                self.textarea.input(key);
+                WidgetResult::Handled
+            }
         }
     }
 }
