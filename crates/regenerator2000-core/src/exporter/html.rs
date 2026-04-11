@@ -9,34 +9,39 @@ const HTML_START: &str = r#"<!DOCTYPE html>
 <style>
 :root {
   --bg-color: #ffffff;
-  --text-color: #000000;
-  --address-color: #098658;
-  --bytes-color: #001080;
-  --mnemonic-color: #0000ff;
-  --operand-color: #a31515;
-  --comment-color: #008000;
-  --label-color: #795e26;
-  --link-color: #005fb8;
-  --mid-label-color: #af00db;
+  --text-color: #24292f;
+  --address-color: #57606a;
+  --bytes-color: #6e7781;
+  --mnemonic-color: #cf222e;
+  --operand-color: #0550ae;
+  --comment-color: #6e7781;
+  --label-color: #953800;
+  --link-color: #0969da;
+  --mid-label-color: #8250df;
+  --highlight-bg: rgba(84, 174, 255, 0.3);
+  --highlight-border: #0969da;
 }
 [data-theme="dark"] {
-  --bg-color: #1e1e1e;
-  --text-color: #d4d4d4;
-  --address-color: #9cdcfe;
-  --bytes-color: #b5cea8;
-  --mnemonic-color: #569cd6;
-  --operand-color: #ce9178;
-  --comment-color: #6a9955;
-  --label-color: #dcdcaa;
-  --link-color: #4ec9b0;
-  --mid-label-color: #c586c0;
+  --bg-color: #0d1117;
+  --text-color: #c9d1d9;
+  --address-color: #8b949e;
+  --bytes-color: #6e7681;
+  --mnemonic-color: #ff7b72;
+  --operand-color: #79c0ff;
+  --comment-color: #8b949e;
+  --label-color: #ffa657;
+  --link-color: #58a6ff;
+  --mid-label-color: #d2a8ff;
+  --highlight-bg: rgba(56, 139, 253, 0.15);
+  --highlight-border: #1f6feb;
 }
-body { font-family: 'Courier New', Courier, monospace; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
+body { font-family: ui-monospace, SFMono-Regular, 'SF Pro Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 12px; line-height: 1.45; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
 table { border-collapse: collapse; width: 100%; max-width: 1200px; margin: 0 auto; }
-td { padding: 0px 8px; line-height: 1.4; vertical-align: top; white-space: nowrap; }
+td { padding: 0px 8px; line-height: 1.4; vertical-align: top; white-space: pre; }
 a { color: var(--link-color); text-decoration: none; }
 a:hover { text-decoration: underline; }
 .address { color: var(--address-color); text-align: left; }
+.address a { color: inherit; }
 .bytes { color: var(--bytes-color); text-align: left; }
 .mnemonic { color: var(--mnemonic-color); text-align: left; }
 .operand { color: var(--operand-color); text-align: left; }
@@ -52,6 +57,8 @@ a:hover { text-decoration: underline; }
 .code-cell.assignment { padding: 0 8px !important; }
 .code-cell.assignment .label { min-width: 40ch; flex-shrink: 0; }
 .code-cell.block-header .comment { margin-left: 0ch; }
+tr:target td { background-color: var(--highlight-bg); }
+tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 #theme-toggle { position: fixed; top: 20px; right: 20px; padding: 8px 16px; background-color: var(--text-color); color: var(--bg-color); border: 1px solid var(--text-color); cursor: pointer; font-family: inherit; font-weight: bold; }
 </style>
 </head>
@@ -190,12 +197,12 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         if !label_text.is_empty() {
             let label_on_own_line = label_text.len() > 18; // LABEL_COLUMN_WIDTH = 18
             if label_on_own_line {
-                row_str.push_str(&format!("<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"label\" id=\"L{:04X}\">{}</td></tr>\n", line.address.0, label_text));
+                row_str.push_str(&format!(
+                    "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"label\">{}</td></tr>\n",
+                    label_text
+                ));
             } else {
-                inline_label_html = format!(
-                    "<span class=\"inline-label\" id=\"L{:04X}\">{}</span>",
-                    line.address.0, label_text
-                );
+                inline_label_html = format!("<span class=\"inline-label\">{}</span>", label_text);
             }
         }
 
@@ -206,7 +213,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         // 4. Address part
         let address_td = if !line.bytes.is_empty() || line.label.is_some() {
             format!(
-                "<td class=\"address\" id=\"L{:04X}\">${:04X}</td>",
+                "<td class=\"address\"><a href=\"#L{:04X}\">${:04X}</a></td>",
                 line.address.0, line.address.0
             )
         } else {
@@ -312,9 +319,14 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 addr_val, line.mnemonic, operand_str, comment_part
             ));
         } else {
+            let tr_id = if !line.bytes.is_empty() || line.label.is_some() {
+                format!(" id=\"L{:04X}\"", line.address.0)
+            } else {
+                String::new()
+            };
             row_str.push_str(&format!(
-                "<tr>{}{}<td colspan=\"3\" class=\"code-cell\">{}<span class=\"mnemonic\">{}</span><span class=\"operand\">{}</span>{}</td></tr>\n",
-                address_td, bytes_td, inline_label_html, line.mnemonic, operand_str, comment_part
+                "<tr{}>{}{}<td colspan=\"3\" class=\"code-cell\">{}<span class=\"mnemonic\">{}</span><span class=\"operand\">{}</span>{}</td></tr>\n",
+                tr_id, address_td, bytes_td, inline_label_html, line.mnemonic, operand_str, comment_part
             ));
         }
         formatted_rows.push(row_str);
