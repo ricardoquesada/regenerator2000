@@ -5,6 +5,14 @@ use crate::state::{Addr, LabelType};
 pub struct KickAsmFormatter;
 
 impl Formatter for KickAsmFormatter {
+    fn name(&self) -> &'static str {
+        "Kick Assembler"
+    }
+
+    fn homepage_url(&self) -> &'static str {
+        "https://theweb.dk/KickAssembler"
+    }
+
     fn comment_prefix(&self) -> &'static str {
         "//"
     }

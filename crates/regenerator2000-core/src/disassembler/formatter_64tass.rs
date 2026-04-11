@@ -5,6 +5,14 @@ use crate::state::{Addr, LabelType};
 pub struct TassFormatter;
 
 impl Formatter for TassFormatter {
+    fn name(&self) -> &'static str {
+        "64tass"
+    }
+
+    fn homepage_url(&self) -> &'static str {
+        "https://tass64.sourceforge.net/"
+    }
+
     fn comment_prefix(&self) -> &'static str {
         ";"
     }

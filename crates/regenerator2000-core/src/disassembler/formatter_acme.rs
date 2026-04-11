@@ -5,6 +5,14 @@ use crate::state::{Addr, LabelType};
 pub struct AcmeFormatter;
 
 impl Formatter for AcmeFormatter {
+    fn name(&self) -> &'static str {
+        "ACME"
+    }
+
+    fn homepage_url(&self) -> &'static str {
+        "https://sourceforge.net/projects/acme-crossass/"
+    }
+
     fn comment_prefix(&self) -> &'static str {
         ";"
     }

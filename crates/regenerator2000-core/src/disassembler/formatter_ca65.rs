@@ -5,6 +5,14 @@ use crate::state::{Addr, LabelType};
 pub struct Ca65Formatter;
 
 impl Formatter for Ca65Formatter {
+    fn name(&self) -> &'static str {
+        "ca65"
+    }
+
+    fn homepage_url(&self) -> &'static str {
+        "https://cc65.github.io/doc/ca65.html"
+    }
+
     fn comment_prefix(&self) -> &'static str {
         ";"
     }

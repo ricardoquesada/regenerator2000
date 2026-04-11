@@ -39,6 +39,9 @@ impl<'a> FormatContext<'a> {
 }
 
 pub trait Formatter {
+    fn name(&self) -> &'static str;
+    fn homepage_url(&self) -> &'static str;
+
     fn comment_prefix(&self) -> &'static str;
     fn byte_directive(&self) -> &'static str;
     fn word_directive(&self) -> &'static str;
