@@ -965,6 +965,75 @@ impl Disassembler {
         let settings = ctx.settings;
         let user_line_comments = ctx.user_line_comments;
         let address = origin.wrapping_add(pc as u16);
+
+        // --- Fill-run detection (Option C) ---
+        // When fill_run_threshold > 0, look ahead to find the longest contiguous
+        // run of the same byte value that:
+        //   • stays DataByte throughout
+        //   • has no cross-ref, label, splitter, or line-comment at interior addresses
+        // If the run covers all bytes from pc to pc+run_len-1 and run_len >=
+        // threshold, emit a single .fill / .res / !fill line.
+        let threshold = settings.fill_run_threshold;
+        if threshold > 0 && pc < data.len() {
+            let fill_byte = data[pc];
+            let mut run_len = 0usize;
+
+            for i in 0..data.len().saturating_sub(pc) {
+                let cur_pc = pc + i;
+                let cur_addr = origin.wrapping_add(cur_pc as u16);
+
+                // Must stay DataByte
+                if block_types.get(cur_pc) != Some(&BlockType::DataByte) {
+                    break;
+                }
+                // Byte value must match
+                if data[cur_pc] != fill_byte {
+                    break;
+                }
+                // Interior bytes: stop on splitter, label, cross-ref, or line comment
+                if i > 0 {
+                    if ctx.is_virtual_splitter(cur_addr) {
+                        break;
+                    }
+                    if labels.contains_key(&cur_addr) {
+                        break;
+                    }
+                    if ctx.cross_refs.get(&cur_addr).is_some_and(|v| !v.is_empty()) {
+                        break;
+                    }
+                    if user_line_comments.contains_key(&cur_addr) {
+                        break;
+                    }
+                    if ctx.user_side_comments.contains_key(&cur_addr) {
+                        break;
+                    }
+                }
+
+                run_len += 1;
+            }
+
+            if run_len >= threshold {
+                return (
+                    run_len,
+                    vec![DisassemblyLine {
+                        address,
+                        bytes: data[pc..pc + run_len].to_vec(),
+                        mnemonic: formatter.fill_directive().to_string(),
+                        operand: format!("{}, {}", run_len, formatter.format_byte(fill_byte)),
+                        comment: side_comment,
+                        line_comment,
+                        label: label_name,
+                        opcode: None,
+                        show_bytes: false,
+                        target_address: None,
+                        external_label_address: None,
+                        is_collapsed: false,
+                    }],
+                );
+            }
+        }
+        // --- end fill-run detection ---
+
         let mut bytes = Vec::new();
         let mut operands = Vec::new();
         let mut count = 0;
@@ -1757,5 +1826,193 @@ mod tests {
         let refs_dup = vec![Addr(0x2000), Addr(0x2000)];
         let output_dup = format_cross_references(&refs_dup, 2);
         assert_eq!(output_dup, "x-ref: $2000");
+    }
+
+    // -----------------------------------------------------------------------
+    // Fill-run detection tests
+    // -----------------------------------------------------------------------
+
+    fn make_fill_ctx<'a>(
+        data: &'a [u8],
+        block_types: &'a [crate::state::BlockType],
+        cross_refs: &'a std::collections::BTreeMap<crate::state::Addr, Vec<crate::state::Addr>>,
+        line_comments: &'a std::collections::BTreeMap<crate::state::Addr, String>,
+        side_comments: &'a std::collections::BTreeMap<crate::state::Addr, String>,
+        threshold: usize,
+    ) -> DisassemblyContext<'a> {
+        use std::collections::BTreeMap;
+        use std::collections::BTreeSet;
+        static EMPTY_LABELS: once_cell::sync::Lazy<
+            BTreeMap<crate::state::Addr, Vec<crate::state::project::Label>>,
+        > = once_cell::sync::Lazy::new(BTreeMap::new);
+        static EMPTY_COMMENTS: once_cell::sync::Lazy<BTreeMap<crate::state::Addr, String>> =
+            once_cell::sync::Lazy::new(BTreeMap::new);
+        static EMPTY_IMM: once_cell::sync::Lazy<
+            BTreeMap<crate::state::Addr, crate::state::ImmediateFormat>,
+        > = once_cell::sync::Lazy::new(BTreeMap::new);
+        static EMPTY_SCOPES: once_cell::sync::Lazy<
+            BTreeMap<crate::state::Addr, crate::state::Addr>,
+        > = once_cell::sync::Lazy::new(BTreeMap::new);
+        static EMPTY_SPLITTERS: once_cell::sync::Lazy<BTreeSet<crate::state::Addr>> =
+            once_cell::sync::Lazy::new(BTreeSet::new);
+
+        let mut settings = crate::state::DocumentSettings::default();
+        settings.fill_run_threshold = threshold;
+
+        // We need a 'static-ish settings – leak it for test purposes.
+        let settings_box: &'static crate::state::DocumentSettings = Box::leak(Box::new(settings));
+
+        DisassemblyContext {
+            data,
+            block_types,
+            labels: &EMPTY_LABELS,
+            origin: crate::state::Addr(0xc000),
+            settings: settings_box,
+            system_comments: &EMPTY_COMMENTS,
+            user_side_comments: side_comments,
+            user_line_comments: line_comments,
+            immediate_value_formats: &EMPTY_IMM,
+            cross_refs,
+            collapsed_blocks: &[],
+            splitters: &EMPTY_SPLITTERS,
+            scopes: &EMPTY_SCOPES,
+        }
+    }
+
+    /// Helper: empty maps for tests that don't need them.
+    fn empty_map<K, V>() -> std::collections::BTreeMap<K, V> {
+        std::collections::BTreeMap::new()
+    }
+
+    /// 10 identical bytes with threshold=8 → single .fill 10, $00
+    #[test]
+    fn test_fill_run_basic() {
+        use crate::state::BlockType;
+
+        let data = vec![0x00u8; 10];
+        let block_types = vec![BlockType::DataByte; 10];
+
+        let ctx = make_fill_ctx(
+            &data,
+            &block_types,
+            &empty_map(),
+            &empty_map(),
+            &empty_map(),
+            8,
+        );
+        let lines = Disassembler::new().disassemble_ctx(&ctx);
+
+        assert_eq!(lines.len(), 1, "Expected a single .fill line");
+        assert_eq!(lines[0].mnemonic, ".fill");
+        assert_eq!(lines[0].operand, "10, $00");
+        assert_eq!(lines[0].bytes.len(), 10);
+    }
+
+    /// 5 identical bytes with threshold=8 → normal .byte output (below threshold)
+    #[test]
+    fn test_fill_run_below_threshold() {
+        use crate::state::BlockType;
+
+        let data = vec![0xFFu8; 5];
+        let block_types = vec![BlockType::DataByte; 5];
+
+        let ctx = make_fill_ctx(
+            &data,
+            &block_types,
+            &empty_map(),
+            &empty_map(),
+            &empty_map(),
+            8,
+        );
+        let lines = Disassembler::new().disassemble_ctx(&ctx);
+
+        assert!(lines.iter().all(|l| l.mnemonic == ".byte"));
+    }
+
+    /// A cross-ref at an interior byte breaks the fill run.
+    #[test]
+    fn test_fill_run_interrupted_by_xref() {
+        use crate::state::{Addr, BlockType};
+        use std::collections::BTreeMap;
+
+        let data = vec![0x00u8; 10];
+        let block_types = vec![BlockType::DataByte; 10];
+        let mut cross_refs: BTreeMap<Addr, Vec<Addr>> = BTreeMap::new();
+        cross_refs.insert(Addr(0xc005), vec![Addr(0xd000)]); // cross-ref at $C005 (offset 5)
+
+        let ctx = make_fill_ctx(
+            &data,
+            &block_types,
+            &cross_refs,
+            &empty_map(),
+            &empty_map(),
+            8,
+        );
+        let lines = Disassembler::new().disassemble_ctx(&ctx);
+
+        // Both halves (5 bytes each) are below threshold → .byte
+        assert!(
+            lines.iter().all(|l| l.mnemonic == ".byte"),
+            "Cross-ref should prevent fill: got {:?}",
+            lines.iter().map(|l| &l.mnemonic).collect::<Vec<_>>()
+        );
+    }
+
+    /// A line-comment at an interior byte breaks the fill run.
+    #[test]
+    fn test_fill_run_interrupted_by_line_comment() {
+        use crate::state::{Addr, BlockType};
+        use std::collections::BTreeMap;
+
+        let data = vec![0x00u8; 10];
+        let block_types = vec![BlockType::DataByte; 10];
+        let mut line_comments: BTreeMap<Addr, String> = BTreeMap::new();
+        line_comments.insert(Addr(0xc005), "; padding end".to_string()); // line-comment at offset 5
+
+        let ctx = make_fill_ctx(
+            &data,
+            &block_types,
+            &empty_map(),
+            &line_comments,
+            &empty_map(),
+            8,
+        );
+        let lines = Disassembler::new().disassemble_ctx(&ctx);
+
+        // Both halves (5 bytes each) are below threshold → .byte
+        assert!(
+            lines.iter().all(|l| l.mnemonic == ".byte"),
+            "Line-comment should prevent fill: got {:?}",
+            lines.iter().map(|l| &l.mnemonic).collect::<Vec<_>>()
+        );
+    }
+
+    /// A side-comment at an interior byte breaks the fill run.
+    #[test]
+    fn test_fill_run_interrupted_by_side_comment() {
+        use crate::state::{Addr, BlockType};
+        use std::collections::BTreeMap;
+
+        let data = vec![0x00u8; 10];
+        let block_types = vec![BlockType::DataByte; 10];
+        let mut side_comments: BTreeMap<Addr, String> = BTreeMap::new();
+        side_comments.insert(Addr(0xc005), "note".to_string()); // side-comment at offset 5
+
+        let ctx = make_fill_ctx(
+            &data,
+            &block_types,
+            &empty_map(),
+            &empty_map(),
+            &side_comments,
+            8,
+        );
+        let lines = Disassembler::new().disassemble_ctx(&ctx);
+
+        // Both halves (5 bytes each) are below threshold → .byte
+        assert!(
+            lines.iter().all(|l| l.mnemonic == ".byte"),
+            "Side-comment should prevent fill: got {:?}",
+            lines.iter().map(|l| &l.mnemonic).collect::<Vec<_>>()
+        );
     }
 }

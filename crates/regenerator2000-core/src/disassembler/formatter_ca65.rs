@@ -25,6 +25,10 @@ impl Formatter for Ca65Formatter {
         ".word"
     }
 
+    fn fill_directive(&self) -> &'static str {
+        ".res"
+    }
+
     fn format_byte(&self, byte: u8) -> String {
         format!("${byte:02x}")
     }

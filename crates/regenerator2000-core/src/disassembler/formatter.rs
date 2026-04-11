@@ -45,6 +45,8 @@ pub trait Formatter {
     fn comment_prefix(&self) -> &'static str;
     fn byte_directive(&self) -> &'static str;
     fn word_directive(&self) -> &'static str;
+    /// Directive for emitting N identical bytes (e.g. `.fill 8, $00` or `.res 8, $00`).
+    fn fill_directive(&self) -> &'static str;
     fn format_byte(&self, byte: u8) -> String;
     fn format_address(&self, address: Addr) -> String;
     fn format_operand(&self, ctx: &FormatContext) -> String;

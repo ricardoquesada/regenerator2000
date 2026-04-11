@@ -25,6 +25,10 @@ impl Formatter for AcmeFormatter {
         "!word"
     }
 
+    fn fill_directive(&self) -> &'static str {
+        "!fill"
+    }
+
     fn format_byte(&self, byte: u8) -> String {
         format!("${byte:02x}")
     }

@@ -35,6 +35,8 @@ pub struct DocumentSettings {
     pub auto_analyze: bool, // default true
     #[serde(default = "default_true")]
     pub show_system_comments: bool, // default true
+    #[serde(default = "default_fill_run_threshold")]
+    pub fill_run_threshold: usize, // default 8 (0 = disabled)
 }
 
 fn default_text_char_limit() -> usize {
@@ -46,6 +48,10 @@ fn default_addresses_per_line() -> usize {
 }
 
 fn default_bytes_per_line() -> usize {
+    8
+}
+
+fn default_fill_run_threshold() -> usize {
     8
 }
 
@@ -80,6 +86,7 @@ impl Default for DocumentSettings {
             description: String::new(),
             auto_analyze: true,
             show_system_comments: true,
+            fill_run_threshold: 8,
         }
     }
 }

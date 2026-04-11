@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **UI**: Implement interactive cursor navigation and text editing capabilities in all dialog prompts.
 - **HTML Export**: Added assembler homepage hyperlinks to generated HTML headers.
 - **HTML Export**: Improved aesthetics to match GitHub themes and implemented clickable instruction anchors.
+- **Disassembly**: Add `.fill` directive support for contiguous identical byte runs (configurable threshold, default 8); runs are suppressed when a cross-reference, line-comment, or side-comment is present at any interior address. Assembler-specific directives: `.fill` (64tass, KickAssembler), `!fill` (ACME), `.res` (ca65).
 
 ### Fixes
 

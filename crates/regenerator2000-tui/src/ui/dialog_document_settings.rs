@@ -22,6 +22,8 @@ pub struct DocumentSettingsDialog {
     pub addresses_per_line_input: String,
     pub is_editing_bytes_per_line: bool,
     pub bytes_per_line_input: String,
+    pub is_editing_fill_threshold: bool,
+    pub fill_threshold_input: String,
     pub is_editing_description: bool,
     pub description_input: ratatui_textarea::TextArea<'static>,
 }
@@ -49,18 +51,20 @@ impl DocumentSettingsDialog {
             addresses_per_line_input: String::new(),
             is_editing_bytes_per_line: false,
             bytes_per_line_input: String::new(),
+            is_editing_fill_threshold: false,
+            fill_threshold_input: String::new(),
             is_editing_description: false,
             description_input: ratatui_textarea::TextArea::default(),
         }
     }
 
     pub fn next(&mut self) {
-        let max_items = 15;
+        let max_items = 16;
         self.selected_index = (self.selected_index + 1) % max_items;
     }
 
     pub fn previous(&mut self) {
-        let max_items = 15;
+        let max_items = 16;
         if self.selected_index == 0 {
             self.selected_index = max_items - 1;
         } else {
@@ -179,10 +183,12 @@ impl Widget for DocumentSettingsDialog {
         let idx_text_limit = fixed_opts_start + 3;
         let idx_addr_limit = fixed_opts_start + 4;
         let idx_bytes_limit = fixed_opts_start + 5;
-        let idx_assembler = fixed_opts_start + 6;
-        let idx_platform = fixed_opts_start + 7;
+        let idx_fill_threshold = fixed_opts_start + 6;
+        let idx_assembler = fixed_opts_start + 7;
+        let idx_platform = fixed_opts_start + 8;
 
         // System Comments checkbox index (after dynamic label items)
+        let dynamic_start_idx = idx_platform + 1;
         let idx_system_comments = dynamic_start_idx + dynamic_items.len();
 
         let layout = Layout::default()
@@ -196,6 +202,7 @@ impl Widget for DocumentSettingsDialog {
                 Constraint::Length(2),                      // Text Line Limit
                 Constraint::Length(2),                      // Addresses Per Line
                 Constraint::Length(2),                      // Bytes Per Line
+                Constraint::Length(2),                      // Fill Run Threshold
                 Constraint::Length(2),                      // Assembler
                 Constraint::Length(2),                      // Platform
                 Constraint::Length(u16::from(!dynamic_items.is_empty())), // System Labels Header
@@ -225,16 +232,16 @@ impl Widget for DocumentSettingsDialog {
                     "System Labels:",
                     Style::default().add_modifier(Modifier::BOLD),
                 )),
-                Rect::new(layout[10].x + 2, layout[10].y, layout[10].width - 4, 1),
+                Rect::new(layout[11].x + 2, layout[11].y, layout[11].width - 4, 1),
             );
 
             for (i, item) in dynamic_items.into_iter().enumerate() {
                 f.render_widget(
                     Paragraph::new(item),
                     Rect::new(
-                        layout[11].x + 2,
-                        layout[11].y + i as u16,
-                        layout[11].width - 4,
+                        layout[12].x + 2,
+                        layout[12].y + i as u16,
+                        layout[12].width - 4,
                         1,
                     ),
                 );
@@ -248,7 +255,7 @@ impl Widget for DocumentSettingsDialog {
                     "System Comments:",
                     Style::default().add_modifier(Modifier::BOLD),
                 )),
-                Rect::new(layout[12].x + 2, layout[12].y, layout[12].width - 4, 1),
+                Rect::new(layout[13].x + 2, layout[13].y, layout[13].width - 4, 1),
             );
 
             let comments_checkbox = checkbox(
@@ -259,7 +266,7 @@ impl Widget for DocumentSettingsDialog {
             );
             f.render_widget(
                 Paragraph::new(comments_checkbox),
-                Rect::new(layout[13].x + 2, layout[13].y, layout[13].width - 4, 1),
+                Rect::new(layout[14].x + 2, layout[14].y, layout[14].width - 4, 1),
             );
         }
 
@@ -433,6 +440,34 @@ impl Widget for DocumentSettingsDialog {
             Rect::new(layout[7].x + 2, layout[7].y, layout[7].width - 4, 1),
         );
 
+        // Fill Run Threshold
+        let fill_threshold_selected = self.selected_index == idx_fill_threshold;
+        let fill_threshold_value_str = if self.is_editing_fill_threshold {
+            self.fill_threshold_input.clone()
+        } else {
+            let t = settings.fill_run_threshold;
+            if t == 0 {
+                "off".to_string()
+            } else {
+                t.to_string()
+            }
+        };
+        let fill_threshold_text = format!("Fill run threshold: < {fill_threshold_value_str} >");
+
+        let fill_threshold_widget =
+            Paragraph::new(fill_threshold_text).style(if fill_threshold_selected {
+                Style::default()
+                    .fg(theme.highlight_fg)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.dialog_fg)
+            });
+
+        f.render_widget(
+            fill_threshold_widget,
+            Rect::new(layout[8].x + 2, layout[8].y, layout[8].width - 4, 1),
+        );
+
         // Assembler Section
         let assembler_selected = self.selected_index == idx_assembler;
         let assembler_text = format!("Assembler: < {} >", settings.assembler);
@@ -445,17 +480,17 @@ impl Widget for DocumentSettingsDialog {
             Style::default().fg(theme.dialog_fg)
         });
 
-        // Assembler uses layout[8]
+        // Assembler uses layout[9]
         f.render_widget(
             assembler_widget,
-            Rect::new(layout[8].x + 2, layout[8].y, layout[8].width - 4, 1),
+            Rect::new(layout[9].x + 2, layout[9].y, layout[9].width - 4, 1),
         );
 
         // Platform Section (Moved to end)
         let platform_label = Span::raw("Platform:");
         f.render_widget(
             Paragraph::new(platform_label),
-            Rect::new(layout[9].x + 2, layout[9].y, layout[9].width - 4, 1),
+            Rect::new(layout[10].x + 2, layout[10].y, layout[10].width - 4, 1),
         );
 
         let platforms = crate::assets::get_available_platforms();
@@ -474,7 +509,7 @@ impl Widget for DocumentSettingsDialog {
 
         f.render_widget(
             platform_widget,
-            Rect::new(layout[9].x + 2, layout[9].y, layout[9].width - 4, 1),
+            Rect::new(layout[10].x + 2, layout[10].y, layout[10].width - 4, 1),
         );
 
         // Platform Popup
@@ -567,8 +602,9 @@ impl Widget for DocumentSettingsDialog {
         let idx_text_limit = base_items_count + 3;
         let idx_addr_limit = base_items_count + 4;
         let idx_bytes_limit = base_items_count + 5;
-        let idx_assembler = base_items_count + 6;
-        let idx_platform = base_items_count + 7;
+        let idx_fill_threshold = base_items_count + 6;
+        let idx_assembler = base_items_count + 7;
+        let idx_platform = base_items_count + 8;
         let dynamic_start_idx = idx_platform + 1;
         let idx_system_comments = dynamic_start_idx + dynamic_items_count;
 
@@ -712,6 +748,7 @@ impl Widget for DocumentSettingsDialog {
                     && !self.is_editing_text_char_limit
                     && !self.is_editing_addresses_per_line
                     && !self.is_editing_bytes_per_line
+                    && !self.is_editing_fill_threshold
                     && !self.is_editing_description
                 {
                     prev(&mut self.selected_index);
@@ -742,6 +779,9 @@ impl Widget for DocumentSettingsDialog {
                         if app_state.settings.bytes_per_line > 1 {
                             app_state.settings.bytes_per_line -= 1;
                         }
+                    } else if self.selected_index == idx_fill_threshold {
+                        app_state.settings.fill_run_threshold =
+                            app_state.settings.fill_run_threshold.saturating_sub(1);
                     } else if self.selected_index == idx_assembler {
                         let assemblers = crate::state::Assembler::all();
                         let current_idx = assemblers
@@ -789,6 +829,7 @@ impl Widget for DocumentSettingsDialog {
                     && !self.is_editing_text_char_limit
                     && !self.is_editing_addresses_per_line
                     && !self.is_editing_bytes_per_line
+                    && !self.is_editing_fill_threshold
                     && !self.is_editing_description
                 {
                     if self.selected_index == idx_xref {
@@ -807,6 +848,10 @@ impl Widget for DocumentSettingsDialog {
                     } else if self.selected_index == idx_bytes_limit {
                         if app_state.settings.bytes_per_line < 40 {
                             app_state.settings.bytes_per_line += 1;
+                        }
+                    } else if self.selected_index == idx_fill_threshold {
+                        if app_state.settings.fill_run_threshold < 64 {
+                            app_state.settings.fill_run_threshold += 1;
                         }
                     } else if self.selected_index == idx_assembler {
                         let assemblers = crate::state::Assembler::all();
@@ -877,6 +922,7 @@ impl Widget for DocumentSettingsDialog {
                     && !self.is_editing_text_char_limit
                     && !self.is_editing_addresses_per_line
                     && !self.is_editing_bytes_per_line
+                    && !self.is_editing_fill_threshold
                     && !self.is_editing_description
                 {
                     next(&mut self.selected_index);
@@ -918,6 +964,15 @@ impl Widget for DocumentSettingsDialog {
                             self.is_editing_bytes_per_line = false;
                         } else {
                             self.bytes_per_line_input = "Invalid (1-40)".to_string();
+                        }
+                    }
+                } else if self.is_editing_fill_threshold {
+                    if let Ok(val) = self.fill_threshold_input.parse::<usize>() {
+                        if val <= 64 {
+                            app_state.settings.fill_run_threshold = val;
+                            self.is_editing_fill_threshold = false;
+                        } else {
+                            self.fill_threshold_input = "Invalid (0-64)".to_string();
                         }
                     }
                 } else {
@@ -1029,6 +1084,11 @@ impl Widget for DocumentSettingsDialog {
                             self.bytes_per_line_input =
                                 app_state.settings.bytes_per_line.to_string();
                         }
+                        idx if idx == idx_fill_threshold => {
+                            self.is_editing_fill_threshold = true;
+                            self.fill_threshold_input =
+                                app_state.settings.fill_run_threshold.to_string();
+                        }
                         idx if idx == idx_assembler => {
                             self.is_selecting_assembler = true;
                         }
@@ -1050,6 +1110,8 @@ impl Widget for DocumentSettingsDialog {
                     self.addresses_per_line_input.pop();
                 } else if self.is_editing_bytes_per_line {
                     self.bytes_per_line_input.pop();
+                } else if self.is_editing_fill_threshold {
+                    self.fill_threshold_input.pop();
                 }
             }
             KeyCode::Char(c) => {
@@ -1071,6 +1133,8 @@ impl Widget for DocumentSettingsDialog {
                     }
                 } else if self.is_editing_bytes_per_line && c.is_ascii_digit() {
                     self.bytes_per_line_input.push(c);
+                } else if self.is_editing_fill_threshold && c.is_ascii_digit() {
+                    self.fill_threshold_input.push(c);
                 }
             }
             _ => {}

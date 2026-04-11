@@ -1558,7 +1558,8 @@
     "enabled_features": {},
     "description": "",
     "auto_analyze": true,
-    "show_system_comments": true
+    "show_system_comments": true,
+    "fill_run_threshold": 8
   },
   "immediate_value_formats": {
     "3754": {
@@ -1667,14 +1668,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8907,
-  "hex_dump_cursor_address": 8896,
+  "cursor_address": 4064,
+  "hex_dump_cursor_address": 4064,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 57344,
+  "bitmap_cursor_address": 0,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
