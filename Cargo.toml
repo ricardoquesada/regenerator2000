@@ -6,7 +6,7 @@ resolver = "3"
 authors = ["Ricardo Quesada <ricardoquesada@gmail.com>"]
 description = "An interactive disassembler for the CPU 6502, focused mostly on Commodore 8-bit computers."
 name = "regenerator2000"
-version = "0.9.7"
+version = "0.9.8"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ricardoquesada/regenerator2000"
@@ -25,8 +25,8 @@ exclude = [
 ]
 
 [dependencies]
-regenerator2000-core = { version = "0.9.7", path = "crates/regenerator2000-core", features = ["mcp"] }
-regenerator2000-tui = { version = "0.9.7", path = "crates/regenerator2000-tui" }
+regenerator2000-core = { version = "0.9.8", path = "crates/regenerator2000-core", features = ["mcp"] }
+regenerator2000-tui = { version = "0.9.8", path = "crates/regenerator2000-tui" }
 clap = { version = "4", features = ["derive"] }
 anyhow = "1.0"
 serde = { version = "1.0", features = ["derive"] }

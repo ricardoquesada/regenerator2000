@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.8] - 2026-04-11
+
+### Features
+
+- **UI**: Implement interactive cursor navigation and text editing capabilities in all dialog prompts.
+- **HTML Export**: Added assembler homepage hyperlinks to generated HTML headers.
+- **HTML Export**: Improved aesthetics to match GitHub themes and implemented clickable instruction anchors.
+
+### Fixes
+
+- **Core**: Split transient export paths for ASM and HTML configurations.
+- **Core**: Prevent internal side comment propagation in nested Address blocks.
+
+### Documentation
+
+- **Examples**: Updated descriptions and links for C64 and PET projects.
+
 ## [0.9.7] - 2026-04-10
 
 ### Features
