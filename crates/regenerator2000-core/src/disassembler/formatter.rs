@@ -113,6 +113,10 @@ pub trait Formatter {
         false
     }
 
+    fn format_binary_include(&self, filename: &str) -> (String, String) {
+        (".binary".to_string(), format!("\"{}\"", filename))
+    }
+
     fn format_instruction(&self, ctx: &FormatContext) -> (String, String) {
         (
             self.format_mnemonic(ctx.opcode.mnemonic),

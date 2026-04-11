@@ -368,6 +368,10 @@ impl Formatter for KickAsmFormatter {
         true
     }
 
+    fn format_binary_include(&self, filename: &str) -> (String, String) {
+        (".import binary".to_string(), format!("\"{}\"", filename))
+    }
+
     fn format_scope_start(
         &self,
         name: Option<&str>,

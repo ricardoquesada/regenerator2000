@@ -145,20 +145,8 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             // 64tass: .binary
             // ACME: !binary
             // We need to check assembler settings.
-            match state.settings.assembler {
-                crate::state::Assembler::Tass64 => {
-                    output.push_str(&format!(".binary \"{bin_filename}\"\n"));
-                }
-                crate::state::Assembler::Acme => {
-                    output.push_str(&format!("!binary \"{bin_filename}\"\n"));
-                }
-                crate::state::Assembler::Ca65 => {
-                    output.push_str(&format!(".incbin \"{bin_filename}\"\n"));
-                }
-                crate::state::Assembler::Kick => {
-                    output.push_str(&format!(".import binary \"{bin_filename}\"\n"));
-                }
-            }
+            let (mnemonic, operand) = formatter.format_binary_include(&bin_filename);
+            output.push_str(&format!("{} {}\n", mnemonic, operand));
 
             // Ensure origin is printed if this is the first thing
             if !origin_printed {

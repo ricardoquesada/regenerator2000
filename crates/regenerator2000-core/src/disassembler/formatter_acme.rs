@@ -342,6 +342,10 @@ impl Formatter for AcmeFormatter {
         (mnemonic, operand)
     }
 
+    fn format_binary_include(&self, filename: &str) -> (String, String) {
+        ("!binary".to_string(), format!("\"{}\"", filename))
+    }
+
     fn local_label_prefix(&self) -> Option<&'static str> {
         Some(".")
     }

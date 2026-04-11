@@ -441,6 +441,10 @@ impl Formatter for Ca65Formatter {
         true
     }
 
+    fn format_binary_include(&self, filename: &str) -> (String, String) {
+        (".incbin".to_string(), format!("\"{}\"", filename))
+    }
+
     fn local_label_prefix(&self) -> Option<&'static str> {
         Some("@")
     }
