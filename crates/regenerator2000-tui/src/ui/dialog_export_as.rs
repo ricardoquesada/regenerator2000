@@ -122,7 +122,14 @@ impl Widget for ExportAsDialog {
                         };
                         path.set_extension(ext);
                     }
-                    app_state.export_path = Some(path.clone());
+                    match self.format {
+                        crate::event::ExportFormat::Asm => {
+                            app_state.export_asm_path = Some(path.clone());
+                        }
+                        crate::event::ExportFormat::Html => {
+                            app_state.export_html_path = Some(path.clone());
+                        }
+                    }
                     let res = match self.format {
                         crate::event::ExportFormat::Asm => {
                             crate::exporter::export_asm(app_state, &path)

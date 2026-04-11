@@ -13,7 +13,8 @@ impl AppState {
         let data = std::fs::read(&path)?;
         self.file_path = Some(path.clone());
         self.project_path = None; // clear project path
-        self.export_path = None; // clear export path
+        self.export_asm_path = None; // clear export paths
+        self.export_html_path = None;
         self.labels.clear(); // clear existing labels
         self.settings = DocumentSettings::default(); // reset settings
         self.user_side_comments.clear();
@@ -166,7 +167,8 @@ impl AppState {
         self.last_saved_pointer = 0;
         self.project_path = None;
         self.file_path = None;
-        self.export_path = None;
+        self.export_asm_path = None;
+        self.export_html_path = None;
         self.labels.clear();
         self.settings = DocumentSettings::default();
         self.user_side_comments.clear();

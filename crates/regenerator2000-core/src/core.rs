@@ -455,7 +455,7 @@ impl Core {
                 ));
             }
             AppAction::ExportAsm => {
-                if let Some(path) = self.state.export_path.clone() {
+                if let Some(path) = self.state.export_asm_path.clone() {
                     match crate::exporter::export_asm(&self.state, &path) {
                         Ok(_) => {
                             let filename = path.file_name().unwrap_or_default().to_string_lossy();
@@ -496,7 +496,7 @@ impl Core {
             }
 
             AppAction::ExportHtml => {
-                if let Some(mut path) = self.state.export_path.clone() {
+                if let Some(mut path) = self.state.export_html_path.clone() {
                     path.set_extension("html");
                     match crate::exporter::export_html(&self.state, &path) {
                         Ok(_) => {

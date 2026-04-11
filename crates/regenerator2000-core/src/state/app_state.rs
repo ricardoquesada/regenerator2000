@@ -25,7 +25,8 @@ pub enum BlockItem {
 pub struct AppState {
     pub file_path: Option<PathBuf>,
     pub project_path: Option<PathBuf>,
-    pub export_path: Option<PathBuf>,
+    pub export_asm_path: Option<PathBuf>,
+    pub export_html_path: Option<PathBuf>,
     pub raw_data: Vec<u8>,
     pub disassembly: Vec<DisassemblyLine>,
     pub cached_arrows: Vec<CachedArrow>,
@@ -84,7 +85,8 @@ impl AppState {
         Self {
             file_path: None,
             project_path: None,
-            export_path: None,
+            export_asm_path: None,
+            export_html_path: None,
             raw_data: Vec::new(),
             disassembly: Vec::new(),
             cached_arrows: Vec::new(),

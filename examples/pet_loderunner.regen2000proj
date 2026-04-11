@@ -17,14 +17,8 @@
     },
     {
       "start": 4,
-      "end": 33,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 34,
       "end": 34,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -41,14 +35,8 @@
     },
     {
       "start": 39,
-      "end": 61,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 62,
       "end": 62,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -65,14 +53,8 @@
     },
     {
       "start": 67,
-      "end": 92,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 93,
       "end": 93,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -89,14 +71,8 @@
     },
     {
       "start": 98,
-      "end": 114,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 115,
       "end": 115,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -113,14 +89,8 @@
     },
     {
       "start": 120,
-      "end": 126,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 127,
       "end": 127,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -137,14 +107,20 @@
     },
     {
       "start": 132,
-      "end": 139,
+      "end": 138,
       "type_": "DataByte",
       "collapsed": false
     },
     {
-      "start": 140,
+      "start": 139,
+      "end": 140,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 141,
       "end": 510,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -168,7 +144,7 @@
     {
       "start": 2067,
       "end": 2170,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -192,7 +168,7 @@
     {
       "start": 2332,
       "end": 2488,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -203,6 +179,12 @@
     },
     {
       "start": 4238,
+      "end": 4641,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 4642,
       "end": 4643,
       "type_": "Undefined",
       "collapsed": false
@@ -228,7 +210,7 @@
     {
       "start": 6594,
       "end": 6811,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -240,7 +222,7 @@
     {
       "start": 7540,
       "end": 7721,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -252,7 +234,7 @@
     {
       "start": 8414,
       "end": 8479,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -264,7 +246,7 @@
     {
       "start": 8557,
       "end": 8563,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -294,7 +276,7 @@
     {
       "start": 9950,
       "end": 9959,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -306,7 +288,7 @@
     {
       "start": 10191,
       "end": 10220,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -317,8 +299,14 @@
     },
     {
       "start": 10665,
+      "end": 10665,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 10666,
       "end": 10823,
-      "type_": "Undefined",
+      "type_": "ScreencodeText",
       "collapsed": false
     },
     {
@@ -329,8 +317,20 @@
     },
     {
       "start": 11323,
+      "end": 11324,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 11325,
+      "end": 11450,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 11451,
       "end": 11453,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -341,8 +341,20 @@
     },
     {
       "start": 12347,
+      "end": 12349,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 12350,
+      "end": 12602,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 12603,
       "end": 12854,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -354,7 +366,7 @@
     {
       "start": 13274,
       "end": 25343,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     }
   ],
@@ -1171,6 +1183,27 @@
         "kind": "User"
       }
     ],
+    "11691": [
+      {
+        "name": "txt_game_over",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11746": [
+      {
+        "name": "txt_hi_score",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11796": [
+      {
+        "name": "txt_new_high_score",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "11849": [
       {
         "name": "render_text_stream",
@@ -1425,8 +1458,8 @@
     "12479": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSwitches gameplay state sequences by modularly patching the hardware IRQ vectors.\nClears gameplay buffers and re-maps $0314:$0315 vectors sequentially to draw_layout_borders.\n\nInputs:  None.\nOutputs: Remaps standard $0314 hardware interrupt pointer vectors sequence.\nSide Effects: Self-patching sequences sub-states.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "12524": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the visible horizontal layout borders on screen.\nClears gameplay buffer and draws a border line across row 14 using char $2F.\nInitializes overlay pointer at row 21.\n\nInputs:  None.\nOutputs: Sequential buffer modifications at row 14.\nSide Effects: Modifies zero page $5B.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "12877": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the selection cursor box for intro screen options (like Player 1 or 2).\nCalculates the column offset Y = ((option - 1) * 4) + 1 from variable $303D.\nWrites graphic characters to pages $71 (Row 10) and $70 (Row 9) to form the cursor box.\n\nInputs:  Option index at $303D.\nOutputs: Draws graphical selector at rows 9 and 10.\nSide Effects: Modifies $59 (pointer high byte), Y (column offset).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "12946": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears the padding outline surrounding a 2x2 entity in the offscreen screen buffer (around $7100) to erase any artifact left behind if the entity moved by 1 character.\n\nInputs:  $303D (Entity slot/X index), $58 (low-byte of offscreen buffer pointer)\nOutputs: Buffer cells at $70XX, $71XX, and $72XX cleared with space characters (#$20)\nSide Effects: Temporarily decrements and increments $59 to access adjacent rows.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "12997": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks collision with boundaries of the playfield and updates the movement vector of AI entities to keep them within bounds.\n\nInputs:  draw_offset (Column index), draw_page (Row page)\nOutputs: ai_dx ($0DB7), ai_dy ($0DB8)\nSide Effects: Invokes random number generator for corner decisions.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "12946": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears the padding outline surrounding a 2x2 entity in the offscreen screen\nbuffer (around $7100) to erase any artifact left behind if the entity moved by\n1 character.\n\nInputs:  $303D (Entity slot/X index), $58 (low-byte of offscreen buffer pointer)\nOutputs: Buffer cells at $70XX, $71XX, and $72XX cleared with space characters (#$20)\nSide Effects: Temporarily decrements and increments $59 to access adjacent rows.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "12997": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks collision with boundaries of the playfield and updates the movement \nvector of AI entities to keep them within bounds.\n\nInputs:  draw_offset (Column index), draw_page (Row page)\nOutputs: ai_dx ($0DB7), ai_dy ($0DB8)\nSide Effects: Invokes random number generator for corner decisions.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13120": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws static UI decorations or graphical borders onto specific rows in the playfield buffer.\nFills columns 7 to 34 on pages $7E, $7F, and $75 with specific graphic characters (#$FA, #$C2, #$63).\nAlso draws specific character sequences at columns 7-9 and 32-34 on page $74.\n\nInputs:  None.\nOutputs: Writes graphical characters to playfield buffers at pages $7E, $7F, $75, and $74.\nSide Effects: Modifies $59 (pointer high byte), Y (data index).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13204": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the first line of the intro/title screen text into the playfield buffer.\nSets the high byte of the buffer pointer to $67 (Row 0) and starts at column 7.\nCopies characters from $303E until a #$FF terminator is reached.\n\nInputs:  String at $303E.\nOutputs: Populates row 0 of the intro playfield buffer.\nSide Effects: Modifies $59 (pointer high byte), X (string index), Y (data index).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13227": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the second line of the intro/title screen text into the playfield buffer.\nSets the high byte of the buffer pointer to $68 (Row 1) and starts at column 7.\nCopies characters from $305B until a #$FF terminator is reached.\n\nInputs:  String at $305B.\nOutputs: Populates row 1 of the intro playfield buffer.\nSide Effects: Modifies $59 (pointer high byte), X (string index), Y (data index).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1497,17 +1530,17 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 1037,
+  "cursor_address": 1025,
   "hex_dump_cursor_address": 1024,
-  "sprites_cursor_address": 1536,
+  "sprites_cursor_address": 1728,
   "charset_cursor_address": 1024,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
-  "blocks_view_cursor": null,
+  "blocks_view_cursor": 14,
   "scopes": {}
 }
