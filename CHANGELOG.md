@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.7] - 2026-04-10
+
+### Features
+
+- **HTML Export**: Added standalone HTML external file modules, inline hyperlink navigation, anchors, theme toggling, anchors, variable links, and dynamic layout logic.
+- **Import**: Automatically suggest entry points by parsing SYS addresses in multi-line BASIC PRGs.
+- **Navigation**: Added support for directory navigation history and parent folder rules in open dialogs.
+
+### Fixes
+
+- **UI**: Added hex prefix (`$`) to addresses across the status bar.
+- **UI**: Centered position contexts automatically for input prompts in full-range address modal windows.
+- **Core**: Fixed context-level splitter handling in raw-analysis blocks.
+- **Blocks**: Synchronized UI navigation contexts efficiently for blocks sharing duplicative base addresses.
+
+### Refactor / Internal
+
+- **Exporter**: Modularized formatting rules into independent files (asm / html).
+- **Exporter**: Delegated formatting of native inclusions to formatter definitions instead of maintaining hardcoded match constraints.
+- **Refactor**: Replaced raw string platform formats with constants natively.
+- **Refactor**: Restrict recent project contexts to `.regen2000proj` files.
+
 ## [0.9.6] - 2026-04-04
 
 ### Features
