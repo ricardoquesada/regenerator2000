@@ -442,14 +442,19 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L070C"><td class="address"><a href="#L070C">$070C</a></td><td class="bytes">85 75</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0075">a75</a></span></td></tr>
 <tr id="L070E"><td class="address"><a href="#L070E">$070E</a></td><td class="bytes">20 21 25</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L2521">clear_sprite_slots</a></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Subtracts penalty values from dynamic BCD variables scores explicitly arrays logic.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Uses standard 6502 decimal logic arrays sequence vector explicitly sequencing algorithms multiplication-free.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Handles player death: applies pending BCD score penalty, resets gold count,</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;reloads and redraws the current level, then resumes gameplay via the IRQ vector.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  Static pointers configurations sequence variables dynamic array sequencing arrays explicit.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Modifies dynamic sequential sequential configurations sequentially explicitly layout sequence modular.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Updates arrays pointers variables explicit sequence explicitly configurations sequence sequence.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Called from all death triggers (guard collision, tile death, hole fall) and</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;from menu_dispatch_selection when the player chooses to continue.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  a2947:a2948 — 2-byte BCD penalty to subtract from score</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: score_high_bcd:score_low_bcd updated; a2947:a2948 and gold_count zeroed;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;         game_state_flag = 1; IRQ vector (a90:a91) set to tick_gameplay</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Stops and reinitializes audio; fully reinitializes all level</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;              data structures and redraws the playfield UI</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell label">apply_score_penalty</td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell label">handle_player_death</td></tr>
 <tr id="L0711"><td class="address"><a href="#L0711">$0711</a></td><td class="bytes">20 92 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0C92">stop_audio</a></span><span class="comment">; x-ref: <a href="#L2884">$2884</a>, <a href="#L28B1">$28B1</a>, <a href="#L28E0">$28E0</a>, <a href="#L2909">$2909</a>, <a href="#L37CB">$37CB</a></span></td></tr>
 <tr id="L0714"><td class="address"><a href="#L0714">$0714</a></td><td class="bytes">20 7c 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0C7C">init_audio</a></span></td></tr>
 <tr id="L0717"><td class="address"><a href="#L0717">$0717</a></td><td class="bytes">f8</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sed</span><span class="operand"></span></td></tr>
@@ -480,7 +485,11 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L075A"><td class="address"><a href="#L075A">$075A</a></td><td class="bytes">20 4b 29</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L294B">draw_ui_text_labels</a></span></td></tr>
 <tr id="L075D"><td class="address"><a href="#L075D">$075D</a></td><td class="bytes">20 b8 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0AB8">draw_playfield_border</a></span></td></tr>
 <tr id="L0760"><td class="address"><a href="#L0760">$0760</a></td><td class="bytes">a9 ff</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$ff</span></td></tr>
-<tr id="L0762"><td class="address"><a href="#L0762">$0762</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">a0DB1</a></span></td></tr>
+<tr id="L0762"><td class="address"><a href="#L0762">$0762</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L0765"><td class="address"><a href="#L0765">$0765</a></td><td class="bytes">a9 01</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$01</span></td></tr>
 <tr id="L0767"><td class="address"><a href="#L0767">$0767</a></td><td class="bytes">85 67</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0067">game_state_flag</a></span><span class="comment">; ARGHO  Floating Accum. #2: Mantissa</span></td></tr>
 <tr id="L0769"><td class="address"><a href="#L0769">$0769</a></td><td class="bytes">a9 4a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#<<a href="#L064A">tick_gameplay</a></span></td></tr>
@@ -505,12 +514,16 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L077D"><td class="address"><a href="#L077D">$077D</a></td><td class="bytes">85 50</td><td colspan="3" class="code-cell"><span class="inline-label">b077D</span><span class="mnemonic">sta</span><span class="operand"><a href="#L0050">random_seed</a></span><span class="comment">; x-ref: <a href="#L0777">$0777</a>, <a href="#L0779">$0779</a></span></td></tr>
 <tr id="L077F"><td class="address"><a href="#L077F">$077F</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Iteratively clears the dynamic hardware PET sequence physical arrays screen pointers offsets.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Fills absolute sequence layouts dynamically $8000 explicitly to static offsets modular arrays.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Clears the physical PET screen RAM by filling $8000–$86FF (7 pages x 256</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;bytes) with space characters ($20).</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  None.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: updates explicit sequencing absolute configurations sequencer sequence explicit sequenced explicitly sequencer sequencer.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: clears sequential iterative variables sequence iterative sequential explicit sequencers arrays iterative configurations sequentially explicitly sequencer.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Uses a single 256-iteration DEX/BNE loop writing A to seven consecutive</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;page-aligned screen RAM regions in parallel, covering the full visible</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;display.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  None</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: None</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Screen RAM at $8000–$86FF filled with spaces ($20)</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell label">clear_physical_screen</td></tr>
 <tr id="L0780"><td class="address"><a href="#L0780">$0780</a></td><td class="bytes">a9 20</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$20</span><span class="comment">; x-ref: <a href="#L06C2">$06C2</a>, <a href="#L1681">$1681</a></span></td></tr>
@@ -644,9 +657,15 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0877"><td class="address"><a href="#L0877">$0877</a></td><td class="bytes">c0 9c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">cpy</span><span class="operand">#$9c</span></td></tr>
 <tr id="L0879"><td class="address"><a href="#L0879">$0879</a></td><td class="bytes">d0 e1</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bne</span><span class="operand"><a href="#L085C">b085C</a></span></td></tr>
 <tr id="L087B"><td class="address"><a href="#L087B">$087B</a></td><td class="bytes">a9 83</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$83</span></td></tr>
-<tr id="L087D"><td class="address"><a href="#L087D">$087D</a></td><td class="bytes">8d b6 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0AB6">a0AB6</a></span></td></tr>
+<tr id="L087D"><td class="address"><a href="#L087D">$087D</a></td><td class="bytes">8d b6 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0AB6">smc_screen_addr_hi</a></span><span class="comment">; Self-modifying screen RAM target address (high byte).
+Paired with a0AB7 (low byte) to form a 16-bit address patched
+into absolute STA instructions in draw_playfield_border and
+animate_level_select_cursor, directing cursor-box writes to
+the correct screen RAM location.
+Initial value $81 (hi) + $DF (lo) = $81DF.
+Reset to $83 (hi) + $BF (lo) = $83BF after blit table setup.</span></td></tr>
 <tr id="L0880"><td class="address"><a href="#L0880">$0880</a></td><td class="bytes">a9 bf</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$bf</span></td></tr>
-<tr id="L0882"><td class="address"><a href="#L0882">$0882</a></td><td class="bytes">8d b7 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0AB7">a0AB7</a></span></td></tr>
+<tr id="L0882"><td class="address"><a href="#L0882">$0882</a></td><td class="bytes">8d b7 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0AB7">smc_screen_addr_lo</a></span><span class="comment">; Self-modifying screen RAM target address (low byte). See a0AB6.</span></td></tr>
 <tr id="L0885"><td class="address"><a href="#L0885">$0885</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Copies 32 bytes per line from RAM buffers ($6701..$7F01) to Screen RAM ($8000..).</span></td></tr>
@@ -806,14 +825,26 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L09DB"><td class="address"><a href="#L09DB">$09DB</a></td><td class="bytes">68</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">pla</span><span class="operand"></span></td></tr>
 <tr id="L09DC"><td class="address"><a href="#L09DC">$09DC</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Iteratively parses and renders the entity actor dynamic data arrays stream.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Starts at $6300 offsets and normalize dynamic coordinates arrays sequentially explicitly.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Animates a box cursor sweeping across the level-select screen.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  Data array pointers at $6300 and $6400 configurations sequence logic.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Modifies sequence vector layout absolute arrays sequence explicit sequencer dynamic layout explicitly.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Updates zero-page Temporary sequencer pointers sequences absolute explicit sequencer arrays explicit.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Walks the path tables cursor_anim_row_table ($6300) and cursor_anim_col_table</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;($6400) using X as the index (starting at $FC = -4). For each (row, col) pair</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;it draws four PETSCII box-drawing characters at the four corners/sides of a</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;2x1 cursor box onto screen RAM via the ZP indirect pointer (a58:a59):</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  - top-left  ($4F), top-right  ($64), bottom-left ($4C), bottom-right ($63)</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  - or $20 (space) to erase a corner that falls outside the playfield area.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;When a $FF sentinel is reached, calls blit_screen_and_pause to display the</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;current frame, then resumes. Stops when a second $FF terminates the frame.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Called before death/respawn sequences and on level-select menu actions to</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;play the cursor flythrough animation before transitioning state.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  cursor_anim_row_table ($6300), cursor_anim_col_table ($6400);</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;         a58:a59 — ZP pointer to the current screen RAM page base</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Screen RAM updated with animated cursor box characters</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Calls blit_screen_and_pause; modifies a58, a59 (ZP)</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell label">render_actor_stream</td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell label">animate_level_select_cursor</td></tr>
 <tr id="L09DD"><td class="address"><a href="#L09DD">$09DD</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span><span class="comment">; x-ref: <a href="#L26DB">$26DB</a>, <a href="#L2881">$2881</a>, <a href="#L28AE">$28AE</a>, <a href="#L28DD">$28DD</a>, <a href="#L2906">$2906</a>, <a href="#L37C8">$37C8</a>, <a href="#L37D3">$37D3</a></span></td></tr>
 <tr id="L09DF"><td class="address"><a href="#L09DF">$09DF</a></td><td class="bytes">85 58</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0058">a58</a></span></td></tr>
 <tr id="L09E1"><td class="address"><a href="#L09E1">$09E1</a></td><td class="bytes">a2 fc</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">ldx</span><span class="operand">#$fc</span></td></tr>
@@ -909,12 +940,19 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0A9C"><td class="address"><a href="#L0A9C">$0A9C</a></td><td class="bytes">4c e3 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jmp</span><span class="operand"><a href="#L09E3">j09E3</a></span></td></tr>
 <tr id="L0A9F"><td class="address"><a href="#L0A9F">$0A9F</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label">b0A9F</span><span class="mnemonic">rts</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L0A9A">$0A9A</a></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Updates visual screen frame and pauses using a hardcoded busy-wait loop.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Calls blit_screen and iterates inner $FF logic explicitly outer $10 times.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Blits the off-screen row buffers to physical screen RAM, then busy-waits</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;for a fixed delay to control animation frame timing.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  None.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Orchestrates sequential pausings dynamically.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Creates visual pauses sequences explicitly buffers multiplication-free.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Preserves X and Y around the blit call. After blit_screen returns, runs a</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;nested busy-wait loop (outer Y=$10, inner X=$FF → 16x255 = 4,080 iterations)</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;to produce a ~17 ms delay before returning to the caller.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Called by animate_level_select_cursor each time a $FF sentinel is hit in the</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;path tables, i.e. once per animation frame.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  None</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: None</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Calls blit_screen (updates screen RAM); burns ~4080 cycles</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell label">blit_screen_and_pause</td></tr>
 <tr id="L0AA0"><td class="address"><a href="#L0AA0">$0AA0</a></td><td class="bytes">8a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">txa</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L0A91">$0A91</a></span></td></tr>
@@ -933,19 +971,43 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0AB3"><td class="address"><a href="#L0AB3">$0AB3</a></td><td class="bytes">68</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">pla</span><span class="operand"></span></td></tr>
 <tr id="L0AB4"><td class="address"><a href="#L0AB4">$0AB4</a></td><td class="bytes">aa</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">tax</span><span class="operand"></span></td></tr>
 <tr id="L0AB5"><td class="address"><a href="#L0AB5">$0AB5</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
-<tr id="L0AB6"><td class="address"><a href="#L0AB6">$0AB6</a></td><td class="bytes">81</td><td colspan="3" class="code-cell"><span class="inline-label">a0AB6</span><span class="mnemonic">.byte</span><span class="operand">$81</span><span class="comment">; x-ref: <a href="#L087D">$087D</a>, <a href="#L0B45">$0B45</a>, <a href="#L0B76">$0B76</a>, <a href="#L0BA7">$0BA7</a>, <a href="#L0BD8">$0BD8</a></span></td></tr>
-<tr id="L0AB7"><td class="address"><a href="#L0AB7">$0AB7</a></td><td class="bytes">df</td><td colspan="3" class="code-cell"><span class="inline-label">a0AB7</span><span class="mnemonic">.byte</span><span class="operand">$df</span><span class="comment">; x-ref: <a href="#L0882">$0882</a>, <a href="#L0B4B">$0B4B</a>, <a href="#L0B7C">$0B7C</a>, <a href="#L0BAD">$0BAD</a>, <a href="#L0BDE">$0BDE</a></span></td></tr>
+<tr id="L0AB6"><td class="address"><a href="#L0AB6">$0AB6</a></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label">smc_screen_addr_hi</span><span class="mnemonic">.byte</span><span class="operand">$81</span><span class="comment">; Self-modifying screen RAM target address (high byte).
+Paired with a0AB7 (low byte) to form a 16-bit address patched
+into absolute STA instructions in draw_playfield_border and
+animate_level_select_cursor, directing cursor-box writes to
+the correct screen RAM location.
+Initial value $81 (hi) + $DF (lo) = $81DF.
+Reset to $83 (hi) + $BF (lo) = $83BF after blit table setup. ; x-ref: <a href="#L087D">$087D</a>, <a href="#L0B45">$0B45</a>, <a href="#L0B76">$0B76</a>, <a href="#L0BA7">$0BA7</a>, <a href="#L0BD8">$0BD8</a></span></td></tr>
+<tr id="L0AB7"><td class="address"><a href="#L0AB7">$0AB7</a></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label">smc_screen_addr_lo</span><span class="mnemonic">.byte</span><span class="operand">$df</span><span class="comment">; Self-modifying screen RAM target address (low byte). See a0AB6. ; x-ref: <a href="#L0882">$0882</a>, <a href="#L0B4B">$0B4B</a>, <a href="#L0B7C">$0B7C</a>, <a href="#L0BAD">$0BAD</a>, <a href="#L0BDE">$0BDE</a></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Draws the playfield border box on the PET screen at $8000.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Iterates through 25 rows (X) and 33 columns (Y).</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Draws corners and horizontal/vertical border characters, and fills the interior with spaces.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Draws the playfield border frame directly to screen RAM ($8000) and then</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;draws the initial level-select cursor box at the first path-table position.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  None.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Draws the border onto the screen at $8000.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Modifies X, Y, and pointer at $0B11/$0B12.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Phase 1 — Border frame ($0AB8–$0B2B):</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  Iterates 25 rows (X: 0..$18) x 33 columns (Y: 0..$20).</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  A 16-bit page pointer (a0B11:a0B12, base $8000) is advanced by</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  screen_width each row (carry-propagated). For each cell, picks a</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  PETSCII box-drawing character based on position:</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;    top-left ($4F), top-right ($65), bottom-left ($4C), bottom-right ($64),</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;    left/right edges ($65), top/bottom edges ($63/$64), interior ($20).</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Phase 2 — Initial cursor box ($0B2D–$0C13):</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  Starting at index X=2 in cursor_anim_row_table / cursor_anim_col_table,</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  draws four corner characters of the cursor highlight box at the first</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  non-sentinel path entry using self-modifying screen address patches</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  (smc_screen_addr_hi/lo). Calls busy_wait_pause once, then exits on the</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  next $FF sentinel.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  cursor_anim_row_table ($6300), cursor_anim_col_table ($6400);</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;         smc_screen_addr_hi/lo — screen RAM page for cursor writes;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;         screen_width — bytes per row in screen RAM</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Screen RAM at $8000 updated with border and cursor box</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Modifies a0B11:a0B12 (page pointer), a58:a59 (ZP scratch),</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;              patches self-modifying operands at a0B6C, a0B6D, a0B9D,</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;              a0B9E, a0BCE, a0BCF, a0BFF, a0C00; calls busy_wait_pause</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell label">draw_playfield_border</td></tr>
-<tr id="L0AB8"><td class="address"><a href="#L0AB8">$0AB8</a></td><td class="bytes">a2 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">ldx</span><span class="operand">#$00</span><span class="comment">; x-ref: <a href="#L075D">$075D</a>, <a href="#L2F9D">$2F9D</a></span></td></tr>
+<tr id="L0AB8"><td class="address"><a href="#L0AB8">$0AB8</a></td><td class="bytes">a2 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">ldx</span><span class="operand">#$00</span><span class="comment">; Phase 1: draw border frame (25 rows x 33 cols) to screen RAM at $8000. ; x-ref: <a href="#L075D">$075D</a>, <a href="#L2F9D">$2F9D</a></span></td></tr>
 <tr id="L0ABA"><td class="address"><a href="#L0ABA">$0ABA</a></td><td class="bytes">a0 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">ldy</span><span class="operand">#$00</span></td></tr>
 <tr id="L0ABC"><td class="address"><a href="#L0ABC">$0ABC</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
 <tr id="L0ABE"><td class="address"><a href="#L0ABE">$0ABE</a></td><td class="bytes">8d 11 0b</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0B11">a0B11</a></span></td></tr>
@@ -1000,6 +1062,7 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0B28"><td class="address"><a href="#L0B28">$0B28</a></td><td class="bytes">e8</td><td colspan="3" class="code-cell"><span class="inline-label">b0B28</span><span class="mnemonic">inx</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L0B23">$0B23</a></span></td></tr>
 <tr id="L0B29"><td class="address"><a href="#L0B29">$0B29</a></td><td class="bytes">e0 19</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">cpx</span><span class="operand">#$19</span></td></tr>
 <tr id="L0B2B"><td class="address"><a href="#L0B2B">$0B2B</a></td><td class="bytes">d0 99</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bne</span><span class="operand"><a href="#L0AC6">b0AC6</a></span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Phase 2: draw initial cursor highlight box at the first path-table entry.</span></td></tr>
 <tr id="L0B2D"><td class="address"><a href="#L0B2D">$0B2D</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
 <tr id="L0B2F"><td class="address"><a href="#L0B2F">$0B2F</a></td><td class="bytes">85 58</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0058">a58</a></span></td></tr>
 <tr id="L0B31"><td class="address"><a href="#L0B31">$0B31</a></td><td class="bytes">a2 02</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">ldx</span><span class="operand">#$02</span></td></tr>
@@ -1011,9 +1074,15 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0B3F"><td class="address"><a href="#L0B3F">$0B3F</a></td><td class="bytes">18</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">clc</span><span class="operand"></span></td></tr>
 <tr id="L0B40"><td class="address"><a href="#L0B40">$0B40</a></td><td class="bytes">7d 00 63</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">adc</span><span class="operand"><a href="#L6300">cursor_anim_row_table</a>,x</span></td></tr>
 <tr id="L0B43"><td class="address"><a href="#L0B43">$0B43</a></td><td class="bytes">85 59</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0059">a59</a></span><span class="comment">; TEMPF2 Temporary storage for FLPT value.</span></td></tr>
-<tr id="L0B45"><td class="address"><a href="#L0B45">$0B45</a></td><td class="bytes">ad b6 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB6">a0AB6</a></span></td></tr>
+<tr id="L0B45"><td class="address"><a href="#L0B45">$0B45</a></td><td class="bytes">ad b6 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB6">smc_screen_addr_hi</a></span><span class="comment">; Self-modifying screen RAM target address (high byte).
+Paired with a0AB7 (low byte) to form a 16-bit address patched
+into absolute STA instructions in draw_playfield_border and
+animate_level_select_cursor, directing cursor-box writes to
+the correct screen RAM location.
+Initial value $81 (hi) + $DF (lo) = $81DF.
+Reset to $83 (hi) + $BF (lo) = $83BF after blit table setup.</span></td></tr>
 <tr id="L0B48"><td class="address"><a href="#L0B48">$0B48</a></td><td class="bytes">8d 6d 0b</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0B6D">a0B6D</a></span></td></tr>
-<tr id="L0B4B"><td class="address"><a href="#L0B4B">$0B4B</a></td><td class="bytes">ad b7 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB7">a0AB7</a></span></td></tr>
+<tr id="L0B4B"><td class="address"><a href="#L0B4B">$0B4B</a></td><td class="bytes">ad b7 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB7">smc_screen_addr_lo</a></span><span class="comment">; Self-modifying screen RAM target address (low byte). See a0AB6.</span></td></tr>
 <tr id="L0B4E"><td class="address"><a href="#L0B4E">$0B4E</a></td><td class="bytes">bc 00 63</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">ldy</span><span class="operand"><a href="#L6300">cursor_anim_row_table</a>,x</span></td></tr>
 <tr id="L0B51"><td class="address"><a href="#L0B51">$0B51</a></td><td class="bytes">88</td><td colspan="3" class="code-cell"><span class="inline-label">b0B51</span><span class="mnemonic">dey</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L0B57">$0B57</a>, <a href="#L0B5C">$0B5C</a></span></td></tr>
 <tr id="L0B52"><td class="address"><a href="#L0B52">$0B52</a></td><td class="bytes">30 0b</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bmi</span><span class="operand"><a href="#L0B5F">b0B5F</a></span></td></tr>
@@ -1035,9 +1104,15 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0B70"><td class="address"><a href="#L0B70">$0B70</a></td><td class="bytes">38</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sec</span><span class="operand"></span></td></tr>
 <tr id="L0B71"><td class="address"><a href="#L0B71">$0B71</a></td><td class="bytes">fd 00 63</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sbc</span><span class="operand"><a href="#L6300">cursor_anim_row_table</a>,x</span></td></tr>
 <tr id="L0B74"><td class="address"><a href="#L0B74">$0B74</a></td><td class="bytes">85 59</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0059">a59</a></span><span class="comment">; TEMPF2 Temporary storage for FLPT value.</span></td></tr>
-<tr id="L0B76"><td class="address"><a href="#L0B76">$0B76</a></td><td class="bytes">ad b6 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB6">a0AB6</a></span></td></tr>
+<tr id="L0B76"><td class="address"><a href="#L0B76">$0B76</a></td><td class="bytes">ad b6 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB6">smc_screen_addr_hi</a></span><span class="comment">; Self-modifying screen RAM target address (high byte).
+Paired with a0AB7 (low byte) to form a 16-bit address patched
+into absolute STA instructions in draw_playfield_border and
+animate_level_select_cursor, directing cursor-box writes to
+the correct screen RAM location.
+Initial value $81 (hi) + $DF (lo) = $81DF.
+Reset to $83 (hi) + $BF (lo) = $83BF after blit table setup.</span></td></tr>
 <tr id="L0B79"><td class="address"><a href="#L0B79">$0B79</a></td><td class="bytes">8d 9e 0b</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0B9E">a0B9E</a></span></td></tr>
-<tr id="L0B7C"><td class="address"><a href="#L0B7C">$0B7C</a></td><td class="bytes">ad b7 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB7">a0AB7</a></span></td></tr>
+<tr id="L0B7C"><td class="address"><a href="#L0B7C">$0B7C</a></td><td class="bytes">ad b7 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB7">smc_screen_addr_lo</a></span><span class="comment">; Self-modifying screen RAM target address (low byte). See a0AB6.</span></td></tr>
 <tr id="L0B7F"><td class="address"><a href="#L0B7F">$0B7F</a></td><td class="bytes">bc 00 63</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">ldy</span><span class="operand"><a href="#L6300">cursor_anim_row_table</a>,x</span></td></tr>
 <tr id="L0B82"><td class="address"><a href="#L0B82">$0B82</a></td><td class="bytes">88</td><td colspan="3" class="code-cell"><span class="inline-label">b0B82</span><span class="mnemonic">dey</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L0B88">$0B88</a>, <a href="#L0B8D">$0B8D</a></span></td></tr>
 <tr id="L0B83"><td class="address"><a href="#L0B83">$0B83</a></td><td class="bytes">30 0b</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bmi</span><span class="operand"><a href="#L0B90">b0B90</a></span></td></tr>
@@ -1059,9 +1134,15 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0BA1"><td class="address"><a href="#L0BA1">$0BA1</a></td><td class="bytes">18</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">clc</span><span class="operand"></span></td></tr>
 <tr id="L0BA2"><td class="address"><a href="#L0BA2">$0BA2</a></td><td class="bytes">7d 00 63</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">adc</span><span class="operand"><a href="#L6300">cursor_anim_row_table</a>,x</span></td></tr>
 <tr id="L0BA5"><td class="address"><a href="#L0BA5">$0BA5</a></td><td class="bytes">85 59</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0059">a59</a></span><span class="comment">; TEMPF2 Temporary storage for FLPT value.</span></td></tr>
-<tr id="L0BA7"><td class="address"><a href="#L0BA7">$0BA7</a></td><td class="bytes">ad b6 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB6">a0AB6</a></span></td></tr>
+<tr id="L0BA7"><td class="address"><a href="#L0BA7">$0BA7</a></td><td class="bytes">ad b6 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB6">smc_screen_addr_hi</a></span><span class="comment">; Self-modifying screen RAM target address (high byte).
+Paired with a0AB7 (low byte) to form a 16-bit address patched
+into absolute STA instructions in draw_playfield_border and
+animate_level_select_cursor, directing cursor-box writes to
+the correct screen RAM location.
+Initial value $81 (hi) + $DF (lo) = $81DF.
+Reset to $83 (hi) + $BF (lo) = $83BF after blit table setup.</span></td></tr>
 <tr id="L0BAA"><td class="address"><a href="#L0BAA">$0BAA</a></td><td class="bytes">8d cf 0b</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0BCF">a0BCF</a></span></td></tr>
-<tr id="L0BAD"><td class="address"><a href="#L0BAD">$0BAD</a></td><td class="bytes">ad b7 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB7">a0AB7</a></span></td></tr>
+<tr id="L0BAD"><td class="address"><a href="#L0BAD">$0BAD</a></td><td class="bytes">ad b7 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB7">smc_screen_addr_lo</a></span><span class="comment">; Self-modifying screen RAM target address (low byte). See a0AB6.</span></td></tr>
 <tr id="L0BB0"><td class="address"><a href="#L0BB0">$0BB0</a></td><td class="bytes">bc 00 63</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">ldy</span><span class="operand"><a href="#L6300">cursor_anim_row_table</a>,x</span></td></tr>
 <tr id="L0BB3"><td class="address"><a href="#L0BB3">$0BB3</a></td><td class="bytes">88</td><td colspan="3" class="code-cell"><span class="inline-label">b0BB3</span><span class="mnemonic">dey</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L0BB9">$0BB9</a>, <a href="#L0BBE">$0BBE</a></span></td></tr>
 <tr id="L0BB4"><td class="address"><a href="#L0BB4">$0BB4</a></td><td class="bytes">30 0b</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bmi</span><span class="operand"><a href="#L0BC1">b0BC1</a></span></td></tr>
@@ -1083,9 +1164,15 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0BD2"><td class="address"><a href="#L0BD2">$0BD2</a></td><td class="bytes">38</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sec</span><span class="operand"></span></td></tr>
 <tr id="L0BD3"><td class="address"><a href="#L0BD3">$0BD3</a></td><td class="bytes">fd 00 63</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sbc</span><span class="operand"><a href="#L6300">cursor_anim_row_table</a>,x</span></td></tr>
 <tr id="L0BD6"><td class="address"><a href="#L0BD6">$0BD6</a></td><td class="bytes">85 59</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0059">a59</a></span><span class="comment">; TEMPF2 Temporary storage for FLPT value.</span></td></tr>
-<tr id="L0BD8"><td class="address"><a href="#L0BD8">$0BD8</a></td><td class="bytes">ad b6 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB6">a0AB6</a></span></td></tr>
+<tr id="L0BD8"><td class="address"><a href="#L0BD8">$0BD8</a></td><td class="bytes">ad b6 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB6">smc_screen_addr_hi</a></span><span class="comment">; Self-modifying screen RAM target address (high byte).
+Paired with a0AB7 (low byte) to form a 16-bit address patched
+into absolute STA instructions in draw_playfield_border and
+animate_level_select_cursor, directing cursor-box writes to
+the correct screen RAM location.
+Initial value $81 (hi) + $DF (lo) = $81DF.
+Reset to $83 (hi) + $BF (lo) = $83BF after blit table setup.</span></td></tr>
 <tr id="L0BDB"><td class="address"><a href="#L0BDB">$0BDB</a></td><td class="bytes">8d 00 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0C00">a0C00</a></span></td></tr>
-<tr id="L0BDE"><td class="address"><a href="#L0BDE">$0BDE</a></td><td class="bytes">ad b7 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB7">a0AB7</a></span></td></tr>
+<tr id="L0BDE"><td class="address"><a href="#L0BDE">$0BDE</a></td><td class="bytes">ad b7 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0AB7">smc_screen_addr_lo</a></span><span class="comment">; Self-modifying screen RAM target address (low byte). See a0AB6.</span></td></tr>
 <tr id="L0BE1"><td class="address"><a href="#L0BE1">$0BE1</a></td><td class="bytes">bc 00 63</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">ldy</span><span class="operand"><a href="#L6300">cursor_anim_row_table</a>,x</span></td></tr>
 <tr id="L0BE4"><td class="address"><a href="#L0BE4">$0BE4</a></td><td class="bytes">88</td><td colspan="3" class="code-cell"><span class="inline-label">b0BE4</span><span class="mnemonic">dey</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L0BEA">$0BEA</a>, <a href="#L0BEF">$0BEF</a></span></td></tr>
 <tr id="L0BE5"><td class="address"><a href="#L0BE5">$0BE5</a></td><td class="bytes">30 0b</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bmi</span><span class="operand"><a href="#L0BF2">b0BF2</a></span></td></tr>
@@ -1176,23 +1263,38 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0CAD"><td class="address"><a href="#L0CAD">$0CAD</a></td><td class="bytes">ce 7a 0c</td><td colspan="3" class="code-cell"><span class="inline-label">b0CAD</span><span class="mnemonic">dec</span><span class="operand"><a href="#L0C7A">sound_active_flag</a></span><span class="comment">; x-ref: <a href="#L0CA7">$0CA7</a></span></td></tr>
 <tr id="L0CB0"><td class="address"><a href="#L0CB0">$0CB0</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Triggers audio stream sequence starting at array index $25.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Triggers the guard-captured-in-hole sound effect.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  None.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Modifies sound sequential array active variables sequences.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: None.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Sets sound_table_index to $25 (entry in sound_data_table at $0C39: a</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;rising-pitch tone sequence written to CIA 2 Timer B / $E848) and sets</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;sound_active_flag to 1 so the audio driver begins playing it.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Called when a guard's actor_status_table entry has the high bit set,</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;indicating the guard has just fallen into a dug hole.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  None</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: sound_table_index = $25, sound_active_flag = 1</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Audio driver will begin playing the capture tone on next tick</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr id="L0CB1"><td class="address"><a href="#L0CB1">$0CB1</a></td><td class="bytes">a9 25</td><td colspan="3" class="code-cell"><span class="inline-label">trigger_sound_25</span><span class="mnemonic">lda</span><span class="operand">#$25</span><span class="comment">; x-ref: <a href="#L0FB8">$0FB8</a>, <a href="#L1034">$1034</a></span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell label">trigger_guard_captured_sound</td></tr>
+<tr id="L0CB1"><td class="address"><a href="#L0CB1">$0CB1</a></td><td class="bytes">a9 25</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$25</span><span class="comment">; x-ref: <a href="#L0FB8">$0FB8</a>, <a href="#L1034">$1034</a></span></td></tr>
 <tr id="L0CB3"><td class="address"><a href="#L0CB3">$0CB3</a></td><td class="bytes">8d 7b 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0C7B">sound_table_index</a></span></td></tr>
 <tr id="L0CB6"><td class="address"><a href="#L0CB6">$0CB6</a></td><td class="bytes">a9 01</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$01</span></td></tr>
 <tr id="L0CB8"><td class="address"><a href="#L0CB8">$0CB8</a></td><td class="bytes">8d 7a 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0C7A">sound_active_flag</a></span></td></tr>
 <tr id="L0CBB"><td class="address"><a href="#L0CBB">$0CBB</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Triggers the countdown sequence pitch audio stream (starts at array index $06).</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Triggers the time-bonus countdown beep sound effect.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  None.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Modifies sound sequential array active variables sequences.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: None.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Sets sound_table_index to $06 (entry in sound_data_table at $0C1A: a short</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;descending tone sequence — $A0, $B4, $88, $60, $00 — written to CIA 2</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Timer B / $E848) and sets sound_active_flag to 1.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Called by play_bonus_audio_tick once every 8 frames while the bonus</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;countdown is running after level completion.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  None</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: sound_table_index = $06, sound_active_flag = 1</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Audio driver will play the countdown beep on next tick</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell label">trigger_countdown_sound</td></tr>
 <tr id="L0CBC"><td class="address"><a href="#L0CBC">$0CBC</a></td><td class="bytes">a9 06</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$06</span><span class="comment">; x-ref: <a href="#L2B15">$2B15</a></span></td></tr>
@@ -1201,11 +1303,18 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0CC3"><td class="address"><a href="#L0CC3">$0CC3</a></td><td class="bytes">8d 7a 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0C7A">sound_active_flag</a></span></td></tr>
 <tr id="L0CC6"><td class="address"><a href="#L0CC6">$0CC6</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Triggers dynamic collection sequences pitch audio stream (starts at array index $4E).</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Triggers the gold-collection sound effect.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  None.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Modifies sound sequential array active variables sequences.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: None.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Sets sound_table_index to $4E (entry in sound_data_table at $0C62: a short</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;two-tone beep sequence — $58, $58, $76, $76, $00 — written to CIA 2</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Timer B / $E848) and sets sound_active_flag to 1.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Called immediately after the player picks up a gold piece (gold_count</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;incremented), just before the floating score display timer is armed.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  None</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: sound_table_index = $4E, sound_active_flag = 1</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Audio driver will play the collection beep on next tick</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell label">trigger_collection_sound</td></tr>
 <tr id="L0CC7"><td class="address"><a href="#L0CC7">$0CC7</a></td><td class="bytes">a9 4e</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$4e</span><span class="comment">; x-ref: <a href="#L2601">$2601</a></span></td></tr>
@@ -1213,19 +1322,43 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0CCC"><td class="address"><a href="#L0CCC">$0CCC</a></td><td class="bytes">a9 01</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$01</span></td></tr>
 <tr id="L0CCE"><td class="address"><a href="#L0CCE">$0CCE</a></td><td class="bytes">8d 7a 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0C7A">sound_active_flag</a></span></td></tr>
 <tr id="L0CD1"><td class="address"><a href="#L0CD1">$0CD1</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
-<tr id="L0CD2"><td class="address"><a href="#L0CD2">$0CD2</a></td><td class="bytes">ff</td><td colspan="3" class="code-cell"><span class="inline-label">a0CD2</span><span class="mnemonic">.byte</span><span class="operand">$ff</span><span class="comment">; x-ref: <a href="#L0CD3">$0CD3</a>, <a href="#L0CDA">$0CDA</a>, <a href="#L0CE9">$0CE9</a>, <a href="#L0CF0">$0CF0</a>, <a href="#L0DC6">$0DC6</a></span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell label">dynamic_pitch_latch</td></tr>
+<tr id="L0CD2"><td class="address"><a href="#L0CD2">$0CD2</a></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">.byte</span><span class="operand">$ff</span><span class="comment">; One-shot latch for play_dynamic_pitch / silence_dynamic_pitch.
+$FF = pitch engine armed (ready to fire); $00 = already fired this update.
+Initialised to $FF at game start ($0DC6). play_dynamic_pitch clears it to
+$00 on first call; silence_dynamic_pitch resets it to $FF when silencing. ; x-ref: <a href="#L0CD3">$0CD3</a>, <a href="#L0CDA">$0CDA</a>, <a href="#L0CE9">$0CE9</a>, <a href="#L0CF0">$0CF0</a>, <a href="#L0DC6">$0DC6</a></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Calculates dynamic square-wave pitch frequency from entity height (draw_page).</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Normalizes by subtracting $55 and multiplies result by 4 before writing to $E848.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Plays a one-shot dynamic pitch tone based on the player's current screen row.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  draw_page variable.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Writes dynamic sequence vectors to $E848.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: None.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Checks a0CD2 (the one-shot latch): if already $00 (fired this update), returns</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;immediately without re-triggering. Otherwise clears the latch to $00 and</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;computes the Timer B frequency:</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  frequency = (draw_page - $55) << 2</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;The result is written directly to CIA 2 Timer B Low ($E848), producing a</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;square-wave tone whose pitch rises as draw_page increases (i.e. as the player</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;moves to a lower screen row while digging).</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Called each frame when the player is actively digging (screen cell at player</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;position has bit 4 set). Paired with silence_dynamic_pitch which is called</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;when the player stops digging.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  draw_page — player's current screen page (determines pitch);</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;         a0CD2    — one-shot latch ($FF = ready, $00 = already fired)</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: $E848 (CIA 2 Timer B LO) written with computed frequency</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Clears a0CD2 to $00 after first trigger</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr id="L0CD3"><td class="address"><a href="#L0CD3">$0CD3</a></td><td class="bytes">ad d2 0c</td><td colspan="3" class="code-cell"><span class="inline-label">play_dynamic_pitch</span><span class="mnemonic">lda</span><span class="operand"><a href="#L0CD2">a0CD2</a></span><span class="comment">; x-ref: <a href="#L0E75">$0E75</a></span></td></tr>
+<tr id="L0CD3"><td class="address"><a href="#L0CD3">$0CD3</a></td><td class="bytes">ad d2 0c</td><td colspan="3" class="code-cell"><span class="inline-label">play_dynamic_pitch</span><span class="mnemonic">lda</span><span class="operand"><a href="#L0CD2">dynamic_pitch_latch</a></span><span class="comment">; x-ref: <a href="#L0E75">$0E75</a> One-shot latch for play_dynamic_pitch / silence_dynamic_pitch.
+$FF = pitch engine armed (ready to fire); $00 = already fired this update.
+Initialised to $FF at game start ($0DC6). play_dynamic_pitch clears it to
+$00 on first call; silence_dynamic_pitch resets it to $FF when silencing.</span></td></tr>
 <tr id="L0CD6"><td class="address"><a href="#L0CD6">$0CD6</a></td><td class="bytes">f0 05</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">beq</span><span class="operand"><a href="#L0CDD">b0CDD</a></span></td></tr>
 <tr id="L0CD8"><td class="address"><a href="#L0CD8">$0CD8</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
-<tr id="L0CDA"><td class="address"><a href="#L0CDA">$0CDA</a></td><td class="bytes">8d d2 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0CD2">a0CD2</a></span></td></tr>
+<tr id="L0CDA"><td class="address"><a href="#L0CDA">$0CDA</a></td><td class="bytes">8d d2 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0CD2">dynamic_pitch_latch</a></span><span class="comment">; One-shot latch for play_dynamic_pitch / silence_dynamic_pitch.
+$FF = pitch engine armed (ready to fire); $00 = already fired this update.
+Initialised to $FF at game start ($0DC6). play_dynamic_pitch clears it to
+$00 on first call; silence_dynamic_pitch resets it to $FF when silencing.</span></td></tr>
 <tr id="L0CDD"><td class="address"><a href="#L0CDD">$0CDD</a></td><td class="bytes">ad b5 0d</td><td colspan="3" class="code-cell"><span class="inline-label">b0CDD</span><span class="mnemonic">lda</span><span class="operand"><a href="#L0DB5">draw_page</a></span><span class="comment">; x-ref: <a href="#L0CD6">$0CD6</a></span></td></tr>
 <tr id="L0CE0"><td class="address"><a href="#L0CE0">$0CE0</a></td><td class="bytes">38</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sec</span><span class="operand"></span></td></tr>
 <tr id="L0CE1"><td class="address"><a href="#L0CE1">$0CE1</a></td><td class="bytes">e9 55</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sbc</span><span class="operand">#$55</span></td></tr>
@@ -1234,28 +1367,51 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0CE5"><td class="address"><a href="#L0CE5">$0CE5</a></td><td class="bytes">8d 48 e8</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand">$e848</span><span class="comment">; Timer 2 LO</span></td></tr>
 <tr id="L0CE8"><td class="address"><a href="#L0CE8">$0CE8</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Resets and silences dynamic square-wave audio tones.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Explicitly clears configuration sequence sequences absolute variable sequences explicit vectors logic $E848 logic arrays.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Silences the dynamic dig pitch tone and re-arms the one-shot latch.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  Static control array sequencing variables explicit configuration sequence vectors logic $CD2 sequences logic.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Writes absolute sequence layout explicit sequence $00 sequentially explicit dynamic variables.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: None.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Checks dynamic_pitch_latch: if non-zero ($FF = already silent/armed), returns</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;immediately without writing to hardware (idempotent guard). Otherwise, the</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;latch was $00 (pitch has been playing), so:</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  1. Resets dynamic_pitch_latch to $FF (re-arms for next dig event)</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;  2. Writes $00 to CIA 2 Timer B Low ($E848), stopping the square-wave tone</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Called each frame when the player is NOT actively digging (bit 4 clear in</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;the cell under them). Paired with play_dynamic_pitch.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  dynamic_pitch_latch — $00 means pitch is currently active</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: $E848 (CIA 2 Timer B LO) set to $00 (silence)</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Resets dynamic_pitch_latch to $FF</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell label">silence_dynamic_pitch</td></tr>
-<tr id="L0CE9"><td class="address"><a href="#L0CE9">$0CE9</a></td><td class="bytes">ad d2 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0CD2">a0CD2</a></span><span class="comment">; x-ref: <a href="#L10BF">$10BF</a></span></td></tr>
+<tr id="L0CE9"><td class="address"><a href="#L0CE9">$0CE9</a></td><td class="bytes">ad d2 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0CD2">dynamic_pitch_latch</a></span><span class="comment">; x-ref: <a href="#L10BF">$10BF</a> One-shot latch for play_dynamic_pitch / silence_dynamic_pitch.
+$FF = pitch engine armed (ready to fire); $00 = already fired this update.
+Initialised to $FF at game start ($0DC6). play_dynamic_pitch clears it to
+$00 on first call; silence_dynamic_pitch resets it to $FF when silencing.</span></td></tr>
 <tr id="L0CEC"><td class="address"><a href="#L0CEC">$0CEC</a></td><td class="bytes">d0 0a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bne</span><span class="operand"><a href="#L0CF8">b0CF8</a></span></td></tr>
 <tr id="L0CEE"><td class="address"><a href="#L0CEE">$0CEE</a></td><td class="bytes">a9 ff</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$ff</span></td></tr>
-<tr id="L0CF0"><td class="address"><a href="#L0CF0">$0CF0</a></td><td class="bytes">8d d2 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0CD2">a0CD2</a></span></td></tr>
+<tr id="L0CF0"><td class="address"><a href="#L0CF0">$0CF0</a></td><td class="bytes">8d d2 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0CD2">dynamic_pitch_latch</a></span><span class="comment">; One-shot latch for play_dynamic_pitch / silence_dynamic_pitch.
+$FF = pitch engine armed (ready to fire); $00 = already fired this update.
+Initialised to $FF at game start ($0DC6). play_dynamic_pitch clears it to
+$00 on first call; silence_dynamic_pitch resets it to $FF when silencing.</span></td></tr>
 <tr id="L0CF3"><td class="address"><a href="#L0CF3">$0CF3</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
 <tr id="L0CF5"><td class="address"><a href="#L0CF5">$0CF5</a></td><td class="bytes">8d 48 e8</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand">$e848</span><span class="comment">; Timer 2 LO</span></td></tr>
 <tr id="L0CF8"><td class="address"><a href="#L0CF8">$0CF8</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label">b0CF8</span><span class="mnemonic">rts</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L0CEC">$0CEC</a></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Plays static audio jingles sequentially from sequence arrays variables.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;This entry vectors explicitly arrays starting at $18 for victory sequencing buffers.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Plays the level-completion victory jingle synchronously.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  Sound stream arrays.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Writes sequential vector sequence frames to absolute vector arrays configurations at $E848.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Creates visual pause busy-wait sequencing sequences buffers.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Steps through sound_data_table starting at index $18 ($0C2C: a 12-note</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;descending-then-ascending melody — $6E,$64,$5A,$50,$46,$3C,$32,$28,$3C,</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;$50,$64,$78,$00). Each non-zero byte is written to CIA 2 Timer B Low</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;($E848) to set the square-wave pitch, then busy_wait_pause is called to</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;hold the note for one frame before advancing. Stops on the $00 terminator.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Blocking: this routine does not return until the full jingle has played.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Called by check_level_complete after all gold has been collected.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  sound_data_table[$18..$24] — note sequence</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: $E848 driven with each note frequency in turn</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Blocks for the full jingle duration (~12 x busy_wait_pause);</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;              leaves $E848 at $00 (silence) on return</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell label">play_victory_jingle</td></tr>
 <tr id="L0CF9"><td class="address"><a href="#L0CF9">$0CF9</a></td><td class="bytes">a2 18</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">ldx</span><span class="operand">#$18</span><span class="comment">; x-ref: <a href="#L26CA">$26CA</a></span></td></tr>
@@ -1267,12 +1423,22 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0D07"><td class="address"><a href="#L0D07">$0D07</a></td><td class="bytes">4c fb 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jmp</span><span class="operand"><a href="#L0CFB">j0CFB</a></span></td></tr>
 <tr id="L0D0A"><td class="address"><a href="#L0D0A">$0D0A</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label">b0D0A</span><span class="mnemonic">rts</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L0D01">$0D01</a></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Plays static audio jingles sequentially from sequence arrays variables.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;This entry vectors explicitly arrays starting at $57 for fail sequencing buffers.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Plays the player-death sound effect synchronously.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  Sound stream arrays.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Writes sequential vector sequence frames to absolute vector arrays configurations at $E848.</span></td></tr>
-<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Creates visual pause busy-wait sequencing sequences buffers.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Steps through sound_data_table starting at index $57 ($0C6B: 13 notes of</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;large timer values — $F0,$F0,$F0,$F0,$F0,$F5,$F5,$F5,$F5,$FA,$FA,$FF,$FF,</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;$00 — producing a deep, slow-frequency descending drone on CIA 2 Timer B</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;/ $E848). Each non-zero byte sets the pitch; busy_wait_pause holds the note</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;before advancing. Stops on the $00 terminator.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Blocking: does not return until the full sound has played.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Called from all four player death triggers (guard collision, 1x2 object,</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;tile death, hole fall) after a short delay loop.</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Inputs:  sound_data_table[$57..$63] — note sequence</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: $E848 driven with each note frequency in turn</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Blocks for the full sound duration (~13 x busy_wait_pause);</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;              leaves $E848 at $00 (silence) on return</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
 <tr id="L0D0B"><td class="address"><a href="#L0D0B">$0D0B</a></td><td class="bytes">a2 57</td><td colspan="3" class="code-cell"><span class="inline-label">play_death_sound</span><span class="mnemonic">ldx</span><span class="operand">#$57</span><span class="comment">; x-ref: <a href="#L2876">$2876</a>, <a href="#L28A3">$28A3</a>, <a href="#L28D2">$28D2</a>, <a href="#L28FB">$28FB</a></span></td></tr>
 <tr id="L0D0D"><td class="address"><a href="#L0D0D">$0D0D</a></td><td class="bytes">bd 14 0c</td><td colspan="3" class="code-cell"><span class="inline-label">j0D0D</span><span class="mnemonic">lda</span><span class="operand"><a href="#L0C14">sound_data_table</a>,x</span><span class="comment">; x-ref: <a href="#L0D19">$0D19</a></span></td></tr>
@@ -1322,8 +1488,17 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0DAE"><td class="address"><a href="#L0DAE">$0DAE</a></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label">data_buf_1</span><span class="mnemonic">.byte</span><span class="operand">$00</span><span class="comment">; x-ref: <a href="#L0DD8">$0DD8</a>, <a href="#L114D">$114D</a>, <a href="#L117F">$117F</a></span></td></tr>
 <tr id="L0DAF"><td class="address"><a href="#L0DAF">$0DAF</a></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label">data_buf_2</span><span class="mnemonic">.byte</span><span class="operand">$00</span><span class="comment">; x-ref: <a href="#L0DDB">$0DDB</a>, <a href="#L1153">$1153</a>, <a href="#L1185">$1185</a></span></td></tr>
 <tr id="L0DB0"><td class="address"><a href="#L0DB0">$0DB0</a></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label">data_buf_3</span><span class="mnemonic">.byte</span><span class="operand">$00</span><span class="comment">; x-ref: <a href="#L0DDE">$0DDE</a>, <a href="#L1159">$1159</a>, <a href="#L118B">$118B</a></span></td></tr>
-<tr id="L0DB1"><td class="address"><a href="#L0DB1">$0DB1</a></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label">a0DB1</span><span class="mnemonic">.byte</span><span class="operand">$ff</span><span class="comment">; x-ref: <a href="#L0762">$0762</a>, <a href="#L0DCB">$0DCB</a>, <a href="#L0FDC">$0FDC</a>, <a href="#L1058">$1058</a>, <a href="#L1066">$1066</a>, <a href="#L107A">$107A</a>, <a href="#L10A9">$10A9</a>, <a href="#L115F">$115F</a>, <a href="#L174D">$174D</a>, <a href="#L1937">$1937</a>, <a href="#L198A">$198A</a>, <a href="#L1A13">$1A13</a>, <a href="#L311B">$311B</a></span></td></tr>
-<tr id="L0DB2"><td class="address"><a href="#L0DB2">$0DB2</a></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label">a0DB2</span><span class="mnemonic">.byte</span><span class="operand">$01</span><span class="comment">; x-ref: <a href="#L0DD0">$0DD0</a>, <a href="#L1088">$1088</a>, <a href="#L1164">$1164</a></span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell label">player_action_state</td></tr>
+<tr id="L0DB1"><td class="address"><a href="#L0DB1">$0DB1</a></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">.byte</span><span class="operand">$ff</span><span class="comment">; Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags. ; x-ref: <a href="#L0762">$0762</a>, <a href="#L0DCB">$0DCB</a>, <a href="#L0FDC">$0FDC</a>, <a href="#L1058">$1058</a>, <a href="#L1066">$1066</a>, <a href="#L107A">$107A</a>, <a href="#L10A9">$10A9</a>, <a href="#L115F">$115F</a>, <a href="#L174D">$174D</a>, <a href="#L1937">$1937</a>, <a href="#L198A">$198A</a>, <a href="#L1A13">$1A13</a>, <a href="#L311B">$311B</a></span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="code-cell label">respawn_freeze_timer</td></tr>
+<tr id="L0DB2"><td class="address"><a href="#L0DB2">$0DB2</a></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">.byte</span><span class="operand">$01</span><span class="comment">; Post-respawn freeze delay counter.
+Initialised to $80 (128 frames). Decremented each frame during the respawn
+freeze (player_action_state = $FF) as long as no input is received.
+When it hits $00, the freeze ends and gameplay resumes. ; x-ref: <a href="#L0DD0">$0DD0</a>, <a href="#L1088">$1088</a>, <a href="#L1164">$1164</a></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Current animation frame offset within a sprite strip.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Cycles 0 → 4 → 8 → $C → 0 (step ±4, masked with & $0C).</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Incremented on rightward/upward moves; decremented on leftward/downward.</span></td></tr>
@@ -1357,11 +1532,21 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0DC0"><td class="address"><a href="#L0DC0">$0DC0</a></td><td class="bytes">a9 2b</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$2b</span></td></tr>
 <tr id="L0DC2"><td class="address"><a href="#L0DC2">$0DC2</a></td><td class="bytes">85 5a</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L005A">a5A</a></span></td></tr>
 <tr id="L0DC4"><td class="address"><a href="#L0DC4">$0DC4</a></td><td class="bytes">a9 ff</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$ff</span></td></tr>
-<tr id="L0DC6"><td class="address"><a href="#L0DC6">$0DC6</a></td><td class="bytes">8d d2 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0CD2">a0CD2</a></span></td></tr>
+<tr id="L0DC6"><td class="address"><a href="#L0DC6">$0DC6</a></td><td class="bytes">8d d2 0c</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0CD2">dynamic_pitch_latch</a></span><span class="comment">; One-shot latch for play_dynamic_pitch / silence_dynamic_pitch.
+$FF = pitch engine armed (ready to fire); $00 = already fired this update.
+Initialised to $FF at game start ($0DC6). play_dynamic_pitch clears it to
+$00 on first call; silence_dynamic_pitch resets it to $FF when silencing.</span></td></tr>
 <tr id="L0DC9"><td class="address"><a href="#L0DC9">$0DC9</a></td><td class="bytes">a9 ff</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$ff</span></td></tr>
-<tr id="L0DCB"><td class="address"><a href="#L0DCB">$0DCB</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">a0DB1</a></span></td></tr>
+<tr id="L0DCB"><td class="address"><a href="#L0DCB">$0DCB</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L0DCE"><td class="address"><a href="#L0DCE">$0DCE</a></td><td class="bytes">a9 80</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$80</span></td></tr>
-<tr id="L0DD0"><td class="address"><a href="#L0DD0">$0DD0</a></td><td class="bytes">8d b2 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB2">a0DB2</a></span></td></tr>
+<tr id="L0DD0"><td class="address"><a href="#L0DD0">$0DD0</a></td><td class="bytes">8d b2 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB2">respawn_freeze_timer</a></span><span class="comment">; Post-respawn freeze delay counter.
+Initialised to $80 (128 frames). Decremented each frame during the respawn
+freeze (player_action_state = $FF) as long as no input is received.
+When it hits $00, the freeze ends and gameplay resumes.</span></td></tr>
 <tr id="L0DD3"><td class="address"><a href="#L0DD3">$0DD3</a></td><td class="bytes">a9 20</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$20</span></td></tr>
 <tr id="L0DD5"><td class="address"><a href="#L0DD5">$0DD5</a></td><td class="bytes">8d ad 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DAD">data_buf_0</a></span></td></tr>
 <tr id="L0DD8"><td class="address"><a href="#L0DD8">$0DD8</a></td><td class="bytes">8d ae 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DAE">data_buf_1</a></span></td></tr>
@@ -1594,7 +1779,7 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0FB4"><td class="address"><a href="#L0FB4">$0FB4</a></td><td class="bytes">ca</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">dex</span><span class="operand"></span></td></tr>
 <tr id="L0FB5"><td class="address"><a href="#L0FB5">$0FB5</a></td><td class="bytes">10 f8</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L0FAF">b0FAF</a></span></td></tr>
 <tr id="L0FB7"><td class="address"><a href="#L0FB7">$0FB7</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
-<tr id="L0FB8"><td class="address"><a href="#L0FB8">$0FB8</a></td><td class="bytes">20 b1 0c</td><td colspan="3" class="code-cell"><span class="inline-label">b0FB8</span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0CB1">trigger_sound_25</a></span><span class="comment">; x-ref: <a href="#L0FB2">$0FB2</a></span></td></tr>
+<tr id="L0FB8"><td class="address"><a href="#L0FB8">$0FB8</a></td><td class="bytes">20 b1 0c</td><td colspan="3" class="code-cell"><span class="inline-label">b0FB8</span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0CB1">trigger_guard_captured_sound</a></span><span class="comment">; x-ref: <a href="#L0FB2">$0FB2</a></span></td></tr>
 <tr id="L0FBB"><td class="address"><a href="#L0FBB">$0FBB</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
 <tr id="L0FBD"><td class="address"><a href="#L0FBD">$0FBD</a></td><td class="bytes">9d 43 1e</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L1E43">actor_status_table</a>,x</span></td></tr>
 <tr id="L0FC0"><td class="address"><a href="#L0FC0">$0FC0</a></td><td class="bytes">a9 ff</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$ff</span></td></tr>
@@ -1607,7 +1792,11 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0FD4"><td class="address"><a href="#L0FD4">$0FD4</a></td><td class="bytes">fe 4d 1e</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">inc</span><span class="operand"><a href="#L1E4D">actor_dig_page</a>,x</span></td></tr>
 <tr id="L0FD7"><td class="address"><a href="#L0FD7">$0FD7</a></td><td class="bytes">fe 4d 1e</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">inc</span><span class="operand"><a href="#L1E4D">actor_dig_page</a>,x</span></td></tr>
 <tr id="L0FDA"><td class="address"><a href="#L0FDA">$0FDA</a></td><td class="bytes">a9 01</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$01</span></td></tr>
-<tr id="L0FDC"><td class="address"><a href="#L0FDC">$0FDC</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">a0DB1</a></span></td></tr>
+<tr id="L0FDC"><td class="address"><a href="#L0FDC">$0FDC</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L0FDF"><td class="address"><a href="#L0FDF">$0FDF</a></td><td class="bytes">a9 70</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$70</span></td></tr>
 <tr id="L0FE1"><td class="address"><a href="#L0FE1">$0FE1</a></td><td class="bytes">8d b6 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB6">sprite_base_offset</a></span></td></tr>
 <tr id="L0FE4"><td class="address"><a href="#L0FE4">$0FE4</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
@@ -1654,7 +1843,7 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L1030"><td class="address"><a href="#L1030">$1030</a></td><td class="bytes">ca</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">dex</span><span class="operand"></span></td></tr>
 <tr id="L1031"><td class="address"><a href="#L1031">$1031</a></td><td class="bytes">10 f8</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L102B">b102B</a></span></td></tr>
 <tr id="L1033"><td class="address"><a href="#L1033">$1033</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
-<tr id="L1034"><td class="address"><a href="#L1034">$1034</a></td><td class="bytes">20 b1 0c</td><td colspan="3" class="code-cell"><span class="inline-label">b1034</span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0CB1">trigger_sound_25</a></span><span class="comment">; x-ref: <a href="#L102E">$102E</a></span></td></tr>
+<tr id="L1034"><td class="address"><a href="#L1034">$1034</a></td><td class="bytes">20 b1 0c</td><td colspan="3" class="code-cell"><span class="inline-label">b1034</span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0CB1">trigger_guard_captured_sound</a></span><span class="comment">; x-ref: <a href="#L102E">$102E</a></span></td></tr>
 <tr id="L1037"><td class="address"><a href="#L1037">$1037</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
 <tr id="L1039"><td class="address"><a href="#L1039">$1039</a></td><td class="bytes">9d 43 1e</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L1E43">actor_status_table</a>,x</span></td></tr>
 <tr id="L103C"><td class="address"><a href="#L103C">$103C</a></td><td class="bytes">a9 ff</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$ff</span></td></tr>
@@ -1667,7 +1856,11 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L1050"><td class="address"><a href="#L1050">$1050</a></td><td class="bytes">fe 4d 1e</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">inc</span><span class="operand"><a href="#L1E4D">actor_dig_page</a>,x</span></td></tr>
 <tr id="L1053"><td class="address"><a href="#L1053">$1053</a></td><td class="bytes">fe 4d 1e</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">inc</span><span class="operand"><a href="#L1E4D">actor_dig_page</a>,x</span></td></tr>
 <tr id="L1056"><td class="address"><a href="#L1056">$1056</a></td><td class="bytes">a9 01</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$01</span></td></tr>
-<tr id="L1058"><td class="address"><a href="#L1058">$1058</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">a0DB1</a></span></td></tr>
+<tr id="L1058"><td class="address"><a href="#L1058">$1058</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L105B"><td class="address"><a href="#L105B">$105B</a></td><td class="bytes">a9 80</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$80</span></td></tr>
 <tr id="L105D"><td class="address"><a href="#L105D">$105D</a></td><td class="bytes">8d b6 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB6">sprite_base_offset</a></span></td></tr>
 <tr id="L1060"><td class="address"><a href="#L1060">$1060</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
@@ -1681,7 +1874,11 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Cycles animation_frame, may clear $0DB1, may fill $221C..$2220 with 2</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Reads from memory page determined by draw_page.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr id="L1066"><td class="address"><a href="#L1066">$1066</a></td><td class="bytes">ad b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label">manage_game_flags</span><span class="mnemonic">lda</span><span class="operand"><a href="#L0DB1">a0DB1</a></span><span class="comment">; x-ref: <a href="#L0638">$0638</a>, <a href="#L066E">$066E</a>, <a href="#L3238">$3238</a></span></td></tr>
+<tr id="L1066"><td class="address"><a href="#L1066">$1066</a></td><td class="bytes">ad b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label">manage_game_flags</span><span class="mnemonic">lda</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; x-ref: <a href="#L0638">$0638</a>, <a href="#L066E">$066E</a>, <a href="#L3238">$3238</a> Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L1069"><td class="address"><a href="#L1069">$1069</a></td><td class="bytes">f0 42</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">beq</span><span class="operand"><a href="#L10AD">b10AD</a></span></td></tr>
 <tr id="L106B"><td class="address"><a href="#L106B">$106B</a></td><td class="bytes">10 21</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L108E">b108E</a></span></td></tr>
 <tr id="L106D"><td class="address"><a href="#L106D">$106D</a></td><td class="bytes">ad b7 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0DB7">ai_dx</a></span></td></tr>
@@ -1689,14 +1886,21 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L1073"><td class="address"><a href="#L1073">$1073</a></td><td class="bytes">0d b9 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">ora</span><span class="operand"><a href="#L0DB9">current_input_state</a></span></td></tr>
 <tr id="L1076"><td class="address"><a href="#L1076">$1076</a></td><td class="bytes">f0 10</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">beq</span><span class="operand"><a href="#L1088">b1088</a></span></td></tr>
 <tr id="L1078"><td class="address"><a href="#L1078">$1078</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label">b1078</span><span class="mnemonic">lda</span><span class="operand">#$00</span><span class="comment">; x-ref: <a href="#L108B">$108B</a></span></td></tr>
-<tr id="L107A"><td class="address"><a href="#L107A">$107A</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">a0DB1</a></span></td></tr>
+<tr id="L107A"><td class="address"><a href="#L107A">$107A</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L107D"><td class="address"><a href="#L107D">$107D</a></td><td class="bytes">a2 04</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">ldx</span><span class="operand">#$04</span></td></tr>
 <tr id="L107F"><td class="address"><a href="#L107F">$107F</a></td><td class="bytes">a9 02</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$02</span></td></tr>
 <tr id="L1081"><td class="address"><a href="#L1081">$1081</a></td><td class="bytes">9d 1c 22</td><td colspan="3" class="code-cell"><span class="inline-label">b1081</span><span class="mnemonic">sta</span><span class="operand"><a href="#L221C">guard_move_rate</a>,x</span><span class="comment">; x-ref: <a href="#L1085">$1085</a></span></td></tr>
 <tr id="L1084"><td class="address"><a href="#L1084">$1084</a></td><td class="bytes">ca</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">dex</span><span class="operand"></span></td></tr>
 <tr id="L1085"><td class="address"><a href="#L1085">$1085</a></td><td class="bytes">10 fa</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L1081">b1081</a></span></td></tr>
 <tr id="L1087"><td class="address"><a href="#L1087">$1087</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
-<tr id="L1088"><td class="address"><a href="#L1088">$1088</a></td><td class="bytes">ce b2 0d</td><td colspan="3" class="code-cell"><span class="inline-label">b1088</span><span class="mnemonic">dec</span><span class="operand"><a href="#L0DB2">a0DB2</a></span><span class="comment">; x-ref: <a href="#L1076">$1076</a></span></td></tr>
+<tr id="L1088"><td class="address"><a href="#L1088">$1088</a></td><td class="bytes">ce b2 0d</td><td colspan="3" class="code-cell"><span class="inline-label">b1088</span><span class="mnemonic">dec</span><span class="operand"><a href="#L0DB2">respawn_freeze_timer</a></span><span class="comment">; x-ref: <a href="#L1076">$1076</a> Post-respawn freeze delay counter.
+Initialised to $80 (128 frames). Decremented each frame during the respawn
+freeze (player_action_state = $FF) as long as no input is received.
+When it hits $00, the freeze ends and gameplay resumes.</span></td></tr>
 <tr id="L108B"><td class="address"><a href="#L108B">$108B</a></td><td class="bytes">f0 eb</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">beq</span><span class="operand"><a href="#L1078">b1078</a></span></td></tr>
 <tr id="L108D"><td class="address"><a href="#L108D">$108D</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr id="L108E"><td class="address"><a href="#L108E">$108E</a></td><td class="bytes">ad b3 0d</td><td colspan="3" class="code-cell"><span class="inline-label">b108E</span><span class="mnemonic">lda</span><span class="operand"><a href="#L0DB3">animation_frame</a></span><span class="comment">; x-ref: <a href="#L106B">$106B</a></span></td></tr>
@@ -1712,7 +1916,11 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L10A4"><td class="address"><a href="#L10A4">$10A4</a></td><td class="bytes">88</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">dey</span><span class="operand"></span></td></tr>
 <tr id="L10A5"><td class="address"><a href="#L10A5">$10A5</a></td><td class="bytes">10 f4</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L109B">b109B</a></span></td></tr>
 <tr id="L10A7"><td class="address"><a href="#L10A7">$10A7</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
-<tr id="L10A9"><td class="address"><a href="#L10A9">$10A9</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">a0DB1</a></span></td></tr>
+<tr id="L10A9"><td class="address"><a href="#L10A9">$10A9</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L10AC"><td class="address"><a href="#L10AC">$10AC</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label">b10AC</span><span class="mnemonic">rts</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L109E">$109E</a>, <a href="#L10A2">$10A2</a></span></td></tr>
 <tr id="L10AD"><td class="address"><a href="#L10AD">$10AD</a></td><td class="bytes">ac b5 0d</td><td colspan="3" class="code-cell"><span class="inline-label">b10AD</span><span class="mnemonic">ldy</span><span class="operand"><a href="#L0DB5">draw_page</a></span><span class="comment">; x-ref: <a href="#L1069">$1069</a></span></td></tr>
 <tr id="L10B0"><td class="address"><a href="#L10B0">$10B0</a></td><td class="bytes">c8</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">iny</span><span class="operand"></span></td></tr>
@@ -1810,9 +2018,16 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Outputs: Populates data_buf_0..3</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Side Effects: Modifies zero page $53 and $55.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
-<tr id="L115F"><td class="address"><a href="#L115F">$115F</a></td><td class="bytes">ad b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label">read_tile</span><span class="mnemonic">lda</span><span class="operand"><a href="#L0DB1">a0DB1</a></span><span class="comment">; x-ref: <a href="#L063B">$063B</a>, <a href="#L068F">$068F</a>, <a href="#L2FD3">$2FD3</a>, <a href="#L2FFF">$2FFF</a>, <a href="#L302D">$302D</a>, <a href="#L311E">$311E</a>, <a href="#L323B">$323B</a></span></td></tr>
+<tr id="L115F"><td class="address"><a href="#L115F">$115F</a></td><td class="bytes">ad b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label">read_tile</span><span class="mnemonic">lda</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; x-ref: <a href="#L063B">$063B</a>, <a href="#L068F">$068F</a>, <a href="#L2FD3">$2FD3</a>, <a href="#L2FFF">$2FFF</a>, <a href="#L302D">$302D</a>, <a href="#L311E">$311E</a>, <a href="#L323B">$323B</a> Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L1162"><td class="address"><a href="#L1162">$1162</a></td><td class="bytes">10 08</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L116C">b116C</a></span></td></tr>
-<tr id="L1164"><td class="address"><a href="#L1164">$1164</a></td><td class="bytes">ad b2 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0DB2">a0DB2</a></span></td></tr>
+<tr id="L1164"><td class="address"><a href="#L1164">$1164</a></td><td class="bytes">ad b2 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand"><a href="#L0DB2">respawn_freeze_timer</a></span><span class="comment">; Post-respawn freeze delay counter.
+Initialised to $80 (128 frames). Decremented each frame during the respawn
+freeze (player_action_state = $FF) as long as no input is received.
+When it hits $00, the freeze ends and gameplay resumes.</span></td></tr>
 <tr id="L1167"><td class="address"><a href="#L1167">$1167</a></td><td class="bytes">29 10</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">and</span><span class="operand">#$10</span></td></tr>
 <tr id="L1169"><td class="address"><a href="#L1169">$1169</a></td><td class="bytes">f0 01</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">beq</span><span class="operand"><a href="#L116C">b116C</a></span></td></tr>
 <tr id="L116B"><td class="address"><a href="#L116B">$116B</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
@@ -2427,7 +2642,11 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L1746"><td class="address"><a href="#L1746">$1746</a></td><td class="bytes">a9 7b</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$7b</span></td></tr>
 <tr id="L1748"><td class="address"><a href="#L1748">$1748</a></td><td class="bytes">8d b5 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB5">draw_page</a></span></td></tr>
 <tr id="L174B"><td class="address"><a href="#L174B">$174B</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
-<tr id="L174D"><td class="address"><a href="#L174D">$174D</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">a0DB1</a></span></td></tr>
+<tr id="L174D"><td class="address"><a href="#L174D">$174D</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L1750"><td class="address"><a href="#L1750">$1750</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr id="L1751"><td class="address"><a href="#L1751">$1751</a></td><td class="bytes">c9 05</td><td colspan="3" class="code-cell"><span class="inline-label">b1751</span><span class="mnemonic">cmp</span><span class="operand">#$05</span><span class="comment">; x-ref: <a href="#L16F9">$16F9</a></span></td></tr>
 <tr id="L1753"><td class="address"><a href="#L1753">$1753</a></td><td class="bytes">d0 13</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bne</span><span class="operand"><a href="#L1768">b1768</a></span></td></tr>
@@ -2655,7 +2874,11 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L1930"><td class="address"><a href="#L1930">$1930</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
 <tr id="L1932"><td class="address"><a href="#L1932">$1932</a></td><td class="bytes">8d b3 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB3">animation_frame</a></span></td></tr>
 <tr id="L1935"><td class="address"><a href="#L1935">$1935</a></td><td class="bytes">a9 01</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$01</span></td></tr>
-<tr id="L1937"><td class="address"><a href="#L1937">$1937</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">a0DB1</a></span></td></tr>
+<tr id="L1937"><td class="address"><a href="#L1937">$1937</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L193A"><td class="address"><a href="#L193A">$193A</a></td><td class="bytes">a9 70</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$70</span></td></tr>
 <tr id="L193C"><td class="address"><a href="#L193C">$193C</a></td><td class="bytes">8d b6 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB6">sprite_base_offset</a></span></td></tr>
 <tr id="L193F"><td class="address"><a href="#L193F">$193F</a></td><td class="bytes">ee 24 16</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">inc</span><span class="operand"><a href="#L1624">data_load_state</a></span></td></tr>
@@ -2692,7 +2915,11 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L1983"><td class="address"><a href="#L1983">$1983</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
 <tr id="L1985"><td class="address"><a href="#L1985">$1985</a></td><td class="bytes">8d b3 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB3">animation_frame</a></span></td></tr>
 <tr id="L1988"><td class="address"><a href="#L1988">$1988</a></td><td class="bytes">a9 01</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$01</span></td></tr>
-<tr id="L198A"><td class="address"><a href="#L198A">$198A</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">a0DB1</a></span></td></tr>
+<tr id="L198A"><td class="address"><a href="#L198A">$198A</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L198D"><td class="address"><a href="#L198D">$198D</a></td><td class="bytes">a9 80</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$80</span></td></tr>
 <tr id="L198F"><td class="address"><a href="#L198F">$198F</a></td><td class="bytes">8d b6 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB6">sprite_base_offset</a></span></td></tr>
 <tr id="L1992"><td class="address"><a href="#L1992">$1992</a></td><td class="bytes">a9 01</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$01</span></td></tr>
@@ -2752,7 +2979,11 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L1A0B"><td class="address"><a href="#L1A0B">$1A0B</a></td><td class="bytes">20 7c 1a</td><td colspan="3" class="code-cell"><span class="inline-label">b1A0B</span><span class="mnemonic">jsr</span><span class="operand"><a href="#L1A7C">invert_tile_buffer</a></span><span class="comment">; x-ref: <a href="#L1A05">$1A05</a></span></td></tr>
 <tr id="L1A0E"><td class="address"><a href="#L1A0E">$1A0E</a></td><td class="bytes">20 3c 11</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L113C">draw_tile</a></span></td></tr>
 <tr id="L1A11"><td class="address"><a href="#L1A11">$1A11</a></td><td class="bytes">a9 ff</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$ff</span></td></tr>
-<tr id="L1A13"><td class="address"><a href="#L1A13">$1A13</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">a0DB1</a></span></td></tr>
+<tr id="L1A13"><td class="address"><a href="#L1A13">$1A13</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L1A16"><td class="address"><a href="#L1A16">$1A16</a></td><td class="bytes">20 bf 30</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L30BF">switch_state_to_borders</a></span></td></tr>
 <tr id="L1A19"><td class="address"><a href="#L1A19">$1A19</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr id="L1A1A"><td class="address"><a href="#L1A1A">$1A1A</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">.byte</span><span class="operand">$60</span></td></tr>
@@ -4492,7 +4723,7 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L26D5"><td class="address"><a href="#L26D5">$26D5</a></td><td class="bytes">20 c8 09</td><td colspan="3" class="code-cell"><span class="inline-label">b26D5</span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09C8">busy_wait_pause</a></span><span class="comment">; x-ref: <a href="#L26D9">$26D9</a></span></td></tr>
 <tr id="L26D8"><td class="address"><a href="#L26D8">$26D8</a></td><td class="bytes">ca</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">dex</span><span class="operand"></span></td></tr>
 <tr id="L26D9"><td class="address"><a href="#L26D9">$26D9</a></td><td class="bytes">10 fa</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L26D5">b26D5</a></span></td></tr>
-<tr id="L26DB"><td class="address"><a href="#L26DB">$26DB</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">render_actor_stream</a></span></td></tr>
+<tr id="L26DB"><td class="address"><a href="#L26DB">$26DB</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">animate_level_select_cursor</a></span></td></tr>
 <tr id="L26DE"><td class="address"><a href="#L26DE">$26DE</a></td><td class="bytes">20 c8 06</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L06C8">advance_level</a></span></td></tr>
 <tr id="L26E1"><td class="address"><a href="#L26E1">$26E1</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label">b26E1</span><span class="mnemonic">rts</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L26C8">$26C8</a></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
@@ -4733,8 +4964,8 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L287B"><td class="address"><a href="#L287B">$287B</a></td><td class="bytes">20 c8 09</td><td colspan="3" class="code-cell"><span class="inline-label">b287B</span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09C8">busy_wait_pause</a></span><span class="comment">; x-ref: <a href="#L287F">$287F</a></span></td></tr>
 <tr id="L287E"><td class="address"><a href="#L287E">$287E</a></td><td class="bytes">ca</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">dex</span><span class="operand"></span></td></tr>
 <tr id="L287F"><td class="address"><a href="#L287F">$287F</a></td><td class="bytes">10 fa</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L287B">b287B</a></span></td></tr>
-<tr id="L2881"><td class="address"><a href="#L2881">$2881</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">render_actor_stream</a></span></td></tr>
-<tr id="L2884"><td class="address"><a href="#L2884">$2884</a></td><td class="bytes">20 11 07</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0711">apply_score_penalty</a></span></td></tr>
+<tr id="L2881"><td class="address"><a href="#L2881">$2881</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">animate_level_select_cursor</a></span></td></tr>
+<tr id="L2884"><td class="address"><a href="#L2884">$2884</a></td><td class="bytes">20 11 07</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0711">handle_player_death</a></span></td></tr>
 <tr id="L2887"><td class="address"><a href="#L2887">$2887</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr id="L2888"><td class="address"><a href="#L2888">$2888</a></td><td class="bytes">88</td><td colspan="3" class="code-cell"><span class="inline-label">b2888</span><span class="mnemonic">dey</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L2864">$2864</a>, <a href="#L286C">$286C</a>, <a href="#L2874">$2874</a></span></td></tr>
 <tr id="L2889"><td class="address"><a href="#L2889">$2889</a></td><td class="bytes">10 d6</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L2861">b2861</a></span></td></tr>
@@ -4763,8 +4994,8 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L28A8"><td class="address"><a href="#L28A8">$28A8</a></td><td class="bytes">20 c8 09</td><td colspan="3" class="code-cell"><span class="inline-label">b28A8</span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09C8">busy_wait_pause</a></span><span class="comment">; x-ref: <a href="#L28AC">$28AC</a></span></td></tr>
 <tr id="L28AB"><td class="address"><a href="#L28AB">$28AB</a></td><td class="bytes">ca</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">dex</span><span class="operand"></span></td></tr>
 <tr id="L28AC"><td class="address"><a href="#L28AC">$28AC</a></td><td class="bytes">10 fa</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L28A8">b28A8</a></span></td></tr>
-<tr id="L28AE"><td class="address"><a href="#L28AE">$28AE</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">render_actor_stream</a></span></td></tr>
-<tr id="L28B1"><td class="address"><a href="#L28B1">$28B1</a></td><td class="bytes">20 11 07</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0711">apply_score_penalty</a></span></td></tr>
+<tr id="L28AE"><td class="address"><a href="#L28AE">$28AE</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">animate_level_select_cursor</a></span></td></tr>
+<tr id="L28B1"><td class="address"><a href="#L28B1">$28B1</a></td><td class="bytes">20 11 07</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0711">handle_player_death</a></span></td></tr>
 <tr id="L28B4"><td class="address"><a href="#L28B4">$28B4</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr id="L28B5"><td class="address"><a href="#L28B5">$28B5</a></td><td class="bytes">88</td><td colspan="3" class="code-cell"><span class="inline-label">b28B5</span><span class="mnemonic">dey</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L2891">$2891</a>, <a href="#L2899">$2899</a>, <a href="#L28A1">$28A1</a></span></td></tr>
 <tr id="L28B6"><td class="address"><a href="#L28B6">$28B6</a></td><td class="bytes">10 d6</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L288E">b288E</a></span></td></tr>
@@ -4794,8 +5025,8 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L28D7"><td class="address"><a href="#L28D7">$28D7</a></td><td class="bytes">20 c8 09</td><td colspan="3" class="code-cell"><span class="inline-label">b28D7</span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09C8">busy_wait_pause</a></span><span class="comment">; x-ref: <a href="#L28DB">$28DB</a></span></td></tr>
 <tr id="L28DA"><td class="address"><a href="#L28DA">$28DA</a></td><td class="bytes">88</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">dey</span><span class="operand"></span></td></tr>
 <tr id="L28DB"><td class="address"><a href="#L28DB">$28DB</a></td><td class="bytes">10 fa</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L28D7">b28D7</a></span></td></tr>
-<tr id="L28DD"><td class="address"><a href="#L28DD">$28DD</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">render_actor_stream</a></span></td></tr>
-<tr id="L28E0"><td class="address"><a href="#L28E0">$28E0</a></td><td class="bytes">20 11 07</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0711">apply_score_penalty</a></span></td></tr>
+<tr id="L28DD"><td class="address"><a href="#L28DD">$28DD</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">animate_level_select_cursor</a></span></td></tr>
+<tr id="L28E0"><td class="address"><a href="#L28E0">$28E0</a></td><td class="bytes">20 11 07</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0711">handle_player_death</a></span></td></tr>
 <tr id="L28E3"><td class="address"><a href="#L28E3">$28E3</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr id="L28E4"><td class="address"><a href="#L28E4">$28E4</a></td><td class="bytes">ca</td><td colspan="3" class="code-cell"><span class="inline-label">b28E4</span><span class="mnemonic">dex</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L28C0">$28C0</a>, <a href="#L28C8">$28C8</a>, <a href="#L28D0">$28D0</a></span></td></tr>
 <tr id="L28E5"><td class="address"><a href="#L28E5">$28E5</a></td><td class="bytes">10 d4</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L28BB">b28BB</a></span></td></tr>
@@ -4823,8 +5054,8 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L2900"><td class="address"><a href="#L2900">$2900</a></td><td class="bytes">20 c8 09</td><td colspan="3" class="code-cell"><span class="inline-label">b2900</span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09C8">busy_wait_pause</a></span><span class="comment">; x-ref: <a href="#L2904">$2904</a></span></td></tr>
 <tr id="L2903"><td class="address"><a href="#L2903">$2903</a></td><td class="bytes">88</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">dey</span><span class="operand"></span></td></tr>
 <tr id="L2904"><td class="address"><a href="#L2904">$2904</a></td><td class="bytes">10 fa</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bpl</span><span class="operand"><a href="#L2900">b2900</a></span></td></tr>
-<tr id="L2906"><td class="address"><a href="#L2906">$2906</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">render_actor_stream</a></span></td></tr>
-<tr id="L2909"><td class="address"><a href="#L2909">$2909</a></td><td class="bytes">20 11 07</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0711">apply_score_penalty</a></span></td></tr>
+<tr id="L2906"><td class="address"><a href="#L2906">$2906</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">animate_level_select_cursor</a></span></td></tr>
+<tr id="L2909"><td class="address"><a href="#L2909">$2909</a></td><td class="bytes">20 11 07</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0711">handle_player_death</a></span></td></tr>
 <tr id="L290C"><td class="address"><a href="#L290C">$290C</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="code-cell block-header"><span class="comment">;Scans a specific key (likely Pause or Abort) using zero page masks.</span></td></tr>
@@ -5877,7 +6108,11 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L3114"><td class="address"><a href="#L3114">$3114</a></td><td class="bytes">a9 01</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$01</span></td></tr>
 <tr id="L3116"><td class="address"><a href="#L3116">$3116</a></td><td class="bytes">8d b8 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB8">ai_dy</a></span></td></tr>
 <tr id="L3119"><td class="address"><a href="#L3119">$3119</a></td><td class="bytes">a9 00</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">lda</span><span class="operand">#$00</span></td></tr>
-<tr id="L311B"><td class="address"><a href="#L311B">$311B</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">a0DB1</a></span></td></tr>
+<tr id="L311B"><td class="address"><a href="#L311B">$311B</a></td><td class="bytes">8d b1 0d</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">sta</span><span class="operand"><a href="#L0DB1">player_action_state</a></span><span class="comment">; Player action / movement state flag.
+$FF = just respawned (freeze active); $01 = actively moving/digging;
+$00 = idle / action complete.
+Initialised to $FF at game start/respawn. cleared to $00 when freeze ends
+or motion stops. Checked in manage_game_flags.</span></td></tr>
 <tr id="L311E"><td class="address"><a href="#L311E">$311E</a></td><td class="bytes">20 5f 11</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L115F">read_tile</a></span></td></tr>
 <tr id="L3121"><td class="address"><a href="#L3121">$3121</a></td><td class="bytes">20 94 33</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L3394">draw_intro_text_lode_runner</a></span></td></tr>
 <tr id="L3124"><td class="address"><a href="#L3124">$3124</a></td><td class="bytes">20 ab 33</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L33AB">draw_intro_text_underline</a></span></td></tr>
@@ -6664,12 +6899,12 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L37C3"><td class="address"><a href="#L37C3">$37C3</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr id="L37C4"><td class="address"><a href="#L37C4">$37C4</a></td><td class="bytes">c9 74</td><td colspan="3" class="code-cell"><span class="inline-label">b37C4</span><span class="mnemonic">cmp</span><span class="operand">#$74</span><span class="comment">; x-ref: <a href="#L37B5">$37B5</a></span></td></tr>
 <tr id="L37C6"><td class="address"><a href="#L37C6">$37C6</a></td><td class="bytes">d0 07</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bne</span><span class="operand"><a href="#L37CF">b37CF</a></span></td></tr>
-<tr id="L37C8"><td class="address"><a href="#L37C8">$37C8</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">render_actor_stream</a></span></td></tr>
-<tr id="L37CB"><td class="address"><a href="#L37CB">$37CB</a></td><td class="bytes">20 11 07</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0711">apply_score_penalty</a></span></td></tr>
+<tr id="L37C8"><td class="address"><a href="#L37C8">$37C8</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">animate_level_select_cursor</a></span></td></tr>
+<tr id="L37CB"><td class="address"><a href="#L37CB">$37CB</a></td><td class="bytes">20 11 07</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L0711">handle_player_death</a></span></td></tr>
 <tr id="L37CE"><td class="address"><a href="#L37CE">$37CE</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr id="L37CF"><td class="address"><a href="#L37CF">$37CF</a></td><td class="bytes">c9 76</td><td colspan="3" class="code-cell"><span class="inline-label">b37CF</span><span class="mnemonic">cmp</span><span class="operand">#$76</span><span class="comment">; x-ref: <a href="#L37C6">$37C6</a></span></td></tr>
 <tr id="L37D1"><td class="address"><a href="#L37D1">$37D1</a></td><td class="bytes">d0 07</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">bne</span><span class="operand"><a href="#L37DA">b37DA</a></span></td></tr>
-<tr id="L37D3"><td class="address"><a href="#L37D3">$37D3</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">render_actor_stream</a></span></td></tr>
+<tr id="L37D3"><td class="address"><a href="#L37D3">$37D3</a></td><td class="bytes">20 dd 09</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L09DD">animate_level_select_cursor</a></span></td></tr>
 <tr id="L37D6"><td class="address"><a href="#L37D6">$37D6</a></td><td class="bytes">20 bf 30</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">jsr</span><span class="operand"><a href="#L30BF">switch_state_to_borders</a></span></td></tr>
 <tr id="L37D9"><td class="address"><a href="#L37D9">$37D9</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">rts</span><span class="operand"></span></td></tr>
 <tr id="L37DA"><td class="address"><a href="#L37DA">$37DA</a></td><td class="bytes">60</td><td colspan="3" class="code-cell"><span class="inline-label">b37DA</span><span class="mnemonic">rts</span><span class="operand"></span><span class="comment">; x-ref: <a href="#L37D1">$37D1</a></span></td></tr>

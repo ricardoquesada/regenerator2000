@@ -132,7 +132,7 @@
     {
       "start": 1717,
       "end": 1718,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -156,7 +156,7 @@
     {
       "start": 2257,
       "end": 2257,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -460,7 +460,7 @@
     ],
     "1809": [
       {
-        "name": "apply_score_penalty",
+        "name": "handle_player_death",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -523,7 +523,7 @@
     ],
     "2525": [
       {
-        "name": "render_actor_stream",
+        "name": "animate_level_select_cursor",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -531,6 +531,20 @@
     "2720": [
       {
         "name": "blit_screen_and_pause",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2742": [
+      {
+        "name": "smc_screen_addr_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2743": [
+      {
+        "name": "smc_screen_addr_lo",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -586,7 +600,7 @@
     ],
     "3249": [
       {
-        "name": "trigger_sound_25",
+        "name": "trigger_guard_captured_sound",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -601,6 +615,13 @@
     "3271": [
       {
         "name": "trigger_collection_sound",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3282": [
+      {
+        "name": "dynamic_pitch_latch",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -664,6 +685,20 @@
     "3504": [
       {
         "name": "data_buf_3",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3505": [
+      {
+        "name": "player_action_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3506": [
+      {
+        "name": "respawn_freeze_timer",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2111,6 +2146,12 @@
     "1119": "40 PRINT CHR$(142):PRINT CHR$(147)",
     "1141": "50 PRINT CHR$(42)",
     "1153": "60 SYS 1536",
+    "2742": "Self-modifying screen RAM target address (high byte).\nPaired with a0AB7 (low byte) to form a 16-bit address patched\ninto absolute STA instructions in draw_playfield_border and\nanimate_level_select_cursor, directing cursor-box writes to\nthe correct screen RAM location.\nInitial value $81 (hi) + $DF (lo) = $81DF.\nReset to $83 (hi) + $BF (lo) = $83BF after blit table setup.",
+    "2743": "Self-modifying screen RAM target address (low byte). See a0AB6.",
+    "2744": "Phase 1: draw border frame (25 rows x 33 cols) to screen RAM at $8000.",
+    "3282": "One-shot latch for play_dynamic_pitch / silence_dynamic_pitch.\n$FF = pitch engine armed (ready to fire); $00 = already fired this update.\nInitialised to $FF at game start ($0DC6). play_dynamic_pitch clears it to\n$00 on first call; silence_dynamic_pitch resets it to $FF when silencing.",
+    "3505": "Player action / movement state flag.\n$FF = just respawned (freeze active); $01 = actively moving/digging;\n$00 = idle / action complete.\nInitialised to $FF at game start/respawn. cleared to $00 when freeze ends\nor motion stops. Checked in manage_game_flags.",
+    "3506": "Post-respawn freeze delay counter.\nInitialised to $80 (128 frames). Decremented each frame during the respawn\nfreeze (player_action_state = $FF) as long as no input is received.\nWhen it hits $00, the freeze ends and gameplay resumes.",
     "5727": "40 columns",
     "5732": "80 columns"
   },
@@ -2120,28 +2161,29 @@
     "1610": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCentral Gameplay Orchestration Tick.\nFires on hardware interrupt vector. Sequentially orchestrates audio,\nrendering, dynamic array ticks, collision dispatchers, and keyboard/actors.\n\nInputs:  None.\nOutputs: Orchestrates full gameplay subsystems loops sequentially.\nSide Effects: Clear updates vectors sequence frames.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "1712": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes a completely new game.\nFlushes sound memory, resets BCD scores to zero, clears arrays via $0780.\n\nInputs:  Variable array arrays.\nOutputs: Cleared arrays, score variables reset to 0.\nSide Effects: Calls init routines, jumps to main loop at $06F6.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "1736": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles cleanup before advancing to the next level or reloading.\nFlushes sound arrays and bounds-checks the level index.\n\nInputs:  ui_level_num.\nOutputs: Cleaned arrays, ready for next level arrays load.\nSide Effects: Flushes audio buffer.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "1809": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSubtracts penalty values from dynamic BCD variables scores explicitly arrays logic.\nUses standard 6502 decimal logic arrays sequence vector explicitly sequencing algorithms multiplication-free.\n\nInputs:  Static pointers configurations sequence variables dynamic array sequencing arrays explicit.\nOutputs: Modifies dynamic sequential sequential configurations sequentially explicitly layout sequence modular.\nSide Effects: Updates arrays pointers variables explicit sequence explicitly configurations sequence sequence.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "1809": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles player death: applies pending BCD score penalty, resets gold count,\nreloads and redraws the current level, then resumes gameplay via the IRQ vector.\n\nCalled from all death triggers (guard collision, tile death, hole fall) and\nfrom menu_dispatch_selection when the player chooses to continue.\n\nInputs:  a2947:a2948 — 2-byte BCD penalty to subtract from score\nOutputs: score_high_bcd:score_low_bcd updated; a2947:a2948 and gold_count zeroed;\n         game_state_flag = 1; IRQ vector (a90:a91) set to tick_gameplay\nSide Effects: Stops and reinitializes audio; fully reinitializes all level\n              data structures and redraws the playfield UI\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "1906": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPseudo-random number generator using an 8-bit LFSR with polynomial $1D.\nUpdates random_seed.\n\nInputs:  random_seed ($50)\nOutputs: Updated random_seed\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "1920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIteratively clears the dynamic hardware PET sequence physical arrays screen pointers offsets.\nFills absolute sequence layouts dynamically $8000 explicitly to static offsets modular arrays.\n\nInputs:  None.\nOutputs: updates explicit sequencing absolute configurations sequencer sequence explicit sequenced explicitly sequencer sequencer.\nSide Effects: clears sequential iterative variables sequence iterative sequential explicit sequencers arrays iterative configurations sequentially explicitly sequencer.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "1920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears the physical PET screen RAM by filling $8000–$86FF (7 pages x 256\nbytes) with space characters ($20).\n\nUses a single 256-iteration DEX/BNE loop writing A to seven consecutive\npage-aligned screen RAM regions in parallel, covering the full visible\ndisplay.\n\nInputs:  None\nOutputs: None\nSide Effects: Screen RAM at $8000–$86FF filled with spaces ($20)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "1949": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears the 23-row gameplay grid using spaces ($20).\nclever memory layout idioms: Each grid row is assigned exactly one memory page\n(from $6700 to $7D00) for multiplication-free coordinate access.\n\nInputs:  None.\nOutputs: Fills column bytes 42..0 in row pages $67..$7D with space.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "2032": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears a subset of the gameplay grid (32 columns by 12 rows).\nUsed for background overlays or pop-up sub-regions.\n\nInputs:  None.\nOutputs: Fills column bytes 32..0 in row pages $67..$72 with space.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "2115": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPatcher for 80-column screen compatibility on Commodore PET business models.\nIf screen_width ($51) is 80, loops through memory operands of main drawing loops\nand patches them to use 80-byte offsets instead of 40-byte offsets.\n\nInputs:  screen_width variable ($51).\nOutputs: Patches drawing vectors at $0886 and $0927.\nSide Effects: Self-modifying code.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "2182": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCopies 32 bytes per line from RAM buffers ($6701..$7F01) to Screen RAM ($8000..).\nRefreshes the display. Called on interrupts.\n\nInputs:  Data in buffers $6701..$7F01\nOutputs: Modifies Screen RAM $8000..$83FF\nSide Effects: Modifies X register.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "2343": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCopies columns 32-39 from RAM buffers ($6701..$7F01) to Screen RAM ($8000..).\nComplements blit_screen by updating the sidebar. Called from main loop.\n\nInputs:  Data in buffers $6701..$7F01\nOutputs: Modifies Screen RAM $8000..$83FF (columns 32-39)\nSide Effects: Modifies X register.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "2504": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCreates a hardcoded visual delay pause using nested busy-wait loops.\nSaves and restores A, X, and Y registers.\n\nInputs:  None.\nOutputs: Creates sequence vectors delay loops sequences buffers.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "2525": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIteratively parses and renders the entity actor dynamic data arrays stream.\nStarts at $6300 offsets and normalize dynamic coordinates arrays sequentially explicitly.\n\nInputs:  Data array pointers at $6300 and $6400 configurations sequence logic.\nOutputs: Modifies sequence vector layout absolute arrays sequence explicit sequencer dynamic layout explicitly.\nSide Effects: Updates zero-page Temporary sequencer pointers sequences absolute explicit sequencer arrays explicit.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "2720": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates visual screen frame and pauses using a hardcoded busy-wait loop.\nCalls blit_screen and iterates inner $FF logic explicitly outer $10 times.\n\nInputs:  None.\nOutputs: Orchestrates sequential pausings dynamically.\nSide Effects: Creates visual pauses sequences explicitly buffers multiplication-free.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "2744": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the playfield border box on the PET screen at $8000.\nIterates through 25 rows (X) and 33 columns (Y).\nDraws corners and horizontal/vertical border characters, and fills the interior with spaces.\n\nInputs:  None.\nOutputs: Draws the border onto the screen at $8000.\nSide Effects: Modifies X, Y, and pointer at $0B11/$0B12.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "2525": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAnimates a box cursor sweeping across the level-select screen.\n\nWalks the path tables cursor_anim_row_table ($6300) and cursor_anim_col_table\n($6400) using X as the index (starting at $FC = -4). For each (row, col) pair\nit draws four PETSCII box-drawing characters at the four corners/sides of a\n2x1 cursor box onto screen RAM via the ZP indirect pointer (a58:a59):\n  - top-left  ($4F), top-right  ($64), bottom-left ($4C), bottom-right ($63)\n  - or $20 (space) to erase a corner that falls outside the playfield area.\nWhen a $FF sentinel is reached, calls blit_screen_and_pause to display the\ncurrent frame, then resumes. Stops when a second $FF terminates the frame.\n\nCalled before death/respawn sequences and on level-select menu actions to\nplay the cursor flythrough animation before transitioning state.\n\nInputs:  cursor_anim_row_table ($6300), cursor_anim_col_table ($6400);\n         a58:a59 — ZP pointer to the current screen RAM page base\nOutputs: Screen RAM updated with animated cursor box characters\nSide Effects: Calls blit_screen_and_pause; modifies a58, a59 (ZP)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "2720": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nBlits the off-screen row buffers to physical screen RAM, then busy-waits\nfor a fixed delay to control animation frame timing.\n\nPreserves X and Y around the blit call. After blit_screen returns, runs a\nnested busy-wait loop (outer Y=$10, inner X=$FF → 16x255 = 4,080 iterations)\nto produce a ~17 ms delay before returning to the caller.\n\nCalled by animate_level_select_cursor each time a $FF sentinel is hit in the\npath tables, i.e. once per animation frame.\n\nInputs:  None\nOutputs: None\nSide Effects: Calls blit_screen (updates screen RAM); burns ~4080 cycles\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "2744": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the playfield border frame directly to screen RAM ($8000) and then\ndraws the initial level-select cursor box at the first path-table position.\n\nPhase 1 — Border frame ($0AB8–$0B2B):\n  Iterates 25 rows (X: 0..$18) x 33 columns (Y: 0..$20).\n  A 16-bit page pointer (a0B11:a0B12, base $8000) is advanced by\n  screen_width each row (carry-propagated). For each cell, picks a\n  PETSCII box-drawing character based on position:\n    top-left ($4F), top-right ($65), bottom-left ($4C), bottom-right ($64),\n    left/right edges ($65), top/bottom edges ($63/$64), interior ($20).\n\nPhase 2 — Initial cursor box ($0B2D–$0C13):\n  Starting at index X=2 in cursor_anim_row_table / cursor_anim_col_table,\n  draws four corner characters of the cursor highlight box at the first\n  non-sentinel path entry using self-modifying screen address patches\n  (smc_screen_addr_hi/lo). Calls busy_wait_pause once, then exits on the\n  next $FF sentinel.\n\nInputs:  cursor_anim_row_table ($6300), cursor_anim_col_table ($6400);\n         smc_screen_addr_hi/lo — screen RAM page for cursor writes;\n         screen_width — bytes per row in screen RAM\nOutputs: Screen RAM at $8000 updated with border and cursor box\nSide Effects: Modifies a0B11:a0B12 (page pointer), a58:a59 (ZP scratch),\n              patches self-modifying operands at a0B6C, a0B6D, a0B9D,\n              a0B9E, a0BCE, a0BCF, a0BFF, a0C00; calls busy_wait_pause\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "2861": "Phase 2: draw initial cursor highlight box at the first path-table entry.",
     "3196": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes 6522 VIA audio engines hardware.\nConfigures ACR at $E84B for free-running Timer 2 audio sequencing,\nand clears sound sequential array flags variables.\n\nInputs:  None.\nOutputs: Modifies VIA absolute vectors at $E84A, $E84B, and $E848.\nSide Effects: Resets dynamic audio arrays.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "3218": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInstantly halts hardware audio.\nWrites $00 to the 6522 VIA Shift Register at $E84A to silence speaker.\n\nInputs:  None.\nOutputs: Writes to absolute vector $E84A.\nSide Effects: Silences speaker.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "3224": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlays sound effects by writing frequency values from sound_data_table to VIA Timer 2.\nCalled on interrupts. Uses sound_active_flag and sound_table_index.\n\nInputs:  sound_data_table ($0C14)\nOutputs: Modifies VIA Timer 2 ($E848)\nSide Effects: Modifies sound_active_flag and sound_table_index.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "3249": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTriggers audio stream sequence starting at array index $25.\n\nInputs:  None.\nOutputs: Modifies sound sequential array active variables sequences.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "3260": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTriggers the countdown sequence pitch audio stream (starts at array index $06).\n\nInputs:  None.\nOutputs: Modifies sound sequential array active variables sequences.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "3271": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTriggers dynamic collection sequences pitch audio stream (starts at array index $4E).\n\nInputs:  None.\nOutputs: Modifies sound sequential array active variables sequences.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "3283": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCalculates dynamic square-wave pitch frequency from entity height (draw_page).\nNormalizes by subtracting $55 and multiplies result by 4 before writing to $E848.\n\nInputs:  draw_page variable.\nOutputs: Writes dynamic sequence vectors to $E848.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "3305": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets and silences dynamic square-wave audio tones.\nExplicitly clears configuration sequence sequences absolute variable sequences explicit vectors logic $E848 logic arrays.\n\nInputs:  Static control array sequencing variables explicit configuration sequence vectors logic $CD2 sequences logic.\nOutputs: Writes absolute sequence layout explicit sequence $00 sequentially explicit dynamic variables.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "3321": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlays static audio jingles sequentially from sequence arrays variables.\nThis entry vectors explicitly arrays starting at $18 for victory sequencing buffers.\n\nInputs:  Sound stream arrays.\nOutputs: Writes sequential vector sequence frames to absolute vector arrays configurations at $E848.\nSide Effects: Creates visual pause busy-wait sequencing sequences buffers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "3339": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlays static audio jingles sequentially from sequence arrays variables.\nThis entry vectors explicitly arrays starting at $57 for fail sequencing buffers.\n\nInputs:  Sound stream arrays.\nOutputs: Writes sequential vector sequence frames to absolute vector arrays configurations at $E848.\nSide Effects: Creates visual pause busy-wait sequencing sequences buffers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "3249": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTriggers the guard-captured-in-hole sound effect.\n\nSets sound_table_index to $25 (entry in sound_data_table at $0C39: a\nrising-pitch tone sequence written to CIA 2 Timer B / $E848) and sets\nsound_active_flag to 1 so the audio driver begins playing it.\n\nCalled when a guard's actor_status_table entry has the high bit set,\nindicating the guard has just fallen into a dug hole.\n\nInputs:  None\nOutputs: sound_table_index = $25, sound_active_flag = 1\nSide Effects: Audio driver will begin playing the capture tone on next tick\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "3260": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTriggers the time-bonus countdown beep sound effect.\n\nSets sound_table_index to $06 (entry in sound_data_table at $0C1A: a short\ndescending tone sequence — $A0, $B4, $88, $60, $00 — written to CIA 2\nTimer B / $E848) and sets sound_active_flag to 1.\n\nCalled by play_bonus_audio_tick once every 8 frames while the bonus\ncountdown is running after level completion.\n\nInputs:  None\nOutputs: sound_table_index = $06, sound_active_flag = 1\nSide Effects: Audio driver will play the countdown beep on next tick\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "3271": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTriggers the gold-collection sound effect.\n\nSets sound_table_index to $4E (entry in sound_data_table at $0C62: a short\ntwo-tone beep sequence — $58, $58, $76, $76, $00 — written to CIA 2\nTimer B / $E848) and sets sound_active_flag to 1.\n\nCalled immediately after the player picks up a gold piece (gold_count\nincremented), just before the floating score display timer is armed.\n\nInputs:  None\nOutputs: sound_table_index = $4E, sound_active_flag = 1\nSide Effects: Audio driver will play the collection beep on next tick\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "3283": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlays a one-shot dynamic pitch tone based on the player's current screen row.\n\nChecks a0CD2 (the one-shot latch): if already $00 (fired this update), returns\nimmediately without re-triggering. Otherwise clears the latch to $00 and\ncomputes the Timer B frequency:\n\n  frequency = (draw_page - $55) << 2\n\nThe result is written directly to CIA 2 Timer B Low ($E848), producing a\nsquare-wave tone whose pitch rises as draw_page increases (i.e. as the player\nmoves to a lower screen row while digging).\n\nCalled each frame when the player is actively digging (screen cell at player\nposition has bit 4 set). Paired with silence_dynamic_pitch which is called\nwhen the player stops digging.\n\nInputs:  draw_page — player's current screen page (determines pitch);\n         a0CD2    — one-shot latch ($FF = ready, $00 = already fired)\nOutputs: $E848 (CIA 2 Timer B LO) written with computed frequency\nSide Effects: Clears a0CD2 to $00 after first trigger\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "3305": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSilences the dynamic dig pitch tone and re-arms the one-shot latch.\n\nChecks dynamic_pitch_latch: if non-zero ($FF = already silent/armed), returns\nimmediately without writing to hardware (idempotent guard). Otherwise, the\nlatch was $00 (pitch has been playing), so:\n  1. Resets dynamic_pitch_latch to $FF (re-arms for next dig event)\n  2. Writes $00 to CIA 2 Timer B Low ($E848), stopping the square-wave tone\n\nCalled each frame when the player is NOT actively digging (bit 4 clear in\nthe cell under them). Paired with play_dynamic_pitch.\n\nInputs:  dynamic_pitch_latch — $00 means pitch is currently active\nOutputs: $E848 (CIA 2 Timer B LO) set to $00 (silence)\nSide Effects: Resets dynamic_pitch_latch to $FF\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "3321": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlays the level-completion victory jingle synchronously.\n\nSteps through sound_data_table starting at index $18 ($0C2C: a 12-note\ndescending-then-ascending melody — $6E,$64,$5A,$50,$46,$3C,$32,$28,$3C,\n$50,$64,$78,$00). Each non-zero byte is written to CIA 2 Timer B Low\n($E848) to set the square-wave pitch, then busy_wait_pause is called to\nhold the note for one frame before advancing. Stops on the $00 terminator.\n\nBlocking: this routine does not return until the full jingle has played.\nCalled by check_level_complete after all gold has been collected.\n\nInputs:  sound_data_table[$18..$24] — note sequence\nOutputs: $E848 driven with each note frequency in turn\nSide Effects: Blocks for the full jingle duration (~12 x busy_wait_pause);\n              leaves $E848 at $00 (silence) on return\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "3339": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlays the player-death sound effect synchronously.\n\nSteps through sound_data_table starting at index $57 ($0C6B: 13 notes of\nlarge timer values — $F0,$F0,$F0,$F0,$F0,$F5,$F5,$F5,$F5,$FA,$FA,$FF,$FF,\n$00 — producing a deep, slow-frequency descending drone on CIA 2 Timer B\n/ $E848). Each non-zero byte sets the pitch; busy_wait_pause holds the note\nbefore advancing. Stops on the $00 terminator.\n\nBlocking: does not return until the full sound has played.\nCalled from all four player death triggers (guard collision, 1x2 object,\ntile death, hole fall) after a short delay loop.\n\nInputs:  sound_data_table[$57..$63] — note sequence\nOutputs: $E848 driven with each note frequency in turn\nSide Effects: Blocks for the full sound duration (~13 x busy_wait_pause);\n              leaves $E848 at $00 (silence) on return\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "3357": "Actor sprite animation table. 2 chars wide × 4 frames × N strips.\nEach strip = 8 bytes: [char_A, char_B] × 4 frames (animation_frame = 0,4,8,$C).\nIndex = sprite_base_offset + animation_frame.\n$20 (space) = transparent cell; caller skips the sta if char == $20.\n\nStrip layout (sprite_base_offset values):\n  $00 : Player walking right\n  $08 : Player walking left\n  $10 : Player climbing up\n  $18 : Player descending / hanging\n  $20 : Guard walking right\n  $28 : Guard walking left\n  $30 : Guard climbing up\n  $38 : Guard descending\n  $40 : Player digging right\n  $48 : Guard variant (captured / in hole)\n  $50 : Player digging left\n  $58 : Guard variant 2",
     "3507": "Current animation frame offset within a sprite strip.\nCycles 0 → 4 → 8 → $C → 0 (step ±4, masked with & $0C).\nIncremented on rightward/upward moves; decremented on leftward/downward.\nReset to $08 when an actor is initialised.",
     "3510": "Selects animation strip inside sprite_anim_table.\nSet by movement/action handlers to encode actor type + direction:\n  $00=player right, $08=player left, $10=player climb, $18=player hang,\n  $20=guard right,  $28=guard left,  $30=guard climb, $38=guard hang,\n  $40=player dig-right, $50=player dig-left, etc.\nCombined with animation_frame (0/4/8/$C) as the final table index.",
@@ -2447,14 +2489,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 13628,
-  "hex_dump_cursor_address": 13616,
-  "sprites_cursor_address": 2176,
+  "cursor_address": 3503,
+  "hex_dump_cursor_address": 1808,
+  "sprites_cursor_address": 2240,
   "charset_cursor_address": 1024,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "None",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
