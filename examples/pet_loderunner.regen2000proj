@@ -633,6 +633,13 @@
         "kind": "User"
       }
     ],
+    "3357": [
+      {
+        "name": "sprite_anim_table",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "3501": [
       {
         "name": "data_buf_0",
@@ -678,6 +685,13 @@
     "3509": [
       {
         "name": "draw_page",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3510": [
+      {
+        "name": "sprite_base_offset",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -920,9 +934,93 @@
         "kind": "User"
       }
     ],
+    "7619": [
+      {
+        "name": "dig_open_anim_top",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7651": [
+      {
+        "name": "dig_open_anim_bot",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7683": [
+      {
+        "name": "dig_close_anim_top",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7715": [
+      {
+        "name": "dig_close_anim_bot",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "7747": [
       {
         "name": "actor_status_table",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7757": [
+      {
+        "name": "actor_dig_page",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7767": [
+      {
+        "name": "actor_dig_offset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7777": [
+      {
+        "name": "actor_anim_step",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7787": [
+      {
+        "name": "actor_delay_inner",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7797": [
+      {
+        "name": "actor_delay_outer",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7807": [
+      {
+        "name": "actor_saved_bg_top",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7817": [
+      {
+        "name": "actor_saved_bg_bot",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7827": [
+      {
+        "name": "actor_hole_slot",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -962,6 +1060,111 @@
         "kind": "User"
       }
     ],
+    "8565": [
+      {
+        "name": "guard_sprite_table",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8677": [
+      {
+        "name": "guard_saved_top",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8682": [
+      {
+        "name": "guard_saved_bot_left",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8687": [
+      {
+        "name": "guard_saved_bot_mid",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8692": [
+      {
+        "name": "guard_saved_bot_right",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8697": [
+      {
+        "name": "guard_active",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8702": [
+      {
+        "name": "guard_anim_frame",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8707": [
+      {
+        "name": "guard_offset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8712": [
+      {
+        "name": "guard_page",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8717": [
+      {
+        "name": "guard_sprite_strip",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8722": [
+      {
+        "name": "guard_dx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8727": [
+      {
+        "name": "guard_dy",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8732": [
+      {
+        "name": "guard_move_rate",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8737": [
+      {
+        "name": "guard_ai_bias",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8742": [
+      {
+        "name": "guard_hole_status",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "8747": [
       {
         "name": "init_actor_data_buffers",
@@ -997,6 +1200,41 @@
         "kind": "User"
       }
     ],
+    "9440": [
+      {
+        "name": "gold_total",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9441": [
+      {
+        "name": "gold_active_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9457": [
+      {
+        "name": "gold_page",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9473": [
+      {
+        "name": "gold_offset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9489": [
+      {
+        "name": "gold_saved_bg",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "9505": [
       {
         "name": "clear_sprite_slots",
@@ -1014,6 +1252,55 @@
     "9554": [
       {
         "name": "save_sprite_background",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9582": [
+      {
+        "name": "float_score_timer",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9583": [
+      {
+        "name": "float_score_page",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9584": [
+      {
+        "name": "float_score_offset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9585": [
+      {
+        "name": "float_score_char0",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9586": [
+      {
+        "name": "float_score_char1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9587": [
+      {
+        "name": "float_score_char2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9588": [
+      {
+        "name": "float_score_bcd",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1228,9 +1515,65 @@
         "kind": "User"
       }
     ],
+    "10976": [
+      {
+        "name": "level_select_num",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "10977": [
       {
         "name": "level_complete_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "10978": [
+      {
+        "name": "exit_offset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "10979": [
+      {
+        "name": "exit_page",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "10980": [
+      {
+        "name": "guard_spawn_offset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "10981": [
+      {
+        "name": "guard_spawn_page",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "10982": [
+      {
+        "name": "bonus_timer",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "10983": [
+      {
+        "name": "bonus_walk_page",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "10984": [
+      {
+        "name": "bonus_walk_offset",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1252,6 +1595,48 @@
     "11017": [
       {
         "name": "play_bonus_audio_tick",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11216": [
+      {
+        "name": "hole_slot_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11221": [
+      {
+        "name": "hole_slot_page",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11226": [
+      {
+        "name": "hole_slot_offset",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11231": [
+      {
+        "name": "hole_slot_bg_top",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11236": [
+      {
+        "name": "hole_slot_bg_bot",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11241": [
+      {
+        "name": "hole_slot_actor",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1319,6 +1704,20 @@
         "kind": "User"
       }
     ],
+    "12348": [
+      {
+        "name": "title_screen_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12349": [
+      {
+        "name": "selected_level",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "12350": [
       {
         "name": "txt_title_lode_runner",
@@ -1350,6 +1749,27 @@
     "12443": [
       {
         "name": "txt_title_dig_to_select",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12476": [
+      {
+        "name": "level_select_delta",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12477": [
+      {
+        "name": "select_confirm_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12478": [
+      {
+        "name": "key_debounce_flag",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1440,7 +1860,98 @@
     ],
     "13375": [
       {
-        "name": "banner_structure_table",
+        "name": "txt_game_paused_table",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13393": [
+      {
+        "name": "txt_game_paused_l1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13411": [
+      {
+        "name": "txt_game_paused_l2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13429": [
+      {
+        "name": "txt_game_paused_l3",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13447": [
+      {
+        "name": "txt_game_paused_l4",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13465": [
+      {
+        "name": "txt_game_paused_l5",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13483": [
+      {
+        "name": "txt_game_paused_l6",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13501": [
+      {
+        "name": "txt_game_paused_l7",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13519": [
+      {
+        "name": "txt_game_paused_l8",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13537": [
+      {
+        "name": "txt_game_paused_l9",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13555": [
+      {
+        "name": "txt_game_paused_la",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13573": [
+      {
+        "name": "txt_game_paused_lb",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13591": [
+      {
+        "name": "txt_game_paused_lc",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "13609": [
+      {
+        "name": "txt_game_paused_ld",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1500,6 +2011,97 @@
         "label_type": "UserDefined",
         "kind": "User"
       }
+    ],
+    "22800": [
+      {
+        "name": "level_data_10",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "23056": [
+      {
+        "name": "level_data_09",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "23312": [
+      {
+        "name": "level_data_08",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "23568": [
+      {
+        "name": "level_data_07",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "23824": [
+      {
+        "name": "level_data_06",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "24080": [
+      {
+        "name": "level_data_05",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "24336": [
+      {
+        "name": "level_data_04",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "24592": [
+      {
+        "name": "level_data_03",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "24848": [
+      {
+        "name": "level_data_02",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "25104": [
+      {
+        "name": "level_data_01",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "25344": [
+      {
+        "name": "cursor_anim_row_table",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "25600": [
+      {
+        "name": "cursor_anim_col_table",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "26368": [
+      {
+        "name": "playfield_row_buffer",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
     ]
   },
   "user_side_comments": {
@@ -1540,6 +2142,9 @@
     "3305": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets and silences dynamic square-wave audio tones.\nExplicitly clears configuration sequence sequences absolute variable sequences explicit vectors logic $E848 logic arrays.\n\nInputs:  Static control array sequencing variables explicit configuration sequence vectors logic $CD2 sequences logic.\nOutputs: Writes absolute sequence layout explicit sequence $00 sequentially explicit dynamic variables.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "3321": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlays static audio jingles sequentially from sequence arrays variables.\nThis entry vectors explicitly arrays starting at $18 for victory sequencing buffers.\n\nInputs:  Sound stream arrays.\nOutputs: Writes sequential vector sequence frames to absolute vector arrays configurations at $E848.\nSide Effects: Creates visual pause busy-wait sequencing sequences buffers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "3339": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlays static audio jingles sequentially from sequence arrays variables.\nThis entry vectors explicitly arrays starting at $57 for fail sequencing buffers.\n\nInputs:  Sound stream arrays.\nOutputs: Writes sequential vector sequence frames to absolute vector arrays configurations at $E848.\nSide Effects: Creates visual pause busy-wait sequencing sequences buffers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "3357": "Actor sprite animation table. 2 chars wide × 4 frames × N strips.\nEach strip = 8 bytes: [char_A, char_B] × 4 frames (animation_frame = 0,4,8,$C).\nIndex = sprite_base_offset + animation_frame.\n$20 (space) = transparent cell; caller skips the sta if char == $20.\n\nStrip layout (sprite_base_offset values):\n  $00 : Player walking right\n  $08 : Player walking left\n  $10 : Player climbing up\n  $18 : Player descending / hanging\n  $20 : Guard walking right\n  $28 : Guard walking left\n  $30 : Guard climbing up\n  $38 : Guard descending\n  $40 : Player digging right\n  $48 : Guard variant (captured / in hole)\n  $50 : Player digging left\n  $58 : Guard variant 2",
+    "3507": "Current animation frame offset within a sprite strip.\nCycles 0 → 4 → 8 → $C → 0 (step ±4, masked with & $0C).\nIncremented on rightward/upward moves; decremented on leftward/downward.\nReset to $08 when an actor is initialised.",
+    "3510": "Selects animation strip inside sprite_anim_table.\nSet by movement/action handlers to encode actor type + direction:\n  $00=player right, $08=player left, $10=player climb, $18=player hang,\n  $20=guard right,  $28=guard left,  $30=guard climb, $38=guard hang,\n  $40=player dig-right, $50=player dig-left, etc.\nCombined with animation_frame (0/4/8/$C) as the final table index.",
     "3514": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSequentially clears variable dynamic playfield data buffers logic explicit sequencer explicitly.\nSets parallel sequence explicit pointers variable arrays offsets coordinates vectors explicitly layout.\n\nInputs:  None.\nOutputs: updates modular sequences arrays explicit configurations sequencer sequence Absolute sequencing.\nSide Effects: resets parallel zero variables sequence dynamic variable sequencers explicit dynamically.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "3575": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScans PET keyboard matrix for movement/action keys.\nUses hardware registers PIA 1 Port A ($E810) and Port B ($E812).\n\nInputs:  Hardware matrix state, zero page masks.\nOutputs: Modifies current_input_state ($0DB9): $01, $FF, or $00.\nSide Effects: Directly manipulates hardware registers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4198": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nManages game state flags and animation timers based on $0DB1.\nCycles animation_frame and scans actor_status_table for active actors.\n\nInputs:  $0DB1, $0DB7..$0DB9, $0DB2, actor_status_table\nOutputs: Cycles animation_frame, may clear $0DB1, may fill $221C..$2220 with 2\nSide Effects: Reads from memory page determined by draw_page.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1558,15 +2163,56 @@
     "7289": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPushes the current entity actor sequence frame explicitly variables stack arrays.\nStores arrays explicit variables pointers $6500 and $6600 explicitly dynamically.\n\nInputs:  X and Y register sequence explicit configurations layout sequencing explicitly.\nOutputs: Writes modular sequence arrays absolute layout explicitly sequence array explicitly.\nSide Effects: Increments static stack counter pointer sequence algorithms explicitly sequence.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "7352": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the AI pathfinding or collision buffer at page offset $55 to #$01.\nIterates through 25 pages (from $67 to $7F), setting the first 32 bytes of each page offset to #$01.\nAlso sets up pointers at $5C/$5D and $5E/$5F for other buffers.\n\nInputs:  None.\nOutputs: Fills the $55-offset buffer with #$01.\nSide Effects: Modifies $5C/$5D, $5E/$5F, Y (data index), $62, and $6E.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "7392": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nToggles UI attributes between normal and reverse video (bit 7).\nUsed for flashing or highlighting elements. Calls s1C79.\n\nInputs:  $1D61 (state)\nOutputs: Modifies $1D61, $1D7C, $1D99, $1DB0 and attributes.\nSide Effects: Calls s1C79 with Y=draw_offset, X=draw_page+1.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "7619": "Dig animation system — hole-digging state machine for 10 actor slots (player + 9 guards).\n\nAnimation data (32 bytes each, indexed by actor_anim_step 0-31):\n  dig_open_anim_top  $1DC3: top-cell chars for hole-open phase  (step 0-15 = tiles, 16-31 = $20 done)\n  dig_open_anim_bot  $1DE3: bot-cell chars for hole-open phase\n  dig_close_anim_top $1E03: top-cell chars for hole-close phase ($00 = skip write sentinel)\n  dig_close_anim_bot $1E23: bot-cell chars for hole-close phase ($a0 = space, done)\n\nPer-actor arrays (10 elements, indexed by actor slot 0-9):\n  actor_status_table $1E43: state machine phase ($FF=idle, 0=save bg, 1=open anim,\n                             2=delay, 3=close anim, 4=restore bg)\n  actor_dig_page     $1E4D: screen page of the dug cell\n  actor_dig_offset   $1E57: screen column offset of the dug cell\n  actor_anim_step    $1E61: animation step counter 0-31 (indexes into anim tables)\n  actor_delay_inner  $1E6B: inner delay countdown (8->0, then reload; status==2)\n  actor_delay_outer  $1E75: outer delay countdown ($2B->0, then advance; status==2)\n  actor_saved_bg_top $1E7F: saved background char at top cell\n  actor_saved_bg_bot $1E89: saved background char at bot cell\n  actor_hole_slot    $1E93: index into hole_slot_* arrays ($FF=none)",
+    "7651": "Dig-open animation bottom cell chars (32 steps). Paired with dig_open_anim_top.",
+    "7683": "Dig-close animation top cell chars (32 steps). $00 = skip write (cell stays blank).",
+    "7715": "Dig-close animation bottom cell chars (32 steps). $a0 (space) = done writing.",
+    "7747": "Dig state machine phase per actor slot (10 actors: player=0, guards=1-9).\n  $FF = idle / no dig in progress\n  $00 = save background chars under the dug cell, then advance\n  $01 = play hole-open animation (32 steps via dig_open_anim_*)\n  $02 = hold delay (actor_delay_inner x actor_delay_outer ticks)\n  $03 = play hole-close animation (32 steps via dig_close_anim_*)\n  $04 = restore saved background chars, clear hole_slot, set status $FF",
+    "7757": "Screen memory page for each actor's dug cell (set when dig starts, held through all phases).",
+    "7767": "Screen column offset for each actor's dug cell.",
+    "7777": "Animation step counter 0-31. Incremented each frame during status 1 and 3.\nAt 32 ($20), the current phase is complete and status advances.",
+    "7787": "Inner delay countdown (status==2). Loaded with $08, decremented each frame.\nWhen it underflows, reloaded with $08 and actor_delay_outer is decremented.",
+    "7797": "Outer delay countdown (status==2). Loaded with $2B, decremented when inner underflows.\nWhen it underflows, actor_anim_step is reset and status advances to 3 (close animation).",
+    "7807": "Background char saved from top cell before digging. Restored at status 4.",
+    "7817": "Background char saved from bottom cell before digging. Restored at status 4.",
+    "7827": "Index of the linked hole_slot_* entry for this actor ($FF = none).\nCleared at status 4 when background is restored and the slot is freed.",
     "7837": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes actor/task tables by filling them with $FF (inactive).\nAlso initializes zero page variables $68 and $77.\n\nInputs:  None\nOutputs: $1E43..$1E4C filled with $FF, $1E93..$1E9C filled with $FF\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8139": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies adjacent binary entity masks explicitly into pointer array coordinates pointers arrays sequence logic.\nNormalizes row offset pointers by two high-bytes coordinates UP variables sequentially array explicit sequencer.\n\nInputs:  High-byte configurations vectors offsets pointers explicitly dynamically sequence logic.\nOutputs: Updates modular sequences sequence layouts configuration absolute sequencing absolute sequence arrays explicitly explicitly sequence modular sequence.\nSide Effects: Increments absolute zero pointers sequence arrays sequential algorithms.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8362": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies iterative dynamic surrounding adjacent collision masks logically pointers sequences arrays.\nApplies binary Masks coordinate surround logic explicit vectors sequential explicit sequencer arrays.\n\nInputs:  Zero-page sequence logic layout sequencer sequence absolute pointers explicit.\nOutputs: updates sequence iterative layout configurations absolute configuration sequences explicitly sequences.\nSide Effects: Increments absolute iterative pointers variable sequentially arrays explicitly sequencing arrays explicit.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8494": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPulls adjacent arrays explicitly sequence explicit sequences layout pointer sequence logic.\nChecks modular array explicit sequence logic pointers arrays sequence $43, $63, $50 sequential explicitly.\n\nInputs:  Pointers sequence explicit variables sequential sequencer configurations explicit logic.\nOutputs: Modifies modular sequence layout explicit sequencers sequential configurations explicitly sequence explicitly layout.\nSide Effects: Updates sequence dynamic variables configuration sequence layouts sequence algorithms arrays sequence explicitly sequencer arrays.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "8565": "Guard sprite animation table (14 strips x 8 bytes = 112 bytes).\nSame structure as sprite_anim_table ($0D1D) but used exclusively for the 5 guard slots.\nIndex = guard_sprite_strip + guard_anim_frame (both per-guard; guard_anim_frame = 0/4/8/$C).\n$20 = transparent cell (caller skips the sta).\n\nStrip layout (guard_sprite_strip values):\n  $00 : Player walking right\n  $08 : Player walking left\n  $10 : Player climbing\n  $18 : Player hanging / descending\n  $20 : Guard walking left\n  $28 : Guard walking left (alt)\n  $30 : Guard walking right\n  $38 : Guard walking right (alt)\n  $40 : Guard falling / dropped\n  $48 : Guard variant\n  $50 : Guard variant\n  $58 : Guard variant\n  $60 : Guard dead / captured in hole\n  $68 : Guard dead (alt)",
+    "8677": "Guard sprite system — 5 guard slots (indices 0-4), parallel arrays.\n\nBackground save (4 cells, T-shaped footprint per guard):\n  guard_saved_top      $21E5+x: top-center cell  (page A, col y)\n  guard_saved_bot_left $21EA+x: bottom-left cell  (page B, col y-1)\n  guard_saved_bot_mid  $21EF+x: bottom-center cell (page B, col y)\n  guard_saved_bot_right$21F4+x: bottom-right cell  (page B, col y+1)\n\nPer-guard state:\n  guard_active      $21F9+x: $FF = slot empty/dead; other = alive\n  guard_anim_frame  $21FE+x: animation frame 0/4/8/$C (starts at $08)\n  guard_offset      $2203+x: screen column offset (X position)\n  guard_page        $2208+x: screen memory page   (Y/row position)\n  guard_sprite_strip$220D+x: strip selector into guard_sprite_table\n  guard_dx          $2212+x: horizontal move direction (+1=right, -1=left, 0=none)\n  guard_dy          $2217+x: vertical move direction   (+1=down,  -1=up,   0=none)\n  guard_move_rate   $221C+x: move pace countdown ($02=normal, $80=initial delay)\n  guard_ai_bias     $2221+x: AI horizontal direction bias counter\n  guard_hole_status $2226+x: hole-trap status ($FF = free, other = trapped in hole)",
+    "8682": "Saved background char: bottom-left cell (page B, col y-1) under guard sprite.",
+    "8687": "Saved background char: bottom-center cell (page B, col y) under guard sprite.",
+    "8692": "Saved background char: bottom-right cell (page B, col y+1) under guard sprite.",
+    "8697": "Guard slot active flag. $FF = slot empty / guard dead. Other = alive and active.",
+    "8702": "Guard animation frame. Cycles 0->4->8->$C->0 (step +/-4, masked & $0C). Initialised to $08.",
+    "8707": "Guard screen column offset (X position). Inc on move-right, dec on move-left.",
+    "8712": "Guard screen memory page (Y/row position). Inc on move-down, dec on move-up.",
+    "8717": "Guard sprite strip selector into guard_sprite_table.\n$00=idle-right, $20=left, $30=right, $40=fall, $60=dead/captured. Combine with guard_anim_frame.",
+    "8722": "Guard horizontal move direction for current step. +1=right, -1=left, 0=not moving horizontally.",
+    "8727": "Guard vertical move direction for current step. +1=down, -1=up, 0=not moving vertically.",
+    "8732": "Guard movement pace countdown. Reloads to $02 each step; when it hits 0 the AI executes a move.\nInitialised to $80 to give guard a long pause before first move.",
+    "8737": "Guard AI horizontal direction bias counter. Incremented/decremented by the pathfinding\nlogic to favour one horizontal direction over another.",
+    "8742": "Guard hole-trap status. $FF = guard is free/not trapped. Other = guard is in a dug hole\n(value cross-links with hole_slot_* arrays via actor_hole_slot).",
     "8747": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes iterative dynamic entity actor dynamic arrays sequencing data pointers parallel logic.\nZeros pointers sequential offsets $21F9 explicitly vectors parallel sequential offsets sequential.\n\nInputs:  Zero-page logic sequencing explicit sequences pointers iterative layouts sequential explicitly.\nOutputs: Updates modular sequencer sequences explicitly configurations configuration sequences explicitly sequences.\nSide Effects: zeros static Counters dynamic sequence layout dynamic sequence layout sequencing iteratively array.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9139": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates animation and movement timers for 5-slot 2x2 objects.\nDecays velocity/duration at $2221 towards zero.\nResets animation timer at $221C to 2 frames and jumps to $23E1 on trigger.\n\nInputs:  Array elements $2221 and $221C\nOutputs: Updated timers.\nSide Effects: Jumps to $23E1 for object updates.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9287": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates through 5 slots to draw 2x2 character tiles (effects or large objects).\nUses parallel arrays for flags, pointers, and 4 data bytes.\n\nInputs:  Parallel arrays $21E5..$220C\nOutputs: Modifies screen memory.\nSide Effects: Modifies zero page $6F and $71.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9439": "Number of gold pieces collected by the player this level.\nCompared to gold_total to detect level completion (all gold collected -> call reset_bonus_timer).",
+    "9440": "Total number of gold pieces placed on the level.\nSet to $00 by clear_sprite_slots; incremented once per gold piece during level loading.\nLevel is complete when gold_count == gold_total.",
+    "9441": "Gold sprite system — 16 slots (indices 0-15), parallel arrays.\nEach slot tracks one gold chest piece on the current level.\n\n  gold_active_flag $24E1+x: $FF=slot empty, $00=gold visible/collectible,\n                             $FE (any bmi)=collected (two-dec trick: $00->$FF->$FE)\n  gold_page        $24F1+x: Screen page (row) of this gold piece.\n  gold_offset      $2501+x: Screen column offset of this gold piece.\n  gold_saved_bg    $2511+x: Background char saved before drawing gold chest ($68).\n                             Init $20 (space). Restored when slot is erased.\n\nCall order each frame:\n  1. draw_sprites ($0656)    - restores gold_saved_bg to screen (erases old gold)\n  2. (player moves)\n  3. save_sprite_background ($068C) - saves bg at current pos, draws char $68 (gold chest)",
+    "9457": "Screen memory page (row) for each gold piece. Loaded from level data during unpack.\nCollision check: f24F1,x - 1 == draw_page.",
+    "9473": "Screen column offset for each gold piece. Stored as raw_byte - $20 during unpack.\nCollision check: f2501,x == draw_offset.",
+    "9489": "Background screen char saved under each gold piece before drawing.\nInit $20 (space). Updated by save_sprite_background; restored by draw_sprites.",
     "9505": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIteratively clears the 16 variable dynamic entity actor dynamic array slot explicit layouts.\nIterates pointers sequentially offsets dynamically $24E1 to fill modular sequentially sequences.\n\nInputs:  None.\nOutputs: updates modular array explicit configurations explicit sequence absolute sequence explicitly explicit sequence array sequencer.\nSide Effects: Iterates dynamic pointers pointers arrays sequence dynamic variable sequentially sequence explicit sequencers dynamic.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates through 16 sprite slots. If active, draws a character to screen.\nUses parallel arrays at $24E1 (flag), $24F1 (page), $2501 (offset), $2511 (ID).\n\nInputs:  Data in parallel arrays $24E1..$2520\nOutputs: Modifies screen memory dynamically.\nSide Effects: Modifies zero page $6B.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9582": "Floating \"+XX\" score display shown over a collected gold piece.\n\n  float_score_timer  $256E: countdown ($FF=inactive, $50=just triggered, ticks to 0).\n                            Set $FF by init_floating_score, $50 on gold collection.\n  float_score_page   $256F: screen page (row) of the display position.\n  float_score_offset $2570: screen column of the display position (gold col - 1).\n  float_score_char0  $2571: char at col+0 (background save or '+' $2B)\n  float_score_char1  $2572: char at col+1 (background save or tens digit)\n  float_score_char2  $2573: char at col+2 (background save or units digit)\n  float_score_bcd    $2574: BCD byte from game_timer_bcd; upper nibble = tens digit,\n                            lower nibble = units digit (both rendered as $30 + digit).\n\nCall order each frame:\n  draw_floating_score ($065F) - writes float_score_char0-2 to screen\n  tick_floating_score ($0683) - reads screen background into char0-2,\n                                overwrites screen with '+', tens, units",
+    "9583": "Screen page (row) where the floating '+XX' score is drawn. Set from gold_page on collection.",
+    "9584": "Screen column where the floating '+XX' score is drawn. Set to gold_offset - 1 (left-aligned).",
+    "9585": "Char buffer at col+0 of floating score ('+' $2B when active, saved bg otherwise).",
+    "9586": "Char buffer at col+1 of floating score (BCD tens digit: (float_score_bcd >> 4) + $30).",
+    "9587": "Char buffer at col+2 of floating score (BCD units digit: (float_score_bcd & $0F) + $30).",
+    "9588": "BCD byte copied from game_timer_bcd when gold is collected.\nUpper nibble = tens, lower nibble = units; displayed as two ASCII decimal digits.",
     "9589": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes iterative dynamic floating sequence iterative variables data parallel arrays explicit.\nZeros parallel sequence explicitly variable sequence layout sequence offsets dynamic sequenced explicit.\n\nInputs:  Zero-page sequence sequencing sequencer sequence iterative layouts configuration sequential sequence explicitly sequencer.\nOutputs: updates sequencer sequencer layouts explicitly configuration absolute sequencer configuration configurations absolute sequencer.\nSide Effects: resets zero static variables sequential sequences variable sequence explicitly offsets sequencer dynamic variables counter explicitly.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9595": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws a 3-character floating score bonus on screen.\nUses variables at $256E (timer/flag), $256F (page), $2570 (offset), $2571..$2573 (chars).\n\nInputs:  Variables $256E..$2573\nOutputs: Modifies screen memory.\nSide Effects: Modifies zero page $6B.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9694": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks for collisions between player and software sprites (gold chests).\nIterates slots. If positions match, collects gold: decrements sprite state,\nincrements gold_count ($24DF), and plays sound effect.\n\nInputs:  draw_page, draw_offset, sprite parallel arrays\nOutputs: Modifies sprite state, increments gold_count.\nSide Effects: Plays sound by calling $0CC7.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1585,14 +2231,36 @@
     "10571": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the static UI text labels in the sidebar on the right side of the screen.\nIterates through several hardcoded strings (LEVEL, GOLD, TIME, POINTS, etc.) and\ncopies them to the playfield buffer at offset $23 (column 35) on various rows.\n\nInputs:  Hardcoded strings (txt_level, txt_gold, txt_timer, txt_points, etc.).\nOutputs: Populates the sidebar area in the playfield buffer with static labels.\nSide Effects: Modifies X register.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "10668": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates numerical displays in the sidebar (Level and Score/Lives).\nConverts values to ASCII and stores them in buffers $6A00 and $6E00.\n\nInputs:  ui_level_num ($2ADF), $24DF, $24E0\nOutputs: Modifies sidebar buffers at $6A25..$6A26 and $6E25..$6E28\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "10946": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the game timer. Decrements frame counter (50 to 0).\nOn rollover, decrements game_timer_bcd in Decimal Mode (once per second).\n\nInputs:  game_timer_bcd ($2949), timer_frame_counter ($294A)\nOutputs: Updated timer values.\nSide Effects: Toggles Decimal flag (sed/cld).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "10975": "Current level number (1-10). Incremented by advance_level on completion;\nwraps 11->1. When ui_level_num reaches level_select_num it wraps back instead.",
+    "10976": "Player-selected starting level. advance_level compares ui_level_num to this;\nif equal, decrements (cycles back) instead of advancing. Init $03.",
+    "10977": "Level-complete flag. $FF = bonus sequence not yet triggered.\nCleared by init_bonus_sequencer at level start; updated by check_level_complete_bonus.",
+    "10978": "Level exit screen column offset. Loaded from level data during unpack_level_data.\ncheck_level_complete_bonus compares draw_offset against this to detect player reaching exit.",
+    "10979": "Level exit screen page (row). Loaded from level data.\ncheck_level_complete_bonus compares draw_page against this.",
+    "10980": "Guard respawn screen column offset. Loaded from level data.\nAssigned to guard_offset,y when a guard is freed from a dug hole (process_actors status 4).",
+    "10981": "Guard respawn screen page (row). Loaded from level data.\nAssigned to guard_page,y when a guard is freed from a dug hole.",
+    "10982": "Bonus phase countdown timer.\n  $FF = inactive (all-gold bonus not yet triggered).\n  $08 = loaded by reset_bonus_timer (triggered when all gold collected).\nDecremented each frame by play_bonus_audio_tick; on underflow plays sound and reloads to $08.\ncheck_level_complete_bonus skips if $FF.",
+    "10983": "Bonus walk screen page pointer. Loaded from level data.\nUsed by play_bonus_audio_tick as the high byte of a screen memory pointer\n(a6C/a6D) to scan rows backwards during the bonus countdown beep animation.",
+    "10984": "Bonus walk screen column offset. Loaded from level data.\nPaired with bonus_walk_page to form the screen position scanned during the bonus animation.",
     "10985": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIteratively clears the time bonus explicitly arrays sequential logic explicit sequencer.\nSets variables at offsets $2AE6 pointers explicit $FF coordinates sequence vectors explicit dynamically.\n\nInputs:  None.\nOutputs: updates modular explicit array explicitly configurations sequencer sequence sequencer.\nSide Effects: Updates parallel sequence layout sequencer variables logic explicit sequencer explicit dynamically.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "11004": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets the time bonus control counter iteratively to explicit frame offsets logic explicitly.\nPulls variables explicitly dynamically parallel variables arrays sequentially explicit variables layout sequencer.\n\nInputs:  High-byte static variable arrays sequence vectors pointers sequence explicit.\nOutputs: Updates parallel sequence explicitly sequence configurations sequence absolute sequencing sequencing explicit sequencer.\nSide Effects: updates static static stack counter parallel sequence algorithms sequence explicitly array explicitly.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "11017": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles repeating beep sound effects during time bonus countdown.\nUses timer at $2AE6 to trigger sound index 6 every 8 frames.\n\nInputs:  Timer flag $2AE6, pointer arrays $2AE7..$2AE8\nOutputs: Triggers sound effect, resets timer.\nSide Effects: Modifies zero page $6D.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "11216": "1x2 dynamic hole/trap slot arrays (5 slots, indexed 0-4, one byte per slot).\n[hole_slot_state]  $2BD0+x: $00=empty, $FF=closing-animation, other=active.\n[hole_slot_page]   $2BD5+x: Screen memory page (row bank) for the top cell.\n[hole_slot_offset] $2BDA+x: Screen column offset within that page.\n[hole_slot_bg_top] $2BDF+x: Saved background char under top cell.\n[hole_slot_bg_bot] $2BE4+x: Saved background char under bottom cell.\n[hole_slot_actor]  $2BE9+x: Actor index that dug this hole ($FF=no owner).",
+    "11221": "Screen memory page (row bank) for the top cell of each 1x2 hole slot.",
+    "11226": "Screen column offset within the page for each 1x2 hole slot.",
+    "11231": "Saved background char under top cell; restored when the hole closes.",
+    "11236": "Saved background char under bottom cell; restored when the hole closes.",
+    "11241": "Actor index that owns this slot. $FF = free / no owner.",
     "11246": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes iterative dynamic 1x2 object sequencing offsets pointers logic parallel sequences array.\nZeros parallel sequence explicit variables parallel sequence layout offsets sequential sequencer explicit.\n\nInputs:  Zero-page arrays sequencing sequencer layout sequencing explicit configurations parallel explicitly sequences.\nOutputs: Updates sequencer sequence sequential layout explicit sequenced array configuration configurations absolute sequencer.\nSide Effects: resets zero static dynamic variables parallel sequences variable pointers offsets sequencer dynamic variables counter explicitly.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "11266": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates through 5 slots to draw 1x2 vertical character blocks.\nWrites to same offset on two consecutive memory pages.\n\nInputs:  Parallel arrays $2BD0..$2BE8\nOutputs: Modifies screen/buffer memory.\nSide Effects: Modifies zero page $73.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "11406": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAnimates 1x2 dynamic tiles (holes/traps dug in the brick floor).\nIterates through 5 slots. If flag is $FF, modifies screen tiles with bitmasks.\n\nInputs:  Parallel arrays $2BD0..$2BE8\nOutputs: Modifies screen memory characters directly.\nSide Effects: Modifies zero page $5B.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "11849": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDecodes dynamic text/frame sequence from $2DAB into the page-per-row gameplay grid.\nUses control sequences: $FF for newline (increment page), $FE for reset to row 0.\nClears 32x12 sub-grid modular first.\n\nInputs:  Encoded stream arrays at $2DAB.\nOutputs: Renders characters into row memory pages $6C onwards.\nSide Effects: Modifies zero page $58:$59.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "12205": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nManages modal dialog overlay subsystems (Press Any Key, menus).\nUses setup flag $2DAA to perform modular frame initialization at Row 21, Col 4 exactly once.\nIterates input vector polls on consecutive frames.\n\nInputs:  Input modal vectors from s1A65, flag arrays at $2DAA.\nOutputs: Modifies drawing coordinates draw_page and draw_offset.\nSide Effects: Sequential init frames clearing.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "12348": "Title / level-select screen state machine.\n  0 = draw intro (print all text, draw level list, setup cursor)\n  1 = await player input (poll keys, update selected_level)\n  2 = confirmed (animate cursor flash, copy selected_level to ui_level_num, start game)",
+    "12349": "Level highlighted in the level-select screen (1-10). Init $01.\nModified each frame by level_select_delta (left -1 / right +1), clamped 1-10.\nCopied to ui_level_num and used to compute level_select_num when DIG is pressed.",
+    "12350": "Title screen strings displayed on the level-select/intro screen.\n  txt_title_lode_runner   $303E: \"LODE RUNNER ON COMMODORE PET\"\n  txt_title_underline     $305B: 28 x $63 (decoration bar)\n  txt_title_high_score    $3078: \"HIGH SCORE:\"\n  txt_title_select_level  $3084: \"SELECT STARTING LEVEL:\"\n  txt_title_dig_to_select $309B: \"LEFT OR RIGHT, USE DIG TO SELECT\"\nAll strings are $FF-terminated PET screencodes.",
+    "12476": "Left/right input delta for the level selector.\n  Decremented ($-1) on left-key press, incremented (+1) on right-key press.\nAdded to selected_level each frame; result clamped 1-10 before storing back.",
+    "12477": "DIG-button confirm flag for the level-select screen.\n  $01 = player pressed DIG/select; triggers transition to title_screen_state 2 (start game).\n  $00 = not pressed.",
+    "12478": "Key debounce flag for the level selector.\n  $FF = key currently held; input processing skipped until released.\n  $00 = idle / key released; input polling active.",
     "12479": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSwitches gameplay state sequences by modularly patching the hardware IRQ vectors.\nClears gameplay buffers and re-maps $0314:$0315 vectors sequentially to draw_layout_borders.\n\nInputs:  None.\nOutputs: Remaps standard $0314 hardware interrupt pointer vectors sequence.\nSide Effects: Self-patching sequences sub-states.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "12524": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the visible horizontal layout borders on screen.\nClears gameplay buffer and draws a border line across row 14 using char $2F.\nInitializes overlay pointer at row 21.\n\nInputs:  None.\nOutputs: Sequential buffer modifications at row 14.\nSide Effects: Modifies zero page $5B.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "12877": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the selection cursor box for intro screen options (like Player 1 or 2).\nCalculates the column offset Y = ((option - 1) * 4) + 1 from variable $303D.\nWrites graphic characters to pages $71 (Row 10) and $70 (Row 9) to form the cursor box.\n\nInputs:  Option index at $303D.\nOutputs: Draws graphical selector at rows 9 and 10.\nSide Effects: Modifies $59 (pointer high byte), Y (column offset).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1605,11 +2273,16 @@
     "13273": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the fourth line of the intro/title screen text into the playfield buffer.\nSets the high byte of the buffer pointer to $6D (Row 6) and starts at column 10.\nCopies characters from $3084 until a #$FF terminator is reached.\n\nInputs:  String at $3084.\nOutputs: Populates row 6 of the intro playfield buffer.\nSide Effects: Modifies $59 (pointer high byte), X (string index), Y (data index).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13296": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the fifth line of the intro/title screen text into the playfield buffer.\nSets the high byte of the buffer pointer to $6E (Row 7) and starts at column 12.\nCopies characters from $3096 until a #$FF terminator is reached.\n\nInputs:  String at $3096.\nOutputs: Populates row 7 of the intro playfield buffer.\nSide Effects: Modifies $59 (pointer high byte), X (string index), Y (data index).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13319": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts the BCD level number at $2943 into two numeric PETSCII characters.\nWrites the resulting characters to the playfield buffer at $6A19 and $6A1A (Row 3, Columns 25-26).\nUsed to display the currently selected level on the intro/title screen.\n\nInputs:  BCD Level Number at $2943.\nOutputs: Writes numerical characters to $6A19 and $6A1A.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "13628": "Pause/game-menu banner render buffer (251 bytes). Parallel to banner_game_paused_table ($343F).\nBoth tables are scanned together using the same X index by menu_draw_banner ($3786):\n  - banner_game_paused_table drives control: $FF=newline, $FE=end-of-table.\n  - For every other position, THIS table supplies the character written to the screen buffer.\n\nThe routine at $364C pre-populates this table from level/config data before drawing.\n$FF bytes here align with the $FF newline sentinels in the structure table (never rendered).\nDefault fill is $01; dynamic slots are overwritten with actual screen chars at runtime.\n\nThe banner displays the pause overlay:\n  top/bottom borders (u/c.../i, j/f.../k chars), sides (b/h),\n  and menu rows: CONTINUE / RESTART LEVEL / END GAME.",
     "13880": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes dynamic level sequence frame explicitly data parallel offsets arrays stream logic.\nModifies sequential arrays state logic state 4 dynamically variables sequential array explicit sequencer.\n\nInputs:  Static pointers sequences parallel arrays sequence data streams sequence configurations logic explicitly.\nOutputs: Updates parallel sequencer layout explicitly configuration absolute variables sequentially layout sequencers absolute.\nSide Effects: Updates Zero pointers variable dynamic iteratively counters dynamic zero layout sequencing iterative.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13982": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPoller for modal overlays prompts (e.g., Press Space to Advance).\nScans hardware matrix using mask at zero page $35 and row at $2F.\n\nInputs:  Zero page row $2F, column mask $35.\nOutputs: Branches modal sequences vectors to processing sequence at $36CD.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "14129": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nNormalizes the video style (strips reverse highlighting) for all stacked menu options in the double buffer.\n\nInputs:  None\nOutputs: 13-byte spans starting at offset $0B on buffer pages $72, $74, and $76 stripped of Bit 7.\nSide Effects: Temporarily increments Zero Page pointer at $79-$7A.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "14214": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws multiline text banners using a sequence structure static table and a data static table.\n\nInputs:  banner_structure_table ($343F), banner_data_table ($353C)\nOutputs: Iterative offscreen buffer spans populated starting at $6C09.\nSide Effects: Newline iterations update iterative pointer $79-$7A iterative high-byte.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "14256": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDispatches actions based on the user's highlighted menu row in the offscreen buffer.\n\nInputs:  a343C ( iterative page index of highlight cursor)\nOutputs: game_state_flag, updates IRQ shadows vectors at $0314 to tick_gameplay.\nSide Effects: Diverts vector sequence flows to break iterative loop sequences.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
+    "14256": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDispatches actions based on the user's highlighted menu row in the offscreen buffer.\n\nInputs:  a343C ( iterative page index of highlight cursor)\nOutputs: game_state_flag, updates IRQ shadows vectors at $0314 to tick_gameplay.\nSide Effects: Diverts vector sequence flows to break iterative loop sequences.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "22800": "Compressed level map data — 10 levels stored in reverse order (level 10 first).\nLoaded by unpack_level_data ($11E8) via pointer (a75:a74), where:\n  a75 = $63 - ui_level_num  (set at $0709; level 1 -> $62, level 10 -> $59)\n  a74 = $10                 (fixed low-byte; each level starts at $xx10)\n\nLevel start addresses:\n  level_data_10  $5910  (a75=$59)\n  level_data_09  $5A10  (a75=$5A)\n  level_data_08  $5B10  (a75=$5B)\n  level_data_07  $5C10  (a75=$5C)\n  level_data_06  $5D10  (a75=$5D)\n  level_data_05  $5E10  (a75=$5E)\n  level_data_04  $5F10  (a75=$5F)\n  level_data_03  $6010  (a75=$60)\n  level_data_02  $6110  (a75=$61)\n  level_data_01  $6210  (a75=$62)\n\nEach level block (256 bytes max) contains:\n  1. MAP ROWS: nibble-packed, 2 tiles per byte, 16 bytes per row (= 32 tiles wide).\n     Rows continue until playfield page register a57 reaches $80 (starts at $67).\n     Bit 7 of each row's last byte controls page advance: 0 -> +2, 1 -> +1.\n     Tile IDs (4-bit nibbles):\n       $0 = empty/space\n       $1 = ladder\n       $2 = border wall (left/right edge)\n       $3 = rope (horizontal bar)\n       $8 = solid brick (non-diggable)\n       $A = diggable brick\n  2. METADATA (8 bytes, read sequentially after map rows):\n       draw_offset       player start screen column\n       draw_page         player start screen page (row)\n       bonus_walk_page   bonus-phase walk start page\n       bonus_walk_offset bonus-phase walk start column\n       exit_offset       level exit column\n       exit_page         level exit page\n       guard_spawn_offset guard respawn column (after freed from hole)\n       guard_spawn_page  guard respawn page\n  3. ENTITY LIST (variable length, 2 bytes each, $FF terminated):\n       Gold:  byte < $41 -> column = byte - $20, next byte = page\n       Guard: byte >= $41 -> column = byte - $40, next byte = page\n       $FF = end of entity list\n  4. PADDING: zero bytes to align next level to $xx10 boundary.",
+    "25344": "Level-select cursor animation path — ROW coordinate table.\nParallel to cursor_anim_col_table ($6400); both tables have the same index X.\nUsed by the intro-screen border/cursor routines ($09E3, $0B33) to animate the\nmoving cursor that traces a path around the level numbers on the select screen.\n\nSentinels:\n  $FF = end of path segment (advance to next row, reset Y in border-draw code)\n  $FE = end of the entire table\nNon-sentinel bytes: row offsets (0-based) along the animated path.",
+    "25600": "Level-select cursor animation path — COLUMN coordinate table.\nParallel to cursor_anim_row_table ($6300); same X index, same $FF/$FE sentinels.\nFor each non-sentinel entry in cursor_anim_row_table, the matching byte here is\nthe corresponding column offset on the level-select screen.",
+    "26368": "Playfield tile buffer — one 256-byte page per screen row.\nEach row occupies a dedicated memory page for multiplication-free Y-coordinate access:\n  $6700 = row 0,  $6800 = row 1, ..., $7F00 = row 24  (25 rows total)\nWithin each page, column indices 0-$2A (42 wide) hold the tile chars.\nFilled by unpack_level_data ($11E8) via page pointer a57 (starting at $67).\nCleared to $20 (space) by clear_gameplay_grid ($079D) and clear_sub_grid ($07F0).\nBorder chars ($65/$63) written at columns 1 and $21 by the blit routines."
   },
   "settings": {
     "all_labels": false,
@@ -1618,7 +2291,7 @@
     "patch_brk": false,
     "platform": "Commodore PET 4.0",
     "assembler": "Tass64",
-    "max_xref_count": 40,
+    "max_xref_count": 20,
     "max_arrow_columns": 6,
     "use_illegal_opcodes": false,
     "text_char_limit": 40,
@@ -1760,6 +2433,12 @@
     "13977": {
       "HighByte": 13982
     },
+    "14214": {
+      "HighByte": 27657
+    },
+    "14218": {
+      "LowByte": 27657
+    },
     "14267": {
       "LowByte": 1610
     },
@@ -1768,14 +2447,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 9631,
-  "hex_dump_cursor_address": 9616,
-  "sprites_cursor_address": 2112,
+  "cursor_address": 13628,
+  "hex_dump_cursor_address": 13616,
+  "sprites_cursor_address": 2176,
   "charset_cursor_address": 1024,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
