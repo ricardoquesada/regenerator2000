@@ -210,7 +210,7 @@
     {
       "start": 4642,
       "end": 4643,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -1319,6 +1319,41 @@
         "kind": "User"
       }
     ],
+    "12350": [
+      {
+        "name": "txt_title_lode_runner",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12379": [
+      {
+        "name": "txt_title_underline",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12408": [
+      {
+        "name": "txt_title_high_score",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12420": [
+      {
+        "name": "txt_title_select_level",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12443": [
+      {
+        "name": "txt_title_dig_to_select",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "12479": [
       {
         "name": "switch_state_to_borders",
@@ -1363,35 +1398,35 @@
     ],
     "13204": [
       {
-        "name": "draw_intro_text_line1",
+        "name": "draw_intro_text_lode_runner",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "13227": [
       {
-        "name": "draw_intro_text_line2",
+        "name": "draw_intro_text_underline",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "13250": [
       {
-        "name": "draw_intro_text_line3",
+        "name": "draw_intro_text_high_score",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "13273": [
       {
-        "name": "draw_intro_text_line4",
+        "name": "draw_intro_text_select_level",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "13296": [
       {
-        "name": "draw_intro_text_line5",
+        "name": "draw_intro_text_dig_to_select",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1473,10 +1508,12 @@
     "1088": "30 REM TESTED ON 3032,4032,8032",
     "1119": "40 PRINT CHR$(142):PRINT CHR$(147)",
     "1141": "50 PRINT CHR$(42)",
-    "1153": "60 SYS 1536"
+    "1153": "60 SYS 1536",
+    "5727": "40 columns",
+    "5732": "80 columns"
   },
   "user_line_comments": {
-    "1536": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nEntry point of Lode Runner for PET. Initializes hardware and state, sets up IRQ, and enters main loop.\n\nInputs:  None\nOutputs: $50 (random seed), $67 (game state flag), $90/$91 (IRQ vector)\nSide Effects: Configures VIA registers ($E84C, $E84B, $E84A, $E848), enables interrupts.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "1536": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nEntry point of Lode Runner for PET. Initializes hardware and state,\nsets up IRQ, and enters main loop.\n\nInputs:  None\nOutputs: $50 (random seed), $67 (game state flag), $90/$91 (IRQ vector)\nSide Effects: Configures VIA registers ($E84C, $E84B, $E84A, $E848),\nenables interrupts.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "1586": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInterface/Menu Orchestration Tick.\nFires on hardware interrupt vector when game is in state 0 (title/menus).\nSequentially orchestrates static frame rendering and keyboard sequences.\n\nInputs:  None.\nOutputs: Orchestrates menu sub-states loops.\nSide Effects: Acknowledges VIA interrupt by reading $E812. Restores Y, X, A registers sequence.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "1610": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCentral Gameplay Orchestration Tick.\nFires on hardware interrupt vector. Sequentially orchestrates audio,\nrendering, dynamic array ticks, collision dispatchers, and keyboard/actors.\n\nInputs:  None.\nOutputs: Orchestrates full gameplay subsystems loops sequentially.\nSide Effects: Clear updates vectors sequence frames.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "1712": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes a completely new game.\nFlushes sound memory, resets BCD scores to zero, clears arrays via $0780.\n\nInputs:  Variable array arrays.\nOutputs: Cleared arrays, score variables reset to 0.\nSide Effects: Calls init routines, jumps to main loop at $06F6.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1581,13 +1618,15 @@
     "patch_brk": false,
     "platform": "Commodore PET 4.0",
     "assembler": "Tass64",
-    "max_xref_count": 5,
+    "max_xref_count": 40,
     "max_arrow_columns": 6,
     "use_illegal_opcodes": false,
     "text_char_limit": 40,
     "addresses_per_line": 5,
     "bytes_per_line": 8,
-    "enabled_features": {},
+    "enabled_features": {
+      "SYSTEM": false
+    },
     "description": "",
     "auto_analyze": true,
     "show_system_comments": true,
@@ -1600,11 +1639,72 @@
     "1901": {
       "HighByte": 1610
     },
+    "2117": "Decimal",
+    "2141": "Hex",
+    "2541": {
+      "HighByte": 29440
+    },
     "5686": {
       "LowByte": 1586
     },
     "5690": {
       "HighByte": 1586
+    },
+    "5727": "Decimal",
+    "5732": "Decimal",
+    "6796": {
+      "LowByte": 26411
+    },
+    "6800": {
+      "HighByte": 26411
+    },
+    "6821": {
+      "LowByte": 26667
+    },
+    "6825": {
+      "HighByte": 26667
+    },
+    "6829": {
+      "LowByte": 26624
+    },
+    "6833": {
+      "HighByte": 26624
+    },
+    "7181": {
+      "LowByte": 26411
+    },
+    "7185": {
+      "HighByte": 26411
+    },
+    "11860": {
+      "HighByte": 27648
+    },
+    "11864": {
+      "LowByte": 27648
+    },
+    "11897": {
+      "HighByte": 26368
+    },
+    "11923": {
+      "HighByte": 26368
+    },
+    "11931": {
+      "HighByte": 32512
+    },
+    "11939": {
+      "HighByte": 32256
+    },
+    "11962": {
+      "HighByte": 28672
+    },
+    "12048": {
+      "HighByte": 28928
+    },
+    "12098": {
+      "HighByte": 28928
+    },
+    "12133": {
+      "HighByte": 29184
     },
     "12196": {
       "LowByte": 12205
@@ -1617,6 +1717,42 @@
     },
     "12519": {
       "HighByte": 12524
+    },
+    "12535": {
+      "HighByte": 29952
+    },
+    "12597": {
+      "HighByte": 28928
+    },
+    "12877": {
+      "HighByte": 28928
+    },
+    "12946": {
+      "HighByte": 28928
+    },
+    "13122": {
+      "HighByte": 32256
+    },
+    "13136": {
+      "HighByte": 29952
+    },
+    "13149": {
+      "HighByte": 29696
+    },
+    "13204": {
+      "HighByte": 26368
+    },
+    "13227": {
+      "HighByte": 26624
+    },
+    "13250": {
+      "HighByte": 27136
+    },
+    "13273": {
+      "HighByte": 27904
+    },
+    "13296": {
+      "HighByte": 28160
     },
     "13973": {
       "LowByte": 13982
@@ -1632,14 +1768,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 1164,
-  "hex_dump_cursor_address": 1152,
-  "sprites_cursor_address": 1856,
+  "cursor_address": 9631,
+  "hex_dump_cursor_address": 9616,
+  "sprites_cursor_address": 2112,
   "charset_cursor_address": 1024,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 40960,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
