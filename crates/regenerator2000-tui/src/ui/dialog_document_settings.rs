@@ -157,8 +157,20 @@ impl Widget for DocumentSettingsDialog {
         // Dynamic System Config Options
         let system_config = crate::assets::load_system_config(&settings.platform);
 
+        // Indices calculation for rigid elements
+        let fixed_opts_start = items.len();
+        let idx_description = fixed_opts_start;
+        let idx_xref = fixed_opts_start + 1;
+        let idx_arrow = fixed_opts_start + 2;
+        let idx_text_limit = fixed_opts_start + 3;
+        let idx_addr_limit = fixed_opts_start + 4;
+        let idx_bytes_limit = fixed_opts_start + 5;
+        let idx_fill_threshold = fixed_opts_start + 6;
+        let idx_assembler = fixed_opts_start + 7;
+        let idx_platform = fixed_opts_start + 8;
+
         let mut dynamic_items = Vec::new();
-        let dynamic_start_idx = items.len() + 8; // 5 base + 8 fixed options (desc, xref, arrow, text, addr, bytes, asm, plat)
+        let dynamic_start_idx = idx_platform + 1;
 
         for (i, feature) in system_config.features.iter().enumerate() {
             let idx = dynamic_start_idx + i;
@@ -175,20 +187,7 @@ impl Widget for DocumentSettingsDialog {
             ));
         }
 
-        // Indices calculation for rigid elements
-        let fixed_opts_start = items.len();
-        let idx_description = fixed_opts_start;
-        let idx_xref = fixed_opts_start + 1;
-        let idx_arrow = fixed_opts_start + 2;
-        let idx_text_limit = fixed_opts_start + 3;
-        let idx_addr_limit = fixed_opts_start + 4;
-        let idx_bytes_limit = fixed_opts_start + 5;
-        let idx_fill_threshold = fixed_opts_start + 6;
-        let idx_assembler = fixed_opts_start + 7;
-        let idx_platform = fixed_opts_start + 8;
-
         // System Comments checkbox index (after dynamic label items)
-        let dynamic_start_idx = idx_platform + 1;
         let idx_system_comments = dynamic_start_idx + dynamic_items.len();
 
         let layout = Layout::default()
@@ -582,6 +581,42 @@ impl Widget for DocumentSettingsDialog {
                 .highlight_style(Style::default().add_modifier(Modifier::BOLD));
             f.render_stateful_widget(list, popup_area, &mut list_state);
         }
+
+        // Number Input Popup
+        let (editing_any, field_name, value_str) = if self.is_editing_xref_count {
+            (true, "Max X-Refs", &self.xref_count_input)
+        } else if self.is_editing_arrow_columns {
+            (true, "Arrow Columns", &self.arrow_columns_input)
+        } else if self.is_editing_text_char_limit {
+            (true, "Text Line Limit", &self.text_char_limit_input)
+        } else if self.is_editing_addresses_per_line {
+            (true, "Words/Addrs per line", &self.addresses_per_line_input)
+        } else if self.is_editing_bytes_per_line {
+            (true, "Bytes per line", &self.bytes_per_line_input)
+        } else if self.is_editing_fill_threshold {
+            (true, "Fill run threshold", &self.fill_threshold_input)
+        } else {
+            (false, "", &String::new())
+        };
+
+        if editing_any {
+            let popup_area = crate::utils::centered_rect_adaptive(30, 40, 0, 3, area);
+            f.render_widget(Clear, popup_area);
+            let title = format!(" Edit {field_name} ");
+            let block = crate::ui::widget::create_dialog_block(&title, theme);
+
+            let widget = Paragraph::new(value_str.clone())
+                .style(
+                    Style::default()
+                        .fg(theme.highlight_fg)
+                        .add_modifier(Modifier::BOLD),
+                )
+                .block(block);
+            f.render_widget(widget, popup_area);
+
+            // Blinking cursor
+            f.set_cursor_position((popup_area.x + 1 + value_str.len() as u16, popup_area.y + 1));
+        }
     }
 
     fn handle_input(
@@ -721,9 +756,7 @@ impl Widget for DocumentSettingsDialog {
                             crate::state::Platform::from(platforms[new_idx].clone());
                         // Reset features when changing platform
                         app_state.settings.enabled_features.clear();
-                        // Recalculate idx_platform - actually it is constant now
-                        // const idx_platform = base_items_count + 6;
-                        self.selected_index = base_items_count + 7;
+                        self.selected_index = idx_platform;
                     }
                 } else if self.is_selecting_assembler {
                     let assemblers = crate::state::Assembler::all();
@@ -816,9 +849,7 @@ impl Widget for DocumentSettingsDialog {
                                 crate::state::Platform::from(platforms[new_idx].clone());
                             // Reset features when changing platform
                             app_state.settings.enabled_features.clear();
-                            // Recalculate idx_platform - constant
-                            // const idx_platform = base_items_count + 6;
-                            self.selected_index = base_items_count + 7;
+                            self.selected_index = idx_platform;
                         }
                     }
                 }
@@ -833,14 +864,17 @@ impl Widget for DocumentSettingsDialog {
                     && !self.is_editing_description
                 {
                     if self.selected_index == idx_xref {
-                        app_state.settings.max_xref_count =
-                            app_state.settings.max_xref_count.saturating_add(1);
+                        if app_state.settings.max_xref_count < 40 {
+                            app_state.settings.max_xref_count += 1;
+                        }
                     } else if self.selected_index == idx_arrow {
-                        app_state.settings.max_arrow_columns =
-                            app_state.settings.max_arrow_columns.saturating_add(1);
+                        if app_state.settings.max_arrow_columns < 10 {
+                            app_state.settings.max_arrow_columns += 1;
+                        }
                     } else if self.selected_index == idx_text_limit {
-                        app_state.settings.text_char_limit =
-                            app_state.settings.text_char_limit.saturating_add(1);
+                        if app_state.settings.text_char_limit < 80 {
+                            app_state.settings.text_char_limit += 1;
+                        }
                     } else if self.selected_index == idx_addr_limit {
                         if app_state.settings.addresses_per_line < 8 {
                             app_state.settings.addresses_per_line += 1;
@@ -879,9 +913,7 @@ impl Widget for DocumentSettingsDialog {
                                 crate::state::Platform::from(platforms[new_idx].clone());
                             // Reset features when changing platform
                             app_state.settings.enabled_features.clear();
-                            // Recalculate idx_platform - constant
-                            // const idx_platform = base_items_count + 6;
-                            self.selected_index = base_items_count + 7;
+                            self.selected_index = idx_platform;
                         }
                     }
                 }
@@ -899,9 +931,7 @@ impl Widget for DocumentSettingsDialog {
                             crate::state::Platform::from(platforms[new_idx].clone());
                         // Reset features when changing platform
                         app_state.settings.enabled_features.clear();
-                        // Recalculate idx_platform - constant
-                        // const idx_platform = base_items_count + 6;
-                        self.selected_index = base_items_count + 7;
+                        self.selected_index = idx_platform;
                     }
                 } else if self.is_selecting_assembler {
                     let assemblers = crate::state::Assembler::all();
@@ -935,18 +965,30 @@ impl Widget for DocumentSettingsDialog {
                     self.is_selecting_assembler = false;
                 } else if self.is_editing_xref_count {
                     if let Ok(val) = self.xref_count_input.parse::<usize>() {
-                        app_state.settings.max_xref_count = val;
-                        self.is_editing_xref_count = false;
+                        if val <= 40 {
+                            app_state.settings.max_xref_count = val;
+                            self.is_editing_xref_count = false;
+                        } else {
+                            self.xref_count_input = "Invalid (0-40)".to_string();
+                        }
                     }
                 } else if self.is_editing_arrow_columns {
                     if let Ok(val) = self.arrow_columns_input.parse::<usize>() {
-                        app_state.settings.max_arrow_columns = val;
-                        self.is_editing_arrow_columns = false;
+                        if (1..=10).contains(&val) {
+                            app_state.settings.max_arrow_columns = val;
+                            self.is_editing_arrow_columns = false;
+                        } else {
+                            self.arrow_columns_input = "Invalid (1-10)".to_string();
+                        }
                     }
                 } else if self.is_editing_text_char_limit {
                     if let Ok(val) = self.text_char_limit_input.parse::<usize>() {
-                        app_state.settings.text_char_limit = val;
-                        self.is_editing_text_char_limit = false;
+                        if (1..=80).contains(&val) {
+                            app_state.settings.text_char_limit = val;
+                            self.is_editing_text_char_limit = false;
+                        } else {
+                            self.text_char_limit_input = "Invalid (1-80)".to_string();
+                        }
                     }
                 } else if self.is_editing_addresses_per_line {
                     if let Ok(val) = self.addresses_per_line_input.parse::<usize>() {
