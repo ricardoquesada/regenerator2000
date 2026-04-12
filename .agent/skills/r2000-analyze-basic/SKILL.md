@@ -26,14 +26,14 @@ Invoke the `r2000_read_region` tool to read the requested sequence:
 
 ## 3. Process BASIC Lines
 
-Commodore BASIC programs follow a strict structured sequence in memory. Iterate through the sequences byte-by-byte:
+Commodore BASIC programs follow a strict structured sequence in memory. Iterate through the lines starting from the initial address, following the "Next Line Pointer" until you reach the end of the program.
 
 ### Line Anatomy
 
-1. **Bytes 0–1:** Pointer to the address of the next BASIC line in Little Endian (e.g., `24 04` $\rightarrow$ `$0424`).
-2. **Bytes 2–3:** BASIC Line number as a 16-bit integer in Little Endian (e.g., `0A 00` $\rightarrow$ `10`).
-3. **Bytes 4–N:** The tokenized BASIC command ending with a `$00` byte.
-4. **Termination:** If the pointer bytes are `$00 $00`, the iteration stops.
+1.  **Bytes 0–1 (Next Line Pointer):** Pointer to the memory address where the **next** BASIC line begins, stored in Little Endian format (e.g., `24 04` $\rightarrow$ `$0424$).
+2.  **Bytes 2–3 (Line Number):** The BASIC line number as a 16-bit integer in Little Endian format (e.g., `0A 00` $\rightarrow$ `10`).
+3.  **Bytes 4–N (Tokens):** The tokenized BASIC command. This sequence of bytes continues until a `$00` (null) terminator is encountered.
+4.  **Termination:** The program ends when the "Next Line Pointer" (Bytes 0–1) of a line is `$00 $00`.
 
 ### Keyword Token Table (V2)
 
@@ -68,10 +68,13 @@ _(Note: Bytes between `$20` and `$7F` are literal PETSCII text characters like s
 Formulate a sequence of commands for `r2000_batch_execute` to apply the modifications for all decoded BASIC lines at once.
 
 For each decoded line:
-1. Use `r2000_set_data_type` on Bytes 0–1 as `"address"`.
-2. Use `r2000_set_data_type` on Bytes 2–3 as `"word"`.
-3. Form a complete BASIC line string (e.g., `10 REM LODE RUNNER`).
-4. Use `r2000_set_comment` to set the string as a `"side"` comment at the start of the sequence (Byte 0).
+1.  Use `r2000_set_data_type` on Bytes 0–1 with `"data_type": "address"`.
+2.  Use `r2000_set_data_type` on Bytes 2–3 with `"data_type": "word"`.
+3.  Use `r2000_set_data_type` from Byte 4 to the `$00` terminator (inclusive) with `"data_type": "byte"`.
+4.  Form a complete BASIC line string (e.g., `10 REM LODE RUNNER`).
+5.  Use `r2000_set_comment` to set this string as a `"side"` comment at the start of the line (Byte 0).
+
+Continue this process by jumping to the address specified in the "Next Line Pointer" until the pointer is `$00 $00`. Finally, mark the `$00 $00` terminator itself as `"word"`.
 
 ## 5. Save Project
 

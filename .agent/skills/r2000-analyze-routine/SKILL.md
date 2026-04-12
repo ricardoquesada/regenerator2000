@@ -72,7 +72,7 @@ Combine findings into a summary:
 
 ## 7. Optional: Document
 
-If the analysis is solid, offer to add a multi-line comment block on top of the routine and/or rename the label.
+If the analysis is solid, offer to add a multi-line comment block on top of the routine, rename the label to a descriptive one, and add **side-comments** to key instructions to explain the logic flow.
 
 The multi-line comment block must be placed **above the first instruction** of the routine using `r2000_set_comment` with `"type": "line"`. It should follow this exact format — the separator line must be used as both the **first** and **last** line of the comment:
 
@@ -90,7 +90,7 @@ To document the routine, use:
 
 - `r2000_set_label_name` — to give the routine a descriptive name.
 - `r2000_set_comment` with `"type": "line"` — to add the multi-line comment block above the entry point.
-- `r2000_set_comment` with `"type": "side"` — to annotate key instructions within the routine body with short inline notes (e.g., explaining what a register holds, why a branch is taken, or what a memory address represents).
+- `r2000_set_comment` with `"type": "side"` — to annotate key instructions within the routine body with short inline notes (e.g., explaining what a register holds, why a branch is taken, or what a memory address represents). **Crucial for making the code readable for others.**
 
 ---
 
@@ -157,7 +157,7 @@ After completing the analysis, report to the user:
 - **Purpose**: One-sentence description of what the routine does.
 - **Inputs / Outputs / Side Effects**: As determined in Step 6.
 - **Evidence**: Key instructions or cross-references that led to the conclusion.
-- **Actions taken**: What was renamed or commented, if Step 7 was applied.
+- **Actions taken**: What was renamed, what line-comments were added, and which key instructions received **side-comments** for clarity.
 - **Uncertain areas**: Any instructions or addresses whose purpose is still unclear.
 
 Always ask the user's confirmation before applying `r2000_set_label_name` or adding comments, unless they explicitly said "go ahead and document it."
