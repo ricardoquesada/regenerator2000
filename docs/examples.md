@@ -10,7 +10,9 @@ Below are the main examples available in this project:
 
 A disassembly of the Commodore 64 ["Burnin' Rubber"][burnin_rubber_info] game.
 
-- Disassembly: [c64_burnin_rubber.html](examples/c64_burnin_rubber.html)
+!!! example "Disassembly"
+
+    * 🔗 [c64_burnin_rubber.html](examples/c64_burnin_rubber.html)
 
 Main take aways:
 
@@ -23,7 +25,7 @@ Main take aways:
 
 Source:
 
-- Link: [Burnin' Rubber.tap][burnin_rubber_tap]
+- TAP file: [Burnin' Rubber.tap][burnin_rubber_tap]
 - The game was taken from the original TAP source.
 - The game was encrypted. Part of the game code was in the loader, and part was in the main program.
 - The diassembly contains a single file that includes the decrypted main program with part of the loader code.
@@ -43,7 +45,9 @@ Source:
 
 A disassembly of [Moving Tubes][moving_tubes] intro, by Laxity.
 
-- Disassembly: [c64_moving_tubes_lxt.html](examples/c64_moving_tubes_lxt.html)
+!!! example "Disassembly"
+
+    * [🔗 c64_moving_tubes_lxt.html](examples/c64_moving_tubes_lxt.html)
 
 Main take aways:
 
@@ -53,7 +57,7 @@ Main take aways:
 
 Source:
 
-- Link: [Moving Tubes (Laxity Intro #145)][moving_tubes]
+- CSDB: [Moving Tubes (Laxity Intro #145)][moving_tubes]
 - The intro was packed. The disassembly contains the unpacked version of the intro. It was unpacked using [Unp64][unp64].
 
 [moving_tubes]: https://csdb.dk/release/?id=259330
@@ -67,7 +71,9 @@ Source:
 
 A disassembly of [Lode Runner][lode_runner_site] clone for Commodore PET, by jimbo.
 
-- Disassembly: [pet_loderunner.html](examples/pet_loderunner.html)
+!!! example "Disassembly"
+
+    * 🔗 [pet_loderunner.html](examples/pet_loderunner.html)
 
 Main take aways:
 
@@ -76,7 +82,7 @@ Main take aways:
 
 Source:
 
-- Link: [Lode Runner for the PET by jimbo][lode_runner_site]
+- Itchio: [Lode Runner for the PET by jimbo][lode_runner_site]
 - Since the game was not packed, this is a good example of how the disassembly looks like without any post-processing.
 
 [lode_runner_site]: https://jimbo.itch.io/lode-runner-clone-for-commodore-pet
