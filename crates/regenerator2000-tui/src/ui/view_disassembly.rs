@@ -323,8 +323,13 @@ impl Widget for DisassemblyView {
             MouseEventKind::Down(MouseButton::Left) => {
                 // Proceed with click handling
             }
+            MouseEventKind::Drag(MouseButton::Left) => {
+                // Proceed with drag-to-select handling
+            }
             _ => return WidgetResult::Ignored,
         }
+
+        let is_drag = matches!(mouse.kind, MouseEventKind::Drag(_));
 
         let area = ui_state.disassembly_area;
         let inner_area = Rect {
@@ -370,16 +375,27 @@ impl Widget for DisassemblyView {
 
             if click_row < current_y + visible_part_count {
                 // Found the clicked row
-                ui_state.cursor_index = current_inst;
-                ui_state.sub_cursor_index = current_sub + (click_row - current_y);
+                let shift_held = mouse.modifiers.contains(KeyModifiers::SHIFT);
 
-                if ui_state.is_visual_mode {
+                // is_drag: anchor selection at click-down position on first move;
+                // shift_held: Shift+Click best-effort (terminal may intercept it);
+                // is_visual_mode: existing visual-mode click anchoring.
+
+                // Drag-to-select: anchor selection at the current cursor position
+                // (where the mouse-down landed) on the very first drag event, then
+                // keep extending as the pointer moves.
+                if is_drag || shift_held || ui_state.is_visual_mode {
                     if ui_state.selection_start.is_none() {
                         ui_state.selection_start = Some(ui_state.cursor_index);
                     }
                 } else {
+                    // Plain click: clear any existing selection
                     ui_state.selection_start = None;
                 }
+
+                ui_state.cursor_index = current_inst;
+                ui_state.sub_cursor_index = current_sub + (click_row - current_y);
+
                 return WidgetResult::Handled;
             }
 
