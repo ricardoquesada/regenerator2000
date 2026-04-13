@@ -278,11 +278,20 @@ Returns detailed information about a specific memory address: instruction semant
 | :--- | :--- | :--- | :---: |
 | `address` | `integer` | The memory address to inspect (decimal). | Yes |
 
-### `r2000_get_all_comments`
+### `r2000_get_comments`
 
-Returns all user-defined comments (line and side) and their addresses. Each entry has 'address' (integer), 'type' ('line' or 'side'), and 'comment' (string).
+Returns user-defined comments and their addresses. Each entry has `address` (integer), `type` (`line` or `side`), and `comment` (string). With no arguments returns **all** comments. Provide optional filters to narrow results.
 
-_No arguments._
+**Arguments:**
+
+| Name | Type | Description | Required |
+| :--- | :--- | :--- | :---: |
+| `addresses` | `array` of `integer` | Optional list of specific addresses (decimal) to retrieve comments from. Only comments at these addresses are returned. | No |
+| `start_address` | `integer` | Optional lower bound (inclusive) of the address range to filter by (decimal). Must be paired with `end_address`. | No |
+| `end_address` | `integer` | Optional upper bound (inclusive) of the address range to filter by (decimal). Must be paired with `start_address`. | No |
+| `type` | `string` | Optional filter: `"line"` or `"side"`. Only comments of the specified type are returned. | No |
+
+Filters are combined with AND logic. Omit all arguments to return every comment.
 
 ### `r2000_get_analyzed_blocks`
 
@@ -316,11 +325,20 @@ Returns the memory address of the current cursor position in the disassembly vie
 
 _No arguments._
 
-### `r2000_get_symbol_table`
+### `r2000_get_symbols`
 
-Returns a list of all defined labels (user and system) and their addresses.
+Returns defined labels (user and/or system) and their addresses. With no arguments returns **all** symbols. Provide optional filters to narrow results.
 
-_No arguments._
+**Arguments:**
+
+| Name | Type | Description | Required |
+| :--- | :--- | :--- | :---: |
+| `names` | `array` of `string` | Optional list of label names to look up. Only symbols whose name matches one of these strings are returned. Case-sensitive. | No |
+| `start_address` | `integer` | Optional lower bound (inclusive) of the address range to filter by (decimal). Must be paired with `end_address`. | No |
+| `end_address` | `integer` | Optional upper bound (inclusive) of the address range to filter by (decimal). Must be paired with `start_address`. | No |
+| `kind` | `string` | Optional filter: `"user"` or `"system"`. Only labels of the specified kind are returned. | No |
+
+Filters are combined with AND logic. Omit all arguments to return every symbol.
 
 ### `r2000_jump_to_address`
 

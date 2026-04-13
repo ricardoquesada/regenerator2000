@@ -270,14 +270,46 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
-                "name": "r2000_get_symbol_table",
-                "description": "Returns a list of all defined labels (user and system) and their addresses.",
-                "inputSchema": { "type": "object", "properties": {} }
+                "name": "r2000_get_symbols",
+                "description": "Returns defined labels (user and/or system) and their addresses. With no arguments returns ALL symbols. Provide optional filters to narrow results: 'names' resolves specific label names to addresses, 'start_address'/'end_address' limits to an address range, 'kind' filters by label kind. Filters are combined (AND logic).",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "names": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "Optional list of label names to look up. Only symbols whose name matches one of these strings are returned. Case-sensitive."
+                        },
+                        "start_address": { "type": "integer", "description": "Optional lower bound (inclusive) of the address range to filter by (decimal)." },
+                        "end_address":   { "type": "integer", "description": "Optional upper bound (inclusive) of the address range to filter by (decimal)." },
+                        "kind": {
+                            "type": "string",
+                            "enum": ["user", "system"],
+                            "description": "Optional filter to return only labels of a given kind. 'user' = user-defined labels, 'system' = auto-generated labels."
+                        }
+                    }
+                }
             },
             {
-                "name": "r2000_get_all_comments",
-                "description": "Returns all user-defined comments (line and side) and their addresses. Each entry has 'address' (integer), 'type' ('line' or 'side'), and 'comment' (string).",
-                "inputSchema": { "type": "object", "properties": {} }
+                "name": "r2000_get_comments",
+                "description": "Returns user-defined comments and their addresses. Each entry has 'address' (integer), 'type' ('line' or 'side'), and 'comment' (string). With no arguments returns ALL comments. Provide optional filters to narrow results: 'addresses' returns comments at specific addresses, 'start_address'/'end_address' limits to an address range, 'type' filters by comment type. Filters are combined (AND logic).",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "addresses": {
+                            "type": "array",
+                            "items": { "type": "integer" },
+                            "description": "Optional list of specific addresses (decimal) to retrieve comments from. Only comments at these addresses are returned."
+                        },
+                        "start_address": { "type": "integer", "description": "Optional lower bound (inclusive) of the address range to filter by (decimal)." },
+                        "end_address":   { "type": "integer", "description": "Optional upper bound (inclusive) of the address range to filter by (decimal)." },
+                        "type": {
+                            "type": "string",
+                            "enum": ["line", "side"],
+                            "description": "Optional filter to return only 'line' comments or only 'side' comments."
+                        }
+                    }
+                }
             },
             {
                 "name": "r2000_save_project",
@@ -760,8 +792,8 @@ fn handle_tool_call_internal(
             }))
         }
 
-        "r2000_get_symbol_table" => {
-            let symbols = get_symbol_table_impl(app_state);
+        "r2000_get_symbols" => {
+            let symbols = get_symbols_impl(app_state, &args)?;
             Ok(json!({
                 "content": [{
                     "type": "text",
@@ -770,8 +802,8 @@ fn handle_tool_call_internal(
             }))
         }
 
-        "r2000_get_all_comments" => {
-            let comments = get_all_comments_impl(app_state);
+        "r2000_get_comments" => {
+            let comments = get_comments_impl(app_state, &args)?;
             Ok(json!({
                 "content": [{
                     "type": "text",
@@ -1193,10 +1225,68 @@ fn set_operand_format_impl(
     Ok(())
 }
 
-fn get_symbol_table_impl(app_state: &AppState) -> Vec<Value> {
+fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec<Value>, McpError> {
+    // Parse optional filters
+    let name_filter: Option<Vec<&str>> = args
+        .get("names")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect());
+
+    let start_addr = args
+        .get("start_address")
+        .and_then(|v| v.as_u64())
+        .map(|n| Addr(n as u16));
+    let end_addr = args
+        .get("end_address")
+        .and_then(|v| v.as_u64())
+        .map(|n| Addr(n as u16));
+
+    let kind_filter = args.get("kind").and_then(|v| v.as_str());
+
+    // Validate: if one range bound is given, both must be present
+    if start_addr.is_some() != end_addr.is_some() {
+        return Err(McpError {
+            code: -32602,
+            message: "Both 'start_address' and 'end_address' must be provided together."
+                .to_string(),
+            data: None,
+        });
+    }
+    if let (Some(s), Some(e)) = (start_addr, end_addr)
+        && s > e
+    {
+        return Err(McpError {
+            code: -32602,
+            message: "start_address must be <= end_address".to_string(),
+            data: None,
+        });
+    }
+
     let mut symbols = Vec::new();
     for (addr, labels) in &app_state.labels {
+        // Address range filter
+        if let (Some(s), Some(e)) = (start_addr, end_addr)
+            && (*addr < s || *addr > e)
+        {
+            continue;
+        }
+
         for label in labels {
+            // Kind filter
+            if let Some(k) = kind_filter {
+                let label_kind = format!("{:?}", label.kind);
+                if !label_kind.eq_ignore_ascii_case(k) {
+                    continue;
+                }
+            }
+
+            // Name filter
+            if let Some(ref names) = name_filter
+                && !names.contains(&label.name.as_str())
+            {
+                continue;
+            }
+
             symbols.push(json!({
                 "address": addr,
                 "name": label.name,
@@ -1211,26 +1301,88 @@ fn get_symbol_table_impl(app_state: &AppState) -> Vec<Value> {
         let addr_b = b["address"].as_u64().unwrap_or(0);
         addr_a.cmp(&addr_b)
     });
-    symbols
+    Ok(symbols)
 }
 
-fn get_all_comments_impl(app_state: &AppState) -> Vec<Value> {
-    let mut comments = Vec::new();
+fn get_comments_impl(app_state: &AppState, args: &Value) -> Result<Vec<Value>, McpError> {
+    // Parse optional filters
+    let addr_filter: Option<Vec<Addr>> =
+        args.get("addresses").and_then(|v| v.as_array()).map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_u64())
+                .map(|n| Addr(n as u16))
+                .collect()
+        });
 
-    for (addr, comment) in &app_state.user_line_comments {
-        comments.push(json!({
-            "address": addr,
-            "type": "line",
-            "comment": comment
-        }));
+    let start_addr = args
+        .get("start_address")
+        .and_then(|v| v.as_u64())
+        .map(|n| Addr(n as u16));
+    let end_addr = args
+        .get("end_address")
+        .and_then(|v| v.as_u64())
+        .map(|n| Addr(n as u16));
+
+    let type_filter = args.get("type").and_then(|v| v.as_str());
+
+    // Validate: if one range bound is given, both must be present
+    if start_addr.is_some() != end_addr.is_some() {
+        return Err(McpError {
+            code: -32602,
+            message: "Both 'start_address' and 'end_address' must be provided together."
+                .to_string(),
+            data: None,
+        });
+    }
+    if let (Some(s), Some(e)) = (start_addr, end_addr)
+        && s > e
+    {
+        return Err(McpError {
+            code: -32602,
+            message: "start_address must be <= end_address".to_string(),
+            data: None,
+        });
     }
 
-    for (addr, comment) in &app_state.user_side_comments {
-        comments.push(json!({
-            "address": addr,
-            "type": "side",
-            "comment": comment
-        }));
+    let mut comments = Vec::new();
+
+    // Helper closure to check whether an address passes the filters
+    let addr_passes = |addr: &Addr| -> bool {
+        if let (Some(s), Some(e)) = (start_addr, end_addr)
+            && (*addr < s || *addr > e)
+        {
+            return false;
+        }
+        if let Some(ref addrs) = addr_filter
+            && !addrs.contains(addr)
+        {
+            return false;
+        }
+        true
+    };
+
+    if type_filter != Some("side") {
+        for (addr, comment) in &app_state.user_line_comments {
+            if addr_passes(addr) {
+                comments.push(json!({
+                    "address": addr,
+                    "type": "line",
+                    "comment": comment
+                }));
+            }
+        }
+    }
+
+    if type_filter != Some("line") {
+        for (addr, comment) in &app_state.user_side_comments {
+            if addr_passes(addr) {
+                comments.push(json!({
+                    "address": addr,
+                    "type": "side",
+                    "comment": comment
+                }));
+            }
+        }
     }
 
     // Sort by address
@@ -1240,7 +1392,7 @@ fn get_all_comments_impl(app_state: &AppState) -> Vec<Value> {
         addr_a.cmp(&addr_b)
     });
 
-    comments
+    Ok(comments)
 }
 
 fn get_address_details_impl(app_state: &AppState, address: Addr) -> Result<Value, McpError> {

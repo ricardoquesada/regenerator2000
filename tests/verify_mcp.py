@@ -270,8 +270,8 @@ EXPECTED_TOOLS = {
     "r2000_search_memory",
     "r2000_get_cross_references",
     "r2000_set_operand_format",
-    "r2000_get_symbol_table",
-    "r2000_get_all_comments",
+    "r2000_get_symbols",
+    "r2000_get_comments",
     "r2000_save_project",
     "r2000_batch_execute",
     "r2000_add_scope",
@@ -296,6 +296,8 @@ REMOVED_TOOLS = {
     "r2000_read_hexdump_region",
     "r2000_read_selected_disasm",
     "r2000_read_selected_hexdump",
+    "r2000_get_symbol_table",
+    "r2000_get_all_comments",
 }
 
 
@@ -590,18 +592,18 @@ def test_misc_tools(client):
     })
     print("  PASS" if res and "result" in res else f"  FAIL: {res}")
 
-    # Get Symbol Table
-    print("- r2000_get_symbol_table")
+    # Get Symbols
+    print("- r2000_get_symbols")
     res = client.rpc("tools/call", {
-        "name": "r2000_get_symbol_table",
+        "name": "r2000_get_symbols",
         "arguments": {}
     })
     print("  PASS" if res and "result" in res else f"  FAIL: {res}")
 
-    # Get All Comments — verify structure
-    print("- r2000_get_all_comments")
+    # Get Comments — verify structure
+    print("- r2000_get_comments")
     res = client.rpc("tools/call", {
-        "name": "r2000_get_all_comments",
+        "name": "r2000_get_comments",
         "arguments": {}
     })
     if res and "result" in res:
