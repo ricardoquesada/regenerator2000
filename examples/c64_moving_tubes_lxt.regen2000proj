@@ -186,7 +186,7 @@
     ],
     "3690": [
       {
-        "name": "rotate_tube_bitmap",
+        "name": "rotate_scroller_star_0",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -221,14 +221,14 @@
     ],
     "3819": [
       {
-        "name": "rotate_tube_shift_regs",
+        "name": "rotate_scroller_star_1_x2",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "3822": [
       {
-        "name": "rotate_shift_reg",
+        "name": "rotate_scroller_star_1",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -242,14 +242,14 @@
     ],
     "4080": [
       {
-        "name": "tube_shift_reg_0",
+        "name": "scroller_star_char_0",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "4088": [
       {
-        "name": "tube_shift_reg_1",
+        "name": "scroller_star_char_1",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1357,8 +1357,13 @@
     "3664": "Patch $D016 scroll in irq_handler_e6",
     "3674": "Screen row 23",
     "3679": "Screen row 24",
-    "3691": "Sign bit → carry for seamless rotation",
-    "3698": "Write rotated byte back",
+    "3690": "clear carry (default: bit 7 = 0)",
+    "3691": "load byte from charset char 254 bitmap",
+    "3694": "bit 7 = 0: carry stays clear; skip sec",
+    "3696": "bit 7 = 1: set carry (mirrors bit shifting out)",
+    "3697": "circular ROL: bits 6..0 → 7..1; old bit 7 (carry) → bit 0",
+    "3698": "write rotated byte back to charset",
+    "3702": "loop until all 8 bytes done",
     "3711": "Subtract 3 pixels per frame",
     "3716": "No underflow = skip char fetch",
     "3718": "Wrap to 0-7 range",
@@ -1374,7 +1379,15 @@
     "3800": "Font row 1 → screen $06CF",
     "3806": "Font row 2 → screen $06F7",
     "3812": "Font row 3 → screen $071F",
-    "3819": "JSR trick: calls rotate_shift_reg twice",
+    "3819": "JSR fall-through: $0EED pushed as return → re-enters rotate_scroller_star_1 below",
+    "3822": "process 8 bytes, X = 7..0",
+    "3824": "carry = 0 by default",
+    "3825": "load byte from charset char 255 bitmap",
+    "3828": "bit 7 = 0: carry stays clear; skip sec",
+    "3830": "bit 7 = 1: carry = 1 (mirrors bit about to shift out)",
+    "3831": "circular ROL: bits 6..0 → 7..1; old bit 7 (carry) → bit 0",
+    "3832": "write rotated byte back to charset",
+    "3836": "loop until all 8 bytes done",
     "4316": "start with voice 2, count down to 0",
     "4318": "save ZP pointers used for pattern data",
     "4324": "check if voice X is active",
@@ -1449,7 +1462,15 @@
     "5792": "Octave 5: C-5 to B-5",
     "5816": "Octave 6: C-6 to B-6",
     "5840": "Octave 7: C-7 to B-7",
-    "8696": "reset (64738)",
+    "8672": "inner loop: copy 256 bytes from current source page to dest page",
+    "8674": "SMC target: hi byte of source address (initially $32 for $3200)",
+    "8677": "SMC target: hi byte of dest address (initially $08 for $0801)",
+    "8680": "256-byte block done; advance source page",
+    "8683": "advance dest page",
+    "8689": "copy next page; loop until source hi wraps $FF→$00",
+    "8691": "restore standard C64 banking: BASIC+KERNAL+I/O visible",
+    "8695": "re-enable interrupts",
+    "8696": "cold-start back to BASIC",
     "8704": "Advance sine phase",
     "8705": "Table has 160 entries",
     "8709": "Wrap to 0 at end of table",
@@ -1574,9 +1595,13 @@
   },
   "user_line_comments": {
     "3592": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates three sine-wave-scrolled \"tube\" bands on screen and advances the\nhorizontal text scroller. Called every frame from the main loop.\n\n1) For each of three tube bands (top/mid/bot), advances a sine phase index,\n   calls sine_scroller_update to get fine-scroll + coarse offset, patches\n   the VIC $D016 scroll value into the corresponding IRQ handler via\n   self-modifying code, and fills two adjacent screen rows with a 4-char\n   repeating tile pattern offset by the coarse sine value.\n\n2) Rotates two 8-byte shift register arrays (tube_shift_reg_0/1) that\n   drive animated bitmap patterns within the tube bands.\n\n3) Smooth-scrolls a proportional-width text message across 4 screen rows.\n   Decrements a pixel counter by 3 each frame; on underflow, shifts the\n   screen left by one char and renders the next font column from a\n   character mapping table and 4 font bitmap row tables.\n\nInputs:  Self-modified sine phases at $0E09/$0E29/$0E49,\n         scroller pointer at $0EA6/$0EA7, scroll counter at $2334\nOutputs: Screen RAM updated, VIC $D016 values patched in IRQ handlers\nSide Effects: Modifies screen RAM $0400-$0798 and $061F-$071F,\n              self-modifies code at multiple locations\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "3690": "Rotate 8 bytes of tube bitmap pattern",
+    "3690": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n1-bit circular left rotation of scroller_star_char_0 ($0FF0-$0FF7).\nscroller_star_char_0 is charset character 254 in the $0800 charset (last-2).\nRotating it in-place animates every on-screen instance of that character\nsimultaneously — the classic C64 \"animating star\" demo technique.\nCalled once per scroll tick; produces a 1-pixel/frame leftward drift.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "3704": "Advance text scroller",
     "3794": "Render 4 font rows to screen",
+    "3819": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n2-bit circular left rotation of scroller_star_char_1 ($0FF8-$0FFF).\nscroller_star_char_1 is charset character 255 in the $0800 charset (last).\nRotating it in-place animates every on-screen instance of that character\nsimultaneously — the classic C64 \"animating star\" demo technique.\nRuns at 2 bits/frame (vs 1 bit/frame for scroller_star_char_0), giving\nthe two star rows slightly different animation speeds for visual variety.\n\nUses the JSR fall-through trick to call rotate_scroller_star_1 twice:\n  - JSR at $0EEB pushes return address $0EED onto stack, jumps to $0EEE.\n  - rotate_scroller_star_1 executes (1-bit rotate), RTS pops $0EED.\n  - rotate_scroller_star_1 executes again (1-bit rotate), RTS returns to caller.\nNet effect: 2-bit circular left rotation with zero extra overhead.\n\nCalled once per scroll tick from the text scroller advance at $0E78.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
+    "3822": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n1-bit circular left rotation of each of the 8 bytes in scroller_star_char_1.\nFor each byte (X = 7..0):\n  clc / bpl / sec  →  copy bit 7 into carry\n  rol              →  shift bits 6..0 left; old bit 7 (carry) → bit 0\nSince the carry fed into ROL equals the bit shifted out, the rotation is\ntruly circular: bit 7 wraps to bit 0 every 8 calls (= every 4 frames when\ninvoked via rotate_scroller_star_1_x2 which doubles each call).\nInputs/Outputs: scroller_star_char_1[0..7] each rotated left by 1\nClobbers: A, X\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
+    "4080": "Charset character 254 bitmap (last-2 char of $0800 charset, 8 bytes).\nSparse pixel \"star\" pattern; rotated 1 bit/frame by rotate_scroller_star_0\nto animate all on-screen star rows above/below the scroller text.",
+    "4088": "Charset character 255 bitmap (last char of $0800 charset, 8 bytes).\nSame initial pattern as scroller_star_char_0; rotated 2 bits/frame by\nrotate_scroller_star_1_x2 for a slightly faster animation on the second star row.",
     "4096": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nSID Music Player - Architecture Overview\n\n                     +---------------------+\n                     | Entry: LDX #$02     |\n                     | (voice 2, 1, 0)     |\n                     +---------------------+\n                               |\n                     +---------------------+\n                     | Save $FB/$FC        |\n                     +---------------------+\n                               |\n                     +---------------------+\n                     | Voice active?       |\n                     | voice_active,x != 0 |\n                     +-----+---------------+\n                      Yes  |           No \\\n                           |              +---> next_voice\n                     +-----v---------------+      (DEX, loop\n                     | Speed counter       |       or RTS)\n                     | voice_speed_ctr != 0|\n                     +-----+--------+------+\n                      == 0 |        | != 0\n                           |        +---> Sustain: dec ctr,\n                           |              check release tick\n                     +-----v---------------+\n                     | Fetch next command   |\n                     | from pattern data    |\n                     +-----+---------------+\n                           |\n             +-------------+-------------+\n             |             |             |\n        +----v----+   +----v----+   +----v--------+\n        | Note    |   | Rest    |   | Control     |\n        | $01-$7D |   | $00     |   | $80+        |\n        | gate on |   | gate off|   +------+------+\n        +----+----+   +----+----+          |\n             |             |     +---------+---------+\n             |             |     |         |         |\n             +------+------+ +--v---+ +---v---+ +---v------+\n                    |         |Speed | |Instr. | |Effects   |\n                    |         |$80   | |$A0    | |$C0+      |\n                    |         +------+ +-------+ +---+------+\n                    |                                 |\n                    |              +------+------+----+----+\n                    |              |      |      |         |\n                    |          +---v--+ +-v---+ +v------+ +v-------+\n                    |          |Vibr. | |Porta| |Release| |Arpeggio|\n                    |          +------+ +-----+ +-------+ +--------+\n                    |\n              +-----v--------------+\n              | Calc frequency     |\n              | from freq table    |\n              | + apply effects    |\n              +-----+--------------+\n                    |\n              +-----v--------------+\n              | Write SID regs     |\n              | $D400-$D418        |\n              | Freq, PW, Filter,  |\n              | Control, ADSR      |\n              +-----+--------------+\n                    |\n              +-----v--------------+\n              | next_voice: DEX    |\n              | loop or RTS        |\n              +--------------------+\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "4316": "SID Music Player - Main Entry\nProcesses all 3 voices (X=2,1,0) per call.\nHandles sequencing, effects, and SID register output.",
     "4324": "--- Voice Processing Loop ---",
@@ -1614,6 +1639,7 @@
     "5617": "--- Write SID Registers ---\nOutput pulse width, filter cutoff, frequency, and control.",
     "5659": "--- Next Voice / Exit ---",
     "5672": "SID frequency table for PAL system.\n96 entries (8 octaves x 12 notes), 16-bit little-endian.\nNote index 0 = C-0 ($0116 = 278), up to B-7 ($FD2E = 64814).\nFirst entry is used as a reference for portamento/slide calculations.\nAccessed via note index * 2 as word offset.",
+    "8672": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nDemo exit/cleanup stub — must execute from $0340 (tape buffer), NOT from\nits link address here. Its self-modifying INC targets ($0344, $0347) are\nonly correct when the code runs from $0340.\n\nCalled by the shutdown sequence at $2EF3, which:\n  1. ldx #$34 / stx $01  — disable BASIC+KERNAL ROMs, expose all RAM\n  2. Copies 53 bytes of this stub to $0340 (tape buffer, always safe RAM)\n  3. jmp $0340            — execute the copy from its correct location\n\nFrom $0340 the SMC is correct:\n  lda $3200,x  at $0342 → hi-byte operand at $0344  (inc a0344 = next source page)\n  sta $0801,x  at $0345 → hi-byte operand at $0347  (inc a0347 = next dest page)\n\nInner loop copies 256 bytes/iteration; inc a0344/a0347 step both pointers\nto the next page. Loop terminates when the source hi byte wraps $FF→$00,\nhaving bulk-copied the demo's data from $3200+ back into $0801+ (BASIC\nprogram area), restoring the machine's memory state after the demo.\n\nFinally: lda #$37/sta $01 restores standard banking (BASIC+KERNAL+I/O),\ncli re-enables interrupts, jmp RESET_VECTOR cold-starts back to BASIC.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "8704": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances a sine wave phase index and splits the corresponding table value\ninto a fine scroll value (for VIC-II $D016) and a coarse character offset\n(for screen tile positioning). Used by all three tube bands.\n\nInputs:  X = current sine phase index (0-159, maintained via self-mod by caller)\nOutputs: A = $D016 value (fine scroll 0-7 inverted | multicolor bit),\n         Y = coarse character offset (0-31),\n         X = updated phase index\nSide Effects: None (pure computation)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8729": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFirst raster IRQ handler to fire each frame. Fires at raster line $FB\n(below visible screen, in the bottom border), triggered by irq_hanlder_f8.\n\nThis handler has two roles beyond the standard raster split mechanics:\n\n1. DISPLAY SETUP: Restores $D018 to the tube layout (charset $0800, screen\n   $0400), applies the orange/brown tube palette, enables multicolor+38-col\n   via $D016 (self-modified for scroll), and writes $D011=$17 to set the\n   raster compare register upper bit and enable the display. This is the\n   setup that takes effect at the very top of the next frame.\n\n2. SID TICK + LOGO ANIMATION SYNC: Calls sid_play to advance the music\n   driver for this frame, then reads the waveform bytes of all three SID\n   voices (voice_waveform/$170A, a170B, a170C). If any voice has bit 7 set\n   ($80 = rest/gate-off in the music driver), the logo color animation index\n   (a226F) is reset to $02, pausing the color shimmer at its starting step.\n   This couples the visual animation to musical phrasing.\n\nFinally, arms raster_irq_upper_tube at raster $40 to start the visible\nportion of the raster chain on the next frame.\n\nInputs:       voice_waveform ($170A), a170B, a170C — SID voice waveform states\nOutputs:      None\nSide Effects: $D018 set to tube layout; $D016 set to multicolor+38-col;\n              $D011 written to enable display + set raster bit 8;\n              sid_play called (advances music driver one frame);\n              a226F reset to $02 if any voice is in rest state;\n              next IRQ armed at raster $40 -> raster_irq_upper_tube\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8797": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRaster IRQ chain — drives all per-scanline VIC-II splits for the full-screen\neffect. The chain fires ~11 times per frame, one handler per screen region.\nEach handler sets the appropriate background/multicolor palette and switches\nchart/screen bank as needed, then calls set_next_irq_state (A=next raster\nline, X/Y=lo/hi of next handler), acknowledges the VIC IRQ via LSR $D019,\nand exits through the KERNAL IRQ return at $EA7E.\n\nRegion map (top to bottom):\n  $40 raster_irq_upper_tube   — upper decorative tube bar\n  $46 irq_handler_46          — upper Laxity logo (blue palette)\n  $6E irq_handler_6e          — lower Laxity logo (red palette)\n  $96 irq_handler_96          — middle tube bar\n  $A0 irq_handler_a0          — transition (same tube palette)\n  $A6 irq_handler_a6          — delay + black bg, switches to hi-res\n  $B6 irq_handler_b6          — upper scroller (blue, charset at $2800)\n  $C6 irq_handler_c6          — lower scroller (red)\n  $D6 irq_handler_d6          — delay + hi-res, charset back to $0800\n  $E6 irq_handler_e6          — bottom tube bar; bumps frame-sync counter\n  $F0 irq_handler_f0          — wraps back to $40 (top of frame)\n\nInputs:       a226F (color animation index), a2272 (self-mod enable byte)\nOutputs:      None\nSide Effects: $D016/$D018/$D021–$D023 updated per split; $D012+$0314/$0315\n              reprogrammed for next handler; a2EA5 incremented each frame\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1758,14 +1784,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 12315,
-  "hex_dump_cursor_address": 12304,
+  "cursor_address": 8672,
+  "hex_dump_cursor_address": 8672,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
