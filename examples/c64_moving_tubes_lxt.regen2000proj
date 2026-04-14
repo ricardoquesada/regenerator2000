@@ -1117,21 +1117,21 @@
     ],
     "8797": [
       {
-        "name": "irq_handler_top_tube",
+        "name": "raster_irq_top_tube",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "8870": [
       {
-        "name": "irq_handler_upper_logo",
+        "name": "raster_irq_upper_logo",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "8901": [
       {
-        "name": "irq_handler_lower_logo",
+        "name": "raster_irq_lower_logo",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1495,7 +1495,7 @@
     "8783": "any voice in rest: reset logo color animation to step $02 (pauses shimmer at musical phrase boundary)",
     "8814": "color animation index (0..5); counts down each active frame",
     "8816": "skips color table update until self-modified to JMP",
-    "8818": "self-modified: byte $F0 (BEQ, frozen) → $4C (JMP, active) by init code at $2E86",
+    "8818": "self-modified: file contains $4C (JMP, skips DEX -> frozen). Init writes $2C (BIT, falls through -> active).",
     "8821": "advance to next animation color step",
     "8822": "write updated index back (self-modifying operand of LDX #$xx at $226E)",
     "8825": "upper logo bg0 color for current animation step",
@@ -1571,7 +1571,7 @@
     "11896": "prime tube/scroller state before IRQs start firing (avoids first-frame glitch)",
     "11899": "enable interrupts — raster chain begins firing",
     "11900": "startup delay: wait $C1 (193) frames before activating logo color animation",
-    "11908": "self-modify: write $2C (JMP opcode) over $F0 (BEQ) at a2272 — activates logo color animation",
+    "11908": "self-modify: write $2C (BIT opcode) over $4C (JMP) at a2272 to fall through to DEX — activates animation",
     "11913": "second startup delay: another $C1 frames before entering main loop",
     "11921": "wait for frame tick (gated by raster_irq_bottom_tube via a2EA5)",
     "11924": "update tube sine scroll positions and advance text scroller one step",
@@ -1643,7 +1643,7 @@
     "8672": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nDemo exit/cleanup stub — must execute from $0340 (tape buffer), NOT from\nits link address here. Its self-modifying INC targets ($0344, $0347) are\nonly correct when the code runs from $0340.\n\nCalled by the shutdown sequence at $2EF3, which:\n  1. ldx #$34 / stx $01  — disable BASIC+KERNAL ROMs, expose all RAM\n  2. Copies 53 bytes of this stub to $0340 (tape buffer, always safe RAM)\n  3. jmp $0340            — execute the copy from its correct location\n\nFrom $0340 the SMC is correct:\n  lda $3200,x  at $0342 → hi-byte operand at $0344  (inc a0344 = next source page)\n  sta $0801,x  at $0345 → hi-byte operand at $0347  (inc a0347 = next dest page)\n\nInner loop copies 256 bytes/iteration; inc a0344/a0347 step both pointers\nto the next page. Loop terminates when the source hi byte wraps $FF→$00,\nhaving bulk-copied the demo's data from $3200+ back into $0801+ (BASIC\nprogram area), restoring the machine's memory state after the demo.\n\nFinally: lda #$37/sta $01 restores standard banking (BASIC+KERNAL+I/O),\ncli re-enables interrupts, jmp RESET_VECTOR cold-starts back to BASIC.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "8704": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances a sine wave phase index and splits the corresponding table value\ninto a fine scroll value (for VIC-II $D016) and a coarse character offset\n(for screen tile positioning). Used by all three tube bands.\n\nInputs:  X = current sine phase index (0-159, maintained via self-mod by caller)\nOutputs: A = $D016 value (fine scroll 0-7 inverted | multicolor bit),\n         Y = coarse character offset (0-31),\n         X = updated phase index\nSide Effects: None (pure computation)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8729": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFirst raster IRQ handler to fire each frame. Fires at raster line $FB\n(below visible screen, in the bottom border), triggered by irq_hanlder_f8.\n\nThis handler has two roles beyond the standard raster split mechanics:\n\n1. DISPLAY SETUP: Restores $D018 to the tube layout (charset $0800, screen\n   $0400), applies the orange/brown tube palette, enables multicolor+38-col\n   via $D016 (self-modified for scroll), and writes $D011=$17 to set the\n   raster compare register upper bit and enable the display. This is the\n   setup that takes effect at the very top of the next frame.\n\n2. SID TICK + LOGO ANIMATION SYNC: Calls sid_play to advance the music\n   driver for this frame, then reads the waveform bytes of all three SID\n   voices (voice_waveform/$170A, a170B, a170C). If any voice has bit 7 set\n   ($80 = rest/gate-off in the music driver), the logo color animation index\n   (a226F) is reset to $02, pausing the color shimmer at its starting step.\n   This couples the visual animation to musical phrasing.\n\nFinally, arms raster_irq_upper_tube at raster $40 to start the visible\nportion of the raster chain on the next frame.\n\nInputs:       voice_waveform ($170A), a170B, a170C — SID voice waveform states\nOutputs:      None\nSide Effects: $D018 set to tube layout; $D016 set to multicolor+38-col;\n              $D011 written to enable display + set raster bit 8;\n              sid_play called (advances music driver one frame);\n              a226F reset to $02 if any voice is in rest state;\n              next IRQ armed at raster $40 -> raster_irq_upper_tube\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "8797": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRaster IRQ chain — drives all per-scanline VIC-II splits for the full-screen\neffect. The chain fires ~11 times per frame, one handler per screen region.\nEach handler sets the appropriate background/multicolor palette and switches\nchart/screen bank as needed, then calls set_next_irq_state (A=next raster\nline, X/Y=lo/hi of next handler), acknowledges the VIC IRQ via LSR $D019,\nand exits through the KERNAL IRQ return at $EA7E.\n\nRegion map (top to bottom):\n  $40 raster_irq_upper_tube   — upper decorative tube bar\n  $46 irq_handler_46          — upper Laxity logo (blue palette)\n  $6E irq_handler_6e          — lower Laxity logo (red palette)\n  $96 irq_handler_96          — middle tube bar\n  $A0 irq_handler_a0          — transition (same tube palette)\n  $A6 irq_handler_a6          — delay + black bg, switches to hi-res\n  $B6 irq_handler_b6          — upper scroller (blue, charset at $2800)\n  $C6 irq_handler_c6          — lower scroller (red)\n  $D6 irq_handler_d6          — delay + hi-res, charset back to $0800\n  $E6 irq_handler_e6          — bottom tube bar; bumps frame-sync counter\n  $F0 irq_handler_f0          — wraps back to $40 (top of frame)\n\nInputs:       a226F (color animation index), a2272 (self-mod enable byte)\nOutputs:      None\nSide Effects: $D016/$D018/$D021–$D023 updated per split; $D012+$0314/$0315\n              reprogrammed for next handler; a2EA5 incremented each frame\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "8797": "Raster IRQ chain — drives all per-scanline VIC-II splits for the full-screen\neffect. The chain fires ~11 times per frame, one handler per screen region.\nEach handler sets the appropriate background/multicolor palette and switches\nchart/screen bank as needed, then calls set_next_irq_state (A=next raster\nline, X/Y=lo/hi of next handler), acknowledges the VIC IRQ via LSR $D019,\nand exits through the KERNAL IRQ return at $EA7E.\n\nRegion map (top to bottom):\n  $40 raster_irq_top_tube     — upper decorative tube bar\n  $46 rater_irq_upper_logo    — upper Laxity logo (blue palette)\n  $6E rater_irq_lower_logo    — lower Laxity logo (red palette)\n  $96 raster_irq_mid_tube     — middle tube bar\n  $A0 raster_irq_mid_tube_ext — transition (same tube palette)\n  $A6 raster_irq_tube_scroller_gap — delay + black bg, switches to hi-res\n  $B6 raster_irq_upper_scroller — upper scroller (blue, charset at $2800)\n  $C6 raster_irq_lower_scroller — lower scroller (red)\n  $D6 raster_irq_scroller_tube_gap — delay + hi-res, charset back to $0800\n  $E6 raster_irq_bottom_tube  — bottom tube bar; bumps frame-sync counter\n  $F0 raster_irq_frame_end    — wraps back to $40 (top of frame)\n\nInputs:       a226F (color animation index), a2272 (self-mod enable byte)\nOutputs:      None\nSide Effects: $D016/$D018/$D021–$D023 updated per split; $D012+$0314/$0315\n              reprogrammed for next handler; a2EA5 incremented each frame",
     "8870": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRaster IRQ handler for the upper half of the Laxity logo (blue/cyan band).\nFires at raster line $46. Sets VIC-II multicolor background registers and\nenables multicolor + 38-column mode, then chains to raster_irq_lower_logo.\n\nThe three background color immediates (LDA/LDX/LDY #imm) are NOT fixed —\ntheir operand bytes at a22A9/a22AB/a22AD are overwritten every frame by\nraster_irq_upper_tube using values from tbl_background_color_46_0/1/2,\ncycling through 6 palette steps to produce the color-shimmer animation\nvisible on the logo.\n\nInputs:       a22A9 (bg0 immediate), a22AB (bg1 immediate), a22AD (bg2 immediate)\n              — all self-modified by raster_irq_upper_tube each frame\nOutputs:      None\nSide Effects: $D021-$D023 updated to current animation color step;\n              $D016 set to multicolor + 38-col mode;\n              next IRQ armed at raster $6E → raster_irq_lower_logo\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8901": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRaster IRQ handler for the lower half of the Laxity logo (red/warm band).\nFires at raster line $6E. Sets VIC-II multicolor background registers only\n(no $D016 write — inherits multicolor + 38-col from raster_irq_upper_logo),\nthen chains to irq_handler_96 (middle tube).\n\nThe three background color immediates (LDA/LDX/LDY #imm) are NOT fixed —\ntheir operand bytes at a22C8/a22CA/a22CC are overwritten every frame by\nraster_irq_upper_tube using values from tbl_background_color_6e_0/1/2,\ncycling through 6 warm palette steps (grays, reds, light reds) in sync\nwith the cool palette cycling on the upper logo, producing the two-tone\ncolor-shimmer animation across the full Laxity logo.\n\nInputs:       a22C8 (bg0 immediate), a22CA (bg1 immediate), a22CC (bg2 immediate)\n              — all self-modified by raster_irq_upper_tube each frame\nOutputs:      None\nSide Effects: $D021-$D023 updated to current animation color step;\n              next IRQ armed at raster $96 → irq_handler_96 (middle tube)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8927": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRaster IRQ handler for the middle decorative tube bar.\nFires at raster line $96. Key transition point: switches $D018 back to the\ntube charset ($0800) and screen ($0400), which were set to the logo charset\n($2800) by raster_irq_upper_logo for the Laxity logo region above.\n\nThe $D016 operand (a22F4) is self-modified every frame by update_scroller_and_tubes\n(via sine_scroller_update, phase pointer at a0E29) to update the pixel-level\nhorizontal scroll offset (bits 0-2 of $D016), producing the animated side-scrolling\nmovement of the tube tiles. Palette is fixed (orange/brown), matching the upper\nand lower tube handlers.\n\nInputs:       a22F4 ($D016 scroll value) — self-modified by update_scroller_and_tubes\nOutputs:      None\nSide Effects: $D018 switched to tube layout (charset=$0800, screen=$0400);\n              $D021-$D023 set to orange/brown tube palette;\n              $D016 written with current horizontal scroll offset;\n              next IRQ armed at raster $A0 → irq_handler_a0\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1786,14 +1786,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8872,
-  "hex_dump_cursor_address": 8864,
+  "cursor_address": 8797,
+  "hex_dump_cursor_address": 8784,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "None",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
