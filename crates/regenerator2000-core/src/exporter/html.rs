@@ -1,3 +1,4 @@
+use crate::disassembler::LABEL_COLUMN_WIDTH;
 use crate::state::AppState;
 use std::path::PathBuf;
 
@@ -50,13 +51,14 @@ a:hover { text-decoration: underline; }
 .mid-label { color: var(--mid-label-color); }
 .separator-row { height: 15px; }
 .code-cell { display: flex; align-items: top; padding: 0 !important; }
-.code-cell .inline-label { width: 18ch; flex-shrink: 0; color: var(--label-color); font-weight: bold; }
+.code-cell .inline-label { width: 20ch; flex-shrink: 0; color: var(--label-color); font-weight: bold; }
 .code-cell .mnemonic { min-width: 8ch; flex-shrink: 0; padding: 0 8px; }
 .code-cell .operand { min-width: 32ch; flex-shrink: 0; padding: 0 8px; }
 .code-cell .comment { padding: 0 8px; margin-left: 4ch; }
 .code-cell.assignment { padding: 0 8px !important; }
 .code-cell.assignment .label { min-width: 40ch; flex-shrink: 0; }
 .code-cell.block-header .comment { margin-left: 0ch; }
+.mid-label-def { display: inline-block; min-width: 60ch; }
 tr:target td { background-color: var(--highlight-bg); }
 tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 #theme-toggle { position: fixed; top: 20px; right: 20px; padding: 8px 16px; background-color: var(--text-color); color: var(--bg-color); border: 1px solid var(--text-color); cursor: pointer; font-family: inherit; font-weight: bold; }
@@ -216,7 +218,41 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                         name = format!("{}{}", p, name);
                     }
                     let label_def = format!("{} =*+${:02x}", name, j);
-                    row_str.push_str(&format!("<tr id=\"L{:04X}\"><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell mid-label\">{}</td></tr>\n", mid_addr.0, label_def));
+
+                    // Build x-ref comment with hyperlinks for this mid-address
+                    let mid_comment = if let Some(refs) = state.cross_refs.get(&mid_addr)
+                        && !refs.is_empty()
+                        && state.settings.max_xref_count > 0
+                    {
+                        let origin_val = state.origin.0;
+                        let size = state.raw_data.len() as u16;
+                        let mut all_refs = refs.clone();
+                        all_refs.sort_unstable();
+                        all_refs.dedup();
+                        let max = state.settings.max_xref_count;
+                        let suffix = if all_refs.len() > max { ", ..." } else { "" };
+                        let refs_str: Vec<String> = all_refs
+                            .iter()
+                            .take(max)
+                            .map(|r| {
+                                if r.0 >= origin_val && r.0 < origin_val + size {
+                                    format!("<a href=\"#L{:04X}\">${:04X}</a>", r.0, r.0)
+                                } else {
+                                    format!("${:04X}", r.0)
+                                }
+                            })
+                            .collect();
+                        format!(
+                            "<span class=\"comment\"> {} x-ref: {}{}</span>",
+                            formatter.comment_prefix(),
+                            refs_str.join(", "),
+                            suffix
+                        )
+                    } else {
+                        String::new()
+                    };
+
+                    row_str.push_str(&format!("<tr id=\"L{:04X}\"><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell mid-label\"><span class=\"mid-label-def\">{}</span>{}</td></tr>\n", mid_addr.0, label_def, mid_comment));
                 }
             }
         }
@@ -241,7 +277,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
 
         let mut inline_label_html = String::new();
         if !label_text.is_empty() {
-            let label_on_own_line = label_text.len() > 18; // LABEL_COLUMN_WIDTH = 18
+            let label_on_own_line = label_text.len() > LABEL_COLUMN_WIDTH;
             if label_on_own_line {
                 row_str.push_str(&format!(
                     "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell label\">{}</td></tr>\n",

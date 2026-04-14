@@ -1214,7 +1214,7 @@ impl Widget for DisassemblyView {
                                 ),
                                 Span::styled("                 ".to_string(), base_style),
                                 Span::styled(
-                                    format!("{label_def:<36}"),
+                                    format!("{label_def:<40}"),
                                     base_style.fg(ui_state.theme.label_def),
                                 ),
                             ];
