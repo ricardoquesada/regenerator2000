@@ -1367,6 +1367,7 @@
     "3711": "Subtract 3 pixels per frame",
     "3716": "No underflow = skip char fetch",
     "3718": "Wrap to 0-7 range",
+    "3723": "256-97 = 159  ~ 4 * 40",
     "3725": "Shift screen row left by 1 char",
     "3749": "Read next char from scroller_txt",
     "3752": "Zero = end of message",
@@ -1596,7 +1597,7 @@
   "user_line_comments": {
     "3592": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates three sine-wave-scrolled \"tube\" bands on screen and advances the\nhorizontal text scroller. Called every frame from the main loop.\n\n1) For each of three tube bands (top/mid/bot), advances a sine phase index,\n   calls sine_scroller_update to get fine-scroll + coarse offset, patches\n   the VIC $D016 scroll value into the corresponding IRQ handler via\n   self-modifying code, and fills two adjacent screen rows with a 4-char\n   repeating tile pattern offset by the coarse sine value.\n\n2) Rotates two 8-byte shift register arrays (tube_shift_reg_0/1) that\n   drive animated bitmap patterns within the tube bands.\n\n3) Smooth-scrolls a proportional-width text message across 4 screen rows.\n   Decrements a pixel counter by 3 each frame; on underflow, shifts the\n   screen left by one char and renders the next font column from a\n   character mapping table and 4 font bitmap row tables.\n\nInputs:  Self-modified sine phases at $0E09/$0E29/$0E49,\n         scroller pointer at $0EA6/$0EA7, scroll counter at $2334\nOutputs: Screen RAM updated, VIC $D016 values patched in IRQ handlers\nSide Effects: Modifies screen RAM $0400-$0798 and $061F-$071F,\n              self-modifies code at multiple locations\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "3690": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n1-bit circular left rotation of scroller_star_char_0 ($0FF0-$0FF7).\nscroller_star_char_0 is charset character 254 in the $0800 charset (last-2).\nRotating it in-place animates every on-screen instance of that character\nsimultaneously — the classic C64 \"animating star\" demo technique.\nCalled once per scroll tick; produces a 1-pixel/frame leftward drift.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
-    "3704": "Advance text scroller",
+    "3707": "Advance text scroller",
     "3794": "Render 4 font rows to screen",
     "3819": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n2-bit circular left rotation of scroller_star_char_1 ($0FF8-$0FFF).\nscroller_star_char_1 is charset character 255 in the $0800 charset (last).\nRotating it in-place animates every on-screen instance of that character\nsimultaneously — the classic C64 \"animating star\" demo technique.\nRuns at 2 bits/frame (vs 1 bit/frame for scroller_star_char_0), giving\nthe two star rows slightly different animation speeds for visual variety.\n\nUses the JSR fall-through trick to call rotate_scroller_star_1 twice:\n  - JSR at $0EEB pushes return address $0EED onto stack, jumps to $0EEE.\n  - rotate_scroller_star_1 executes (1-bit rotate), RTS pops $0EED.\n  - rotate_scroller_star_1 executes again (1-bit rotate), RTS returns to caller.\nNet effect: 2-bit circular left rotation with zero extra overhead.\n\nCalled once per scroll tick from the text scroller advance at $0E78.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "3822": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n1-bit circular left rotation of each of the 8 bytes in scroller_star_char_1.\nFor each byte (X = 7..0):\n  clc / bpl / sec  →  copy bit 7 into carry\n  rol              →  shift bits 6..0 left; old bit 7 (carry) → bit 0\nSince the carry fed into ROL equals the bit shifted out, the rotation is\ntruly circular: bit 7 wraps to bit 0 every 8 calls (= every 4 frames when\ninvoked via rotate_scroller_star_1_x2 which doubles each call).\nInputs/Outputs: scroller_star_char_1[0..7] each rotated left by 1\nClobbers: A, X\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
@@ -1678,6 +1679,7 @@
     "fill_run_threshold": 8
   },
   "immediate_value_formats": {
+    "3723": "Decimal",
     "3754": {
       "LowByte": 12032
     },
@@ -1784,14 +1786,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8672,
-  "hex_dump_cursor_address": 8672,
+  "cursor_address": 3786,
+  "hex_dump_cursor_address": 3776,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 32768,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
