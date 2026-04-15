@@ -92,6 +92,7 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
 │  Text Line Limit: < 40 >                                               │
 │  Words/Addrs per line: < 5 >                                           │
 │  Bytes per line: < 8 >                                                 │
+│  Fill run threshold: < 8 >                                             │
 │  Assembler: < 64tass >                                                 │
 │  Platform: < C64 >                                                     │
 │                                                                        │
@@ -256,11 +257,39 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
         - **Description**: Controls how many 8-bit values (Bytes) are displayed on a single line when using the Byte Block
           Type. Range: 1-40.
 
-13. **Assembler**
+13. **Fill run threshold**
+        - **Description**: When a `Byte` block contains a run of **N or more consecutive identical bytes**, the disassembler
+          automatically collapses the entire run into a single assembler fill directive instead of emitting one `.byte` per
+          value. Set to `0` to disable the optimization entirely (default: 8).
+
+          The directive name varies by assembler:
+
+          | Assembler     | Directive syntax            |
+          |---------------|-----------------------------|
+          | 64tass        | `.fill count, value`        |
+          | ACME          | `!fill count, value`        |
+          | KickAssembler | `.fill count, value`        |
+          | ca65          | `.res count, value`         |
+
+          **Example** — 16 consecutive `$00` bytes (64tass format):
+
+          ```asm
+          ; Without fill run threshold (or threshold > 16):
+          .byte $00, $00, $00, $00, $00, $00, $00, $00
+          .byte $00, $00, $00, $00, $00, $00, $00, $00
+
+          ; With fill run threshold <= 16:
+          .fill 16, $00
+          ```
+
+          Runs are only coalesced within a single `Byte` block. A label, cross-reference,
+          splitter, or comment mid-block will break the run at that boundary.
+
+14. **Assembler**
         - **Description**: Selects the target assembler syntax for export. Supported assemblers include **64tass**,
           **ACME**, **KickAssembler**, and **ca65**. Changing this updates the syntax used in the disassembly view to match
           the target.
 
-14. **Platform**
+15. **Platform**
         - **Description**: Defines the target hardware platform (e.g., C64). This helps the analyzer identify
           system-specific memory maps, hardware registers (like VIC-II or SID), and ROM routines.
