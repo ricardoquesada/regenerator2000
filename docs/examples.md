@@ -4,9 +4,59 @@ Welcome to the Regenerator 2000 examples documentation. These HTML disassemblies
 
 Below are the main examples available in this project:
 
+## Moving Tubes - Commodore 64
+
+![screenshot](examples/c64_moving_tubes_screenshot.png)
+
+A disassembly of [Moving Tubes][moving_tubes] intro, by Laxity.
+
+!!! example "Disassembly"
+
+    * [🔗 c64_moving_tubes_lxt.html](examples/c64_moving_tubes_lxt.html)
+
+Main take aways:
+
+- Clean code.
+- Great place to learn how a SID player works, since the SID player was disassembled in detail.
+- Great place if you want to learn about how to handle multiple IRQ interrupts in your C64 game.
+
+Source:
+
+- CSDB: [Moving Tubes (Laxity Intro #145)][moving_tubes]
+- The intro was packed. The disassembly contains the unpacked version of the intro. It was unpacked using [Unp64][unp64].
+
+[moving_tubes]: https://csdb.dk/release/?id=259330
+[unp64]: https://csdb.dk/release/?id=260619
+
+---
+
+## Lode Runner - Commodore PET
+
+![screenshot](examples/pet_lode_runner_screenshot.png)
+
+A disassembly of [Lode Runner][lode_runner_site] clone for Commodore PET, by jimbo.
+
+!!! example "Disassembly"
+
+    * 🔗 [pet_loderunner.html](examples/pet_loderunner.html)
+
+Main take aways:
+
+- Clean code.
+- Great place to learn about the PET programming.
+
+Source:
+
+- Itchio: [Lode Runner for the PET by jimbo][lode_runner_site]
+- Since the game was not packed, this is a good example of how the disassembly looks like without any post-processing.
+
+[lode_runner_site]: https://jimbo.itch.io/lode-runner-clone-for-commodore-pet
+
+---
+
 ## Burnin' Rubber - Commodore 64
 
-![screenshot](examples/c64_burnin_rubber.gif)
+![screenshot](examples/c64_burnin_rubber_screenshot.png)
 
 A disassembly of the Commodore 64 ["Burnin' Rubber"][burnin_rubber_info] game.
 
@@ -36,55 +86,5 @@ Source:
 [burnin_rubber_info]: https://www.c64-wiki.com/wiki/Burnin_Rubber>
 [monitor]: https://www.c64-wiki.com/wiki/MONITOR
 [c64_burning_rubber_monitor_cmd]: examples/c64_burnin_rubber.html#L2BE0
-
----
-
-## Moving Tubes - Commodore 64
-
-![screenshot](examples/c64_moving_tubes.png)
-
-A disassembly of [Moving Tubes][moving_tubes] intro, by Laxity.
-
-!!! example "Disassembly"
-
-    * [🔗 c64_moving_tubes_lxt.html](examples/c64_moving_tubes_lxt.html)
-
-Main take aways:
-
-- Clean code.
-- Great place to learn how a SID player works, since the SID player was disassembled in detail.
-- Great place if you want to learn about how to handle multiple IRQ interrupts in your C64 game.
-
-Source:
-
-- CSDB: [Moving Tubes (Laxity Intro #145)][moving_tubes]
-- The intro was packed. The disassembly contains the unpacked version of the intro. It was unpacked using [Unp64][unp64].
-
-[moving_tubes]: https://csdb.dk/release/?id=259330
-[unp64]: https://csdb.dk/release/?id=260619
-
----
-
-## Lode Runner - Commodore PET
-
-![screenshot](examples/pet_lode_runner.png)
-
-A disassembly of [Lode Runner][lode_runner_site] clone for Commodore PET, by jimbo.
-
-!!! example "Disassembly"
-
-    * 🔗 [pet_loderunner.html](examples/pet_loderunner.html)
-
-Main take aways:
-
-- Clean code.
-- Great place to learn about the PET programming.
-
-Source:
-
-- Itchio: [Lode Runner for the PET by jimbo][lode_runner_site]
-- Since the game was not packed, this is a good example of how the disassembly looks like without any post-processing.
-
-[lode_runner_site]: https://jimbo.itch.io/lode-runner-clone-for-commodore-pet
 
 ---
