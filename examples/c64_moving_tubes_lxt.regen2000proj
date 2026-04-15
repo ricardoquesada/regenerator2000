@@ -1073,6 +1073,118 @@
         "kind": "User"
       }
     ],
+    "6227": [
+      {
+        "name": "instr_filter_minmax",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6228": [
+      {
+        "name": "instr_filter_step",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6229": [
+      {
+        "name": "instr_filter_ctrl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6230": [
+      {
+        "name": "instr_filter_cutoff",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6262": [
+      {
+        "name": "instr_pwm_minmax",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6263": [
+      {
+        "name": "instr_pwm_step",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6264": [
+      {
+        "name": "instr_pwm_ctrl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6265": [
+      {
+        "name": "instr_pwm_pulse_init",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6297": [
+      {
+        "name": "instr_adsr_atk_dec",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6298": [
+      {
+        "name": "instr_adsr_sus_rel",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6299": [
+      {
+        "name": "instr_arp_enable",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6300": [
+      {
+        "name": "instr_filter_route",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6301": [
+      {
+        "name": "instr_filter_tbl_start",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6302": [
+      {
+        "name": "instr_pwm_tbl_start",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6303": [
+      {
+        "name": "instr_arp_loop_pos",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6304": [
+      {
+        "name": "instr_arp_restart_pos",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "6465": [
       {
         "name": "effect_cmd_1",
@@ -1087,6 +1199,48 @@
         "kind": "User"
       }
     ],
+    "6481": [
+      {
+        "name": "song_order_loop_v0",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6484": [
+      {
+        "name": "song_order_v0",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6558": [
+      {
+        "name": "song_order_loop_v1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6561": [
+      {
+        "name": "song_order_v1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6615": [
+      {
+        "name": "song_order_loop_v2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6618": [
+      {
+        "name": "song_order_v2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "6678": [
       {
         "name": "song_ptr_lo",
@@ -1097,6 +1251,258 @@
     "6714": [
       {
         "name": "song_ptr_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6750": [
+      {
+        "name": "pat_00",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6756": [
+      {
+        "name": "pat_01",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6820": [
+      {
+        "name": "pat_02",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6906": [
+      {
+        "name": "pat_03",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6979": [
+      {
+        "name": "pat_04",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7039": [
+      {
+        "name": "pat_05",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7123": [
+      {
+        "name": "pat_06",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7196": [
+      {
+        "name": "pat_07",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7259": [
+      {
+        "name": "pat_08",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7324": [
+      {
+        "name": "pat_09",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7349": [
+      {
+        "name": "pat_10",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7360": [
+      {
+        "name": "pat_11",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7374": [
+      {
+        "name": "pat_12",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7458": [
+      {
+        "name": "pat_13",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7541": [
+      {
+        "name": "pat_14",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7624": [
+      {
+        "name": "pat_15",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7675": [
+      {
+        "name": "pat_16",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7698": [
+      {
+        "name": "pat_17",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7726": [
+      {
+        "name": "pat_18",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7760": [
+      {
+        "name": "pat_19",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7824": [
+      {
+        "name": "pat_20",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "7911": [
+      {
+        "name": "pat_21",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8000": [
+      {
+        "name": "pat_22",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8073": [
+      {
+        "name": "pat_23",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8126": [
+      {
+        "name": "pat_24",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8179": [
+      {
+        "name": "pat_25",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8249": [
+      {
+        "name": "pat_26",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8283": [
+      {
+        "name": "pat_27",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8319": [
+      {
+        "name": "pat_28",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8353": [
+      {
+        "name": "pat_29",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8389": [
+      {
+        "name": "pat_30",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8411": [
+      {
+        "name": "pat_31",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8440": [
+      {
+        "name": "pat_32",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8487": [
+      {
+        "name": "pat_33",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8550": [
+      {
+        "name": "pat_34",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8556": [
+      {
+        "name": "pat_35",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1613,6 +2019,7 @@
     "12028": "execute cleanup stub from safe memory (tape buffer area)"
   },
   "user_line_comments": {
+    "2048": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nCharset: $0800 - $0E07 for Laxity logo\nCode:    $0E08 - $0FEF\nCharset: $0FF0 - $0FFF : 2 characters that get \"rol\"ed to create star effects\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "3592": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates three sine-wave-scrolled \"tube\" bands on screen and advances the\nhorizontal text scroller. Called every frame from the main loop.\n\n1) For each of three tube bands (top/mid/bot), advances a sine phase index,\n   calls sine_scroller_update to get fine-scroll + coarse offset, patches\n   the VIC $D016 scroll value into the corresponding IRQ handler via\n   self-modifying code, and fills two adjacent screen rows with a 4-char\n   repeating tile pattern offset by the coarse sine value.\n\n2) Rotates two 8-byte shift register arrays (tube_shift_reg_0/1) that\n   drive animated bitmap patterns within the tube bands.\n\n3) Smooth-scrolls a proportional-width text message across 4 screen rows.\n   Decrements a pixel counter by 3 each frame; on underflow, shifts the\n   screen left by one char and renders the next font column from a\n   character mapping table and 4 font bitmap row tables.\n\nInputs:  Self-modified sine phases at $0E09/$0E29/$0E49,\n         scroller pointer at $0EA6/$0EA7, scroll counter at $2334\nOutputs: Screen RAM updated, VIC $D016 values patched in IRQ handlers\nSide Effects: Modifies screen RAM $0400-$0798 and $061F-$071F,\n              self-modifies code at multiple locations\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "3690": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n1-bit circular left rotation of scroller_star_char_0 ($0FF0-$0FF7).\nscroller_star_char_0 is charset character 254 in the $0800 charset (last-2).\nRotating it in-place animates every on-screen instance of that character\nsimultaneously — the classic C64 \"animating star\" demo technique.\nCalled once per scroll tick; produces a 1-pixel/frame leftward drift.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "3707": "Advance text scroller",
@@ -1806,20 +2213,19 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8822,
-  "hex_dump_cursor_address": 8784,
+  "cursor_address": 2048,
+  "hex_dump_cursor_address": 2048,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
-  "right_pane_visible": "None",
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
     4064,
-    5871,
-    8192
+    5871
   ],
   "blocks_view_cursor": 0,
   "scopes": {}
