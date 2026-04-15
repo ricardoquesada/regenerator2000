@@ -5,11 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 2026-04-??
+## [0.9.9] - 2026-04-15
 
 ### Features
 
 - **Disassembly**: Add `.fill` directive support for contiguous identical byte runs (configurable threshold, default 8); runs are suppressed when a cross-reference, line-comment, or side-comment is present at any interior address. Assembler-specific directives: `.fill` (64tass, KickAssembler), `!fill` (ACME), `.res` (ca65).
+- **UI**: Add drag-to-select and Shift+Click mouse selection in the disassembly view.
+- **HTML Export**: Show assembler-specific build instructions in the HTML export header.
+- **HTML Export**: Add clickable hyperlinks to example disassembly files from assembler homepage links.
+- **MCP**: Rename and extend `r2000_get_symbols` and `r2000_get_comments` tools with optional address-range and type filters.
+- **Document Settings**: Add `Fill run threshold` option (0 = disabled) to the Document Settings dialog with left/right arrow and direct-edit support; max value 64.
+
+### Fixes
+
+- **HTML Export**: Fix x-ref relative address link alignment in disassembly output.
+- **Document Settings**: Fix navigation bounds and number input dialog in Document Settings.
+
+### Documentation
+
+- **Settings**: Document the Fill run threshold option with per-assembler directive table and 64tass example.
+- **Architecture**: Update architecture docs to reflect HTML/verification exporters and the Import Context dialog.
+- **Examples**: Add detailed comments and labels to Moving Tubes and PET Lode Runner example projects.
+
+### Agent / Skills
+
+- **Skills**: Refine `r2000-analyze-routine` and `r2000-analyze-basic` skill workflows.
 
 ## [0.9.8] - 2026-04-11
 
