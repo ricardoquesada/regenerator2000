@@ -140,12 +140,13 @@ Handles importing various Commodore file formats and label files.
 
 These parsers allow Regenerator 2000 to load programs from multiple source formats (PRG, CRT, D64, T64, VSF) and import debugging symbols from VICE emulator sessions.
 
-### 7. Exporter ([`regenerator2000-core/src/exporter.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter.rs))
+### 7. Exporter ([`regenerator2000-core/src/exporter/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/exporter))
 
-Handles the generation of complete, compilable source code files.
+Handles generation of complete, compilable source code and browsable HTML disassembly files.
 
-- Supports multiple assembler formats (ACME, 64tass, ca65, KickAssembler) via the `Formatter` trait.
-- Ensures output validity by checking for label collisions and handling syntax-specific requirements.
+- **[`asm.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/asm.rs)**: Exports disassembly as a compilable assembly source file. Supports all four assembler formats (ACME, 64tass, ca65, KickAssembler) via the `Formatter` trait, and handles external-file (`incbin`) regions.
+- **[`html.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/html.rs)**: Exports disassembly as a self-contained, syntax-highlighted HTML file with clickable cross-reference hyperlinks, light/dark theme toggle, and assembler-specific build instructions in the header. `ExternalFile` regions are written to separate linked HTML files.
+- **[`verify.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/verify.rs)**: Export→assemble→diff roundtrip verification. Exports ASM, invokes the real assembler binary, and byte-compares the output against the original binary to confirm disassembly correctness. Supports all four assemblers.
 
 ### 8. UI Architecture
 
@@ -199,9 +200,10 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   - **[`dialog_crt_picker.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_crt_picker.rs)**: CRT cartridge chip/bank picker for selecting which chip to load from multi-chip cartridges.
   - **[`dialog_d64_picker.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_d64_picker.rs)**: D64 disk image file picker for loading programs from disk images.
   - **[`dialog_document_settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_document_settings.rs)**: Project-level settings editor.
-  - **[`dialog_export_as.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_export_as.rs)**: Export source code dialog.
+  - **[`dialog_export_as.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_export_as.rs)**: Export source code dialog (ASM or HTML).
   - **[`dialog_export_labels.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_export_labels.rs)**: Export labels to VICE format.
   - **[`dialog_find_references.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_find_references.rs)**: Find cross-references to an address.
+  - **[`dialog_import_context.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_import_context.rs)**: Import Context Setup dialog. Shown when loading a raw binary (no PRG header) to let the user configure the target platform, binary origin address, entry-point address, and whether to auto-disassemble the code sequence from that entry point. Displays a high-entropy warning when the binary may be packed or compressed.
   - **[`dialog_go_to_symbol.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_go_to_symbol.rs)**: Navigate to a label by name.
   - **[`dialog_jump_to_address.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_jump_to_address.rs)**: Jump to a specific memory address.
   - **[`dialog_jump_to_line.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_jump_to_line.rs)**: Jump to a specific line number.
