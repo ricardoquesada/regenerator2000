@@ -14,16 +14,23 @@ A disassembly of [Moving Tubes][moving_tubes] intro, by Laxity.
 
     * [🔗 c64_moving_tubes_lxt.html](examples/c64_moving_tubes_lxt.html)
 
-Main take aways:
+Great source to learn about different techniques (intermediate level):
 
 - Clean code.
-- Great place to learn how a SID player works, since the SID player was disassembled in detail.
-- Great place if you want to learn about how to handle multiple IRQ interrupts in your C64 game.
+- How a SID player works: the SID player was disassembled in detail.
+- Raster IRQ techniques
+- Different tips & tricks:
+  - Convert `JMP` into `BIT`, and other self-modifying code techniques.
+  - Double call with `JSR` to next line
+  - Sync color highlight with SID music
+  - Sine table for scrolling speed
+  - Variable-width chars in scroller
 
 Source:
 
 - CSDB: [Moving Tubes (Laxity Intro #145)][moving_tubes]
-- The intro was packed. The disassembly contains the unpacked version of the intro. It was unpacked using [Unp64][unp64].
+- The original intro was packed. The disassembly contains the unpacked version.
+  Unpacked with[Unp64][unp64]).
 
 [moving_tubes]: https://csdb.dk/release/?id=259330
 [unp64]: https://csdb.dk/release/?id=260619
