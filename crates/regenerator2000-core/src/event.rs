@@ -18,6 +18,8 @@ pub enum CoreEvent {
     DialogDismissalRequested,
     /// The core requests to quit the application.
     QuitRequested,
+    /// The core requests to open a URL in the external browser.
+    OpenUrl(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

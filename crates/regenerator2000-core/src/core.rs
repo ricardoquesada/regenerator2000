@@ -80,6 +80,22 @@ impl Core {
                     "About Regenerator 2000".to_string(),
                 ));
             }
+            AppAction::OpenExamples => {
+                events.push(CoreEvent::OpenUrl(
+                    "https://regenerator2000.readthedocs.io/en/latest/examples/".to_string(),
+                ));
+                events.push(CoreEvent::StatusMessage(
+                    "Opening Examples URL...".to_string(),
+                ));
+            }
+            AppAction::OpenDocumentation => {
+                events.push(CoreEvent::OpenUrl(
+                    "https://regenerator2000.readthedocs.io/en/latest/".to_string(),
+                ));
+                events.push(CoreEvent::StatusMessage(
+                    "Opening Documentation URL...".to_string(),
+                ));
+            }
             AppAction::KeyboardShortcuts => {
                 events.push(CoreEvent::DialogRequested(
                     crate::event::DialogType::KeyboardShortcuts,

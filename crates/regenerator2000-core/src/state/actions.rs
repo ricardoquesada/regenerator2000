@@ -40,6 +40,8 @@ pub enum AppAction {
     ToggleHexDump,
     ToggleSpritesView,
     About,
+    OpenExamples,
+    OpenDocumentation,
     ChangeOrigin,
     KeyboardShortcuts,
     Undefined,
@@ -130,6 +132,8 @@ impl AppAction {
                 | AppAction::Open
                 | AppAction::OpenRecent
                 | AppAction::About
+                | AppAction::OpenExamples
+                | AppAction::OpenDocumentation
                 | AppAction::KeyboardShortcuts
                 | AppAction::SystemSettings
                 | AppAction::Search

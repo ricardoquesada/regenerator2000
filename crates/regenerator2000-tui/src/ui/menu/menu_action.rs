@@ -10,6 +10,10 @@ pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAc
     for event in events {
         match event {
             CoreEvent::QuitRequested => ui_state.should_quit = true,
+            CoreEvent::OpenUrl(url) => {
+                let _ = opener::open(&url);
+                ui_state.set_status_message(format!("Opened URL: {}", url));
+            }
             CoreEvent::StatusMessage(msg) => ui_state.set_status_message(msg),
             CoreEvent::DialogRequested(dialog_type) => match dialog_type {
                 DialogType::Open => {
