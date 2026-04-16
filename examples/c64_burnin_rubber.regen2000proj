@@ -353,8 +353,20 @@
     },
     {
       "start": 4096,
+      "end": 5119,
+      "type_": "ExternalFile",
+      "collapsed": true
+    },
+    {
+      "start": 5120,
+      "end": 8191,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 8192,
       "end": 10623,
-      "type_": "Undefined",
+      "type_": "ExternalFile",
       "collapsed": true
     },
     {
@@ -935,8 +947,14 @@
     },
     {
       "start": 18342,
-      "end": 28671,
+      "end": 18431,
       "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 18432,
+      "end": 28671,
+      "type_": "ExternalFile",
       "collapsed": true
     },
     {
@@ -3505,14 +3523,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 4281,
-  "hex_dump_cursor_address": 4272,
+  "cursor_address": 22303,
+  "hex_dump_cursor_address": 22288,
   "sprites_cursor_address": 13440,
   "charset_cursor_address": 22784,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
