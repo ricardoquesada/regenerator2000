@@ -47,13 +47,14 @@ a:hover { text-decoration: underline; }
 .mid-label { color: var(--mid-label-color); }
 .separator-row { height: 15px; }
 .code-cell { display: flex; align-items: top; padding: 0 !important; }
-.code-cell .inline-label { width: 18ch; flex-shrink: 0; color: var(--label-color); font-weight: bold; }
+.code-cell .inline-label { width: 20ch; flex-shrink: 0; color: var(--label-color); font-weight: bold; }
 .code-cell .mnemonic { min-width: 8ch; flex-shrink: 0; padding: 0 8px; }
 .code-cell .operand { min-width: 32ch; flex-shrink: 0; padding: 0 8px; }
 .code-cell .comment { padding: 0 8px; margin-left: 4ch; }
 .code-cell.assignment { padding: 0 8px !important; }
 .code-cell.assignment .label { min-width: 40ch; flex-shrink: 0; }
 .code-cell.block-header .comment { margin-left: 0ch; }
+.mid-label-def { display: inline-block; min-width: 60ch; }
 tr:target td { background-color: var(--highlight-bg); }
 tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 #theme-toggle { position: fixed; top: 20px; right: 20px; padding: 8px 16px; background-color: var(--text-color); color: var(--bg-color); border: 1px solid var(--text-color); cursor: pointer; font-family: inherit; font-weight: bold; }
