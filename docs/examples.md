@@ -74,10 +74,10 @@ A disassembly of the Commodore 64 ["Burnin' Rubber"][burnin_rubber_info] game.
 Main take aways:
 
 - The code was written in a [monitor][monitor], not with an assembler. Evidence:
-    - The game contains dead code
+    - Dead code / Dead tables: Although not uncommon to have some dead code / tables in a program, it is a lot more common when using a [monitor].
     - There is a `.T0400,07FF,2C00` [monitor] command [in the code][c64_burning_rubber_monitor_cmd]
-    - There are `JMP` opcodes in different places that are typical of monitor-based code
-    - Doesn't have a "clean" high level architecture
+    - Use of `JMP` opcodes in different places that are typical of monitor-based code, in contrast to the preferred use of `JSR`+`RTS` or conditional branches in assembler-written code
+    - Lack of a "clean" high level architecture
 - Good for learning how early C64 games were programmed using a [monitor], but not a good place to learn modern best practices.
     - Trivia: It is not possible to add comments when using a [monitor], so, the developers might have used other tools, like a notebook, to document the code ([that's what I used to do when I was a kid!][chardef_scan]).
 

@@ -1649,6 +1649,13 @@
         "kind": "User"
       }
     ],
+    "6224": [
+      {
+        "name": "calc_and_display_crashed_cars_bonus",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "6656": [
       {
         "name": "check_jump_input",
@@ -2023,6 +2030,13 @@
     "15060": [
       {
         "name": "process_entities_and_input",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15072": [
+      {
+        "name": "detect_npc_car_collision_preserve_xy",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2405,9 +2419,23 @@
         "kind": "User"
       }
     ],
+    "20179": [
+      {
+        "name": "check_npc_offscreen_right",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "20204": [
       {
         "name": "spawn_npc_car",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20213": [
+      {
+        "name": "clamp_sprite5_top_boundary",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2732,10 +2760,47 @@
     "6076": "Clamp to max string edge ($FF)",
     "6086": "Move Left 6 pixels",
     "6090": "Clamp to left edge ($00)",
+    "6144": "One-time init: zero game state variables and load level data",
+    "6147": "Set up VIC-II registers (border, background, multicolor, raster IRQ)",
+    "6150": "Draw initial playfield screen and position all sprites",
     "6153": "6510 IO Port",
     "6155": "Bank out Basic ROM",
-    "6159": "Probably play music/SFX",
+    "6159": "Scroll screen down and draw next tile row (BASIC banked out for tile data at $8010)",
     "6164": "Bank Basic ROM back in",
+    "6168": "Refresh score, lives, and speed indicator on the HUD row",
+    "6171": "Add time-based score increment each frame",
+    "6174": "Read joystick and update player car X/Y position and speed",
+    "6177": "Detect fire button press to initiate a jump over another car",
+    "6180": "Advance jump arc frame counter and update sprite pointer",
+    "6183": "Check player sprite vs road/wall tile for collision response",
+    "6186": "Apply current vertical scroll offset to all sprite Y positions",
+    "6189": "Skip acceleration check while player is airborne",
+    "6194": "Adjust player speed based on current road tile type",
+    "6197": "Busy-wait loop to throttle frame rate to the player's current speed",
+    "6200": "Count down timers for on-road pickup items",
+    "6203": "Handle NPC car AI logic and process any remaining player input side-effects",
+    "6206": "Move all active NPC car sprites one step along their path",
+    "6209": "Advance crash/explosion sprite animation frames",
+    "6212": "Update all other sprite animation states (player car, debris, etc.)",
+    "6215": "Check for player-vs-NPC car collisions and trigger responses",
+    "6218": "Update enemy AI states and check if player has jumped onto a car",
+    "6221": "Apply X-axis recoil to player, then loop back to main_loop",
+    "6224": "Zero out the 3-digit bonus accumulator (10k, 1k, 100)",
+    "6235": "Phase 1: Y = crashed_cars_ones; loop Y times adding +1 to bonus accumulator",
+    "6244": "5 reps per car (adds 1 to the 3-digit bonus, carries through digits)",
+    "6246": "X walks digits from MSB [2] to LSB [0]; add 1, propagate carry if digit wraps past 9",
+    "6252": "Digit wrapped past 9: zero it and carry to the next higher digit",
+    "6277": "Phase 2: Y = crashed_cars_tens; loop Y times adding +10 to bonus accumulator",
+    "6286": "5 reps per car (adds 10 to the bonus; only upper 2 digits affected)",
+    "6319": "Skip leading zeros: scan from MSB until a non-zero digit is found",
+    "6330": "Convert digit to PETSCII (+$30) and write to screen RAM $057F+x",
+    "6339": "Set color 4 (purple) for bonus digit in color RAM $D97F+x",
+    "6349": "Fill trailing screen RAM positions $0582-$0583 with '0' ($30)",
+    "6357": "Set color 4 (purple) for trailing positions in color RAM $D982-$D983",
+    "6363": "Phase 3: Y = crashed_cars_bonus_100; add 100 per unit to score_7digits",
+    "6398": "Phase 4: Y = crashed_cars_bonus_1k; add 1,000 per unit to score_7digits",
+    "6431": "Phase 5: Y = crashed_cars_bonus_10k; add 10,000 per unit to score_7digits",
+    "6464": "Refresh HUD with updated score, then jump to next-season screen epilogue",
     "6656": "Read input state",
     "6659": "Check Bit 4 (Fire button)",
     "6664": "Check if already jumping ($0805 != 0)",
@@ -3169,6 +3234,18 @@
     "19839": "$65 = alternate road screencode -> also off-road",
     "19843": "not on road: clear on-road flag for this car",
     "19854": "bits 0-1 of ZP $8E = road surface type -> f0908,x",
+    "20173": "Apply X-axis collision recoil to the player sprite",
+    "20176": "Fall through to per-frame housekeeping and re-enter main loop",
+    "20179": "Push NPC slot index; compute sprite reg offset (slot * 2) into X",
+    "20183": "Load NPC sprite X pos; $FF means sprite has scrolled off the right edge",
+    "20190": "On-screen path: pop slot, Y, and return address — early exit from tile walk",
+    "20196": "Off-screen path: restore slot index into X",
+    "20199": "Read next map tile byte via current pointer",
+    "20201": "Re-enter tile walk loop to process the new tile",
+    "20213": "Load Sprite 5 Y pos for this NPC slot",
+    "20216": "Is Y >= $20? If so, sprite is still in bounds; skip clamp",
+    "20220": "Y < $20: sprite scrolled off the top — clamp X to 1 to hide/reset it",
+    "20225": "Rejoin NPC movement loop",
     "20231": "Skip if game state 0 or 3 (not in active play)",
     "20244": "Only check on-road/active cars (state 1)",
     "20257": "Only process type-4 cars (jump target)",
@@ -3185,6 +3262,10 @@
     "20380": "Write bottom-left tile",
     "20385": "Write bottom-right tile",
     "20391": "Clear flag: don't stamp this car again",
+    "20400": "Draw 2x2 tile stamp if player jumped over a type-4 NPC car this frame",
+    "20403": "Detect NPC-vs-NPC car collisions (X/Y registers preserved by wrapper)",
+    "20406": "Sync loop pace to keyboard: stall if no key held, else return immediately",
+    "20409": "Loop unconditionally back to top of main_loop",
     "20736": "$02 = scroll direction-change mode; anything else = bail",
     "20746": "$01 = reverse direction, $02 = forward direction",
     "20753": "check if any pending NPC cars in secondary lane buffer",
@@ -3303,8 +3384,10 @@
     "5543": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIncrements the player's score by 50000 points.\nThis routine calls an internal loop 5 times (controlled by Y register). In each\nloop, it increments the ten-thousand digit (index 2 of the $0825 score array) by 1.\nOverflows are handled seamlessly via a cascading BCD-like carry lookup. After\nadding 5 to the ten-thousand position, it refreshes the HUD to display the new score.\n\nInputs:  None (relies on $0825 array)\nOutputs: None\nSide Effects: Modifies the Score array and calls update_hud_display.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5577": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIncrements the player's 7-digit score uniformly.\nBecause the score is stored as an array of 7 individual digits (0-9) at $0825,\nthis routine performs a manual base-10 addition. It starts at the least\nsignificant digit (index 6, $082B), adds 1, and carries over any overflow (10)\nto the next significant digit.\n\nInputs:  Score array at $0825-$082B\nOutputs: Modified Score array\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5808": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the HUD text on the top row of the screen ($0400).\nConverts numeric gameplay variables such as the current score, high score, and\nother state values into screencodes (by adding $30) and writes them directly\nto Screen RAM.\n\nInputs:  Numeric values at $0821, $0822, $0823, $0825-$082B (Score), and $0F50-$0F56 (High Score)\nOutputs: None\nSide Effects: Modifies Screen RAM ($0403-$0427) to update visible UI numbers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "5850": "dead code",
     "6048": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles horizontal movement for the player car (Sprite 0).\nChecks the game state flag at $098A. If active, reads the parsed input state\nat zero page $00F5. Bit 2 ($04) corresponds to Left, Bit 3 ($08) to Right.\nIf left is pressed, Sprite 0's X position ($D000) is moved left by 6 pixels,\nclamping at 0. If right is pressed, it is moved right by 6 pixels, clamping\nat $FF (255).\n\nInputs:  State flag $098A, Parsed Input state at $00F5\nOutputs: None\nSide Effects: Modifies Sprite 0 X position ($D000)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "6144": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the game and enters the main game loop.\nThe main loop banks out BASIC to play music/SFX, then calls various game logic\nand rendering subroutines, eventually looping back.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies 6510 IO Port, updates game state and screen\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "6144": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the game and enters the main game loop.\n\nOn entry, runs one-time init (game state, VIC-II, screen/sprites), then\nenters the per-frame loop. Each iteration briefly banks out BASIC ROM so\nscroll_and_draw_map_row can read tile data stored under it ($8010+), then\nbanks BASIC back in and calls every per-frame update in sequence before\njumping to apply recoil and looping back.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies 6510 I/O Port ($01), updates game state and screen\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "6224": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts the number of crashed cars into a score bonus and displays it.\n\nThe crashed-car count (a 2-digit value in crashed_cars_tens/ones) is\nmultiplied by 100 and added to score_7digits via repeated BCD-style\naddition (5 inner loops: ones->+1, tens->+10, then the computed\n100/1k/10k partial sums are each added digit-by-digit with carry).\nAfterwards the 3-digit bonus number is written to screen RAM ($057F-$0583)\nand its color (purple=4) to color RAM ($D97F-$D983), skipping leading zeros.\nFinally update_hud_display is called and control falls to the shared\nepilogue that shows a delay and the next-season screen.\n\nInputs:  crashed_cars_tens ($0820), crashed_cars_ones ($0821),\n         crashed_cars_bonus_10k/1k/100 ($0830-$0832)\nOutputs: score_7digits ($0825-$082B) updated with bonus\nSide Effects: Writes bonus digits to screen RAM $057F-$0583,\n              writes color 4 to color RAM $D97F-$D983,\n              calls update_hud_display, then jumps to show next-season screen.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "6656": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks if the Fire button is pressed to initiate a car jump.\nReads the parsed input state at $00F5 (Bit 4 = Fire button). If the jump\naction is requested and the car is not already jumping (jump state $0805 is 0),\nit initializes the jump animation state machine, sets the initial sprite\npointer for the jump, and slightly shifts the car's X position.\n\nInputs:  Parsed input state at $00F5, jump state at $0805\nOutputs: None\nSide Effects: Modifies $0805 (jump active), $0806 (jump frame),\n              and Sprite 0 X position ($D000).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "6714": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nProcesses the jump animation state machine for Sprite 0.\nThis routine runs continuously in the game loop. If $0805 indicates a jump is\nactive, it decrements the frame timer $0811. Once the timer elapses, it\nadvances the animation frame $0806 and uses a switch statement ($1A51) to update\nthe sprite pointer, sizes, and position to create a jumping arc.\nWhen the animation reaches the end (frame 9), it resets $0805 to 0.\n\nInputs:  Jump state at $0805, animation frame $0806, timer $0811\nOutputs: None\nSide Effects: Modifies Sprite 0 X position ($D000), Sprite Pointer ($07F8),\n              and Sprite Expansion bits ($D017, $D01D).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "6912": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks if the player's car has collided with physical background obstacles.\nFirst, checks if the car is actively jumping (ignores collision if jump state\nis non-zero). If on the ground, transforms Sprite 0's X and Y pixel positions\ninto 40x25 character grid coordinates (column and row). It then calculates\na pointer into Screen RAM ($0400) relative to the car's current position.\nFinally, tests the four corners surrounding the car's footprint by fetching\nthe characters and calling $46DE to see if they are a fatal obstacle tile.\n\nInputs:  Jump State at $0805, Sprite 0 X/Y Positions ($D000, $D001)\nOutputs: None (Direct exit/jump on collision via $46DE)\nSide Effects: Can initiate crash sequence, mutates temp pointers $49 and $4A.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -3377,7 +3460,11 @@
     "19712": "dead code",
     "19763": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks whether an enemy car (sprite N, passed in X) is on a drivable road tile.\n\nThe routine converts the sprite's screen-space pixel position (from VIC-II\n$D002/$D003 registers) into a tile column (Y) and tile row (X) by subtracting\na fixed border offset and dividing by 8 (three LSRs). It then computes a\npointer into screen RAM at $0400 using a 16-bit base address in (a49/a4A)\nand multiplies the row by 40 ($28) to find the correct row offset.\n\nA lookup table at $F0904, indexed by sprite number X, provides a half-tile\ncolumn adjustment (+1) to handle wide sprites that straddle two tiles.\n\nThe road tile check reads the screen code at the computed (row, col) position:\n  - $20 (space)  = road tile  -> jump to j4ED3 (car is off-road / blocked)\n  - $65 (letter) = another road variant -> also treated as blocked\n\nIf the car is on road (non-road tile), the routine stores $01 at f0904,x (car\nis on-road flag = active), restores registers, samples bits 0-1 of ZP $8E for\na 2-bit value and stores it at f0908,x (road direction/surface type), then\njumps to j4C9A (continue normal car movement logic).\n\nIf the car is off-road, f0904,x is cleared ($00), and the routine redirects to\nj4ED3 which will handle the out-of-bounds / collision branch.\n\nInputs:  X = sprite/car index (0-3)\nOutputs: f0904,x = 1 if on-road, 0 if off-road; f0908,x = road surface bits\nSide Effects: Reads VIC-II sprite X/Y registers ($D002/$D003); reads screen RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "20053": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates explosion and projectile animation timers.\nFirst, it checks the enemy pool (Sprites 1-4). If an enemy is in state $02\n(exploding), it ticks down a duration timer at $0930. When the timer reaches 0, \nit resets their state, restores their default multi-color bit config, and hides them.\nThen, it runs a second loop over a pool of 3 secondary objects (Sprites 5-7),\nticking their timers and dropping them downward visually by adding to their Y Pos.\n\nInputs:  Enemy states at $0928, Timers at $0930 and $0983\nOutputs: None\nSide Effects: Modifies Sprites 1-7 coordinates and multi-color registers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "20173": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain loop tail: applies player X recoil then hands off to the finalizer.\n\nCalled unconditionally at the bottom of main_loop via JMP. Applies any\npending X-axis collision recoil to the player sprite, then falls through\nto main_loop_finalize_and_repeat which runs the remaining per-frame\nhousekeeping before jumping back to main_loop.\n\nInputs:  Recoil state managed by apply_player_x_recoil\nOutputs: None\nSide Effects: May shift player sprite X position\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "20179": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nNPC off-screen-right guard, called from the NPC road-tile walker.\n\nOn entry the stack holds (top to bottom): NPC slot index, Y, return address.\nChecks whether the NPC's sprite X position is $FF (sprite has scrolled off\nthe right edge of the screen). Two paths:\n\n  Not $FF (still on-screen): pop all three stack frames (slot, Y, ret)\n           and return to the caller's caller — early exit from the tile walk.\n  $FF (off-screen right):    restore slot index into X, read the next tile\n           byte from the current map pointer (p_tmp_lo),Y, then jump back\n           into the tile-walk loop at j4D83 to handle the new tile.\n\nInputs:  Stack: NPC slot (1 byte), Y (1 byte), return address (2 bytes)\n         $D002+X: NPC sprite X register (VIC-II)\n         (p_tmp_lo),Y: current map tile pointer\nOutputs: A = next tile byte (off-screen path only)\nSide Effects: Unwinds 3 stack frames on the on-screen early-exit path\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "20213": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTop-boundary clamp for Sprite 5 during NPC car movement.\n\nCalled mid-loop when an NPC car's Sprite 5 Y position is being updated.\nIf the Y position has gone above $20 (off the top of the playfield), the\nsprite's X position is clamped to 1 to effectively reset/hide it at the\nleft edge. Execution always rejoins the NPC car movement loop at j4EB8.\n\nInputs:  $D00B+X: Sprite 5 Y position for the current NPC slot\nOutputs: $D00A+X: Sprite 5 X position (set to 1 if Y < $20)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "20228": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nWrites a 2x2 tile stamp to screen RAM when the player successfully passes\nover a type-4 NPC car (the \"jump target\" car). Only fires once per car\nappearance: car_fresh_flag[x] is set at spawn and cleared here after stamping.\n\nProximity conditions (both must hold):\n  Y: player sprite Y >= NPC sprite Y + $20  (player is >= 32px past the NPC)\n  X: |player X - NPC X| < $40              (within 64px horizontally)\n\nScreen address: $0400 + ((npc_sprite_y - $22) >> 3) * 40 + ((npc_sprite_x - $10) >> 3)\nTile stamp (2x2):\n  $1B $1C      <- top row at computed address\n  $1D $1E      <- bottom row 40 chars later\n\nSkipped if game state (a0800) is 0 or 3.\n\nInputs:       a0800 (game state), car_state[0..3], f092C[0..3] (car type),\n              car_fresh_flag[0..3], VIC-II sprite regs $D000-$D009\nOutputs:      Screen RAM ($0400+)\nSide Effects: Clears car_fresh_flag[x] after stamping (one-shot per car)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "20400": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame finalizer: last three housekeeping calls before looping back.\n\nRuns at the very end of every game frame, after recoil has been applied.\nDraws the car-overtake tile stamp if the player jumped over a type-4 NPC,\ndetects any remaining NPC-vs-NPC collisions (X/Y registers preserved),\nsyncs the loop pace to keyboard input, then unconditionally jumps back to\nthe top of main_loop.\n\nInputs:  None (reads global game state)\nOutputs: None\nSide Effects: May stamp screen RAM, trigger NPC collision, stall on input\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "20480": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRestores game variables from double buffers.\nThis routine copies game state data from back buffers ($0A00/$0B00 or $0C00/$0D00)\ninto the active variables pages ($0800/$0900). It chooses which buffer to pull\nfrom based on player/turn states in $0F00 and $0F01 (useful for 2-player modes).\n\nInputs:  $0F00, $0F01\nOutputs: None\nSide Effects: Overwrites $0800-$09FF memory region.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "20616": "dead code",
     "20697": "dead code",
@@ -3523,14 +3610,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 22303,
-  "hex_dump_cursor_address": 22288,
+  "cursor_address": 20176,
+  "hex_dump_cursor_address": 20176,
   "sprites_cursor_address": 13440,
   "charset_cursor_address": 22784,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
