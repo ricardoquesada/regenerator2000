@@ -1062,6 +1062,44 @@ impl Disassembler {
                 break;
             }
 
+            // Stop if the next byte starts a fill-eligible run, so it gets its
+            // own handle_data_byte call and can be emitted as a .fill directive.
+            if count > 0 && threshold > 0 {
+                let fill_byte = data[current_pc];
+                let mut run_len = 0usize;
+                for j in 0..data.len().saturating_sub(current_pc) {
+                    let j_pc = current_pc + j;
+                    let j_addr = origin.wrapping_add(j_pc as u16);
+                    if block_types.get(j_pc) != Some(&BlockType::DataByte) {
+                        break;
+                    }
+                    if data[j_pc] != fill_byte {
+                        break;
+                    }
+                    if j > 0 {
+                        if ctx.is_virtual_splitter(j_addr) {
+                            break;
+                        }
+                        if labels.contains_key(&j_addr) {
+                            break;
+                        }
+                        if ctx.cross_refs.get(&j_addr).is_some_and(|v| !v.is_empty()) {
+                            break;
+                        }
+                        if user_line_comments.contains_key(&j_addr) {
+                            break;
+                        }
+                        if ctx.user_side_comments.contains_key(&j_addr) {
+                            break;
+                        }
+                    }
+                    run_len += 1;
+                }
+                if run_len >= threshold {
+                    break;
+                }
+            }
+
             let b = data[current_pc];
             bytes.push(b);
             operands.push(formatter.format_byte(b));
