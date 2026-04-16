@@ -199,12 +199,14 @@ fn add_recent_project_filters_non_regen2000proj() {
 
 #[test]
 fn clean_recent_projects_filters_non_regen2000proj() {
-    let mut config = SystemConfig::default();
-    config.recent_projects = vec![
-        PathBuf::from("/tmp/a.regen2000proj"),
-        PathBuf::from("/tmp/b.dis65"),
-        PathBuf::from("/tmp/c.regen2000proj"),
-    ];
+    let mut config = SystemConfig {
+        recent_projects: vec![
+            PathBuf::from("/tmp/a.regen2000proj"),
+            PathBuf::from("/tmp/b.dis65"),
+            PathBuf::from("/tmp/c.regen2000proj"),
+        ],
+        ..Default::default()
+    };
 
     config.clean_recent_projects();
 
