@@ -358,7 +358,7 @@ pub fn search_collapsed_content(
     }
     let block_slice = &app_state.block_types[start..=end];
 
-    let ctx = crate::disassembler::DisassemblyContext {
+    let ctx = crate::disassembler::context::DisassemblyContext {
         data: data_slice,
         block_types: block_slice,
         labels: &app_state.labels,

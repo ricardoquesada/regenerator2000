@@ -10,6 +10,8 @@ pub mod formatter_ca65;
 pub mod formatter_kickasm;
 pub mod handlers;
 
+pub use context::{DisassemblyContext, HandleArgs, format_cross_references};
+
 use crate::state::LabelKind;
 use formatter::Formatter;
 use formatter_64tass::TassFormatter;
@@ -121,9 +123,6 @@ pub fn resolve_label_name(
 
     Some(base_name)
 }
-
-pub use context::DisassemblyContext;
-pub use context::HandleArgs;
 
 #[derive(Debug, Clone)]
 pub struct DisassemblyLine {
@@ -506,7 +505,7 @@ impl Disassembler {
                 self.get_label_name(address, ctx.labels, formatter.as_ref(), ctx.settings)
             };
 
-            let side_comment = self.get_side_comment(address, ctx, formatter.comment_prefix());
+            let side_comment = ctx.get_side_comment(address, formatter.comment_prefix());
             let line_comment = if suppress_line_comment {
                 None
             } else {
@@ -648,31 +647,6 @@ impl Disassembler {
                 formatter.format_label(&name)
             })
         })
-    }
-
-    fn get_side_comment(
-        &self,
-        address: Addr,
-        ctx: &DisassemblyContext,
-        comment_prefix: &str,
-    ) -> String {
-        let mut comment_parts = Vec::new();
-
-        if let Some(user_comment) = ctx.user_side_comments.get(&address) {
-            comment_parts.push(user_comment.clone());
-        } else if let Some(sys_comment) = ctx.system_comments.get(&address) {
-            comment_parts.push(sys_comment.clone());
-        }
-
-        if let Some(refs) = ctx.cross_refs.get(&address)
-            && !refs.is_empty()
-            && ctx.settings.max_xref_count > 0
-        {
-            comment_parts.push(format_cross_references(refs, ctx.settings.max_xref_count));
-        }
-
-        let separator = format!(" {comment_prefix} "); // e.g. " ; " or " // "
-        comment_parts.join(&separator)
     }
 
     fn handle_code(
@@ -1820,31 +1794,6 @@ impl Disassembler {
     }
 }
 
-#[must_use]
-pub fn format_cross_references(refs: &[Addr], max_count: usize) -> String {
-    if refs.is_empty() || max_count == 0 {
-        return String::new();
-    }
-
-    let mut all_refs = refs.to_vec();
-    all_refs.sort_unstable();
-    all_refs.dedup();
-
-    let refs_str: Vec<String> = all_refs
-        .iter()
-        .take(max_count)
-        .map(|r| format!("${r:04x}"))
-        .collect();
-
-    let suffix = if all_refs.len() > max_count {
-        ", ..."
-    } else {
-        ""
-    };
-
-    format!("x-ref: {}{}", refs_str.join(", "), suffix)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1880,19 +1829,18 @@ mod tests {
     ) -> DisassemblyContext<'a> {
         use std::collections::BTreeMap;
         use std::collections::BTreeSet;
-        static EMPTY_LABELS: once_cell::sync::Lazy<
+        use std::sync::LazyLock;
+        static EMPTY_LABELS: LazyLock<
             BTreeMap<crate::state::Addr, Vec<crate::state::project::Label>>,
-        > = once_cell::sync::Lazy::new(BTreeMap::new);
-        static EMPTY_COMMENTS: once_cell::sync::Lazy<BTreeMap<crate::state::Addr, String>> =
-            once_cell::sync::Lazy::new(BTreeMap::new);
-        static EMPTY_IMM: once_cell::sync::Lazy<
-            BTreeMap<crate::state::Addr, crate::state::ImmediateFormat>,
-        > = once_cell::sync::Lazy::new(BTreeMap::new);
-        static EMPTY_SCOPES: once_cell::sync::Lazy<
-            BTreeMap<crate::state::Addr, crate::state::Addr>,
-        > = once_cell::sync::Lazy::new(BTreeMap::new);
-        static EMPTY_SPLITTERS: once_cell::sync::Lazy<BTreeSet<crate::state::Addr>> =
-            once_cell::sync::Lazy::new(BTreeSet::new);
+        > = LazyLock::new(BTreeMap::new);
+        static EMPTY_COMMENTS: LazyLock<BTreeMap<crate::state::Addr, String>> =
+            LazyLock::new(BTreeMap::new);
+        static EMPTY_IMM: LazyLock<BTreeMap<crate::state::Addr, crate::state::ImmediateFormat>> =
+            LazyLock::new(BTreeMap::new);
+        static EMPTY_SCOPES: LazyLock<BTreeMap<crate::state::Addr, crate::state::Addr>> =
+            LazyLock::new(BTreeMap::new);
+        static EMPTY_SPLITTERS: LazyLock<BTreeSet<crate::state::Addr>> =
+            LazyLock::new(BTreeSet::new);
 
         let mut settings = crate::state::DocumentSettings::default();
         settings.fill_run_threshold = threshold;
@@ -1930,14 +1878,10 @@ mod tests {
         let data = vec![0x00u8; 10];
         let block_types = vec![BlockType::DataByte; 10];
 
-        let ctx = make_fill_ctx(
-            &data,
-            &block_types,
-            &empty_map(),
-            &empty_map(),
-            &empty_map(),
-            8,
-        );
+        let m1 = empty_map();
+        let m2 = empty_map();
+        let m3 = empty_map();
+        let ctx = make_fill_ctx(&data, &block_types, &m1, &m2, &m3, 8);
         let lines = Disassembler::new().disassemble_ctx(&ctx);
 
         assert_eq!(lines.len(), 1, "Expected a single .fill line");
@@ -1954,14 +1898,10 @@ mod tests {
         let data = vec![0xFFu8; 5];
         let block_types = vec![BlockType::DataByte; 5];
 
-        let ctx = make_fill_ctx(
-            &data,
-            &block_types,
-            &empty_map(),
-            &empty_map(),
-            &empty_map(),
-            8,
-        );
+        let m1 = empty_map();
+        let m2 = empty_map();
+        let m3 = empty_map();
+        let ctx = make_fill_ctx(&data, &block_types, &m1, &m2, &m3, 8);
         let lines = Disassembler::new().disassemble_ctx(&ctx);
 
         assert!(lines.iter().all(|l| l.mnemonic == ".byte"));
@@ -1978,14 +1918,9 @@ mod tests {
         let mut cross_refs: BTreeMap<Addr, Vec<Addr>> = BTreeMap::new();
         cross_refs.insert(Addr(0xc005), vec![Addr(0xd000)]); // cross-ref at $C005 (offset 5)
 
-        let ctx = make_fill_ctx(
-            &data,
-            &block_types,
-            &cross_refs,
-            &empty_map(),
-            &empty_map(),
-            8,
-        );
+        let m1 = empty_map();
+        let m2 = empty_map();
+        let ctx = make_fill_ctx(&data, &block_types, &cross_refs, &m1, &m2, 8);
         let lines = Disassembler::new().disassemble_ctx(&ctx);
 
         // Both halves (5 bytes each) are below threshold → .byte
@@ -2007,14 +1942,9 @@ mod tests {
         let mut line_comments: BTreeMap<Addr, String> = BTreeMap::new();
         line_comments.insert(Addr(0xc005), "; padding end".to_string()); // line-comment at offset 5
 
-        let ctx = make_fill_ctx(
-            &data,
-            &block_types,
-            &empty_map(),
-            &line_comments,
-            &empty_map(),
-            8,
-        );
+        let m1 = empty_map();
+        let m2 = empty_map();
+        let ctx = make_fill_ctx(&data, &block_types, &m1, &line_comments, &m2, 8);
         let lines = Disassembler::new().disassemble_ctx(&ctx);
 
         // Both halves (5 bytes each) are below threshold → .byte
@@ -2036,14 +1966,9 @@ mod tests {
         let mut side_comments: BTreeMap<Addr, String> = BTreeMap::new();
         side_comments.insert(Addr(0xc005), "note".to_string()); // side-comment at offset 5
 
-        let ctx = make_fill_ctx(
-            &data,
-            &block_types,
-            &empty_map(),
-            &empty_map(),
-            &side_comments,
-            8,
-        );
+        let m1 = empty_map();
+        let m2 = empty_map();
+        let ctx = make_fill_ctx(&data, &block_types, &m1, &m2, &side_comments, 8);
         let lines = Disassembler::new().disassemble_ctx(&ctx);
 
         // Both halves (5 bytes each) are below threshold → .byte

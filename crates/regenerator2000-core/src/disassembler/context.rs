@@ -83,4 +83,50 @@ impl<'a> DisassemblyContext<'a> {
         }
         false
     }
+
+    #[must_use]
+    pub fn get_side_comment(&self, address: Addr, comment_prefix: &str) -> String {
+        let mut comment_parts = Vec::new();
+
+        if let Some(user_comment) = self.user_side_comments.get(&address) {
+            comment_parts.push(user_comment.clone());
+        } else if let Some(sys_comment) = self.system_comments.get(&address) {
+            comment_parts.push(sys_comment.clone());
+        }
+
+        if let Some(refs) = self.cross_refs.get(&address)
+            && !refs.is_empty()
+            && self.settings.max_xref_count > 0
+        {
+            comment_parts.push(format_cross_references(refs, self.settings.max_xref_count));
+        }
+
+        let separator = format!(" {comment_prefix} "); // e.g. " ; " or " // "
+        comment_parts.join(&separator)
+    }
+}
+
+#[must_use]
+pub fn format_cross_references(refs: &[Addr], max_count: usize) -> String {
+    if refs.is_empty() || max_count == 0 {
+        return String::new();
+    }
+
+    let mut all_refs = refs.to_vec();
+    all_refs.sort_unstable();
+    all_refs.dedup();
+
+    let refs_str: Vec<String> = all_refs
+        .iter()
+        .take(max_count)
+        .map(|r| format!("${r:04x}"))
+        .collect();
+
+    let suffix = if all_refs.len() > max_count {
+        ", ..."
+    } else {
+        ""
+    };
+
+    format!("x-ref: {}{}", refs_str.join(", "), suffix)
 }

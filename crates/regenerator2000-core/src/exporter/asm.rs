@@ -41,7 +41,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let external_lines = state.get_external_label_definitions(false);
 
     // Regenerate disassembly without collapsed blocks for export
-    let ctx = crate::disassembler::DisassemblyContext {
+    let ctx = crate::disassembler::context::DisassemblyContext {
         data: &state.raw_data,
         block_types: &state.block_types,
         labels: &state.labels,

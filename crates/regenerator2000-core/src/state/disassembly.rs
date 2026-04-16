@@ -3,7 +3,7 @@ use super::types::{Addr, CachedArrow};
 
 impl AppState {
     pub fn disassemble(&mut self) {
-        let ctx = crate::disassembler::DisassemblyContext {
+        let ctx = crate::disassembler::context::DisassemblyContext {
             data: &self.raw_data,
             block_types: &self.block_types,
             labels: &self.labels,

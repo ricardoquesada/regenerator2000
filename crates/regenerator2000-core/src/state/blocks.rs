@@ -399,7 +399,7 @@ impl AppState {
                         && !refs.is_empty()
                         && self.settings.max_xref_count > 0
                     {
-                        comment_parts.push(crate::disassembler::format_cross_references(
+                        comment_parts.push(crate::disassembler::context::format_cross_references(
                             refs,
                             self.settings.max_xref_count,
                         ));

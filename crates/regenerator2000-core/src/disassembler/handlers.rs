@@ -144,18 +144,31 @@ fn handle_split_byte_table(
             operands.push(get_operand(i + k, !hi_first));
         }
 
+        let current_line_addr = ctx.origin.wrapping_add((pc + i) as u16);
+
         lines.push(DisassemblyLine {
-            address: ctx.origin.wrapping_add((pc + i) as u16),
+            address: current_line_addr,
             bytes,
             mnemonic: formatter.byte_directive().to_string(),
             operand: operands.join(", "),
             comment: if i == 0 {
                 side_comment.clone()
             } else {
-                String::new()
+                ctx.get_side_comment(current_line_addr, formatter.comment_prefix())
             },
-            line_comment: if i == 0 { line_comment.clone() } else { None },
-            label: if i == 0 { label_name.clone() } else { None },
+            line_comment: if i == 0 {
+                line_comment.clone()
+            } else {
+                ctx.user_line_comments.get(&current_line_addr).cloned()
+            },
+            label: if i == 0 {
+                label_name.clone()
+            } else {
+                ctx.labels
+                    .get(&current_line_addr)
+                    .and_then(|v| v.first())
+                    .map(|l| l.name.clone())
+            },
             opcode: None,
             show_bytes: false,
             target_address: None,
@@ -180,20 +193,20 @@ fn handle_split_byte_table(
             operands.push(get_operand(i + k, hi_first));
         }
 
-        let current_chunk_addr = ctx.origin.wrapping_add((pc + split_offset + i) as u16);
+        let current_line_addr = ctx.origin.wrapping_add((pc + split_offset + i) as u16);
         let chunk_label = ctx
             .labels
-            .get(&current_chunk_addr)
+            .get(&current_line_addr)
             .and_then(|v| v.first())
             .map(|l| l.name.clone());
 
         lines.push(DisassemblyLine {
-            address: current_chunk_addr,
+            address: current_line_addr,
             bytes,
             mnemonic: formatter.byte_directive().to_string(),
             operand: operands.join(", "),
-            comment: String::new(),
-            line_comment: None,
+            comment: ctx.get_side_comment(current_line_addr, formatter.comment_prefix()),
+            line_comment: ctx.user_line_comments.get(&current_line_addr).cloned(),
             label: chunk_label,
             opcode: None,
             show_bytes: false,

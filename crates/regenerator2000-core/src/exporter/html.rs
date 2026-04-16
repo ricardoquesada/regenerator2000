@@ -156,7 +156,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     ));
     output.push_str("<tr class=\"separator-row\"><td colspan=\"5\"></td></tr>\n");
 
-    let ctx = crate::disassembler::DisassemblyContext {
+    let ctx = crate::disassembler::context::DisassemblyContext {
         data: &state.raw_data,
         block_types: &state.block_types,
         labels: &state.labels,
