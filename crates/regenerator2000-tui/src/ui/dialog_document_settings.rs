@@ -787,134 +787,133 @@ impl Widget for DocumentSettingsDialog {
                     prev(&mut self.selected_index);
                 }
             }
-            KeyCode::Left => {
-                if !self.is_editing_xref_count
-                    && !self.is_editing_arrow_columns
-                    && !self.is_editing_text_char_limit
-                    && !self.is_editing_addresses_per_line
-                    && !self.is_editing_bytes_per_line
-                    && !self.is_editing_description
-                {
-                    if self.selected_index == idx_xref {
-                        app_state.settings.max_xref_count =
-                            app_state.settings.max_xref_count.saturating_sub(1);
-                    } else if self.selected_index == idx_arrow {
-                        app_state.settings.max_arrow_columns =
-                            app_state.settings.max_arrow_columns.saturating_sub(1);
-                    } else if self.selected_index == idx_text_limit {
-                        app_state.settings.text_char_limit =
-                            app_state.settings.text_char_limit.saturating_sub(1);
-                    } else if self.selected_index == idx_addr_limit {
-                        if app_state.settings.addresses_per_line > 1 {
-                            app_state.settings.addresses_per_line -= 1;
-                        }
-                    } else if self.selected_index == idx_bytes_limit {
-                        if app_state.settings.bytes_per_line > 1 {
-                            app_state.settings.bytes_per_line -= 1;
-                        }
-                    } else if self.selected_index == idx_fill_threshold {
-                        app_state.settings.fill_run_threshold =
-                            app_state.settings.fill_run_threshold.saturating_sub(1);
-                    } else if self.selected_index == idx_assembler {
-                        let assemblers = crate::state::Assembler::all();
-                        let current_idx = assemblers
-                            .iter()
-                            .position(|a| *a == app_state.settings.assembler)
-                            .unwrap_or(0);
-                        let new_idx = if current_idx == 0 {
-                            assemblers.len() - 1
-                        } else {
-                            current_idx - 1
-                        };
-                        app_state.settings.assembler = assemblers[new_idx];
-                        if (app_state.settings.assembler == crate::state::Assembler::Kick
-                            || app_state.settings.assembler == crate::state::Assembler::Ca65)
-                            && !app_state.settings.brk_single_byte
-                        {
-                            app_state.settings.patch_brk = true;
-                        }
-                    } else if self.selected_index == idx_platform {
-                        let platforms = crate::assets::get_available_platforms();
-                        if !platforms.is_empty() {
-                            let current_idx = platforms
-                                .iter()
-                                .position(|p| app_state.settings.platform == *p)
-                                .unwrap_or(0);
-                            let new_idx = if current_idx == 0 {
-                                platforms.len() - 1
-                            } else {
-                                current_idx - 1
-                            };
-                            app_state.settings.platform =
-                                crate::state::Platform::from(platforms[new_idx].clone());
-                            // Reset features when changing platform
-                            app_state.settings.enabled_features.clear();
-                            self.selected_index = idx_platform;
-                        }
-                    }
-                }
-            }
-            KeyCode::Right => {
+            KeyCode::Left
                 if !self.is_editing_xref_count
                     && !self.is_editing_arrow_columns
                     && !self.is_editing_text_char_limit
                     && !self.is_editing_addresses_per_line
                     && !self.is_editing_bytes_per_line
                     && !self.is_editing_fill_threshold
-                    && !self.is_editing_description
-                {
-                    if self.selected_index == idx_xref {
-                        if app_state.settings.max_xref_count < 40 {
-                            app_state.settings.max_xref_count += 1;
-                        }
-                    } else if self.selected_index == idx_arrow {
-                        if app_state.settings.max_arrow_columns < 10 {
-                            app_state.settings.max_arrow_columns += 1;
-                        }
-                    } else if self.selected_index == idx_text_limit {
-                        if app_state.settings.text_char_limit < 80 {
-                            app_state.settings.text_char_limit += 1;
-                        }
-                    } else if self.selected_index == idx_addr_limit {
-                        if app_state.settings.addresses_per_line < 8 {
-                            app_state.settings.addresses_per_line += 1;
-                        }
-                    } else if self.selected_index == idx_bytes_limit {
-                        if app_state.settings.bytes_per_line < 40 {
-                            app_state.settings.bytes_per_line += 1;
-                        }
-                    } else if self.selected_index == idx_fill_threshold {
-                        if app_state.settings.fill_run_threshold < 64 {
-                            app_state.settings.fill_run_threshold += 1;
-                        }
-                    } else if self.selected_index == idx_assembler {
-                        let assemblers = crate::state::Assembler::all();
-                        let current_idx = assemblers
+                    && !self.is_editing_description =>
+            {
+                if self.selected_index == idx_xref {
+                    app_state.settings.max_xref_count =
+                        app_state.settings.max_xref_count.saturating_sub(1);
+                } else if self.selected_index == idx_arrow {
+                    app_state.settings.max_arrow_columns =
+                        app_state.settings.max_arrow_columns.saturating_sub(1);
+                } else if self.selected_index == idx_text_limit {
+                    app_state.settings.text_char_limit =
+                        app_state.settings.text_char_limit.saturating_sub(1);
+                } else if self.selected_index == idx_addr_limit {
+                    if app_state.settings.addresses_per_line > 1 {
+                        app_state.settings.addresses_per_line -= 1;
+                    }
+                } else if self.selected_index == idx_bytes_limit {
+                    if app_state.settings.bytes_per_line > 1 {
+                        app_state.settings.bytes_per_line -= 1;
+                    }
+                } else if self.selected_index == idx_fill_threshold {
+                    app_state.settings.fill_run_threshold =
+                        app_state.settings.fill_run_threshold.saturating_sub(1);
+                } else if self.selected_index == idx_assembler {
+                    let assemblers = crate::state::Assembler::all();
+                    let current_idx = assemblers
+                        .iter()
+                        .position(|a| *a == app_state.settings.assembler)
+                        .unwrap_or(0);
+                    let new_idx = if current_idx == 0 {
+                        assemblers.len() - 1
+                    } else {
+                        current_idx - 1
+                    };
+                    app_state.settings.assembler = assemblers[new_idx];
+                    if (app_state.settings.assembler == crate::state::Assembler::Kick
+                        || app_state.settings.assembler == crate::state::Assembler::Ca65)
+                        && !app_state.settings.brk_single_byte
+                    {
+                        app_state.settings.patch_brk = true;
+                    }
+                } else if self.selected_index == idx_platform {
+                    let platforms = crate::assets::get_available_platforms();
+                    if !platforms.is_empty() {
+                        let current_idx = platforms
                             .iter()
-                            .position(|a| *a == app_state.settings.assembler)
+                            .position(|p| app_state.settings.platform == *p)
                             .unwrap_or(0);
-                        let new_idx = (current_idx + 1) % assemblers.len();
-                        app_state.settings.assembler = assemblers[new_idx];
-                        if (app_state.settings.assembler == crate::state::Assembler::Kick
-                            || app_state.settings.assembler == crate::state::Assembler::Ca65)
-                            && !app_state.settings.brk_single_byte
-                        {
-                            app_state.settings.patch_brk = true;
-                        }
-                    } else if self.selected_index == idx_platform {
-                        let platforms = crate::assets::get_available_platforms();
-                        if !platforms.is_empty() {
-                            let current_idx = platforms
-                                .iter()
-                                .position(|p| app_state.settings.platform == *p)
-                                .unwrap_or(0);
-                            let new_idx = (current_idx + 1) % platforms.len();
-                            app_state.settings.platform =
-                                crate::state::Platform::from(platforms[new_idx].clone());
-                            // Reset features when changing platform
-                            app_state.settings.enabled_features.clear();
-                            self.selected_index = idx_platform;
-                        }
+                        let new_idx = if current_idx == 0 {
+                            platforms.len() - 1
+                        } else {
+                            current_idx - 1
+                        };
+                        app_state.settings.platform =
+                            crate::state::Platform::from(platforms[new_idx].clone());
+                        // Reset features when changing platform
+                        app_state.settings.enabled_features.clear();
+                        self.selected_index = idx_platform;
+                    }
+                }
+            }
+            KeyCode::Right
+                if !self.is_editing_xref_count
+                    && !self.is_editing_arrow_columns
+                    && !self.is_editing_text_char_limit
+                    && !self.is_editing_addresses_per_line
+                    && !self.is_editing_bytes_per_line
+                    && !self.is_editing_fill_threshold
+                    && !self.is_editing_description =>
+            {
+                if self.selected_index == idx_xref {
+                    if app_state.settings.max_xref_count < 40 {
+                        app_state.settings.max_xref_count += 1;
+                    }
+                } else if self.selected_index == idx_arrow {
+                    if app_state.settings.max_arrow_columns < 10 {
+                        app_state.settings.max_arrow_columns += 1;
+                    }
+                } else if self.selected_index == idx_text_limit {
+                    if app_state.settings.text_char_limit < 80 {
+                        app_state.settings.text_char_limit += 1;
+                    }
+                } else if self.selected_index == idx_addr_limit {
+                    if app_state.settings.addresses_per_line < 8 {
+                        app_state.settings.addresses_per_line += 1;
+                    }
+                } else if self.selected_index == idx_bytes_limit {
+                    if app_state.settings.bytes_per_line < 40 {
+                        app_state.settings.bytes_per_line += 1;
+                    }
+                } else if self.selected_index == idx_fill_threshold {
+                    if app_state.settings.fill_run_threshold < 64 {
+                        app_state.settings.fill_run_threshold += 1;
+                    }
+                } else if self.selected_index == idx_assembler {
+                    let assemblers = crate::state::Assembler::all();
+                    let current_idx = assemblers
+                        .iter()
+                        .position(|a| *a == app_state.settings.assembler)
+                        .unwrap_or(0);
+                    let new_idx = (current_idx + 1) % assemblers.len();
+                    app_state.settings.assembler = assemblers[new_idx];
+                    if (app_state.settings.assembler == crate::state::Assembler::Kick
+                        || app_state.settings.assembler == crate::state::Assembler::Ca65)
+                        && !app_state.settings.brk_single_byte
+                    {
+                        app_state.settings.patch_brk = true;
+                    }
+                } else if self.selected_index == idx_platform {
+                    let platforms = crate::assets::get_available_platforms();
+                    if !platforms.is_empty() {
+                        let current_idx = platforms
+                            .iter()
+                            .position(|p| app_state.settings.platform == *p)
+                            .unwrap_or(0);
+                        let new_idx = (current_idx + 1) % platforms.len();
+                        app_state.settings.platform =
+                            crate::state::Platform::from(platforms[new_idx].clone());
+                        // Reset features when changing platform
+                        app_state.settings.enabled_features.clear();
+                        self.selected_index = idx_platform;
                     }
                 }
             }
@@ -1036,15 +1035,12 @@ impl Widget for DocumentSettingsDialog {
                                 app_state.settings.patch_brk = true;
                             }
                         }
-                        3 => {
-                            if !app_state.settings.brk_single_byte {
-                                let is_enforced = app_state.settings.assembler
-                                    == crate::state::Assembler::Kick
-                                    || app_state.settings.assembler
-                                        == crate::state::Assembler::Ca65;
-                                if !is_enforced {
-                                    app_state.settings.patch_brk = !app_state.settings.patch_brk;
-                                }
+                        3 if !app_state.settings.brk_single_byte => {
+                            let is_enforced = app_state.settings.assembler
+                                == crate::state::Assembler::Kick
+                                || app_state.settings.assembler == crate::state::Assembler::Ca65;
+                            if !is_enforced {
+                                app_state.settings.patch_brk = !app_state.settings.patch_brk;
                             }
                         }
                         4 => {

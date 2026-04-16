@@ -335,13 +335,11 @@ impl Formatter for AcmeFormatter {
             let should_force = match opcode.mode {
                 AddressingMode::Absolute
                 | AddressingMode::AbsoluteX
-                | AddressingMode::AbsoluteY => {
-                    if operands.len() >= 2 {
-                        let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
-                        addr <= 0xFF
-                    } else {
-                        false
-                    }
+                | AddressingMode::AbsoluteY
+                    if operands.len() >= 2 =>
+                {
+                    let addr = Addr(u16::from(operands[1]) << 8 | u16::from(operands[0]));
+                    addr <= 0xFF
                 }
                 _ => false,
             };

@@ -247,36 +247,31 @@ impl Formatter for Ca65Formatter {
                      p_text: &mut String,
                      p_bytes: &mut Vec<u8>| {
             match is_text {
-                Some(true) => {
-                    if !p_text.is_empty() {
-                        let mut parts = Vec::new();
-                        let mut first = true;
-                        // ca65 doesn't support \" escapes. We must split by " and insert $22.
-                        // quoting logic
-                        for part in p_text.split('"') {
-                            if !first {
-                                parts.push("$22".to_string());
-                            }
-                            if !part.is_empty() {
-                                parts.push(format!("\"{part}\""));
-                            }
-                            first = false;
+                Some(true) if !p_text.is_empty() => {
+                    let mut parts = Vec::new();
+                    let mut first = true;
+                    // ca65 doesn't support \" escapes. We must split by " and insert $22.
+                    // quoting logic
+                    for part in p_text.split('"') {
+                        if !first {
+                            parts.push("$22".to_string());
                         }
-                        if !parts.is_empty() {
-                            lines.push((".byte".to_string(), parts.join(", "), true));
+                        if !part.is_empty() {
+                            parts.push(format!("\"{part}\""));
                         }
-                        p_text.clear();
+                        first = false;
                     }
-                }
-                Some(false) => {
-                    if !p_bytes.is_empty() {
-                        let parts: Vec<String> =
-                            p_bytes.iter().map(|b| format!("${b:02x}")).collect();
+                    if !parts.is_empty() {
                         lines.push((".byte".to_string(), parts.join(", "), true));
-                        p_bytes.clear();
                     }
+                    p_text.clear();
                 }
-                None => {}
+                Some(false) if !p_bytes.is_empty() => {
+                    let parts: Vec<String> = p_bytes.iter().map(|b| format!("${b:02x}")).collect();
+                    lines.push((".byte".to_string(), parts.join(", "), true));
+                    p_bytes.clear();
+                }
+                _ => {}
             }
         };
 

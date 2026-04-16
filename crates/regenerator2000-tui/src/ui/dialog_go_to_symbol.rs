@@ -33,7 +33,7 @@ impl GoToSymbolDialog {
         }
         // Also include auto labels if they have a non-default name?
         // Actually, let's just include everything for now and see.
-        symbols.sort_by(|a, b| a.1.to_lowercase().cmp(&b.1.to_lowercase()));
+        symbols.sort_by_key(|a| a.1.to_lowercase());
 
         Self {
             input: String::new(),
