@@ -5,6 +5,18 @@
   "blocks": [
     {
       "start": 0,
+      "end": 350,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 351,
+      "end": 355,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 356,
       "end": 445,
       "type_": "Code",
       "collapsed": false
@@ -89,6 +101,18 @@
     },
     {
       "start": 768,
+      "end": 1167,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 1168,
+      "end": 1170,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 1171,
       "end": 1236,
       "type_": "Code",
       "collapsed": false
@@ -131,12 +155,12 @@
     },
     {
       "start": 1324,
-      "end": 1326,
+      "end": 1345,
       "type_": "DataByte",
       "collapsed": false
     },
     {
-      "start": 1327,
+      "start": 1346,
       "end": 1527,
       "type_": "Code",
       "collapsed": false
@@ -149,24 +173,48 @@
     },
     {
       "start": 1536,
-      "end": 1645,
-      "type_": "ScreencodeText",
-      "collapsed": false
-    },
-    {
-      "start": 1646,
-      "end": 1663,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 1664,
       "end": 1696,
       "type_": "ScreencodeText",
       "collapsed": false
     },
     {
       "start": 1697,
+      "end": 1707,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 1708,
+      "end": 1711,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 1712,
+      "end": 1753,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 1754,
+      "end": 1777,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 1778,
+      "end": 1943,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 1944,
+      "end": 1944,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 1945,
       "end": 2006,
       "type_": "Code",
       "collapsed": false
@@ -210,11 +258,23 @@
     {
       "start": 2815,
       "end": 2815,
-      "type_": "DataByte",
+      "type_": "Undefined",
       "collapsed": false
     },
     {
       "start": 2816,
+      "end": 2903,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2904,
+      "end": 2908,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 2909,
       "end": 3561,
       "type_": "Code",
       "collapsed": false
@@ -234,7 +294,7 @@
     {
       "start": 3579,
       "end": 3579,
-      "type_": "DataByte",
+      "type_": "Undefined",
       "collapsed": false
     },
     {
@@ -245,12 +305,12 @@
     },
     {
       "start": 3601,
-      "end": 3602,
+      "end": 3620,
       "type_": "DataByte",
       "collapsed": false
     },
     {
-      "start": 3603,
+      "start": 3621,
       "end": 3807,
       "type_": "Code",
       "collapsed": false
@@ -275,12 +335,12 @@
     },
     {
       "start": 4007,
-      "end": 4073,
+      "end": 4069,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 4074,
+      "start": 4070,
       "end": 4086,
       "type_": "DataByte",
       "collapsed": false
@@ -293,36 +353,36 @@
     },
     {
       "start": 4096,
-      "end": 5119,
-      "type_": "ExternalFile",
-      "collapsed": true
-    },
-    {
-      "start": 5120,
-      "end": 8191,
-      "type_": "ScreencodeText",
-      "collapsed": false
-    },
-    {
-      "start": 8192,
       "end": 10623,
-      "type_": "ExternalFile",
+      "type_": "Undefined",
       "collapsed": true
     },
     {
       "start": 10624,
-      "end": 10971,
+      "end": 10970,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 10972,
+      "start": 10971,
       "end": 10975,
       "type_": "DataByte",
       "collapsed": false
     },
     {
       "start": 10976,
+      "end": 10987,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 10988,
+      "end": 10991,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 10992,
       "end": 10998,
       "type_": "Code",
       "collapsed": false
@@ -347,6 +407,18 @@
     },
     {
       "start": 11456,
+      "end": 11501,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 11502,
+      "end": 11503,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 11504,
       "end": 11515,
       "type_": "Code",
       "collapsed": false
@@ -419,6 +491,18 @@
     },
     {
       "start": 13312,
+      "end": 13410,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 13411,
+      "end": 13411,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 13412,
       "end": 13590,
       "type_": "Code",
       "collapsed": false
@@ -455,42 +539,66 @@
     },
     {
       "start": 14240,
-      "end": 14332,
+      "end": 14306,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 14333,
+      "start": 14307,
       "end": 14335,
       "type_": "DataByte",
       "collapsed": false
     },
     {
       "start": 14336,
-      "end": 14557,
+      "end": 14507,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 14558,
+      "start": 14508,
+      "end": 14516,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 14517,
+      "end": 14526,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 14527,
       "end": 14559,
       "type_": "DataByte",
       "collapsed": false
     },
     {
       "start": 14560,
-      "end": 14586,
+      "end": 14580,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 14587,
+      "start": 14581,
       "end": 14591,
       "type_": "DataByte",
       "collapsed": false
     },
     {
       "start": 14592,
+      "end": 14740,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 14741,
+      "end": 14751,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 14752,
       "end": 14839,
       "type_": "Code",
       "collapsed": false
@@ -503,6 +611,30 @@
     },
     {
       "start": 14848,
+      "end": 14996,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 14997,
+      "end": 15001,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 15002,
+      "end": 15059,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 15060,
+      "end": 15064,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 15065,
       "end": 15137,
       "type_": "Code",
       "collapsed": false
@@ -539,18 +671,30 @@
     },
     {
       "start": 15454,
-      "end": 15511,
+      "end": 15505,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 15512,
+      "start": 15506,
       "end": 15513,
       "type_": "DataByte",
       "collapsed": false
     },
     {
       "start": 15514,
+      "end": 15531,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 15532,
+      "end": 15536,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 15537,
       "end": 15596,
       "type_": "Code",
       "collapsed": false
@@ -563,6 +707,42 @@
     },
     {
       "start": 15601,
+      "end": 15615,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 15616,
+      "end": 15624,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 15625,
+      "end": 15740,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 15741,
+      "end": 15742,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 15743,
+      "end": 16302,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 16303,
+      "end": 16303,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 16304,
       "end": 16315,
       "type_": "Code",
       "collapsed": false
@@ -575,26 +755,86 @@
     },
     {
       "start": 16384,
-      "end": 16623,
+      "end": 16519,
       "type_": "Code",
       "collapsed": false
     },
     {
+      "start": 16520,
+      "end": 16523,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 16524,
+      "end": 16600,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 16601,
+      "end": 16623,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
       "start": 16624,
-      "end": 16631,
+      "end": 16632,
       "type_": "ScreencodeText",
       "collapsed": false
     },
     {
-      "start": 16632,
+      "start": 16633,
       "end": 16639,
       "type_": "DataByte",
       "collapsed": false
     },
     {
       "start": 16640,
-      "end": 16975,
+      "end": 16687,
       "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 16688,
+      "end": 16719,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 16720,
+      "end": 16724,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 16725,
+      "end": 16756,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 16757,
+      "end": 16894,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 16895,
+      "end": 16943,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 16944,
+      "end": 16973,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 16974,
+      "end": 16975,
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -629,26 +869,20 @@
     },
     {
       "start": 17248,
-      "end": 17401,
-      "type_": "Code",
-      "collapsed": false
-    },
-    {
-      "start": 17402,
-      "end": 17407,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 17408,
       "end": 17445,
       "type_": "Code",
       "collapsed": false
     },
     {
       "start": 17446,
-      "end": 17455,
+      "end": 17450,
       "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 17451,
+      "end": 17455,
+      "type_": "Undefined",
       "collapsed": false
     },
     {
@@ -701,14 +935,8 @@
     },
     {
       "start": 18342,
-      "end": 18431,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 18432,
       "end": 28671,
-      "type_": "ExternalFile",
+      "type_": "DataByte",
       "collapsed": true
     },
     {
@@ -1648,13 +1876,6 @@
         "kind": "User"
       }
     ],
-    "7699": [
-      {
-        "name": "delay_then_switch_scroll",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
     "7717": [
       {
         "name": "draw_highscore_timer_and_cursor",
@@ -2096,23 +2317,9 @@
         "kind": "User"
       }
     ],
-    "18405": [
-      {
-        "name": "spr0_anim_frame",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
     "18432": [
       {
         "name": "player_death_handler",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
-    "18623": [
-      {
-        "name": "dead_snapshot_delta_draft",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2134,13 +2341,6 @@
     "18752": [
       {
         "name": "advance_distance_counter",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
-    "18837": [
-      {
-        "name": "spr0_anim_next_frame",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2236,13 +2436,6 @@
         "kind": "User"
       }
     ],
-    "20992": [
-      {
-        "name": "update_jump_sfx_pitch",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
     "21040": [
       {
         "name": "set_collision_state_and_play_sfx",
@@ -2259,14 +2452,14 @@
     ],
     "21072": [
       {
-        "name": "sid_freq_hi_tbl",
+        "name": "unused_sid_freq_hi_tbl",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "21088": [
       {
-        "name": "sid_freq_lo_tbl",
+        "name": "unused_sid_freq_lo_tbl",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2392,14 +2585,14 @@
     ],
     "22080": [
       {
-        "name": "sid_freq2_lo_tbl",
+        "name": "sid_freq_lo_tbl",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "22144": [
       {
-        "name": "sid_freq2_hi_tbl",
+        "name": "sid_freq_hi_tbl",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2609,11 +2802,9 @@
     "7610": "reset ones to 9",
     "7615": "tens digit -= 1",
     "7654": "+ $30 = screen code '0'",
-    "7659": "write tens digit to screen",
     "7666": "write ones digit to screen",
     "7671": "color = cyan for timer digits",
     "7685": "calculate Color RAM address = $D800 + row*40 + col",
-    "7710": "color = red (highlight cursor)",
     "7717": "move cursor up (min row = 5)",
     "7727": "decrement row by 2 (skip blank rows)",
     "7736": "move cursor down (max row = 9)",
@@ -2889,15 +3080,6 @@
     "18508": "explosion sprite #3",
     "18516": "explosion sprite #2",
     "18526": "disable all sprites",
-    "18623": "DEAD CODE: load snapshot (note: operand order is reversed vs advance_distance_counter at $4940)",
-    "18626": "compare snapshot against current counter",
-    "18629": "snapshot < counter -> counter has NOT wrapped; take no-wrap path",
-    "18631": "no-wrap path: delta = snapshot - counter (0..9)",
-    "18641": "wrap path: counter wrapped through 0 since snapshot was taken",
-    "18645": "partial subtraction (negative without correction)",
-    "18649": "+10 corrects for modular wrap: delta = (snapshot - counter) + 10",
-    "18651": "X = delta mod 10; result is never used (no branch on CPX below)",
-    "18652": "CPX #$00 with no subsequent branch - dead; falls into padding bytes",
     "18656": "outer loop counter = 2 passes",
     "18658": "store outer count in $08FF",
     "18661": "middle loop: X = 256 iterations per outer pass",
@@ -2990,11 +3172,7 @@
     "20753": "check if any pending NPC cars in secondary lane buffer",
     "20766": "direction is $01: check $0C22/$0C23 pending cars instead",
     "20779": "PATH A: pending cars present in lane A; set dir=$01, swap to C/D buffers",
-    "20784": "copy work screen buffer $0800 -> $0C00 (256 bytes)",
-    "20787": "copy active car table $0900 -> $0D00 (256 bytes)",
     "20816": "PATH C: direction $01, pending cars in C lane; swap to A/B buffers",
-    "20821": "copy work screen buffer $0800 -> $0A00 (256 bytes)",
-    "20824": "copy active car table $0900 -> $0B00 (256 bytes)",
     "21049": "Phase 1: key already held? Return immediately",
     "21051": "$7F = no key; wait for release",
     "21055": "Phase 2: spin until any key pressed",
@@ -3091,15 +3269,18 @@
     "2096": "3-digit decimal counter for crashed cars bonus score. Represents Ten-Thousands, Thousands, and Hundreds digits. Units and Tens are implied zeros.",
     "4096": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the VIC-II video chip settings for the game.\nClears sprite coordinates, enables multi-color mode for character display,\nsets up global border and background colors, and configures sprite sizes,\npriorities, and multi-color settings. Also sets the character memory pointer.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies VIC-II registers ($D000-$D026) and Sprite 0 pointer ($07F8)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4178": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the screen display, background colors, and title/game sprites.\nThis routine runs at startup to paint the initial screen layout to Screen RAM\n($0400) and Color RAM ($D800). It establishes the sprite positions and does a\nfade-in effect by shifting bits into the sprite enable register ($D015) before\nswitching to a second screen layout ($2800).\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies Screen RAM ($0400), Color RAM ($D800), and all Sprite\n              registers in ($D000-$D015). Loops through wait delays.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "4447": "dead code",
     "4501": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the game state, memory buffers, and SID audio filters.\nThis routine sets up several 256-byte pages ($0800-$0DFF), clears object/sprite\nbuffers, and resets various variables at the start of $0800. It also initializes\nthe SID chip's filter and volume settings initially calling `$1195` then jumping\nto `$1200` to complete the rest of the work.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies memory regions $0800-$0DFF, $0F50-$0F56, $7400-$7457,\n              and SID registers $D415-$D418.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4608": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes game variables and duplicates memory pages.\nThis routine resets various state variables in the $0800-$09FF range, zeroes\nout specific arrays, and then creates two copies of the $0800-$09FF memory pages\nat $0A00-$0BFF and $0C00-$0DFF. It finally resets the SID filter cutoff frequency.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies memory $0800-$0DFF, $7080-$7082, and SID $D415-$D416.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4752": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMAIN ENTRY POINT\nThis code was in the tape loader.\nMoved to the \"main\" binary to have a single-load game",
     "4800": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSilences SID Voice 1.\nHowever, if the player is jumping, it pops 4 bytes from the stack to bypass\nboth this routine and its caller (reset_voice1_state) and returns directly\nto the caller of reset_voice1_state (e.g., play_crash_sfx).\nThis prevents crash sounds from playing while jumping.\n\nInputs:  player_is_jumping\nOutputs: None\nSide Effects: Silences Voice 1 or manipulates stack to bail early.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4848": "Cartridge cold-start entry point (referenced by vector at $8002)",
     "4864": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScrolls the playfield down and fetches the next row of map tile data.\nFirst, it shifts Screen RAM down by one row to create a scrolling effect.\nThen, it computes a pointer to the level map array ($4000) based on the current\nscroll position to grab a 1024-byte map tile ID. Because tile data is located\nat $8010 and stretches underneath the BASIC ROM ($A000-$BFFF), the caller must\nbank out BASIC first. It finally copies 40 bytes of the tile row into Screen RAM \nat $0428 (row 1, leaving the UI row intact) and updates Color RAM.\n\nInputs:  $0800 (level nr), $0801 (Map Block Column), $0802 (Tile Y offset)\nOutputs: None\nSide Effects: Modifies Screen RAM ($0428+), Color RAM, and pointers at $49/$4A.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "5264": "dead code",
     "5344": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nShort busy-wait delay (~13 ms). Runs a nested loop with X=10 outer iterations\nand Y=256 inner iterations. Shares the loop body with delay_long.\n\nInputs:  None\nOutputs: X=0, Y=0\nSide Effects: None (burns CPU time)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5360": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLong busy-wait delay (~328 ms). X=$00 wraps to 256 outer iterations, each\nwith 256 inner Y iterations. Falls through into delay_short's loop body.\nUsed for dramatic pauses during level transitions and score displays.\n\nInputs:  None\nOutputs: X=0, Y=0\nSide Effects: None (burns CPU time)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5376": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nShifts a large portion of Screen RAM down by one row (40 bytes) to create the\nscrolling effect. It initializes a zero-page pointer ($49/$4A) to the end of\nthe scrolling region ($0747) and copies memory to pointer + 40 ($28).\nIt iterates backwards until it reaches the HUD boundary at $0427, leaving row 0\n(the HUD) intact.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies Screen RAM ($0428-$076F) and zero-page pointers $49/$4A.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "5420": "dead code",
     "5442": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLevel transition screen: displays the upcoming season name and \"GOOD LUCK!\"\nmessage. If all 32 levels (ways) are completed, awards a BONUS 10000 score.\nOtherwise, advances season_nr (mod 4), resets level state, plays a countdown\ndelay animation, and re-enters the main game flow for the next level.\n\nInputs:  season_nr ($0803), a0800 ($0800) level counter\nOutputs: season_nr (incremented mod 4), a0800 (incremented), level state reset\nSide Effects: Writes to Screen/Color RAM, busy-wait delays, may award bonus\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5543": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIncrements the player's score by 50000 points.\nThis routine calls an internal loop 5 times (controlled by Y register). In each\nloop, it increments the ten-thousand digit (index 2 of the $0825 score array) by 1.\nOverflows are handled seamlessly via a cascading BCD-like carry lookup. After\nadding 5 to the ten-thousand position, it refreshes the HUD to display the new score.\n\nInputs:  None (relies on $0825 array)\nOutputs: None\nSide Effects: Modifies the Score array and calls update_hud_display.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5577": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIncrements the player's 7-digit score uniformly.\nBecause the score is stored as an array of 7 individual digits (0-9) at $0825,\nthis routine performs a manual base-10 addition. It starts at the least\nsignificant digit (index 6, $082B), adds 1, and carries over any overflow (10)\nto the next significant digit.\n\nInputs:  Score array at $0825-$082B\nOutputs: Modified Score array\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -3121,6 +3302,7 @@
     "7539": "High Score input loop: display cursor, read joystick",
     "7580": "--- Decrement countdown timer; end entry when expired ---",
     "7653": "--- Show timer digits on screen, highlight cursor cell via Color RAM ---",
+    "7697": "dead code",
     "7863": "--- Set Color RAM at (active_row, active_col) to yellow ---",
     "7904": "dead code",
     "8090": "Dead code",
@@ -3129,7 +3311,6 @@
     "14720": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDetects collisions between NPC cars (enemy slots 0..2 vs 1..3).\nIf two active cars are within 16x16 pixels, calculates a bounce response,\nsetting new directions, step counts, and lifetimes based on car types.\n\nInputs:  tbl_enemy_car_state, Sprite X/Y regs ($D002/$D003), f092C, tbl_sprite_step_count_0\nOutputs: tbl_enemy_sprite_direction, tbl_enemy_sprite_active, tbl_enemy_sprite_step_count, tbl_enemy_sprite_lifetime\nSide Effects: Calls $5230 and updates tbl_enemy_sprite_state if both cars were collision-inactive.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "15060": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nA small wrapper routine called by the main loop.\nIt manages spawning new enemy cars, and then handles player jump inputs.\n\nInputs:  None\nOutputs: None\nSide Effects: Can spawn entities and mutate player state.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "15072": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
-    "15084": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "15088": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "15104": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDetects collision between the player (sprite 0) and any NPC car (slots 0..3).\nExits early if a crash SFX is already playing on Voice 1.\n\nFor each NPC slot with car_state == 1 (on-road/active), checks if its sprite\nis within 16 pixels of the player in both X and Y. On collision:\n  - Records which quadrant the NPC occupies relative to the player:\n      collision_rel_x: 0 = NPC left of player,  1 = NPC right\n      collision_rel_y: 0 = NPC above player,     1 = NPC below\n  - Sets sprite_direction[x] so the NPC bounces away from the player\n  - Plays crash SFX on SID Voice 1 (noise, freq=$0112, A=1/D=8)\n  - Computes sprite_lifetime = (npc_speed >> type_shift) + (player_speed >> type_shift) + 4\n  - Computes a098B  = (npc_speed >> type_shift) + (player_speed >> type_shift) + 1\n  - Jumps (no RTS) to apply_collision_speed_score\n\nInputs:       sfx_voice_1_en, car_state[0..3], VIC-II regs $D000-$D009,\n              f0900[0..3] (NPC speeds), a0804 (player speed),\n              f092C[0..3] (car type index), f3F60/f3F68/f3F70 (type tables)\nOutputs:      sprite_direction[x], sprite_active[x], sprite_lifetime[x],\n              collision_rel_x, collision_rel_y, a0988, a098A, a098B\nSide Effects: Plays crash SFX on Voice 1; falls through to apply_collision_speed_score\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "15381": "Checks if a debris sprite's current pixel position is over a passable road tile.\nConverts sprite X/Y to tile col/row (origin $10/$32, cell=8px), walks Screen\nRAM ($0400, 40 cols/row) and reads the tile. Tiles $20/$65 = road (pass-through).\nAny other tile triggers the hit handler (b3C64): deactivates the debris sprite,\nflashes it white, sets the NPC to damaged state, awards score, spawns score popup.\nInputs:  X = VIC-II sprite reg offset (slot*2), Y = tile column (from caller)\n         Stack: slot index (pushed by update_moving_sprites)\nOutputs: None — returns cleanly on road tile, or non-local exit via hit handler.",
@@ -3150,6 +3331,7 @@
     "17408": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies a buffered vertical offset to Sprite 0 (the player's car).\nTakes the accumulated vertical offset stored at $0808, adds it to the current\nY position of Sprite 0 ($D001), and then clears $0808 back to 0. This is\nused to process collision bumps, road bumps, or other vertical shifts pending\nfor the frame.\n\nInputs:  Y position at $D001, offset at $0808\nOutputs: None\nSide Effects: Modifies Sprite 0 Y pos ($D001) and sets $0808 to 0.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17424": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles player acceleration (Up direction) and deceleration (Down direction).\nReads the parsed input state at $00F5. If 'Up' (Bit 0) is pressed, the car\nmoves up the screen (Y position at $D001 decreases until clamped at $90),\nthe scrolling speed $0804 is increased, and the 3-byte visual speedometer array\nat $08E0 is incremented in base-10.\nIf 'Down' is pressed, it branches to $4464 which performs the inverse (speed\narray decrements, car moves down the screen until clamped at $D0).\n\nInputs:  Parsed input state at $00F5\nOutputs: None\nSide Effects: Modifies Sprite 0 Y pos ($D001), speed $0804, and speedometer $08E0\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17584": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the game's HUD/Dashboard at the bottom of the screen.\nDraws the border graphics and prints the numeric values from $08E0.\n\nInputs:  $08E0..$08E2 (3-byte numeric value)\nOutputs: Screen RAM ($0772-$07CA), Color RAM ($DB72-$DBCA)\nSide Effects: Updates rows 22-24 of the screen display.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "17687": "dead code",
     "17702": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the game state by decrementing the progress counter and checking for\ncollisions between the player car (Sprite 0) and enemy cars (Sprites 1-4).\n\n1. Decrements the 3-byte BCD counter at $08E0 by 20 units.\n2. Checks for 16x16 pixel overlaps between Sprite 0 and Sprites 1-4.\n3. If collision detected, sets car_state to 2 and calls handler s3EEE.\n\nInputs:  $08E0 (HUD counter), car_state (car status), VIC sprite registers\nOutputs: $08E0 (decremented), car_state (updated on collision)\nSide Effects: Calls collision handler s3EEE on impact.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDynamic delay loop to govern the frame rate and scrolling speed.\nSubtracts the current speed value ($0804) from a base constant ($F3).\nThe resulting value determines how many times a nested busy-wait loop executes.\nThe faster the car is going (higher $0804 value), the smaller the delay count,\nresulting in the frame executing more quickly.\n\nInputs:  Speed variable at $0804\nOutputs: None\nSide Effects: Busy waits (delays CPU execution)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "17936": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays the \"GAME OVER\" message centered on row 9 and pauses execution for\napproximately 2.6 seconds.\n\nInputs:  None\nOutputs: None\nSide Effects: Writes to Screen RAM ($0578) and Color RAM ($D978)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -3158,24 +3340,35 @@
     "18251": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "18262": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain gameplay tick routine.\nThis is the core subroutine called every frame/tick during gameplay to process\nall major game systems. It updates the HUD, increments the score, handles player\ninput and movement, processes jumps and background collisions, applies vertical\noffsets, handles acceleration (if enabled), manages frame delays, and ticks down\nthe pickup/coin visual indicator.\n\nInputs:  None (relies on global state)\nOutputs: None\nSide Effects: Updates player coordinates, animations, score, HUD, and timers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18336": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\naward_collision_score_and_damage_sprite\n\nCalled when the player's car lands on (or collides with) an NPC car.\nOn entry, X = NPC slot index (0-3), Y = car type index from f092C,x.\n\nPhase 1 — Score award:\n  Looks up the NPC's sprite frame byte from f3F18,y:\n    $E3 (small car)  => add 5 points to score array f0825\n    $E4 (medium car) => add 3 points\n    $E5 (large car)  => add 2 points\n  Score is stored as individual BCD-style digits at f0825 (7 bytes,\n  index 4=ones ... index 0=highest). The loop ripple-carries from\n  digit 4 upward for as many iterations as the point value (Y).\n  Then calls update_hud_display to redraw the score on the HUD.\n\nPhase 2 — Sprite damage:\n  After restoring X/Y, re-reads f3F18,y (same frame byte) and\n  falls through to j4E03, which:\n    - Stores the frame byte into a07F9,x (sprite pointer for NPC slot)\n    - Builds a single-bit mask for slot X, inverts it, ANDs it into\n      $D01C (Sprites Multi-Color Select), switching that NPC sprite\n      from multicolor to hires mode (visual 'hit' state)\n    - Increments a0821 (hit sub-counter); when it reaches 10,\n      resets to 0 and increments hud_level_digit\n\nInputs:       X = NPC car slot index (0-3)\n              Y = car type index (f092C,x), used to index f3F18\nOutputs:      None (returns via j4E03/RTS at $4E3C)\nSide Effects: f0825 score digits updated; $D01C multicolor bit cleared\n              for the hit NPC sprite; a0821 and hud_level_digit may\n              increment; HUD redrawn via update_hud_display\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18403": "dead code",
     "18432": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles the player's death sequence: decrements lives, plays an explosion\nanimation based on the hazard, and jumps to either \"Game Over\" or scans\nbackward through level map data (starting at $4000) for a valid respawn\ncheckpoint.\n\nInputs:  lives_ones, lives_tens, (p_tmp_lo),Y (hazard type), level_nr, a0801\nOutputs: lives_ones, lives_tens, a0801 (respawn offset), p_tmp_lo/hi\nSide Effects: Modifies sprite_ptr_0 ($07F8), disables sprites ($D015 = 0)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "18623": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDEAD CODE - unreferenced draft of the scroll-row modular delta calculation.\n\nNo JSR, JMP, or address-table entry points to this block anywhere in the binary.\nIt computes (scroll_row_snapshot - scroll_row_counter) mod 10, the arithmetic\ncomplement of advance_distance_counter ($4940), which computes the identical\ndelta in the opposite operand order.  The CPX #$00 at $48DC has no branch and\nis never acted upon.  The two padding bytes ($00 $FE) at $48DE-$48DF confirm\nthis was abandoned before the entry point for busy_wait_delay was stitched in\nat $48E0.\n\nThis is almost certainly an earlier draft of advance_distance_counter ($4940)\nthat was left in place when the final version was written four pages later.\n\nInputs:       scroll_row_snapshot ($0986), scroll_row_counter ($0827)\nOutputs:      X = (snapshot - counter) mod 10  [result never used]\nSide Effects: none (dead code, never executed)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "18623": "dead code",
     "18656": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nBusy-wait delay of approximately 0.67 seconds, used to pace the crash/explosion\nanimation in the game-over sequence.\n\nThe routine burns CPU cycles with a three-level nested countdown loop:\n  outer  : $08FF counts down from 2 to 0         (2 passes)\n  middle : X    counts down from 0 to 0 (wraps)   (256 iterations per pass)\n  inner  : Y    counts down from 0 to 0 (wraps)   (256 iterations per X step)\n\nTotal inner iterations = 2 x 256 x 256 = 131,072.\nAt ~5 cycles per DEY/BNE pair on PAL C64 (985 kHz) this is roughly 0.67 s.\n\nCalled three times in succession during the crash sprite swap sequence at j4800\n($4829, $4831, $4839 / $4849, $4851, $4859), producing a ~2-second animated\npause while the explosion sprite frames cycle and the SID crash sound plays.\n\nNote: $48F4-$48F9 are dead bytes (a BNE/DEX/BNE sequence that is unreachable\nbecause the DEC $08FF / BNE loop exits only when $08FF reaches 0, at which\npoint the BNE at $48F2 falls through directly to RTS at $48F4).\n\nInputs:       none\nOutputs:      A = 0, X = 0, Y = 1 (loop residue); $08FF = 0\nSide Effects: ~0.67 s of CPU time consumed; $08FF zeroed\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18688": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances a 4-stage pipeline of road colour-row data used by the scrolling engine.\n\nThe game maintains four pipeline slots, each 40 bytes apart in RAM:\n  Slot 0 (newest): ptr $0748/$0749, colour strip $0753..$076F (29 bytes)\n  Slot 1:          ptr $0770/$0771, colour strip $077B..$0797\n  Slot 2:          ptr $0798/$0799, colour strip $07A3..$07BF\n  Slot 3 (oldest): ptr $07C0/$07C1, colour strip $07CB..$07E7\n\nEach call shifts all slots one step toward the screen bottom (slot 3 drops off):\n  strip[2] -> strip[3]  (29 bytes, Y = 0..28)\n  strip[1] -> strip[2]\n  strip[0] -> strip[1]\n  ptr[2]   -> ptr[3]    (16-bit colour-RAM row address)\n  ptr[1]   -> ptr[2]\n  ptr[0]   -> ptr[1]\n  $0748/$0749 -> ptr[0] (freshest pointer, injected each frame by the map scroller)\n\nSlot 0 ($0753 strip + $0748 ptr) is written by the caller with the new road row\ndata before this routine runs, making it the \"front\" of the FIFO queue.\n\nReturns A = $07 so that scroll_screen_down ($1500) can immediately form the\nscreen pointer $0747 (a4A=$07, a49=$47 = last byte of the visible play area),\navoiding a redundant LDA #$07.\n\nCalled once per frame by scroll_screen_down ($1500) as the first step of the\nfull downward screen scroll (road flows top-to-bottom in this top-down racer).\n\nInputs:       $0753..$076F  colour strip, slot 0 (29 bytes, newest row)\n              $077B..$0797  colour strip, slot 1\n              $07A3..$07BF  colour strip, slot 2\n              $0748/$0749   colour-RAM row pointer, slot 0\n              $0770/$0771   colour-RAM row pointer, slot 1\n              $0798/$0799   colour-RAM row pointer, slot 2\nOutputs:      A = $07 (high byte for screen-RAM scroll pointer $0747)\n              $077B..$07E7  slots 1-3 colour strips overwritten with shifted data\n              $0770/$0771, $0798/$0799, $07C0/$07C1  colour-RAM ptrs shifted\nSide Effects: Slot 3 previous content destroyed; slot 0 inputs are not touched.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18752": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances the two-digit on-screen distance counter shown in the HUD, driven by\nhow many new road rows have scrolled since the last call.\n\nscroll_row_counter ($0827) is a 0-9 modular counter incremented once per road\nrow by the map scroller.  Each call computes delta = (current - snapshot) mod 10\nto get the number of new rows that have passed.  For each delta tick the\nsub-step counter dist_substep ($0987) is incremented; once it reaches 7 the\nones digit dist_digit_ones ($0823) advances by 1, carrying into the tens digit\ndist_digit_tens ($0822) on overflow.  Every digit advance also fires a short SID\nvoice-1 \"tick\" click via sid_tick_sfx_and_get_ones.\n\nThe routine does NOT end with RTS.  It tail-calls update_hiscore_if_beaten\n($17DD), which compares the 7-digit score ($0825-$082B) against the stored\nhi-score ($0F50-$0F56) and copies the score over if it is higher.  That routine\nreturns with A = hud_level_digit ($0820), which propagates back to the caller\nupdate_hud_display ($16B0) and is written to screen RAM at $0420 as the level\ndigit after adding $30.\n\nInputs:       scroll_row_counter  ($0827)  current 0-9 row counter\n              scroll_row_snapshot ($0986)  row counter value at previous call\n              dist_substep        ($0987)  sub-step accumulator (0-6)\n              dist_digit_ones     ($0823)  ones digit of distance counter (0-9)\n              dist_digit_tens     ($0822)  tens digit of distance counter (0-9)\nOutputs:      A = hud_level_digit ($0820)  (returned via tail-call to $17DD)\n              dist_digit_ones and dist_digit_tens updated in place\nSide Effects: scroll_row_snapshot ($0986) updated to current scroll_row_counter\n              dist_substep ($0987) updated\n              SID voice 1 programmed with tick SFX on each digit advance\n              Hi-score at $0F50-$0F56 overwritten if current score is higher\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18760": "no-wrap path: delta = current - snapshot (0..9)",
     "18770": "wrap path: counter passed through 0; delta = (current - snapshot) + 10",
+    "18837": "dead code",
     "18848": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates 2-frame animations for player and active enemy car sprites.\nToggles bit 0 of sprite pointers ($07F8-$07FC) to cycle frames.\n\nInputs:  sfx_voice_1_en ($0805) - Player animation enable flag\n         car_state ($0928) - Array of 4 enemy car states (1 = Active)\nOutputs: None\nSide Effects: Modifies sprite pointers in screen memory.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "18925": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "18944": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates through the 4 available enemy car slots ($0928).\nIf it finds an empty slot, it uses the KERNAL ROM's random number generator\nrutines ($E097) multiple times to determine the enemy car's sprite shape (0-7),\ninitial starting X coordinate (bounded so it stays on the road), and speed.\n\nInputs:  Enemy active array at $0928\nOutputs: None\nSide Effects: Spawns new enemies, modifies Sprite Pointers $07F9-$07FC,\n              and relies on KERNAL ROM state.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "19156": "dead code",
     "19456": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the position and state of the enemy cars (Sprites 1-4).\nThis routine iterates through up to 4 active enemy entities. For each active\nentity, it updates their horizontal position (swerving left or right) based on\ntheir local state metrics. It then computes their new vertical position on the\nscreen by factoring in the player's current speed/scroll offset ($0804).\nIf an enemy car falls off the top or bottom of the screen (Y < $3A or Y >= $F0),\nthe routine automatically despawns it by clearing its status flag and hiding the\nsprite.\n\nInputs:  Global scroll/speed ($0804), arrays at $0900/0904/0908/090C/0924/0928\nOutputs: None\nSide Effects: Modifies Sprite 1-4 X/Y coordinates ($D002-$D009) and entity states.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "19602": "dead code",
+    "19628": "dead code",
+    "19712": "dead code",
     "19763": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks whether an enemy car (sprite N, passed in X) is on a drivable road tile.\n\nThe routine converts the sprite's screen-space pixel position (from VIC-II\n$D002/$D003 registers) into a tile column (Y) and tile row (X) by subtracting\na fixed border offset and dividing by 8 (three LSRs). It then computes a\npointer into screen RAM at $0400 using a 16-bit base address in (a49/a4A)\nand multiplies the row by 40 ($28) to find the correct row offset.\n\nA lookup table at $F0904, indexed by sprite number X, provides a half-tile\ncolumn adjustment (+1) to handle wide sprites that straddle two tiles.\n\nThe road tile check reads the screen code at the computed (row, col) position:\n  - $20 (space)  = road tile  -> jump to j4ED3 (car is off-road / blocked)\n  - $65 (letter) = another road variant -> also treated as blocked\n\nIf the car is on road (non-road tile), the routine stores $01 at f0904,x (car\nis on-road flag = active), restores registers, samples bits 0-1 of ZP $8E for\na 2-bit value and stores it at f0908,x (road direction/surface type), then\njumps to j4C9A (continue normal car movement logic).\n\nIf the car is off-road, f0904,x is cleared ($00), and the routine redirects to\nj4ED3 which will handle the out-of-bounds / collision branch.\n\nInputs:  X = sprite/car index (0-3)\nOutputs: f0904,x = 1 if on-road, 0 if off-road; f0908,x = road surface bits\nSide Effects: Reads VIC-II sprite X/Y registers ($D002/$D003); reads screen RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "20053": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates explosion and projectile animation timers.\nFirst, it checks the enemy pool (Sprites 1-4). If an enemy is in state $02\n(exploding), it ticks down a duration timer at $0930. When the timer reaches 0, \nit resets their state, restores their default multi-color bit config, and hides them.\nThen, it runs a second loop over a pool of 3 secondary objects (Sprites 5-7),\nticking their timers and dropping them downward visually by adding to their Y Pos.\n\nInputs:  Enemy states at $0928, Timers at $0930 and $0983\nOutputs: None\nSide Effects: Modifies Sprites 1-7 coordinates and multi-color registers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "20228": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nWrites a 2x2 tile stamp to screen RAM when the player successfully passes\nover a type-4 NPC car (the \"jump target\" car). Only fires once per car\nappearance: car_fresh_flag[x] is set at spawn and cleared here after stamping.\n\nProximity conditions (both must hold):\n  Y: player sprite Y >= NPC sprite Y + $20  (player is >= 32px past the NPC)\n  X: |player X - NPC X| < $40              (within 64px horizontally)\n\nScreen address: $0400 + ((npc_sprite_y - $22) >> 3) * 40 + ((npc_sprite_x - $10) >> 3)\nTile stamp (2x2):\n  $1B $1C      <- top row at computed address\n  $1D $1E      <- bottom row 40 chars later\n\nSkipped if game state (a0800) is 0 or 3.\n\nInputs:       a0800 (game state), car_state[0..3], f092C[0..3] (car type),\n              car_fresh_flag[0..3], VIC-II sprite regs $D000-$D009\nOutputs:      Screen RAM ($0400+)\nSide Effects: Clears car_fresh_flag[x] after stamping (one-shot per car)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "20480": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRestores game variables from double buffers.\nThis routine copies game state data from back buffers ($0A00/$0B00 or $0C00/$0D00)\ninto the active variables pages ($0800/$0900). It chooses which buffer to pull\nfrom based on player/turn states in $0F00 and $0F01 (useful for 2-player modes).\n\nInputs:  $0F00, $0F01\nOutputs: None\nSide Effects: Overwrites $0800-$09FF memory region.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "20697": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\ndead code",
+    "20616": "dead code",
+    "20697": "dead code",
     "20736": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles a scroll direction change event, triggered from the countdown/wait\nloop at $51E6 once it expires. It checks two state variables to decide how\nto swap the map scroll buffers, then reloads the game level via s170C.\n\n$0F00 = current scroll mode (must be $02 = \"switching direction\" to act)\n$0F01 = current scroll direction ($01 = scrolling up/reverse, $02 = forward)\n\nIf $0F00 != $02: bail out immediately to j1803 (re-init video).\n\nIf $0F00 == $02, four paths based on $0F01 + pending car data:\n\n  PATH A ($0F01 != $01, pending cars at $0A22/$0A23):\n    Set $0F01 = $01, copy work buffer $0800 -> $0C00,\n    copy car table $0900 -> $0D00, then reload level (s170C).\n\n  PATH B ($0F01 != $01, pending cars at $0A22/$0A23 absent):\n    Copy work buffer $0800 -> $0A00,\n    copy car table $0900 -> $0B00, then reload level (s170C).\n    Set $0F01 = $02.\n\n  PATH C ($0F01 == $01, pending cars at $0C22/$0C23):\n    Copy work buffer $0800 -> $0A00,\n    copy car table $0900 -> $0B00, then reload level (s170C).\n\n  PATH D ($0F01 == $01, no pending cars):\n    Set $0F01 = $01, copy work buffer $0800 -> $0C00,\n    copy car table $0900 -> $0D00, then reload level (s170C).\n\nIn all active paths, the 256-byte buffers are fully copied via a DEX/BNE loop.\n\nInputs:  $0F00 = scroll mode flag; $0F01 = direction; $0A22/$0A23, $0C22/$0C23\n         = pending NPC car presence flags; $0800, $0900 = source work buffers\nOutputs: $0A00/$0B00 or $0C00/$0D00 = updated scroll/car buffers;\n         $0F01 = updated direction state\nSide Effects: Calls s170C (restore_game_vars + level reload), re-entering the\n              main game flow from the top of the level\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "20784": "dead code",
+    "20821": "dead code",
+    "20991": "dead code",
     "21049": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain-loop input synchronizer. Called every frame from j4FB0.\n\nTies the main loop's execution pace to player key input:\n  - If any key is currently held (key_scan != $7F): returns immediately,\n    allowing the game loop to run at full speed.\n  - If no key is held (key_scan == $7F): spins through a full\n    press -> release -> press cycle before returning.\n\nThe CIA keyboard scanner (j56E2) runs inside the IRQ, so key_scan is\nupdated even during the spin-waits — sprite animation continues unaffected.\n\nPhase 1 ($5239): bail immediately if a key is already held\nPhase 2 ($523F): spin until any key is pressed\nPhase 3 ($5245): spin until key is released\nPhase 4 (j5270): spin until key is pressed again, then return\n\nInputs:       key_scan ($C5)\nOutputs:      A = key_scan on early exit; undefined on full wait path\nSide Effects: Stalls main loop execution until a fresh keypress cycle\n              completes when no key is being held\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "21072": "posibly dead data. referenced only by dead code",
     "21248": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles user input during the main menu / selection screen.\nThis routine monitors a specific key press (flagged as $F7 in the keyboard\nmatrix byte $C5, likely the F1 key or spacebar) to increment a 2-digit number\nstored in $49 and $4A as ASCII/Screen Code characters. The number cycles\nfrom '01' up to '16', and wraps back around. It then renders those digits directly\nto Video RAM at $0651 and $0652 to provide visual feedback of the selection\n(e.g., selecting a starting level or difficulty).\n\nInputs:  $C5 (Current Key Pressed)\nOutputs: None\nSide Effects: Modifies $49 (units), $4A (tens), and Video RAM $0651-$0652.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "21344": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays a \"BONUS 10000\" message and awards bonus points.\nThis routine copies the \"BONUS 10000\" text to the screen ($0756 area) and colors\nit purple ($04). It then calls the score increment routine twice to award the\npoints, performs a nested delay loop to leave the text on-screen momentarily,\nand finally jumps back to the main flow.\n\nInputs:  None\nOutputs: None\nSide Effects: Updates Screen RAM, Color RAM, Score array, and delays execution.\nBugs: Message says \"BONUS 10000\", but it actually increases it by 100000          \n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "21400": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSFX Engine Voice 1 (Engine Sound) Handler\n\nInitializes and modulates Voice 1 on the SID to create a continuous sound\nwhile sfx_voice_1_en is non-zero. When zeroed, it resets the local state.\n\nInputs:  sfx_voice_1_en ($0805) - Enable flag for the Voice 1 SFX\nOutputs: sfx_voice_1_state ($7080), sfx_voice_1_freq_lo ($7081),\n         sfx_voice_1_freq_mod ($7082)\nSide Effects: Updates Voice 1 registers (Frequency, Control, Attack/Decay, Sustain/Release)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -3185,6 +3378,7 @@
     "22242": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCustom keyboard/joystick scanner. Replaces part of the KERNAL's standard\nkeyboard scan by directly driving the CIA1 matrix to read joystick port 2\nand specific keyboard rows/columns. Builds a combined key code and a\njoystick-format direction byte, then tail-calls into the KERNAL at $EA7E.\n\nInputs:  CIA1 hardware registers ($DC00-$DC03)\nOutputs: key_scan ($C5) = current key matrix code ($7F = no key)\n         joy_state ($F5) = joystick state (active-low bits 0-4: U/D/L/R/Fire)\nSide Effects: Modifies CIA1 DDRs; tail-calls KERNAL $EA7E (no RTS)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "22528": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPart of the orignal encrypted code. No longer used once the game was\nloaded + decrypted",
     "28800": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
+    "32768": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "32784": "Each \"tile\" consists of $0400 (1024) bytes, what fits in a screen.\nEach level consists of different \"tiles\" that are defined in $4000\nblock idx #00",
     "33808": "block idx #01",
     "34832": "block idx #02",
@@ -3311,30 +3505,21 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 5801,
-  "hex_dump_cursor_address": 20384,
+  "cursor_address": 4281,
+  "hex_dump_cursor_address": 4272,
   "sprites_cursor_address": 13440,
   "charset_cursor_address": 22784,
-  "right_pane_visible": "Blocks",
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 57344,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
     17936,
     17975,
-    18683,
     22049
   ],
   "blocks_view_cursor": 27,
-  "scopes": {
-    "17920": 17935,
-    "17936": 17974,
-    "18656": 18682,
-    "18688": 18751,
-    "22208": 22224,
-    "22225": 22241,
-    "22242": 22336
-  }
+  "scopes": {}
 }
