@@ -404,7 +404,24 @@ impl Widget for DisassemblyView {
                 break;
             }
 
-            current_inst += 1;
+            // Advance to next visible instruction, mirroring the render loop's skip logic.
+            // Blank separator lines (no bytes, no label, empty mnemonic) are skipped by
+            // the render loop but would otherwise be counted as phantom visual rows here,
+            // causing click targets in the external-labels section to land above the
+            // intended row by the number of separators between scroll-top and click.
+            let mut next = current_inst + 1;
+            while next < app_state.disassembly.len() {
+                let l = &app_state.disassembly[next];
+                if !l.bytes.is_empty()
+                    || l.is_collapsed
+                    || l.label.is_some()
+                    || !l.mnemonic.is_empty()
+                {
+                    break;
+                }
+                next += 1;
+            }
+            current_inst = next;
             current_sub = 0; // Next instructions start from top
         }
 
