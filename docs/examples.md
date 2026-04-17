@@ -75,10 +75,12 @@ Main take aways:
 
 - The code was written in a [monitor][monitor], not with an assembler. Evidence:
     - Dead code / Dead tables: Although not uncommon to have some dead code / tables in a program, it is a lot more common when using a [monitor].
-    - There is a `.T0400,07FF,2C00` [monitor] command [in the code][c64_burning_rubber_monitor_cmd]
-    - Use of `JMP` opcodes in different places that are typical of monitor-based code, in contrast to the preferred use of `JSR`+`RTS` or conditional branches in assembler-written code
-    - Lack of a "clean" high level architecture
-- Good for learning how early C64 games were programmed using a [monitor], but not a good place to learn modern best practices.
+    - There is a `.T0400,07FF,2C00` [monitor] command [in the code][c64_burning_rubber_monitor_cmd]. Which means "Transfer the bytes from $0400-$07FF to $2C00". Funny thing, that command is at `$2C00`, which makes sense. The programmed might haved typed it at the top-left of the screen.
+    - Functions that are split in multiple places, using `JMP` to connect them.
+    - Three `NOP` opcodes padding at the beginning of some functions. Possibly to remove a possible `JSR` to a debug routine.
+    - Some ZP variables are accessed using the three-byte variant of `LDA`. E.g.: `LDA $F2` translates to `AD F2 00` instead of `A5 F2`
+    - Lack of a "clean" high level architectur: for example the main loop is split in multiple places.
+- Good place to learn how early C64 games were programmed using a [monitor], but not a good place to learn modern best practices.
     - Trivia: It is not possible to add comments when using a [monitor], so, the developers might have used other tools, like a notebook, to document the code ([that's what I used to do when I was a kid!][chardef_scan]).
 
 Source:
