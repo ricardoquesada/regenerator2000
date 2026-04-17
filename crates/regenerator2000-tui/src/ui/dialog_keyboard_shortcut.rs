@@ -29,6 +29,13 @@ impl ShortcutsDialog {
         vec![
             ("General", ""),
             ("F10", "Activate Main Menu"),
+            ("Alt+f", "File Menu"),
+            ("Alt+t", "Edit Menu"),
+            ("Alt+j", "Jump Menu"),
+            ("Alt+r", "Search Menu"),
+            ("Alt+v", "View Menu"),
+            ("Alt+u", "Debugger Menu"),
+            ("Alt+h", "Help Menu"),
             ("Ctrl+q", "Quit"),
             ("Ctrl+o", "Open File"),
             ("Alt+o (Ctrl+Shift+o)", "Open Recent Projects"),
@@ -117,6 +124,8 @@ impl ShortcutsDialog {
             ("b", "Byte"),
             ("m", "Toggle Multicolor (Sprites/Charset,Bitmap)"),
             ("m / M", "Next / Prev Text mode (Hex Dump)"),
+            ("s / S", "Next / Prev Screen RAM (Bitmap)"),
+            ("x", "Screen RAM after Bitmap (Bitmap)"),
         ]
     }
 

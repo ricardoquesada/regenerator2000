@@ -362,7 +362,7 @@ impl Widget for BitmapView {
                 WidgetResult::Handled
             }
             KeyCode::Char('m') => WidgetResult::Action(AppAction::ToggleBitmapMulticolor),
-            KeyCode::Char('B') => {
+            KeyCode::Char('b') => {
                 // Convert current bitmap to bytes block (8000 bytes per bitmap)
                 let origin = app_state.origin.0 as usize;
                 // Align to floor boundary to support partial bitmaps

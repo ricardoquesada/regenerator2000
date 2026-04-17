@@ -278,21 +278,6 @@ Returns detailed information about a specific memory address: instruction semant
 | :--- | :--- | :--- | :---: |
 | `address` | `integer` | The memory address to inspect (decimal). | Yes |
 
-### `r2000_get_comments`
-
-Returns user-defined comments and their addresses. Each entry has `address` (integer), `type` (`line` or `side`), and `comment` (string). With no arguments returns **all** comments. Provide optional filters to narrow results.
-
-**Arguments:**
-
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `addresses` | `array` of `integer` | Optional list of specific addresses (decimal) to retrieve comments from. Only comments at these addresses are returned. | No |
-| `start_address` | `integer` | Optional lower bound (inclusive) of the address range to filter by (decimal). Must be paired with `end_address`. | No |
-| `end_address` | `integer` | Optional upper bound (inclusive) of the address range to filter by (decimal). Must be paired with `start_address`. | No |
-| `type` | `string` | Optional filter: `"line"` or `"side"`. Only comments of the specified type are returned. | No |
-
-Filters are combined with AND logic. Omit all arguments to return every comment.
-
 ### `r2000_get_analyzed_blocks`
 
 Returns the list of memory blocks as analyzed, including their range and type. Respects splitters.
@@ -308,6 +293,19 @@ Returns the list of memory blocks as analyzed, including their range and type. R
 Returns the origin address, size in bytes, target platform (e.g. 'Commodore 64'), filename, user-provided description, and whether the binary may contain undocumented opcodes (a hint, not guaranteed).
 
 _No arguments._
+
+### `r2000_get_comments`
+
+Returns user-defined comments and their addresses. Each entry has 'address' (integer), 'type' ('line' or 'side'), and 'comment' (string). With no arguments returns ALL comments. Provide optional filters to narrow results: 'addresses' returns comments at specific addresses, 'start_address'/'end_address' limits to an address range, 'type' filters by comment type. Filters are combined (AND logic).
+
+**Arguments:**
+
+| Name | Type | Description | Required |
+| :--- | :--- | :--- | :---: |
+| `addresses` | `array` | Optional list of specific addresses (decimal) to retrieve comments from. Only comments at these addresses are returned. | No |
+| `end_address` | `integer` | Optional upper bound (inclusive) of the address range to filter by (decimal). | No |
+| `start_address` | `integer` | Optional lower bound (inclusive) of the address range to filter by (decimal). | No |
+| `type` | `string` | Optional filter to return only 'line' comments or only 'side' comments. | No |
 
 ### `r2000_get_cross_references`
 
@@ -327,18 +325,16 @@ _No arguments._
 
 ### `r2000_get_symbols`
 
-Returns defined labels (user and/or system) and their addresses. With no arguments returns **all** symbols. Provide optional filters to narrow results.
+Returns defined labels (user and/or system) and their addresses. With no arguments returns ALL symbols. Provide optional filters to narrow results: 'names' resolves specific label names to addresses, 'start_address'/'end_address' limits to an address range, 'kind' filters by label kind. Filters are combined (AND logic).
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
-| `names` | `array` of `string` | Optional list of label names to look up. Only symbols whose name matches one of these strings are returned. Case-sensitive. | No |
-| `start_address` | `integer` | Optional lower bound (inclusive) of the address range to filter by (decimal). Must be paired with `end_address`. | No |
-| `end_address` | `integer` | Optional upper bound (inclusive) of the address range to filter by (decimal). Must be paired with `start_address`. | No |
-| `kind` | `string` | Optional filter: `"user"` or `"system"`. Only labels of the specified kind are returned. | No |
-
-Filters are combined with AND logic. Omit all arguments to return every symbol.
+| `end_address` | `integer` | Optional upper bound (inclusive) of the address range to filter by (decimal). | No |
+| `kind` | `string` | Optional filter to return only labels of a given kind. 'user' = user-defined labels, 'system' = auto-generated labels. | No |
+| `names` | `array` | Optional list of label names to look up. Only symbols whose name matches one of these strings are returned. Case-sensitive. | No |
+| `start_address` | `integer` | Optional lower bound (inclusive) of the address range to filter by (decimal). | No |
 
 ### `r2000_jump_to_address`
 

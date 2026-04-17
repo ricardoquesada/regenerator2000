@@ -93,6 +93,13 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 | **Menus**                          | **Navigate Menu**                                                                       | ++arrow-up++, ++arrow-down++, ++arrow-left++, ++arrow-right++ |
 |                                    | **Select Item**                                                                         | ++enter++                                                     |
 |                                    | **Close Menu**                                                                          | ++escape++                                                    |
+|                                    | **File Menu**                                                                           | ++alt+f++                                                    |
+|                                    | **Edit Menu**                                                                           | ++alt+t++                                                    |
+|                                    | **Jump Menu**                                                                           | ++alt+j++                                                    |
+|                                    | **Search Menu**                                                                         | ++alt+r++                                                    |
+|                                    | **View Menu**                                                                           | ++alt+v++                                                    |
+|                                    | **Debugger Menu**                                                                       | ++alt+u++                                                    |
+|                                    | **Help Menu**                                                                           | ++alt+h++                                                    |
 | **Search**                         | **Vim Search**                                                                          | ++slash++                                                     |
 |                                    | **Next / Previous Match**                                                               | ++n++ / ++shift+n++                                           |
 |                                    | **Search Dialog**                                                                       | ++ctrl+f++                                                    |
@@ -102,3 +109,4 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 | **Selection**                      | **Toggle Visual Mode**                                                                  | ++shift+v++                                                   |
 |                                    | **Select Text**                                                                         | ++shift+up++ / ++down++ / Visual Mode + ++j++ / ++k++         |
 |                                    | **Clear Selection**                                                                     | ++escape++                                                    |
+|                                    | **Drag to Select**                                                                      | Mouse Drag                                                    |
