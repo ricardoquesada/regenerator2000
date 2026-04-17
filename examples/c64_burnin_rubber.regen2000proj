@@ -173,8 +173,26 @@
     },
     {
       "start": 1536,
-      "end": 1696,
+      "end": 1645,
       "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 1646,
+      "end": 1663,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 1664,
+      "end": 1695,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 1696,
+      "end": 1696,
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -1005,6 +1023,48 @@
         "kind": "User"
       }
     ],
+    "1049": [
+      {
+        "name": "hud_level_tens",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "1050": [
+      {
+        "name": "hud_level_ones",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "1056": [
+      {
+        "name": "hud_crashed_tens",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "1057": [
+      {
+        "name": "hud_crashed_ones",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "1062": [
+      {
+        "name": "hud_lives_tens",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "1063": [
+      {
+        "name": "hud_lives_ones",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "2040": [
       {
         "name": "sprite_ptr_0",
@@ -1250,6 +1310,13 @@
         "kind": "User"
       }
     ],
+    "2272": [
+      {
+        "name": "score_digits",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "2316": [
       {
         "name": "tbl_enemy_sprite_state",
@@ -1292,9 +1359,37 @@
         "kind": "User"
       }
     ],
+    "2345": [
+      {
+        "name": "tbl_enemy_car_state_1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2346": [
+      {
+        "name": "tbl_enemy_car_state_2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2347": [
+      {
+        "name": "tbl_enemy_car_state_3",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "2348": [
       {
         "name": "tbl_enemy_car_type",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2352": [
+      {
+        "name": "tbl_npc_damage_timer",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1309,6 +1404,20 @@
     "2432": [
       {
         "name": "tbl_score_sprite_active",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2433": [
+      {
+        "name": "tbl_score_sprite_active_1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2434": [
+      {
+        "name": "tbl_score_sprite_active_2",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1567,7 +1676,7 @@
     ],
     "5744": [
       {
-        "name": "tbl_level_comple__sprite2_ptr",
+        "name": "tbl_level_complete_sprite2_ptr",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1600,9 +1709,37 @@
         "kind": "User"
       }
     ],
+    "5793": [
+      {
+        "name": "reset_crashed_cars_and_switch_player",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "5808": [
       {
         "name": "update_hud_display",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5874": [
+      {
+        "name": "hud_write_score_and_hiscore",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5900": [
+      {
+        "name": "init_level_screen",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6039": [
+      {
+        "name": "update_hiscore_and_return_car_count",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1803,13 +1940,6 @@
         "kind": "User"
       }
     ],
-    "7308": [
-      {
-        "name": "copy_score_to_slot",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
     "7323": [
       {
         "name": "display_high_score_table",
@@ -1824,6 +1954,13 @@
         "kind": "User"
       }
     ],
+    "7379": [
+      {
+        "name": "highscore_timer_expired",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "7415": [
       {
         "name": "shift_name_entries_down",
@@ -1831,16 +1968,16 @@
         "kind": "User"
       }
     ],
-    "7500": [
+    "7502": [
       {
-        "name": "show_not_ranked_msg",
+        "name": "after_table_update",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
-    "7502": [
+    "7506": [
       {
-        "name": "after_table_update",
+        "name": "highscore_store_letter_1",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1946,6 +2083,13 @@
     "7925": [
       {
         "name": "handle_name_letter_selection",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8103": [
+      {
+        "name": "write_level_nr_to_hud",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2076,9 +2220,86 @@
         "kind": "User"
       }
     ],
+    "15600": [
+      {
+        "name": "reset_score_sprite_colors",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "15616": [
       {
         "name": "update_moving_sprites",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15618": [
+      {
+        "name": "moving_sprites_loop",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15628": [
+      {
+        "name": "next_sprite_slot",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15634": [
+      {
+        "name": "dispatch_direction",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15649": [
+      {
+        "name": "dir_down_right",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15677": [
+      {
+        "name": "move_steps_done",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15687": [
+      {
+        "name": "lifetime_expired_deactivate",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15698": [
+      {
+        "name": "dir_up_left_entry",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15706": [
+      {
+        "name": "dir_up_left",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15726": [
+      {
+        "name": "dir_up_right",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "15754": [
+      {
+        "name": "dir_down_left",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2111,6 +2332,13 @@
         "kind": "User"
       }
     ],
+    "16075": [
+      {
+        "name": "set_sprite0_frame_and_play_sfx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "16081": [
       {
         "name": "play_crash_sfx",
@@ -2121,6 +2349,13 @@
     "16116": [
       {
         "name": "set_col_y_dir_play_sfx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "16122": [
+      {
+        "name": "deactivate_debris_and_play_thud",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2293,6 +2528,13 @@
         "kind": "User"
       }
     ],
+    "18040": [
+      {
+        "name": "highscore_backspace_handler",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "18119": [
       {
         "name": "terminate_name_entry",
@@ -2457,6 +2699,27 @@
     "20480": [
       {
         "name": "restore_game_vars",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20533": [
+      {
+        "name": "set_player_y_and_draw_player_row",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20670": [
+      {
+        "name": "switch_active_player_state",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "20690": [
+      {
+        "name": "copy_hud_text_row",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2748,11 +3011,35 @@
     "5594": "Move to next most significant digit (carry)",
     "5602": "Loop until X=0, then fall through to j16A1",
     "5610": "hero sprite frame #0",
-    "5812": "Convert to Screencode '0'-'9'",
+    "5756": "One byte per season (0=Summer, 1=Autumn, 2=Winter, 3=Spring); value is C64 color code",
+    "5793": "Zero crashed_cars count; jump to 2-player state switch (end of season)",
+    "5812": "A = crashed_cars_tens digit (returned by advance_distance_counter); convert to screencode",
+    "5816": "hud_crashed_tens: screen col 32 ($0420)",
+    "5817": "hud_crashed_ones: screen col 33 ($0421)",
+    "5826": "hud_lives_tens: screen col 38 ($0426)",
+    "5829": "hud_lives_ones: screen col 39 ($0427)",
+    "5844": "write level number digits to hud_level_tens/ones ($0419/$041A)",
+    "5874": "write all 7 score digits to $0403-$0409; all 7 hi-score digits to $040E-$0414",
     "5880": "Convert Score to Screencode",
     "5882": "Write Score to Screen",
     "5889": "Convert High Score to Screencode",
     "5891": "Write High Score to Screen",
+    "5910": "copy 256 bytes per screen page from $8110/$8210/$8300 (tile data under BASIC) to screen rows 2/3/4",
+    "5924": "also copy HUD row text from $8038 to $0428 (row 1, after score header)",
+    "5930": "apply season text color to all 4 color RAM pages ($D828/$D900/$DA00/$DAF0)",
+    "5947": "zero-fill VIC-II sprite X regs for NPC sprites 1-7 ($D002..$D00D)",
+    "5958": "position player sprite at $A8 (center road)",
+    "5963": "set player sprite Y pos to $B0; draw player name row",
+    "5968": "player car sprite frame $C0",
+    "5971": "player sprite color = 4 (purple)",
+    "5974": "enable all 8 sprites ($FF)",
+    "5979": "clear jump flag",
+    "5988": "set score_digits[0] (hundreds) = 0, score_digits[1..2] = 0/8",
+    "5999": "clear NPC car states (all 4 slots = inactive)",
+    "6004": "clear score popup sprite active slots 0-2",
+    "6010": "clear collision active flag",
+    "6012": "tail call: reset score overlay sprite colors to white",
+    "6039": "Update hi-score if beaten, then return crashed_cars_tens in A (used by caller to check bonus eligibility)",
     "6054": "Check input state array at $00F5",
     "6057": "Check Bit 2 (Left)",
     "6064": "Check Bit 3 (Right)",
@@ -2846,16 +3133,25 @@
     "7084": "score == 1st → rank 2 (below tie)",
     "7086": "store ranking (0-5)",
     "7099": "2nd place score at $7408",
+    "7100": "shift 5th→discard: 8 bytes (7 score + 1 pad)",
+    "7117": "shift 4th→5th",
     "7126": "3rd place score at $7410",
+    "7130": "shift 3rd→4th",
+    "7143": "shift 2nd→3rd",
     "7153": "4th place score at $7418",
     "7180": "5th place score at $7420",
     "7195": "rank 0 = not in top 5",
+    "7205": "rank > 5th (not in top 5): store rank 0",
     "7211": "rank 0 = not ranked, skip insertion",
     "7217": "shift name entries down",
     "7221": "shift 5th→6th (discard)",
+    "7224": "beq score_not_ranked (rank 0)",
     "7233": "shift 4th→5th",
     "7259": "shift 3rd→4th",
+    "7273": "rank offset = (rank-1)*8 → Y; score table entries are 8 bytes (7 digits + 1 name byte)",
     "7279": "shift 2nd→3rd",
+    "7283": "write 7-digit score into table slot at $7400+Y",
+    "7286": "clear name bytes for new entry ($7430+Y)",
     "7299": "shift 1st→2nd",
     "7313": "(rank-1) * 8 = table offset",
     "7318": "copy 7 score digits to table",
@@ -2864,14 +3160,22 @@
     "7330": "name entry 2",
     "7335": "name entry 3",
     "7340": "name entry 4",
+    "7341": "save X (current name letter index) across delay",
+    "7343": "inner delay loop (256 ticks)",
     "7345": "name entry 5",
-    "7366": "+ $30 = ASCII/screencode '0'",
+    "7347": "outer delay loop (256 passes)",
+    "7349": "delay loop outer: 256 * 256 iterations for pacing",
+    "7355": "ones digit: SBC #1; underflow ($FF) means carry to tens",
+    "7366": "if both digits zero: timer expired, auto-confirm",
+    "7379": "write tens/ones digit screencodes for timer display",
     "7428": "shift 5th name → 6th (discard)",
     "7448": "shift 4th → 5th",
     "7468": "shift 3rd → 4th",
     "7488": "shift 2nd → 3rd",
     "7502": "copy message to screen",
+    "7506": "subtract $D4 from hi-byte of color ptr to get screen ptr ($D8-$D4=$04)",
     "7508": "color = cyan",
+    "7515": "read screen char at cursor → store as 1st initial in table and screen",
     "7517": "countdown timer tens digit = 9",
     "7524": "countdown timer ones digit = 9",
     "7531": "starting grid row = 5",
@@ -2886,6 +3190,7 @@
     "7572": "$17 = right",
     "7576": "$0F = fire button",
     "7580": "display timer, then delay",
+    "7597": "advance name letter index, then rejoin timer tick",
     "7600": "ones digit -= 1",
     "7606": "underflow? wrap to 9",
     "7610": "reset ones to 9",
@@ -2904,17 +3209,21 @@
     "7787": "increment col by 3",
     "7863": "$D8 = high byte of Color RAM ($D800)",
     "7894": "yellow",
+    "14720": "Outer loop: Y = car index 0..2 (must be active, state=1)",
     "14725": "car_state = 1 → this NPC is active (outer loop car)",
+    "14729": "Inner loop: X = next active car (Y+1..3), forming pairs (0,1)(0,2)(0,3)(1,2)(1,3)(2,3)",
     "14745": "car_state = 1 → candidate for collision pair (inner loop car)",
-    "14751": "X slot → VIC-II offset (slot * 2)",
-    "14755": "Y slot → VIC-II offset (slot * 2)",
+    "14751": "X slot → sprite register offset (slot*2); $D002+offset = sprite X pos reg",
+    "14755": "Y slot → sprite register offset (slot*2)",
     "14757": "load sprite X pos of car Y",
     "14760": "compare against sprite X pos of car X",
     "14772": "collision_rel_x = 1: car Y is to the right of car X",
     "14781": "collision_rel_x = 0: car Y is to the left of car X",
+    "14789": "|dx| = |sprX[Y] - sprX[X]|; push difference, record who is right",
     "14791": "horizontal gap ≥ 16px → cars not overlapping, skip pair",
     "14802": "load sprite Y pos of car Y",
     "14805": "compare against sprite Y pos of car X",
+    "14807": "|dy| = |sprY[Y] - sprY[X]|; push difference, record who is below",
     "14817": "collision_rel_y = 1: car Y is below car X",
     "14826": "collision_rel_y = 0: car Y is above car X",
     "14836": "vertical gap ≥ 16px → cars not overlapping, skip pair",
@@ -2926,15 +3235,22 @@
     "14897": "rel_x=1, rel_y=0: X bounces down-left (dir 3)",
     "14905": "rel_x=1, rel_y=1: Y bounces down-right (dir 4)",
     "14910": "rel_x=1, rel_y=1: X bounces up-left (dir 1)",
-    "14915": "check if car X debris sprite already active",
+    "14915": "Both debris sprites inactive: trigger full collision (activate + play crash SFX); JSR sets tbl_enemy_sprite_state[x]=1 and returns A=1",
     "14920": "check if car Y debris sprite already active",
     "14927": "both inactive: activate collision (A=1) + play SFX",
+    "14930": "store JSR return value (A=1) into car Y's sprite state",
+    "14936": "At least one already active: just re-arm both (no SFX replay)",
     "14938": "at least one already active: mark both active (re-collision)",
     "14941": "mark car Y active too",
+    "14948": "2D index for car Y's step count: row=car_type_X, col=car_type_Y → index = type_X*8 + type_Y",
     "14967": "X = car_type_x*8 + car_type_y → step count for NPC y's debris sprite",
+    "14977": "2D index for car X's step count: row=car_type_Y, col=car_type_X → swapped roles vs. above",
     "15003": "Y = car_type_y*8 + car_type_x → step count for NPC x's debris sprite",
     "15026": "truck (type 2): shorter lifetime ($03 frames)",
     "15034": "all other types: normal lifetime ($08 frames)",
+    "15037": "continue scanning remaining pairs",
+    "15072": "Wrapper: preserves X/Y across detect_npc_car_collision",
+    "15088": "Wrapper: preserves X/Y across update_enemy_cars + check_jump_input",
     "15104": "Skip if crash SFX already playing on Voice 1",
     "15114": "Only check cars in state 1 (on-road/active)",
     "15119": "4 NPC slots (0..3)",
@@ -2966,27 +3282,37 @@
     "15389": "subtract playfield left edge ($10 = 16px)",
     "15391": "tile col = (spriteX - $10) / 8  (3x LSR = divide by 8)",
     "15394": "Y = tile column",
-    "15395": "load sprite Y pos",
+    "15395": "subtract left playfield edge offset ($10=16px) before tile-column divide",
+    "15397": "tile_col = (spriteX - $10) / 8  ($10 = left playfield edge; 3x LSR = ÷8)",
+    "15398": "3x LSR = divide by 8 (8px per tile cell)",
     "15399": "subtract playfield top edge ($32 = 50px)",
+    "15402": "tile_row = (spriteY - $32) / 8  ($32 = top playfield edge; 3x LSR = ÷8)",
     "15404": "X = tile row (used as row-advance loop counter)",
-    "15405": "p_tmp = $0400 (Screen RAM base)",
+    "15405": "subtract top playfield edge ($32=50px)",
+    "15408": "X = tile row; used as loop counter to advance Screen RAM pointer",
+    "15415": "walk p_tmp down tile_row rows (each screen row = 40=$28 bytes)",
     "15420": "advance one screen row (40 cols = $28 bytes)",
-    "15434": "fetch screencode tile at computed (row, col)",
-    "15436": "$20 (space) = passable road tile",
-    "15440": "$65 ('e' screencode) = passable road tile",
-    "15444": "check next column: double-wide road tiles need two passes",
-    "15455": "road tile: restore regs and return normally to movement loop",
+    "15434": "read first tile under sprite; $20=space, $65=road marker — both passable",
+    "15436": "non-local exit: unwind own saved X/Y + JSR return addr (2 bytes) + caller's slot push",
+    "15440": "discard saved X from check_road_collision's pha at $3C16",
+    "15444": "check right-adjacent tile: sprite straddles two 8px cells; both must be road",
+    "15455": "road clear: restore regs and return to movement step loop",
     "15460": "non-road hit: unwind stack — pop check_road_collision's saved Y",
     "15462": "pop check_road_collision's saved X",
-    "15464": "pop JSR return address lo (discard — non-local exit)",
+    "15464": "sprite_active=0 (plain debris): clear state only, no SFX",
     "15465": "pop JSR return address hi",
     "15466": "pop slot index pushed by update_moving_sprites",
     "15467": "X = debris sprite slot index (0-3)",
+    "15481": "sprite_active≠0: deactivate debris sprite (A=0) + play thud SFX",
     "15483": "deactivate debris sprite (A=0) + play thud SFX",
+    "15484": "NPC car state → 2 (damaged; will start recoil sequence next frame)",
     "15486": "set NPC car state to 2 (damaged)",
+    "15490": "flash debris sprite white (color 1 = white)",
     "15493": "flash debris sprite white (colour 1)",
     "15506": "NPC damage display timer = $10 frames",
+    "15507": "set NPC damage flash duration ($10 = 16 frames) at tbl_npc_damage_timer[x]",
     "15513": "scan for a free score sprite slot (0-2)",
+    "15523": "all 3 slots taken: wrap back to slot 0 (overwrite oldest)",
     "15527": "spawn score popup at NPC's screen position",
     "15532": "score popup display duration = $10 frames",
     "15555": "$FF = sprite scrolled off right edge of playfield",
@@ -3001,6 +3327,7 @@
     "15584": "copy to score sprite X pos (sprites 5-7)",
     "15587": "read NPC sprite Y pos",
     "15590": "copy to score sprite Y pos (sprites 5-7)",
+    "15600": "reset score sprite overlay colours to white (colour 1) after collision flash",
     "15618": "Skip slot if both sprite_active and sprite_state are 0 (inactive)",
     "15623": "Also skip if sprite_state is 0",
     "15629": "4 sprite slots (0..3)",
@@ -3008,30 +3335,42 @@
     "15641": "Direction 2 = up-right",
     "15647": "Direction 3 = down-left; else direction 4 = down-right",
     "15652": "Y = step count (pixels to move this frame)",
+    "15653": "push slot index; asl = slot*2 for VIC-II reg offset",
+    "15654": "slot*2 = VIC-II offset ($D002+offset = sprite X reg)",
     "15655": "X = slot_index * 2 (VIC-II sprite reg offset)",
     "15661": "Collision check; exits loop early if hits non-road tile",
     "15664": "Move sprite right (inc X)",
     "15667": "Move sprite down (inc Y)",
+    "15670": "3x NOP: timing padding (matches step-loop timing in other direction handlers)",
     "15679": "Decrement lifetime counter",
     "15682": "Lifetime expired: deactivate slot",
+    "15687": "clear both sprite_active and sprite_state to fully retire this slot",
+    "15698": "all steps done — restore slot index from stack, decrement lifetime",
+    "15700": "restore slot index (was pushed as slot*1 before converting to VIC-II offset)",
+    "15706": "dir 1: up-left — dec X, dec Y",
     "15713": "Move sprite left (dec X) — direction 1",
     "15716": "Move sprite up (dec Y) — direction 1",
+    "15726": "dir 2: up-right — inc X, dec Y",
     "15741": "Move sprite right (inc X) — direction 2",
     "15744": "Move sprite up (dec Y) — direction 2",
+    "15754": "dir 3: down-left — dec X, inc Y",
     "15769": "Move sprite left (dec X) — direction 3",
     "15772": "Move sprite down (inc Y) — direction 3",
+    "15784": "",
     "15792": "Skip if no collision in progress",
     "15801": "Dirs 1 & 3 = NPC was to LEFT → push player left",
     "15809": "Pixels to move this frame",
     "15816": "Push player right (NPC was right of player)",
     "15819": "NOPs where apply_collision_recoil call is missing (possible bug)",
     "15826": "Decrement frame counter",
-    "15829": "Frames remaining — come back next frame",
+    "15829": "counter > 0: still running — return, come back next frame",
+    "15832": "counter hit 0: recoil complete — deactivate",
     "15834": "Collision effect complete — deactivate",
     "15845": "Push player left (NPC was left of player)",
     "15848": "Y nudge toward collision (only applied for left-side hits)",
     "15855": "Decrement frame counter",
-    "15858": "Frames remaining — come back next frame",
+    "15858": "counter > 0: still running — return, come back next frame",
+    "15861": "counter hit 0: recoil complete — deactivate",
     "15863": "Collision effect complete — deactivate",
     "15872": "A = enemy car type (0=truck, 1=sedan...)",
     "15875": "car type → index into repeat-count table",
@@ -3045,10 +3384,10 @@
     "15896": "yes → skip penalty, return to loop",
     "15899": "speed -= 1",
     "15901": "store reduced speed",
-    "15904": "save repeat counter before clobbering Y",
+    "15904": "index 2 = ones digit of the 3 low-order score digits (score_digits[0]=hundreds, [2]=ones)",
     "15905": "preserve repeat counter on stack",
     "15906": "start digit loop at index 2 (ones digit)",
-    "15908": "load score digit[Y]",
+    "15908": "penalty: subtract 1 from ones digit; propagate borrow upward through score_digits[0..2]",
     "15912": "digit -= 1",
     "15914": "store updated digit",
     "15917": "$FF = digit wrapped below 0 (borrow)",
@@ -3067,7 +3406,7 @@
     "15951": "save repeat counter before clobbering Y",
     "15952": "preserve repeat counter on stack",
     "15953": "start digit loop at index 2 (ones digit)",
-    "15955": "load score digit[Y]",
+    "15955": "bonus: add 1 to ones digit; propagate carry upward through score_digits[0..2]",
     "15959": "digit += 1",
     "15961": "store updated digit",
     "15964": "$0A = digit overflowed past 9 (carry)",
@@ -3078,6 +3417,7 @@
     "15979": "one bonus cycle done",
     "15980": "repeat for remaining cycles",
     "15982": "tail call → back to collision detection loop",
+    "16075": "store sprite frame in sprite_ptr_0, then play SID Voice 1 tone (explosion anim)",
     "16346": "$DF = %11011111 (bit 5 clear)",
     "16350": "$EF = %11101111 (bit 4 clear)",
     "16384": "level 0",
@@ -3139,7 +3479,12 @@
     "17941": "Write char to centered screen row 9",
     "17944": "color cyan",
     "17954": "Approx 8 * 256 * 256 iterations (~2.6s)",
+    "17980": "p_tmp = $D800 + active_row*40 + active_col (Color RAM pointer for cursor cell)",
     "18006": "Jumps to a location that jumps to the next instruction",
+    "18011": "Col $1B = leftmost column = backspace hotspot",
+    "18017": "Col $21 = rightmost column = OK/confirm hotspot → terminate entry",
+    "18040": "backspace: erase last entered initial in table and on screen",
+    "18119": "force timer to 00 to trigger auto-confirm path",
     "18194": "Check if pickup sprite is active",
     "18200": "Decrement duration timer",
     "18205": "Turn off active flag",
@@ -3272,6 +3617,9 @@
     "20403": "Detect NPC-vs-NPC car collisions (X/Y registers preserved by wrapper)",
     "20406": "Sync loop pace to keyboard: stall if no key held, else return immediately",
     "20409": "Loop unconditionally back to top of main_loop",
+    "20533": "Store A in Sprite 0 Y pos; draw player name row (8 chars to $0500/$D900), then busy-wait 4 frames, then clear it",
+    "20670": "2-player turn switch: 1-player game → jmp j50AA; 2-player player 1 → jmp j50AA; 2-player player 2 → jmp j5091",
+    "20690": "Copy 1 byte from $8038+X (HUD row text under BASIC ROM) to $0428+X (screen row 1)",
     "20736": "$02 = scroll direction-change mode; anything else = bail",
     "20746": "$01 = reverse direction, $02 = forward direction",
     "20753": "check if any pending NPC cars in secondary lane buffer",
@@ -3391,6 +3739,7 @@
     "5577": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIncrements the player's 7-digit score uniformly.\nBecause the score is stored as an array of 7 individual digits (0-9) at $0825,\nthis routine performs a manual base-10 addition. It starts at the least\nsignificant digit (index 6, $082B), adds 1, and carries over any overflow (10)\nto the next significant digit.\n\nInputs:  Score array at $0825-$082B\nOutputs: Modified Score array\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5808": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the HUD text on the top row of the screen ($0400).\nConverts numeric gameplay variables such as the current score, high score, and\nother state values into screencodes (by adding $30) and writes them directly\nto Screen RAM.\n\nInputs:  Numeric values at $0821, $0822, $0823, $0825-$082B (Score), and $0F50-$0F56 (High Score)\nOutputs: None\nSide Effects: Modifies Screen RAM ($0403-$0427) to update visible UI numbers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "5850": "dead code",
+    "5900": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the screen and VIC-II state at the start of each level.\nCalled on every level start (including 2-player turn swaps).\n\nPhase 1: restore_game_vars, then copy 3 screen pages from tile data under BASIC\n         ROM ($8110/$8210/$8300) and HUD row from $8038 to screen RAM;\n         apply season text color to all 4 color RAM pages.\nPhase 2: Zero-fill NPC sprite X regs ($D002..$D00D); place player sprite at\n         X=$A8, Y=$B0; set player sprite frame ($C0) and color (4=purple);\n         enable all 8 sprites; clear jump flag and multicolor mode.\nPhase 3: Reset score digits, speed, all NPC car/sprite state flags, and\n         score popup slots; clear collision flag.\n         Tail-calls reset_score_sprite_colors to finish.\n\nInputs:  season_nr, level_nr, current_player_nr\nOutputs: Screen RAM ($0400-$07FF), Color RAM ($D800-$DBFF), VIC-II sprite regs\nSide Effects: Clears all enemy/sprite/collision state; resets player speed to $50\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "6048": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles horizontal movement for the player car (Sprite 0).\nChecks the game state flag at $098A. If active, reads the parsed input state\nat zero page $00F5. Bit 2 ($04) corresponds to Left, Bit 3 ($08) to Right.\nIf left is pressed, Sprite 0's X position ($D000) is moved left by 6 pixels,\nclamping at 0. If right is pressed, it is moved right by 6 pixels, clamping\nat $FF (255).\n\nInputs:  State flag $098A, Parsed Input state at $00F5\nOutputs: None\nSide Effects: Modifies Sprite 0 X position ($D000)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "6109": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCompares the player's current score with the high score.\nIf the current score is higher, it overwrites the high score.\n\nInputs:  score_7digits ($0825), hi_score_7digits ($0F50)\nOutputs: hi_score_7digits updated if score was higher\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "6144": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the game and enters the main game loop.\n\nOn entry, runs one-time init (game state, VIC-II, screen/sprites), then\nenters the per-frame loop. Each iteration briefly banks out BASIC ROM so\nscroll_and_draw_map_row can read tile data stored under it ($8010+), then\nbanks BASIC back in and calls every per-frame update in sequence before\njumping to apply recoil and looping back.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies 6510 I/O Port ($01), updates game state and screen\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -3414,12 +3763,14 @@
     "7863": "--- Set Color RAM at (active_row, active_col) to yellow ---",
     "7904": "dead code",
     "8090": "Dead code",
+    "8103": "converts level_nr (0-based) to 2-digit screencodes for HUD\nlevel 0-8  → '01'-'09'; level 9-18 → '10'-'19'; level 19-28 → '20'-'28'; level 29+ → '30'+",
     "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCharset",
     "12288": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSprites",
     "14720": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDetects collisions between NPC cars (enemy slots 0..2 vs 1..3).\nIf two active cars are within 16x16 pixels, calculates a bounce response,\nsetting new directions, step counts, and lifetimes based on car types.\n\nInputs:  tbl_enemy_car_state, Sprite X/Y regs ($D002/$D003), f092C, tbl_sprite_step_count_0\nOutputs: tbl_enemy_sprite_direction, tbl_enemy_sprite_active, tbl_enemy_sprite_step_count, tbl_enemy_sprite_lifetime\nSide Effects: Calls $5230 and updates tbl_enemy_sprite_state if both cars were collision-inactive.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "14851": "Direction encoding: 1=up-left  2=up-right  3=down-left  4=down-right",
     "15060": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nA small wrapper routine called by the main loop.\nIt manages spawning new enemy cars, and then handles player jump inputs.\n\nInputs:  None\nOutputs: None\nSide Effects: Can spawn entities and mutate player state.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "15072": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
-    "15088": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
+    "15072": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCalls detect_npc_car_collision with X and Y registers preserved.\nUsed by callers that need X/Y intact after the NPC collision scan.\n\nInputs:  Same as detect_npc_car_collision\nOutputs: Same as detect_npc_car_collision\nSide Effects: X and Y restored on exit\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "15088": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCalls update_enemy_cars then check_jump_input.\nUsed as an alternate main-loop dispatch that skips spawning.\n\nInputs:  None\nOutputs: None\nSide Effects: Updates enemy car positions and reads player jump input\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "15104": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDetects collision between the player (sprite 0) and any NPC car (slots 0..3).\nExits early if a crash SFX is already playing on Voice 1.\n\nFor each NPC slot with car_state == 1 (on-road/active), checks if its sprite\nis within 16 pixels of the player in both X and Y. On collision:\n  - Records which quadrant the NPC occupies relative to the player:\n      collision_rel_x: 0 = NPC left of player,  1 = NPC right\n      collision_rel_y: 0 = NPC above player,     1 = NPC below\n  - Sets sprite_direction[x] so the NPC bounces away from the player\n  - Plays crash SFX on SID Voice 1 (noise, freq=$0112, A=1/D=8)\n  - Computes sprite_lifetime = (npc_speed >> type_shift) + (player_speed >> type_shift) + 4\n  - Computes a098B  = (npc_speed >> type_shift) + (player_speed >> type_shift) + 1\n  - Jumps (no RTS) to apply_collision_speed_score\n\nInputs:       sfx_voice_1_en, car_state[0..3], VIC-II regs $D000-$D009,\n              f0900[0..3] (NPC speeds), a0804 (player speed),\n              f092C[0..3] (car type index), f3F60/f3F68/f3F70 (type tables)\nOutputs:      sprite_direction[x], sprite_active[x], sprite_lifetime[x],\n              collision_rel_x, collision_rel_y, a0988, a098A, a098B\nSide Effects: Plays crash SFX on Voice 1; falls through to apply_collision_speed_score\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "15381": "Checks if a debris sprite's current pixel position is over a passable road tile.\nConverts sprite X/Y to tile col/row (origin $10/$32, cell=8px), walks Screen\nRAM ($0400, 40 cols/row) and reads the tile. Tiles $20/$65 = road (pass-through).\nAny other tile triggers the hit handler (b3C64): deactivates the debris sprite,\nflashes it white, sets the NPC to damaged state, awards score, spawns score popup.\nInputs:  X = VIC-II sprite reg offset (slot*2), Y = tile column (from caller)\n         Stack: slot index (pushed by update_moving_sprites)\nOutputs: None — returns cleanly on road tile, or non-local exit via hit handler.",
     "15552": "Guards check_road_collision: if the debris sprite's X pos is $FF (off right\nedge), performs a non-local exit by discarding check_road_collision's saved\nX/Y from the stack and jumping directly to the collision hit handler (b3C64),\nbypassing the tile-lookup. On normal return, A = sprite X pos for tile calc.",
@@ -3429,7 +3780,7 @@
     "15872": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies speed and score adjustments upon bumping into a car.\nThis block is jumped to from the collision detection loop. Based on the angle\nof impact ($0988) and the car type, it either slows the player down (subtracting\nspeed and score penalties) or speeds the player up (adding speed and score bonuses).\n\nInputs:  $0988 (collision angle), X (enemy index), Y (amount modifier)\nOutputs: None\nSide Effects: Modifies player speed ($0804) and score digits ($08E0). Returns via JMP back to collision loop.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "16032": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies visual recoil to the player's car after a collision.\nBased on the collision angle ($0988), it shifts the player sprite (Sprite 0)\neither up or down on the screen to simulate a physical bump.\nIt clamps the player's vertical position between $90 and $D0 to keep them\nwithin the visible gameplay area.\n\nInputs:  $0988 (collision angle)\nOutputs: None\nSide Effects: Modifies Sprite 0 Y Pos ($D001).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "16081": "Plays crash SFX on SID Voice 1 (Noise, Freq=$0112, A=1/D=8)",
-    "16160": "8x8 lookup table: debris sprite pixels-per-step for NPC-vs-NPC collisions.\nIndex = car_type_A * 8 + car_type_B. Used symmetrically: both cars get their\nown step count from the same table (roles of A/B swapped for the second car).\nTruck row (2) = highest recoil; Bus row (7) = lowest. Col 2 (vs. truck) always = 1.",
+    "16160": "Row = attacker type (0-7), Col = victim type (0-7); truck col (2) always gives lowest recoil (1 step)",
     "16224": "Per-car-type collision recoil step size in pixels. Indexed by car type (0-7).\nTruck (idx 2) = 7px (hardest hit), Bus (idx 7) = 2px (softest bounce).",
     "16240": "Per-car-type right-shift count for collision debris sprite lifetime.\nLifetime = (npc_speed >> shift) + (player_speed >> shift) + 4.\nTruck (idx 2) = 7 (speed barely contributes); Bus (idx 7) = 4.",
     "16248": "Fixed right-shift count (6) used to compute col_frames_left from NPC and player speeds.\ncol_frames_left = (npc_speed >> 6) + (player_speed >> 6) + 1.\nUnlike tbl_col_lifetime_shift, this is not per-car-type — same value for all collisions.",
@@ -3617,8 +3968,8 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 6129,
-  "hex_dump_cursor_address": 6128,
+  "cursor_address": 20622,
+  "hex_dump_cursor_address": 20608,
   "sprites_cursor_address": 13440,
   "charset_cursor_address": 22784,
   "right_pane_visible": "HexDump",
