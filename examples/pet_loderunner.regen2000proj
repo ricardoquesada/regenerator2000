@@ -42,13 +42,13 @@
     {
       "start": 63,
       "end": 64,
-      "type_": "DataWord",
+      "type_": "Address",
       "collapsed": false
     },
     {
       "start": 65,
       "end": 66,
-      "type_": "Address",
+      "type_": "DataWord",
       "collapsed": false
     },
     {
@@ -3927,14 +3927,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 1823,
-  "hex_dump_cursor_address": 1808,
-  "sprites_cursor_address": 2560,
+  "cursor_address": 2665,
+  "hex_dump_cursor_address": 2656,
+  "sprites_cursor_address": 2624,
   "charset_cursor_address": 1024,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
