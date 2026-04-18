@@ -77,7 +77,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 ![charset screenshot](docs/regenerator2000_charset_screenshot.png)
 ![sprites screenshot](docs/regenerator2000_sprites_screenshot.png)
 ![bitmap screenshot](docs/regenerator2000_bitmap_screenshot.png)
-![blocks screenshot](docs/regenerator2000_blocks_screenshot.png)
+![debugger screenshot](docs/regenerator2000_debugger_screenshot.png)
 
 ## Requirements
 
