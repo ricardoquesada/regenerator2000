@@ -32,19 +32,25 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 - **Blocks**:
   - Side-by-side view with disassembly.
 - **Debugger**: Connect to VICE for live disassembly, breakpoints, run/step (F2–F9); Debugger panel in the right pane.
+- **Mini map**: Mini map of the file being analyzed.
 - **Platforms**: Supports Commodore 8-bit machines like C64, C128, Plus/4, etc.
-- **Import**: Load `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, 6502bench (`.dis65`), `.bin`, `.raw`, and
-  `.regen2000proj` files.
+- **Import**: Load the following file formats
+  - PRG: PRG files
+  - CRT: Cartridge images with bank selection support
   - D64: 35/40-track disk images
   - D71: 70-track double-sided disk images
   - D81: 80-track disk images
-  - CRT: Cartridge images with bank selection support
-- **Export**: Generate compatible assembly source code for:
+  - T64: Tape images
+  - VSf: VICE Session files
+  - RAW / BIN: Raw binaries files
+  - DIS65: 6502bench project files
+  - REGEN2000PROJ: Regenerator 2000 project files
+- **Export** to .asm or HTML. Supported assemblers:
   - **64tass**
   - **ACME**
   - **Kick Assembler**
   - **ca65**
-- **Project Management**: Save and load your work with `.regen2000proj` files.
+- **Project Management**: Save and load your work
 - **Analysis**: Auto-analysis to identify code and data regions.
 - **Editing**:
   - **Labels**: Add, edit, and remove local and global labels.
