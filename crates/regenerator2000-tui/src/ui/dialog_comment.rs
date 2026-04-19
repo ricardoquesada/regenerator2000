@@ -131,15 +131,10 @@ impl Widget for CommentDialog {
                 .add_modifier(Modifier::DIM);
             let hint = Paragraph::new(TextLine::from(vec![
                 Span::styled(
-                    " Shift+Enter",
+                    " Ctrl+S",
                     Style::default().add_modifier(Modifier::BOLD | Modifier::DIM),
                 ),
-                Span::styled("/", dim),
-                Span::styled(
-                    "Ctrl+Enter",
-                    Style::default().add_modifier(Modifier::BOLD | Modifier::DIM),
-                ),
-                Span::styled(":new line", dim),
+                Span::styled(":save", dim),
                 Span::styled(
                     "  Alt+-",
                     Style::default().add_modifier(Modifier::BOLD | Modifier::DIM),
@@ -187,40 +182,40 @@ impl Widget for CommentDialog {
                 WidgetResult::Close
             }
             KeyCode::Enter => {
-                if key.modifiers.contains(KeyModifiers::CONTROL)
-                    || key.modifiers.contains(KeyModifiers::SHIFT)
-                {
-                    if self.comment_type == CommentType::Line {
+                match self.comment_type {
+                    // Line comment: Enter always inserts a newline (works on all
+                    // terminals). Ctrl+S submits the comment.
+                    CommentType::Line => {
                         self.textarea.insert_newline();
+                        WidgetResult::Handled
                     }
-                    WidgetResult::Handled
-                } else {
+                    // Side comment: Enter submits.
+                    CommentType::Side => {
+                        let lines = self.textarea.lines();
+                        let full_comment = lines.join(" ");
+                        WidgetResult::Action(crate::state::actions::AppAction::ApplyComment {
+                            address: self.address,
+                            text: full_comment,
+                            kind: crate::state::types::CommentKind::Side,
+                        })
+                    }
+                }
+            }
+            // Ctrl+S: submit a Line comment.
+            KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                if self.comment_type == CommentType::Line {
                     let lines = self.textarea.lines();
-                    let full_comment = match self.comment_type {
-                        CommentType::Line => lines.join("\n"),
-                        CommentType::Side => lines.join(" "),
-                    };
-                    let kind = match self.comment_type {
-                        CommentType::Side => crate::state::types::CommentKind::Side,
-                        CommentType::Line => crate::state::types::CommentKind::Line,
-                    };
-
+                    let full_comment = lines.join("\n");
                     WidgetResult::Action(crate::state::actions::AppAction::ApplyComment {
                         address: self.address,
                         text: full_comment,
-                        kind,
+                        kind: crate::state::types::CommentKind::Line,
                     })
+                } else {
+                    WidgetResult::Handled
                 }
             }
             // Separator shortcuts (only in multi-line / Line comment mode)
-            // Ctrl+J (0x0A) is the reliable cross-terminal fallback for "new line":
-            // macOS Terminal.app and iTerm2 cannot distinguish Ctrl+Enter from plain Enter.
-            KeyCode::Char('j') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                if self.comment_type == CommentType::Line {
-                    self.textarea.insert_newline();
-                }
-                WidgetResult::Handled
-            }
             KeyCode::Char('-') if key.modifiers.contains(KeyModifiers::ALT) => {
                 if self.comment_type == CommentType::Line {
                     self.insert_separator(&"-".repeat(SEPARATOR_LEN));
@@ -248,6 +243,13 @@ impl Widget for CommentDialog {
                     let sep = "-=".repeat(SEPARATOR_LEN / 2);
                     self.insert_separator(&sep);
                 }
+                WidgetResult::Handled
+            }
+            // PageDown: jump to the last line of the textarea.
+            // (The default ratatui-textarea handler uses the stored viewport height, which is
+            // always 0 here because rendering uses a clone — causing it to snap to row 0.)
+            KeyCode::PageDown => {
+                self.textarea.move_cursor(CursorMove::Bottom);
                 WidgetResult::Handled
             }
             _ => {

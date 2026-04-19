@@ -3975,14 +3975,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 4129,
+  "cursor_address": 4178,
   "hex_dump_cursor_address": 4096,
   "sprites_cursor_address": 13440,
   "charset_cursor_address": 22784,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 40960,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
