@@ -188,7 +188,18 @@ impl UIState {
         } else if let Some(path) = &app_state.file_path
             && let Some(parent) = path.parent()
         {
-            self.file_dialog_current_dir = parent.to_path_buf();
+            // `parent` may be an empty path when the file was opened with a
+            // bare filename (no directory component, e.g. `cargo run -- foo.prg`).
+            // In that case fall back to the actual current working directory so
+            // that `fs::read_dir` works and `..` is shown correctly.
+            let resolved = if parent.as_os_str().is_empty() {
+                std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+            } else {
+                parent
+                    .canonicalize()
+                    .unwrap_or_else(|_| parent.to_path_buf())
+            };
+            self.file_dialog_current_dir = resolved;
         }
 
         // Also restore hex cursor if present

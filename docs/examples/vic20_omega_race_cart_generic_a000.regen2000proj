@@ -1,0 +1,372 @@
+{
+  "version": 1,
+  "origin": 40960,
+  "raw_data_base64": "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",
+  "blocks": [
+    {
+      "start": 0,
+      "end": 1,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 2,
+      "end": 8,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 9,
+      "end": 883,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 884,
+      "end": 1023,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 1024,
+      "end": 1089,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 1090,
+      "end": 1105,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 1106,
+      "end": 1254,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 1255,
+      "end": 1286,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 1287,
+      "end": 2090,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2091,
+      "end": 2126,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 2127,
+      "end": 2174,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2175,
+      "end": 2182,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 2183,
+      "end": 2392,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2393,
+      "end": 2409,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 2410,
+      "end": 2774,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2775,
+      "end": 2814,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 2815,
+      "end": 2962,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2963,
+      "end": 2970,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 2971,
+      "end": 3045,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3046,
+      "end": 3061,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 3062,
+      "end": 3094,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3095,
+      "end": 3154,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 3155,
+      "end": 3231,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3232,
+      "end": 3244,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 3245,
+      "end": 3474,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3475,
+      "end": 3484,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 3485,
+      "end": 3590,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3591,
+      "end": 3654,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 3655,
+      "end": 4225,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4226,
+      "end": 4251,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4252,
+      "end": 4277,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 4278,
+      "end": 4457,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4458,
+      "end": 4473,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4474,
+      "end": 5260,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5261,
+      "end": 8191,
+      "type_": "Undefined",
+      "collapsed": false
+    }
+  ],
+  "labels": {
+    "40969": [
+      {
+        "name": "cold_start",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41166": [
+      {
+        "name": "irq_handler",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "42086": [
+      {
+        "name": "update_player_physics",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "42215": [
+      {
+        "name": "x_velocity_delta_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "42231": [
+      {
+        "name": "y_velocity_delta_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ]
+  },
+  "user_side_comments": {
+    "40969": "clear decimal mode — safe cartridge start",
+    "40973": "restore default KERNAL I/O vectors",
+    "40980": "reset stack pointer to $FF (top of stack)",
+    "40982": "one-time init: IRQ setup, load resources",
+    "40996": "reset stack pointer to $FF (top of stack)",
+    "40998": "one-time init: IRQ setup, load resources",
+    "41001": "--- OUTER LOOP: full game cycle ---",
+    "41015": "--- INNER LOOP: per-frame update ---",
+    "41018": "a37 = frame counter, wraps mod 8",
+    "41028": "player/bullet physics update",
+    "41031": "enemy AI / movement update",
+    "41034": "collision detection",
+    "41037": "sprite / display update",
+    "41040": "--- FRAME SYNC: spin until 2 IRQ ticks elapsed ---",
+    "41042": "wait until a22 >= 2 (2 IRQ ticks = 1 frame)",
+    "41044": "spin-wait for frame gate",
+    "41046": "a4E: game state (0=play, 1=countdown, $C8=new level, neg=game over)",
+    "41050": "a4E==1: life/level countdown active",
+    "41052": "a1F<0: player dead -> game-over path",
+    "41056": "a3D!=0: enemies remain, keep looping",
+    "41060": "a4E==0: level cleared -> level transition",
+    "41064": "a4D: life/countdown timer; decrement each pass",
+    "41066": "countdown not done, keep looping",
+    "41068": "a4E<0: new-level flag -> restart inner loop",
+    "41072": "a1F<0: game-over path",
+    "41076": "a3D!=0: wave not cleared, keep going",
+    "41080": "display score / wave-complete sequence",
+    "41086": "--- NEW LEVEL SETUP: reinit state flags ---",
+    "41098": "init countdown a4D/a4E to $C8 (200 frames)",
+    "41106": "--- HIGH SCORE CHECK (3-byte compare, big-endian) ---",
+    "41108": "compare score high byte (a25) vs stored high score (aF9)",
+    "41130": "current score > high score: copy to stored record",
+    "41142": "--- LEVEL TRANSITION: reset and start next wave ---",
+    "41147": "X=$94, Y=$BE: next level init parameters",
+    "41163": "restart outer loop -> next wave begins",
+    "42086": "f03A2 = player alive flag; negative = dead/inactive",
+    "42089": "player inactive -> skip all updates",
+    "42091": "read joystick, compute velocity delta from heading",
+    "42094": "a35 = fire cooldown; bit N set = cooldown active",
+    "42096": "skip if cooldown active (N set)",
+    "42098": "a19 = bullet slots free; 0 = none available",
+    "42100": "no bullet slot free -> skip fire",
+    "42102": "spawn bullet: clear cooldown, fire projectile",
+    "42105": "aB1 = heading (0-15); aB2 bit 7 = direction flip",
+    "42107": "aB2 bit 7: direction flip (0=right, 1=left)",
+    "42109": "ship not thrusting (aB2 N clear) -> sprite-only path",
+    "42111": "VIA1 $900D bit 7: fire button (0=pressed)",
+    "42113": "fire button not pressed -> skip thruster activation",
+    "42116": "--- THRUSTER ACTIVATED: set animation timers ---",
+    "42118": "a48/a4C = thruster flash countdown ($18 = 24 frames)",
+    "42123": "a44 = speed timer ($64 = 100 frames)",
+    "42128": "Y = heading (0-15); set thrusting sprite frame: aB1 | $10",
+    "42131": "write thrusting sprite frame to f1D13",
+    "42134": "a37 bit 0: only accumulate velocity on even frames (half-rate)",
+    "42138": "odd frame -> skip velocity accumulation",
+    "42141": "look up X velocity delta based on heading",
+    "42144": "accumulate X velocity",
+    "42151": "look up Y velocity delta based on heading",
+    "42154": "accumulate Y velocity",
+    "42163": "ship not thrusting: set sprite frame without thruster",
+    "42168": "set speed timer to 1",
+    "42170": "--- CLAMP X VELOCITY (-3..+3) ---",
+    "42173": "negative velocity? branch to neg clamp",
+    "42175": "clamp positive to 3 (if >= 4)",
+    "42183": "clamp negative to -3 ($FD) (if < -3)",
+    "42192": "--- CLAMP Y VELOCITY (-3..+3) ---",
+    "42195": "negative velocity? branch to neg clamp",
+    "42197": "clamp positive to 3 (if >= 4)",
+    "42205": "clamp negative to -3 ($FD) (if < -3)",
+    "42215": "X velocity delta table (16 directions)",
+    "42231": "Y velocity delta table (16 directions)"
+  },
+  "user_line_comments": {
+    "40969": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCartridge cold-start entry point and main game loop for Omega Race.\nPointed to by the cold-start vector at $A000.\n\nPhase 1 ($A009-$A025): One-time hardware and game initialization.\n  - Clears decimal mode, restores KERNAL I/O vectors, resets the stack\n    pointer to $1FF, then calls sA175 to set up the IRQ handler and\n    load all game resources.\n\nPhase 2 ($A029-$A0CB): Main game loop.\n  - Outer loop (jA029): drives a full game cycle.\n  - Inner loop (bA037): per-frame update gated on the IRQ frame counter\n    (a22 >= 2) to synchronize with the raster interrupt.\n  - Branches on game-state flags (a4E, a4D, a1F, a3D) to handle active\n    play, level countdown, player death, and level transitions.\n  - Updates the 3-byte high score (a23/a24/a25) if the current score\n    beats (aF7/aF8/aF9) before starting the next level.\n\nInputs:  None (entry from KERNAL reset vector)\nOutputs: None\nSide Effects: Resets hardware state; runs all per-frame game subsystems;\n              manages level transitions and high-score updates.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "42086": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdate player ship velocity, sprite frame, thruster state, and fire button.\n\nEach frame (called from main loop at $A044):\n  1. Bail if player is inactive (f03A2 < 0).\n  2. Read joystick via a1D7D; if fire cooldown (a35) is clear and a bullet\n     slot is free (a19 != 0), spawn a projectile via sADB9.\n  3. Look up signed X/Y velocity deltas from 16-entry direction tables\n     (fA4E7 / fA4F7) indexed by the current heading (aB1, 0-15).\n     Deltas are applied every other frame (a37 odd = skip) for half-rate\n     physics accumulation.\n  4. If the fire button (VIA1 $900D bit 7) is pressed, activate thruster:\n     set countdown timers a48/a4C=$18 and speed timer a44=$64, and write\n     the thrusting sprite frame to f1D13 (aB1 | $10).\n  5. Clamp both X (f03C8) and Y (f1D00) velocities to the range -3..+3\n     ($FD..$03).\n\nInputs:  aB1 = current heading (0-15), f03A2 = player alive flag,\n         a35 = fire cooldown, a19 = bullet slots free,\n         aB2 = direction flip bit, a900D = VIA1 joystick/fire port\nOutputs: f03C8 = X velocity (clamped -3..+3),\n         f1D00 = Y velocity (clamped -3..+3),\n         f1D13 = sprite frame register\nSide Effects: May spawn bullet (sADB9); sets thruster timers a44/a48/a4C.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
+  },
+  "settings": {
+    "all_labels": false,
+    "preserve_long_bytes": true,
+    "brk_single_byte": true,
+    "patch_brk": false,
+    "platform": "Commodore 64",
+    "assembler": "Tass64",
+    "max_xref_count": 5,
+    "max_arrow_columns": 6,
+    "use_illegal_opcodes": false,
+    "text_char_limit": 40,
+    "addresses_per_line": 5,
+    "bytes_per_line": 8,
+    "enabled_features": {},
+    "description": "Omega Race VIC20 video game. Original cartridge version",
+    "auto_analyze": true,
+    "show_system_comments": true,
+    "fill_run_threshold": 8
+  },
+  "immediate_value_formats": {
+    "41377": {
+      "LowByte": 41166
+    },
+    "41382": {
+      "HighByte": 41166
+    }
+  },
+  "bookmarks": {},
+  "cursor_address": 42140,
+  "hex_dump_cursor_address": 41008,
+  "sprites_cursor_address": 40960,
+  "charset_cursor_address": 40960,
+  "right_pane_visible": "Blocks",
+  "sprite_multicolor_mode": false,
+  "charset_multicolor_mode": false,
+  "bitmap_cursor_address": 40960,
+  "bitmap_multicolor_mode": false,
+  "hexdump_view_mode": "ScreencodeShifted",
+  "splitters": [],
+  "blocks_view_cursor": 6,
+  "scopes": {}
+}
