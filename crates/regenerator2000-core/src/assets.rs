@@ -227,6 +227,10 @@ mod tests {
         // Test another normalization case
         let content_atari = get_system_file_content("Atari 8bit");
         assert!(content_atari.is_some(), "Atari 8bit config should exist");
+
+        // Test VIC-20 case (hyphen)
+        let content_vic20 = get_system_file_content("Commodore VIC-20");
+        assert!(content_vic20.is_some(), "VIC-20 config should exist");
     }
 
     #[test]
@@ -238,5 +242,13 @@ mod tests {
         let kernal = config.features.iter().find(|f| f.id == "KERNAL");
         assert!(kernal.is_some(), "C64 should have KERNAL feature");
         assert!(kernal.unwrap().default, "KERNAL should default to true");
+
+        // Test VIC-20 case
+        let config_vic20 = load_system_config("Commodore VIC-20");
+        assert!(
+            !config_vic20.features.is_empty(),
+            "VIC-20 should have features"
+        );
+        assert!(config_vic20.has_comments, "VIC-20 should have comments");
     }
 }

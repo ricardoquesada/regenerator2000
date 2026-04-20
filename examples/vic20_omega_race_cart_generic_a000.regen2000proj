@@ -642,7 +642,7 @@
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
-    "platform": "Commodore 64",
+    "platform": "Commodore VIC-20",
     "assembler": "Tass64",
     "max_xref_count": 5,
     "max_arrow_columns": 6,
@@ -665,7 +665,7 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 40963,
+  "cursor_address": 46144,
   "hex_dump_cursor_address": 41008,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 40960,
@@ -676,6 +676,6 @@
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
-  "blocks_view_cursor": 1,
+  "blocks_view_cursor": 33,
   "scopes": {}
 }
