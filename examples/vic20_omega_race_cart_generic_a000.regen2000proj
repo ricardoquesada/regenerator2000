@@ -84,7 +84,7 @@
     {
       "start": 2393,
       "end": 2409,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -96,7 +96,7 @@
     {
       "start": 2775,
       "end": 2814,
-      "type_": "Undefined",
+      "type_": "Address",
       "collapsed": false
     },
     {
@@ -222,9 +222,51 @@
         "kind": "User"
       }
     ],
+    "41086": [
+      {
+        "name": "trigger_level_transition",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "41166": [
       {
         "name": "irq_handler",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41333": [
+      {
+        "name": "init_game_and_hardware",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41389": [
+      {
+        "name": "init_new_game",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41406": [
+      {
+        "name": "init_level",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41426": [
+      {
+        "name": "restart_current_level",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41837": [
+      {
+        "name": "reset_frame_timer",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -246,6 +288,104 @@
     "42231": [
       {
         "name": "y_velocity_delta_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "42247": [
+      {
+        "name": "apply_enemy_velocities",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "42293": [
+      {
+        "name": "update_display_and_collisions",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "42652": [
+      {
+        "name": "update_enemies",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43174": [
+      {
+        "name": "read_joystick",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43353": [
+      {
+        "name": "paddle_angle_thresholds",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43370": [
+      {
+        "name": "check_boundary_collisions",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43692": [
+      {
+        "name": "calc_bitmap_pointers",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43735": [
+      {
+        "name": "bitmap_column_addresses_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43736": [
+      {
+        "name": "bitmap_colum_addresses_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45512": [
+      {
+        "name": "attract_mode",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45748": [
+      {
+        "name": "attract_mode_delay",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45772": [
+      {
+        "name": "draw_graphic_string",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "46011": [
+      {
+        "name": "delay_1_second",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "46034": [
+      {
+        "name": "scan_input_for_start",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -279,14 +419,49 @@
     "41072": "a1F<0: game-over path",
     "41076": "a3D!=0: wave not cleared, keep going",
     "41080": "display score / wave-complete sequence",
-    "41086": "--- NEW LEVEL SETUP: reinit state flags ---",
-    "41098": "init countdown a4D/a4E to $C8 (200 frames)",
+    "41086": "disable IRQs for safe update",
+    "41087": "set animation/state variables",
+    "41097": "re-enable IRQs",
+    "41098": "set 200-frame delay timer ($C8)",
+    "41100": "store countdown timer",
+    "41102": "store level-advance flag ($C8 = negative)",
+    "41104": "return to inner loop to wait",
     "41106": "--- HIGH SCORE CHECK (3-byte compare, big-endian) ---",
     "41108": "compare score high byte (a25) vs stored high score (aF9)",
     "41130": "current score > high score: copy to stored record",
     "41142": "--- LEVEL TRANSITION: reset and start next wave ---",
     "41147": "X=$94, Y=$BE: next level init parameters",
     "41163": "restart outer loop -> next wave begins",
+    "41333": "init various zero-page variables",
+    "41344": "reset high score",
+    "41362": "X = 15 (for 16 VIC registers)",
+    "41364": "read VIC init values",
+    "41367": "write to VIC chip registers ($9000-$900F)",
+    "41373": "draw initial playfield / clear screen",
+    "41377": "setup custom IRQ vector",
+    "41389": "reset player score byte 0",
+    "41393": "reset player score byte 1",
+    "41395": "reset player score byte 2",
+    "41399": "reset level/wave counter to 0",
+    "41401": "set phase/difficulty to 1",
+    "41409": "if a20 is a multiple of 4, increment phase",
+    "41424": "increment level counter",
+    "41426": "cap phase difficulty at 4",
+    "41436": "cap level difficulty at 4",
+    "41444": "use level as table index",
+    "41445": "load number of enemies for this level",
+    "41452": "zero out game state variables",
+    "41477": "clear VIC audio registers",
+    "41496": "initialize enemy types array",
+    "41540": "initialize wave difficulty timers",
+    "41624": "loop over all enemies",
+    "41640": "setup enemy state arrays from ROM tables",
+    "41653": "setup enemy X/Y coords",
+    "41681": "setup enemy X/Y velocities",
+    "41750": "verify player spawn position is clear",
+    "41837": "disable IRQs for safe modification",
+    "41838": "zero out the frame tick counter",
+    "41842": "re-enable IRQs",
     "42086": "f03A2 = player alive flag; negative = dead/inactive",
     "42089": "player inactive -> skip all updates",
     "42091": "read joystick, compute velocity delta from heading",
@@ -322,11 +497,145 @@
     "42197": "clamp positive to 3 (if >= 4)",
     "42205": "clamp negative to -3 ($FD) (if < -3)",
     "42215": "X velocity delta table (16 directions)",
-    "42231": "Y velocity delta table (16 directions)"
+    "42231": "Y velocity delta table (16 directions)",
+    "42247": "X = active enemy index",
+    "42249": "check if enemy is active",
+    "42254": "get enemy type",
+    "42258": "check frame sync for type",
+    "42269": "apply X velocity to X position",
+    "42279": "apply Y velocity to Y position",
+    "42289": "loop for all enemies",
+    "42300": "bullet loop from 7 to 0",
+    "42308": "check if bullet is active",
+    "42313": "load bullet X",
+    "42318": "load bullet Y",
+    "42323": "check collision against enemies",
+    "42326": "X=FF if no collision",
+    "42341": "handle bullet hit enemy",
+    "42362": "enemy loop from 18 down to 0",
+    "42559": "load player X",
+    "42564": "load player Y",
+    "42569": "check player collision against enemies",
+    "42577": "handle player hit by enemy",
+    "42652": "check if enemy 1 is active",
+    "42656": "load frame tick timer",
+    "42685": "disable IRQs for spawning",
+    "42694": "check if enemy 2 is active",
+    "42735": "check if enemy 3 is active",
+    "42752": "Y = active enemy count",
+    "42754": "get enemy state from array",
+    "42784": "store calculated sprite frame",
+    "42870": "load frame counter",
+    "42941": "check enemy 1 for firing/sound",
+    "43177": "configure VIA2 DDRB",
+    "43185": "read Joy Right (bit 7)",
+    "43204": "read VIA1 Port A (Up/Down/Left/Fire)",
+    "43210": "debounce loop",
+    "43214": "check if Fire (bit 5) is pressed",
+    "43232": "store Fire button state",
+    "43236": "check if Up (bit 4) is pressed",
+    "43246": "check if Left (bit 2) is pressed",
+    "43257": "apply turning offset to player angle",
+    "43370": "initialize wall hit flag",
+    "43372": "LDA #$00",
+    "43377": "clear collision flag",
+    "43385": "check left outer screen boundary",
+    "43393": "check right outer screen boundary",
+    "43401": "check right side of inner box",
+    "43417": "check left side of inner box",
+    "43440": "clamp X to left edge",
+    "43444": "bounce (negate X velocity)",
+    "43458": "clamp X to right edge",
+    "43462": "bounce (negate X velocity)",
+    "43476": "check top outer screen boundary",
+    "43523": "clamp Y to top edge",
+    "43527": "bounce (negate Y velocity)",
+    "43546": "hit bottom wall flag",
+    "43548": "clamp Y to bottom edge",
+    "43552": "bounce (negate Y velocity)",
+    "43555": "negate velocity (Two's complement)",
+    "43561": "handle inner box collisions",
+    "43629": "negate Y velocity",
+    "43639": "negate X velocity",
+    "43693": "load X coordinate",
+    "43695": "extract bit offset (X % 8)",
+    "43697": "save bit offset",
+    "43703": "calculate table index (X / 8) * 2",
+    "43707": "load column base address low byte",
+    "43710": "add Y coordinate to base address",
+    "43712": "store pointer low",
+    "43714": "load column base address high byte",
+    "43717": "add carry",
+    "43719": "store pointer high",
+    "43724": "add 160 (bytes per column) to low byte",
+    "43726": "store adjacent column pointer low",
+    "43732": "store adjacent column pointer high",
+    "45512": "clear screen / display RAM",
+    "45515": "setup title screen colors",
+    "45530": "pointer to title graphic 1",
+    "45540": "draw graphic",
+    "45543": "wait for delay",
+    "45546": "check if start button pressed",
+    "45558": "clear screen for next graphic",
+    "45573": "draw graphic 2",
+    "45748": "setup outer loop counter (40)",
+    "45752": "setup inner loop counter (255)",
+    "45756": "poll joysticks and keyboard",
+    "45759": "check if start button was pressed",
+    "45761": "abort delay immediately if pressed",
+    "45772": "store pointer low",
+    "45774": "store pointer high",
+    "45778": "read base X coordinate",
+    "45783": "read base Y coordinate",
+    "45788": "read X-coordinate step",
+    "45793": "read next character",
+    "45795": "if 00, end of segment",
+    "45811": "if FF, end of all data",
+    "45820": "draw character to screen",
+    "45834": "abort if start pressed",
+    "45851": "advance X by step",
+    "46011": "setup outer loop counter (256)",
+    "46015": "setup inner loop counter (256)",
+    "46019": "5 cycles",
+    "46021": "4 cycles (dummy ROM write)",
+    "46024": "4 cycles (dummy ROM write)",
+    "46027": "3 cycles (branch taken) = 16 cycles loop",
+    "46034": "scan keyboard via KERNAL",
+    "46037": "scan joystick 1",
+    "46040": "check if joystick 1 triggered start",
+    "46044": "scan joystick 2",
+    "46047": "check if joystick 2 triggered start",
+    "46051": "get character from keyboard buffer",
+    "46055": "check for F1",
+    "46059": "check for F2",
+    "46063": "check for F3",
+    "46067": "check for F4",
+    "46071": "configure game mode A",
+    "46087": "configure game mode B",
+    "46108": "set start flag to abort attract mode",
+    "46113": "check KERNAL modifier keys flag ($028D)"
   },
   "user_line_comments": {
     "40969": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCartridge cold-start entry point and main game loop for Omega Race.\nPointed to by the cold-start vector at $A000.\n\nPhase 1 ($A009-$A025): One-time hardware and game initialization.\n  - Clears decimal mode, restores KERNAL I/O vectors, resets the stack\n    pointer to $1FF, then calls sA175 to set up the IRQ handler and\n    load all game resources.\n\nPhase 2 ($A029-$A0CB): Main game loop.\n  - Outer loop (jA029): drives a full game cycle.\n  - Inner loop (bA037): per-frame update gated on the IRQ frame counter\n    (a22 >= 2) to synchronize with the raster interrupt.\n  - Branches on game-state flags (a4E, a4D, a1F, a3D) to handle active\n    play, level countdown, player death, and level transitions.\n  - Updates the 3-byte high score (a23/a24/a25) if the current score\n    beats (aF7/aF8/aF9) before starting the next level.\n\nInputs:  None (entry from KERNAL reset vector)\nOutputs: None\nSide Effects: Resets hardware state; runs all per-frame game subsystems;\n              manages level transitions and high-score updates.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "42086": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdate player ship velocity, sprite frame, thruster state, and fire button.\n\nEach frame (called from main loop at $A044):\n  1. Bail if player is inactive (f03A2 < 0).\n  2. Read joystick via a1D7D; if fire cooldown (a35) is clear and a bullet\n     slot is free (a19 != 0), spawn a projectile via sADB9.\n  3. Look up signed X/Y velocity deltas from 16-entry direction tables\n     (fA4E7 / fA4F7) indexed by the current heading (aB1, 0-15).\n     Deltas are applied every other frame (a37 odd = skip) for half-rate\n     physics accumulation.\n  4. If the fire button (VIA1 $900D bit 7) is pressed, activate thruster:\n     set countdown timers a48/a4C=$18 and speed timer a44=$64, and write\n     the thrusting sprite frame to f1D13 (aB1 | $10).\n  5. Clamp both X (f03C8) and Y (f1D00) velocities to the range -3..+3\n     ($FD..$03).\n\nInputs:  aB1 = current heading (0-15), f03A2 = player alive flag,\n         a35 = fire cooldown, a19 = bullet slots free,\n         aB2 = direction flip bit, a900D = VIA1 joystick/fire port\nOutputs: f03C8 = X velocity (clamped -3..+3),\n         f1D00 = Y velocity (clamped -3..+3),\n         f1D13 = sprite frame register\nSide Effects: May spawn bullet (sADB9); sets thruster timers a44/a48/a4C.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
+    "41086": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitiates the level transition delay.\n\nInputs:  None\nOutputs: None\nSide Effects: Called when the wave is cleared. Sets up a 200-frame countdown \n              timer (a4D) and sets the level-advance flag (a4E to $C8). \n              Disables and re-enables IRQs during variable assignment.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "41333": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes game variables, video hardware, and IRQ handler.\n\nInputs:  None\nOutputs: None\nSide Effects: Zeroes scores, initializes VIC registers ($9000-$900F), \n              draws the playfield ($A400), and hooks the IRQ vector ($0314)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "41389": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes state for a new game session.\n\nInputs:  None\nOutputs: None\nSide Effects: Resets the player score ($F7-$F9), level counter (a20), and \n              phase/difficulty counter (a21).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "41406": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the game state for the start of a level/wave.\n\nInputs:  a20 (current level), a21 (current difficulty phase)\nOutputs: None\nSide Effects: Increments level counters, clears hardware sound registers,\n              looks up and initializes all enemy properties (types, \n              positions, velocities, animation frames) for the current wave,\n              and resets the player's position.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "41426": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRestarts the current level/wave (e.g., after player death).\n\nInputs:  a20 (current level), a21 (current difficulty phase)\nOutputs: None\nSide Effects: Acts as an alternate entry point to init_level ($A1BE), skipping\n              the code that increments the level counters. It re-initializes \n              enemy positions and player state for the same wave.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "41837": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets the IRQ frame tick counter.\n\nInputs:  None\nOutputs: None\nSide Effects: Zeroes out a22 (the IRQ tick counter) with interrupts disabled \n              to prevent race conditions.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "42086": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdate player ship velocity, sprite frame, thruster state, and fire button.\n\nEach frame (called from main loop at $A044):\n  1. Bail if player is inactive (f03A2 < 0).\n  2. Read joystick via a1D7D; if fire cooldown (a35) is clear and a bullet\n     slot is free (a19 != 0), spawn a projectile via sADB9.\n  3. Look up signed X/Y velocity deltas from 16-entry direction tables\n     (fA4E7 / fA4F7) indexed by the current heading (aB1, 0-15).\n     Deltas are applied every other frame (a37 odd = skip) for half-rate\n     physics accumulation.\n  4. If the fire button (VIA1 $900D bit 7) is pressed, activate thruster:\n     set countdown timers a48/a4C=$18 and speed timer a44=$64, and write\n     the thrusting sprite frame to f1D13 (aB1 | $10).\n  5. Clamp both X (f03C8) and Y (f1D00) velocities to the range -3..+3\n     ($FD..$03).\n\nInputs:  aB1 = current heading (0-15), f03A2 = player alive flag,\n         a35 = fire cooldown, a19 = bullet slots free,\n         aB2 = direction flip bit, a900D = VIA1 joystick/fire port\nOutputs: f03C8 = X velocity (clamped -3..+3),\n         f1D00 = Y velocity (clamped -3..+3),\n         f1D13 = sprite frame register\nSide Effects: May spawn bullet (sADB9); sets thruster timers a44/a48/a4C.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "42247": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies velocity to enemy positions.\n\nInputs:  a40 (enemy count), a37 (frame counter), $03C8/$1D00 arrays (velocities)\nOutputs: $0362/$0375 arrays (positions)\nSide Effects: Updates coordinates of active enemies\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "42293": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates display states and handles all entity collisions.\n\nInputs:  a26 (bullet flags), bullet positions, player position, enemy positions\nOutputs: Collision state (kills enemies or player), sprite display arrays\nSide Effects: Calls collision detection, plays sound effects, removes killed entities\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "42652": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates all enemy states, animations, movement, and spawning.\n\nInputs:  a37 (frame counter), a3E (timer), a40 (enemy count)\nOutputs: Enemy states (zero page and $03xx/$1Dxx arrays) updated\nSide Effects: Spawns new enemies, updates sprite pointers and positions\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43174": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nReads and processes joystick input from VIA hardware registers.\n\nInputs:  None\nOutputs: aB0 (Fire pressed = $80)\n         aB1 (Right/Up state + player angle)\n         aB2 (Left pressed = $80)\nSide Effects: Disables IRQs to safely read VIA2 Port B (Right direction), \n              then reads VIA1 Port A (Up/Down/Left/Fire) with a debounce loop.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43353": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAnalog Paddle to Player Angle Threshold Table\nBecause the original arcade game used a rotary controller, the VIC-20 port \nsupports the Commodore Paddle. This 17-byte table divides the 0-255 analog \npaddle reading ($9008) into 16 evenly spaced intervals (0-15). The paddle \nroutine compares the analog reading against this table from top to bottom \nto determine which of the 16 rotational angles the player's ship should face.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43370": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies boundary collisions (outer screen walls and inner central box).\n\nInputs:  aA3, aA4 (X, Y position)\n         aAE, aAF (X, Y velocity)\nOutputs: a18 (Collision flag: 0=none, >0 indicates which wall was hit)\nSide Effects: Clamps the X/Y position to keep the entity in bounds. If a wall \n              or the central box is hit, the corresponding X or Y velocity \n              vector is negated (Two's Complement) to produce a bounce effect.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43692": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCalculates memory pointers for drawing to the custom VIC-20 bitmap.\n\nInputs:  aA3 (X coordinate), aA4 (Y coordinate)\nOutputs: aAD (Bit shift offset: X % 8)\n         aA5/aA6 (Pointer to the byte containing the target pixel)\n         aA7/aA8 (Pointer to the adjacent column, 160 bytes ahead)\nSide Effects: None. Omega Race implements a custom bitmap by arranging the \n              VIC-I character map into columns. This routine uses a lookup \n              table to find the base address of the column (X / 8), adds the \n              Y coordinate, and calculates pointers for rendering.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "45512": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTitle screen / Attract mode sequence.\n\nInputs:  None\nOutputs: Returns when the player presses Start (aB0 flag goes negative)\nSide Effects: Clears screen, displays cycling title screens and graphics, \n              sets colors, waits for user input.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "45748": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDelay loop used during the attract mode sequence.\n\nInputs:  None\nOutputs: None\nSide Effects: Delays execution for a few seconds by looping 40 x 256 times. \n              Continually polls for user input (via scan_input_for_start) and \n              aborts the delay instantly if the start button is pressed.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "45772": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws a sequence of characters/graphics to the screen with a typing effect.\n\nInputs:  X (pointer low), Y (pointer high) to graphic data structure\n         aAE (delay outer loop), aAF (delay inner loop)\nOutputs: None\nSide Effects: Draws to screen RAM. Can be aborted instantly if the user \n              presses the start button (aB0 flag).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "46011": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDelay loop for approximately 1 second.\n\nInputs:  None\nOutputs: None\nSide Effects: Wastes exactly 1 million CPU cycles (~1 second at 1MHz) using \n              nested loops and dummy writes to ROM addresses.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "46034": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScans joysticks and keyboard for a \"Game Start\" input during attract mode.\n\nInputs:  None\nOutputs: Sets aB0 to $80 if start is triggered.\nSide Effects: Calls KERNAL keyboard and custom joystick scan routines. \n              Depending on the input (F-keys or joystick buttons), it configures \n              the selected game mode and player sprite pointers. Also contains a \n              hidden cheat/easter-egg check for modifier keys.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
   },
   "settings": {
     "all_labels": false,
@@ -356,7 +665,7 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 42140,
+  "cursor_address": 40963,
   "hex_dump_cursor_address": 41008,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 40960,
@@ -367,6 +676,6 @@
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
-  "blocks_view_cursor": 6,
+  "blocks_view_cursor": 1,
   "scopes": {}
 }
