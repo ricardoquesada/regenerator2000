@@ -194,6 +194,12 @@ impl Core {
                     "Enter Line Number (Dec)".to_string(),
                 ));
             }
+            AppAction::JumpNextUnexplored => {
+                self.handle_jump_unexplored(true, &mut events);
+            }
+            AppAction::JumpPrevUnexplored => {
+                self.handle_jump_unexplored(false, &mut events);
+            }
             AppAction::ChangeOrigin => {
                 events.push(CoreEvent::DialogRequested(crate::event::DialogType::Origin));
                 events.push(CoreEvent::StatusMessage("Change Origin...".to_string()));
@@ -1655,6 +1661,102 @@ impl Core {
         }
     }
 
+    fn handle_jump_unexplored(&mut self, forward: bool, events: &mut Vec<CoreEvent>) {
+        use crate::state::BlockType;
+
+        let block_types = &self.state.block_types;
+        if block_types.is_empty() {
+            events.push(CoreEvent::StatusMessage("No data loaded".to_string()));
+            return;
+        }
+
+        // Determine current offset from the cursor's disassembly line
+        let current_offset = self
+            .state
+            .disassembly
+            .get(self.view.cursor_index)
+            .map(|line| line.address.offset_from(self.state.origin))
+            .unwrap_or(0);
+
+        let found = if forward {
+            // Skip past the current block (whether Undefined or not)
+            let mut i = current_offset;
+            let current_type = block_types.get(i).copied().unwrap_or(BlockType::Code);
+
+            // 1. Skip remaining bytes of the current block type
+            while i < block_types.len() && block_types[i] == current_type {
+                i += 1;
+            }
+
+            // 2. Find the next Undefined block start
+            while i < block_types.len() {
+                if block_types[i] == BlockType::Undefined {
+                    break;
+                }
+                i += 1;
+            }
+
+            if i < block_types.len() { Some(i) } else { None }
+        } else {
+            // Backward: find previous Undefined block start
+            if current_offset == 0 {
+                None
+            } else {
+                let mut i = current_offset - 1;
+
+                // If we're already on/adjacent to an Undefined block, skip it
+                if block_types[i] == BlockType::Undefined {
+                    while i > 0 && block_types[i - 1] == BlockType::Undefined {
+                        i -= 1;
+                    }
+                    // Now i is the start of the current Undefined block
+                    // Move before it to search for the previous one
+                    if i == 0 {
+                        // The Undefined block starts at offset 0, nothing before
+                        return events.push(CoreEvent::StatusMessage(
+                            "No previous unexplored block".to_string(),
+                        ));
+                    }
+                    i -= 1;
+                }
+
+                // Now search backward for an Undefined byte
+                loop {
+                    if block_types[i] == BlockType::Undefined {
+                        // Found an Undefined byte; rewind to the start of this block
+                        while i > 0 && block_types[i - 1] == BlockType::Undefined {
+                            i -= 1;
+                        }
+                        break;
+                    }
+                    if i == 0 {
+                        return events.push(CoreEvent::StatusMessage(
+                            "No previous unexplored block".to_string(),
+                        ));
+                    }
+                    i -= 1;
+                }
+
+                Some(i)
+            }
+        };
+
+        if let Some(offset) = found {
+            let target_addr = self.state.origin.wrapping_add(offset as u16);
+            crate::navigation::perform_jump_to_address(&self.state, &mut self.view, target_addr);
+            let direction = if forward { "next" } else { "previous" };
+            events.push(CoreEvent::StatusMessage(format!(
+                "Jumped to {direction} unexplored block at ${target_addr:04X}"
+            )));
+            events.push(CoreEvent::ViewChanged);
+        } else {
+            let direction = if forward { "next" } else { "previous" };
+            events.push(CoreEvent::StatusMessage(format!(
+                "No {direction} unexplored block found"
+            )));
+        }
+    }
+
     fn handle_navigate_to_address(
         &mut self,
         target_addr: crate::state::Addr,
@@ -2397,6 +2499,71 @@ mod tests {
         assert_eq!(
             core.state.immediate_value_formats.get(&origin),
             Some(&ImmediateFormat::InvertedBinary)
+        );
+    }
+
+    #[test]
+    fn test_handle_jump_unexplored() {
+        use crate::state::types::BlockType;
+        let mut core = Core::new();
+        let origin = Addr(0x1000);
+        let data = vec![0xEA; 10];
+        core.state.load_binary(origin, data).unwrap();
+
+        // Pattern: C C U U C C U U C C (C=Code, U=Undefined)
+        core.state.block_types = vec![
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Undefined,
+            BlockType::Undefined,
+            BlockType::Code,
+            BlockType::Code,
+            BlockType::Undefined,
+            BlockType::Undefined,
+            BlockType::Code,
+            BlockType::Code,
+        ];
+
+        core.state.disassemble();
+
+        core.view.active_pane = ActivePane::Disassembly;
+
+        // Start at beginning ($1000)
+        core.view.cursor_index = 0;
+
+        // Jump Next -> should go to $1002
+        core.apply_action(AppAction::JumpNextUnexplored);
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].address,
+            Addr(0x1002)
+        );
+
+        // Jump Next -> should go to $1006
+        core.apply_action(AppAction::JumpNextUnexplored);
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].address,
+            Addr(0x1006)
+        );
+
+        // Jump Next -> no more, should stay at $1006
+        core.apply_action(AppAction::JumpNextUnexplored);
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].address,
+            Addr(0x1006)
+        );
+
+        // Jump Prev -> should go back to $1002
+        core.apply_action(AppAction::JumpPrevUnexplored);
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].address,
+            Addr(0x1002)
+        );
+
+        // Jump Prev -> no more, should stay at $1002
+        core.apply_action(AppAction::JumpPrevUnexplored);
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].address,
+            Addr(0x1002)
         );
     }
 }

@@ -26,6 +26,8 @@ pub enum AppAction {
     JumpToAddress,
     JumpToLine,
     JumpToOperand,
+    JumpNextUnexplored,
+    JumpPrevUnexplored,
 
     PackLoHiAddress,
     PackHiLoAddress,

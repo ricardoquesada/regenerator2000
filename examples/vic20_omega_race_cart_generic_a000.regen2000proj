@@ -66,7 +66,7 @@
     {
       "start": 2091,
       "end": 2126,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -78,7 +78,7 @@
     {
       "start": 2175,
       "end": 2182,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -114,7 +114,7 @@
     {
       "start": 2963,
       "end": 2970,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -126,7 +126,7 @@
     {
       "start": 3046,
       "end": 3061,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -438,9 +438,93 @@
         "kind": "User"
       }
     ],
+    "42589": [
+      {
+        "name": "check_entity_collision",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "42652": [
       {
         "name": "update_enemies",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43051": [
+      {
+        "name": "sprite_frame_start_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43056": [
+      {
+        "name": "sprite_frame_limit_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43061": [
+      {
+        "name": "anim_speed_mask_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43067": [
+      {
+        "name": "spawn_delay_enemy2_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43071": [
+      {
+        "name": "spawn_delay_enemy1_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43075": [
+      {
+        "name": "distance_threshold_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43079": [
+      {
+        "name": "pursuit_neg_velocity_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43083": [
+      {
+        "name": "pursuit_pos_velocity_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43135": [
+      {
+        "name": "spawn_x_velocity_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43139": [
+      {
+        "name": "spawn_y_velocity_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43143": [
+      {
+        "name": "find_active_entity_by_type",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -466,6 +550,13 @@
         "kind": "User"
       }
     ],
+    "43555": [
+      {
+        "name": "negate_a",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "43692": [
       {
         "name": "calc_bitmap_pointers",
@@ -483,6 +574,34 @@
     "43736": [
       {
         "name": "bitmap_colum_addresses_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43885": [
+      {
+        "name": "plot_pixel",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43900": [
+      {
+        "name": "clear_pixel_with_bounce",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43906": [
+      {
+        "name": "clear_pixel",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43923": [
+      {
+        "name": "bit_mask_tbl",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -819,6 +938,34 @@
     "42564": "load player Y",
     "42569": "check player collision against enemies",
     "42577": "handle player hit by enemy",
+    "42589": "start from last entity slot",
+    "42591": "check entity state",
+    "42594": "skip if inactive (bit 7 set)",
+    "42596": "entity X position",
+    "42599": "compare with test X",
+    "42601": "entity.X >= test.X? check right edge",
+    "42604": "entity.X + 8 (hitbox width)",
+    "42606": "compare with test.X",
+    "42608": "overlap on X axis? check Y",
+    "42610": "no X overlap, skip",
+    "42612": "test.X",
+    "42615": "test.X + 8 (hitbox width)",
+    "42617": "test.X + 8 >= entity.X? overlap",
+    "42620": "no X overlap, skip",
+    "42622": "entity Y position",
+    "42625": "compare with test Y",
+    "42627": "entity.Y >= test.Y? check bottom edge",
+    "42630": "entity.Y + 8 (hitbox height)",
+    "42632": "compare with test.Y",
+    "42634": "overlap on both axes = collision!",
+    "42636": "no Y overlap, skip",
+    "42638": "test.Y",
+    "42641": "test.Y + 8 (hitbox height)",
+    "42643": "test.Y + 8 >= entity.Y? overlap",
+    "42646": "collision! return with X = entity index",
+    "42648": "next entity",
+    "42649": "loop until X wraps to $FF",
+    "42651": "return: X = entity index or $FF",
     "42652": "check if enemy 1 is active",
     "42656": "load frame tick timer",
     "42685": "disable IRQs for spawning",
@@ -829,6 +976,20 @@
     "42784": "store calculated sprite frame",
     "42870": "load frame counter",
     "42941": "check enemy 1 for firing/sound",
+    "43122": "X velocity for spawn direction",
+    "43125": "set entity X velocity",
+    "43128": "Y velocity for spawn direction",
+    "43131": "set entity Y velocity",
+    "43143": "save entity type to search for",
+    "43145": "start from total entity count",
+    "43147": "check entity state",
+    "43150": "skip if inactive (bit 7 set)",
+    "43152": "load entity type",
+    "43155": "matches requested type?",
+    "43157": "yes, return with X = entity index",
+    "43159": "next entity",
+    "43160": "loop until X = 0 (not found)",
+    "43162": "return: X = entity index or 0",
     "43177": "configure VIA2 DDRB",
     "43185": "read Joy Right (bit 7)",
     "43204": "read VIA1 Port A (Up/Down/Left/Fire)",
@@ -855,7 +1016,8 @@
     "43546": "hit bottom wall flag",
     "43548": "clamp Y to bottom edge",
     "43552": "bounce (negate Y velocity)",
-    "43555": "negate velocity (Two's complement)",
+    "43555": "one's complement",
+    "43558": "+1 = two's complement",
     "43561": "handle inner box collisions",
     "43629": "negate Y velocity",
     "43639": "negate X velocity",
@@ -872,6 +1034,17 @@
     "43724": "add 160 (bytes per column) to low byte",
     "43726": "store adjacent column pointer low",
     "43732": "store adjacent column pointer high",
+    "43885": "compute bitmap pointer for (aA3,aA4)",
+    "43888": "bit offset (X % 8)",
+    "43890": "load bit mask for target pixel",
+    "43895": "OR pixel into bitmap byte",
+    "43897": "write back",
+    "43900": "clamp position, bounce velocity",
+    "43909": "bit offset (X % 8)",
+    "43911": "load bit mask for target pixel",
+    "43916": "invert mask",
+    "43918": "AND to clear pixel",
+    "43920": "write back",
     "43982": "Init loop counter for 8 dots",
     "43988": "Load X coordinate",
     "43993": "Load Y coordinate",
@@ -984,11 +1157,28 @@
     "42086": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdate player ship velocity, sprite frame, thruster state, and fire button.\n\nEach frame (called from main loop at $A044):\n  1. Bail if player is inactive (f03A2 < 0).\n  2. Read joystick via a1D7D; if fire cooldown (a35) is clear and a bullet\n     slot is free (a19 != 0), spawn a projectile via sADB9.\n  3. Look up signed X/Y velocity deltas from 16-entry direction tables\n     (fA4E7 / fA4F7) indexed by the current heading (aB1, 0-15).\n     Deltas are applied every other frame (a37 odd = skip) for half-rate\n     physics accumulation.\n  4. If the fire button (VIA1 $900D bit 7) is pressed, activate thruster:\n     set countdown timers a48/a4C=$18 and speed timer a44=$64, and write\n     the thrusting sprite frame to f1D13 (aB1 | $10).\n  5. Clamp both X (f03C8) and Y (f1D00) velocities to the range -3..+3\n     ($FD..$03).\n\nInputs:  aB1 = current heading (0-15), f03A2 = player alive flag,\n         a35 = fire cooldown, a19 = bullet slots free,\n         aB2 = direction flip bit, a900D = VIA1 joystick/fire port\nOutputs: f03C8 = X velocity (clamped -3..+3),\n         f1D00 = Y velocity (clamped -3..+3),\n         f1D13 = sprite frame register\nSide Effects: May spawn bullet (sADB9); sets thruster timers a44/a48/a4C.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "42247": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies velocity to enemy positions.\n\nInputs:  a40 (enemy count), a37 (frame counter), $03C8/$1D00 arrays (velocities)\nOutputs: $0362/$0375 arrays (positions)\nSide Effects: Updates coordinates of active enemies\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "42293": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates display states and handles all entity collisions.\n\nInputs:  a26 (bullet flags), bullet positions, player position, enemy positions\nOutputs: Collision state (kills enemies or player), sprite display arrays\nSide Effects: Calls collision detection, plays sound effects, removes killed entities\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "42589": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks whether a given X,Y position collides with any active entity.\nScans all 19 entity slots ($12 down to $00) using 8x8 pixel bounding-box\n(AABB) collision detection.\n\nInputs:  $A3 = X coordinate to test, $A4 = Y coordinate to test\nOutputs: X = index of colliding entity (0-$12), or $FF if no collision\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "42652": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates all enemy states, animations, movement, and spawning.\n\nInputs:  a37 (frame counter), a3E (timer), a40 (enemy count)\nOutputs: Enemy states (zero page and $03xx/$1Dxx arrays) updated\nSide Effects: Spawns new enemies, updates sprite pointers and positions\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43051": "Initial sprite frame per entity type (5 entries, indexed by f033C)",
+    "43056": "Max sprite frame per entity type; wraps to sprite_frame_start_tbl",
+    "43061": "ANDed with frame counter to control animation speed per type",
+    "43067": "Spawn timer delay for enemy 2, indexed by difficulty (250,240,200,150)",
+    "43071": "Spawn timer delay for enemy 1, indexed by difficulty (255,245,205,155)",
+    "43075": "Distance brackets for enemy AI pursuit (0,40,80,120)",
+    "43079": "Pursuit velocity when enemy is ahead of player (0,-2,-3,-3)",
+    "43083": "Pursuit velocity when enemy is behind player (0,+2,+3,+3)",
+    "43135": "Initial X velocity by spawn direction: ↘,↗,↖,↙",
+    "43139": "Initial Y velocity by spawn direction: ↘,↗,↖,↙",
+    "43143": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSearches the entity array for an active entity of a given type.\nScans from index a40 (entity count) down to 1.\n\nInputs:  Y = entity type to search for (1-4)\nOutputs: X = index of matching entity (1-$12), or 0 if not found\nSide Effects: $51 is overwritten with search type\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43174": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nReads and processes joystick input from VIA hardware registers.\n\nInputs:  None\nOutputs: aB0 (Fire pressed = $80)\n         aB1 (Right/Up state + player angle)\n         aB2 (Left pressed = $80)\nSide Effects: Disables IRQs to safely read VIA2 Port B (Right direction), \n              then reads VIA1 Port A (Up/Down/Left/Fire) with a debounce loop.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43353": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAnalog Paddle to Player Angle Threshold Table\nBecause the original arcade game used a rotary controller, the VIC-20 port \nsupports the Commodore Paddle. This 17-byte table divides the 0-255 analog \npaddle reading ($9008) into 16 evenly spaced intervals (0-15). The paddle \nroutine compares the analog reading against this table from top to bottom \nto determine which of the 16 rotational angles the player's ship should face.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43370": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies boundary collisions (outer screen walls and inner central box).\n\nInputs:  aA3, aA4 (X, Y position)\n         aAE, aAF (X, Y velocity)\nOutputs: a18 (Collision flag: 0=none, >0 indicates which wall was hit)\nSide Effects: Clamps the X/Y position to keep the entity in bounds. If a wall \n              or the central box is hit, the corresponding X or Y velocity \n              vector is negated (Two's Complement) to produce a bounce effect.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43555": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nNegates the accumulator using two's complement (A = -A).\nUsed for velocity bouncing and distance sign flipping.\n\nInputs:  A = signed 8-bit value\nOutputs: A = negated value\nSide Effects: Carry flag modified\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43692": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCalculates memory pointers for drawing to the custom VIC-20 bitmap.\n\nInputs:  aA3 (X coordinate), aA4 (Y coordinate)\nOutputs: aAD (Bit shift offset: X % 8)\n         aA5/aA6 (Pointer to the byte containing the target pixel)\n         aA7/aA8 (Pointer to the adjacent column, 160 bytes ahead)\nSide Effects: None. Omega Race implements a custom bitmap by arranging the \n              VIC-I character map into columns. This routine uses a lookup \n              table to find the base address of the column (X / 8), adds the \n              Y coordinate, and calculates pointers for rendering.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43885": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets a pixel in the custom bitmap at position (aA3, aA4).\n\nInputs:  aA3 = X coordinate, aA4 = Y coordinate\nOutputs: Pixel set in bitmap memory\nSide Effects: Modifies bitmap memory via (aA5) pointer\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43900": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears a pixel after applying boundary collision checks.\nBounces velocity if a wall is hit, then clears the pixel.\n\nInputs:  aA3/aA4 = position, aAE/aAF = X/Y velocity\nOutputs: Pixel cleared, position clamped, velocity bounced\nSide Effects: Modifies bitmap memory, may negate velocity\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43906": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears a pixel in the custom bitmap at position (aA3, aA4).\n\nInputs:  aA3 = X coordinate, aA4 = Y coordinate\nOutputs: Pixel cleared in bitmap memory\nSide Effects: Modifies bitmap memory via (aA5) pointer\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43923": "Bit mask lookup: index 0=$80, 1=$40, 2=$20 ... 7=$01",
     "43982": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlots 8 pixels at the corners and midpoints of the playfield area to act\nas visual markers.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies character bitmap by setting 8 specific pixels.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44022": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases the arena border from the bitmap. Mirror of draw_arena_border — iterates\nthrough 8 line segments, clearing pixels using erase_border_segment (sAC77).\nCalled during level init before the border is redrawn.\n\nInputs:  None\nOutputs: None\nSide Effects: Clears border pixels from character bitmap ($1000-$1CFF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44036": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the playfield arena border onto the custom VIC-20 bitmap. Iterates\nthrough 13 line segments, rendering each using parameters from the\nborder_segment_table (fACA0).\n\nInputs:  None\nOutputs: None\nSide Effects: Writes pixels to character bitmap ($1000-$1CFF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1049,8 +1239,8 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 40969,
-  "hex_dump_cursor_address": 40960,
+  "cursor_address": 44006,
+  "hex_dump_cursor_address": 44000,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 40960,
   "right_pane_visible": "HexDump",

@@ -165,6 +165,17 @@ impl MenuState {
                             Some("Enter"),
                             Some(AppAction::JumpToOperand),
                         ),
+                        MenuItem::separator(),
+                        MenuItem::new(
+                            "Next Unexplored Block",
+                            None,
+                            Some(AppAction::JumpNextUnexplored),
+                        ),
+                        MenuItem::new(
+                            "Prev Unexplored Block",
+                            None,
+                            Some(AppAction::JumpPrevUnexplored),
+                        ),
                     ],
                 },
                 MenuCategory {
