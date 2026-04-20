@@ -17,6 +17,7 @@ pub struct LabelOption {
 pub struct SystemConfig {
     pub features: Vec<LabelOption>,
     pub has_comments: bool,
+    pub has_excludes: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,11 +76,13 @@ pub fn get_available_platforms() -> Vec<String> {
 pub fn load_system_config(platform: &str) -> SystemConfig {
     let mut features = Vec::new();
     let mut has_comments = false;
+    let mut has_excludes = false;
 
     if let Some(content) = get_system_file_content(platform)
         && let Ok(data) = serde_json::from_str::<SystemData>(content)
     {
         has_comments = !data.comments.is_empty();
+        has_excludes = !data.excluded.is_empty();
 
         // Convert hashmap keys to features
         let mut keys: Vec<_> = data.labels.keys().collect();
@@ -104,6 +107,7 @@ pub fn load_system_config(platform: &str) -> SystemConfig {
     SystemConfig {
         features,
         has_comments,
+        has_excludes,
     }
 }
 
@@ -250,5 +254,6 @@ mod tests {
             "VIC-20 should have features"
         );
         assert!(config_vic20.has_comments, "VIC-20 should have comments");
+        assert!(config_vic20.has_excludes, "VIC-20 should have excludes");
     }
 }

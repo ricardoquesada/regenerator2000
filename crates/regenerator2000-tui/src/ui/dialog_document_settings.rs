@@ -189,6 +189,7 @@ impl Widget for DocumentSettingsDialog {
 
         // System Comments checkbox index (after dynamic label items)
         let idx_system_comments = dynamic_start_idx + dynamic_items.len();
+        let idx_exclude_comments = idx_system_comments + usize::from(system_config.has_comments);
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -208,6 +209,7 @@ impl Widget for DocumentSettingsDialog {
                 Constraint::Length(dynamic_items.len() as u16), // Dynamic items
                 Constraint::Length(u16::from(system_config.has_comments)), // System Comments Header
                 Constraint::Length(u16::from(system_config.has_comments)), // System Comments checkbox
+                Constraint::Length(u16::from(system_config.has_excludes)), // Exclude comments checkbox
             ])
             .split(inner);
 
@@ -266,6 +268,20 @@ impl Widget for DocumentSettingsDialog {
             f.render_widget(
                 Paragraph::new(comments_checkbox),
                 Rect::new(layout[14].x + 2, layout[14].y, layout[14].width - 4, 1),
+            );
+        }
+
+        // Render Exclude Comments checkbox
+        if system_config.has_excludes {
+            let exclude_checkbox = checkbox(
+                "  Exclude comments from well-known addresses",
+                settings.exclude_comments_from_well_known,
+                self.selected_index == idx_exclude_comments,
+                false,
+            );
+            f.render_widget(
+                Paragraph::new(exclude_checkbox),
+                Rect::new(layout[15].x + 2, layout[15].y, layout[15].width - 4, 1),
             );
         }
 
@@ -642,8 +658,11 @@ impl Widget for DocumentSettingsDialog {
         let idx_platform = base_items_count + 8;
         let dynamic_start_idx = idx_platform + 1;
         let idx_system_comments = dynamic_start_idx + dynamic_items_count;
+        let idx_exclude_comments = idx_system_comments + usize::from(system_config.has_comments);
 
-        let total_items = if system_config.has_comments {
+        let total_items = if system_config.has_excludes {
+            idx_exclude_comments + 1
+        } else if system_config.has_comments {
             idx_system_comments + 1
         } else {
             dynamic_start_idx + dynamic_items_count
@@ -1065,6 +1084,13 @@ impl Widget for DocumentSettingsDialog {
                         idx if idx == idx_system_comments && system_config.has_comments => {
                             app_state.settings.show_system_comments =
                                 !app_state.settings.show_system_comments;
+                            // Reload system assets and re-disassemble for immediate feedback
+                            app_state.load_system_assets();
+                            app_state.disassemble();
+                        }
+                        idx if idx == idx_exclude_comments && system_config.has_excludes => {
+                            app_state.settings.exclude_comments_from_well_known =
+                                !app_state.settings.exclude_comments_from_well_known;
                             // Reload system assets and re-disassemble for immediate feedback
                             app_state.load_system_assets();
                             app_state.disassemble();
