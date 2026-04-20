@@ -382,9 +382,23 @@
         "kind": "User"
       }
     ],
+    "42025": [
+      {
+        "name": "clear_char_ram",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "42050": [
       {
         "name": "vic_registers",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "42066": [
+      {
+        "name": "fill_color_ram",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -473,6 +487,132 @@
         "kind": "User"
       }
     ],
+    "43982": [
+      {
+        "name": "draw_markers",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44006": [
+      {
+        "name": "marker_x_coords",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44014": [
+      {
+        "name": "marker_y_coords",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44022": [
+      {
+        "name": "erase_arena_border",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44036": [
+      {
+        "name": "draw_arena_border",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44105": [
+      {
+        "name": "draw_border_segment",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44151": [
+      {
+        "name": "erase_border_segment",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44165": [
+      {
+        "name": "load_segment_params",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44192": [
+      {
+        "name": "border_segment_table",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44205": [
+      {
+        "name": "draw_player_score",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44226": [
+      {
+        "name": "draw_high_score",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44247": [
+      {
+        "name": "render_bcd_digits",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44312": [
+      {
+        "name": "draw_wave_indicator",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44343": [
+      {
+        "name": "draw_wave_icons",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44362": [
+      {
+        "name": "draw_lives_display",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44435": [
+      {
+        "name": "lives_icon_x_table",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44440": [
+      {
+        "name": "lives_icon_y_table",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44455": [
+      {
+        "name": "advance_score_cursor",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "45512": [
       {
         "name": "attract_mode",
@@ -494,6 +634,13 @@
         "kind": "User"
       }
     ],
+    "45927": [
+      {
+        "name": "show_phase_bonus_screen",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "46011": [
       {
         "name": "delay_1_second",
@@ -511,6 +658,13 @@
     "46221": [
       {
         "name": "ignore_nmi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "46878": [
+      {
+        "name": "wave_icon_table",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -599,8 +753,17 @@
     "42003": "Store unique char code",
     "42007": "Store color",
     "42012": "Move up one row (20 columns)",
-    "42029": "Start clearing from $1000",
+    "42027": "set pointer low byte = $00",
+    "42029": "set pointer high byte = $10 (start at $1000)",
+    "42036": "write zero to (aA5),Y",
+    "42041": "advance to next page",
+    "42045": "stop when high byte reaches $1D (past $1CFF)",
     "42047": "Clear up to $1CFF",
+    "42066": "set pointer to Color RAM ($9600)",
+    "42074": "Y = 199 — fill 200 cells",
+    "42076": "load fill color",
+    "42078": "store color to (aA7),Y",
+    "42080": "count down",
     "42086": "f03A2 = player alive flag; negative = dead/inactive",
     "42089": "player inactive -> skip all updates",
     "42091": "read joystick, compute velocity delta from heading",
@@ -709,6 +872,38 @@
     "43724": "add 160 (bytes per column) to low byte",
     "43726": "store adjacent column pointer low",
     "43732": "store adjacent column pointer high",
+    "43982": "Init loop counter for 8 dots",
+    "43988": "Load X coordinate",
+    "43993": "Load Y coordinate",
+    "43998": "Plot pixel",
+    "44022": "init segment counter = 8",
+    "44026": "loop — erase one border segment per pass",
+    "44028": "erase segment at current counter index",
+    "44031": "decrement segment counter",
+    "44036": "init segment counter = 8 (counts down to $FB)",
+    "44040": "loop — draw one border segment per pass",
+    "44042": "stop when counter reaches $FB",
+    "44046": "draw segment at current counter index",
+    "44049": "decrement segment counter",
+    "44205": "X position = $52",
+    "44209": "Y position = $48",
+    "44215": "copy 3-byte BCD score to scratch buffer",
+    "44222": "render digits",
+    "44312": "first column: 5 icons max",
+    "44316": "X = $5A",
+    "44320": "Y = $40",
+    "44327": "second column: 10 icons max",
+    "44331": "X = $46",
+    "44335": "Y = $54",
+    "44362": "loop over 3 ship slots (X=2 down to 0)",
+    "44366": "bitmap column = $29",
+    "44373": "get X position for this slot",
+    "44378": "get Y position for this slot",
+    "44383": "erase ship icon",
+    "44390": "a1F = lives remaining; 0 = game over",
+    "44401": "a54 = bonus ship flag",
+    "44405": "bonus ship at fixed position ($3D/$4C)",
+    "44427": "draw filled ship icon",
     "45512": "clear screen / display RAM",
     "45515": "setup title screen colors",
     "45530": "pointer to title graphic 1",
@@ -733,6 +928,19 @@
     "45820": "draw character to screen",
     "45834": "abort if start pressed",
     "45851": "advance X by step",
+    "45927": "clear screen",
+    "45931": "trigger sound fanfare (channel indices/durations)",
+    "45942": "get low nibble of phase as sprite index",
+    "45947": "offset into graphic table ($D4 base)",
+    "45949": "compute bitmap address for phase graphic",
+    "45952": "X position = $80, Y = $1C for primary graphic",
+    "45960": "draw primary phase graphic",
+    "45965": "check high nibble — draw second graphic if nonzero",
+    "45978": "X position = $78 for secondary graphic",
+    "45986": "draw secondary phase graphic",
+    "45999": "draw congratulatory text string",
+    "46002": "wait ~1 second",
+    "46005": "award 7 bonus points",
     "46011": "setup outer loop counter (256)",
     "46015": "setup inner loop counter (256)",
     "46019": "5 cycles",
@@ -771,6 +979,8 @@
     "41844": "Table of number of enemies per level. \nNote that level 0 uses the RTS opcode ($60) at $A373 as a space-saving trick.",
     "41847": "Wave configuration tables. Used to initialize game parameters based on difficulty phase.",
     "41984": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the playfield by setting up a 20x10 grid of unique characters\nand clearing the character definition area ($1000-$1CFF).\n\nInputs:  a27 (Color value for the playfield)\nOutputs: None\nSide Effects: Modifies Screen and Color RAM; clears RAM from $1000 to $1CFF\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "42025": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears the custom character definition RAM ($1000-$1CFF) by zeroing all\n3,072 bytes. Called before drawing any new bitmap graphic into the character\nset (title screens, phase bonus, level transitions).\n\nInputs:  None\nOutputs: None\nSide Effects: Zeroes $1000-$1CFF via pointer aA5/aA6\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "42066": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFills all 200 Color RAM cells ($9600-$96C7) with the value in a27.\nUsed to paint a uniform color across the 20x10 playfield character grid.\n\nInputs:  a27 (color value to fill)\nOutputs: None\nSide Effects: Overwrites $9600-$96C7 (Color RAM) via pointer aA7/aA8\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "42086": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdate player ship velocity, sprite frame, thruster state, and fire button.\n\nEach frame (called from main loop at $A044):\n  1. Bail if player is inactive (f03A2 < 0).\n  2. Read joystick via a1D7D; if fire cooldown (a35) is clear and a bullet\n     slot is free (a19 != 0), spawn a projectile via sADB9.\n  3. Look up signed X/Y velocity deltas from 16-entry direction tables\n     (fA4E7 / fA4F7) indexed by the current heading (aB1, 0-15).\n     Deltas are applied every other frame (a37 odd = skip) for half-rate\n     physics accumulation.\n  4. If the fire button (VIA1 $900D bit 7) is pressed, activate thruster:\n     set countdown timers a48/a4C=$18 and speed timer a44=$64, and write\n     the thrusting sprite frame to f1D13 (aB1 | $10).\n  5. Clamp both X (f03C8) and Y (f1D00) velocities to the range -3..+3\n     ($FD..$03).\n\nInputs:  aB1 = current heading (0-15), f03A2 = player alive flag,\n         a35 = fire cooldown, a19 = bullet slots free,\n         aB2 = direction flip bit, a900D = VIA1 joystick/fire port\nOutputs: f03C8 = X velocity (clamped -3..+3),\n         f1D00 = Y velocity (clamped -3..+3),\n         f1D13 = sprite frame register\nSide Effects: May spawn bullet (sADB9); sets thruster timers a44/a48/a4C.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "42247": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies velocity to enemy positions.\n\nInputs:  a40 (enemy count), a37 (frame counter), $03C8/$1D00 arrays (velocities)\nOutputs: $0362/$0375 arrays (positions)\nSide Effects: Updates coordinates of active enemies\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "42293": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates display states and handles all entity collisions.\n\nInputs:  a26 (bullet flags), bullet positions, player position, enemy positions\nOutputs: Collision state (kills enemies or player), sprite display arrays\nSide Effects: Calls collision detection, plays sound effects, removes killed entities\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -779,9 +989,16 @@
     "43353": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAnalog Paddle to Player Angle Threshold Table\nBecause the original arcade game used a rotary controller, the VIC-20 port \nsupports the Commodore Paddle. This 17-byte table divides the 0-255 analog \npaddle reading ($9008) into 16 evenly spaced intervals (0-15). The paddle \nroutine compares the analog reading against this table from top to bottom \nto determine which of the 16 rotational angles the player's ship should face.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43370": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies boundary collisions (outer screen walls and inner central box).\n\nInputs:  aA3, aA4 (X, Y position)\n         aAE, aAF (X, Y velocity)\nOutputs: a18 (Collision flag: 0=none, >0 indicates which wall was hit)\nSide Effects: Clamps the X/Y position to keep the entity in bounds. If a wall \n              or the central box is hit, the corresponding X or Y velocity \n              vector is negated (Two's Complement) to produce a bounce effect.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43692": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCalculates memory pointers for drawing to the custom VIC-20 bitmap.\n\nInputs:  aA3 (X coordinate), aA4 (Y coordinate)\nOutputs: aAD (Bit shift offset: X % 8)\n         aA5/aA6 (Pointer to the byte containing the target pixel)\n         aA7/aA8 (Pointer to the adjacent column, 160 bytes ahead)\nSide Effects: None. Omega Race implements a custom bitmap by arranging the \n              VIC-I character map into columns. This routine uses a lookup \n              table to find the base address of the column (X / 8), adds the \n              Y coordinate, and calculates pointers for rendering.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43982": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlots 8 pixels at the corners and midpoints of the playfield area to act\nas visual markers.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies character bitmap by setting 8 specific pixels.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44022": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases the arena border from the bitmap. Mirror of draw_arena_border — iterates\nthrough 8 line segments, clearing pixels using erase_border_segment (sAC77).\nCalled during level init before the border is redrawn.\n\nInputs:  None\nOutputs: None\nSide Effects: Clears border pixels from character bitmap ($1000-$1CFF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44036": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the playfield arena border onto the custom VIC-20 bitmap. Iterates\nthrough 13 line segments, rendering each using parameters from the\nborder_segment_table (fACA0).\n\nInputs:  None\nOutputs: None\nSide Effects: Writes pixels to character bitmap ($1000-$1CFF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44205": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the current player score (aF7/aF8/aF9) onto the bitmap at X=$52, Y=$48.\nCopies the 3-byte BCD score to a scratch buffer and calls render_bcd_digits\nto draw each digit, advancing 4 pixels per digit.\n\nInputs:  aF7/aF8/aF9 (3-byte packed BCD current score)\nOutputs: None\nSide Effects: Writes digit graphics to bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44312": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the current wave/level indicator as two columns of icons on the bitmap.\nFirst column: up to 5 icons at X=$5A, Y=$40 (tens digit of wave).\nSecond column: up to 10 icons at X=$46, Y=$54 (units digit of wave).\nIcon graphics are indexed from wave_icon_table (fB71E).\n\nInputs:  None (uses hardcoded positions and wave_icon_table)\nOutputs: None\nSide Effects: Writes icon graphics to bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44362": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the player lives display onto the bitmap. Erases all 3 ship icon slots,\nthen redraws a filled ship icon for each remaining life (a1F). Uses a54 to\nselect a bonus ship position for the last icon drawn.\n\nInputs:  a1F (lives remaining), a54 (bonus ship flag)\nOutputs: None\nSide Effects: Writes ship icon graphics to bitmap at lives_icon_x/y_table positions\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45512": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTitle screen / Attract mode sequence.\n\nInputs:  None\nOutputs: Returns when the player presses Start (aB0 flag goes negative)\nSide Effects: Clears screen, displays cycling title screens and graphics, \n              sets colors, waits for user input.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45748": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDelay loop used during the attract mode sequence.\n\nInputs:  None\nOutputs: None\nSide Effects: Delays execution for a few seconds by looping 40 x 256 times. \n              Continually polls for user input (via scan_input_for_start) and \n              aborts the delay instantly if the start button is pressed.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45772": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws a sequence of characters/graphics to the screen with a typing effect.\n\nInputs:  X (pointer low), Y (pointer high) to graphic data structure\n         aAE (delay outer loop), aAF (delay inner loop)\nOutputs: None\nSide Effects: Draws to screen RAM. Can be aborted instantly if the user \n              presses the start button (aB0 flag).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "45927": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPhase advancement bonus screen. Called every 4th level before incrementing\nthe difficulty phase (a21). Clears the screen, plays a sound fanfare, draws\nthe current phase graphic indexed by a21, displays a congratulatory string,\nwaits ~1 second, then awards 7 bonus points to the player score.\n\nInputs:  a21 (current difficulty phase, selects which graphic to draw)\nOutputs: None\nSide Effects: Clears screen; triggers sound; draws phase graphic and text;\n              delays ~1 second; adds 7 points to player score (sB12D).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "46011": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDelay loop for approximately 1 second.\n\nInputs:  None\nOutputs: None\nSide Effects: Wastes exactly 1 million CPU cycles (~1 second at 1MHz) using \n              nested loops and dummy writes to ROM addresses.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "46034": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScans joysticks and keyboard for a \"Game Start\" input during attract mode.\n\nInputs:  None\nOutputs: Sets aB0 to $80 if start is triggered.\nSide Effects: Calls KERNAL keyboard and custom joystick scan routines. \n              Depending on the input (F-keys or joystick buttons), it configures \n              the selected game mode and player sprite pointers. Also contains a \n              hidden cheat/easter-egg check for modifier keys.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "46221": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIgnores NMI interrupts (likely triggered by the RESTORE key) by restoring\nregisters and returning immediately.\n\nInputs:  None (assumes Y, X, A are pushed on stack by KERNAL)\nOutputs: Restores Y, X, A registers\nSide Effects: Reads $9111 (VIA 1 Port A)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
@@ -823,11 +1040,17 @@
     },
     "41994": {
       "HighByte": 38419
+    },
+    "42066": {
+      "LowByte": 38400
+    },
+    "42070": {
+      "HighByte": 38400
     }
   },
   "bookmarks": {},
-  "cursor_address": 41615,
-  "hex_dump_cursor_address": 41600,
+  "cursor_address": 40969,
+  "hex_dump_cursor_address": 40960,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 40960,
   "right_pane_visible": "HexDump",
