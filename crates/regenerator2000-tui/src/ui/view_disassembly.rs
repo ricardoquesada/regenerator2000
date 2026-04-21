@@ -1397,9 +1397,9 @@ impl Widget for DisassemblyView {
                 inst_spans.push(Span::styled(label_column_text, label_style));
 
                 let mnemonic_text = if is_unindented_scope {
-                    "     ".to_string()
+                    "      ".to_string()
                 } else {
-                    format!("{: <4} ", line.mnemonic)
+                    format!("{: <5} ", line.mnemonic)
                 };
 
                 inst_spans.push(Span::styled(
@@ -2028,6 +2028,89 @@ mod tests {
         assert_eq!(
             ui_state.sub_cursor_index, 0,
             "Visual selection DOWN should land on first line of next block"
+        );
+    }
+
+    #[test]
+    fn test_side_comment_alignment() {
+        use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
+        use ratatui::layout::Rect;
+
+        let mut app_state = AppState::default();
+
+        // Add a regular instruction
+        app_state.disassembly.push(DisassemblyLine {
+            address: crate::state::Addr(0x1000),
+            bytes: vec![0xa9, 0x80],
+            mnemonic: "lda".to_string(),
+            operand: "#$80".to_string(),
+            comment: "init wall hit flag".to_string(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        });
+
+        // Add a .byte directive
+        app_state.disassembly.push(DisassemblyLine {
+            address: crate::state::Addr(0x1002),
+            bytes: vec![0x2c],
+            mnemonic: ".byte".to_string(),
+            operand: "$2c".to_string(),
+            comment: "bit opcode".to_string(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: false,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        });
+
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
+        ui_state.disassembly_viewport_height = 10;
+
+        let view = DisassemblyView;
+
+        let backend = TestBackend::new(100, 10);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        terminal
+            .draw(|f| {
+                let area = Rect::new(0, 0, 100, 10);
+                view.render(f, area, &app_state, &mut ui_state);
+            })
+            .unwrap();
+
+        let buffer = terminal.backend().buffer();
+
+        let mut line1_comment_x = None;
+        for x in 0..100 {
+            let cell = &buffer[(x, 1)];
+            if cell.symbol() == ";" {
+                line1_comment_x = Some(x);
+                break;
+            }
+        }
+
+        let mut line2_comment_x = None;
+        for x in 0..100 {
+            let cell = &buffer[(x, 2)];
+            if cell.symbol() == ";" {
+                line2_comment_x = Some(x);
+                break;
+            }
+        }
+
+        assert!(line1_comment_x.is_some(), "Comment not found on line 1");
+        assert!(line2_comment_x.is_some(), "Comment not found on line 2");
+        assert_eq!(
+            line1_comment_x, line2_comment_x,
+            "Comments are not aligned!"
         );
     }
 }

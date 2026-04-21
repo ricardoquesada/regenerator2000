@@ -1351,6 +1351,9 @@
     ]
   },
   "user_side_comments": {
+    "40960": "reset vector",
+    "40962": "\"RESTORE\" key vector",
+    "40964": "\"A0CBM\"",
     "40969": "clear decimal mode — safe cartridge start",
     "40973": "restore default KERNAL I/O vectors",
     "40980": "reset stack pointer to $FF (top of stack)",
@@ -1929,8 +1932,8 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 44073,
-  "hex_dump_cursor_address": 44064,
+  "cursor_address": 43440,
+  "hex_dump_cursor_address": 43440,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
   "right_pane_visible": "HexDump",
