@@ -76,10 +76,12 @@ pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAc
                         crate::ui::dialog_jump_to_line::JumpToLineDialog::new(),
                     ));
                 }
-                DialogType::Search { query, filters } => {
-                    ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_search::SearchDialog::new(query, filters),
-                    ));
+                DialogType::Search { .. } => {
+                    ui_state.active_dialog =
+                        Some(Box::new(crate::ui::dialog_search::SearchDialog::new(
+                            ui_state.last_search_query.clone(),
+                            ui_state.search_filters.clone(),
+                        )));
                 }
                 DialogType::GoToSymbol => {
                     ui_state.active_dialog = Some(Box::new(
