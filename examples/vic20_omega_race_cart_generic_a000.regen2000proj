@@ -341,6 +341,252 @@
     },
     {
       "start": 5270,
+      "end": 7045,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 7046,
+      "end": 7110,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7111,
+      "end": 7126,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7127,
+      "end": 7130,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 7131,
+      "end": 7134,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7135,
+      "end": 7138,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 7139,
+      "end": 7145,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 7146,
+      "end": 7159,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7160,
+      "end": 7163,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 7164,
+      "end": 7170,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 7171,
+      "end": 7182,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7183,
+      "end": 7183,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 7184,
+      "end": 7270,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7271,
+      "end": 7273,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 7274,
+      "end": 7285,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7286,
+      "end": 7289,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 7290,
+      "end": 7308,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7309,
+      "end": 7312,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 7313,
+      "end": 7346,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7347,
+      "end": 7350,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 7351,
+      "end": 7380,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7381,
+      "end": 7384,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 7385,
+      "end": 7417,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7418,
+      "end": 7421,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 7422,
+      "end": 7454,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7455,
+      "end": 7458,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 7459,
+      "end": 7485,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7486,
+      "end": 7489,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 7490,
+      "end": 7505,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7506,
+      "end": 7509,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 7510,
+      "end": 7547,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7548,
+      "end": 7551,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 7552,
+      "end": 7590,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7591,
+      "end": 7692,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7693,
+      "end": 7729,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7730,
+      "end": 7733,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 7734,
+      "end": 7767,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7768,
+      "end": 7771,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 7772,
+      "end": 7799,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7800,
+      "end": 7803,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 7804,
+      "end": 7826,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 7827,
       "end": 8191,
       "type_": "Undefined",
       "collapsed": false
@@ -760,6 +1006,13 @@
         "kind": "User"
       }
     ],
+    "43163": [
+      {
+        "name": "find_distance_bracket",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "43174": [
       {
         "name": "read_joystick",
@@ -833,6 +1086,13 @@
     "43923": [
       {
         "name": "bit_mask_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43931": [
+      {
+        "name": "calc_sprite_ptr",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1040,9 +1300,51 @@
         "kind": "User"
       }
     ],
+    "46230": [
+      {
+        "name": "sprite_glyph_table",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "46878": [
       {
         "name": "wave_icon_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "46888": [
+      {
+        "name": "gfx_attract_slide_2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "47140": [
+      {
+        "name": "small_font_glyphs",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "48006": [
+      {
+        "name": "gfx_attract_slide_1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "48144": [
+      {
+        "name": "gfx_attract_slide_3",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "48231": [
+      {
+        "name": "gfx_story_slide_1",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1228,6 +1530,8 @@
     "42651": "return: X = entity index or $FF",
     "42652": "check if enemy 1 is active",
     "42656": "load frame tick timer",
+    "42662": "search for active entity of type 3",
+    "42672": "spawn enemy type 1",
     "42685": "disable IRQs for spawning",
     "42694": "check if enemy 2 is active",
     "42735": "check if enemy 3 is active",
@@ -1236,6 +1540,10 @@
     "42784": "store calculated sprite frame",
     "42841": "bit opcode",
     "42870": "load frame counter",
+    "42878": "calculate X distance (enemy - player)",
+    "42887": "find distance bracket",
+    "42908": "calculate Y distance (enemy - player)",
+    "42917": "find distance bracket",
     "42941": "check enemy 1 for firing/sound",
     "43122": "X velocity for spawn direction",
     "43125": "set entity X velocity",
@@ -1307,6 +1615,19 @@
     "43916": "invert mask",
     "43918": "AND to clear pixel",
     "43920": "write back",
+    "43931": "save frame index; A = sprite/glyph frame index",
+    "43933": "clear high byte of 16-bit product",
+    "43937": "A *= 2 (shift 1)",
+    "43938": "carry into high byte",
+    "43940": "A *= 4 (shift 2)",
+    "43941": "carry into high byte",
+    "43943": "A *= 8 (shift 3) — final byte offset = index * 8",
+    "43944": "carry into high byte",
+    "43947": "add glyph table base low byte ($96); $B496 = base of ROM sprite table",
+    "43949": "store pointer low into pA9",
+    "43951": "load high byte of product",
+    "43953": "add glyph table base high byte ($B4) + carry",
+    "43955": "store pointer high into aAA; pA9/aAA now points to glyph shape",
     "43982": "Init loop counter for 8 dots",
     "43988": "Load X coordinate",
     "43993": "Load Y coordinate",
@@ -1368,12 +1689,19 @@
     "45411": "update lives HUD display",
     "45512": "clear screen / display RAM",
     "45515": "setup title screen colors",
-    "45530": "pointer to title graphic 1",
-    "45540": "draw graphic",
+    "45530": "gfx_attract_slide_1 ($BB86): OMEGA RACE title logo + copyright text",
+    "45540": "draw title logo with red/yellow gradient",
     "45543": "wait for delay",
     "45546": "check if start button pressed",
     "45558": "clear screen for next graphic",
-    "45573": "draw graphic 2",
+    "45561": "gfx_attract_slide_2 ($B728): scoring table (enemy types + point values)",
+    "45573": "draw scoring table (conditional: only when a62 != 0)",
+    "45585": "gfx_attract_slide_3 ($BC10): copyright/logo screen",
+    "45595": "draw copyright/logo screen",
+    "45618": "gfx_story_slide_1 ($BC67): 'In the year 2003, the Omegan System...'",
+    "45630": "draw story slide 1: 'In the year 2003...' (instant display, no typing delay)",
+    "45650": "next story slide ($BDA8)",
+    "45660": "draw story slide 2",
     "45748": "setup outer loop counter (40)",
     "45752": "setup inner loop counter (255)",
     "45756": "poll joysticks and keyboard",
@@ -1428,7 +1756,14 @@
     "46224": "pull Y",
     "46226": "pull X",
     "46228": "pull A",
-    "46229": "return from interrupt"
+    "46229": "return from interrupt",
+    "48099": "(c)",
+    "48101": "1982",
+    "48124": "(c)",
+    "48125": "space",
+    "48126": "1981",
+    "48130": "space",
+    "48246": "2003"
   },
   "user_line_comments": {
     "40969": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCartridge cold-start entry point and main game loop for Omega Race.\nPointed to by the cold-start vector at $A000.\n\nPhase 1 ($A009-$A025): One-time hardware and game initialization.\n  - Clears decimal mode, restores KERNAL I/O vectors, resets the stack\n    pointer to $1FF, then calls sA175 to set up the IRQ handler and\n    load all game resources.\n\nPhase 2 ($A029-$A0CB): Main game loop.\n  - Outer loop (jA029): drives a full game cycle.\n  - Inner loop (bA037): per-frame update gated on the IRQ frame counter\n    (a22 >= 2) to synchronize with the raster interrupt.\n  - Branches on game-state flags (a4E, a4D, a1F, a3D) to handle active\n    play, level countdown, player death, and level transitions.\n  - Updates the 3-byte high score (a23/a24/a25) if the current score\n    beats (aF7/aF8/aF9) before starting the next level.\n\nInputs:  None (entry from KERNAL reset vector)\nOutputs: None\nSide Effects: Resets hardware state; runs all per-frame game subsystems;\n              manages level transitions and high-score updates.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1448,7 +1783,7 @@
     "42247": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies velocity to enemy positions.\n\nInputs:  a40 (enemy count), a37 (frame counter), $03C8/$1D00 arrays (velocities)\nOutputs: $0362/$0375 arrays (positions)\nSide Effects: Updates coordinates of active enemies\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "42293": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates display states and handles all entity collisions.\n\nInputs:  a26 (bullet flags), bullet positions, player position, enemy positions\nOutputs: Collision state (kills enemies or player), sprite display arrays\nSide Effects: Calls collision detection, plays sound effects, removes killed entities\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "42589": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks whether a given X,Y position collides with any active entity.\nScans all 19 entity slots ($12 down to $00) using 8x8 pixel bounding-box\n(AABB) collision detection.\n\nInputs:  $A3 = X coordinate to test, $A4 = Y coordinate to test\nOutputs: X = index of colliding entity (0-$12), or $FF if no collision\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "42652": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates all enemy states, animations, movement, and spawning.\n\nInputs:  a37 (frame counter), a3E (timer), a40 (enemy count)\nOutputs: Enemy states (zero page and $03xx/$1Dxx arrays) updated\nSide Effects: Spawns new enemies, updates sprite pointers and positions\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "42652": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nUpdates all enemy states, animations, movement, and spawning.\\nHandles spawning of enemy types 1 and 2 based on difficulty timers,\\nupdates sprite frames for animation, calculates pursuit AI velocities\\ntowards the player based on distance brackets, and handles enemy firing.\\n\\nInputs:  a37 (frame counter), a3E (timer), a40 (enemy count)\\n         player position (f0362, f0375)\\nOutputs: Enemy states (zero page and $03xx/$1Dxx arrays) updated\\nSide Effects: Spawns new enemies, updates sprite pointers and positions\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43051": "Initial sprite frame per entity type (5 entries, indexed by f033C)",
     "43056": "Max sprite frame per entity type; wraps to sprite_frame_start_tbl",
     "43061": "ANDed with frame counter to control animation speed per type",
@@ -1469,6 +1804,7 @@
     "43900": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears a pixel after applying boundary collision checks.\nBounces velocity if a wall is hit, then clears the pixel.\n\nInputs:  aA3/aA4 = position, aAE/aAF = X/Y velocity\nOutputs: Pixel cleared, position clamped, velocity bounced\nSide Effects: Modifies bitmap memory, may negate velocity\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43906": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears a pixel in the custom bitmap at position (aA3, aA4).\n\nInputs:  aA3 = X coordinate, aA4 = Y coordinate\nOutputs: Pixel cleared in bitmap memory\nSide Effects: Modifies bitmap memory via (aA5) pointer\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43923": "Bit mask lookup: index 0=$80, 1=$40, 2=$20 ... 7=$01",
+    "43931": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts a sprite/glyph frame index (in A) into a 16-bit pointer to the\ncorresponding 8x8 pixel shape in the ROM glyph table at $B496, and stores\nthe result in the Zero Page pointer pA9/aAA for use by the draw routine.\n\nFormula:  pointer = $B496 + (A * 8)\n\nThe index is multiplied by 8 (3 ASL+ROL pairs to propagate carry into the\nhigh byte), then the base address $B496 is added. Always called immediately\nbefore sAAFF, which reads (pA9),Y to stamp the 8 bytes into the bitmap.\n\nInputs:  A = sprite/glyph frame index (0-based)\nOutputs: pA9/aAA = 16-bit pointer to the 8-byte shape in ROM\nSide Effects: Overwrites a2A (temp copy of index)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43982": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlots 8 pixels at the corners and midpoints of the playfield area to act\nas visual markers.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies character bitmap by setting 8 specific pixels.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44022": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases the arena border from the bitmap. Mirror of draw_arena_border — iterates\nthrough 8 line segments, clearing pixels using erase_border_segment (sAC77).\nCalled during level init before the border is redrawn.\n\nInputs:  None\nOutputs: None\nSide Effects: Clears border pixels from character bitmap ($1000-$1CFF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44036": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the playfield arena border onto the custom VIC-20 bitmap. Iterates\nthrough 13 line segments, rendering each using parameters from the\nborder_segment_table (fACA0).\n\nInputs:  None\nOutputs: None\nSide Effects: Writes pixels to character bitmap ($1000-$1CFF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1483,7 +1819,13 @@
     "45927": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPhase advancement bonus screen. Called every 4th level before incrementing\nthe difficulty phase (a21). Clears the screen, plays a sound fanfare, draws\nthe current phase graphic indexed by a21, displays a congratulatory string,\nwaits ~1 second, then awards 7 bonus points to the player score.\n\nInputs:  a21 (current difficulty phase, selects which graphic to draw)\nOutputs: None\nSide Effects: Clears screen; triggers sound; draws phase graphic and text;\n              delays ~1 second; adds 7 points to player score (sB12D).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "46011": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDelay loop for approximately 1 second.\n\nInputs:  None\nOutputs: None\nSide Effects: Wastes exactly 1 million CPU cycles (~1 second at 1MHz) using \n              nested loops and dummy writes to ROM addresses.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "46034": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScans joysticks and keyboard for a \"Game Start\" input during attract mode.\n\nInputs:  None\nOutputs: Sets aB0 to $80 if start is triggered.\nSide Effects: Calls KERNAL keyboard and custom joystick scan routines. \n              Depending on the input (F-keys or joystick buttons), it configures \n              the selected game mode and player sprite pointers. Also contains a \n              hidden cheat/easter-egg check for modifier keys.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "46221": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIgnores NMI interrupts (likely triggered by the RESTORE key) by restoring\nregisters and returning immediately.\n\nInputs:  None (assumes Y, X, A are pushed on stack by KERNAL)\nOutputs: Restores Y, X, A registers\nSide Effects: Reads $9111 (VIA 1 Port A)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
+    "46221": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIgnores NMI interrupts (likely triggered by the RESTORE key) by restoring\nregisters and returning immediately.\n\nInputs:  None (assumes Y, X, A are pushed on stack by KERNAL)\nOutputs: Restores Y, X, A registers\nSide Effects: Reads $9111 (VIA 1 Port A)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "46230": "ROM table of 8x8 pixel glyph shapes (8 bytes each).\nIndexed by frame number via calc_sprite_ptr: addr = $B496 + (index * 8).\nContains all game sprites (player ship, enemy ships, bullets, icons) and\nthe large logo tiles used in attract mode screens.",
+    "46888": "draw_graphic_string data: scoring table screen.\nDrawn conditionally (only when a62 != 0). Ends with $FF.",
+    "47140": "ROM table of 8x8 pixel shapes for the small text font (8 bytes each).\nContains glyphs for digits 0-9 and uppercase/lowercase letters used\nin the attract mode text slides (story text, copyright lines, etc.).",
+    "48006": "draw_graphic_string data: OMEGA RACE title logo (glyphs $9A-$D3 = large 5-row\nlogo tiles spanning Y=62-94) followed by copyright text rows at Y=126/138.\nDrawn with a red/yellow Color RAM gradient pre-set by attract_mode.\nTerminates with $FF at $BC0F.",
+    "48144": "draw_graphic_string data: title/logo copyright screen.\nContains 5 segments (rows of glyph tiles) and ends with $FF at $BC66.",
+    "48231": "draw_graphic_string data: attract story slide 1.\n'In the year 2003, the Omegan System developed a method of training its...'\nSegment header: X=$0A, Y=$18, step=$04, then small-font glyph indices.\nCharacter values use the small text font table at small_font_glyphs ($B824).\nDrawn with aAF=$FF (instant display, no typing delay)."
   },
   "settings": {
     "all_labels": true,
@@ -1508,6 +1850,12 @@
     "exclude_comments_from_well_known": false
   },
   "immediate_value_formats": {
+    "41147": {
+      "LowByte": 48788
+    },
+    "41149": {
+      "HighByte": 48788
+    },
     "41377": {
       "LowByte": 41166
     },
@@ -1534,19 +1882,63 @@
     },
     "42070": {
       "HighByte": 38400
-    }
+    },
+    "43949": "Hex",
+    "45530": {
+      "LowByte": 48006
+    },
+    "45532": {
+      "HighByte": 48006
+    },
+    "45561": {
+      "LowByte": 46888
+    },
+    "45563": {
+      "HighByte": 46888
+    },
+    "45585": {
+      "LowByte": 48144
+    },
+    "45587": {
+      "HighByte": 48144
+    },
+    "45618": {
+      "LowByte": 48231
+    },
+    "45620": {
+      "HighByte": 48231
+    },
+    "45650": {
+      "LowByte": 48552
+    },
+    "45652": {
+      "HighByte": 48552
+    },
+    "45676": {
+      "LowByte": 48650
+    },
+    "45678": {
+      "HighByte": 48650
+    },
+    "45989": {
+      "LowByte": 48801
+    },
+    "45991": {
+      "HighByte": 48801
+    },
+    "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 0,
-  "hex_dump_cursor_address": 40960,
+  "cursor_address": 45894,
+  "hex_dump_cursor_address": 45888,
   "sprites_cursor_address": 40960,
-  "charset_cursor_address": 40960,
-  "right_pane_visible": "Debugger",
+  "charset_cursor_address": 46224,
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
   "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
-  "hexdump_view_mode": "ScreencodeShifted",
+  "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],
   "blocks_view_cursor": 1,
   "scopes": {}
