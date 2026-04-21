@@ -17,6 +17,18 @@
     },
     {
       "start": 9,
+      "end": 660,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 661,
+      "end": 661,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 662,
       "end": 883,
       "type_": "Code",
       "collapsed": false
@@ -29,8 +41,14 @@
     },
     {
       "start": 935,
-      "end": 1023,
+      "end": 935,
       "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 936,
+      "end": 1023,
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -59,6 +77,18 @@
     },
     {
       "start": 1287,
+      "end": 1880,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 1881,
+      "end": 1881,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 1882,
       "end": 2090,
       "type_": "Code",
       "collapsed": false
@@ -95,6 +125,30 @@
     },
     {
       "start": 2410,
+      "end": 2411,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2412,
+      "end": 2412,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 2413,
+      "end": 2506,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 2507,
+      "end": 2507,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 2508,
       "end": 2774,
       "type_": "Code",
       "collapsed": false
@@ -162,7 +216,7 @@
     {
       "start": 3475,
       "end": 3484,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -179,6 +233,66 @@
     },
     {
       "start": 3655,
+      "end": 3811,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3812,
+      "end": 3812,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 3813,
+      "end": 3827,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3828,
+      "end": 3828,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 3829,
+      "end": 3859,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3860,
+      "end": 3860,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 3861,
+      "end": 3875,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 3876,
+      "end": 3876,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 3877,
+      "end": 4036,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4037,
+      "end": 4037,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 4038,
       "end": 4225,
       "type_": "Code",
       "collapsed": false
@@ -204,11 +318,23 @@
     {
       "start": 4458,
       "end": 4473,
-      "type_": "Undefined",
+      "type_": "DataWord",
       "collapsed": false
     },
     {
       "start": 4474,
+      "end": 5142,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5143,
+      "end": 5143,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5144,
       "end": 5269,
       "type_": "Code",
       "collapsed": false
@@ -221,6 +347,55 @@
     }
   ],
   "labels": {
+    "23": [
+      {
+        "name": "score_cursor_x",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "24": [
+      {
+        "name": "collision_type",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "25": [
+      {
+        "name": "bullet_slots_free",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "26": [
+      {
+        "name": "marker_idx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "27": [
+      {
+        "name": "collision_check_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "28": [
+      {
+        "name": "temp_bcd_score",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "31": [
+      {
+        "name": "player_lives",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "34": [
       {
         "name": "irq_tick_counter",
@@ -286,91 +461,147 @@
     ],
     "41843": [
       {
-        "name": "enemy_count_table",
+        "name": "enemy_count_tbl",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "41847": [
       {
-        "name": "wave_config_table_1",
+        "name": "wave_config_tbl_1",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "41851": [
       {
-        "name": "wave_config_table_2",
+        "name": "wave_config_tbl_2",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "41855": [
       {
-        "name": "wave_config_table_3",
+        "name": "wave_config_tbl_3",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "41859": [
       {
-        "name": "wave_config_table_4",
+        "name": "wave_config_tbl_4",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "41863": [
       {
-        "name": "wave_config_table_5",
+        "name": "wave_config_tbl_5",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "41867": [
       {
-        "name": "wave_config_table_6",
+        "name": "wave_config_tbl_6",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "41871": [
       {
-        "name": "wave_config_table_7",
+        "name": "wave_config_tbl_7",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "41875": [
       {
-        "name": "wave_config_table_8",
+        "name": "wave_config_tbl_8",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "41879": [
       {
-        "name": "wave_config_table_9",
+        "name": "wave_config_tbl_9",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "41883": [
       {
-        "name": "wave_config_table_10",
+        "name": "wave_config_tbl_10",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "41887": [
       {
-        "name": "wave_config_table_11",
+        "name": "wave_config_tbl_11",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "41891": [
       {
-        "name": "wave_config_table_12",
+        "name": "wave_config_tbl_12",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41896": [
+      {
+        "name": "enemy_init_sprite_frame_idx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41909": [
+      {
+        "name": "enemy_init_x_coord",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41922": [
+      {
+        "name": "enemy_init_y_coord",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41935": [
+      {
+        "name": "enemy_init_velocity_idx",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41948": [
+      {
+        "name": "enemy_init_data_1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41961": [
+      {
+        "name": "enemy_init_data_2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41974": [
+      {
+        "name": "velocity_deltas_a",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41980": [
+      {
+        "name": "velocity_deltas_b",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -664,7 +895,7 @@
     ],
     "44192": [
       {
-        "name": "border_segment_table",
+        "name": "border_segment_tbl",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -713,14 +944,14 @@
     ],
     "44435": [
       {
-        "name": "lives_icon_x_table",
+        "name": "lives_icon_x_tbl",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "44440": [
       {
-        "name": "lives_icon_y_table",
+        "name": "lives_icon_y_tbl",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -728,6 +959,27 @@
     "44455": [
       {
         "name": "advance_score_cursor",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45357": [
+      {
+        "name": "add_score",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45418": [
+      {
+        "name": "score_table_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45419": [
+      {
+        "name": "score_table_hi",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -774,6 +1026,13 @@
         "kind": "User"
       }
     ],
+    "46087": [
+      {
+        "name": "option_joystick",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "46221": [
       {
         "name": "ignore_nmi",
@@ -783,7 +1042,7 @@
     ],
     "46878": [
       {
-        "name": "wave_icon_table",
+        "name": "wave_icon_tbl",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -858,6 +1117,7 @@
     "41477": "clear VIC audio registers",
     "41496": "initialize enemy types array",
     "41540": "initialize wave difficulty timers",
+    "41621": "bit opcode",
     "41624": "loop over all enemies",
     "41640": "setup enemy state arrays from ROM tables",
     "41653": "setup enemy X/Y coords",
@@ -974,6 +1234,7 @@
     "42752": "Y = active enemy count",
     "42754": "get enemy state from array",
     "42784": "store calculated sprite frame",
+    "42841": "bit opcode",
     "42870": "load frame counter",
     "42941": "check enemy 1 for firing/sound",
     "43122": "X velocity for spawn direction",
@@ -1000,7 +1261,7 @@
     "43246": "check if Left (bit 2) is pressed",
     "43257": "apply turning offset to player angle",
     "43370": "initialize wall hit flag",
-    "43372": "LDA #$00",
+    "43372": "bit opcode",
     "43377": "clear collision flag",
     "43385": "check left outer screen boundary",
     "43393": "check right outer screen boundary",
@@ -1010,6 +1271,7 @@
     "43444": "bounce (negate X velocity)",
     "43458": "clamp X to right edge",
     "43462": "bounce (negate X velocity)",
+    "43467": "bit opcode",
     "43476": "check top outer screen boundary",
     "43523": "clamp Y to top edge",
     "43527": "bounce (negate Y velocity)",
@@ -1073,10 +1335,37 @@
     "44373": "get X position for this slot",
     "44378": "get Y position for this slot",
     "44383": "erase ship icon",
-    "44390": "a1F = lives remaining; 0 = game over",
+    "44390": "lives remaining = 0 -> game over",
     "44401": "a54 = bonus ship flag",
     "44405": "bonus ship at fixed position ($3D/$4C)",
     "44427": "draw filled ship icon",
+    "44772": "bit opcode",
+    "44788": "bit opcode",
+    "44820": "bit opcode",
+    "44836": "bit opcode",
+    "44997": "bit opcode",
+    "45357": "disable IRQs before score update",
+    "45358": "A*2 = byte offset into 2-byte BCD table entries",
+    "45359": "index into table",
+    "45360": "enable BCD (Decimal) mode for BCD addition",
+    "45361": "load score low byte from table",
+    "45364": "add to score byte 0 (ones/tens)",
+    "45366": "store score byte 0",
+    "45368": "load score high byte from table",
+    "45371": "add to score byte 1 (hundreds/thousands)",
+    "45373": "store score byte 1",
+    "45375": "propagate carry into score byte 2 (ten-thousands)",
+    "45379": "store score byte 2",
+    "45381": "exit BCD mode",
+    "45382": "re-enable IRQs",
+    "45383": "check if extra life already awarded",
+    "45385": "yes — skip extra-life check",
+    "45387": "check score high byte >= $40 (i.e. score >= 4000)",
+    "45391": "score < 4000 — no extra life yet",
+    "45393": "disable IRQs to safely update sprite/sound registers",
+    "45399": "set extra-life awarded flag (prevent duplicate)",
+    "45409": "grant extra life",
+    "45411": "update lives HUD display",
     "45512": "clear screen / display RAM",
     "45515": "setup title screen colors",
     "45530": "pointer to title graphic 1",
@@ -1132,6 +1421,7 @@
     "46067": "check for F4",
     "46071": "configure game mode A",
     "46087": "configure game mode B",
+    "46103": "LDA #04 (initial lives: 4)",
     "46108": "set start flag to abort attract mode",
     "46113": "check KERNAL modifier keys flag ($028D)",
     "46221": "dummy read of VIA 1 Port A",
@@ -1185,6 +1475,8 @@
     "44205": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the current player score (aF7/aF8/aF9) onto the bitmap at X=$52, Y=$48.\nCopies the 3-byte BCD score to a scratch buffer and calls render_bcd_digits\nto draw each digit, advancing 4 pixels per digit.\n\nInputs:  aF7/aF8/aF9 (3-byte packed BCD current score)\nOutputs: None\nSide Effects: Writes digit graphics to bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44312": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the current wave/level indicator as two columns of icons on the bitmap.\nFirst column: up to 5 icons at X=$5A, Y=$40 (tens digit of wave).\nSecond column: up to 10 icons at X=$46, Y=$54 (units digit of wave).\nIcon graphics are indexed from wave_icon_table (fB71E).\n\nInputs:  None (uses hardcoded positions and wave_icon_table)\nOutputs: None\nSide Effects: Writes icon graphics to bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44362": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the player lives display onto the bitmap. Erases all 3 ship icon slots,\nthen redraws a filled ship icon for each remaining life (a1F). Uses a54 to\nselect a bonus ship position for the last icon drawn.\n\nInputs:  a1F (lives remaining), a54 (bonus ship flag)\nOutputs: None\nSide Effects: Writes ship icon graphics to bitmap at lives_icon_x/y_table positions\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "45357": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdds a BCD score value to the player's 3-byte score (aF7/aF8/aF9).\nThe A register is an index into the score table at fB16A; each entry is a\n2-byte packed BCD value. After adding, checks if the score has crossed the\nextra-life threshold ($4000). If so, and if the bonus life flag (a54) is\nclear, grants an extra life, triggers the fanfare, and updates the HUD.\n\nInputs:  A = score table index (0-7)\nOutputs: aF7/aF8/aF9 = updated 3-byte packed BCD score\nSide Effects: May increment player_lives and call draw_lives_display;\n              sets a54=1 to prevent awarding more than one extra life\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "45418": "2-byte packed BCD score values indexed by enemy type / kill event\n  [0] $0000 =    0 pts   (no score)\n  [1] $0250 =  250 pts\n  [2] $0150 =  150 pts\n  [3] $0150 =  150 pts\n  [4] $0100 =  100 pts\n  [5] $0050 =   50 pts\n  [6] $0035 =   35 pts\n  [7] $0500 =  500 pts (bonus)",
     "45512": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTitle screen / Attract mode sequence.\n\nInputs:  None\nOutputs: Returns when the player presses Start (aB0 flag goes negative)\nSide Effects: Clears screen, displays cycling title screens and graphics, \n              sets colors, waits for user input.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45748": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDelay loop used during the attract mode sequence.\n\nInputs:  None\nOutputs: None\nSide Effects: Delays execution for a few seconds by looping 40 x 256 times. \n              Continually polls for user input (via scan_input_for_start) and \n              aborts the delay instantly if the start button is pressed.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45772": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws a sequence of characters/graphics to the screen with a typing effect.\n\nInputs:  X (pointer low), Y (pointer high) to graphic data structure\n         aAE (delay outer loop), aAF (delay inner loop)\nOutputs: None\nSide Effects: Draws to screen RAM. Can be aborted instantly if the user \n              presses the start button (aB0 flag).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1194,7 +1486,7 @@
     "46221": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIgnores NMI interrupts (likely triggered by the RESTORE key) by restoring\nregisters and returning immediately.\n\nInputs:  None (assumes Y, X, A are pushed on stack by KERNAL)\nOutputs: Restores Y, X, A registers\nSide Effects: Reads $9111 (VIA 1 Port A)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
   },
   "settings": {
-    "all_labels": false,
+    "all_labels": true,
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
@@ -1231,6 +1523,12 @@
     "41994": {
       "HighByte": 38419
     },
+    "42025": {
+      "LowByte": 4096
+    },
+    "42029": {
+      "HighByte": 4096
+    },
     "42066": {
       "LowByte": 38400
     },
@@ -1239,11 +1537,11 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 44006,
-  "hex_dump_cursor_address": 44000,
+  "cursor_address": 0,
+  "hex_dump_cursor_address": 40960,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 40960,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "Debugger",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
   "bitmap_cursor_address": 40960,
