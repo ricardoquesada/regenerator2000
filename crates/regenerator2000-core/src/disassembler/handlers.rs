@@ -61,6 +61,10 @@ fn handle_split_byte_table(
             if ctx.user_line_comments.contains_key(&current_addr) {
                 break;
             }
+            // Stop if a side comment exists on an interior byte.
+            if ctx.user_side_comments.contains_key(&current_addr) {
+                break;
+            }
         }
 
         if ctx.block_types.get(current_pc) != Some(&target_type) {

@@ -1929,8 +1929,8 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 45894,
-  "hex_dump_cursor_address": 45888,
+  "cursor_address": 44073,
+  "hex_dump_cursor_address": 44064,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
   "right_pane_visible": "HexDump",

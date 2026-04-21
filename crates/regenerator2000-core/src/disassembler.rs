@@ -1036,6 +1036,12 @@ impl Disassembler {
                 break;
             }
 
+            // Stop if a side comment exists on an interior byte: that byte needs
+            // its own line so the comment is displayed with it.
+            if count > 0 && ctx.user_side_comments.contains_key(&current_address) {
+                break;
+            }
+
             // Stop if the next byte starts a fill-eligible run, so it gets its
             // own handle_data_byte call and can be emitted as a .fill directive.
             if count > 0 && threshold > 0 {
@@ -1154,6 +1160,11 @@ impl Disassembler {
             // Stop if line comment exists (except start)
             // Note: DataWord is 2 bytes. We check if comment is at the start of the word.
             if count > 0 && user_line_comments.contains_key(&current_address) {
+                break;
+            }
+
+            // Stop if a side comment exists on an interior word.
+            if count > 0 && ctx.user_side_comments.contains_key(&current_address) {
                 break;
             }
 
@@ -1321,6 +1332,11 @@ impl Disassembler {
                 break;
             }
 
+            // Stop if a side comment exists on an interior address entry.
+            if count > 0 && user_side_comments.contains_key(&current_address) {
+                break;
+            }
+
             let low = data[current_pc_start];
             let high = data[current_pc_start + 1];
             let val = u16::from(high) << 8 | u16::from(low);
@@ -1448,6 +1464,11 @@ impl Disassembler {
             }
 
             if count > 0 && user_line_comments.contains_key(&current_address) {
+                break;
+            }
+
+            // Stop if a side comment exists on an interior byte.
+            if count > 0 && ctx.user_side_comments.contains_key(&current_address) {
                 break;
             }
 
@@ -1595,6 +1616,11 @@ impl Disassembler {
             }
 
             if count > 0 && user_line_comments.contains_key(&current_address) {
+                break;
+            }
+
+            // Stop if a side comment exists on an interior byte.
+            if count > 0 && ctx.user_side_comments.contains_key(&current_address) {
                 break;
             }
 
@@ -1977,5 +2003,228 @@ mod tests {
             "Side-comment should prevent fill: got {:?}",
             lines.iter().map(|l| &l.mnemonic).collect::<Vec<_>>()
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // Side-comment line-breaking tests
+    //
+    // Rule: a side-comment "belongs" to the first element of its group.
+    //   • Elements *after* the commented one are merged into the same .byte
+    //     line until the next element that has its own side-comment (or any
+    //     other natural break: label, line-comment, splitter, bytes_per_line).
+    //   • The next element with its own comment starts a *new* group.
+    // -----------------------------------------------------------------------
+
+    /// Build a minimal DisassemblyContext suitable for side-comment tests.
+    /// `threshold=0` disables fill-run detection so it doesn't interfere.
+    fn make_side_comment_ctx<'a>(
+        data: &'a [u8],
+        block_types: &'a [crate::state::BlockType],
+        side_comments: &'a std::collections::BTreeMap<crate::state::Addr, String>,
+    ) -> DisassemblyContext<'a> {
+        use std::collections::BTreeMap;
+        use std::sync::LazyLock;
+        static EMPTY_XREFS: LazyLock<BTreeMap<crate::state::Addr, Vec<crate::state::Addr>>> =
+            LazyLock::new(BTreeMap::new);
+        static EMPTY_LINE: LazyLock<BTreeMap<crate::state::Addr, String>> =
+            LazyLock::new(BTreeMap::new);
+        make_fill_ctx(
+            data,
+            block_types,
+            &EMPTY_XREFS,
+            &EMPTY_LINE,
+            side_comments,
+            0,
+        )
+    }
+
+    /// Canonical example from the spec:
+    ///
+    ///   $C000 $00  ; comment 0   → grouped with $01-$03 (no comments)
+    ///   $C001 $01
+    ///   $C002 $02
+    ///   $C003 $03
+    ///   $C004 $04  ; comment 1   → only $04 (next byte also has comment)
+    ///   $C005 $05  ; comment 2   → grouped with $06-$07 (no comments)
+    ///   $C006 $06
+    ///   $C007 $07
+    ///
+    /// Expected output:
+    ///   .byte $00, $01, $02, $03  ; comment 0
+    ///   .byte $04                 ; comment 1
+    ///   .byte $05, $06, $07       ; comment 2
+    #[test]
+    fn test_side_comment_groups_data_bytes() {
+        use crate::state::{Addr, BlockType};
+        use std::collections::BTreeMap;
+
+        let data: Vec<u8> = (0x00..=0x07).collect();
+        let block_types = vec![BlockType::DataByte; 8];
+        let mut side_comments: BTreeMap<Addr, String> = BTreeMap::new();
+        side_comments.insert(Addr(0xc000), "comment 0".to_string());
+        side_comments.insert(Addr(0xc004), "comment 1".to_string());
+        side_comments.insert(Addr(0xc005), "comment 2".to_string());
+
+        let ctx = make_side_comment_ctx(&data, &block_types, &side_comments);
+        let lines = Disassembler::new().disassemble_ctx(&ctx);
+
+        assert_eq!(
+            lines.len(),
+            3,
+            "Expected 3 .byte lines, got {}: {:#?}",
+            lines.len(),
+            lines
+        );
+
+        // Line 0: $00-$03, comment 0
+        assert_eq!(lines[0].bytes, vec![0x00, 0x01, 0x02, 0x03]);
+        assert_eq!(lines[0].comment, "comment 0");
+
+        // Line 1: $04 only, comment 1
+        assert_eq!(lines[1].bytes, vec![0x04]);
+        assert_eq!(lines[1].comment, "comment 1");
+
+        // Line 2: $05-$07, comment 2
+        assert_eq!(lines[2].bytes, vec![0x05, 0x06, 0x07]);
+        assert_eq!(lines[2].comment, "comment 2");
+    }
+
+    /// A side-comment on the very last byte in a block still produces a
+    /// correctly grouped line (no off-by-one at end of data).
+    #[test]
+    fn test_side_comment_on_last_byte() {
+        use crate::state::{Addr, BlockType};
+        use std::collections::BTreeMap;
+
+        let data = vec![0x0Au8, 0x0B, 0x0C];
+        let block_types = vec![BlockType::DataByte; 3];
+        let mut side_comments: BTreeMap<Addr, String> = BTreeMap::new();
+        side_comments.insert(Addr(0xc002), "last".to_string());
+
+        let ctx = make_side_comment_ctx(&data, &block_types, &side_comments);
+        let lines = Disassembler::new().disassemble_ctx(&ctx);
+
+        // $0A and $0B have no comment → first group; $0C has comment → new group
+        assert_eq!(lines.len(), 2, "{:#?}", lines);
+        assert_eq!(lines[0].bytes, vec![0x0A, 0x0B]);
+        assert!(lines[0].comment.is_empty());
+        assert_eq!(lines[1].bytes, vec![0x0C]);
+        assert_eq!(lines[1].comment, "last");
+    }
+
+    /// Every byte has its own comment → every byte gets its own .byte line.
+    #[test]
+    fn test_side_comment_every_byte_commented() {
+        use crate::state::{Addr, BlockType};
+        use std::collections::BTreeMap;
+
+        let data = vec![0xAAu8, 0xBB, 0xCC];
+        let block_types = vec![BlockType::DataByte; 3];
+        let mut side_comments: BTreeMap<Addr, String> = BTreeMap::new();
+        side_comments.insert(Addr(0xc000), "a".to_string());
+        side_comments.insert(Addr(0xc001), "b".to_string());
+        side_comments.insert(Addr(0xc002), "c".to_string());
+
+        let ctx = make_side_comment_ctx(&data, &block_types, &side_comments);
+        let lines = Disassembler::new().disassemble_ctx(&ctx);
+
+        assert_eq!(lines.len(), 3, "{:#?}", lines);
+        assert_eq!(lines[0].bytes, vec![0xAA]);
+        assert_eq!(lines[0].comment, "a");
+        assert_eq!(lines[1].bytes, vec![0xBB]);
+        assert_eq!(lines[1].comment, "b");
+        assert_eq!(lines[2].bytes, vec![0xCC]);
+        assert_eq!(lines[2].comment, "c");
+    }
+
+    /// No side-comments → original greedy grouping still works (regression guard).
+    #[test]
+    fn test_side_comment_none_still_groups() {
+        use crate::state::BlockType;
+        use std::collections::BTreeMap;
+
+        let data: Vec<u8> = (0..6).collect();
+        let block_types = vec![BlockType::DataByte; 6];
+        let side_comments: BTreeMap<crate::state::Addr, String> = BTreeMap::new();
+
+        let mut ctx = make_side_comment_ctx(&data, &block_types, &side_comments);
+        // Raise bytes_per_line to 8 so all 6 bytes fit on one line.
+        let mut settings = crate::state::DocumentSettings::default();
+        settings.bytes_per_line = 8;
+        settings.fill_run_threshold = 0;
+        let settings_box: &'static crate::state::DocumentSettings = Box::leak(Box::new(settings));
+        ctx.settings = settings_box;
+
+        let lines = Disassembler::new().disassemble_ctx(&ctx);
+        assert_eq!(
+            lines.len(),
+            1,
+            "All bytes should be on one line: {:#?}",
+            lines
+        );
+        assert_eq!(lines[0].bytes.len(), 6);
+        assert!(lines[0].comment.is_empty());
+    }
+
+    /// DataWord: a side-comment on the first word still lets subsequent
+    /// comment-free words group onto the same line; the next word with a
+    /// comment starts a new line.
+    #[test]
+    fn test_side_comment_data_word() {
+        use crate::state::{Addr, BlockType};
+        use std::collections::BTreeMap;
+
+        // Four words at $C000: $0001, $0203, $0405, $0607
+        // Side-comment on word 0 ($C000) and word 2 ($C004).
+        // Expected:
+        //   .word $0100, $0302          ; comment w0   (words 0+1 grouped)
+        //   .word $0504                 ; comment w2   (word 2 alone — word 3 has no comment but
+        //                                               word 2's comment ends its group at word 3)
+        // Wait — the rule is: stop *before* the next element with a comment.
+        // Word 0 has comment, word 1 has no comment → word 1 is appended to group 0.
+        // Word 2 has comment → stop before word 2; start new group.
+        // Word 2's group: word 3 has no comment → word 3 appended.
+        // → group 0: words 0+1;  group 1: words 2+3
+        let data: Vec<u8> = (0..8).collect(); // 00 01 02 03 04 05 06 07
+        let block_types = vec![BlockType::DataWord; 8];
+        let mut side_comments: BTreeMap<Addr, String> = BTreeMap::new();
+        side_comments.insert(Addr(0xc000), "comment w0".to_string());
+        side_comments.insert(Addr(0xc004), "comment w2".to_string());
+
+        let ctx = make_side_comment_ctx(&data, &block_types, &side_comments);
+        let lines = Disassembler::new().disassemble_ctx(&ctx);
+
+        assert_eq!(lines.len(), 2, "{:#?}", lines);
+
+        // Group 0: words at $C000 and $C002 (bytes 00 01 02 03), comment "comment w0"
+        assert_eq!(lines[0].bytes, vec![0x00, 0x01, 0x02, 0x03]);
+        assert_eq!(lines[0].comment, "comment w0");
+
+        // Group 1: words at $C004 and $C006 (bytes 04 05 06 07), comment "comment w2"
+        assert_eq!(lines[1].bytes, vec![0x04, 0x05, 0x06, 0x07]);
+        assert_eq!(lines[1].comment, "comment w2");
+    }
+
+    /// DataWord: consecutive words each with their own comment → each on its
+    /// own line.
+    #[test]
+    fn test_side_comment_data_word_every_word_commented() {
+        use crate::state::{Addr, BlockType};
+        use std::collections::BTreeMap;
+
+        let data = vec![0x00u8, 0x01, 0x02, 0x03];
+        let block_types = vec![BlockType::DataWord; 4];
+        let mut side_comments: BTreeMap<Addr, String> = BTreeMap::new();
+        side_comments.insert(Addr(0xc000), "first".to_string());
+        side_comments.insert(Addr(0xc002), "second".to_string());
+
+        let ctx = make_side_comment_ctx(&data, &block_types, &side_comments);
+        let lines = Disassembler::new().disassemble_ctx(&ctx);
+
+        assert_eq!(lines.len(), 2, "{:#?}", lines);
+        assert_eq!(lines[0].bytes, vec![0x00, 0x01]);
+        assert_eq!(lines[0].comment, "first");
+        assert_eq!(lines[1].bytes, vec![0x02, 0x03]);
+        assert_eq!(lines[1].comment, "second");
     }
 }
