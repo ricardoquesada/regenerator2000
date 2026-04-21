@@ -330,7 +330,7 @@
     {
       "start": 5143,
       "end": 5143,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -1752,7 +1752,7 @@
     "46067": "check for F4",
     "46071": "configure game mode A",
     "46087": "configure game mode B",
-    "46103": "LDA #04 (initial lives: 4)",
+    "46103": "bit opcode",
     "46108": "set start flag to abort attract mode",
     "46113": "check KERNAL modifier keys flag ($028D)",
     "46221": "dummy read of VIA 1 Port A",
@@ -1932,8 +1932,8 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 43440,
-  "hex_dump_cursor_address": 43440,
+  "cursor_address": 41621,
+  "hex_dump_cursor_address": 41616,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
   "right_pane_visible": "HexDump",
