@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.10] - 2026-04-22
+
+### Features
+
+- **Navigation**: Added "Jump to next/prev unexplored block" to the Jump menu.
+- **Disassembly**: Force a new line when a side comment is present on an grouped block.
+- **HTML Export**: Added support for opening external documentation and examples links via browser.
+- **Analysis**: Fixed automatically displayed x-refs for split tables.
+
+### Fixes
+
+- **Disassembly**: Fixed `.fill` not emitted when preceded by non-matching bytes in same block.
+- **UI**: Adjusted mnemonic column width for improved side-comment alignment.
+- **File Dialog**: Correctly show parent directly.
+- **Dependencies**: Updated dependencies to fix security vulnerabilities in CI.
+- **Platform**: VIC-20 system labels/comments now correctly identified and displayed in Document Settings Dialog.
+
+### Refactor / Internal
+
+- **UI**: Updated search dialog to use persisted UI state for query and filters.
+- **MCP**: Added strict input validation for MCP handler parameters.
+- **Rust**: Applied Clippy fixes for Rust 1.96.0.
+
+### Examples / Research
+
+- **VIC-20**: Extensive reverse engineering and documentation for the Omega Race cartridge.
+- **C64**: Annotated Burnin' Rubber collision system routines and tables.
+
 ## [0.9.9] - 2026-04-15
 
 ### Features
