@@ -3883,7 +3883,8 @@
     "description": "Burnin Rubber is a top-down racing game. Press \"fire\" to jump on top of other cars",
     "auto_analyze": true,
     "show_system_comments": true,
-    "fill_run_threshold": 8
+    "fill_run_threshold": 8,
+    "exclude_comments_from_well_known": false
   },
   "immediate_value_formats": {
     "4618": "Decimal",
@@ -3975,14 +3976,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 4178,
+  "cursor_address": 0,
   "hex_dump_cursor_address": 4096,
   "sprites_cursor_address": 13440,
   "charset_cursor_address": 22784,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
