@@ -14,8 +14,9 @@ A disassembly of [Moving Tubes][moving_tubes] intro, by Laxity.
 
     * [🔗 c64_moving_tubes_lxt.html](examples/c64_moving_tubes_lxt.html)
 
-Great source to learn about different techniques (intermediate level):
+Main takeaways:
 
+- Great source to learn about different techniques (intermediate level).
 - Clean code.
 - How a SID player works: the SID player was disassembled in detail.
 - Raster IRQ techniques
@@ -47,7 +48,7 @@ A disassembly of [Lode Runner][lode_runner_site] clone for Commodore PET, by jim
 
     * 🔗 [pet_loderunner.html](examples/pet_loderunner.html)
 
-Main take aways:
+Main takeaways:
 
 - Clean code.
 - Great place to learn about the PET programming.
@@ -69,9 +70,9 @@ A disassembly of the game [Omega Race][vic20_omega_race_info] for VIC-20.
 
 !!! example "Disassembly"
 
-    * [🔗 vic20_omega_race.html](examples/vic20_omega_race.html)
+    * [🔗 vic20_omega_race_cart_generic_a000.html](examples/vic20_omega_race_cart_generic_a000.html)
 
-Main take aways:
+Main takeaways:
 
 - [TODO: Write something here]
 
@@ -93,7 +94,7 @@ A disassembly of the Commodore 64 ["Burnin' Rubber"][burnin_rubber_info] game.
 
     * 🔗 [c64_burnin_rubber.html](examples/c64_burnin_rubber.html)
 
-Main take aways:
+Main takeaways:
 
 - The code was written in a [monitor][monitor], not with an assembler. Evidence:
     - Dead code / Dead tables: Although not uncommon to have some dead code / tables in a program, it is a lot more common when using a [monitor].
