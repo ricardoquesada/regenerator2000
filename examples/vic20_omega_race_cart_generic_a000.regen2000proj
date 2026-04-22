@@ -1062,6 +1062,34 @@
         "kind": "User"
       }
     ],
+    "43775": [
+      {
+        "name": "draw_sprite_or_collision",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43781": [
+      {
+        "name": "draw_sprite_with_collision_check",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43841": [
+      {
+        "name": "erase_sprite",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43847": [
+      {
+        "name": "erase_sprite_with_boundary_check",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "43885": [
       {
         "name": "plot_pixel",
@@ -1803,6 +1831,10 @@
     "43370": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies boundary collisions (outer screen walls and inner central box).\n\nInputs:  aA3, aA4 (X, Y position)\n         aAE, aAF (X, Y velocity)\nOutputs: a18 (Collision flag: 0=none, >0 indicates which wall was hit)\nSide Effects: Clamps the X/Y position to keep the entity in bounds. If a wall \n              or the central box is hit, the corresponding X or Y velocity \n              vector is negated (Two's Complement) to produce a bounce effect.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43555": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nNegates the accumulator using two's complement (A = -A).\nUsed for velocity bouncing and distance sign flipping.\n\nInputs:  A = signed 8-bit value\nOutputs: A = negated value\nSide Effects: Carry flag modified\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43692": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCalculates memory pointers for drawing to the custom VIC-20 bitmap.\n\nInputs:  aA3 (X coordinate), aA4 (Y coordinate)\nOutputs: aAD (Bit shift offset: X % 8)\n         aA5/aA6 (Pointer to the byte containing the target pixel)\n         aA7/aA8 (Pointer to the adjacent column, 160 bytes ahead)\nSide Effects: None. Omega Race implements a custom bitmap by arranging the \n              VIC-I character map into columns. This routine uses a lookup \n              table to find the base address of the column (X / 8), adds the \n              Y coordinate, and calculates pointers for rendering.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43775": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nStamps an 8x8 sprite/glyph shape onto the custom bitmap using OR, and\naccumulates pixel-overlap collision data into collision_check_flag.\nThe glyph shape (8 bytes) is read from (pA9),Y for rows Y=7..0. Each row\nbyte is right-shifted by aAD bits, producing a high-column mask (in A) and\na spill-column mask (in aAC). Both are OR-ed into the bitmap columns at\n(aA5),Y and (aA7),Y. Before OR-ing, the old bitmap byte is AND-ed with the\nnew mask: any non-zero result means pixels were already set -> collision,\naccumulated into collision_check_flag.\nDoes NOT clear collision_check_flag or run boundary checks on entry.\nSee draw_sprite_with_collision_check ($AB05) for the full-entry variant.\n\nInputs:  pA9/aAA = pointer to 8-byte glyph shape\n         aA5/aA6 = pointer to high bitmap column\n         aA7/aA8 = pointer to adjacent (spill) bitmap column\n         aAD     = right-shift count (0..7, X sub-byte pixel offset)\n         collision_check_flag = running accumulator (caller-managed)\nOutputs: Bitmap updated (sprite pixels OR-ed in)\n         collision_check_flag |= (old_bitmap AND sprite_mask)\nSide Effects: Overwrites aAB, aAC (temporary shift registers)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43781": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFull-entry variant of draw_sprite_or_collision. Before stamping the sprite:\n  1. Clears collision_check_flag to $00 (fresh collision test).\n  2. Calls sA96D to check X-axis boundary collisions vs the playfield walls;\n     sA96D may clamp aA3 and set collision_type if a wall is hit.\nThen falls through into the shared draw loop at jAB0C.\nUse this entry when rendering a moving entity that needs both pixel-collision\ndetection (vs other sprites) and wall-boundary clamping.\n\nInputs:  aA3 = X coordinate, aA4 = Y coordinate\n         pA9/aAA = pointer to 8-byte glyph shape\n         aAD     = right-shift count (0..7)\nOutputs: Bitmap updated; collision_check_flag set if any overlap detected\n         collision_type set if a wall boundary was hit (via sA96D)\nSide Effects: Clears then rebuilds collision_check_flag; may modify aA3\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43841": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases an 8x8 sprite/glyph from the custom bitmap using AND-NOT masking.\nThe glyph shape (8 bytes) is read from (pA9),Y for rows Y=7..0. Each row\nbyte is inverted (EOR #$FF) to form a clear-mask (0=erase this pixel,\n1=leave alone), then right-shifted by aAD bits using SEC/ROR so that 1-bits\nfill in from the left, preserving non-sprite pixels in the shift region.\nThe shifted masks are AND-ed into bitmap columns (aA5),Y and (aA7),Y,\nclearing only the pixels that belong to this sprite without disturbing\nany other content already on the bitmap.\nDoes NOT modify collision_check_flag.\nSee erase_sprite_with_boundary_check ($AB47) for the boundary variant.\n\nInputs:  pA9/aAA = pointer to 8-byte glyph shape\n         aA5/aA6 = pointer to high bitmap column\n         aA7/aA8 = pointer to adjacent (spill) bitmap column\n         aAD     = right-shift count (0..7)\nOutputs: Bitmap updated (sprite pixels cleared)\nSide Effects: Overwrites aAC (temporary shift register)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43847": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nBoundary-checking variant of erase_sprite. Before erasing, calls sA96D to\ncheck X-axis boundary collisions vs the playfield walls; sA96D may clamp\naA3 and set collision_type if a wall is hit. Then falls through into the\nshared erase loop at jAB4A.\nUse this entry when erasing a moving entity whose position may be at or\nbeyond a screen boundary at the time of the erase.\n\nInputs:  aA3 = X coordinate, aA4 = Y coordinate\n         pA9/aAA = pointer to 8-byte glyph shape\n         aAD     = right-shift count (0..7)\nOutputs: Bitmap updated (sprite pixels cleared)\n         collision_type set if a wall boundary was hit (via sA96D)\nSide Effects: May modify aA3 (clamped by sA96D); overwrites aAC\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43885": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets a pixel in the custom bitmap at position (aA3, aA4).\n\nInputs:  aA3 = X coordinate, aA4 = Y coordinate\nOutputs: Pixel set in bitmap memory\nSide Effects: Modifies bitmap memory via (aA5) pointer\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43900": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears a pixel after applying boundary collision checks.\nBounces velocity if a wall is hit, then clears the pixel.\n\nInputs:  aA3/aA4 = position, aAE/aAF = X/Y velocity\nOutputs: Pixel cleared, position clamped, velocity bounced\nSide Effects: Modifies bitmap memory, may negate velocity\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43906": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears a pixel in the custom bitmap at position (aA3, aA4).\n\nInputs:  aA3 = X coordinate, aA4 = Y coordinate\nOutputs: Pixel cleared in bitmap memory\nSide Effects: Modifies bitmap memory via (aA5) pointer\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1932,8 +1964,8 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 41621,
-  "hex_dump_cursor_address": 41616,
+  "cursor_address": 43775,
+  "hex_dump_cursor_address": 43760,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
   "right_pane_visible": "HexDump",

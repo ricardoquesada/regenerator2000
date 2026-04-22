@@ -459,20 +459,40 @@ fn handle_tool_call_internal(
             let comment = args
                 .get("comment")
                 .and_then(|v| v.as_str())
-                .map(std::string::ToString::to_string);
-            let comment_type = args.get("type").and_then(|v| v.as_str()).unwrap_or("line");
+                .map(std::string::ToString::to_string)
+                .ok_or_else(|| McpError {
+                    code: -32602,
+                    message: "Missing or invalid 'comment' (expected a string)".to_string(),
+                    data: None,
+                })?;
+            let comment_type =
+                args.get("type")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| McpError {
+                        code: -32602,
+                        message: "Missing 'type' (expected \"line\" or \"side\")".to_string(),
+                        data: None,
+                    })?;
 
-            let command = if comment_type == "side" {
-                crate::commands::Command::SetUserSideComment {
+            let command = match comment_type {
+                "side" => crate::commands::Command::SetUserSideComment {
                     address,
-                    new_comment: comment.clone(),
+                    new_comment: Some(comment),
                     old_comment: app_state.user_side_comments.get(&address).cloned(),
-                }
-            } else {
-                crate::commands::Command::SetUserLineComment {
+                },
+                "line" => crate::commands::Command::SetUserLineComment {
                     address,
-                    new_comment: comment.clone(),
+                    new_comment: Some(comment),
                     old_comment: app_state.user_line_comments.get(&address).cloned(),
+                },
+                other => {
+                    return Err(McpError {
+                        code: -32602,
+                        message: format!(
+                            "Invalid 'type' value \"{other}\": expected \"line\" or \"side\""
+                        ),
+                        data: None,
+                    });
                 }
             };
 
@@ -620,10 +640,18 @@ fn handle_tool_call_internal(
                 .get("view")
                 .and_then(|v| v.as_str())
                 .unwrap_or("disasm");
-            let text = if view == "hexdump" {
-                get_hexdump_text(app_state, start_addr, end_addr)
-            } else {
-                get_disassembly_text(app_state, start_addr, end_addr)
+            let text = match view {
+                "disasm" => get_disassembly_text(app_state, start_addr, end_addr),
+                "hexdump" => get_hexdump_text(app_state, start_addr, end_addr),
+                other => {
+                    return Err(McpError {
+                        code: -32602,
+                        message: format!(
+                            "Invalid 'view' value \"{other}\": expected \"disasm\" or \"hexdump\""
+                        ),
+                        data: None,
+                    });
+                }
             };
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
         }
@@ -633,12 +661,24 @@ fn handle_tool_call_internal(
                 .get("view")
                 .and_then(|v| v.as_str())
                 .unwrap_or("disasm");
-            let text = if view == "hexdump" {
-                let (start, end) = get_selection_range_hexdump(app_state, view_state)?;
-                get_hexdump_text(app_state, start, end)
-            } else {
-                let (start, end) = get_selection_range_disasm(app_state, view_state)?;
-                get_disassembly_text(app_state, start, end)
+            let text = match view {
+                "disasm" => {
+                    let (start, end) = get_selection_range_disasm(app_state, view_state)?;
+                    get_disassembly_text(app_state, start, end)
+                }
+                "hexdump" => {
+                    let (start, end) = get_selection_range_hexdump(app_state, view_state)?;
+                    get_hexdump_text(app_state, start, end)
+                }
+                other => {
+                    return Err(McpError {
+                        code: -32602,
+                        message: format!(
+                            "Invalid 'view' value \"{other}\": expected \"disasm\" or \"hexdump\""
+                        ),
+                        data: None,
+                    });
+                }
             };
             Ok(json!({ "content": [{ "type": "text", "text": text }] }))
         }
@@ -1241,7 +1281,20 @@ fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec<Value>, Mc
         .and_then(|v| v.as_u64())
         .map(|n| Addr(n as u16));
 
-    let kind_filter = args.get("kind").and_then(|v| v.as_str());
+    let kind_filter = match args.get("kind").and_then(|v| v.as_str()) {
+        Some("user") => Some("user"),
+        Some("system") => Some("system"),
+        Some(other) => {
+            return Err(McpError {
+                code: -32602,
+                message: format!(
+                    "Invalid 'kind' value \"{other}\": expected \"user\" or \"system\""
+                ),
+                data: None,
+            });
+        }
+        None => None,
+    };
 
     // Validate: if one range bound is given, both must be present
     if start_addr.is_some() != end_addr.is_some() {
@@ -1323,7 +1376,18 @@ fn get_comments_impl(app_state: &AppState, args: &Value) -> Result<Vec<Value>, M
         .and_then(|v| v.as_u64())
         .map(|n| Addr(n as u16));
 
-    let type_filter = args.get("type").and_then(|v| v.as_str());
+    let type_filter = match args.get("type").and_then(|v| v.as_str()) {
+        Some("line") => Some("line"),
+        Some("side") => Some("side"),
+        Some(other) => {
+            return Err(McpError {
+                code: -32602,
+                message: format!("Invalid 'type' value \"{other}\": expected \"line\" or \"side\""),
+                data: None,
+            });
+        }
+        None => None,
+    };
 
     // Validate: if one range bound is given, both must be present
     if start_addr.is_some() != end_addr.is_some() {

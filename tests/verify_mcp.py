@@ -808,6 +808,256 @@ def test_undo_redo(client):
         print(f"FAIL (redo): {res}")
 
 
+def assert_error(res, description):
+    """Assert that an MCP response contains an error (not a result). Prints PASS/FAIL."""
+    if res and "error" in res:
+        msg = res["error"].get("message", "")
+        print(f"  PASS: {description!r} -> error: {msg!r}")
+        return True
+    elif res and "result" in res:
+        # Some servers wrap errors inside content; check for that too.
+        content = res["result"].get("content", [])
+        text = content[0].get("text", "") if content else ""
+        if "error" in text.lower() or "missing" in text.lower() or "invalid" in text.lower():
+            print(f"  PASS (error in content): {description!r} -> {text[:80]!r}")
+            return True
+        print(f"  FAIL: {description!r} — expected error, got result: {text[:80]!r}")
+        return False
+    else:
+        print(f"  FAIL: {description!r} — no response")
+        return False
+
+
+def test_malformed_calls(client):
+    print("\nTesting malformed MCP calls (all should return errors)...")
+    all_pass = True
+
+    def check(res, description):
+        nonlocal all_pass
+        if not assert_error(res, description):
+            all_pass = False
+
+    def call(name, arguments):
+        return client.rpc("tools/call", {"name": name, "arguments": arguments})
+
+    # -----------------------------------------------------------------------
+    # Unknown tool
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_nonexistent_tool", {}),
+        "unknown tool name"
+    )
+
+    # -----------------------------------------------------------------------
+    # r2000_set_comment — the original silent-failure bug
+    # -----------------------------------------------------------------------
+    # Wrong key for 'comment' (used to be 'text' in agent calls)
+    check(
+        call("r2000_set_comment", {"address": 0x1000, "text": "hello", "type": "line"}),
+        "r2000_set_comment: 'text' instead of 'comment'"
+    )
+    # Wrong key for 'type' (used to be 'comment_type' in agent calls)
+    check(
+        call("r2000_set_comment", {"address": 0x1000, "comment": "hello", "comment_type": "line"}),
+        "r2000_set_comment: 'comment_type' instead of 'type'"
+    )
+    # Missing 'comment' entirely
+    check(
+        call("r2000_set_comment", {"address": 0x1000, "type": "line"}),
+        "r2000_set_comment: missing 'comment'"
+    )
+    # Missing 'type' entirely
+    check(
+        call("r2000_set_comment", {"address": 0x1000, "comment": "hello"}),
+        "r2000_set_comment: missing 'type'"
+    )
+    # Invalid 'type' enum value
+    check(
+        call("r2000_set_comment", {"address": 0x1000, "comment": "hello", "type": "inline"}),
+        "r2000_set_comment: invalid 'type' value 'inline'"
+    )
+    # Missing 'address'
+    check(
+        call("r2000_set_comment", {"comment": "hello", "type": "line"}),
+        "r2000_set_comment: missing 'address'"
+    )
+
+    # -----------------------------------------------------------------------
+    # r2000_set_label_name
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_set_label_name", {"name": "LABEL_NO_ADDR"}),
+        "r2000_set_label_name: missing 'address'"
+    )
+    check(
+        call("r2000_set_label_name", {"address": 0x1000}),
+        "r2000_set_label_name: missing 'name'"
+    )
+
+    # -----------------------------------------------------------------------
+    # r2000_set_data_type
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_set_data_type", {"start_address": 0x1000, "end_address": 0x100F}),
+        "r2000_set_data_type: missing 'data_type'"
+    )
+    check(
+        call("r2000_set_data_type", {"start_address": 0x1000, "end_address": 0x100F, "data_type": "banana"}),
+        "r2000_set_data_type: invalid 'data_type' value 'banana'"
+    )
+    check(
+        call("r2000_set_data_type", {"end_address": 0x100F, "data_type": "code"}),
+        "r2000_set_data_type: missing 'start_address'"
+    )
+    check(
+        call("r2000_set_data_type", {"start_address": 0x100F, "end_address": 0x1000, "data_type": "code"}),
+        "r2000_set_data_type: start > end"
+    )
+
+    # -----------------------------------------------------------------------
+    # r2000_read_region
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_read_region", {"end_address": 0x100F}),
+        "r2000_read_region: missing 'start_address'"
+    )
+    check(
+        call("r2000_read_region", {"start_address": 0x1000}),
+        "r2000_read_region: missing 'end_address'"
+    )
+    check(
+        call("r2000_read_region", {"start_address": 0x1000, "end_address": 0x100F, "view": "text"}),
+        "r2000_read_region: invalid 'view' value 'text'"
+    )
+
+    # -----------------------------------------------------------------------
+    # r2000_read_selected
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_read_selected", {"view": "raw"}),
+        "r2000_read_selected: invalid 'view' value 'raw'"
+    )
+
+    # -----------------------------------------------------------------------
+    # r2000_set_operand_format
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_set_operand_format", {"address": 0x1000}),
+        "r2000_set_operand_format: missing 'format'"
+    )
+    check(
+        call("r2000_set_operand_format", {"address": 0x1000, "format": "octal"}),
+        "r2000_set_operand_format: invalid 'format' value 'octal'"
+    )
+    check(
+        call("r2000_set_operand_format", {"format": "hex"}),
+        "r2000_set_operand_format: missing 'address'"
+    )
+
+    # -----------------------------------------------------------------------
+    # r2000_get_symbols
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_get_symbols", {"kind": "admin"}),
+        "r2000_get_symbols: invalid 'kind' value 'admin'"
+    )
+    check(
+        call("r2000_get_symbols", {"start_address": 0x1000}),
+        "r2000_get_symbols: start_address without end_address"
+    )
+    check(
+        call("r2000_get_symbols", {"end_address": 0x100F}),
+        "r2000_get_symbols: end_address without start_address"
+    )
+    check(
+        call("r2000_get_symbols", {"start_address": 0x100F, "end_address": 0x1000}),
+        "r2000_get_symbols: start > end"
+    )
+
+    # -----------------------------------------------------------------------
+    # r2000_get_comments
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_get_comments", {"type": "block"}),
+        "r2000_get_comments: invalid 'type' value 'block'"
+    )
+    check(
+        call("r2000_get_comments", {"start_address": 0x1000}),
+        "r2000_get_comments: start_address without end_address"
+    )
+    check(
+        call("r2000_get_comments", {"end_address": 0x100F}),
+        "r2000_get_comments: end_address without start_address"
+    )
+    check(
+        call("r2000_get_comments", {"start_address": 0x100F, "end_address": 0x1000}),
+        "r2000_get_comments: start > end"
+    )
+
+    # -----------------------------------------------------------------------
+    # r2000_get_address_details / r2000_get_cross_references / r2000_jump_to_address
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_get_address_details", {}),
+        "r2000_get_address_details: missing 'address'"
+    )
+    check(
+        call("r2000_get_cross_references", {}),
+        "r2000_get_cross_references: missing 'address'"
+    )
+    check(
+        call("r2000_jump_to_address", {}),
+        "r2000_jump_to_address: missing 'address'"
+    )
+
+    # -----------------------------------------------------------------------
+    # r2000_toggle_splitter / r2000_add_scope
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_toggle_splitter", {}),
+        "r2000_toggle_splitter: missing 'address'"
+    )
+    check(
+        call("r2000_add_scope", {"start_address": 0x1000}),
+        "r2000_add_scope: missing 'end_address'"
+    )
+    check(
+        call("r2000_add_scope", {"end_address": 0x1010}),
+        "r2000_add_scope: missing 'start_address'"
+    )
+    check(
+        call("r2000_add_scope", {"start_address": 0x1010, "end_address": 0x1000}),
+        "r2000_add_scope: start > end"
+    )
+
+    # -----------------------------------------------------------------------
+    # r2000_search_memory
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_search_memory", {}),
+        "r2000_search_memory: missing 'query'"
+    )
+
+    # -----------------------------------------------------------------------
+    # r2000_batch_execute
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_batch_execute", {}),
+        "r2000_batch_execute: missing 'calls'"
+    )
+
+    # -----------------------------------------------------------------------
+    # tools/call with missing 'name'
+    # -----------------------------------------------------------------------
+    res = client.rpc("tools/call", {"arguments": {}})
+    check(res, "tools/call: missing 'name' field")
+
+    if all_pass:
+        print("PASS: All malformed calls correctly returned errors.")
+    else:
+        print("FAIL: Some malformed calls did not return the expected error.")
+
+
 if __name__ == "__main__":
     client = MCPClient()
     client.start()
@@ -827,3 +1077,4 @@ if __name__ == "__main__":
     test_add_scope(client)
     test_undo_redo(client)
     test_batch_execute(client)
+    test_malformed_calls(client)
