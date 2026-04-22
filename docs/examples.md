@@ -80,6 +80,7 @@ Source:
 
 - [Omega Race on VIC-20 Cartridges][vic20_omega_race_cart]
 
+[vic20_omega_race_info]: https://en.wikipedia.org/wiki/Omega_Race
 [vic20_omega_race_cart]: https://archive.org/download/Commodore_VIC20_TOSEC_2012_04_23/Commodore_VIC20_TOSEC_2012_04_23.zip/Commodore%20VIC20%20%5BTOSEC%5D%2FCommodore%20VIC20%20-%20Games%20-%20%5BCRT%5D%20%28TOSEC-v2011-12-15_CM%29%2FOmega%20Race%20%281982%29%28Commodore%29%5BA000%5D.zip
 
 ---
