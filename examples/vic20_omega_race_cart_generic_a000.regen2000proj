@@ -992,6 +992,13 @@
         "kind": "User"
       }
     ],
+    "43087": [
+      {
+        "name": "spawn_entity_init",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "43135": [
       {
         "name": "spawn_x_velocity_tbl",
@@ -1027,6 +1034,13 @@
         "kind": "User"
       }
     ],
+    "43265": [
+      {
+        "name": "read_paddle_input",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "43353": [
       {
         "name": "paddle_angle_thresholds",
@@ -1037,6 +1051,13 @@
     "43370": [
       {
         "name": "check_boundary_collisions",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "43373": [
+      {
+        "name": "check_boundary_collisions_narrow",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1132,6 +1153,13 @@
         "kind": "User"
       }
     ],
+    "43960": [
+      {
+        "name": "draw_line_segment",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "43982": [
       {
         "name": "draw_markers",
@@ -1170,6 +1198,13 @@
     "44055": [
       {
         "name": "border_segment_params",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44115": [
+      {
+        "name": "erase_line_segment",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1258,6 +1293,13 @@
         "kind": "User"
       }
     ],
+    "44445": [
+      {
+        "name": "draw_bcd_digit",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "44455": [
       {
         "name": "advance_score_cursor",
@@ -1335,6 +1377,34 @@
         "kind": "User"
       }
     ],
+    "44870": [
+      {
+        "name": "enemy_fire_bullet",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44926": [
+      {
+        "name": "plot_bullet_pixel",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44957": [
+      {
+        "name": "spawn_enemy_mine",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45004": [
+      {
+        "name": "draw_enemy",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "45186": [
       {
         "name": "enemy_wing_dx_tbl",
@@ -1363,6 +1433,13 @@
         "kind": "User"
       }
     ],
+    "45238": [
+      {
+        "name": "handle_entity_hit",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "45357": [
       {
         "name": "add_score",
@@ -1384,9 +1461,30 @@
         "kind": "User"
       }
     ],
+    "45434": [
+      {
+        "name": "erase_enemy_wings",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45473": [
+      {
+        "name": "erase_enemy_body",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "45512": [
       {
         "name": "attract_mode",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45706": [
+      {
+        "name": "attract_color_cycle",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1398,9 +1496,23 @@
         "kind": "User"
       }
     ],
+    "45752": [
+      {
+        "name": "attract_mode_delay_inner",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "45772": [
       {
         "name": "draw_graphic_string",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45859": [
+      {
+        "name": "attract_ship_animation",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1429,6 +1541,13 @@
     "46087": [
       {
         "name": "option_joystick",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "46136": [
+      {
+        "name": "handle_display_settings_key",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1688,10 +1807,21 @@
     "42908": "calculate Y distance (enemy - player)",
     "42917": "find distance bracket",
     "42941": "check enemy 1 for firing/sound",
-    "43122": "X velocity for spawn direction",
-    "43125": "set entity X velocity",
-    "43128": "Y velocity for spawn direction",
-    "43131": "set entity Y velocity",
+    "43087": "Save requested type",
+    "43089": "Load current type",
+    "43095": "Clear tracking for old type",
+    "43098": "Restore requested type",
+    "43100": "Get start frame for type",
+    "43103": "Set initial sprite frame",
+    "43107": "Set new entity type",
+    "43111": "Store slot index for this type",
+    "43114": "Check if type 1",
+    "43116": "Skip velocity init if not type 1",
+    "43118": "Load direction (0-3) from state",
+    "43122": "Load X velocity for direction",
+    "43125": "Set X velocity",
+    "43128": "Load Y velocity for direction",
+    "43131": "Set Y velocity",
     "43143": "save entity type to search for",
     "43145": "start from total entity count",
     "43147": "check entity state",
@@ -1702,6 +1832,11 @@
     "43159": "next entity",
     "43160": "loop until X = 0 (not found)",
     "43162": "return: X = entity index or 0",
+    "43163": "Start with highest bracket index (3)",
+    "43165": "Compare distance with threshold",
+    "43168": "If distance >= threshold, found bracket",
+    "43170": "Else try next lower bracket",
+    "43171": "Loop until bracket 0",
     "43177": "configure VIA2 DDRB",
     "43185": "read Joy Right (bit 7)",
     "43204": "read VIA1 Port A (Up/Down/Left/Fire)",
@@ -1711,9 +1846,22 @@
     "43236": "check if Up (bit 4) is pressed",
     "43246": "check if Left (bit 2) is pressed",
     "43257": "apply turning offset to player angle",
+    "43265": "Start with highest angle index (16)",
+    "43267": "Read analog paddle value",
+    "43270": "Compare with threshold",
+    "43273": "If paddle >= threshold, found angle",
+    "43275": "Else try next lower angle",
+    "43280": "Use index as angle",
+    "43281": "Mask to 4 bits (0-15)",
+    "43283": "Store player angle",
+    "43285": "Read fire button (VIA1 Port A)",
+    "43288": "Check bit 4",
+    "43290": "Branch if button pressed (active low)",
+    "43344": "Set fire flag ($80)",
     "43370": "initialize wall hit flag",
     "43372": "bit opcode",
-    "43375": "Set to $80 (wide) for ship pixels, $00 (narrow) for sprites/enemies",
+    "43373": "Set narrow boundary flag ($00)",
+    "43375": "Store in flag",
     "43377": "clear collision flag",
     "43385": "check left outer screen boundary",
     "43387": "N=1 ($80) -> use wide boundary zones (ship pixel); N=0 ($00) -> narrow (sprites)",
@@ -1786,16 +1934,62 @@
     "44042": "stop when counter reaches $FB",
     "44046": "draw segment at current counter index",
     "44049": "decrement segment counter",
+    "44137": "Clear carry for addition",
+    "44138": "Add 4 to index (bias for table)",
+    "44140": "Use as Y index",
+    "44141": "Get offset from table",
+    "44144": "Load segment parameters (X, Y, len, dx, dy)",
+    "44147": "Draw the line segment",
+    "44151": "Clear carry for addition",
+    "44152": "Add 4 to index (bias for table)",
+    "44154": "Use as Y index",
+    "44155": "Get offset from table",
+    "44158": "Load segment parameters (X, Y, len, dx, dy)",
+    "44161": "Erase the line segment",
+    "44165": "Use offset in Y",
+    "44166": "Load X start",
+    "44171": "Load Y start",
+    "44176": "Load length",
+    "44181": "Load dx (X step)",
+    "44186": "Load dy (Y step)",
     "44205": "X position = $52",
     "44209": "Y position = $48",
     "44215": "copy 3-byte BCD score to scratch buffer",
     "44222": "render digits",
+    "44226": "X position = $52",
+    "44228": "Store X cursor",
+    "44230": "Y position = $5C",
+    "44232": "Store Y pos",
+    "44234": "Init loop counter for 3 bytes",
+    "44236": "Copy BCD score byte to scratch",
+    "44238": "Store in scratch",
+    "44243": "Render digits",
+    "44247": "Initial spacing",
+    "44250": "Index 2 = most significant byte",
+    "44254": "Load BCD byte",
+    "44258": "If not zero, start rendering",
+    "44260": "Skip spacing for blank digits",
+    "44272": "Extract high nibble",
+    "44274": "If high nibble zero, skip it",
+    "44280": "Shift right to get digit value",
+    "44284": "Draw high nibble digit",
+    "44287": "Advance cursor for next digit",
+    "44294": "Extract low nibble",
+    "44296": "Draw low nibble digit",
+    "44306": "If all were zero, draw a single '0'",
     "44312": "first column: 5 icons max",
     "44316": "X = $5A",
     "44320": "Y = $40",
     "44327": "second column: 10 icons max",
     "44331": "X = $46",
     "44335": "Y = $54",
+    "44343": "Advance cursor for spacing",
+    "44346": "Use remaining count as index",
+    "44348": "Load icon index from table",
+    "44351": "Compute sprite pointer",
+    "44354": "Draw the icon",
+    "44357": "Decrement remaining count",
+    "44359": "Loop if not negative",
     "44362": "loop over 3 ship slots (X=2 down to 0)",
     "44366": "bitmap column = $29",
     "44373": "get X position for this slot",
@@ -1805,6 +1999,14 @@
     "44401": "a54 = bonus ship flag",
     "44405": "bonus ship at fixed position ($3D/$4C)",
     "44427": "draw filled ship icon",
+    "44445": "Clear carry for addition",
+    "44446": "Add $47 to get sprite index ('0' is at $47)",
+    "44448": "Compute sprite pointer",
+    "44451": "Draw the digit",
+    "44455": "Load current X cursor",
+    "44457": "Clear carry for addition",
+    "44458": "Advance by 4 pixels",
+    "44460": "Store updated X cursor",
     "44501": "load X velocity from angle table",
     "44511": "add X spawn offset; places bullet at ship nose",
     "44518": "load Y velocity from angle table",
@@ -1824,11 +2026,78 @@
     "44788": "bit opcode",
     "44820": "bit opcode",
     "44836": "bit opcode",
+    "44870": "Start with highest bullet slot (7)",
+    "44872": "Load firing enemy index",
+    "44874": "Check if slot is free",
+    "44877": "If active, try next slot",
+    "44879": "Inherit enemy X velocity",
+    "44886": "Add to enemy X position",
+    "44889": "Add offset of 4 pixels",
+    "44891": "Store as bullet X position",
+    "44894": "Inherit enemy Y velocity",
+    "44901": "Add to enemy Y position",
+    "44904": "Add offset of 4 pixels",
+    "44906": "Store as bullet Y position",
+    "44909": "Set lifetime to 35 frames",
+    "44914": "Set owner flag to 1 (enemy)",
+    "44920": "Move to next slot",
+    "44921": "Stop after checking slot 4",
+    "44926": "Check collisions with walls",
+    "44929": "Check if wall hit",
+    "44931": "Return if wall hit",
+    "44933": "X = bit offset (0-7)",
+    "44935": "Get bit mask for pixel",
+    "44938": "Store mask",
+    "44940": "Offset 0",
+    "44942": "Read bitmap byte",
+    "44944": "Save original byte in Y",
+    "44945": "Check if pixel already set",
+    "44947": "Update collision flag",
+    "44951": "Restore original byte",
+    "44952": "Set pixel bit",
+    "44954": "Write back to bitmap",
+    "44957": "Start with highest candidate slot (18)",
+    "44959": "Check if slot is free (negative type)",
+    "44962": "Branch if free slot found",
+    "44964": "Else try next lower slot",
+    "44965": "Stop after checking slot 13",
+    "44971": "Copy X position from parent enemy",
+    "44977": "Copy Y position from parent enemy",
+    "44983": "Set state to active (0)",
+    "44988": "Read random-ish value from timer",
+    "44991": "Mask to 2 bits",
+    "44993": "Branch if not 0",
+    "44995": "Set type 5 (rare)",
     "44997": "bit opcode",
+    "44998": "Set type 6 (common)",
+    "45000": "Store entity type",
+    "45004": "Save entity index",
+    "45008": "Load frame counter",
+    "45010": "Check lower 3 bits",
+    "45012": "Only run every 8 frames",
+    "45015": "Load entity state",
+    "45018": "Check if state >= $82 (exploding)",
+    "45022": "Erase normal body",
     "45033": "load X offset for body pixel [a3C]",
     "45042": "load Y offset for body pixel [a3C]",
+    "45070": "Draw body pixel",
+    "45079": "Erase wings",
     "45090": "load X offset for wing pixel [a3C]",
     "45099": "load Y offset for wing pixel [a3C]",
+    "45125": "Draw wing pixel",
+    "45134": "Decrement animation timer",
+    "45137": "Branch if timer expired",
+    "45142": "Toggle bit 0 for animation",
+    "45238": "clear entity collision state and pixel-overlap flag",
+    "45250": "Y = entity type: 0=player, else enemy/obstacle",
+    "45251": "Y=0 -> player hit",
+    "45252": "Y=5 -> large enemy: fanfare sound",
+    "45268": "Y < 5: decrement remaining enemy count",
+    "45296": "set entity to exploding state (still visible)",
+    "45305": "award score for this entity type (Y = type index)",
+    "45312": "--- player ship hit branch ---",
+    "45322": "decrement lives",
+    "45326": "invincibility/respawn timer ($3C = 60 frames)",
     "45357": "disable IRQs before score update",
     "45358": "A*2 = byte offset into 2-byte BCD table entries",
     "45359": "index into table",
@@ -1851,6 +2120,10 @@
     "45399": "set extra-life awarded flag (prevent duplicate)",
     "45409": "grant extra life",
     "45411": "update lives HUD display",
+    "45473": "loop 8..0 over 9 body pixels",
+    "45491": "pixel X = entity_x + body_dx[i]",
+    "45494": "pixel Y = entity_y + body_dy[i]",
+    "45499": "glyph $29 = single-pixel dot shape",
     "45512": "clear screen / display RAM",
     "45515": "setup title screen colors",
     "45530": "gfx_attract_slide_1 ($BB86): OMEGA RACE title logo + copyright text",
@@ -1866,11 +2139,19 @@
     "45630": "draw story slide 1: 'In the year 2003...' (instant display, no typing delay)",
     "45650": "next story slide ($BDA8)",
     "45660": "draw story slide 2",
+    "45706": "loop counter: 25 iterations",
+    "45714": "advance color index each frame",
+    "45718": "mask to 3 bits: cycles colors 0-7",
+    "45720": "write color to 4 logo positions in color RAM",
+    "45736": "pace animation with delay; also polls for start button",
+    "45739": "abort if start pressed (bit 7 of aB0)",
     "45748": "setup outer loop counter (40)",
-    "45752": "setup inner loop counter (255)",
-    "45756": "poll joysticks and keyboard",
-    "45759": "check if start button was pressed",
-    "45761": "abort delay immediately if pressed",
+    "45752": "Setup inner loop counter (255)",
+    "45756": "Poll joysticks and keyboard",
+    "45759": "Check if start button pressed",
+    "45761": "Abort delay if pressed",
+    "45763": "Decrement inner counter",
+    "45767": "Decrement outer counter",
     "45772": "store pointer low",
     "45774": "store pointer high",
     "45778": "read base X coordinate",
@@ -1882,6 +2163,14 @@
     "45820": "draw character to screen",
     "45834": "abort if start pressed",
     "45851": "advance X by step",
+    "45859": "start sprite index: frame 0 of 3-frame animation",
+    "45866": "animation position: X=$10, Y=$90",
+    "45876": "outer loop: 100 animation frames",
+    "45878": "inter-frame delay: ~$FF * $20 iterations",
+    "45894": "erase previous frame",
+    "45901": "wrap sprite index: $20, $21, $22 -> back to $20",
+    "45915": "draw next animation frame",
+    "45918": "abort animation if start pressed",
     "45927": "clear screen",
     "45931": "trigger sound fanfare (channel indices/durations)",
     "45942": "get low nibble of phase as sprite index",
@@ -1916,6 +2205,18 @@
     "46103": "bit opcode",
     "46108": "set start flag to abort attract mode",
     "46113": "check KERNAL modifier keys flag ($028D)",
+    "46136": "X = key code",
+    "46139": "Check for CRSR RIGHT",
+    "46144": "Add 1 to horizontal origin",
+    "46155": "Check for CRSR DOWN",
+    "46160": "Add 1 to vertical origin",
+    "46171": "Check for key $8C",
+    "46178": "Toggle interlace bit",
+    "46184": "Check for key $87",
+    "46192": "Cycle background color",
+    "46205": "Check for key $88",
+    "46209": "Cycle border color",
+    "46217": "Update color RAM",
     "46221": "dummy read of VIA 1 Port A",
     "46224": "pull Y",
     "46226": "pull X",
@@ -1948,7 +2249,7 @@
     "42247": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies velocity to enemy positions.\n\nInputs:  a40 (enemy count), a37 (frame counter), $03C8/$1D00 arrays (velocities)\nOutputs: $0362/$0375 arrays (positions)\nSide Effects: Updates coordinates of active enemies\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "42293": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates display states and handles all entity collisions.\n\nInputs:  a26 (bullet flags), bullet positions, player position, enemy positions\nOutputs: Collision state (kills enemies or player), sprite display arrays\nSide Effects: Calls collision detection, plays sound effects, removes killed entities\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "42589": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks whether a given X,Y position collides with any active entity.\nScans all 19 entity slots ($12 down to $00) using 8x8 pixel bounding-box\n(AABB) collision detection.\n\nInputs:  $A3 = X coordinate to test, $A4 = Y coordinate to test\nOutputs: X = index of colliding entity (0-$12), or $FF if no collision\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "42652": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\\nUpdates all enemy states, animations, movement, and spawning.\\nHandles spawning of enemy types 1 and 2 based on difficulty timers,\\nupdates sprite frames for animation, calculates pursuit AI velocities\\ntowards the player based on distance brackets, and handles enemy firing.\\n\\nInputs:  a37 (frame counter), a3E (timer), a40 (enemy count)\\n         player position (f0362, f0375)\\nOutputs: Enemy states (zero page and $03xx/$1Dxx arrays) updated\\nSide Effects: Spawns new enemies, updates sprite pointers and positions\\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "42652": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates all enemy states, animations, movement, and spawning.\nHandles spawning of enemy types 1 and 2 based on difficulty timers,\nupdates sprite frames for animation, calculates pursuit AI velocities\ntowards the player based on distance brackets, and handles enemy firing.\n\nInputs:  a37 (frame counter), a3E (timer), a40 (enemy count)\n         player position (f0362, f0375)\nOutputs: Enemy states (zero page and $03xx/$1Dxx arrays) updated\nSide Effects: Spawns new enemies, updates sprite pointers and positions\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43051": "Initial sprite frame per entity type (5 entries, indexed by f033C)",
     "43056": "Max sprite frame per entity type; wraps to sprite_frame_start_tbl",
     "43061": "ANDed with frame counter to control animation speed per type",
@@ -1957,10 +2258,13 @@
     "43075": "Distance brackets for enemy AI pursuit (0,40,80,120)",
     "43079": "Pursuit velocity when enemy is ahead of player (0,-2,-3,-3)",
     "43083": "Pursuit velocity when enemy is behind player (0,+2,+3,+3)",
+    "43087": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes entity type, starting sprite frame, and tracking indices.\nFor type 1 entities, also initializes directional velocity.\n\nInputs:  Y = Entity type, X = Entity slot index\nOutputs: None\nSide Effects: Modifies entity arrays f033C, f1D13, f03C8, f1D00, and f002E\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43135": "Initial X velocity by spawn direction: ↘,↗,↖,↙",
     "43139": "Initial Y velocity by spawn direction: ↘,↗,↖,↙",
     "43143": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSearches the entity array for an active entity of a given type.\nScans from index a40 (entity count) down to 1.\n\nInputs:  Y = entity type to search for (1-4)\nOutputs: X = index of matching entity (1-$12), or 0 if not found\nSide Effects: $51 is overwritten with search type\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43163": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDetermines a distance bracket index (0-3) by comparing the distance value\nin A against a threshold table. Used by enemy AI to select speed.\n\nInputs:  A = Absolute distance (X or Y)\nOutputs: X = Bracket index (0-3)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43174": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nReads and processes joystick input from VIA hardware registers.\n\nInputs:  None\nOutputs: aB0 (Fire pressed = $80)\n         aB1 (Right/Up state + player angle)\n         aB2 (Left pressed = $80)\nSide Effects: Disables IRQs to safely read VIA2 Port B (Right direction), \n              then reads VIA1 Port A (Up/Down/Left/Fire) with a debounce loop.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43265": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nReads analog paddle and fire button to update player angle and fire state.\nMaps the 0-255 paddle value to a 0-15 angle index using thresholds.\nChecks bit 4 of VIA1 Port A for the fire button.\n\nInputs:  $9008 (Paddle value), $9111 (VIA1 Port A)\nOutputs: aB1 = Player angle (0-15), aB0 = Fire flag ($80 if pressed)\nSide Effects: Updates state variables aB2, a29, a35\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43353": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAnalog Paddle to Player Angle Threshold Table\nBecause the original arcade game used a rotary controller, the VIC-20 port \nsupports the Commodore Paddle. This 17-byte table divides the 0-255 analog \npaddle reading ($9008) into 16 evenly spaced intervals (0-15). The paddle \nroutine compares the analog reading against this table from top to bottom \nto determine which of the 16 rotational angles the player's ship should face.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43370": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nApplies boundary collisions (outer screen walls and inner central box).\n\nInputs:  aA3, aA4 (X, Y position)\n         aAE, aAF (X, Y velocity)\nOutputs: a18 (Collision flag: 0=none, >0 indicates which wall was hit)\nSide Effects: Clamps the X/Y position to keep the entity in bounds. If a wall \n              or the central box is hit, the corresponding X or Y velocity \n              vector is negated (Two's Complement) to produce a bounce effect.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43555": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nNegates the accumulator using two's complement (A = -A).\nUsed for velocity bouncing and distance sign flipping.\n\nInputs:  A = signed 8-bit value\nOutputs: A = negated value\nSide Effects: Carry flag modified\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1974,14 +2278,25 @@
     "43906": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears a pixel in the custom bitmap at position (aA3, aA4).\n\nInputs:  aA3 = X coordinate, aA4 = Y coordinate\nOutputs: Pixel cleared in bitmap memory\nSide Effects: Modifies bitmap memory via (aA5) pointer\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43923": "Bit mask lookup: index 0=$80, 1=$40, 2=$20 ... 7=$01",
     "43931": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts a sprite/glyph frame index (in A) into a 16-bit pointer to the\ncorresponding 8x8 pixel shape in the ROM glyph table at $B496, and stores\nthe result in the Zero Page pointer pA9/aAA for use by the draw routine.\n\nFormula:  pointer = $B496 + (A * 8)\n\nThe index is multiplied by 8 (3 ASL+ROL pairs to propagate carry into the\nhigh byte), then the base address $B496 is added. Always called immediately\nbefore sAAFF, which reads (pA9),Y to stamp the 8 bytes into the bitmap.\n\nInputs:  A = sprite/glyph frame index (0-based)\nOutputs: pA9/aAA = 16-bit pointer to the 8-byte shape in ROM\nSide Effects: Overwrites a2A (temp copy of index)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "43960": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws a line segment by plotting pixels and stepping by dx, dy.\nLoops until the length counter reaches zero.\n\nInputs:  aA3/aA4 = Start X/Y, aAE/aAF = dx/dy, aBD = length\nOutputs: None\nSide Effects: Modifies the bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "43982": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlots 8 pixels at the corners and midpoints of the playfield area to act\nas visual markers.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies character bitmap by setting 8 specific pixels.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44022": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases the arena border from the bitmap. Mirror of draw_arena_border — iterates\nthrough 8 line segments, clearing pixels using erase_border_segment (sAC77).\nCalled during level init before the border is redrawn.\n\nInputs:  None\nOutputs: None\nSide Effects: Clears border pixels from character bitmap ($1000-$1CFF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44036": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the playfield arena border onto the custom VIC-20 bitmap. Iterates\nthrough 13 line segments, rendering each using parameters from the\nborder_segment_table (fACA0).\n\nInputs:  None\nOutputs: None\nSide Effects: Writes pixels to character bitmap ($1000-$1CFF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44055": "Flat array of 5-byte segment records for arena border drawing.\nEach record defines one line segment (start pos, length, step direction):\n  +0: X start  +1: Y start  +2: pixel count  +3: X step  +4: Y step\nIndexed via offsets from border_segment_tbl.",
+    "44115": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases a line segment by clearing pixels and stepping by dx, dy.\nLoops until the length counter reaches zero.\n\nInputs:  aA3/aA4 = Start X/Y, aAE/aAF = dx/dy, aBD = length\nOutputs: None\nSide Effects: Modifies the bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44137": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws a specific playfield border segment based on an index passed in A.\nUses border_segment_tbl to look up parameters and calls draw_line_segment.\n\nInputs:  A = Segment index\nOutputs: None\nSide Effects: Modifies the bitmap to draw the segment\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44151": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases a specific playfield border segment based on an index passed in A.\nUses border_segment_tbl to look up parameters and calls erase_line_segment.\n\nInputs:  A = Segment index\nOutputs: None\nSide Effects: Modifies the bitmap to clear the segment\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44165": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLoads segment parameters (X, Y, length, dx, dy) from tables into Zero Page.\nIndexed by Y register.\n\nInputs:  Y = Offset into parameter tables\nOutputs: aA3 = X, aA4 = Y, aBD = length, aAE = dx, aAF = dy\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44192": "Offset index table into border_segment_params. Each byte is a byte-offset (Y index)\ninto the flat border_segment_params array, selecting a 5-byte segment record.\nIndexed as: Y = segment_counter + 4; offset = border_segment_tbl[Y]\n\nRecord layout at border_segment_params[offset] (5 bytes):\n  +0: X start (aA3)\n  +1: Y start (aA4)\n  +2: pixel count / length (aBD)\n  +3: X step per pixel (aAE)\n  +4: Y step per pixel (aAF)\n\nEntries (13 total for draw, 8 for erase):\n  $32 (50) -> top edge, left half       X=0,   Y=0,   len=79, dx=1, dy=0\n  $19 (25) -> top edge, right half\n  $37 (55) -> bottom edge, left half\n  $14 (20) -> bottom edge, right half\n  $00 (0)  -> left edge, top half\n  $00 (0)  -> left edge, top half (repeat)\n  $05 (5)  -> left edge, bottom half\n  $28 (40) -> right edge, top half\n  $2D (45) -> right edge, bottom half\n  $0F (15) -> inner box top\n  $0A (10) -> inner box bottom\n  $23 (35) -> inner box left\n  $1E (30) -> inner box right",
     "44205": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the current player score (aF7/aF8/aF9) onto the bitmap at X=$52, Y=$48.\nCopies the 3-byte BCD score to a scratch buffer and calls render_bcd_digits\nto draw each digit, advancing 4 pixels per digit.\n\nInputs:  aF7/aF8/aF9 (3-byte packed BCD current score)\nOutputs: None\nSide Effects: Writes digit graphics to bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44226": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the current high score (stored in a23-a25) onto the bitmap.\nCopies the 3-byte BCD score to a scratch buffer and calls render_bcd_digits.\n\nInputs:  a23/a24/a25 (3-byte packed BCD high score)\nOutputs: None\nSide Effects: Writes digit graphics to bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44247": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRenders the 3-byte packed BCD score in temp_bcd_score as digits.\nHandles leading zero suppression. Once a non-zero digit is found, all\nsubsequent digits are rendered.\n\nInputs:  temp_bcd_score (3 bytes, packed BCD)\nOutputs: None\nSide Effects: Modifies the bitmap, advances score_cursor_x\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44312": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the current wave/level indicator as two columns of icons on the bitmap.\nFirst column: up to 5 icons at X=$5A, Y=$40 (tens digit of wave).\nSecond column: up to 10 icons at X=$46, Y=$54 (units digit of wave).\nIcon graphics are indexed from wave_icon_table (fB71E).\n\nInputs:  None (uses hardcoded positions and wave_icon_table)\nOutputs: None\nSide Effects: Writes icon graphics to bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44343": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws a sequence of wave indicator icons from wave_icon_tbl.\nLoops based on the value in temp_bcd_score (counts down to 0).\n\nInputs:  temp_bcd_score = Number of icons to draw - 1\nOutputs: None\nSide Effects: Modifies the bitmap, advances score_cursor_x\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44362": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the player lives display onto the bitmap. Erases all 3 ship icon slots,\nthen redraws a filled ship icon for each remaining life (a1F). Uses a54 to\nselect a bonus ship position for the last icon drawn.\n\nInputs:  a1F (lives remaining), a54 (bonus ship flag)\nOutputs: None\nSide Effects: Writes ship icon graphics to bitmap at lives_icon_x/y_table positions\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44445": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRenders a single BCD digit (0-9) onto the bitmap.\nAdds $47 to the digit value to get the sprite index.\n\nInputs:  A = Digit value (0-9)\nOutputs: None\nSide Effects: Modifies the bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44455": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances the score cursor X position by 4 pixels.\n\nInputs:  score_cursor_x\nOutputs: score_cursor_x (incremented by 4)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44473": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes a new bullet slot when the player fires.\nScans for a free slot (0-3), looks up velocity and position offsets\nbased on the player's angle (aB1), and sets bullet lifetime.\n\nInputs:  aB1 = Player angle (0-15), player position\nOutputs: None\nSide Effects: Modifies bullet slot arrays, decrements bullet_slots_free\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44551": "Signed X velocity delta per tick for a fired bullet, indexed by player angle (aB1, 0-15).\nValues are 8-bit signed: $FD=-3, $FE=-2, $FF=-1, $00=0, $01=1, $02=2, $03=3.\nForms a cosine-like curve across 16 angles (0=right, 4=up, 8=left, 12=down).\nPaired with bullet_dy_tbl (Y axis), bullet_spawn_dx_tbl/bullet_spawn_dy_tbl (spawn offset).",
     "44567": "Signed Y velocity delta per tick for a fired bullet, indexed by player angle (aB1, 0-15).\nValues are 8-bit signed: $FD=-3..$03=+3. Sine-like curve, 90 degrees offset from bullet_dx_tbl.",
     "44583": "X spawn position offset (added to player X) for a new bullet, indexed by angle (aB1, 0-15).\nBiases bullet starting position to appear at the ship's nose tip rather than its center.",
@@ -1990,18 +2305,28 @@
     "44747": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws a 3-pixel bullet trail forward from (aA3, aA4) in direction (aAE, aAF).\nPlots 3 pixels, stepping +1 or -1 in x/y per pixel based on velocity sign.\nSets collision_check_flag if any pixel overlaps existing bitmap content.\nSets collision_type if a wall boundary is hit (via sAF7E).\n\nInputs:  aA3/aA4 = bullet X/Y position; aAE/aAF = X/Y velocity (sign used only)\nOutputs: collision_check_flag, collision_type\nSide Effects: Bitmap modified (3 pixels drawn)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44801": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases a 3-pixel bullet trail backward from (aA3, aA4) in direction (aAE, aAF).\nSteps -1 or +1 in x/y (opposite of velocity sign) and clears each pixel.\nUses clear_pixel_with_bounce; stops early on wall hit.\n\nInputs:  aA3/aA4 = bullet X/Y position; aAE/aAF = X/Y velocity (sign used only)\nOutputs: None\nSide Effects: Bitmap modified (3 pixels cleared); may set collision_type\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44849": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLoads bullet slot X (index in X reg) into working registers.\nCopies position and velocity from parallel bullet arrays to shared ZP vars.\n\nInputs:  X = bullet slot index (0-7)\nOutputs: aA3=x, aA4=y, aAE=dx, aAF=dy\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44870": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes a new bullet slot for an enemy.\nScans for a free slot among the upper slots (7 down to 4).\nInherits velocity from the firing enemy and sets position slightly ahead.\n\nInputs:  a3B = Index of the firing enemy\nOutputs: None\nSide Effects: Modifies bullet slot arrays, sets owner flag to 1\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44926": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlots a single pixel of a bullet trail onto the bitmap.\nChecks for boundary collisions and pixel overlaps (collisions with other entities).\n\nInputs:  aA5 = Pointer to bitmap byte, aAD = bit offset (0-7)\n         collision_check_flag = accumulator\nOutputs: collision_check_flag (updated), collision_type (from boundary check)\nSide Effects: Modifies the bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44957": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSpawns a new mine/drone at the position of the current enemy (X).\nScans for a free slot among the upper slots (18 down to 13).\nSets type to 5 or 6 based on a random timer check.\n\nInputs:  X = Index of parent enemy\nOutputs: None\nSide Effects: Modifies entity slot arrays (13-18)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "45004": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the visual display of an enemy entity.\nRuns every 8 frames. Handles normal (3x3 body) and exploding (4 wings) states.\nAnimates by toggling bit 0 of the state.\n\nInputs:  Y = Entity slot index\nOutputs: None\nSide Effects: Modifies the bitmap, updates entity state and timer\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45186": "Signed X pixel offsets (relative to enemy center) for the 4 wing-tip pixels.\nIndexed 0-3. Values: $FC=-4, $04=+4.\nLayout (X,Y pairs with enemy_wing_dy_tbl):\n  0: (-4,-4)  top-left\n  1: (+4,-4)  top-right\n  2: (-4,+4)  bottom-left\n  3: (+4,+4)  bottom-right\nForms a 4-corner diamond shape at ±4 pixels. Used when enemy state >= $82.",
     "45190": "Signed Y pixel offsets (relative to enemy center) for the 4 wing-tip pixels.\nIndexed 0-3. Values: $FC=-4, $04=+4.\nPaired with enemy_wing_dx_tbl. See that table for full (X,Y) layout.",
     "45194": "Signed X pixel offsets (relative to enemy center) for the 9-pixel enemy body.\nIndexed 0-8. Values: $F8=-8, $00=0, $08=+8.\nLayout (X,Y pairs with enemy_body_dy_tbl) — a 3x3 grid spaced 8 pixels apart:\n  0: (-8,-8)  1: (0,-8)  2: (+8,-8)   <- top row\n  3: (-8, 0)  4: (0, 0)  5: (+8, 0)   <- middle row\n  6: (-8,+8)  7: (0,+8)  8: (+8,+8)   <- bottom row\nUsed for the main enemy body (state < $82).",
     "45203": "Signed Y pixel offsets (relative to enemy center) for the 9-pixel enemy body.\nIndexed 0-8. Values: $F8=-8, $00=0, $08=+8.\nPaired with enemy_body_dx_tbl. See that table for full 3x3 grid layout.",
+    "45238": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles a collision hit on entity slot X. Dispatches on entity type (f033C,x):\n\n  Y = 0  -> Player ship was hit:\n             - Sets f03A2,x=$80 (inactive/exploding), f03B5,x=$06 (anim frames)\n             - Decrements player_lives, sets respawn timer a4D=$3C\n             - Triggers death audio/visual effect via SEI-protected register writes\n             - Sets bit 0 of a4E (death flag)\n\n  Y = 5  -> Large enemy hit:\n             - Triggers fanfare sound (a48=1, a4C=1, a44=7)\n             - Falls through to score/explosion logic\n\n  Y < 5  -> Standard enemy hit:\n             - Decrements a3D (remaining enemies on wave)\n             - Triggers hit sound (a46=a4A=$0A)\n\n  Y > 5  -> Obstacle hit:\n             - Triggers alternate sound (a46=a4A=$17)\n\n  (Y != 0 common epilogue):\n             - Sets f03B5,x=$02 (explosion timer), f03A2,x=$82 (exploding state)\n             - Clears f002E,y (per-type counter for this entity kind)\n             - Calls add_score(Y) and redraws player score HUD\n\nInputs:  X = entity slot index (0-$12)\n         f033C,x = entity type / hit classification (0=player, 1-9=enemy types)\nOutputs: player_lives decremented (if player hit); aF7/aF8/aF9 score updated\nSide Effects: Entity state set to exploding; audio registers written under SEI\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45357": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdds a BCD score value to the player's 3-byte score (aF7/aF8/aF9).\nThe A register is an index into the score table at fB16A; each entry is a\n2-byte packed BCD value. After adding, checks if the score has crossed the\nextra-life threshold ($4000). If so, and if the bonus life flag (a54) is\nclear, grants an extra life, triggers the fanfare, and updates the HUD.\n\nInputs:  A = score table index (0-7)\nOutputs: aF7/aF8/aF9 = updated 3-byte packed BCD score\nSide Effects: May increment player_lives and call draw_lives_display;\n              sets a54=1 to prevent awarding more than one extra life\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45418": "2-byte packed BCD score values indexed by enemy type / kill event\n  [0] $0000 =    0 pts   (no score)\n  [1] $0250 =  250 pts\n  [2] $0150 =  150 pts\n  [3] $0150 =  150 pts\n  [4] $0100 =  100 pts\n  [5] $0050 =   50 pts\n  [6] $0035 =   35 pts\n  [7] $0500 =  500 pts (bonus)",
+    "45434": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases the 4-pixel enemy wing-tip pattern from the bitmap. Iterates indices 3..0,\ncomputing each pixel position as:\n  X = f0362[a28] + enemy_wing_dx_tbl[i]\n  Y = f0375[a28] + enemy_wing_dy_tbl[i]\nand calling erase_sprite_with_boundary_check for each.\nUsed when entity state (f03A2) >= $82 (exploding / wing-tip visible state).\nFor the normal body state, erase_enemy_body is used instead.\n\nInputs:  a28 = entity slot index\nOutputs: None\nSide Effects: Clears 4 pixels from the bitmap at the enemy's wing-tip positions\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "45473": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases the 9-pixel enemy body from the bitmap. Iterates indices 8..0,\ncomputing each pixel position as:\n  X = f0362[a28] + enemy_body_dx_tbl[i]\n  Y = f0375[a28] + enemy_body_dy_tbl[i]\nand calling erase_sprite_with_boundary_check for each.\nThis is the erase counterpart to the draw loop in sAFCC.\nOnly called when entity state (f03A2) < $82 (body-visible, not exploding).\nFor the exploding (wing-tip) state, sB17A is used instead.\n\nInputs:  a28 = entity slot index\nOutputs: None\nSide Effects: Clears 9 pixels from the bitmap at the enemy's 3x3 body positions\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45512": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTitle screen / Attract mode sequence.\n\nInputs:  None\nOutputs: Returns when the player presses Start (aB0 flag goes negative)\nSide Effects: Clears screen, displays cycling title screens and graphics, \n              sets colors, waits for user input.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "45706": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAttract mode color cycling animation. Loops $19 (25) times, each iteration\nincrementing aAE and writing (aAE & $07) to 4 fixed color RAM positions\n($9603, $962B, $963F, $9667), cycling through VIC-20's 8 colors (0-7).\nAfter each color update, calls the attract_mode_delay inner loop (sB2B8)\nto pace the animation. Aborts early if the start button is pressed (aB0 < 0).\nCalled once from attract_mode after displaying the copyright/logo screen.\n\nInputs:  None (aAE used as internal counter, initialized to 0)\nOutputs: None\nSide Effects: Writes to color RAM at $9603, $962B, $963F, $9667;\n              returns immediately if aB0 bit 7 set (start pressed)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45748": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDelay loop used during the attract mode sequence.\n\nInputs:  None\nOutputs: None\nSide Effects: Delays execution for a few seconds by looping 40 x 256 times. \n              Continually polls for user input (via scan_input_for_start) and \n              aborts the delay instantly if the start button is pressed.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45772": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws a sequence of characters/graphics to the screen with a typing effect.\n\nInputs:  X (pointer low), Y (pointer high) to graphic data structure\n         aAE (delay outer loop), aAF (delay inner loop)\nOutputs: None\nSide Effects: Draws to screen RAM. Can be aborted instantly if the user \n              presses the start button (aB0 flag).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "45859": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAttract mode ship animation. Cycles through sprite frames $20, $21, $22\nat a fixed position (X=$10, Y=$90) for 100 frames, with a small inter-frame\ndelay (~$FF * $20 iterations). Each frame:\n  1. Erases previous sprite frame at (aA3, aA4).\n  2. Advances sprite index aB3 ($20->$21->$22->$20 wrap at $23).\n  3. Calls calc_sprite_ptr and draw_sprite_or_collision.\n  4. Polls scan_input_for_start; exits immediately if start is pressed.\nCalled from attract_mode after story slide 2, before the next slide.\n\nInputs:  None\nOutputs: None\nSide Effects: Bitmap updated (animated sprite drawn); aborts if aB0 bit 7 set\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45927": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPhase advancement bonus screen. Called every 4th level before incrementing\nthe difficulty phase (a21). Clears the screen, plays a sound fanfare, draws\nthe current phase graphic indexed by a21, displays a congratulatory string,\nwaits ~1 second, then awards 7 bonus points to the player score.\n\nInputs:  a21 (current difficulty phase, selects which graphic to draw)\nOutputs: None\nSide Effects: Clears screen; triggers sound; draws phase graphic and text;\n              delays ~1 second; adds 7 points to player score (sB12D).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "46011": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDelay loop for approximately 1 second.\n\nInputs:  None\nOutputs: None\nSide Effects: Wastes exactly 1 million CPU cycles (~1 second at 1MHz) using \n              nested loops and dummy writes to ROM addresses.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "46034": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScans joysticks and keyboard for a \"Game Start\" input during attract mode.\n\nInputs:  None\nOutputs: Sets aB0 to $80 if start is triggered.\nSide Effects: Calls KERNAL keyboard and custom joystick scan routines. \n              Depending on the input (F-keys or joystick buttons), it configures \n              the selected game mode and player sprite pointers. Also contains a \n              hidden cheat/easter-egg check for modifier keys.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "46136": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles keyboard shortcuts to adjust display settings.\n  $1D (CRSR RIGHT): Shift screen right\n  $11 (CRSR DOWN) : Shift screen down\n  $8C             : Toggle interlace mode\n  $87             : Cycle background color\n  $88             : Cycle border color\n\nInputs:  A = PETSCII key code\nOutputs: None\nSide Effects: Modifies VIC registers $9000, $9001, $900F, and color RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "46221": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIgnores NMI interrupts (likely triggered by the RESTORE key) by restoring\nregisters and returning immediately.\n\nInputs:  None (assumes Y, X, A are pushed on stack by KERNAL)\nOutputs: Restores Y, X, A registers\nSide Effects: Reads $9111 (VIA 1 Port A)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "46230": "ROM table of 8x8 pixel glyph shapes (8 bytes each).\nIndexed by frame number via calc_sprite_ptr: addr = $B496 + (index * 8).\nContains all game sprites (player ship, enemy ships, bullets, icons) and\nthe large logo tiles used in attract mode screens.",
     "46888": "draw_graphic_string data: scoring table screen.\nDrawn conditionally (only when a62 != 0). Ends with $FF.",
@@ -2112,8 +2437,8 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 45190,
-  "hex_dump_cursor_address": 45184,
+  "cursor_address": 0,
+  "hex_dump_cursor_address": 43360,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
   "right_pane_visible": "HexDump",
