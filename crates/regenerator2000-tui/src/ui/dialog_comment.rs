@@ -131,10 +131,15 @@ impl Widget for CommentDialog {
                 .add_modifier(Modifier::DIM);
             let hint = Paragraph::new(TextLine::from(vec![
                 Span::styled(
-                    " Ctrl+S",
+                    " Enter",
                     Style::default().add_modifier(Modifier::BOLD | Modifier::DIM),
                 ),
                 Span::styled(":save", dim),
+                Span::styled(
+                    "  Shift+Enter",
+                    Style::default().add_modifier(Modifier::BOLD | Modifier::DIM),
+                ),
+                Span::styled(":line", dim),
                 Span::styled(
                     "  Alt+-",
                     Style::default().add_modifier(Modifier::BOLD | Modifier::DIM),
@@ -183,11 +188,19 @@ impl Widget for CommentDialog {
             }
             KeyCode::Enter => {
                 match self.comment_type {
-                    // Line comment: Enter always inserts a newline (works on all
-                    // terminals). Ctrl+S submits the comment.
                     CommentType::Line => {
-                        self.textarea.insert_newline();
-                        WidgetResult::Handled
+                        if key.modifiers.contains(KeyModifiers::SHIFT) {
+                            self.textarea.insert_newline();
+                            WidgetResult::Handled
+                        } else {
+                            let lines = self.textarea.lines();
+                            let full_comment = lines.join("\n");
+                            WidgetResult::Action(crate::state::actions::AppAction::ApplyComment {
+                                address: self.address,
+                                text: full_comment,
+                                kind: crate::state::types::CommentKind::Line,
+                            })
+                        }
                     }
                     // Side comment: Enter submits.
                     CommentType::Side => {
@@ -199,20 +212,6 @@ impl Widget for CommentDialog {
                             kind: crate::state::types::CommentKind::Side,
                         })
                     }
-                }
-            }
-            // Ctrl+S: submit a Line comment.
-            KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                if self.comment_type == CommentType::Line {
-                    let lines = self.textarea.lines();
-                    let full_comment = lines.join("\n");
-                    WidgetResult::Action(crate::state::actions::AppAction::ApplyComment {
-                        address: self.address,
-                        text: full_comment,
-                        kind: crate::state::types::CommentKind::Line,
-                    })
-                } else {
-                    WidgetResult::Handled
                 }
             }
             // Separator shortcuts (only in multi-line / Line comment mode)
