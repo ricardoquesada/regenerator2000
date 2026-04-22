@@ -204,7 +204,7 @@
     {
       "start": 3232,
       "end": 3244,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -228,7 +228,7 @@
     {
       "start": 3591,
       "end": 3654,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -300,7 +300,7 @@
     {
       "start": 4226,
       "end": 4251,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -1167,7 +1167,14 @@
         "kind": "User"
       }
     ],
-    "44105": [
+    "44055": [
+      {
+        "name": "border_segment_params",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44137": [
       {
         "name": "draw_border_segment",
         "label_type": "UserDefined",
@@ -1254,6 +1261,104 @@
     "44455": [
       {
         "name": "advance_score_cursor",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44473": [
+      {
+        "name": "fire_bullet",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44503": [
+      {
+        "name": "fADD7",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44551": [
+      {
+        "name": "bullet_dx_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44567": [
+      {
+        "name": "bullet_dy_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44583": [
+      {
+        "name": "bullet_spawn_dx_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44599": [
+      {
+        "name": "bullet_spawn_dy_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44615": [
+      {
+        "name": "update_bullets",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44747": [
+      {
+        "name": "draw_bullet_trail",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44801": [
+      {
+        "name": "erase_bullet_trail",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44849": [
+      {
+        "name": "load_bullet_slot",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45186": [
+      {
+        "name": "enemy_wing_dx_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45190": [
+      {
+        "name": "enemy_wing_dy_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45194": [
+      {
+        "name": "enemy_body_dx_tbl",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "45203": [
+      {
+        "name": "enemy_body_dy_tbl",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1700,11 +1805,30 @@
     "44401": "a54 = bonus ship flag",
     "44405": "bonus ship at fixed position ($3D/$4C)",
     "44427": "draw filled ship icon",
+    "44501": "load X velocity from angle table",
+    "44511": "add X spawn offset; places bullet at ship nose",
+    "44518": "load Y velocity from angle table",
+    "44528": "add Y spawn offset; places bullet at ship nose",
+    "44615": "clear bullet-hit bitmask and collision accumulator",
+    "44627": "slot counter: iterate 7..0",
+    "44630": "skip if slot is empty (lifetime = 0)",
+    "44635": "erase old 3-pixel trail at previous position",
+    "44640": "decrement lifetime; 0 means bullet expires this tick",
+    "44646": "advance x: new_x = x + dx",
+    "44665": "advance y: new_y = y + dy",
+    "44673": "draw new 3-pixel trail; sets collision_type / collision_check_flag",
+    "44678": "wall hit? redraw impacted border segment",
+    "44693": "pixel overlap hit — OR this bullet's bit into hit-bitmask",
+    "44714": "slot owner flag: 0 = player bullet, free slot back to pool",
     "44772": "bit opcode",
     "44788": "bit opcode",
     "44820": "bit opcode",
     "44836": "bit opcode",
     "44997": "bit opcode",
+    "45033": "load X offset for body pixel [a3C]",
+    "45042": "load Y offset for body pixel [a3C]",
+    "45090": "load X offset for wing pixel [a3C]",
+    "45099": "load Y offset for wing pixel [a3C]",
     "45357": "disable IRQs before score update",
     "45358": "A*2 = byte offset into 2-byte BCD table entries",
     "45359": "index into table",
@@ -1853,9 +1977,23 @@
     "43982": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPlots 8 pixels at the corners and midpoints of the playfield area to act\nas visual markers.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies character bitmap by setting 8 specific pixels.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44022": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases the arena border from the bitmap. Mirror of draw_arena_border — iterates\nthrough 8 line segments, clearing pixels using erase_border_segment (sAC77).\nCalled during level init before the border is redrawn.\n\nInputs:  None\nOutputs: None\nSide Effects: Clears border pixels from character bitmap ($1000-$1CFF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44036": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the playfield arena border onto the custom VIC-20 bitmap. Iterates\nthrough 13 line segments, rendering each using parameters from the\nborder_segment_table (fACA0).\n\nInputs:  None\nOutputs: None\nSide Effects: Writes pixels to character bitmap ($1000-$1CFF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44055": "Flat array of 5-byte segment records for arena border drawing.\nEach record defines one line segment (start pos, length, step direction):\n  +0: X start  +1: Y start  +2: pixel count  +3: X step  +4: Y step\nIndexed via offsets from border_segment_tbl.",
+    "44192": "Offset index table into border_segment_params. Each byte is a byte-offset (Y index)\ninto the flat border_segment_params array, selecting a 5-byte segment record.\nIndexed as: Y = segment_counter + 4; offset = border_segment_tbl[Y]\n\nRecord layout at border_segment_params[offset] (5 bytes):\n  +0: X start (aA3)\n  +1: Y start (aA4)\n  +2: pixel count / length (aBD)\n  +3: X step per pixel (aAE)\n  +4: Y step per pixel (aAF)\n\nEntries (13 total for draw, 8 for erase):\n  $32 (50) -> top edge, left half       X=0,   Y=0,   len=79, dx=1, dy=0\n  $19 (25) -> top edge, right half\n  $37 (55) -> bottom edge, left half\n  $14 (20) -> bottom edge, right half\n  $00 (0)  -> left edge, top half\n  $00 (0)  -> left edge, top half (repeat)\n  $05 (5)  -> left edge, bottom half\n  $28 (40) -> right edge, top half\n  $2D (45) -> right edge, bottom half\n  $0F (15) -> inner box top\n  $0A (10) -> inner box bottom\n  $23 (35) -> inner box left\n  $1E (30) -> inner box right",
     "44205": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the current player score (aF7/aF8/aF9) onto the bitmap at X=$52, Y=$48.\nCopies the 3-byte BCD score to a scratch buffer and calls render_bcd_digits\nto draw each digit, advancing 4 pixels per digit.\n\nInputs:  aF7/aF8/aF9 (3-byte packed BCD current score)\nOutputs: None\nSide Effects: Writes digit graphics to bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44312": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the current wave/level indicator as two columns of icons on the bitmap.\nFirst column: up to 5 icons at X=$5A, Y=$40 (tens digit of wave).\nSecond column: up to 10 icons at X=$46, Y=$54 (units digit of wave).\nIcon graphics are indexed from wave_icon_table (fB71E).\n\nInputs:  None (uses hardcoded positions and wave_icon_table)\nOutputs: None\nSide Effects: Writes icon graphics to bitmap\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "44362": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the player lives display onto the bitmap. Erases all 3 ship icon slots,\nthen redraws a filled ship icon for each remaining life (a1F). Uses a54 to\nselect a bonus ship position for the last icon drawn.\n\nInputs:  a1F (lives remaining), a54 (bonus ship flag)\nOutputs: None\nSide Effects: Writes ship icon graphics to bitmap at lives_icon_x/y_table positions\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44551": "Signed X velocity delta per tick for a fired bullet, indexed by player angle (aB1, 0-15).\nValues are 8-bit signed: $FD=-3, $FE=-2, $FF=-1, $00=0, $01=1, $02=2, $03=3.\nForms a cosine-like curve across 16 angles (0=right, 4=up, 8=left, 12=down).\nPaired with bullet_dy_tbl (Y axis), bullet_spawn_dx_tbl/bullet_spawn_dy_tbl (spawn offset).",
+    "44567": "Signed Y velocity delta per tick for a fired bullet, indexed by player angle (aB1, 0-15).\nValues are 8-bit signed: $FD=-3..$03=+3. Sine-like curve, 90 degrees offset from bullet_dx_tbl.",
+    "44583": "X spawn position offset (added to player X) for a new bullet, indexed by angle (aB1, 0-15).\nBiases bullet starting position to appear at the ship's nose tip rather than its center.",
+    "44599": "Y spawn position offset (added to player Y) for a new bullet, indexed by angle (aB1, 0-15).\nBiases bullet starting position to appear at the ship's nose tip rather than its center.",
+    "44615": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame bullet update loop. Iterates over all 8 bullet slots (index 7..0)\nand for each active bullet:\n  1. Loads slot state into working registers via load_bullet_slot.\n  2. Erases the old 3-pixel trail via erase_bullet_trail (steps back 3 pixels).\n  3. Advances position: new_x = x + dx, new_y = y + dy; saves back to slot.\n  4. Draws the new 3-pixel trail via draw_bullet_trail (steps forward 3 pixels).\n  5. On wall hit (collision_type != 0): redraws/erases the impacted border segment.\n  6. On pixel overlap (collision_check_flag != 0): ORs bullet's bit into a26\n     (bullet-hit bitmask, consumed by update_display_and_collisions).\n  7. Decrements f1D5D lifetime counter; when it reaches 0 the slot is freed.\n\nInputs:  f1D5D,x = bullet lifetime; f1D4D,x/f1D55,x = dx/dy velocity\n         f1D65,x/f1D6D,x = current x/y position; f1D75,x = slot owner flag\nOutputs: a26 = bitmask of bullets that hit something this frame\n         f1D65,x/f1D6D,x updated to new positions\nSide Effects: Bitmap modified (erase old trail, draw new trail); border segments\n              redrawn on wall collision; bullet_slots_free incremented on expiry\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44747": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws a 3-pixel bullet trail forward from (aA3, aA4) in direction (aAE, aAF).\nPlots 3 pixels, stepping +1 or -1 in x/y per pixel based on velocity sign.\nSets collision_check_flag if any pixel overlaps existing bitmap content.\nSets collision_type if a wall boundary is hit (via sAF7E).\n\nInputs:  aA3/aA4 = bullet X/Y position; aAE/aAF = X/Y velocity (sign used only)\nOutputs: collision_check_flag, collision_type\nSide Effects: Bitmap modified (3 pixels drawn)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44801": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases a 3-pixel bullet trail backward from (aA3, aA4) in direction (aAE, aAF).\nSteps -1 or +1 in x/y (opposite of velocity sign) and clears each pixel.\nUses clear_pixel_with_bounce; stops early on wall hit.\n\nInputs:  aA3/aA4 = bullet X/Y position; aAE/aAF = X/Y velocity (sign used only)\nOutputs: None\nSide Effects: Bitmap modified (3 pixels cleared); may set collision_type\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "44849": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLoads bullet slot X (index in X reg) into working registers.\nCopies position and velocity from parallel bullet arrays to shared ZP vars.\n\nInputs:  X = bullet slot index (0-7)\nOutputs: aA3=x, aA4=y, aAE=dx, aAF=dy\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "45186": "Signed X pixel offsets (relative to enemy center) for the 4 wing-tip pixels.\nIndexed 0-3. Values: $FC=-4, $04=+4.\nLayout (X,Y pairs with enemy_wing_dy_tbl):\n  0: (-4,-4)  top-left\n  1: (+4,-4)  top-right\n  2: (-4,+4)  bottom-left\n  3: (+4,+4)  bottom-right\nForms a 4-corner diamond shape at ±4 pixels. Used when enemy state >= $82.",
+    "45190": "Signed Y pixel offsets (relative to enemy center) for the 4 wing-tip pixels.\nIndexed 0-3. Values: $FC=-4, $04=+4.\nPaired with enemy_wing_dx_tbl. See that table for full (X,Y) layout.",
+    "45194": "Signed X pixel offsets (relative to enemy center) for the 9-pixel enemy body.\nIndexed 0-8. Values: $F8=-8, $00=0, $08=+8.\nLayout (X,Y pairs with enemy_body_dy_tbl) — a 3x3 grid spaced 8 pixels apart:\n  0: (-8,-8)  1: (0,-8)  2: (+8,-8)   <- top row\n  3: (-8, 0)  4: (0, 0)  5: (+8, 0)   <- middle row\n  6: (-8,+8)  7: (0,+8)  8: (+8,+8)   <- bottom row\nUsed for the main enemy body (state < $82).",
+    "45203": "Signed Y pixel offsets (relative to enemy center) for the 9-pixel enemy body.\nIndexed 0-8. Values: $F8=-8, $00=0, $08=+8.\nPaired with enemy_body_dx_tbl. See that table for full 3x3 grid layout.",
     "45357": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdds a BCD score value to the player's 3-byte score (aF7/aF8/aF9).\nThe A register is an index into the score table at fB16A; each entry is a\n2-byte packed BCD value. After adding, checks if the score has crossed the\nextra-life threshold ($4000). If so, and if the bonus life flag (a54) is\nclear, grants an extra life, triggers the fanfare, and updates the HUD.\n\nInputs:  A = score table index (0-7)\nOutputs: aF7/aF8/aF9 = updated 3-byte packed BCD score\nSide Effects: May increment player_lives and call draw_lives_display;\n              sets a54=1 to prevent awarding more than one extra life\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "45418": "2-byte packed BCD score values indexed by enemy type / kill event\n  [0] $0000 =    0 pts   (no score)\n  [1] $0250 =  250 pts\n  [2] $0150 =  150 pts\n  [3] $0150 =  150 pts\n  [4] $0100 =  100 pts\n  [5] $0050 =   50 pts\n  [6] $0035 =   35 pts\n  [7] $0500 =  500 pts (bonus)",
     "45512": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTitle screen / Attract mode sequence.\n\nInputs:  None\nOutputs: Returns when the player presses Start (aB0 flag goes negative)\nSide Effects: Clears screen, displays cycling title screens and graphics, \n              sets colors, waits for user input.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1974,8 +2112,8 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 43601,
-  "hex_dump_cursor_address": 43600,
+  "cursor_address": 45190,
+  "hex_dump_cursor_address": 45184,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
   "right_pane_visible": "HexDump",
