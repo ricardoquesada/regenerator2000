@@ -30,13 +30,13 @@ regenerator2000-tui = { version = "0.9.11", path = "crates/regenerator2000-tui" 
 clap = { version = "4", features = ["derive"] }
 anyhow = "1.0"
 serde_json = "1.0"
-reqwest = { version = "0.13.2", default-features = false, features = ["rustls", "json"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"] }
 ratatui = "0.30.0"
 crossterm = "0.29"
 base64 = "0.22.1"
 log = "0.4.29"
 simplelog = "0.12.2"
-tokio = { version = "1.49.0", features = ["rt-multi-thread", "sync", "net", "macros"] }
+tokio = { version = "1.52", features = ["rt-multi-thread", "sync", "net", "macros"] }
 
 [build-dependencies]
 anyhow = "1.0"

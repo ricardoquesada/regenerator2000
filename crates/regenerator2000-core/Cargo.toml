@@ -18,10 +18,10 @@ log = "0.4.29"
 include_dir = "0.7"
 
 # MCP Dependencies (optional)
-tokio = { version = "1.49.0", features = ["rt-multi-thread", "sync", "net", "macros"], optional = true }
+tokio = { version = "1.52", features = ["rt-multi-thread", "sync", "net", "macros"], optional = true }
 rmcp = { version = "1.5.0", features = ["server", "transport-streamable-http-server"], optional = true }
-axum = { version = "0.8.8", optional = true }
-reqwest = { version = "0.13.2", default-features = false, features = ["rustls", "json"], optional = true }
+axum = { version = "0.8.9", optional = true }
+reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"], optional = true }
 
 [features]
 default = []
