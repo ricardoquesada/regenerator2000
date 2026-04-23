@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui_state::UIState;
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -123,6 +123,7 @@ impl Widget for CommentDialog {
             textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
             textarea.set_cursor_line_style(Style::default());
             f.render_widget(&textarea, chunks[0]);
+            ui_state.comment_textarea_area = chunks[0];
 
             // Render the hint footer.
             let dim = Style::default().add_modifier(Modifier::DIM);
@@ -259,6 +260,62 @@ impl Widget for CommentDialog {
                 WidgetResult::Handled
             }
         }
+    }
+
+    fn handle_mouse(
+        &mut self,
+        mouse: MouseEvent,
+        _app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> WidgetResult {
+        // Mouse support is only available in multi-line (Line) comment mode.
+        if self.comment_type != CommentType::Line {
+            return WidgetResult::Ignored;
+        }
+
+        let is_down = mouse.kind == MouseEventKind::Down(MouseButton::Left);
+        let is_drag = mouse.kind == MouseEventKind::Drag(MouseButton::Left);
+
+        if !is_down && !is_drag {
+            return WidgetResult::Ignored;
+        }
+
+        let ta_area = ui_state.comment_textarea_area;
+        let col = mouse.column;
+        let row = mouse.row;
+
+        // Clamp drag coordinates to the textarea bounds so dragging outside
+        // the widget still moves the cursor to the nearest edge.
+        let clamped_col = col.clamp(ta_area.x, ta_area.x + ta_area.width.saturating_sub(1));
+        let clamped_row = row.clamp(ta_area.y, ta_area.y + ta_area.height.saturating_sub(1));
+
+        // For a plain click, only handle it when the cursor is inside the area.
+        if is_down {
+            let inside = col >= ta_area.x
+                && col < ta_area.x + ta_area.width
+                && row >= ta_area.y
+                && row < ta_area.y + ta_area.height;
+            if !inside {
+                return WidgetResult::Ignored;
+            }
+        }
+
+        let rel_row = clamped_row.saturating_sub(ta_area.y);
+        let rel_col = clamped_col.saturating_sub(ta_area.x);
+
+        if is_down {
+            // Cancel any previous selection, position cursor, then begin a new selection.
+            self.textarea.cancel_selection();
+            self.textarea
+                .move_cursor(CursorMove::Jump(rel_row, rel_col));
+            self.textarea.start_selection();
+        } else {
+            // Drag: move cursor to extend the ongoing selection.
+            self.textarea
+                .move_cursor(CursorMove::Jump(rel_row, rel_col));
+        }
+
+        WidgetResult::Handled
     }
 }
 

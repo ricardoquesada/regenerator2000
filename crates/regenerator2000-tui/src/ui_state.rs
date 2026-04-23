@@ -64,6 +64,9 @@ pub struct UIState {
     pub right_pane_area: ratatui::layout::Rect,
     pub active_dialog_area: ratatui::layout::Rect,
     pub minimap_area: ratatui::layout::Rect,
+    /// The rendered area of the textarea inside the line-comment dialog.
+    /// Used to translate mouse clicks to textarea row/col coordinates.
+    pub comment_textarea_area: ratatui::layout::Rect,
 }
 
 // ---------------------------------------------------------------------------
@@ -119,6 +122,7 @@ impl UIState {
             right_pane_area: ratatui::layout::Rect::default(),
             active_dialog_area: ratatui::layout::Rect::default(),
             minimap_area: ratatui::layout::Rect::default(),
+            comment_textarea_area: ratatui::layout::Rect::default(),
         }
     }
 
