@@ -642,6 +642,20 @@
         "kind": "User"
       }
     ],
+    "32": [
+      {
+        "name": "current_level",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "33": [
+      {
+        "name": "current_phase",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "34": [
       {
         "name": "irq_tick_counter",
@@ -649,9 +663,65 @@
         "kind": "User"
       }
     ],
+    "35": [
+      {
+        "name": "hiscore_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "36": [
+      {
+        "name": "hiscore_mid",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "37": [
+      {
+        "name": "hiscore_hi",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "78": [
+      {
+        "name": "game_phase",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "84": [
+      {
+        "name": "extra_life_awarded",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
     "97": [
       {
         "name": "wide_boundary_flag",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "247": [
+      {
+        "name": "score_lo",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "248": [
+      {
+        "name": "score_mid",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "249": [
+      {
+        "name": "score_hi",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1645,11 +1715,12 @@
     "41097": "re-enable IRQs",
     "41098": "set 200-frame delay timer ($C8)",
     "41100": "store countdown timer",
-    "41102": "store level-advance flag ($C8 = negative)",
+    "41102": "Set level-advance phase ($C8)",
     "41104": "return to inner loop to wait",
     "41106": "--- HIGH SCORE CHECK (3-byte compare, big-endian) ---",
     "41108": "compare score high byte (a25) vs stored high score (aF9)",
     "41130": "current score > high score: copy to stored record",
+    "41132": "Update high score from current score",
     "41142": "--- LEVEL TRANSITION: reset and start next wave ---",
     "41147": "X=$94, Y=$BE: next level init parameters",
     "41163": "restart outer loop -> next wave begins",
@@ -1667,20 +1738,26 @@
     "41373": "draw initial playfield / clear screen",
     "41377": "setup custom IRQ vector",
     "41389": "reset player score byte 0",
+    "41391": "Reset score to 0",
     "41393": "reset player score byte 1",
     "41395": "reset player score byte 2",
-    "41399": "reset level/wave counter to 0",
+    "41397": "Clear extra life flag",
+    "41399": "Reset level counter for new game",
     "41401": "set phase/difficulty to 1",
+    "41403": "Start at phase 1",
     "41409": "if a20 is a multiple of 4, increment phase",
-    "41424": "increment level counter",
+    "41420": "Advance phase every 4 levels (BCD increment)",
+    "41424": "Advance to next level",
     "41426": "cap phase difficulty at 4",
     "41436": "cap level difficulty at 4",
     "41444": "use level as table index",
     "41445": "load number of enemies for this level",
     "41452": "zero out game state variables",
+    "41454": "Reset game_phase to 'play'",
     "41477": "clear VIC audio registers",
     "41496": "initialize enemy types array",
     "41540": "initialize wave difficulty timers",
+    "41613": "Check if level >= 2 for extra enemies",
     "41621": "bit opcode",
     "41624": "loop over all enemies",
     "41640": "setup enemy state arrays from ROM tables",
@@ -2098,6 +2175,7 @@
     "45312": "--- player ship hit branch ---",
     "45322": "decrement lives",
     "45326": "invincibility/respawn timer ($3C = 60 frames)",
+    "45332": "Set death-countdown phase (bit 0)",
     "45357": "disable IRQs before score update",
     "45358": "A*2 = byte offset into 2-byte BCD table entries",
     "45359": "index into table",
@@ -2118,6 +2196,7 @@
     "45391": "score < 4000 — no extra life yet",
     "45393": "disable IRQs to safely update sprite/sound registers",
     "45399": "set extra-life awarded flag (prevent duplicate)",
+    "45407": "Set flag: extra life already granted",
     "45409": "grant extra life",
     "45411": "update lives HUD display",
     "45473": "loop 8..0 over 9 body pixels",
@@ -2231,6 +2310,7 @@
     "48246": "2003"
   },
   "user_line_comments": {
+    "78": "Game phase: 0=play, 1=death-countdown, $C8=level-advance (negative sentinel)",
     "97": "Boundary width selector for check_boundary_collisions.\n$80 = wide zones (player ship pixel via check_boundary_collisions/$AB7C, $AF7E)\n$00 = narrow zones (sprites/enemies via draw_sprite_with_collision_check/$AB05,\n      erase_sprite_with_boundary_check/$AB47)\nTested via BIT instruction: N=1 selects wider outer-wall and inner-box thresholds.",
     "40969": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCartridge cold-start entry point and main game loop for Omega Race.\nPointed to by the cold-start vector at $A000.\n\nPhase 1 ($A009-$A025): One-time hardware and game initialization.\n  - Clears decimal mode, restores KERNAL I/O vectors, resets the stack\n    pointer to $1FF, then calls sA175 to set up the IRQ handler and\n    load all game resources.\n\nPhase 2 ($A029-$A0CB): Main game loop.\n  - Outer loop (jA029): drives a full game cycle.\n  - Inner loop (bA037): per-frame update gated on the IRQ frame counter\n    (a22 >= 2) to synchronize with the raster interrupt.\n  - Branches on game-state flags (a4E, a4D, a1F, a3D) to handle active\n    play, level countdown, player death, and level transitions.\n  - Updates the 3-byte high score (a23/a24/a25) if the current score\n    beats (aF7/aF8/aF9) before starting the next level.\n\nInputs:  None (entry from KERNAL reset vector)\nOutputs: None\nSide Effects: Resets hardware state; runs all per-frame game subsystems;\n              manages level transitions and high-score updates.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "41086": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitiates the level transition delay.\n\nInputs:  None\nOutputs: None\nSide Effects: Called when the wave is cleared. Sets up a 200-frame countdown \n              timer (a4D) and sets the level-advance flag (a4E to $C8). \n              Disables and re-enables IRQs during variable assignment.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -2437,17 +2517,17 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 41086,
-  "hex_dump_cursor_address": 41072,
+  "cursor_address": 40973,
+  "hex_dump_cursor_address": 41040,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
   "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],
-  "blocks_view_cursor": 1,
+  "blocks_view_cursor": 2,
   "scopes": {}
 }
