@@ -16,13 +16,12 @@ directories = "6.0.0"
 regex = "1.12.2"
 log = "0.4.29"
 include_dir = "0.7"
-uuid = { version = "1.20.0", features = ["v4", "fast-rng"] }
 
 # MCP Dependencies (optional)
 tokio = { version = "1.49.0", features = ["rt-multi-thread", "sync", "net", "macros"], optional = true }
-rmcp = { version = "0.15.0", features = ["server", "transport-streamable-http-server"], optional = true }
+rmcp = { version = "1.5.0", features = ["server", "transport-streamable-http-server"], optional = true }
 axum = { version = "0.8.8", optional = true }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"], optional = true }
+reqwest = { version = "0.13.2", default-features = false, features = ["rustls", "json"], optional = true }
 
 [features]
 default = []

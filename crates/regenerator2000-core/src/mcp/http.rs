@@ -150,23 +150,28 @@ pub async fn run_server(port: u16, sender: Sender<McpRequest>) -> std::io::Resul
     let handler = RegeneratorOps::new(sender);
     let handler_clone = handler.clone();
 
-    // Create the session manager
-    let session_manager = Arc::new(
-        rmcp::transport::streamable_http_server::session::local::LocalSessionManager::default(),
-    );
+    // Create the session manager.
+    // Disable the default 5-minute keep_alive timeout: Regenerator 2000 is a
+    // local desktop app where MCP sessions can be idle for extended periods.
+    let session_manager = Arc::new({
+        use rmcp::transport::streamable_http_server::session::local::SessionConfig;
+        let mut mgr =
+            rmcp::transport::streamable_http_server::session::local::LocalSessionManager::default();
+        let mut sc = SessionConfig::default();
+        sc.keep_alive = None;
+        mgr.session_config = sc;
+        mgr
+    });
 
     // Create the service
-    let service = StreamableHttpService::new(
-        move || Ok(handler_clone.clone()),
-        session_manager,
-        StreamableHttpServerConfig {
-            // Disable SSE priming events (retry:) — clients like Antigravity
-            // try to parse every SSE event's data as JSON-RPC, and priming
-            // events have no `data:` field, causing "unexpected end of JSON input".
-            sse_retry: None,
-            ..StreamableHttpServerConfig::default()
-        },
-    );
+    let service = StreamableHttpService::new(move || Ok(handler_clone.clone()), session_manager, {
+        let mut config = StreamableHttpServerConfig::default();
+        // Disable SSE priming events (retry:) — clients like Antigravity
+        // try to parse every SSE event's data as JSON-RPC, and priming
+        // events have no `data:` field, causing "unexpected end of JSON input".
+        config.sse_retry = None;
+        config
+    });
 
     // Nest the MCP service into an Axum router
     let app = axum::Router::new().nest_service("/mcp", service);

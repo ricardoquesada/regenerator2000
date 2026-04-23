@@ -8,7 +8,7 @@ use ratatui::{
     text::{Line as TextLine, Span},
     widgets::Paragraph,
 };
-use ratatui_textarea::{CursorMove, TextArea};
+use ratatui_textarea::{CursorMove, DataCursor, TextArea};
 
 use crate::ui::widget::{Widget, WidgetResult};
 
@@ -66,7 +66,7 @@ impl CommentDialog {
     ///
     /// In both cases the cursor ends up on the line following the separator.
     fn insert_separator(&mut self, sep: &str) {
-        let (row, _) = self.textarea.cursor();
+        let DataCursor(row, _) = self.textarea.cursor();
         let current_line_empty = self
             .textarea
             .lines()
@@ -332,7 +332,7 @@ mod tests {
         // cursor is (row, col)
         // Rows are 0-indexed. Hello is row 0. World is row 1.
         // World has length 5. Cursor should be at (1, 5).
-        assert_eq!(cursor, (1, 5));
+        assert_eq!(cursor, DataCursor(1, 5));
     }
 
     #[test]
@@ -341,7 +341,7 @@ mod tests {
         let dialog =
             CommentDialog::new(Some(comment), CommentType::Side, crate::state::Addr(0x1000));
         let cursor = dialog.textarea.cursor();
-        assert_eq!(cursor, (0, 5));
+        assert_eq!(cursor, DataCursor(0, 5));
     }
 
     #[test]
@@ -349,7 +349,7 @@ mod tests {
         let dialog = CommentDialog::new(None, CommentType::Line, crate::state::Addr(0x1000));
         let cursor = dialog.textarea.cursor();
         // Dialog now starts empty; cursor should be at (0, 0).
-        assert_eq!(cursor, (0, 0));
+        assert_eq!(cursor, DataCursor(0, 0));
     }
 
     #[test]

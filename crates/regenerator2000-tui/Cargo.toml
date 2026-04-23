@@ -10,19 +10,9 @@ description = "Terminal User Interface (TUI) for Regenerator 2000 using ratatui.
 regenerator2000-core = { version = "0.9.11", path = "../regenerator2000-core", features = ["mcp"] }
 ratatui = "0.30.0"
 crossterm = "0.29"
-anyhow = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 ratatui-image = { version = "10.0", default-features = false, features = ["crossterm"] }
 image = { version = "0.25.9", default-features = false }
-base64 = "0.22.1"
-flate2 = "1.1.8"
-directories = "6.0.0"
-ratatui-textarea = "0.8"
-regex = "1.12.2"
-log = "0.4.29"
-uuid = { version = "1.20.0", features = ["v4", "fast-rng"] }
-tokio = { version = "1.49.0", features = ["rt-multi-thread", "sync", "macros"] }
+ratatui-textarea = "0.9.1"
 opener = "0.8"
 
 [lints.clippy]
