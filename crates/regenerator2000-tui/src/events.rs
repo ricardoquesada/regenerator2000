@@ -29,6 +29,10 @@ enum EventOutcome {
     Quit,
 }
 
+/// Runs the main application event loop.
+///
+/// # Errors
+/// Returns an error if terminal rendering or resizing operations fail.
 pub fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
     mut core: Core,

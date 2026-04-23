@@ -4,6 +4,10 @@ use std::path::PathBuf;
 /// Column width for the instruction+label portion before side comments.
 const INSTRUCTION_COLUMN_WIDTH: usize = 40;
 
+/// Exports the disassembly to a file formatted for the current assembler.
+///
+/// # Errors
+/// Returns an error if the file cannot be written or an external binary cannot be saved.
 pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let formatter = state.get_formatter();
 

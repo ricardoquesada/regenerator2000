@@ -73,6 +73,10 @@ impl ViceMessage {
         buf
     }
 
+    /// Decode a raw byte buffer into a ViceMessage.
+    ///
+    /// # Errors
+    /// Returns an error if the STX byte is invalid.
     pub fn decode(buf: &[u8]) -> Result<Option<(Self, usize)>> {
         if buf.len() < 12 {
             return Ok(None);

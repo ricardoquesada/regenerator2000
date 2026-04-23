@@ -48,6 +48,11 @@ impl CrtHeader {
     }
 }
 
+/// Parses the chips from a CRT file.
+///
+/// # Errors
+/// Returns an error if the file is too short, has an invalid signature,
+/// or contains invalid CHIP packets.
 pub fn parse_crt_chips(data: &[u8]) -> Result<CrtHeader> {
     if data.len() < 0x40 {
         return Err(anyhow!("File too short to be a valid CRT file"));
@@ -153,6 +158,11 @@ pub fn parse_crt_chips(data: &[u8]) -> Result<CrtHeader> {
     })
 }
 
+/// Parses a CRT file and returns the lowest load address and a flat memory buffer.
+///
+/// # Errors
+/// Returns an error if the CRT chips cannot be parsed or if the memory range
+/// cannot be determined.
 pub fn parse_crt(data: &[u8]) -> Result<(u16, Vec<u8>)> {
     let header = parse_crt_chips(data)?;
     let chips = header.chips;

@@ -15,6 +15,10 @@ pub struct T64Entry {
     pub filename: String,
 }
 
+/// Parse the T64 directory and return list of files
+///
+/// # Errors
+/// Returns an error if the file is too small or has an invalid signature.
 pub fn parse_t64_directory(data: &[u8]) -> Result<Vec<T64Entry>> {
     if data.len() < T64_HEADER_SIZE {
         return Err(anyhow!("File too small to be a valid T64"));
@@ -90,6 +94,10 @@ pub fn parse_t64_directory(data: &[u8]) -> Result<Vec<T64Entry>> {
     Ok(entries)
 }
 
+/// Extract a specific file from the tape image
+///
+/// # Errors
+/// Returns an error if the file data is truncated or corrupt.
 pub fn extract_file(data: &[u8], entry: &T64Entry) -> Result<Vec<u8>> {
     let offset = entry.offset as usize;
     // T64 end address is inclusive or exclusive? usually exclusive (address of byte AFTER last byte? or last byte?)
@@ -124,6 +132,10 @@ pub fn extract_file(data: &[u8], entry: &T64Entry) -> Result<Vec<u8>> {
     Ok(prg_data)
 }
 
+/// Extract the first valid PRG file from the tape image
+///
+/// # Errors
+/// Returns an error if no valid program files are found in the container.
 pub fn parse_t64(data: &[u8]) -> Result<Vec<u8>> {
     let entries = parse_t64_directory(data)?;
 

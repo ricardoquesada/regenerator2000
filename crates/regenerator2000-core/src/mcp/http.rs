@@ -146,6 +146,10 @@ impl ServerHandler for RegeneratorOps {
     }
 }
 
+/// Runs the MCP HTTP server on the given port.
+///
+/// # Errors
+/// Returns an error if the server fails to bind to the port or encounters an error while serving.
 pub async fn run_server(port: u16, sender: Sender<McpRequest>) -> std::io::Result<()> {
     let handler = RegeneratorOps::new(sender);
     let handler_clone = handler.clone();

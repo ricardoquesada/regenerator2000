@@ -9,6 +9,10 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 impl AppState {
+    /// Loads a file into the application state.
+    ///
+    /// # Errors
+    /// Returns an error if the file cannot be read, parsed, or if the extension is unsupported.
     pub fn load_file(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
         let data = std::fs::read(&path)?;
         self.file_path = Some(path.clone());
@@ -150,6 +154,10 @@ impl AppState {
         })
     }
 
+    /// Loads binary data directly into the application state.
+    ///
+    /// # Errors
+    /// Returns an error if the internal project structures cannot be initialized.
     pub fn load_binary(
         &mut self,
         origin: Addr,
@@ -236,6 +244,10 @@ impl AppState {
         }
     }
 
+    /// Loads a `.regen2000proj` project file.
+    ///
+    /// # Errors
+    /// Returns an error if the file cannot be read, parsed, or if the format version is unsupported.
     pub fn load_project(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
         let data = std::fs::read_to_string(&path)?;
         let project: ProjectState = serde_json::from_str(&data)?;
@@ -321,6 +333,10 @@ impl AppState {
         })
     }
 
+    /// Loads a `.dis65` project file.
+    ///
+    /// # Errors
+    /// Returns an error if the file cannot be read, parsed, or if the CRC32 validation fails.
     pub fn load_dis65_project(&mut self, path: PathBuf) -> anyhow::Result<LoadedProjectData> {
         let content = std::fs::read_to_string(&path)?;
         let project = crate::parser::dis65::parse_dis65(&content)?;
@@ -486,6 +502,10 @@ impl AppState {
         })
     }
 
+    /// Saves the current project state.
+    ///
+    /// # Errors
+    /// Returns an error if the project path is not set or if writing the file fails.
     pub fn save_project(
         &mut self,
         ctx: ProjectSaveContext,
@@ -548,6 +568,10 @@ impl AppState {
         }
     }
 
+    /// Imports VICE labels from a file.
+    ///
+    /// # Errors
+    /// Returns an error if the file cannot be read or parsed.
     pub fn import_vice_labels(&mut self, path: PathBuf) -> anyhow::Result<String> {
         let content = std::fs::read_to_string(path)?;
         let parsed = crate::parser::vice_lbl::parse_vice_labels(&content)
@@ -585,6 +609,10 @@ impl AppState {
         Ok("Labels Imported".to_string())
     }
 
+    /// Exports user labels to a VICE label file.
+    ///
+    /// # Errors
+    /// Returns an error if the file cannot be written.
     pub fn export_vice_labels(&self, path: PathBuf) -> anyhow::Result<String> {
         let mut export_list = Vec::new();
         // Sort by address is automatic due to BTreeMap

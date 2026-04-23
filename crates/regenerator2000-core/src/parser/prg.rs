@@ -8,6 +8,10 @@ pub struct PrgData {
     pub suggested_entry_point: Option<u16>,
 }
 
+/// Parses a PRG file content to extract data and platform info.
+///
+/// # Errors
+/// Returns an error if the data is too short to contain a valid PRG header.
 pub fn parse_prg(data: &[u8]) -> Result<PrgData> {
     if data.len() < 2 {
         return Err(anyhow!("PRG file too short"));

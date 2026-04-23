@@ -13,14 +13,11 @@ expect_used = "warn"
 panic       = "warn"
 
 # ---------------------------------------------------------------------------
-# API hygiene (aspirational — apply to NEW code, see AGENTS.md).
-# Not promoted to errors yet because existing code has not been fully annotated.
-# Run `cargo clippy -- -W clippy::must_use_candidate -W clippy::missing_errors_doc`
-# to see the full list of outstanding items.
+# API hygiene and documentation: enforced for all public items.
 # ---------------------------------------------------------------------------
-# must_use_candidate = "warn"
-# missing_errors_doc = "warn"
-# missing_panics_doc = "warn"
+must_use_candidate = "warn"
+missing_errors_doc = "warn"
+missing_panics_doc = "warn"
 
 [package]
 authors = ["Ricardo Quesada <ricardoquesada@gmail.com>"]

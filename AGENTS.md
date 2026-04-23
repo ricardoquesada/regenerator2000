@@ -145,15 +145,16 @@ Currently enforced (error in CI via `-D warnings`):
 | `unwrap_used` | Panic safety |
 | `expect_used` | Panic safety |
 | `panic` | Panic safety |
+| `must_use_candidate` | API hygiene |
+| `missing_errors_doc` | Documentation |
+| `missing_panics_doc` | Documentation |
 
 Aspirational (run manually, apply to new code):
 | Lint | Apply when |
 |---|---|
-| `must_use_candidate` | Writing new pure functions |
-| `missing_errors_doc` | Writing new `Result`-returning `pub` fns |
-| `missing_panics_doc` | Writing new `pub` fns that can panic |
 | `needless_pass_by_value` | Writing new functions |
 | `redundant_closure` | Writing closures |
+
 
 ---
 

@@ -134,6 +134,9 @@ fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize>
 }
 
 /// Parse the D64 directory and return list of files
+///
+/// # Errors
+/// Returns an error if the disk image size is invalid or the directory chain is corrupt/out of bounds.
 pub fn parse_d64_directory(data: &[u8]) -> Result<Vec<D64FileEntry>> {
     // D64 size check (relaxed)
     // We accept:
@@ -265,6 +268,9 @@ pub fn parse_d64_directory(data: &[u8]) -> Result<Vec<D64FileEntry>> {
 }
 
 /// Extract a specific file from the disk image
+///
+/// # Errors
+/// Returns an error if the file image is too small, a sector is out of bounds, or if the file appears corrupt.
 pub fn extract_file(data: &[u8], entry: &D64FileEntry) -> Result<Vec<u8>> {
     if data.len() < D64_STANDARD_SIZE {
         return Err(anyhow!("Invalid D64/D71/D81 file size"));

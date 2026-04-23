@@ -69,6 +69,10 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <table>
 "#;
 
+/// Exports the disassembly to an HTML file.
+///
+/// # Errors
+/// Returns an error if the file cannot be written.
 pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let formatter = state.get_formatter();
     let mut output = String::new();

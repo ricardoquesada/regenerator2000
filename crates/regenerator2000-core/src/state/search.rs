@@ -390,6 +390,9 @@ pub fn search_collapsed_content(
 /// Search raw binary data for a byte pattern, supporting multiple encodings.
 ///
 /// Returns a list of matching addresses (capped at `max_results`).
+///
+/// # Errors
+/// Returns an error if an unknown encoding is provided.
 pub fn search_memory_raw(
     app_state: &AppState,
     query: &str,

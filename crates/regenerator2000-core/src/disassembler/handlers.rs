@@ -2,6 +2,7 @@ use super::DisassemblyLine;
 use super::context::{DisassemblyContext, HandleArgs};
 use crate::state::{Addr, BlockType};
 
+#[must_use]
 pub fn handle_lohi_address(
     ctx: &DisassemblyContext,
     args: HandleArgs,
@@ -9,6 +10,7 @@ pub fn handle_lohi_address(
     handle_split_byte_table(ctx, BlockType::LoHiAddress, false, args)
 }
 
+#[must_use]
 pub fn handle_hilo_address(
     ctx: &DisassemblyContext,
     args: HandleArgs,
@@ -16,6 +18,7 @@ pub fn handle_hilo_address(
     handle_split_byte_table(ctx, BlockType::HiLoAddress, true, args)
 }
 
+#[must_use]
 pub fn handle_lohi_word(
     ctx: &DisassemblyContext,
     args: HandleArgs,
@@ -23,6 +26,7 @@ pub fn handle_lohi_word(
     handle_split_byte_table(ctx, BlockType::LoHiWord, false, args)
 }
 
+#[must_use]
 pub fn handle_hilo_word(
     ctx: &DisassemblyContext,
     args: HandleArgs,
@@ -225,6 +229,7 @@ fn handle_split_byte_table(
     (total_bytes, lines)
 }
 
+#[must_use]
 pub fn handle_undefined_byte(
     ctx: &DisassemblyContext,
     args: HandleArgs,

@@ -115,6 +115,10 @@ impl SystemConfig {
         Self::default()
     }
 
+    /// Saves the configuration to the user's config directory or override path.
+    ///
+    /// # Errors
+    /// Returns an error if the directory cannot be created or the file cannot be written.
     pub fn save(&self) -> anyhow::Result<()> {
         if let Some(path) = &self.config_path_override {
             let data = serde_json::to_string_pretty(self)?;

@@ -121,6 +121,10 @@ pub struct ProjectSaveContext {
     pub bookmarks: BTreeMap<Addr, String>,
 }
 
+/// Encode raw byte data to a base64 string.
+///
+/// # Errors
+/// Returns an error if compression fails.
 pub fn encode_raw_data_to_base64(data: &[u8]) -> anyhow::Result<String> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     encoder.write_all(data)?;
@@ -128,6 +132,10 @@ pub fn encode_raw_data_to_base64(data: &[u8]) -> anyhow::Result<String> {
     Ok(general_purpose::STANDARD.encode(compressed_data))
 }
 
+/// Decode a base64 string to raw byte data.
+///
+/// # Errors
+/// Returns an error if decoding or decompression fails.
 pub fn decode_raw_data_from_base64(data: &str) -> anyhow::Result<Vec<u8>> {
     let decoded_compressed = general_purpose::STANDARD.decode(data)?;
     let mut decoder = GzDecoder::new(&decoded_compressed[..]);

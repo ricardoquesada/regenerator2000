@@ -1850,6 +1850,8 @@ impl Core {
         }
         events.push(CoreEvent::ViewChanged);
     }
+    /// Creates a project save context containing the current project path and UI state.
+    #[must_use]
     pub fn create_save_context(&self) -> crate::state::ProjectSaveContext {
         crate::navigation::create_save_context(&self.state, &self.view)
     }

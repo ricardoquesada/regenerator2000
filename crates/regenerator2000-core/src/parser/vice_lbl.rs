@@ -1,5 +1,9 @@
 use regex::Regex;
 
+/// Parses VICE labels file content into a list of (address, name) tuples.
+///
+/// # Errors
+/// Returns an error if the regex pattern cannot be compiled.
 pub fn parse_vice_labels(content: &str) -> Result<Vec<(u16, String)>, String> {
     let mut labels = Vec::new();
     // Regex for "al $<hex_addr> .<label>"

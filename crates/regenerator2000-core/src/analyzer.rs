@@ -570,6 +570,7 @@ pub fn guess_scope_end(state: &AppState, start: Addr) -> Addr {
     state.origin.wrapping_add(len).wrapping_sub(1)
 }
 
+#[must_use]
 pub fn flow_analyze(state: &AppState, start: Addr) -> Vec<std::ops::Range<usize>> {
     let mut visited = std::collections::HashSet::new();
     let mut queue = std::collections::VecDeque::new();

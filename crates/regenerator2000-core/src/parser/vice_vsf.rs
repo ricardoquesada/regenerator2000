@@ -6,6 +6,11 @@ pub struct VsfData {
     pub machine_name: String,
 }
 
+/// Parses a VICE Snapshot File (VSF).
+///
+/// # Errors
+/// Returns an error if the file is too short, has an invalid signature,
+/// or lacks the required memory module.
 pub fn parse_vsf(data: &[u8]) -> Result<VsfData> {
     if data.len() < 0x25 {
         // 19 + 2 + 16 minimal header

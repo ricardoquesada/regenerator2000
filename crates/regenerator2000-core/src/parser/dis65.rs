@@ -24,6 +24,7 @@ pub struct Dis65Project {
 }
 
 impl Dis65Project {
+    #[must_use]
     pub fn to_block_types_and_seeds(
         &self,
         raw_data_len: usize,
@@ -101,6 +102,10 @@ pub struct UserLabelEntry {
     pub label_type: String,
 }
 
+/// Parses a .dis65 file content.
+///
+/// # Errors
+/// Returns an error if the header is invalid or if JSON deserialization fails.
 pub fn parse_dis65(content: &str) -> anyhow::Result<Dis65Project> {
     let mut lines = content.lines();
     if let Some(header) = lines.next() {

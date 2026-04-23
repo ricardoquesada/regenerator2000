@@ -15,6 +15,10 @@ pub struct ViceClient {
 }
 
 impl ViceClient {
+    /// Connect to VICE via TCP.
+    ///
+    /// # Errors
+    /// Returns an error if the connection fails or stream clones error.
     pub fn connect(addr: &str, app_tx: Sender<ViceEvent>) -> anyhow::Result<Self> {
         let stream = TcpStream::connect(addr)?;
         stream.set_nonblocking(false)?;
