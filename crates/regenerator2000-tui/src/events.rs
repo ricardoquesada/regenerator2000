@@ -307,6 +307,9 @@ fn handle_vice_registers_get(
         {
             client.send_memory_get(0xD000, 0xDFFF, 3);
             client.send_memory_get(0x0000, 0x0001, 4);
+        } else if app_state.settings.platform == Platform::VIC20 {
+            // VIC-I registers: $9000–$900F
+            client.send_memory_get(0x9000, 0x900F, 3);
         }
 
         client.send_memory_get(0xFFFA, 0xFFFF, 5);
