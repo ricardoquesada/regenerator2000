@@ -15,7 +15,5 @@ image = { version = "0.25", default-features = false }
 ratatui-textarea = "0.9.1"
 opener = "0.8"
 
-[lints.clippy]
-unwrap_used = "warn"
-panic = "warn"
-expect_used = "warn"
+[lints]
+workspace = true

@@ -2,6 +2,26 @@
 members = [".", "crates/regenerator2000-core", "crates/regenerator2000-tui"]
 resolver = "3"
 
+[workspace.lints.clippy]
+# ---------------------------------------------------------------------------
+# Panic-safety: flag patterns that can abort the process in production code.
+# CI promotes these to errors via `cargo clippy -- -D warnings`.
+# Tests are exempted via #![cfg_attr(test, allow(...))] in each crate's lib.rs.
+# ---------------------------------------------------------------------------
+unwrap_used = "warn"
+expect_used = "warn"
+panic       = "warn"
+
+# ---------------------------------------------------------------------------
+# API hygiene (aspirational — apply to NEW code, see AGENTS.md).
+# Not promoted to errors yet because existing code has not been fully annotated.
+# Run `cargo clippy -- -W clippy::must_use_candidate -W clippy::missing_errors_doc`
+# to see the full list of outstanding items.
+# ---------------------------------------------------------------------------
+# must_use_candidate = "warn"
+# missing_errors_doc = "warn"
+# missing_panics_doc = "warn"
+
 [package]
 authors = ["Ricardo Quesada <ricardoquesada@gmail.com>"]
 description = "An interactive disassembler for the CPU 6502, focused mostly on Commodore 8-bit computers."
@@ -42,8 +62,5 @@ tokio = { version = "1.52", features = ["rt-multi-thread", "sync", "net", "macro
 anyhow = "1.0"
 vergen-gitcl = "9.1.0"
 
-[lints.clippy]
-# Stability: flag panic-inducing patterns during development
-unwrap_used = "warn"
-panic = "warn"
-expect_used = "warn"
+[lints]
+workspace = true

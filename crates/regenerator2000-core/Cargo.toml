@@ -27,7 +27,5 @@ reqwest = { version = "0.13", default-features = false, features = ["rustls", "j
 default = []
 mcp = ["dep:tokio", "dep:rmcp", "dep:axum", "dep:reqwest"]
 
-[lints.clippy]
-unwrap_used = "warn"
-panic = "warn"
-expect_used = "warn"
+[lints]
+workspace = true

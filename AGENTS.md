@@ -60,6 +60,103 @@ Specialized tools are available for common tasks. Invoke them via `activate_skil
 - `coding`: General Rust coding assistance with project context.
 - `code-review`: Review changes for idiomatic Rust and project conventions.
 
+## Rust Best Practices
+
+All AI-generated code MUST follow the rules below. The project enforces them through `cargo clippy -- -D warnings`; violations will block CI.
+
+### Panic Safety
+
+Production code must never panic silently.
+
+- **Never use `.unwrap()` or `.expect()`** outside of `#[cfg(test)]` blocks. Both are banned by `clippy::unwrap_used` / `clippy::expect_used`.
+- **Return `Result` or `Option`** and propagate errors with `?`.
+- Use `anyhow::Result` for application-level errors where context strings suffice, and typed `thiserror` enums for library-facing error surfaces.
+- `unreachable!()` inside exhaustive `match` arms (e.g. an enum variant that logically cannot appear) is acceptable. All other panic macros require a comment explaining why the invariant holds.
+- Both `lib.rs` files gate these lints via:
+  ```rust
+  #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::panic))]
+  #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
+  ```
+  Do **not** remove these attributes.
+
+### Error Handling
+
+- Prefer `?` over manual `match`/`if let` for error propagation.
+- Add context with `.context("what was attempted")` (from `anyhow`) when propagating errors across module boundaries.
+- Do **not** silently swallow errors with `let _ = some_fallible_call();`. Log or propagate them.
+- MCP handler functions must return explicit `McpError` variants for invalid/missing parameters — see `mcp/handler.rs` for the established pattern.
+
+### API Hygiene (`#[must_use]`)
+
+- Add `#[must_use]` to every **pure** function (one with no side effects whose return value carries meaning). This includes constructors (`fn new`), getters, and any function returning `bool`, a numeric type, or a wrapped newtype.
+- Functions that mutate state (`&mut self`) and return `()` do **not** need `#[must_use]`.
+- `#[must_use]` on an `impl` block annotates every method — use sparingly; prefer per-method annotations.
+- Run `cargo clippy -- -W clippy::must_use_candidate` to find unannotated candidates in existing code.
+
+### Documentation
+
+- All `pub` items in `regenerator2000-core` must have a doc comment (`///`).
+- Functions returning `Result` must include a `# Errors` section explaining when they fail.
+- Functions that can panic (outside tests) must include a `# Panics` section.
+- Use intra-doc links (`` [`TypeName`] ``) to cross-reference types. Run `cargo doc --no-deps` to verify they resolve.
+- Run `cargo clippy -- -W clippy::missing_errors_doc -W clippy::missing_panics_doc` to audit doc coverage.
+
+### Type Design
+
+- Prefer **newtypes** over raw primitives when a value has a distinct semantic meaning (e.g. `Addr(u16)` instead of raw `u16`). See `state/types.rs` for the established pattern.
+- Derive `#[derive(Debug, Clone, Copy, PartialEq, Eq)]` for all small value types. Add `Hash` when the type is used as a map key, `Ord`/`PartialOrd` when ordering is needed.
+- Implement `Display` for types shown to users; implement `From`/`Into` conversions where they remove boilerplate.
+- Use `Default` for structs with sensible zero-values; use `#[default]` on enum variants rather than a manual `Default` impl.
+- Avoid `bool` parameters in public APIs; a two-variant enum is self-documenting and prevents argument-order bugs.
+
+### Ownership and Borrowing
+
+- Prefer `&str` over `&String`, `&[T]` over `&Vec<T>`, and `&Path` over `&PathBuf` in function signatures.
+- Use `impl Into<String>` (or `impl AsRef<str>`) for constructor arguments that store a `String`, as `Platform::new` does.
+- Avoid unnecessary `.clone()` — pass references where ownership is not needed.
+- When passing closures that only forward to a free function (`|x| f(x)`), write `f` directly (`clippy::redundant_closure`).
+
+### Collections
+
+- Use `BTreeMap`/`BTreeSet` for address-keyed maps that must be iterated in order (deterministic output for project files). Use `HashMap`/`HashSet` only when iteration order does not matter and performance is critical.
+- Prefer `.entry().or_default()` over `if !map.contains_key() { map.insert() }`.
+
+### Formatting and Style
+
+- Run `cargo fmt` before committing (enforced by pre-commit hook and CI).
+- Prefer `write!(buf, "{x}")` over `buf.push_str(&format!("{x}"))` (`clippy::format_push_string`).
+- Use `format!` capture syntax: `format!("{x}")` not `format!("{}", x)` (Rust 2021+).
+- `match` arms that do nothing should use the `_ => {}` form, not `_ => unreachable!()` unless you are genuinely asserting the arm is unreachable.
+
+### Tests
+
+- Every non-trivial function in `regenerator2000-core` should have at least one unit test in the same file (`#[cfg(test)]`).
+- Integration tests live in `tests/` and cover cross-module behavior (disassembler output, project serialization, MCP protocol).
+- Tests may freely use `.unwrap()` / `.expect()` — the per-crate `lib.rs` allows this under `#[cfg(test)]`.
+- Use `AppState::new()` (not a manually built struct) as the test baseline; it sets a safe throwaway config path that never touches the real user config.
+
+### Clippy Configuration
+
+Lint policy is defined in `[workspace.lints.clippy]` in the root `Cargo.toml`. All crates inherit it via `[lints] workspace = true` in their own `Cargo.toml` — do not add per-crate `[lints.clippy]` blocks.
+
+Currently enforced (error in CI via `-D warnings`):
+| Lint | Category |
+|---|---|
+| `unwrap_used` | Panic safety |
+| `expect_used` | Panic safety |
+| `panic` | Panic safety |
+
+Aspirational (run manually, apply to new code):
+| Lint | Apply when |
+|---|---|
+| `must_use_candidate` | Writing new pure functions |
+| `missing_errors_doc` | Writing new `Result`-returning `pub` fns |
+| `missing_panics_doc` | Writing new `pub` fns that can panic |
+| `needless_pass_by_value` | Writing new functions |
+| `redundant_closure` | Writing closures |
+
+---
+
 ## Development Workflow
 
 ### Commands
