@@ -596,154 +596,161 @@
     "23": [
       {
         "name": "score_cursor_x",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "24": [
       {
         "name": "collision_type",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "25": [
       {
         "name": "bullet_slots_free",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "26": [
       {
         "name": "marker_idx",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "27": [
       {
         "name": "collision_check_flag",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "28": [
       {
         "name": "temp_bcd_score",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "31": [
       {
         "name": "player_lives",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "32": [
       {
         "name": "current_level",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "33": [
       {
         "name": "current_phase",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "34": [
       {
         "name": "irq_tick_counter",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "35": [
       {
         "name": "hiscore_lo",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "36": [
       {
         "name": "hiscore_mid",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "37": [
       {
         "name": "hiscore_hi",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "38": [
       {
         "name": "bullet_hit_mask",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "39": [
       {
         "name": "playfield_color",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "40": [
+      {
+        "name": "cur_entity_idx",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "78": [
       {
         "name": "game_phase",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "84": [
       {
         "name": "extra_life_awarded",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "97": [
       {
         "name": "wide_boundary_flag",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "98": [
       {
         "name": "show_score_table",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "247": [
       {
         "name": "score_lo",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "248": [
       {
         "name": "score_mid",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "249": [
       {
         "name": "score_hi",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -2169,7 +2176,7 @@
     "44997": "bit opcode",
     "44998": "Set type 6 (common)",
     "45000": "Store entity type",
-    "45004": "Save entity index",
+    "45004": "Scratch: current enemy entity slot index, preserved across draw sub-calls",
     "45008": "Load frame counter",
     "45010": "Check lower 3 bits",
     "45012": "Only run every 8 frames",
@@ -2541,7 +2548,7 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 41335,
+  "cursor_address": 40981,
   "hex_dump_cursor_address": 41040,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
