@@ -2019,13 +2019,20 @@ impl Core {
             }
 
             let mut new_label_vec = old_label_vec.clone().unwrap_or_default();
+            // Preserve the existing label_type when renaming so that external labels
+            // (e.g. ZeroPageAbsoluteAddress) remain in their display category.
+            // Only fall back to UserDefined when there is no prior label to inherit from.
+            let inherited_type = new_label_vec
+                .first()
+                .map(|l| l.label_type)
+                .unwrap_or(crate::state::LabelType::UserDefined);
             let new_label_entry = crate::state::Label {
                 name: label_name,
                 kind: crate::state::LabelKind::User,
                 label_type: if is_local {
                     crate::state::LabelType::LocalUserDefined
                 } else {
-                    crate::state::LabelType::UserDefined
+                    inherited_type
                 },
             };
 
