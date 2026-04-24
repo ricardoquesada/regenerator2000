@@ -2453,7 +2453,7 @@
     "patch_brk": false,
     "platform": "Commodore VIC-20",
     "assembler": "Tass64",
-    "max_xref_count": 5,
+    "max_xref_count": 8,
     "max_arrow_columns": 6,
     "use_illegal_opcodes": false,
     "text_char_limit": 40,
@@ -2548,7 +2548,7 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 40981,
+  "cursor_address": 0,
   "hex_dump_cursor_address": 41040,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,

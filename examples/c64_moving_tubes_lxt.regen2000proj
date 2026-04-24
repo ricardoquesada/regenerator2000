@@ -2093,7 +2093,7 @@
     "patch_brk": false,
     "platform": "Commodore 64",
     "assembler": "Tass64",
-    "max_xref_count": 5,
+    "max_xref_count": 8,
     "max_arrow_columns": 6,
     "use_illegal_opcodes": false,
     "text_char_limit": 40,
@@ -2103,7 +2103,8 @@
     "description": "",
     "auto_analyze": true,
     "show_system_comments": true,
-    "fill_run_threshold": 8
+    "fill_run_threshold": 8,
+    "exclude_comments_from_well_known": false
   },
   "immediate_value_formats": {
     "3723": "Decimal",
@@ -2220,7 +2221,7 @@
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [

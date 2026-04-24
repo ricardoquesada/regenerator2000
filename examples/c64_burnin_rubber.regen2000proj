@@ -1737,13 +1737,6 @@
         "kind": "User"
       }
     ],
-    "6039": [
-      {
-        "name": "update_hiscore_and_return_car_count",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
     "6048": [
       {
         "name": "handle_player_movement",
@@ -1954,13 +1947,6 @@
         "kind": "User"
       }
     ],
-    "7379": [
-      {
-        "name": "highscore_timer_expired",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
     "7415": [
       {
         "name": "shift_name_entries_down",
@@ -1971,13 +1957,6 @@
     "7502": [
       {
         "name": "after_table_update",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
-    "7506": [
-      {
-        "name": "highscore_store_letter_1",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -3976,14 +3955,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 0,
-  "hex_dump_cursor_address": 4096,
+  "cursor_address": 4755,
+  "hex_dump_cursor_address": 6096,
   "sprites_cursor_address": 13440,
   "charset_cursor_address": 22784,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
