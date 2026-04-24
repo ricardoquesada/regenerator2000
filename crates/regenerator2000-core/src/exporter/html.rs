@@ -176,7 +176,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         scopes: &state.scopes,
     };
     let full_disassembly = state.disassembler.disassemble_ctx(&ctx);
-    let external_lines = state.get_external_label_definitions(false);
+    let external_lines = state.get_external_label_definitions(true);
 
     let mut label_name_to_addr = std::collections::HashMap::new();
     for (addr, label_vec) in &state.labels {
