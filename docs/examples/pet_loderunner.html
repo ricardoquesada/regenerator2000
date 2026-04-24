@@ -76,6 +76,22 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr><td colspan="5" class="comment">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</td></tr>
 <tr class="separator-row"><td colspan="5"></td></tr>
 <tr><td class="address"></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">; ZP ABSOLUTE ADDRESSES</span><span class="operand"></span></td></tr>
+<tr id="L0028"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_down = $28 </span></td></tr>
+<tr id="L0029"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_up = $29 </span></td></tr>
+<tr id="L002A"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_left = $2a </span></td></tr>
+<tr id="L002B"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_right = $2b </span></td></tr>
+<tr id="L002C"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_dig1 = $2c </span></td></tr>
+<tr id="L002D"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_dig2 = $2d </span></td></tr>
+<tr id="L002E"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_pause = $2e </span></td></tr>
+<tr id="L0031"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_down = $31 </span></td></tr>
+<tr id="L0032"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_up = $32 </span></td></tr>
+<tr id="L0033"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_left = $33 </span></td></tr>
+<tr id="L0034"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_right = $34 </span></td></tr>
+<tr id="L0035"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_dig1 = $35 </span></td></tr>
+<tr id="L0036"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_dig2 = $36 </span></td></tr>
+<tr id="L0037"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_pause = $37 </span></td></tr>
+<tr id="L0050"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">random_seed = $50 </span></td></tr>
+<tr id="L0051"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">screen_width = $51 </span></td></tr>
 <tr id="L0052"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">a52 = $52 </span></td></tr>
 <tr id="L0053"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">a53 = $53 </span></td></tr>
 <tr id="L0054"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">a54 = $54 </span></td></tr>
@@ -91,9 +107,12 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L005E"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">a5E = $5e </span></td></tr>
 <tr id="L005F"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">a5F = $5f </span></td></tr>
 <tr id="L0061"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">a61 = $61 </span></td></tr>
+<tr id="L0062"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">queue_head_temp = $62 </span></td></tr>
+<tr id="L0063"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">queue_tail = $63 </span></td></tr>
 <tr id="L0064"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">a64 = $64 </span></td></tr>
 <tr id="L0065"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">a65 = $65 </span></td></tr>
 <tr id="L0066"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">a66 = $66 </span></td></tr>
+<tr id="L0067"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">game_state_flag = $67 </span></td></tr>
 <tr id="L0068"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">a68 = $68 </span></td></tr>
 <tr id="L0069"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">a69 = $69 </span></td></tr>
 <tr id="L006A"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">a6A = $6a </span></td></tr>
@@ -240,27 +259,6 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L672B"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">p672B = $672b </span></td></tr>
 <tr id="L682B"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">p682B = $682b </span></td></tr>
 <tr id="L6C09"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">p6C09 = $6c09 </span></td></tr>
-<tr class="separator-row"><td colspan="5"></td></tr>
-<tr><td class="address"></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">; OTHERS</span><span class="operand"></span></td></tr>
-<tr id="L0028"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_down = $0028 </span></td></tr>
-<tr id="L0029"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_up = $0029 </span></td></tr>
-<tr id="L002A"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_left = $002a </span></td></tr>
-<tr id="L002B"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_right = $002b </span></td></tr>
-<tr id="L002C"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_dig1 = $002c </span></td></tr>
-<tr id="L002D"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_dig2 = $002d </span></td></tr>
-<tr id="L002E"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_row_pause = $002e </span></td></tr>
-<tr id="L0031"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_down = $0031 </span></td></tr>
-<tr id="L0032"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_up = $0032 </span></td></tr>
-<tr id="L0033"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_left = $0033 </span></td></tr>
-<tr id="L0034"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_right = $0034 </span></td></tr>
-<tr id="L0035"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_dig1 = $0035 </span></td></tr>
-<tr id="L0036"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_dig2 = $0036 </span></td></tr>
-<tr id="L0037"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">key_col_pause = $0037 </span></td></tr>
-<tr id="L0050"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">random_seed = $0050 </span></td></tr>
-<tr id="L0051"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">screen_width = $0051 </span></td></tr>
-<tr id="L0062"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">queue_head_temp = $0062 </span></td></tr>
-<tr id="L0063"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">queue_tail = $0063 </span></td></tr>
-<tr id="L0067"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">game_state_flag = $0067 </span></td></tr>
 <tr class="separator-row"><td colspan="5"></td></tr>
 <tr id="L0401"><td class="address"><a href="#L0401">$0401</a></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">.word</span><span class="operand"><a href="#L0424">a0424</a></span><span class="comment">; 10 REM LODE RUNNER ON COMMODORE PET</span></td></tr>
 <tr id="L0403"><td class="address"><a href="#L0403">$0403</a></td><td class="bytes"></td><td colspan="3" class="code-cell"><span class="inline-label"></span><span class="mnemonic">.word</span><span class="operand">$000a</span></td></tr>

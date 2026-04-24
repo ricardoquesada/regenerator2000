@@ -998,490 +998,490 @@
     "73": [
       {
         "name": "p_tmp_lo",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "74": [
       {
         "name": "p_tmp_hi",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "197": [
       {
         "name": "key_scan",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "245": [
       {
         "name": "joy_state",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "1049": [
       {
         "name": "hud_level_tens",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1050": [
       {
         "name": "hud_level_ones",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1056": [
       {
         "name": "hud_crashed_tens",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1057": [
       {
         "name": "hud_crashed_ones",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1062": [
       {
         "name": "hud_lives_tens",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1063": [
       {
         "name": "hud_lives_ones",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2040": [
       {
         "name": "sprite_ptr_0",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2041": [
       {
         "name": "sprite_ptr_1",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2042": [
       {
         "name": "sprite_ptr_2",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2043": [
       {
         "name": "sprite_ptr_3",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2044": [
       {
         "name": "sprite_ptr_4",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2045": [
       {
         "name": "tbl_score_sprite_ptr",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2048": [
       {
         "name": "level_nr",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2049": [
       {
         "name": "level_block_idx",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2050": [
       {
         "name": "level_tile_y_offset",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2051": [
       {
         "name": "season_nr",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2052": [
       {
         "name": "player_speed",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2053": [
       {
         "name": "player_is_jumping",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2054": [
       {
         "name": "jump_anim_frame",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2064": [
       {
         "name": "jump_timer_base",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2065": [
       {
         "name": "jump_frame_timer",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2080": [
       {
         "name": "crashed_cars_tens",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2081": [
       {
         "name": "crashed_cars_ones",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2082": [
       {
         "name": "lives_tens",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2083": [
       {
         "name": "lives_ones",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2085": [
       {
         "name": "score_7digits",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2087": [
       {
         "name": "scroll_row_counter",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2096": [
       {
         "name": "crashed_cars_bonus_10k",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2097": [
       {
         "name": "crashed_cars_bonus_1k",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2098": [
       {
         "name": "crashed_cars_bonus_100",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2135": [
       {
         "name": "name_entry_substate",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2136": [
       {
         "name": "highscore_timer_tens",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2137": [
       {
         "name": "highscore_timer_ones",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2138": [
       {
         "name": "scroll_switch_timer_2",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2142": [
       {
         "name": "pickup_mode_active",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2143": [
       {
         "name": "pickup_display_timer",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2144": [
       {
         "name": "active_row",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2145": [
       {
         "name": "active_col",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2259": [
       {
         "name": "collision_rel_x",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2260": [
       {
         "name": "collision_rel_y",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2266": [
       {
         "name": "joy_poll_timeout",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2272": [
       {
         "name": "score_digits",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2316": [
       {
         "name": "tbl_enemy_sprite_state",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2320": [
       {
         "name": "tbl_enemy_sprite_direction",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2324": [
       {
         "name": "tbl_enemy_sprite_step_count",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2336": [
       {
         "name": "tbl_enemy_sprite_lifetime",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2340": [
       {
         "name": "tbl_enemy_sprite_active",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2344": [
       {
         "name": "tbl_enemy_car_state",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2345": [
       {
         "name": "tbl_enemy_car_state_1",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2346": [
       {
         "name": "tbl_enemy_car_state_2",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2347": [
       {
         "name": "tbl_enemy_car_state_3",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2348": [
       {
         "name": "tbl_enemy_car_type",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2352": [
       {
         "name": "tbl_npc_damage_timer",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2356": [
       {
         "name": "tbl_enemy_car_fresh_flag",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2432": [
       {
         "name": "tbl_score_sprite_active",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2433": [
       {
         "name": "tbl_score_sprite_active_1",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2434": [
       {
         "name": "tbl_score_sprite_active_2",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2438": [
       {
         "name": "scroll_row_snapshot",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2439": [
       {
         "name": "dist_substep",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2440": [
       {
         "name": "col_quadrant",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2441": [
       {
         "name": "col_step_px",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2442": [
       {
         "name": "col_active",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2443": [
       {
         "name": "col_frames_left",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "3840": [
       {
         "name": "number_of_players",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "3841": [
       {
         "name": "current_player_nr",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "3920": [
       {
         "name": "hi_score_7digits",
-        "label_type": "UserDefined",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -3983,7 +3983,7 @@
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 57344,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [

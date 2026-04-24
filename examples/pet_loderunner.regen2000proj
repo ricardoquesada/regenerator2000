@@ -386,133 +386,133 @@
     "40": [
       {
         "name": "key_row_down",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "41": [
       {
         "name": "key_row_up",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "42": [
       {
         "name": "key_row_left",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "43": [
       {
         "name": "key_row_right",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "44": [
       {
         "name": "key_row_dig1",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "45": [
       {
         "name": "key_row_dig2",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "46": [
       {
         "name": "key_row_pause",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "49": [
       {
         "name": "key_col_down",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "50": [
       {
         "name": "key_col_up",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "51": [
       {
         "name": "key_col_left",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "52": [
       {
         "name": "key_col_right",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "53": [
       {
         "name": "key_col_dig1",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "54": [
       {
         "name": "key_col_dig2",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "55": [
       {
         "name": "key_col_pause",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "80": [
       {
         "name": "random_seed",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "81": [
       {
         "name": "screen_width",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "98": [
       {
         "name": "queue_head_temp",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "99": [
       {
         "name": "queue_tail",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "103": [
       {
         "name": "game_state_flag",
-        "label_type": "UserDefined",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -3778,7 +3778,8 @@
     "description": "",
     "auto_analyze": true,
     "show_system_comments": false,
-    "fill_run_threshold": 8
+    "fill_run_threshold": 8,
+    "exclude_comments_from_well_known": false
   },
   "immediate_value_formats": {
     "1758": "Decimal",
@@ -3927,14 +3928,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 2665,
-  "hex_dump_cursor_address": 2656,
-  "sprites_cursor_address": 2624,
+  "cursor_address": 1025,
+  "hex_dump_cursor_address": 1024,
+  "sprites_cursor_address": 2688,
   "charset_cursor_address": 1024,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
