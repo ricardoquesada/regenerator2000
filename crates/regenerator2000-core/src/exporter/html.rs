@@ -52,8 +52,8 @@ a:hover { text-decoration: underline; }
 .separator-row { height: 15px; }
 .code-cell { display: flex; align-items: top; padding: 0 !important; }
 .code-cell .inline-label { width: 20ch; flex-shrink: 0; color: var(--label-color); font-weight: bold; }
-.code-cell .mnemonic { min-width: 8ch; flex-shrink: 0; padding: 0 8px; }
-.code-cell .operand { min-width: 32ch; flex-shrink: 0; padding: 0 8px; }
+.code-cell .mnemonic { min-width: 6ch; flex-shrink: 0; }
+.code-cell .operand { min-width: 15ch; flex-shrink: 0; padding-left: 1ch; }
 .code-cell .comment { padding: 0 8px; margin-left: 4ch; }
 .code-cell.assignment { padding: 0 8px !important; }
 .code-cell.assignment .label { min-width: 40ch; flex-shrink: 0; }
