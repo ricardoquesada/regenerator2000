@@ -705,9 +705,275 @@
         "kind": "User"
       }
     ],
+    "41": [
+      {
+        "name": "prev_heading",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "42": [
+      {
+        "name": "temp_frame_idx",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "43": [
+      {
+        "name": "player_wall_hits",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "44": [
+      {
+        "name": "ptr_gfx_str",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "45": [
+      {
+        "name": "ptr_gfx_str_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "46": [
+      {
+        "name": "entity_type_to_slot",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "47": [
+      {
+        "name": "enemy1_slot_idx",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "48": [
+      {
+        "name": "enemy3_slot_idx",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "49": [
+      {
+        "name": "enemy2_slot_idx",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "53": [
+      {
+        "name": "fire_cooldown",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "54": [
+      {
+        "name": "enemy_ai_speed_mask",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "55": [
+      {
+        "name": "frame_counter",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "56": [
+      {
+        "name": "enemy1_fire_timer",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "57": [
+      {
+        "name": "enemy3_fire_timer",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "58": [
+      {
+        "name": "enemy2_fire_timer",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "59": [
+      {
+        "name": "firing_entity_slot",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "60": [
+      {
+        "name": "attract_delay_ctr",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "61": [
+      {
+        "name": "max_enemy_count",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "62": [
+      {
+        "name": "game_tick",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "64": [
+      {
+        "name": "entity_count",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "65": [
+      {
+        "name": "snd_bass_dur",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "66": [
+      {
+        "name": "snd_alto_dur",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "67": [
+      {
+        "name": "snd_soprano_dur",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "68": [
+      {
+        "name": "snd_noise_dur",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "69": [
+      {
+        "name": "snd_bass_seq_idx",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "70": [
+      {
+        "name": "snd_alto_seq_idx",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "71": [
+      {
+        "name": "snd_soprano_seq_idx",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "72": [
+      {
+        "name": "snd_noise_seq_idx",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "73": [
+      {
+        "name": "snd_bass_step",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "74": [
+      {
+        "name": "snd_alto_step",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "75": [
+      {
+        "name": "snd_soprano_step",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "76": [
+      {
+        "name": "snd_noise_step",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "77": [
+      {
+        "name": "snd_volume_state",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "78": [
       {
         "name": "game_phase",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "79": [
+      {
+        "name": "enemy1_spawn_timer",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "80": [
+      {
+        "name": "enemy2_spawn_timer",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "81": [
+      {
+        "name": "temp_entity_type",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "82": [
+      {
+        "name": "enemy1_mine_timer",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "83": [
+      {
+        "name": "enemy3_mine_timer",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -716,6 +982,34 @@
       {
         "name": "extra_life_awarded",
         "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "85": [
+      {
+        "name": "difficulty_cap",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "86": [
+      {
+        "name": "enemy_rot_dir",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "87": [
+      {
+        "name": "wave_vel_x",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "92": [
+      {
+        "name": "wave_vel_y",
+        "label_type": "ZeroPageField",
         "kind": "User"
       }
     ],
@@ -729,6 +1023,139 @@
     "98": [
       {
         "name": "show_score_table",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "163": [
+      {
+        "name": "pos_x",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "164": [
+      {
+        "name": "pos_y",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "165": [
+      {
+        "name": "ptr_bmp_col",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "166": [
+      {
+        "name": "ptr_bmp_col_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "167": [
+      {
+        "name": "ptr_bmp_spill",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "168": [
+      {
+        "name": "ptr_bmp_spill_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "169": [
+      {
+        "name": "ptr_glyph",
+        "label_type": "ZeroPagePointer",
+        "kind": "User"
+      }
+    ],
+    "170": [
+      {
+        "name": "ptr_glyph_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "171": [
+      {
+        "name": "spr_row_mask",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "172": [
+      {
+        "name": "spr_spill_mask",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "173": [
+      {
+        "name": "spr_bit_offset",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "174": [
+      {
+        "name": "step_x",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "175": [
+      {
+        "name": "step_y",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "176": [
+      {
+        "name": "joy_fire",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "177": [
+      {
+        "name": "player_angle",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "178": [
+      {
+        "name": "joy_left",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "179": [
+      {
+        "name": "pixel_mask",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "180": [
+      {
+        "name": "loop_idx",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "189": [
+      {
+        "name": "seg_len",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -751,6 +1178,27 @@
       {
         "name": "score_hi",
         "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7549": [
+      {
+        "name": "input_dispatch",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7550": [
+      {
+        "name": "input_dispatch_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7551": [
+      {
+        "name": "input_dispatch_hi",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -1759,6 +2207,7 @@
     "41299": "Update Noise channel frequency",
     "41323": "Acknowledge VIA 2 Timer 1 interrupt",
     "41333": "init various zero-page variables",
+    "41337": "$4C = JMP opcode",
     "41344": "reset high score",
     "41362": "X = 15 (for 16 VIC registers)",
     "41364": "read VIC init values",
@@ -2343,6 +2792,7 @@
     "78": "Game phase: 0=play, 1=death-countdown, $C8=level-advance (negative sentinel)",
     "97": "Boundary width selector for check_boundary_collisions.\n$80 = wide zones (player ship pixel via check_boundary_collisions/$AB7C, $AF7E)\n$00 = narrow zones (sprites/enemies via draw_sprite_with_collision_check/$AB05,\n      erase_sprite_with_boundary_check/$AB47)\nTested via BIT instruction: N=1 selects wider outer-wall and inner-box thresholds.",
     "98": "Flag: show scoring table in attract mode (0 = skip, 1 = show)",
+    "7549": "Self-modifying JMP instruction ($4C lo hi). Patched at game-start to either\nJMP read_joystick (F1/F3 or joystick button) or JMP read_paddle_input (F2/F4).\nCalled every frame from update_player_physics to route input handling.",
     "40969": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCartridge cold-start entry point and main game loop for Omega Race.\nPointed to by the cold-start vector at $A000.\n\nPhase 1 ($A009-$A025): One-time hardware and game initialization.\n  - Clears decimal mode, restores KERNAL I/O vectors, resets the stack\n    pointer to $1FF, then calls sA175 to set up the IRQ handler and\n    load all game resources.\n\nPhase 2 ($A029-$A0CB): Main game loop.\n  - Outer loop (jA029): drives a full game cycle.\n  - Inner loop (bA037): per-frame update gated on the IRQ frame counter\n    (a22 >= 2) to synchronize with the raster interrupt.\n  - Branches on game-state flags (a4E, a4D, a1F, a3D) to handle active\n    play, level countdown, player death, and level transitions.\n  - Updates the 3-byte high score (a23/a24/a25) if the current score\n    beats (aF7/aF8/aF9) before starting the next level.\n\nInputs:  None (entry from KERNAL reset vector)\nOutputs: None\nSide Effects: Resets hardware state; runs all per-frame game subsystems;\n              manages level transitions and high-score updates.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "41086": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitiates the level transition delay.\n\nInputs:  None\nOutputs: None\nSide Effects: Called when the wave is cleared. Sets up a 200-frame countdown \n              timer (a4D) and sets the level-advance flag (a4E to $C8). \n              Disables and re-enables IRQs during variable assignment.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "41166": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCustom IRQ handler. Increments a frame synchronization counter and processes\nbackground music and sound effects across 4 channels.\n\nInputs:  None\nOutputs: None\nSide Effects: Increments irq_tick_counter (a22); updates VIC sound registers\n              ($900A-$900D); acknowledges VIA 2 timer interrupt.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -2545,10 +2995,22 @@
     "45991": {
       "HighByte": 48801
     },
+    "46071": {
+      "LowByte": 43265
+    },
+    "46076": {
+      "HighByte": 43265
+    },
+    "46087": {
+      "LowByte": 43174
+    },
+    "46092": {
+      "HighByte": 43174
+    },
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 41040,
+  "cursor_address": 46221,
   "hex_dump_cursor_address": 41040,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
@@ -2559,6 +3021,6 @@
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],
-  "blocks_view_cursor": 2,
+  "blocks_view_cursor": 55,
   "scopes": {}
 }
