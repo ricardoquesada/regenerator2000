@@ -115,11 +115,9 @@ impl Core {
                 events.push(CoreEvent::StatusMessage("Document Settings".to_string()));
             }
             AppAction::Analyze => {
-                let current_addr = self
-                    .state
-                    .disassembly
-                    .get(self.view.cursor_index)
-                    .map(|l| l.address);
+                let cursor_line = self.state.disassembly.get(self.view.cursor_index);
+                let current_addr = cursor_line.map(|l| l.address);
+                let saved_cursor_index = self.view.cursor_index;
 
                 let (cmd, msg) = self.state.perform_analysis();
                 self.state.push_command(cmd);
@@ -129,6 +127,10 @@ impl Core {
                         self.view.cursor_index = idx;
                     } else if let Some(idx) = self.state.get_line_index_for_address(addr) {
                         self.view.cursor_index = idx;
+                    } else {
+                        // Header/separator row with Addr::ZERO: clamp to valid range.
+                        let max_idx = self.state.disassembly.len().saturating_sub(1);
+                        self.view.cursor_index = saved_cursor_index.min(max_idx);
                     }
                 }
 
@@ -2573,6 +2575,98 @@ mod tests {
         assert_eq!(
             core.state.disassembly[core.view.cursor_index].address,
             Addr(0x1002)
+        );
+    }
+
+    #[test]
+    fn test_analyze_preserves_cursor_on_external_label_definition() {
+        use crate::state::project::Label;
+        use crate::state::types::{BlockType, LabelKind, LabelType};
+
+        let mut core = Core::new();
+        core.state
+            .load_binary(Addr(0x0801), vec![0xA9, 0x00, 0x85, 0x02, 0x60])
+            .unwrap();
+        core.state.block_types = vec![BlockType::Code; 5];
+
+        // External label outside the loaded range
+        core.state.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::Field,
+            }],
+        );
+        core.state.settings.all_labels = true;
+        core.state.disassemble();
+
+        // Find the line for VIC_BORDER
+        let ext_idx = core
+            .state
+            .disassembly
+            .iter()
+            .position(|l| l.external_label_address == Some(Addr(0xD020)))
+            .expect("Should have external label line for $D020");
+
+        core.view.cursor_index = ext_idx;
+        core.view.active_pane = ActivePane::Disassembly;
+
+        // Run Analyze
+        core.apply_action(AppAction::Analyze);
+
+        // Cursor must land back on the VIC_BORDER definition line
+        let line = &core.state.disassembly[core.view.cursor_index];
+        assert_eq!(
+            line.address,
+            Addr(0xD020),
+            "Definition line should carry the real label address"
+        );
+        assert_eq!(
+            line.external_label_address,
+            Some(Addr(0xD020)),
+            "Cursor should stay on the external label definition after Analyze"
+        );
+    }
+
+    #[test]
+    fn test_analyze_preserves_cursor_on_external_label_header() {
+        use crate::state::project::Label;
+        use crate::state::types::{BlockType, LabelKind, LabelType};
+
+        let mut core = Core::new();
+        core.state
+            .load_binary(Addr(0x0801), vec![0xA9, 0x00, 0x60])
+            .unwrap();
+        core.state.block_types = vec![BlockType::Code; 3];
+
+        // Add an external label so the header/separator lines are generated
+        core.state.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::Field,
+            }],
+        );
+        core.state.settings.all_labels = true;
+        core.state.disassemble();
+
+        // Put cursor on the header line (the "; FIELDS" comment line, index 0)
+        // Header lines have external_label_address == None and address == Addr::ZERO
+        assert!(
+            core.state.disassembly[0].external_label_address.is_none(),
+            "First line should be a header"
+        );
+        core.view.cursor_index = 0;
+        core.view.active_pane = ActivePane::Disassembly;
+
+        core.apply_action(AppAction::Analyze);
+
+        // Cursor should still be at index 0 (the header), not somewhere random
+        assert_eq!(
+            core.view.cursor_index, 0,
+            "Cursor should remain at header line after Analyze"
         );
     }
 }

@@ -408,8 +408,7 @@ impl AppState {
                     let comment = comment_parts.join(&format!(" {} ", formatter.comment_prefix()));
 
                     lines.push(DisassemblyLine {
-                        // address field is Addr
-                        address: Addr::ZERO,
+                        address: Addr(addr),
                         bytes: vec![],
                         mnemonic: formatter.format_definition(name, addr, is_zp),
                         operand: String::new(),

@@ -96,7 +96,7 @@ impl AppState {
     #[must_use]
     pub fn get_line_index_for_address(&self, address: Addr) -> Option<usize> {
         // First pass: try to find exact match with content (bytes not empty)
-        // This avoids matching external label headers that might be at the same address (e.g. 0)
+        // This prioritizes real instructions/data over label-only or header lines
         if let Some(idx) = self
             .disassembly
             .iter()
@@ -213,7 +213,7 @@ mod tests {
         app_state.disassemble();
 
         // get_line_index_for_address(0x0801) should land on the first *content* line
-        // (after external headers), not on a header whose address field happens to be 0
+        // (after external label definitions), not on a label-only line
         let idx = app_state.get_line_index_for_address(Addr(0x0801));
         assert!(
             idx.is_some(),
