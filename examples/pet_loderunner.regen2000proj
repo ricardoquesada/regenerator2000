@@ -495,6 +495,118 @@
         "kind": "User"
       }
     ],
+    "82": [
+      {
+        "name": "ptr_screen_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "83": [
+      {
+        "name": "ptr_screen_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "84": [
+      {
+        "name": "ptr_attr_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "85": [
+      {
+        "name": "ptr_attr_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "86": [
+      {
+        "name": "ptr_render_buf_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "87": [
+      {
+        "name": "ptr_render_buf_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "88": [
+      {
+        "name": "ptr_wipe_buf_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "89": [
+      {
+        "name": "ptr_wipe_buf_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "90": [
+      {
+        "name": "ptr_playfield_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "91": [
+      {
+        "name": "ptr_playfield_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "92": [
+      {
+        "name": "ptr_attr_ram_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "93": [
+      {
+        "name": "ptr_attr_ram_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "94": [
+      {
+        "name": "ptr_move_grid_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "95": [
+      {
+        "name": "ptr_move_grid_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "96": [
+      {
+        "name": "ptr_pathfinding_lo",
+        "label_type": "ZeroPagePointer",
+        "kind": "User"
+      }
+    ],
+    "97": [
+      {
+        "name": "ptr_pathfinding_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "98": [
       {
         "name": "queue_head_temp",
@@ -509,9 +621,184 @@
         "kind": "User"
       }
     ],
+    "100": [
+      {
+        "name": "scratch_reg_a",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "101": [
+      {
+        "name": "scratch_reg_x",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "102": [
+      {
+        "name": "scratch_reg_y",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "103": [
       {
         "name": "game_state_flag",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "104": [
+      {
+        "name": "ptr_dig_screen_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "105": [
+      {
+        "name": "ptr_dig_screen_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "106": [
+      {
+        "name": "ptr_gold_screen_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "107": [
+      {
+        "name": "ptr_gold_screen_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "108": [
+      {
+        "name": "ptr_bonus_walk_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "109": [
+      {
+        "name": "ptr_bonus_walk_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "110": [
+      {
+        "name": "ptr_guard_top_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "111": [
+      {
+        "name": "ptr_guard_top_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "112": [
+      {
+        "name": "ptr_guard_bot_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "113": [
+      {
+        "name": "ptr_guard_bot_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "114": [
+      {
+        "name": "ptr_hole_screen_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "115": [
+      {
+        "name": "ptr_hole_screen_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "116": [
+      {
+        "name": "ptr_level_data",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "117": [
+      {
+        "name": "difficulty_scalar",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "118": [
+      {
+        "name": "guard_draw_idx",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "119": [
+      {
+        "name": "ptr_ai_grid_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "120": [
+      {
+        "name": "ptr_ai_grid_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "121": [
+      {
+        "name": "ptr_menu_buf_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "122": [
+      {
+        "name": "ptr_menu_buf_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "144": [
+      {
+        "name": "irq_vector_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "145": [
+      {
+        "name": "irq_vector_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "255": [
+      {
+        "name": "kernal_ff_sentinel",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -3572,6 +3859,32 @@
     "14298": "unrecognized row (should not occur)"
   },
   "user_line_comments": {
+    "82": "ZP indirect pointer lo — screen RAM current row. Used as (ptr_screen_lo),Y to read/write character data. Hi byte (ptr_screen_hi=$53) = draw_page. Init=$00.",
+    "84": "ZP indirect pointer lo — attribute RAM current row (one page above screen row). Used as (ptr_attr_lo),Y. Hi byte (ptr_attr_hi=$55) = draw_page+1. Init=$00.",
+    "86": "ZP indirect pointer lo — offscreen tile render buffer. Used as (ptr_render_buf_lo),Y during unpack_level_data phase 1. Lo=$01 (constant col offset), hi ($57) = current buffer page ($67..$7F).",
+    "88": "ZP indirect pointer lo — offscreen buffer base for wipe transition animation. Always $00 (column offset supplied via Y). Hi byte ($59) = current wipe row page.",
+    "90": "ZP indirect pointer lo — offscreen playfield tile buffer at $672B-$7F54. Lo=$2B (constant col base), hi ($5B) = current buffer page. Used as (ptr_playfield_lo),Y. Init by clear_playfield_buffer.",
+    "92": "ZP indirect pointer lo — attribute RAM for BFS pathfinding. Lo=$55 (offset within page), hi ($5D) = current page. Used as (ptr_attr_ram_lo),Y by update_guard_pathfinding to read/write direction codes.",
+    "94": "ZP indirect pointer lo — movement grid for BFS pathfinding. Lo=$2B, hi ($5F) = current page ($67..$7F). Used as (ptr_move_grid_lo),Y by update_guard_pathfinding to test passability bits.",
+    "96": "Lo byte of ZP indirect pointer ptr_pathfinding_lo/$61. Always $55 (constant column offset into attr RAM page). Hi byte ($61) = guard_page+1 per slot. Used as lda (ptr_pathfinding_lo),y in apply_pathfinding_to_guards to read BFS direction code.",
+    "97": "Hi byte of ZP indirect pointer p60/$61. Set to guard_page+1 each iteration of apply_pathfinding_to_guards. Together with p60=$55 (lo), forms pointer to guard's pathfinding attr RAM row for lda (p60),y dispatch.",
+    "100": "General-purpose scratch byte for A/X/Y register preservation. Reused across multiple unrelated routines: saves tile code in render_actor_sprite, guard slot index Y in check_guard_guard_collision, and guard index X in hole-trap processing.",
+    "101": "Scratch save for X register. Used by queue_push_xy and queue_shift_pop_xy to preserve the caller's X while the queue array index temporarily occupies X.",
+    "102": "Scratch save for Y register. Used exclusively by queue_shift_pop_xy to preserve the popped Y coordinate while Y is repurposed as the shift-loop array index.",
+    "104": "ZP indirect pointer lo — screen RAM row for dig animation. Lo=$00 (constant), hi ($69) = dig_slot_page (current row). Used as (ptr_dig_screen_lo),Y in process_dig_animations and get_adjacent_tile_border.",
+    "106": "ZP indirect pointer lo — screen RAM row for gold sprite draw/erase and floating score. Lo=$00 (constant), hi ($6B) = gold_page per slot. Used by draw_gold, restore_gold_backgrounds, erase_floating_score, tick_floating_score.",
+    "108": "ZP indirect pointer lo — screen RAM row for bonus walk animation. Lo=$00 (constant), hi ($6D) = bonus_walk_page (decrements upward each tick). Used by play_bonus_audio_tick.",
+    "110": "ZP indirect pointer lo — screen RAM top row for guard sprite (guard_page). Lo=$00, hi ($6F) = guard_page per slot. Paired with ptr_guard_bot_lo/$70/$71 for the guard's bottom row (guard_page+1).",
+    "112": "ZP indirect pointer lo — screen RAM bottom row for guard sprite (guard_page+1). Lo=$00, hi ($71) = guard_page+1. Companion to ptr_guard_top_lo/$6E/$6F.",
+    "114": "ZP indirect pointer lo — screen RAM for hole sprite draw/restore. Lo=$00, hi ($73) = hole_slot_page (top row). Used by restore_hole_backgrounds and save_hole_bg_and_draw; hi incremented/decremented to access bottom row.",
+    "116": "ZP pointer to current position in compressed level data stream. Set before unpack_level_data; indexed via (ptr_level_data),Y. Y is the byte-within-stream offset.",
+    "117": "Difficulty scalar = $63 - ui_level_num. Set by advance_level each time a new level starts. Smaller value = higher level = harder. Used to scale timing/AI parameters.",
+    "118": "Loop counter for draw_guards (counts guard slot index 4→0). Needed because X is repurposed for sprite_table indexing inside the loop body, so the slot counter is stored here instead.",
+    "119": "ZP indirect pointer lo — BFS/pathfinding attribute grid (AI direction codes). Lo=$55 (constant offset), hi ($78) = current page. Used by update_filled_hole_collision to zero direction codes around a sealed hole.",
+    "121": "ZP indirect pointer lo — offscreen buffer for pause menu drawing. Lo = col offset ($0B = inner text start; $09 = banner left), hi ($7A) = buffer page ($6C–$76). Used by menu_clear_highlights, menu_highlight_selected, open_pause_menu, menu_draw_banner.",
+    "144": "IRQ dispatch vector lo byte. The main IRQ trampoline executes jmp (irq_vector_lo) to call the active handler. Written by every state transition: gameplay_irq, menu_irq, game_over_screen_irq, pause_menu_irq, handle_player_death.",
+    "145": "IRQ dispatch vector hi byte. Paired with irq_vector_lo ($90). Together they hold the address of the currently active game-state IRQ handler, swapped atomically on each state change.",
+    "255": "PET KERNAL ZP byte, guaranteed to hold $FF. Used by unpack_level_data as 'cmp aFF' — a 2-byte ZP compare instead of 3-byte 'cmp #$FF' — to detect the $FF end-of-entity-list sentinel in compressed level data.",
     "1536": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nProgram entry point for PET Lode Runner.\n\nOne-shot hardware init sequence followed by an infinite main loop. The main\nloop is deliberately lightweight — all heavy work (drawing, physics, input)\nis delegated to IRQ handlers installed into ZP vector $90/$91.\n\nInit sequence:\n  1. Configure VIA PCR ($E84C = $0C): CB2 low output (enables speaker)\n  2. Clear decimal mode\n  3. Init VIA Timer 2 audio engine\n  4. Seed LFSR random number generator\n  5. SEI → detect_environment (probes screen width / PET model,\n     patches blit routines for 80-column if needed) → CLI\n\nMain loop — dispatches on game_state_flag each iteration:\n  0  — Idle / title not yet running: blit sidebar only\n  1  — Gameplay active: recalculate guard pathfinding + update sidebar\n         in the background (gameplay_irq handles everything else via IRQ)\n  2+ — Modal dialog (game over, pause): idle spin\n\nget_random is called unconditionally every iteration to advance the LFSR\ncontinuously, ensuring the seed is always unpredictable when needed.\n\nInputs:  None (entry point)\nOutputs: VIA configured; interrupts enabled; infinite loop entered\nSide Effects: random_seed advanced each iteration; sidebar blitted each loop\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "1586": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTitle-screen IRQ handler. Installed into ZP $90/$91 at $1636 when the title\nscreen is initialized. Fires once per VIA timer tick for the duration of the\ntitle sequence.\n\nEach frame:\n  1. Erase player icon (restore tile beneath it in the offscreen buffer)\n  2. Advance title-screen state machine (attract mode, blinking, input)\n  3. Move player icon via joystick/keyboard\n  4. Save tile under icon and redraw it\n  5. Blit offscreen buffer → screen RAM\n  6. Acknowledge VIA interrupt ($E812) and restore registers\n\nInputs:  title_state, key state, offscreen buffer\nOutputs: Screen updated; title_state advanced\nSide Effects: Reads $E812 to clear VIA interrupt flag\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "1610": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain game loop — VIA hardware IRQ handler, fires once per frame.\n\nExecutes all gameplay subsystems in a fixed sequence across five phases:\n\n  Phase 1 — Audio & Timers\n    play_sound_tick, update_game_timer, check_level_complete_bonus\n\n  Phase 2 — Background Restore\n    Erases previous frame's sprites by restoring saved tile backgrounds\n    (player, gold, guards, holes, floating score) before any logic runs.\n\n  Phase 3 — Game Logic\n    Pathfinding, guard movement, keyboard scan, player movement, digging,\n    hole aging, gold/guard interaction, floating score timer.\n\n  Phase 4 — Draw\n    Renders holes, guards, gold, and player sprite into the back-buffer,\n    then blit_screen flushes the buffer to Screen RAM atomically.\n\n  Phase 5 — Death Checks & State Transitions\n    Checks all death conditions (guard collision, wall crush, hole fall,\n    hazard), level completion, and pause key. Any triggered event will\n    redirect the IRQ vector away from this handler.\n\nEpilogue: reads VIA IFR ($E812) to acknowledge the interrupt, restores\nregisters from stack, and executes RTI.\n\nInstalled via ZP vector $90/$91 by handle_player_death and game init.\n\nInputs:  Hardware interrupt; all global game state\nOutputs: Updated game state; Screen RAM flushed each frame\nSide Effects: Drives every game subsystem; acknowledges VIA IRQ at $E812\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -3760,7 +4073,7 @@
     "26368": "Playfield tile buffer — one 256-byte page per screen row.\nEach row occupies a dedicated memory page for multiplication-free Y-coordinate access:\n  $6700 = row 0,  $6800 = row 1, ..., $7F00 = row 24  (25 rows total)\nWithin each page, column indices 0-$2A (42 wide) hold the tile chars.\nFilled by unpack_level_data ($11E8) via page pointer a57 (starting at $67).\nCleared to $20 (space) by clear_gameplay_grid ($079D) and clear_sub_grid ($07F0).\nBorder chars ($65/$63) written at columns 1 and $21 by the blit routines."
   },
   "settings": {
-    "all_labels": false,
+    "all_labels": true,
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
@@ -3928,14 +4241,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 1025,
-  "hex_dump_cursor_address": 1024,
-  "sprites_cursor_address": 2752,
+  "cursor_address": 0,
+  "hex_dump_cursor_address": 6784,
+  "sprites_cursor_address": 2816,
   "charset_cursor_address": 1024,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 32768,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],

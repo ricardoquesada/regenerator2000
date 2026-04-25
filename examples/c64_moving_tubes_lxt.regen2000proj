@@ -2087,7 +2087,7 @@
     "11958": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDemo exit and full system cleanup handler.\nTriggered by joystick fire button (port 2) detected in wait_frame_or_exit.\nDoes NOT return — ends with a warm RESET back to BASIC.\n\nSequence:\n  1. Discard JSR return address (2x PLA) to escape the main loop\n  2. Silence SID (zero all 29 registers), blank screen\n  3. Restore KERNAL IRQ vector, VIC-II defaults, CIA/IRQ via IOINIT\n  4. Display credits row: \"CODE:DIDI  LOGO:AGD  4X4:DMD  MUSIC:DEEK\"\n  5. Relocate cleanup_reloc_0340 stub to $0340 (tape buffer), jump there;\n     stub restores BASIC ROM from $3200 -> $0801, then JMPs to RESET\n\nThe cleanup stub is relocated because it overwrites $0801+ (BASIC program\nRAM) and cannot safely run in place from its original location.\n\nInputs:       None\nOutputs:      Does not return\nSide Effects: SID silenced; VIC-II reset to defaults; IRQ vector restored;\n              credits written to screen row 23; BASIC ROM restored;\n              warm RESET via JMP $FCE2\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
   },
   "settings": {
-    "all_labels": false,
+    "all_labels": true,
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
@@ -2214,14 +2214,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 2048,
-  "hex_dump_cursor_address": 2048,
+  "cursor_address": 4166,
+  "hex_dump_cursor_address": 4160,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [

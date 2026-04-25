@@ -1009,6 +1009,34 @@
         "kind": "User"
       }
     ],
+    "140": [
+      {
+        "name": "rnd_car_type_byte",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "141": [
+      {
+        "name": "rnd_direction_byte",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "142": [
+      {
+        "name": "rnd_speed_byte",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "143": [
+      {
+        "name": "rnd_pos_byte",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "197": [
       {
         "name": "key_scan",
@@ -1102,7 +1130,21 @@
     ],
     "2045": [
       {
-        "name": "tbl_score_sprite_ptr",
+        "name": "sprite_ptr_5",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2046": [
+      {
+        "name": "sprite_ptr_6",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2047": [
+      {
+        "name": "sprite_ptr_7",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
@@ -1152,6 +1194,20 @@
     "2054": [
       {
         "name": "jump_anim_frame",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2055": [
+      {
+        "name": "player_x_offset",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2056": [
+      {
+        "name": "player_y_offset",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
@@ -1289,6 +1345,13 @@
         "kind": "User"
       }
     ],
+    "2240": [
+      {
+        "name": "game_over_delay_ctr",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "2259": [
       {
         "name": "collision_rel_x",
@@ -1313,6 +1376,27 @@
     "2272": [
       {
         "name": "score_digits",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2273": [
+      {
+        "name": "speed_tens_digit",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2274": [
+      {
+        "name": "speed_hundreds_digit",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2303": [
+      {
+        "name": "busy_wait_delay_ctr",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
@@ -1460,6 +1544,34 @@
     "2443": [
       {
         "name": "col_frames_left",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2594": [
+      {
+        "name": "buf_a_pending_cars_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2595": [
+      {
+        "name": "buf_a_pending_cars_hi",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3106": [
+      {
+        "name": "buf_c_pending_cars_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3107": [
+      {
+        "name": "buf_c_pending_cars_hi",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
@@ -3465,6 +3577,7 @@
     "17941": "Write char to centered screen row 9",
     "17944": "color cyan",
     "17954": "Approx 8 * 256 * 256 iterations (~2.6s)",
+    "17956": "Init outer loop count to 8 → 8 × 256 × 256 = ~524k iterations ≈ 2.6s delay",
     "17980": "p_tmp = $D800 + active_row*40 + active_col (Color RAM pointer for cursor cell)",
     "18006": "Jumps to a location that jumps to the next instruction",
     "18011": "Col $1B = leftmost column = backspace hotspot",
@@ -3557,10 +3670,13 @@
     "18900": "Toggle frame for active enemy car",
     "18949": "Check if slot is empty (0)",
     "18959": "Generate Random Number (uses BASIC ROM)",
+    "18964": "AND #$07 → random car type 0-7; FAC byte from first ROM_RND call",
     "18966": "Random 0-7 (enemy car type)",
     "18980": "Generate Random Number for Position",
-    "19021": "Bounds math for enemy type 0 and 1",
+    "19021": "Mask random byte to [0,$7F] range, add $67 offset → NPC X start position for car types 0/1",
     "19085": "Generate Random Number for Speed",
+    "19179": "AND #$01 → random lane direction (0=down, 1=up); FAC byte from third ROM_RND call",
+    "19186": "AND #$03 → random speed index 0-3; FAC byte from third ROM_RND call",
     "19763": "sprite index -> X reg (doubled for VIC pair offset)",
     "19779": "subtract left border ($10 px) then >> 3 = tile column -> Y",
     "19783": "subtract top border ($32 px) then >> 3 = tile row -> X",
@@ -3705,7 +3821,15 @@
     "32772": "CBM80"
   },
   "user_line_comments": {
+    "2055": "Buffered X-axis offset for player sprite (Sprite 0). Companion to player_y_offset ($0808). Only seen zeroed at init; may be reserved for horizontal collision bumps.",
+    "2056": "Buffered Y-axis offset for player sprite (Sprite 0). Applied each frame by apply_y_offset ($4400): added to $D001 then cleared to 0. Set by collision/bump logic to push the car up or down.",
     "2096": "3-digit decimal counter for crashed cars bonus score. Represents Ten-Thousands, Thousands, and Hundreds digits. Units and Tens are implied zeros.",
+    "2273": "Tens digit of 3-digit visual speedometer ($08E0=ones, $08E1=tens, $08E2=hundreds). Init=8 → display '080'. Incremented/decremented via score_digits,X loop (X=0–2).",
+    "2274": "Hundreds digit of 3-digit visual speedometer. Init=0. Clamped to 0 when speed hits max ($DE→$DC) or min ($12→$14). Direct write bypasses the indexed loop.",
+    "2594": "Low byte of 2-byte pending-NPC-car presence flag for scroll buffer A ($0A00). Non-zero = NPC cars present; blocks buffer swap in handle_scroll_direction_switch.",
+    "2595": "High byte of 2-byte pending-NPC-car presence flag for scroll buffer A ($0A00). Checked first (BNE); non-zero gates PATH A/B buffer swap.",
+    "3106": "Low byte of 2-byte pending-NPC-car presence flag for scroll buffer C ($0C00). Non-zero = NPC cars present; blocks buffer swap in handle_scroll_direction_switch when dir=$01.",
+    "3107": "High byte of 2-byte pending-NPC-car presence flag for scroll buffer C ($0C00). Checked first (BNE); non-zero gates PATH C/D buffer swap.",
     "4096": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the VIC-II video chip settings for the game.\nClears sprite coordinates, enables multi-color mode for character display,\nsets up global border and background colors, and configures sprite sizes,\npriorities, and multi-color settings. Also sets the character memory pointer.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies VIC-II registers ($D000-$D026) and Sprite 0 pointer ($07F8)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4178": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the screen display, background colors, and title/game sprites.\nThis routine runs at startup to paint the initial screen layout to Screen RAM\n($0400) and Color RAM ($D800). It establishes the sprite positions and does a\nfade-in effect by shifting bits into the sprite enable register ($D015) before\nswitching to a second screen layout ($2800).\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies Screen RAM ($0400), Color RAM ($D800), and all Sprite\n              registers in ($D000-$D015). Loops through wait delays.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4447": "dead code",
@@ -3852,7 +3976,7 @@
     "patch_brk": false,
     "platform": "Commodore 64",
     "assembler": "Tass64",
-    "max_xref_count": 5,
+    "max_xref_count": 8,
     "max_arrow_columns": 6,
     "use_illegal_opcodes": false,
     "text_char_limit": 40,
@@ -3955,11 +4079,11 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 4755,
+  "cursor_address": 14797,
   "hex_dump_cursor_address": 6096,
-  "sprites_cursor_address": 13440,
+  "sprites_cursor_address": 13120,
   "charset_cursor_address": 22784,
-  "right_pane_visible": "None",
+  "right_pane_visible": "Sprites",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
   "bitmap_cursor_address": 16384,
