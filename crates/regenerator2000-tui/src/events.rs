@@ -327,6 +327,9 @@ fn handle_vice_registers_get(
         } else if app_state.settings.platform == Platform::VIC20 {
             // VIC-I registers: $9000–$900F
             client.send_memory_get(0x9000, 0x900F, 3);
+        } else if app_state.settings.platform == Platform::PLUS4 {
+            // TED chip registers: $FF00–$FF3F
+            client.send_memory_get(0xFF00, 0xFF3F, 3);
         }
 
         client.send_memory_get(0xFFFA, 0xFFFF, 5);
