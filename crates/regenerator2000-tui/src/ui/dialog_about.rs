@@ -164,10 +164,10 @@ impl AboutDialog {
         let screen_block = Block::default().style(Style::default().bg(screen_bg));
         f.render_widget(screen_block, screen_area);
 
-        // 3. Text inside screen (1-cell padding on each side).
-        let text_x = screen_area.x + 1;
+        // 3. Text inside screen: flush left (no padding), 1-cell top/bottom gap.
+        let text_x = screen_area.x;
         let text_y = screen_area.y + 1;
-        let text_w = screen_area.width.saturating_sub(2);
+        let text_w = screen_area.width;
         let text_h = screen_area.height.saturating_sub(2);
         if text_w == 0 || text_h == 0 {
             return;
