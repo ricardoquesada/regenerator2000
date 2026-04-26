@@ -1058,6 +1058,13 @@
         "kind": "User"
       }
     ],
+    "51": [
+      {
+        "name": "joystick_state",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "8192": [
       {
         "name": "main_init",
@@ -1079,6 +1086,13 @@
         "kind": "User"
       }
     ],
+    "9196": [
+      {
+        "name": "update_tile_colours",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
     "9508": [
       {
         "name": "update_obstacle_physics",
@@ -1089,6 +1103,13 @@
     "9748": [
       {
         "name": "reset_basic_runtime_state",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "9988": [
+      {
+        "name": "read_joystick",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -1194,6 +1215,17 @@
     "9112": "Advance bike right (increment screen position)",
     "9123": "At right edge ($15)? Wrap bike back to left side ($0B/$1F)",
     "9140": "Finish-line / bike collision check (fires if both bikes at $0B simultaneously)",
+    "9196": "Y=$10: start at first tile slot in object record (word-stride loop)",
+    "9198": "Read tile type byte from object record via p24 pointer",
+    "9200": "Mask to 6-bit type index (0-63 tile types)",
+    "9203": "Fetch colour descriptor from ROM table f1E80[type]",
+    "9206": "Extract foreground colour field (bits 2-5), offset by $33 into TED palette",
+    "9211": "Write foreground colour into object record at $27+Y",
+    "9214": "Re-fetch same descriptor for background field",
+    "9217": "Extract background colour field (bits 6-7)",
+    "9219": "Write background colour into object record at $28+Y",
+    "9222": "Advance by 2 (word stride through object record)",
+    "9224": "10 entries done when Y=$14 (10 x 2-byte steps from $10)",
     "9508": "Loop over 4 obstacle slots (X=3..0)",
     "9510": "Load obstacle type/flags for this slot",
     "9514": "Slot inactive — skip to next",
@@ -1223,6 +1255,22 @@
     "9781": "Zero ZPVEC2 (temp for renumber), RESHO (expression result high byte), SRCHTK (token search key)",
     "9785": "$2A=$80: set high-bit state flag (signals BASIC engine not inside a loop)",
     "9787": "Zero OLDOV (overflow flag) and TEMPF1 (FP temporary)",
+    "9988": "Disable IRQs during keyboard matrix scan",
+    "9989": "Scan row 1: select keyboard matrix row $FA via $FD30",
+    "9997": "Y = row 1 result (directions A + fire in bit 6)",
+    "10000": "Scan row 2: select keyboard matrix row $FD via $FD30",
+    "10008": "X = row 2 result (directions B)",
+    "10011": "Re-enable IRQs -- scan complete",
+    "10012": "--- Bit remap: merge X direction bits into Y ---",
+    "10013": "X bit 4 -> if clear, clear Y bit 1",
+    "10021": "X bit 2 -> if clear, clear Y bit 0",
+    "10030": "X bit 0 -> if clear, clear Y bit 2",
+    "10039": "X bit 3 -> if clear, clear Y bit 3",
+    "10048": "--- Final assembly: combine directions + fire into a33 ---",
+    "10051": "Store direction nibble (bits 0-3)",
+    "10054": "Extract fire bit: Y bit 6 -> ASL -> bit 7 -> OR into a33",
+    "10059": "Invert direction nibble: active-low -> active-high (fire bit 7 unchanged)",
+    "10061": "Final joystick state stored in a33",
     "11788": "A=0; same value stored to both counters below",
     "11790": "Row animation counter (0-99); drives ROM tile-row selection at $1C98",
     "11792": "Column/character index (4-bit); indexes ROM char table at $1DC0",
@@ -1240,8 +1288,10 @@
     "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain entry point for Kikstart (Commodore Plus/4).\nPerforms a full cold-start initialization:\n  1. TED chip reset: colors set, audio muted, video matrix configured.\n  2. Screen RAM (4 pages) cleared; attribute RAM filled with color $39.\n  3. Game IRQ handler installed at $0314/$0315 (KERNAL shadow vector).\n  4. Track/tile color tables initialized from ROM data tables.\n  5. TED Timer 1 configured and started to drive per-frame IRQs.\n  6. IRQs enabled; falls into the raster-synced main game loop.\n\nThe main loop is 3-phase, synchronized to the TED Timer 1 IRQ (handled\nby the routine at p2118). The IRQ increments RAM_ZPVEC1 each tick:\n  Phase 1 ($01): 8 game-logic subsystem update subroutines.\n  Phase 2 ($02): 7 more update subroutines, then repeats from phase 1.\n  Phase 0 ($00): Internal raster task dispatched inside the IRQ handler.\n\nInputs:       None (cold start)\nOutputs:      None\nSide Effects: TED chip fully configured, IRQ vector patched to p2118,\n              TED Timer 1 running, game loop active indefinitely.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8472": "TED Timer 1 IRQ handler.\nFires each raster frame. Acknowledges the TED timer IRQ, increments the\n3-phase frame counter in RAM_ZPVEC1 (wraps 0→1→2→0), then dispatches\nraster state machine tasks for phase 0. Phases 1 and 2 are handled by\nthe spin-waits in the main loop (main_init). Non-timer IRQs are chained\nto the KERNAL handler at $FCC3.",
     "8964": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame update of obstacle and player bike screen positions.\nCalled every game frame (phase 1 of the IRQ-driven 3-phase main loop).\n\nGuards on a02 (game mode): only active for modes 1, 2, 5, or >=7;\nreturns immediately for menus, attract, or paused states.\n\nReads the obstacle type byte at offset $10 of the object record pointed\nto by p24 ($24/$25):\n  $FE -> clears a3B (player-active flag), calls s2694 (crash/reset)\n  $FD -> sets a31=1 (state-change signal)\n\nDecrement path (a3B=0, obstacles scrolling right->left):\n  Loops over slots X=4,3,1 (slot 2 skipped): decrements f0C07,x and\n  f0C2F,x by 1 each frame. Wraps at $0A back to $14/$28 (track boundary).\n  Calls s2190 to check if any slot crossed the finish threshold.\n\nIncrement path (a3B!=0, player in motion, even frames only):\n  Loops over slots X=1,0: increments f0C07,x and f0C2F,x. Wraps at\n  $15 back down to $0B/$1F. Calls s2E90 to check for a finish-line\n  or bike collision.\n\nInputs:  a02 (game mode), a3B (player-active flag), a31, a3C, a3F\n         (frame counter), (p24)+$10 (obstacle type), f0C07/f0C2F tables\nOutputs: f0C07,x / f0C2F,x (updated screen positions), a3B, a31\nSide Effects: May call s2694 (crash/reset), s2190 (lap check),\n              s2E90 (finish-line/collision check)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9196": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame track tile colour attribute update.\nLoops over 10 entries of the current object record (Y=$10,$12,...,$12;\nword-stride, 10 iterations until Y=$14). For each entry:\n  1. Reads the tile type byte from (p24)+Y and masks to 6 bits (type 0-63).\n  2. Looks up a colour descriptor byte from the ROM table at f1E80[type].\n  3. Splits the descriptor into two TED colour fields:\n       bits 2-5 (& $3C) + $33 -> foreground/ink colour  -> $27+Y\n       bits 6-7 (& $C0)       -> background/paper colour -> $28+Y\n  4. Writes both fields back into the object record via absolute indexed\n     addressing (@w a27,Y / @w a28,Y).\n\nThe ROM table f1E80 encodes up to 64 tile type descriptors:\n  bits 2-5: foreground colour index (offset by $33 into TED palette)\n  bits 6-7: background colour field\n  bits 0-1: used by other routines (e.g. sprite shape selection in s2410)\n\nInputs:  p24 ($24/$25) -- pointer to current object record\n         f1E80         -- ROM tile colour descriptor table (64 entries)\nOutputs: Object record bytes at $27+Y / $28+Y (Y=$10..$12) updated\n         with foreground and background TED colour attributes\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9508": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame obstacle physics update. Loops over 4 obstacle slots (X=3..0)\nand integrates velocity into position, applies boundary bounce/wrap, and\ntriggers a collision sound when a height threshold is crossed.\n\nPer-slot zero-page layout (base + X):\n  f10,x ($10+X) -- type/flags: $FF=inactive; bits 0-2=type;\n                   bit3=high-speed; bit4=sound-triggered\n  f14,x ($14+X) -- lifetime countdown\n  f18,x ($18+X) -- position high byte (integer Y)\n  f1C,x ($1C+X) -- position low byte (fractional / sub-pixel)\n  f20,x ($20+X) -- velocity (signed)\n\nLow-speed path (f10,x < $08, e.g. barrels):\n  Integrates f20 into f1C/f18 with carry. Boundary checks on f18:\n    $10-$2F -> negate velocity (bounce via s293C)\n    >=  $30 -> nudge position down then bounce\n    <   $10 -> nudge position up then bounce\n\nHigh-speed path (f10,x >= $08, e.g. tyres):\n  Adds f18 into f1C; carry propagates into f20. When (f20 & $1F)==$10\n  AND ((X XOR frame_counter) & $03)==0: arms collision sound via s2C20\n  and sets bit 4 of f10,x. Otherwise clears bit 4.\n  The frame-counter gate staggers triggers across 4 frames to prevent\n  multiple sounds firing simultaneously.\n\nInputs:  f10,x-f20,x (4 slots), a3F (frame counter)\nOutputs: f18,x (position), f1C,x (sub-pixel), f20,x (velocity),\n         f10,x (flags)\nSide Effects: May arm obstacle sound via s2C20 (JMPER, DSCPNT, a51, SIZE)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9748": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets the CBM BASIC 3.5 interpreter runtime state to a clean baseline.\nZeroes or re-initialises a suite of zero-page BASIC variables (INDEX2,\nFRESPC, SUBFLG[0-3], ZPVEC2, RESHO, SRCHTK, OLDOV, TEMPF1) and sets\nseveral unlabelled scratch bytes to fixed sentinel values. Called during\nlevel initialisation (after TED screen setup) to ensure no stale BASIC\nengine state leaks between levels.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies RAM_INDEX2, RAM_FRESPC, RAM_SUBFLG[0-3], RAM_ZPVEC2,\n              RAM_RESHO, RAM_SRCHTK, RAM_OLDOV, RAM_TEMPF1; sets $25=$2F,\n              $34=$05, $2A=$80\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9988": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nJoystick input scanner for the Plus/4.\nReads the joystick port by scanning two keyboard matrix rows via $FD30\n(keyboard latch / row select) and $FF08 (TED keyboard input register).\nJoystick signals are active-low on the hardware; this routine extracts\nindividual direction and fire bits from two matrix scans, remaps them\ninto a single byte, and inverts the direction nibble to active-high.\n\nScan 1: $FD30=$FA -> $FF08 read -> Y (directions A + fire bit 6)\nScan 2: $FD30=$FD -> $FF08 read -> X (directions B)\nBit remap: X bits are merged into Y by conditionally clearing Y bits.\nFinal: a33 = ((Y & $0F) | ((Y & $40) << 1)) XOR $0F\n\nOutput bit layout (a33):\n  Bit 0: Direction 1            Bit 4-6: Unused (0)\n  Bit 1: Direction 2            Bit 7:   Fire button\n  Bit 2: Tilt back (subtract)   (directions are active-high;\n  Bit 3: Tilt forward (add)      fire is active-high)\n\nInputs:  $FD30, $FF08 (hardware keyboard matrix registers)\nOutputs: a33 ($33) -- normalized joystick state byte\nSide Effects: Briefly disables IRQs (SEI/CLI) during hardware scan\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "11788": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets the tile/character animation counters to zero.\nDespite their BASIC-flavoured names, RAM_OLDOV and RAM_TEMPF1 are both\ndisplay-engine state variables: OLDOV is a row animation counter (0-99)\nthat drives ROM tile-row selection from $1C98, and TEMPF1 is a 4-bit\ncolumn/character index (inc/dec'd via RAM_FRFTOP bits 2-3) that indexes\nthe ROM character table at $1DC0. Clearing both restarts the animation\nfrom frame zero. Called during level initialisation and object resets.\n\nInputs:  None\nOutputs: None\nSide Effects: RAM_OLDOV ($56) <- 0 (row animation counter reset)\n              RAM_TEMPF1 ($57) <- 0 (column/character index reset)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "11920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFinish-line / bike-coincidence detector.\nCalled every frame at the end of the bike increment path (both bikes moving).\n\nFirst arms the finish-line sound effect via s2BA0 (which only triggers if\nno sound is already playing — JMPER=$00). Then checks whether both bike\nscreen-position slots have simultaneously reached the left-edge wrap value\n$0B (bike 0 at f0C07, bike 1 at $0C08). If either bike has not yet\narrived, the routine returns without further action.\n\nWhen both bikes coincide at $0B:\n  - Both position slots are reset to the right-edge start value $14\n    (character table) and $28 (secondary position table), restarting\n    the next lap from the beginning of the track.\n  - The finish-line sound (already armed above) continues to play.\n\nInputs:  f0C07 (bike 0 screen pos), $0C08 (bike 1 screen pos)\nOutputs: f0C07/$0C08 <- $14, f0C2F/$0C30 <- $28 (on coincidence only)\nSide Effects: Arms sound via s2BA0 (sets JMPER, DSCPNT, a51, SIZE)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
   },
@@ -1277,14 +1327,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 11352,
-  "hex_dump_cursor_address": 11344,
+  "cursor_address": 9988,
+  "hex_dump_cursor_address": 9984,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 4096,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],
