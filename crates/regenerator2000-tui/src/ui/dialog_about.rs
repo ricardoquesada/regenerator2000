@@ -22,7 +22,8 @@ const EASTER_EGG_CLICKS: u8 = 5;
 const TYPED_TEXT: &str = "SYS 64738";
 
 /// Delay before the first character starts appearing.
-const TYPING_DELAY: Duration = Duration::from_secs(2);
+/// Sized to exactly 3 full cursor blink cycles (6 × BLINK_PERIOD).
+const TYPING_DELAY: Duration = Duration::from_millis(2400);
 
 /// Delay between each typed character.
 const CHAR_INTERVAL: Duration = Duration::from_millis(240);
@@ -107,11 +108,6 @@ impl AboutDialog {
         (chars as usize).min(TYPED_TEXT.len())
     }
 
-    /// Whether all characters have been typed.
-    fn typing_done(&self) -> bool {
-        self.visible_chars() >= TYPED_TEXT.len()
-    }
-
     /// Whether the easter egg is active but the close delay has not yet expired.
     fn egg_alive(&self) -> bool {
         self.egg_start.is_some() && !self.should_close_now()
@@ -185,7 +181,7 @@ impl AboutDialog {
         let n = self.visible_chars();
         let typed = &TYPED_TEXT[..n];
         let mut spans = vec![Span::styled(typed.to_string(), base_style)];
-        if !self.typing_done() || self.cursor_visible() {
+        if self.cursor_visible() {
             spans.push(Span::styled(
                 " ",
                 base_style.add_modifier(Modifier::REVERSED),
@@ -334,6 +330,14 @@ impl Widget for AboutDialog {
             }
         }
 
+        WidgetResult::Handled
+    }
+
+    fn handle_tick(&mut self, _app_state: &mut AppState, ui_state: &mut UIState) -> WidgetResult {
+        if self.should_close_now() {
+            ui_state.set_status_message("Ready");
+            return WidgetResult::Close;
+        }
         WidgetResult::Handled
     }
 }

@@ -31,6 +31,13 @@ pub trait Widget {
     ) -> WidgetResult {
         WidgetResult::Ignored
     }
+
+    /// Called on every [`AppEvent::Tick`].  Dialogs that need to auto-close
+    /// based on a timer should override this and return [`WidgetResult::Close`]
+    /// when their timer expires.  The default implementation is a no-op.
+    fn handle_tick(&mut self, _app_state: &mut AppState, _ui_state: &mut UIState) -> WidgetResult {
+        WidgetResult::Handled
+    }
 }
 
 #[must_use]

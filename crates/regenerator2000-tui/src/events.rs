@@ -75,6 +75,18 @@ pub fn run_app<B: Backend>(
             AppEvent::Tick => {
                 // Drive time-based animations (e.g. easter egg typing effect).
                 should_render = true;
+                // Give the active dialog a chance to auto-close on a timer.
+                if let Some(mut dialog) = ui_state.active_dialog.take() {
+                    let result = dialog.handle_tick(&mut core.state, &mut ui_state);
+                    if matches!(result, crate::ui::widget::WidgetResult::Close) {
+                        // Dialog requested close — leave active_dialog as None.
+                        if !ui_state.dialog_queue.is_empty() {
+                            ui_state.active_dialog = Some(ui_state.dialog_queue.remove(0));
+                        }
+                    } else {
+                        ui_state.active_dialog = Some(dialog);
+                    }
+                }
             }
             AppEvent::UpdateAvailable(version) => {
                 ui_state.new_version_available = Some(version);
