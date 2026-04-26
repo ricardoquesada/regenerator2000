@@ -38,12 +38,8 @@ const TICK_INTERVAL: Duration = Duration::from_millis(80);
 
 // ── Static C64 header lines (displayed immediately) ───────────────────────────
 
-const C64_HEADER: &str = "\
-    **** COMMODORE 64 BASIC V2 ****\n\
-\n\
- 64K RAM SYSTEM  38911 BASIC BYTES FREE\n\
-\n\
-READY.";
+const C64_HEADER: &str =
+    "    **** COMMODORE 64 BASIC V2 ****\n\n 64K RAM SYSTEM  38911 BASIC BYTES FREE\n\nREADY.";
 
 // ── Widget ────────────────────────────────────────────────────────────────────
 
