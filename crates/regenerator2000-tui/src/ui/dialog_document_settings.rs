@@ -88,27 +88,29 @@ impl Widget for DocumentSettingsDialog {
         let settings = &app_state.settings;
 
         // Helper for checkboxes
-        let checkbox = |label: &str, checked: bool, selected: bool, disabled: bool| {
-            let check_char = if checked { "[X]" } else { "[ ]" };
-            let style = if disabled {
-                if selected {
+        let checkbox =
+            |indent: usize, label: &str, checked: bool, selected: bool, disabled: bool| {
+                let check_char = if checked { "[X]" } else { "[ ]" };
+                let prefix = " ".repeat(indent);
+                let style = if disabled {
+                    if selected {
+                        Style::default()
+                            .fg(theme.menu_disabled_fg)
+                            .add_modifier(Modifier::BOLD | Modifier::ITALIC) // Selected but disabled
+                    } else {
+                        Style::default()
+                            .fg(theme.menu_disabled_fg)
+                            .add_modifier(Modifier::ITALIC) // Disabled and Italic
+                    }
+                } else if selected {
                     Style::default()
-                        .fg(theme.menu_disabled_fg)
-                        .add_modifier(Modifier::BOLD | Modifier::ITALIC) // Selected but disabled
+                        .fg(theme.highlight_fg)
+                        .add_modifier(Modifier::BOLD)
                 } else {
-                    Style::default()
-                        .fg(theme.menu_disabled_fg)
-                        .add_modifier(Modifier::ITALIC) // Disabled and Italic
-                }
-            } else if selected {
-                Style::default()
-                    .fg(theme.highlight_fg)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(theme.dialog_fg)
+                    Style::default().fg(theme.dialog_fg)
+                };
+                Span::styled(format!("{prefix}{check_char} {label}"), style)
             };
-            Span::styled(format!("{check_char} {label}"), style)
-        };
 
         let patch_brk_disabled = settings.brk_single_byte
             || settings.assembler == crate::state::Assembler::Kick
@@ -117,36 +119,42 @@ impl Widget for DocumentSettingsDialog {
         // Base items always present
         let items = vec![
             checkbox(
+                0,
                 "Display External Labels at top",
                 settings.all_labels,
                 self.selected_index == 0,
                 false,
             ),
             checkbox(
+                0,
                 "Preserve long bytes (@w, +2, .abs, etc)",
                 settings.preserve_long_bytes,
                 self.selected_index == 1,
                 false,
             ),
             checkbox(
+                0,
                 "BRK single byte",
                 settings.brk_single_byte,
                 self.selected_index == 2,
                 false,
             ),
             checkbox(
+                0,
                 "Patch BRK",
                 settings.patch_brk,
                 self.selected_index == 3,
                 patch_brk_disabled,
             ),
             checkbox(
+                0,
                 "Use Illegal Opcodes",
                 settings.use_illegal_opcodes,
                 self.selected_index == 4,
                 false,
             ),
             checkbox(
+                0,
                 "Auto-generate Labels & Cross-refs",
                 settings.auto_analyze,
                 self.selected_index == 5,
@@ -180,16 +188,17 @@ impl Widget for DocumentSettingsDialog {
                 .copied()
                 .unwrap_or(feature.default);
             dynamic_items.push(checkbox(
-                &format!("  {}", feature.name),
+                2,
+                &feature.name,
                 is_enabled,
                 self.selected_index == idx,
                 false,
             ));
         }
 
-        // System Comments checkbox index (after dynamic label items)
-        let idx_system_comments = dynamic_start_idx + dynamic_items.len();
-        let idx_exclude_comments = idx_system_comments + usize::from(system_config.has_comments);
+        // Exclude and Comments checkbox indices (after dynamic label items)
+        let idx_exclude_comments = dynamic_start_idx + dynamic_items.len();
+        let idx_system_comments = idx_exclude_comments + usize::from(system_config.has_excludes);
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -207,9 +216,9 @@ impl Widget for DocumentSettingsDialog {
                 Constraint::Length(2),                      // Platform
                 Constraint::Length(u16::from(!dynamic_items.is_empty())), // System Labels Header
                 Constraint::Length(dynamic_items.len() as u16), // Dynamic items
-                Constraint::Length(u16::from(system_config.has_comments)), // System Comments Header
-                Constraint::Length(u16::from(system_config.has_comments)), // System Comments checkbox
+                Constraint::Length(0),                      // System Comments Header (Removed)
                 Constraint::Length(u16::from(system_config.has_excludes)), // Exclude comments checkbox
+                Constraint::Length(u16::from(system_config.has_comments)), // System Comments checkbox
             ])
             .split(inner);
 
@@ -249,38 +258,32 @@ impl Widget for DocumentSettingsDialog {
             }
         }
 
+        // Render Exclude Labels checkbox
+        if system_config.has_excludes {
+            let exclude_checkbox = checkbox(
+                0,
+                "Exclude well-known addresses from symbolic analysis",
+                settings.exclude_well_known_labels,
+                self.selected_index == idx_exclude_comments,
+                false,
+            );
+            f.render_widget(
+                Paragraph::new(exclude_checkbox),
+                Rect::new(layout[14].x + 2, layout[14].y, layout[14].width - 4, 1),
+            );
+        }
+
         // Render System Comments section
         if system_config.has_comments {
-            f.render_widget(
-                Paragraph::new(Span::styled(
-                    "System Comments:",
-                    Style::default().add_modifier(Modifier::BOLD),
-                )),
-                Rect::new(layout[13].x + 2, layout[13].y, layout[13].width - 4, 1),
-            );
-
             let comments_checkbox = checkbox(
-                "  Show system comments",
+                0,
+                "Show system comments",
                 settings.show_system_comments,
                 self.selected_index == idx_system_comments,
                 false,
             );
             f.render_widget(
                 Paragraph::new(comments_checkbox),
-                Rect::new(layout[14].x + 2, layout[14].y, layout[14].width - 4, 1),
-            );
-        }
-
-        // Render Exclude Comments checkbox
-        if system_config.has_excludes {
-            let exclude_checkbox = checkbox(
-                "  Exclude comments from well-known addresses",
-                settings.exclude_comments_from_well_known,
-                self.selected_index == idx_exclude_comments,
-                false,
-            );
-            f.render_widget(
-                Paragraph::new(exclude_checkbox),
                 Rect::new(layout[15].x + 2, layout[15].y, layout[15].width - 4, 1),
             );
         }
@@ -657,13 +660,13 @@ impl Widget for DocumentSettingsDialog {
         let idx_assembler = base_items_count + 7;
         let idx_platform = base_items_count + 8;
         let dynamic_start_idx = idx_platform + 1;
-        let idx_system_comments = dynamic_start_idx + dynamic_items_count;
-        let idx_exclude_comments = idx_system_comments + usize::from(system_config.has_comments);
+        let idx_exclude_comments = dynamic_start_idx + dynamic_items_count;
+        let idx_system_comments = idx_exclude_comments + usize::from(system_config.has_excludes);
 
-        let total_items = if system_config.has_excludes {
-            idx_exclude_comments + 1
-        } else if system_config.has_comments {
+        let total_items = if system_config.has_comments {
             idx_system_comments + 1
+        } else if system_config.has_excludes {
+            idx_exclude_comments + 1
         } else {
             dynamic_start_idx + dynamic_items_count
         };
@@ -1089,8 +1092,8 @@ impl Widget for DocumentSettingsDialog {
                             app_state.disassemble();
                         }
                         idx if idx == idx_exclude_comments && system_config.has_excludes => {
-                            app_state.settings.exclude_comments_from_well_known =
-                                !app_state.settings.exclude_comments_from_well_known;
+                            app_state.settings.exclude_well_known_labels =
+                                !app_state.settings.exclude_well_known_labels;
                             // Reload system assets and re-disassemble for immediate feedback
                             app_state.load_system_assets();
                             app_state.disassemble();

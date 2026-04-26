@@ -37,8 +37,8 @@ pub struct DocumentSettings {
     pub show_system_comments: bool, // default true
     #[serde(default = "default_fill_run_threshold")]
     pub fill_run_threshold: usize, // default 8 (0 = disabled)
-    #[serde(default)]
-    pub exclude_comments_from_well_known: bool, // default false
+    #[serde(default = "default_true", alias = "exclude_comments_from_well_known")]
+    pub exclude_well_known_labels: bool, // default true
 }
 
 fn default_text_char_limit() -> usize {
@@ -89,7 +89,7 @@ impl Default for DocumentSettings {
             auto_analyze: true,
             show_system_comments: true,
             fill_run_threshold: 8,
-            exclude_comments_from_well_known: false,
+            exclude_well_known_labels: true,
         }
     }
 }

@@ -881,8 +881,8 @@
         "FEE5": "data direction register"
     },
     "excluded": [
-        "fc00-fd30",
-        "FF0E-FF80",
+        "FC00-FD30",
+        "FF00-FF3F",
         "FF81",
         "FF84",
         "FF87",

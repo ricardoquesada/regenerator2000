@@ -128,26 +128,31 @@ impl AppState {
 
         // Load excludes
         let excludes = crate::assets::load_excludes(&self.settings.platform);
-        self.excluded_addresses = excludes.iter().map(|&a| Addr(a)).collect();
+
+        if self.settings.exclude_well_known_labels {
+            self.excluded_addresses = excludes.iter().map(|&a| Addr(a)).collect();
+        } else {
+            self.excluded_addresses.clear();
+        }
 
         // Load comments (conditionally)
         if self.settings.show_system_comments {
-            let mut comments = crate::assets::load_comments(&self.settings.platform);
-
-            if self.settings.exclude_comments_from_well_known {
-                comments.retain(|k, _| !excludes.contains(k));
-            }
-
+            let comments = crate::assets::load_comments(&self.settings.platform);
             self.system_comments = comments.into_iter().map(|(k, v)| (Addr(k), v)).collect();
         } else {
             self.system_comments.clear();
         }
 
         // Load labels
-        let system_labels = crate::assets::load_labels(
+        let mut system_labels = crate::assets::load_labels(
             &self.settings.platform,
             Some(&self.settings.enabled_features),
         );
+
+        if self.settings.exclude_well_known_labels {
+            system_labels.retain(|(k, _)| !excludes.contains(k));
+        }
+
         for (addr, label) in system_labels {
             self.labels.entry(Addr(addr)).or_default().push(label);
         }
@@ -320,19 +325,18 @@ mod tests {
     }
 
     #[test]
-    fn test_load_system_assets_respects_exclude_comments() {
+    fn test_load_system_assets_respects_exclude_labels() {
         let mut app_state = AppState::new();
         app_state.settings.platform = crate::state::Platform::from("Commodore 64".to_string());
-        app_state.settings.show_system_comments = true;
-        app_state.settings.exclude_comments_from_well_known = true;
+        app_state.settings.exclude_well_known_labels = true;
 
         app_state.load_system_assets();
 
         let d020 = Addr(0xD020);
         assert!(app_state.excluded_addresses.contains(&d020));
         assert!(
-            !app_state.system_comments.contains_key(&d020),
-            "Comment for D020 should be excluded"
+            !app_state.labels.contains_key(&d020),
+            "Label for D020 should be excluded"
         );
     }
 }

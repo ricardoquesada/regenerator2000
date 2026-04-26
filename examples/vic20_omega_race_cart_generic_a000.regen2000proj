@@ -2911,15 +2911,15 @@
     "bytes_per_line": 8,
     "enabled_features": {
       "KERNAL": true,
-      "BASIC": false,
       "Lower Page": false,
+      "BASIC": false,
       "SYSTEM": false
     },
     "description": "Omega Race VIC20 video game. Original cartridge version",
     "auto_analyze": true,
     "show_system_comments": true,
     "fill_run_threshold": 8,
-    "exclude_comments_from_well_known": false
+    "exclude_well_known_labels": true
   },
   "immediate_value_formats": {
     "41147": {
@@ -3013,7 +3013,7 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 46042,
+  "cursor_address": 46047,
   "hex_dump_cursor_address": 41040,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,

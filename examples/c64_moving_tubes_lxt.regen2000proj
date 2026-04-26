@@ -2104,7 +2104,7 @@
     "auto_analyze": true,
     "show_system_comments": true,
     "fill_run_threshold": 8,
-    "exclude_comments_from_well_known": false
+    "exclude_well_known_labels": true
   },
   "immediate_value_formats": {
     "3723": "Decimal",
@@ -2214,14 +2214,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 4166,
-  "hex_dump_cursor_address": 4160,
+  "cursor_address": 4128,
+  "hex_dump_cursor_address": 4128,
   "sprites_cursor_address": 8384,
   "charset_cursor_address": 10240,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
