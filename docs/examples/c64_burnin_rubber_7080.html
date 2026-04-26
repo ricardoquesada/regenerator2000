@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Regenerator 2000 Disassembly</title>
+<style>
+:root {
+  --bg-color: #ffffff;
+  --text-color: #24292f;
+  --address-color: #57606a;
+  --bytes-color: #6e7781;
+  --mnemonic-color: #cf222e;
+  --operand-color: #0550ae;
+  --comment-color: #6e7781;
+  --label-color: #953800;
+  --link-color: #0969da;
+  --mid-label-color: #8250df;
+  --highlight-bg: rgba(84, 174, 255, 0.3);
+  --highlight-border: #0969da;
+}
+[data-theme="dark"] {
+  --bg-color: #0d1117;
+  --text-color: #c9d1d9;
+  --address-color: #8b949e;
+  --bytes-color: #6e7681;
+  --mnemonic-color: #ff7b72;
+  --operand-color: #79c0ff;
+  --comment-color: #8b949e;
+  --label-color: #ffa657;
+  --link-color: #58a6ff;
+  --mid-label-color: #d2a8ff;
+  --highlight-bg: rgba(56, 139, 253, 0.15);
+  --highlight-border: #1f6feb;
+}
+body { font-family: ui-monospace, SFMono-Regular, 'SF Pro Mono', Menlo, Consolas, 'Liberation Mono', monospace; font-size: 12px; line-height: 1.45; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 20px; }
+table { border-collapse: collapse; width: 100%; max-width: 1200px; margin: 0 auto; }
+td { padding: 0px 8px; line-height: 1.4; vertical-align: top; white-space: pre; }
+a { color: var(--link-color); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.address { color: var(--address-color); text-align: left; }
+.address a { color: inherit; }
+.bytes { color: var(--bytes-color); text-align: left; }
+.mnemonic { color: var(--mnemonic-color); text-align: left; }
+.operand { color: var(--operand-color); text-align: left; }
+.comment { color: var(--comment-color); }
+.label { color: var(--label-color); font-weight: bold; }
+.mid-label { color: var(--mid-label-color); }
+.separator-row { height: 15px; }
+.code-cell { display: flex; align-items: top; padding: 0 !important; }
+.code-cell .inline-label { width: 20ch; flex-shrink: 0; color: var(--label-color); font-weight: bold; }
+.code-cell .mnemonic { min-width: 6ch; flex-shrink: 0; }
+.code-cell .operand { min-width: 15ch; flex-shrink: 0; padding-left: 1ch; }
+.code-cell .comment { padding: 0 8px; margin-left: 4ch; }
+.code-cell.assignment { padding: 0 8px !important; }
+.code-cell.assignment .label { min-width: 40ch; flex-shrink: 0; }
+.code-cell.block-header .comment { margin-left: 0ch; }
+.mid-label-def { display: inline-block; min-width: 60ch; }
+tr:target td { background-color: var(--highlight-bg); }
+tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
+#theme-toggle { position: fixed; top: 20px; right: 20px; padding: 8px 16px; background-color: var(--text-color); color: var(--bg-color); border: 1px solid var(--text-color); cursor: pointer; font-family: inherit; font-weight: bold; }
+</style>
+</head>
+<body>
+<button id="theme-toggle">Toggle Theme</button>
+<table>
+<tr id="L7080"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">sfx_voice_1_state = $7080 </span><span class="comment">; x-ref: <a href="#L1279">$1279</a>, <a href="#L539D">$539D</a>, <a href="#L53B2">$53B2</a>, <a href="#L53DA">$53DA</a>, <a href="#L53F5">$53F5</a></span></td></tr>
+<tr id="L7081"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">sfx_voice_1_freq_lo = $7081 </span><span class="comment">; x-ref: <a href="#L127C">$127C</a>, <a href="#L53A2">$53A2</a>, <a href="#L53C5">$53C5</a>, <a href="#L53EA">$53EA</a></span></td></tr>
+<tr id="L7082"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">sfx_voice_1_freq_mod = $7082 </span><span class="comment">; x-ref: <a href="#L127F">$127F</a>, <a href="#L53B6">$53B6</a>, <a href="#L53C9">$53C9</a>, <a href="#L53CE">$53CE</a>, <a href="#L53E2">$53E2</a>, <a href="#L53E5">$53E5</a></span></td></tr>
+<tr id="L7400"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">f7400 = $7400 </span><span class="comment">; x-ref: <a href="#L11AE">$11AE</a>, <a href="#L1B9D">$1B9D</a>, <a href="#L1C71">$1C71</a>, <a href="#L1C8D">$1C8D</a>, <a href="#L1CC2">$1CC2</a></span></td></tr>
+<tr id="L7408"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">f7408 = $7408 </span><span class="comment">; x-ref: <a href="#L1BBB">$1BBB</a>, <a href="#L1C5D">$1C5D</a>, <a href="#L1C74">$1C74</a>, <a href="#L1CCB">$1CCB</a></span></td></tr>
+<tr id="L7410"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">f7410 = $7410 </span><span class="comment">; x-ref: <a href="#L1BD6">$1BD6</a>, <a href="#L1C49">$1C49</a>, <a href="#L1C60">$1C60</a>, <a href="#L1CD4">$1CD4</a></span></td></tr>
+<tr id="L7418"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">f7418 = $7418 </span><span class="comment">; x-ref: <a href="#L1BF1">$1BF1</a>, <a href="#L1C35">$1C35</a>, <a href="#L1C4C">$1C4C</a>, <a href="#L1CDD">$1CDD</a></span></td></tr>
+<tr id="L7420"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">f7420 = $7420 </span><span class="comment">; x-ref: <a href="#L1C0C">$1C0C</a>, <a href="#L1C38">$1C38</a>, <a href="#L1CE6">$1CE6</a></span></td></tr>
+<tr id="L7430"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">f7430 = $7430 </span><span class="comment">; x-ref: <a href="#L11A9">$11A9</a>, <a href="#L1C92">$1C92</a>, <a href="#L1C9D">$1C9D</a>, <a href="#L1D40">$1D40</a>, <a href="#L1F0E">$1F0E</a>, <a href="#L4682">$4682</a></span></td></tr>
+<tr id="L7438"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">f7438 = $7438 </span><span class="comment">; x-ref: <a href="#L1CA3">$1CA3</a>, <a href="#L1D2C">$1D2C</a>, <a href="#L1D43">$1D43</a>, <a href="#L1F2D">$1F2D</a>, <a href="#L4692">$4692</a></span></td></tr>
+<tr id="L7440"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">f7440 = $7440 </span><span class="comment">; x-ref: <a href="#L1CA9">$1CA9</a>, <a href="#L1D18">$1D18</a>, <a href="#L1D2F">$1D2F</a>, <a href="#L1F4C">$1F4C</a>, <a href="#L46A2">$46A2</a></span></td></tr>
+<tr id="L7448"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">f7448 = $7448 </span><span class="comment">; x-ref: <a href="#L1CAF">$1CAF</a>, <a href="#L1D04">$1D04</a>, <a href="#L1D1B">$1D1B</a>, <a href="#L1F6B">$1F6B</a>, <a href="#L46B2">$46B2</a></span></td></tr>
+<tr id="L7450"><td colspan="2"></td><td colspan="3" class="code-cell assignment"><span class="label">f7450 = $7450 </span><span class="comment">; x-ref: <a href="#L1CB5">$1CB5</a>, <a href="#L1D07">$1D07</a>, <a href="#L1F86">$1F86</a>, <a href="#L46BE">$46BE</a></span></td></tr>
+</table>
+<script>
+const toggleBtn = document.getElementById('theme-toggle');
+const urlParams = new URLSearchParams(window.location.search);
+let currentTheme = urlParams.get('theme') || 'dark';
+
+function updateLinks() {
+  document.querySelectorAll('a').forEach(link => {
+    let href = link.getAttribute('href');
+    if (href && !href.startsWith('#')) {
+      let parts = href.split('?');
+      let base = parts[0];
+      let params = new URLSearchParams(parts[1] || '');
+      params.set('theme', currentTheme);
+      link.setAttribute('href', base + '?' + params.toString());
+    }
+  });
+}
+
+document.documentElement.setAttribute('data-theme', currentTheme);
+toggleBtn.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+updateLinks();
+
+toggleBtn.addEventListener('click', () => {
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  toggleBtn.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+  updateLinks();
+
+  const newUrl = new URL(window.location.href);
+  newUrl.searchParams.set('theme', currentTheme);
+  window.history.pushState({}, '', newUrl);
+});
+</script>
+</body>
+</html>

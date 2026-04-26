@@ -2917,7 +2917,7 @@
     },
     "description": "Omega Race VIC20 video game. Original cartridge version",
     "auto_analyze": true,
-    "show_system_comments": true,
+    "show_system_comments": false,
     "fill_run_threshold": 8,
     "exclude_well_known_labels": true
   },
