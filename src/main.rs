@@ -46,6 +46,10 @@ struct Cli {
     #[arg(long = "export_asm", value_name = "PATH")]
     export_asm: Option<String>,
 
+    /// Export HTML to the specified file (after analysis/import)
+    #[arg(long = "export_html", value_name = "PATH")]
+    export_html: Option<String>,
+
     /// Override assembler format (64tass, acme, ca65, kick)
     #[arg(long, value_name = "NAME")]
     assembler: Option<String>,
@@ -292,6 +296,24 @@ fn export_assembly(app_state: &AppState, path_str: String, headless: bool, mcp_s
         }
         Err(e) => {
             eprintln!("Error exporting assembly: {e}");
+            if headless {
+                std::process::exit(1);
+            }
+        }
+    }
+}
+
+/// Export HTML from `app_state` to a file.
+fn export_html(app_state: &AppState, path_str: String, headless: bool, mcp_server: bool) {
+    let path = PathBuf::from(path_str);
+    match regenerator2000_core::exporter::export_html(app_state, &path) {
+        Ok(()) => {
+            if headless && !mcp_server {
+                println!("HTML exported to {path:?}");
+            }
+        }
+        Err(e) => {
+            eprintln!("Error exporting HTML: {e}");
             if headless {
                 std::process::exit(1);
             }
@@ -653,8 +675,15 @@ fn main() -> Result<()> {
     let labels_to_import = cli.import_lbl;
     let export_lbl_path = cli.export_lbl;
     let export_asm_path = cli.export_asm;
+    let export_html_path = cli.export_html;
     let assembler_override = cli.assembler;
     let verify = cli.verify;
+
+    if cli.headless && cli.mcp_server {
+        eprintln!("Error: The --headless and --mcp-server options are mutually exclusive.");
+        std::process::exit(1);
+    }
+
     let mcp_server_stdio = cli.mcp_server_stdio;
     let headless = cli.headless || cli.verify || cli.mcp_server_stdio;
     let mcp_server = cli.mcp_server || cli.mcp_server_stdio;
@@ -734,7 +763,12 @@ fn main() -> Result<()> {
         export_assembly(&core.state, path_str, headless, mcp_server);
     }
 
-    // 6. Verify roundtrip (export → assemble → diff)
+    // 6 Export HTML
+    if let Some(path_str) = export_html_path {
+        export_html(&core.state, path_str, headless, mcp_server);
+    }
+
+    // 7. Verify roundtrip (export → assemble → diff)
     if verify {
         return run_verify(&core.state);
     }

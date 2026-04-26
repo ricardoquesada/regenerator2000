@@ -286,8 +286,11 @@ assemblers.
 For scripting and automation, you can run Regenerator 2000 without the TUI:
 
 ```bash
-# Load, auto-analyze, and export — all from the command line
-regenerator2000 --headless --export_asm output.asm my_game.prg
+# Export to ASM:
+regenerator2000 --headless --export_asm output.asm my_game.regen2000proj
+
+# Export to HTML:
+regenerator2000 --headless --export_html output.html my_game.regen2000proj
 
 # Override the assembler format (64tass, acme, ca65, kick)
 regenerator2000 --headless --assembler acme --export_asm output.asm my_game.regen2000proj

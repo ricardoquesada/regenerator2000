@@ -272,7 +272,8 @@ See [Assemblers](assemblers.md) for detailed command lines and configuration.
 You can also export from the command line:
 
 ```bash
-regenerator2000 --headless --export_asm output.asm my_file.prg
+# Export to ASM:
+regenerator2000 --headless --export_asm output.asm my_file.regen2000proj
 
 # Override assembler format:
 regenerator2000 --headless --assembler acme --export_asm output.asm my_file.regen2000proj

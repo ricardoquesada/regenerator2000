@@ -129,6 +129,7 @@ regenerator2000 [OPTIONS] [path/to/file.prg]
 -   `--import_lbl <PATH>`: Import VICE labels from the specified file
 -   `--export_lbl <PATH>`: Export labels to the specified file (after analysis/import)
 -   `--export_asm <PATH>`: Export assembly to the specified file (after analysis/import)
+-   `--export_html <PATH>`: Export HTML to the specified file (after analysis/import)
 -   `--assembler <NAME>`: Override the assembler format for export. Valid values: `64tass`, `acme`, `ca65`, `kick`
 -   `--headless`: Run in headless mode (no TUI), useful for batch processing
 -   `--verify`: Verify export roundtrip (export → assemble → diff) for all assemblers. Implies `--headless`
