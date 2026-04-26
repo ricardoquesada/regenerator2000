@@ -995,6 +995,69 @@
     }
   ],
   "labels": {
+    "2": [
+      {
+        "name": "game_mode",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3": [
+      {
+        "name": "frame_phase",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "4": [
+      {
+        "name": "raster_split_a",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "5": [
+      {
+        "name": "raster_split_b",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "6": [
+      {
+        "name": "raster_target",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "16": [
+      {
+        "name": "obstacle_flags",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "20": [
+      {
+        "name": "obstacle_life",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "24": [
+      {
+        "name": "obstacle_pos_hi",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "28": [
+      {
+        "name": "obstacle_pos_lo",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
     "8192": [
       {
         "name": "main_init",
@@ -1006,6 +1069,41 @@
       {
         "name": "irq_handler",
         "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "8964": [
+      {
+        "name": "update_obstacle_positions",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "9508": [
+      {
+        "name": "update_obstacle_physics",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "9748": [
+      {
+        "name": "reset_basic_runtime_state",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "11788": [
+      {
+        "name": "reset_display_counters",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "11920": [
+      {
+        "name": "check_finish_line",
+        "label_type": "Subroutine",
         "kind": "User"
       }
     ]
@@ -1068,29 +1166,105 @@
     "8492": "Wrap counter at 3",
     "8502": "Phase 0: dispatch raster task A",
     "8506": "Phase 1: dispatch raster task B",
-    "8510": "Phase 2: dispatch raster task C"
+    "8510": "Phase 2: dispatch raster task C",
+    "8964": "Load game mode byte",
+    "8966": "Mode 1 -> active",
+    "8970": "Mode 2 -> active",
+    "8974": "Mode 5 -> active",
+    "8978": "Mode >=7 -> active; all others fall through to RTS",
+    "8980": "Inactive mode — skip all updates",
+    "8984": "Y=$10: offset to obstacle type byte in object record",
+    "8986": "Read obstacle type via p24 pointer (indirect indexed)",
+    "8988": "$FE = sentinel: clear player-active flag and call crash/reset handler",
+    "8992": "Clear a3B: mark player as inactive (obstacle-scroll mode)",
+    "8998": "$FD = sentinel: signal state-change (set a31=1)",
+    "9002": "Set state-change flag",
+    "9006": "a31=0 -> decrement path (obstacles scrolling); else increment path",
+    "9016": "Set a3B=$FF (player active) and call crash/reset handler",
+    "9027": "Decrement path: start at slot X=4, work down to X=0 (skip slot 2)",
+    "9029": "Skip slot 2 (player slot)",
+    "9033": "Scroll obstacle left (decrement screen X position)",
+    "9036": "Scroll second position table in step",
+    "9042": "At left edge ($0A)? Wrap obstacle back to right side ($14/$28)",
+    "9099": "Lap/finish threshold check across all active slots",
+    "9102": "Only run increment path on even frames (bit 0 of frame counter)",
+    "9106": "Secondary counter zero -> skip increment this frame",
+    "9108": "Decrement secondary counter",
+    "9110": "Increment path: slots X=1,0 (player bikes)",
+    "9112": "Advance bike right (increment screen position)",
+    "9123": "At right edge ($15)? Wrap bike back to left side ($0B/$1F)",
+    "9140": "Finish-line / bike collision check (fires if both bikes at $0B simultaneously)",
+    "9508": "Loop over 4 obstacle slots (X=3..0)",
+    "9510": "Load obstacle type/flags for this slot",
+    "9514": "Slot inactive — skip to next",
+    "9516": "type >= $08 -> high-speed path (tyres etc.)",
+    "9520": "Load velocity; negative -> pre-decrement integer position for signed carry",
+    "9524": "Pre-decrement integer pos to handle negative velocity carry correctly",
+    "9526": "Integrate: fractional pos += velocity",
+    "9533": "Propagate fractional carry into integer position",
+    "9539": "Below upper boundary ($10)? -> nudge up path",
+    "9543": "Between $10-$2F -> bounce (negate velocity)",
+    "9547": "Above ceiling ($30): nudge position down, then bounce",
+    "9551": "Below floor ($10): nudge position up",
+    "9553": "Negate velocity (bounce)",
+    "9560": "--- High-speed path (f10,x >= $08, e.g. tyres) ---",
+    "9563": "Accumulator += integer position as velocity step; carry into f20",
+    "9571": "Check low 5 bits of velocity == $10 (mid-range threshold)",
+    "9577": "Gate: (slot XOR frame_counter) & $03 == 0 -> only 1 in 4 frames per slot",
+    "9586": "Arm collision sound + set bit 4 in f10,x (sound-triggered flag)",
+    "9594": "Not at threshold or wrong frame: clear bit 4 (reset sound-triggered flag)",
+    "9600": "Next slot; loop until X < 0",
+    "9748": "Clear INDEX2 (utility pointer used by BASIC string/array ops)",
+    "9754": "ZP scratch $25 = $2F (BASIC engine internal field)",
+    "9758": "ZP scratch $34 = 5 (BASIC engine internal field)",
+    "9762": "FRESPC=$FF: mark string space as invalid/unallocated",
+    "9764": "X=3: fill SUBFLG[0..3] with $FF (disable subscript/user-fn flags)",
+    "9768": "SUBFLG[X] = $FF; repeat for X=3,2,1,0",
+    "9781": "Zero ZPVEC2 (temp for renumber), RESHO (expression result high byte), SRCHTK (token search key)",
+    "9785": "$2A=$80: set high-bit state flag (signals BASIC engine not inside a loop)",
+    "9787": "Zero OLDOV (overflow flag) and TEMPF1 (FP temporary)",
+    "11788": "A=0; same value stored to both counters below",
+    "11790": "Row animation counter (0-99); drives ROM tile-row selection at $1C98",
+    "11792": "Column/character index (4-bit); indexes ROM char table at $1DC0",
+    "11920": "Arm finish-line sound (no-op if JMPER already non-zero)",
+    "11923": "Load bike 0 screen position (slot 0 of position table)",
+    "11926": "Has bike 0 reached the left edge?",
+    "11928": "Bike 0 not at edge — no coincidence, return",
+    "11930": "Load bike 1 screen position (slot 1 of position table)",
+    "11933": "Has bike 1 also reached the left edge?",
+    "11935": "Bike 1 not at edge — no coincidence, return",
+    "11937": "Both bikes at $0B — reset both to right-edge start ($14)",
+    "11945": "Reset both secondary position slots to $28 (right-edge start)"
   },
   "user_line_comments": {
     "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain entry point for Kikstart (Commodore Plus/4).\nPerforms a full cold-start initialization:\n  1. TED chip reset: colors set, audio muted, video matrix configured.\n  2. Screen RAM (4 pages) cleared; attribute RAM filled with color $39.\n  3. Game IRQ handler installed at $0314/$0315 (KERNAL shadow vector).\n  4. Track/tile color tables initialized from ROM data tables.\n  5. TED Timer 1 configured and started to drive per-frame IRQs.\n  6. IRQs enabled; falls into the raster-synced main game loop.\n\nThe main loop is 3-phase, synchronized to the TED Timer 1 IRQ (handled\nby the routine at p2118). The IRQ increments RAM_ZPVEC1 each tick:\n  Phase 1 ($01): 8 game-logic subsystem update subroutines.\n  Phase 2 ($02): 7 more update subroutines, then repeats from phase 1.\n  Phase 0 ($00): Internal raster task dispatched inside the IRQ handler.\n\nInputs:       None (cold start)\nOutputs:      None\nSide Effects: TED chip fully configured, IRQ vector patched to p2118,\n              TED Timer 1 running, game loop active indefinitely.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "8472": "TED Timer 1 IRQ handler.\nFires each raster frame. Acknowledges the TED timer IRQ, increments the\n3-phase frame counter in RAM_ZPVEC1 (wraps 0→1→2→0), then dispatches\nraster state machine tasks for phase 0. Phases 1 and 2 are handled by\nthe spin-waits in the main loop (main_init). Non-timer IRQs are chained\nto the KERNAL handler at $FCC3."
+    "8472": "TED Timer 1 IRQ handler.\nFires each raster frame. Acknowledges the TED timer IRQ, increments the\n3-phase frame counter in RAM_ZPVEC1 (wraps 0→1→2→0), then dispatches\nraster state machine tasks for phase 0. Phases 1 and 2 are handled by\nthe spin-waits in the main loop (main_init). Non-timer IRQs are chained\nto the KERNAL handler at $FCC3.",
+    "8964": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame update of obstacle and player bike screen positions.\nCalled every game frame (phase 1 of the IRQ-driven 3-phase main loop).\n\nGuards on a02 (game mode): only active for modes 1, 2, 5, or >=7;\nreturns immediately for menus, attract, or paused states.\n\nReads the obstacle type byte at offset $10 of the object record pointed\nto by p24 ($24/$25):\n  $FE -> clears a3B (player-active flag), calls s2694 (crash/reset)\n  $FD -> sets a31=1 (state-change signal)\n\nDecrement path (a3B=0, obstacles scrolling right->left):\n  Loops over slots X=4,3,1 (slot 2 skipped): decrements f0C07,x and\n  f0C2F,x by 1 each frame. Wraps at $0A back to $14/$28 (track boundary).\n  Calls s2190 to check if any slot crossed the finish threshold.\n\nIncrement path (a3B!=0, player in motion, even frames only):\n  Loops over slots X=1,0: increments f0C07,x and f0C2F,x. Wraps at\n  $15 back down to $0B/$1F. Calls s2E90 to check for a finish-line\n  or bike collision.\n\nInputs:  a02 (game mode), a3B (player-active flag), a31, a3C, a3F\n         (frame counter), (p24)+$10 (obstacle type), f0C07/f0C2F tables\nOutputs: f0C07,x / f0C2F,x (updated screen positions), a3B, a31\nSide Effects: May call s2694 (crash/reset), s2190 (lap check),\n              s2E90 (finish-line/collision check)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9508": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame obstacle physics update. Loops over 4 obstacle slots (X=3..0)\nand integrates velocity into position, applies boundary bounce/wrap, and\ntriggers a collision sound when a height threshold is crossed.\n\nPer-slot zero-page layout (base + X):\n  f10,x ($10+X) -- type/flags: $FF=inactive; bits 0-2=type;\n                   bit3=high-speed; bit4=sound-triggered\n  f14,x ($14+X) -- lifetime countdown\n  f18,x ($18+X) -- position high byte (integer Y)\n  f1C,x ($1C+X) -- position low byte (fractional / sub-pixel)\n  f20,x ($20+X) -- velocity (signed)\n\nLow-speed path (f10,x < $08, e.g. barrels):\n  Integrates f20 into f1C/f18 with carry. Boundary checks on f18:\n    $10-$2F -> negate velocity (bounce via s293C)\n    >=  $30 -> nudge position down then bounce\n    <   $10 -> nudge position up then bounce\n\nHigh-speed path (f10,x >= $08, e.g. tyres):\n  Adds f18 into f1C; carry propagates into f20. When (f20 & $1F)==$10\n  AND ((X XOR frame_counter) & $03)==0: arms collision sound via s2C20\n  and sets bit 4 of f10,x. Otherwise clears bit 4.\n  The frame-counter gate staggers triggers across 4 frames to prevent\n  multiple sounds firing simultaneously.\n\nInputs:  f10,x-f20,x (4 slots), a3F (frame counter)\nOutputs: f18,x (position), f1C,x (sub-pixel), f20,x (velocity),\n         f10,x (flags)\nSide Effects: May arm obstacle sound via s2C20 (JMPER, DSCPNT, a51, SIZE)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9748": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets the CBM BASIC 3.5 interpreter runtime state to a clean baseline.\nZeroes or re-initialises a suite of zero-page BASIC variables (INDEX2,\nFRESPC, SUBFLG[0-3], ZPVEC2, RESHO, SRCHTK, OLDOV, TEMPF1) and sets\nseveral unlabelled scratch bytes to fixed sentinel values. Called during\nlevel initialisation (after TED screen setup) to ensure no stale BASIC\nengine state leaks between levels.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies RAM_INDEX2, RAM_FRESPC, RAM_SUBFLG[0-3], RAM_ZPVEC2,\n              RAM_RESHO, RAM_SRCHTK, RAM_OLDOV, RAM_TEMPF1; sets $25=$2F,\n              $34=$05, $2A=$80\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "11788": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets the tile/character animation counters to zero.\nDespite their BASIC-flavoured names, RAM_OLDOV and RAM_TEMPF1 are both\ndisplay-engine state variables: OLDOV is a row animation counter (0-99)\nthat drives ROM tile-row selection from $1C98, and TEMPF1 is a 4-bit\ncolumn/character index (inc/dec'd via RAM_FRFTOP bits 2-3) that indexes\nthe ROM character table at $1DC0. Clearing both restarts the animation\nfrom frame zero. Called during level initialisation and object resets.\n\nInputs:  None\nOutputs: None\nSide Effects: RAM_OLDOV ($56) <- 0 (row animation counter reset)\n              RAM_TEMPF1 ($57) <- 0 (column/character index reset)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "11920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFinish-line / bike-coincidence detector.\nCalled every frame at the end of the bike increment path (both bikes moving).\n\nFirst arms the finish-line sound effect via s2BA0 (which only triggers if\nno sound is already playing — JMPER=$00). Then checks whether both bike\nscreen-position slots have simultaneously reached the left-edge wrap value\n$0B (bike 0 at f0C07, bike 1 at $0C08). If either bike has not yet\narrived, the routine returns without further action.\n\nWhen both bikes coincide at $0B:\n  - Both position slots are reset to the right-edge start value $14\n    (character table) and $28 (secondary position table), restarting\n    the next lap from the beginning of the track.\n  - The finish-line sound (already armed above) continues to play.\n\nInputs:  f0C07 (bike 0 screen pos), $0C08 (bike 1 screen pos)\nOutputs: f0C07/$0C08 <- $14, f0C2F/$0C30 <- $28 (on coincidence only)\nSide Effects: Arms sound via s2BA0 (sets JMPER, DSCPNT, a51, SIZE)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
   },
   "settings": {
-    "all_labels": false,
+    "all_labels": true,
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
     "platform": "Commodore Plus4",
     "assembler": "Tass64",
-    "max_xref_count": 5,
+    "max_xref_count": 8,
     "max_arrow_columns": 6,
     "use_illegal_opcodes": false,
     "text_char_limit": 40,
     "addresses_per_line": 5,
     "bytes_per_line": 8,
-    "enabled_features": {},
-    "description": "",
+    "enabled_features": {
+      "KERNAL": true,
+      "Lower Page": false
+    },
+    "description": "A fast-paced, side-viewed, single-player motorcycle game where players must guide a stunt bike through sixteen courses filled with obstacles and a rapidly decreasing timer",
     "auto_analyze": true,
-    "show_system_comments": true,
+    "show_system_comments": false,
     "fill_run_threshold": 8,
     "exclude_comments_from_well_known": false
   },
@@ -1103,17 +1277,17 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8664,
-  "hex_dump_cursor_address": 8656,
+  "cursor_address": 11352,
+  "hex_dump_cursor_address": 11344,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 4096,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 32768,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],
-  "blocks_view_cursor": null,
+  "blocks_view_cursor": 14,
   "scopes": {}
 }
