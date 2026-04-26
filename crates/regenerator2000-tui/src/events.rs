@@ -73,7 +73,8 @@ pub fn run_app<B: Backend>(
                 should_render = true;
             }
             AppEvent::Tick => {
-                // Optional tick for animations/time-based updates if needed later
+                // Drive time-based animations (e.g. easter egg typing effect).
+                should_render = true;
             }
             AppEvent::UpdateAvailable(version) => {
                 ui_state.new_version_available = Some(version);
@@ -545,7 +546,7 @@ fn handle_key_event_active_view(
         }
         WidgetResult::Ignored => {
             // Try global input handler
-            handle_global_input(key, core, ui_state);
+            handle_global_input(key, core, ui_state, event_tx);
         }
         WidgetResult::Close => {}
     }
@@ -780,7 +781,7 @@ fn dispatch_menu_action(
             ui_state.set_status_message("Failed to connect to VICE");
         }
     } else {
-        crate::ui::menu::handle_menu_action(core, ui_state, action);
+        crate::ui::menu::handle_menu_action(core, ui_state, action, event_tx);
     }
 }
 

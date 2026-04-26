@@ -1,13 +1,24 @@
+use crate::events::AppEvent;
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use regenerator2000_core::Core;
 
 use crate::ui::menu::handle_menu_action;
 
-pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIState) {
+pub fn handle_global_input(
+    key: KeyEvent,
+    core: &mut Core,
+    ui_state: &mut UIState,
+    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+) {
     match key.code {
         KeyCode::Char('q') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Exit);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::Exit,
+                event_tx,
+            );
         }
 
         // VICE Debugger begin
@@ -17,6 +28,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ViceToggleBreakpoint,
+                event_tx,
             );
         }
         KeyCode::F(2) if key.modifiers == KeyModifiers::SHIFT => {
@@ -24,6 +36,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ViceBreakpointDialog,
+                event_tx,
             );
         }
         KeyCode::F(6) if key.modifiers.is_empty() => {
@@ -31,6 +44,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ViceToggleWatchpoint,
+                event_tx,
             );
         }
         KeyCode::F(4) if key.modifiers.is_empty() => {
@@ -38,16 +52,23 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ViceRunToCursor,
+                event_tx,
             );
         }
         KeyCode::F(7) if key.modifiers.is_empty() => {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::ViceStep);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::ViceStep,
+                event_tx,
+            );
         }
         KeyCode::F(8) if key.modifiers.is_empty() => {
             handle_menu_action(
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ViceStepOver,
+                event_tx,
             );
         }
         KeyCode::F(8) if key.modifiers == KeyModifiers::SHIFT => {
@@ -55,6 +76,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ViceStepOut,
+                event_tx,
             );
         }
         KeyCode::F(9) if key.modifiers.is_empty() => {
@@ -62,6 +84,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ViceContinue,
+                event_tx,
             );
         }
         KeyCode::F(10) if key.modifiers.is_empty() => {
@@ -159,35 +182,71 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::FindReferences,
+                event_tx,
             );
         }
         KeyCode::Char('p') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::GoToSymbol);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::GoToSymbol,
+                event_tx,
+            );
         }
         // Global Shortcuts
         KeyCode::Char('o') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Open);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::Open,
+                event_tx,
+            );
         }
         KeyCode::Char('o')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
                 || key.modifiers == KeyModifiers::ALT =>
         {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::OpenRecent);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::OpenRecent,
+                event_tx,
+            );
         }
         KeyCode::Char('a') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Analyze);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::Analyze,
+                event_tx,
+            );
         }
         KeyCode::Char('s') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Save);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::Save,
+                event_tx,
+            );
         }
         KeyCode::Char('s')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
                 || key.modifiers == KeyModifiers::ALT =>
         {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::SaveAs);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::SaveAs,
+                event_tx,
+            );
         }
         KeyCode::Char('e') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::ExportAsm);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::ExportAsm,
+                event_tx,
+            );
         }
         KeyCode::Char('e')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
@@ -197,6 +256,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ExportAsmAs,
+                event_tx,
             );
         }
 
@@ -205,6 +265,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::SystemSettings,
+                event_tx,
             );
         }
         KeyCode::Char('p') if key.modifiers == KeyModifiers::ALT => {
@@ -212,6 +273,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::SystemSettings,
+                event_tx,
             );
         }
 
@@ -223,14 +285,25 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::DocumentSettings,
+                event_tx,
             );
         }
 
         KeyCode::Char('u') if key.modifiers.is_empty() => {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Undo);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::Undo,
+                event_tx,
+            );
         }
         KeyCode::Char('r') if key.modifiers == KeyModifiers::CONTROL => {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Redo);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::Redo,
+                event_tx,
+            );
         }
         KeyCode::Char('1')
             if key.modifiers == KeyModifiers::CONTROL || key.modifiers == KeyModifiers::ALT =>
@@ -239,6 +312,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ToggleBlocksView,
+                event_tx,
             );
         }
         KeyCode::Char('2')
@@ -248,6 +322,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ToggleHexDump,
+                event_tx,
             );
         }
         KeyCode::Char('3')
@@ -257,6 +332,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ToggleSpritesView,
+                event_tx,
             );
         }
         KeyCode::Char('4')
@@ -266,6 +342,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ToggleCharsetView,
+                event_tx,
             );
         }
         KeyCode::Char('5')
@@ -275,6 +352,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ToggleBitmapView,
+                event_tx,
             );
         }
         KeyCode::Char('6')
@@ -284,6 +362,7 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::ToggleDebuggerView,
+                event_tx,
             );
         }
         KeyCode::Char('g')
@@ -293,20 +372,36 @@ pub fn handle_global_input(key: KeyEvent, core: &mut Core, ui_state: &mut UIStat
                 core,
                 ui_state,
                 crate::state::actions::AppAction::JumpToAddress,
+                event_tx,
             );
         }
         KeyCode::Char('g')
             if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT)
                 || key.modifiers == (KeyModifiers::ALT | KeyModifiers::SHIFT) =>
         {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::JumpToLine);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::JumpToLine,
+                event_tx,
+            );
         }
         KeyCode::Tab => {
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::CyclePane);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::CyclePane,
+                event_tx,
+            );
         }
         KeyCode::Esc => {
             ui_state.input_buffer.clear();
-            handle_menu_action(core, ui_state, crate::state::actions::AppAction::Cancel);
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::Cancel,
+                event_tx,
+            );
         }
         _ => {}
     }

@@ -1,9 +1,15 @@
+use crate::events::AppEvent;
 use crate::ui_state::UIState;
 use regenerator2000_core::Core;
 use regenerator2000_core::event::{CommentKind as DialogCommentKind, CoreEvent, DialogType};
 pub use regenerator2000_core::state::actions::AppAction;
 
-pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAction) {
+pub fn handle_menu_action(
+    core: &mut Core,
+    ui_state: &mut UIState,
+    action: AppAction,
+    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+) {
     // Dispatch to Core and handle results reactively
     let events = core.apply_action(action);
 
@@ -95,7 +101,7 @@ pub fn handle_menu_action(core: &mut Core, ui_state: &mut UIState, action: AppAc
                 }
                 DialogType::About => {
                     ui_state.active_dialog = Some(Box::new(
-                        crate::ui::dialog_about::AboutDialog::new(ui_state),
+                        crate::ui::dialog_about::AboutDialog::new(ui_state, event_tx.clone()),
                     ));
                 }
                 DialogType::ViceConnect => {
