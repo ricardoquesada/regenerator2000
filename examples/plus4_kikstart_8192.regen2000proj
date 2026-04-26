@@ -1,0 +1,1119 @@
+{
+  "version": 1,
+  "origin": 4096,
+  "raw_data_base64": "H4sIAAAAAAAA/+05bXQT15VP0kiW7ZE1gFMGItsDGFuysS1/YGQQ2NmlXcG6XcexIWmTRmmxa3fdlhDSdVvHVROGctKqFXvixuRUWR23w/F4IREJ3sYNKtqFuMh1Yc5pm8P20OD0JNrEZGESEmyCrNn75kOWBQ2w7e7pj1xrZt677368dz/efTNGSIGLP/vFhUPTz4y0t0vS1ePrL8DzzLVL8QvSeSkhNUpz0hm4viVJQOprCg9WqmyPw2XQ5zmm29v1OXZ7TmN7O0ZJ7vZ2X8huDyUMVvfamisTv49OdXkGn3nvyu8nZmrXuvP0V977/VlPV8g3NzfXfv78+XbpNenS5W9ffPnbRVk6LPh9oUlWYG1c+8HvACTpUQxzUXFn3/0AkvQ7Bb29HYOUSGDs/QkpcfnMr8/MSTBrqV3CePfk5GQicf68dOFCud2+XZIMeBXnziUOHQqFQshgzbOua7w26b526dilS8cRikZBR+LarzYlL16runb84sWL1751LXlMTEwmpo4lkpvOw1CjNfmrl1++dEm6BMh3joWjImnAs9Vf+O9LDDM8fPFffYp9DkXb26217e0IwQVtA34aHnwsCpcYVfAG62MfRPGVTgNXVIQ2DeAE8AKcOCNdHjeZTCQAcvcDuME+jTMzEobGRquO0CGdojgqigkZJp1iFPpNSIO/Lg6r1QAwN3fiBH6iBUCSiYTMFU3Hut2YR2dpvHzisjN9wOkm3bJUcKC4UJJTnLTqdFbSCTTz2KjodGLZ0Um3cyE9zMRQK/363w0GK2lNn1UU05OTiQX07suNQGNoBPdA74TklhJYvyi54UECWrrciBuXGxNn8LISCUzoTLilM3h9egBdRdnPT9ckXzunSXYKAZ+PIe767DPP9nzxjMVizbAN8vmieDbRDLQ5p7KWbFy3rlFdJ1lXHArt+07LtoMH9w+++ESmiZt8oSknxPtOMUOQXp9LGqzzeg2WbLt9JZP/O56Pl7wzlaG3iQoNvzXpTJw7l8iwJEgCW6a51qDPyTGbjezIdEPsWm9Kb7SpCdZEEV1f/uqL30+bvzqZjy30sYU+ttD/oYXc7s5OvND+flxp+vo2bfJ6o9HTp8dlSCb7+2kZxscvXkwC9PUpI4lEPD4+PjnZ2zs5GY329Wl0LldzMx7HLdzH9Hl5bqhaJEnTbrfN5nb39ODKHI0mEiaT2431JRLJJK5vNN3be/LkG2/09ip6+vuj0c5OtxshPLv+foTGxzs7N23CTwwIYR0Y/+qrSh/f+/oQmp09d+70aYRMJqWvzA6P79jhcs3z9fZOTSWT83TJpFxlU31NnlMGhJ59du9e3Mez7e1FaP/+/U899dSuXbt279591113bd68edeuf/7tb586efLkSy+9dPDg3n379u3YsaOrq6uzsxPue/bsAYzSBmKPx9PZuffs2bd+85vf/PKXv+S4gaeffhp4h4eHf/QjzHu78q/Hf+pTnwItDz/8MEhQ5KS3cQwQjOtv7/3yI996PPBjJYjmASELP2Fu3PndsBYwOp0Op5Q+LQarFmQXoSsbee7QT9KzKi2bwseOHz8W9qmA/WA2UxRCLhw1O1yIlqOmH/WN57l7p5Kon6TdpvE+ZHP3TIJrUCIKQQN9tzeaAM+g5DiJz0mo9+Qbvc/u7QO+8X4T2avoxQ6Xn2bKZrPRuA/N+dCHm6sHohwCB4ThH3LjbOh0o9lJmM/kLIK06IPIU59etMkbPT3euQnHRRIHnBL2/RAPJnle45Nnxdlzp+V4xXzjkDUQmmg8fiX52ulxpKRPH9Y3Dikg909PfhMl4qAN+Hono31YjppOapz34efFPhcFz1eTyZ7NCPf6Lo4j8Lqb1tZ5O7Dl7z+d/lOx/5ABgMoxmvQoN/fu3FyUrcsy47YMiDAaCNwhcQfZW3pDp0S6qSvw0pTZea9vWJhlPDsHSQUsMuQpYAWAIyIOJaTepfWffrASXz0dX+/oQa2tgE7CAPqGCt33bWlwLMsGWOZo2HJft4bf+Y3Hv4eKPT1gA8oMobQkF6I2d8mSLz30lQ70ta937EKfB0DoC1/76qOPoM6v7UK7u2Gkp6MTQr+1tfUL3f/Y8YjSVUgwAP5P2u2etm33fQ7TbG/dDs+O3t27HkJYCnronx7ataNjh/w+cn9n99c7UJrwR3Z39/QAHqEvAci3L6G1GJQ7PCG3N8s3DBRFyYHKqOBrYih8aXBPW/u27ffe99nPtSqtVg3uUQA1Ya4m4PM1NfmiTUgCJjCRhNONaKIylyVnNZiOADACIFSEkK0vsfcKeh9Ffe+jnTt34ssnop2Q0PI52wY5hNCDqK9X3K3/j+n33lv+3s9fWPk3NStbv/zNqipndU1d3dp6V8P6De6Nm/ILCwsZ+FHFhcVr1ticNOxPyl4I93yKNBN4VThU2traWlpampubYdeCrS8QCMjD8i2wb19Azms54PPv+AS20IqVuGNAHwnygo1qZ/HiJZh5Kb0MmFcVr8bsxHUs2Tm58+yY30gg0qJhgHn5nTZgLim1Y3ZZ9pqKyqoUM2Ek5tkpzG5EeVYNBcwFhUXA7Cgrx+wE5gWb1aaYjbJMU5YZycGAEaQlNQFgXrRoETDDXQ/XIsyLn8C8SANghrscMHI/z6pNoHdIeoZH/jsk/mH/JyS+wb9Ugu4yfFsk+fMk/2LJb5X8lMRT/iUSb/bnS/ydfpPED/qzpCHEoyAig8gSRHlBZOUbgsgcRNlBlBNEuW8Jr/O0P9/Ar/DfYRgq5XVBj5XfGPTkBpnc4GxOUMgJDucEfTkRZAsOWkUD3a0LRq0Ruw1E4l5+0E5GeguwSLt5gjrO5JfwElvFI9bJ1viryWnoGfh81sQv9udKvN6fI917eJnEGWI6YSbeyBCrmOLVzDurGKKU2beaEaBdxjSvmVZo9MIMc3YFE13BnC2GaGR+vIpxr2SIlXTgZWyXw9mSQy8Ymk8kQHC2NB03AI8hQIB23EIiGdOJS2J6cTmQTHMbPaEn+ICREBbzlCf0IjSNQhZPe0L5fOC5AukNk3AV7NUFJtxjGnS9rdcmDMwLg216enqImNKLWZEsMpYrLJ6g3uM2CLmw1A28jnUyh0q8iNsYowU8EwLaenkuhGiOmUSCpwQ9T7MbveinNeKqX0iGSIuNTUa6bKw0VkUM82h/kpO2EKzEb9yfHK8R/tOLdYbQyZpwxS8QgakTmHpu0DPmBbKxAMEmx5zEMCftT3BzwDnHJfcnuoZPUZNeNGQYpWKSuDtmDm8aHguAplF661Y2MUo7DKwEY0TAxEnZIMckcVIO3SHR3S4YyGfnQog5tYoRV0ZNwhU6UDNKOcDhBmBlHEXDY8NYFOUg6O4uVgqhQfpRYAGGU3EpSggiE105PUE9Ic8dyCjRHk/wdVgwhBA7xz/MJoE4Djpj68BOMBJPcIkYFXjbi0DEWMhGdyTYRNQg6ONzIAVsqBPzwJc5MaNoimWF9d7pEHWkOJYUTGDlDWDbOZCjY6u5atEyLQN2CPNUCfimRPbX0teyyNeqSOy1HMHC5wezSN4erCInqD+eziVP15JMYAXX6NAJqzm3uGLcPaRLZpFJheEOYMjFDEUyQ5wJVKp+OVLsaByJRAsP+PIiqOjAcF6kqeiAkBfxFR2YzYtEiw4w1lNRu3AW4mAuZg/bnvQcrOESQURwc0EnwUlBL8ElgwEiXtM14kV4TVier9DhprtrD5Qi3IwesKNTp6L5wh+xUjmeFkMs5cXMYA8drN0oEsJm7/RQ1qgHvF1HP7bPNuCBGI4tCZh4acAjrBhtoh/z2QaaYvYAEX5ntImdG/WwCb6VTfLrWAl8MUGdwHYmtpi2jkRO2dhZzqg1r3KlDsNIZBJ8MsvOys+rGIkDKYR4ip0bQrLzCO6qoOdmIXYbZP++xUk4ZKT43JRBuBSfjV+NJ06BTydl23ElrjfL2JLwKs4IU3WYWGPMJJgYsoyxV3KEgiIAZWASpdwm15v3sJvCVOYAc3QFFqbGeRvEuX2UofSv0qM2+lFmwDZKd6MBGuZmjjkD2a/Sgv4KzbgddMAxjSlooGCAAmI6RgnWJz/Z6DAI5lGKYdZMCyaI3EsD1AT1E3m+sD+i4GDuBPUhVxWzBvS8dWRKEs38+uDzgHyfc0L6OEcmppCT4h3Bp3OBNnggd2JignpnqDQCnSiQzaj7wQrwGwPxXBQziIWwNxSAD23g0ztjWeJy8Osyb3NbafOO0uY9pc0vVTbX2ZufsjeftDfP2ps9DgSbOlvMV7GreSNbB3G+dsgAboaZXsNbDmtkS1g972PLGBLClMmvBDIn72XLUqPVcnKsL2N2lChr0/iZc+VD1ogAkTJBzUI+6YGl3Iv12VkHr2f13Dq2FPoGVo8ZeUKmqGZ2OBQ5WTw10IRDY8AzQV0GvXi4Hq4y5vsgB2RP2YKfsfAPBz+TDRunPGhi9Sn9IAX0ZGHp8oTNip5e/kO/c85vlg6ZJX5OaT5nlu590kEJxKBjbvhJB4EbSWjocOMaNMy4MTM86LCytYOOphxj7RZoKbFX6/AJBNNU4mWOVuC4bwL3L+U8sJ8v4p2MWMKXsaV40diKXpneLFq4stjVcBZXhoO6DFCEjPpiAFCutwE1zTW8Ugob6rpXSsMErgPM7krYiDjX6vWOJtHEh5jd5V5ZtYmfZO4v9ypzWUN3f5Jdw1V07+pYw1Zwld2Rjgq2UvWLHNfkq/mj+bEE7HCylS7EwZQIRz9kRhlEk9n1NuFIwEyZHyv+5OpjIXEJ8375dGxKyGH2lGBjMmvKvEP61yyWiMUSu1uo5z8XtFgmqIt8q99i8edZ/FYLDD9giTyAh5fC8APq8AMW/+ct/gctDA0qjoKrlZ1GYCCguXpBP+5UJhOvx4qFbM4JkyKYWbDApDwheUAEi+eXeF1vM84ij6Moh53tcnhhT6G7mS0S2wLmvhsiro13su2Yh+mp7NazDqc55oWi7mUdQwbOQenHSzk73eFg7VxpN2JLJ6h0q1s4l8MnKrbfA5pHQTJUnAEGBMp7a1RcpCYCxDOOZeYreIJDSyOiLThLRswFQQ+Ozlkz3DwQov81PX04i6S7/w5sdNgsN/Ish3PkhtVy0BlxFYBtIk0F2DxbseB6HC9VDutIhCocZk45mGPlii9NySVkcgMZWaLVkyW4nmzA9WSf8PoQgoE/MGQgSzC9NZUlvOsdMgEmyJCRDWTQA1TvqnuHMaQDsd54fbxK0bOzkBmuUHTg414LGWyxvCXMeMHhB6tglHVHpgrYe7zgFqPIwO5FhctG5BoZd8LKPQXBQbzmQZyRTgow3nQM3+tvsGgLortb/ethyN+Q7V+fLeuM13F1sBtTsPS6+FpubSwqn3zWHlwb8SxziFsBhsfMy+GkOkYvh8MqxlqHx+zL4dQ65lqOD64uOMkqcQvrE6C2c21i6Xgb10J33M22cC3sLAi8apotkS9uFji5q8DItcNhioJaVSaagNUsmLhZxyXoQxnPyaG7CeMsZgWlXBnox8PZZhie1fThTLdCyE1B+Okh/NTQS+FDgDel4XkcpwkZ0ca3KEiuTciHfbCNc0/T3VEYN88zwNhS2CvbYEJZeEJYHpUuD9MTgLAq8uQNW85fqOyBcCHXEvNC0asHG2aLQCa63gSDaFmCs8qLsqkBCubUwieBgJyflzxXzGSezykwkh7OC1ki4QXvM1OlsDe2jmDn0o+FCobHmMKN4QKRlr0No38QC8K56h5kglynA61AAsTdplfKw+9yraDZPpCPawTXCrW3AEu00d3kAI1bxyGzQc0Aw6MBm7gU3wE9wGAZU1thhO6mBmhV/r2j+Tk5Oa43ia3sDCDM4SJuJtYQuCu2JbyRK3V9QFNGOZdhpILxVECMzMQ2BlbCcKF8wqTxCRXbmIR9IJdvhD3BKNNNUP8i2/QoFTXDcQiKvSjvo4MxY0DZKVxrolCRtRBnZ3hEd8zsoz6cZmdCuiEjM+EYnxE+8EI1c+O9okh5AVJefyAtIcCqSS/SskyOn1AZty22Q1wEuz0ZIwUivk1Oim3eoazIoC0o4uwScXbhyBAoXF9gG92Oiwocebdz28Ex2+FcWeCfsUSEAv8Vy94qr1z3t7HboaYHKg5u31sVaSlkiyPeQnY1jMWLgXM1Vxw7K+Rxq2ONglk7JXjn69eHSv3Sp9WvLyj1S48LHbO5knPQQF/6SkMYbAV54JW3VKPSVtZWflh+81kK+yE8KD7fn0X6zXCa9leRfifpVd6TQMa6sIGZtTO03Yv+cjAnLewnM/pHqjV4oUaDF2s1kL9B6PSG9J/vOh1+5SuY5Qfqd7AfwTcE/BFC6+flwev8D1KtVEdls8DHAuUHgny3OX8N6ht8H9nHcLhCgSoVAuo3J/jYEUh9gLqNXjrk5JKB2+1gOFpXW1tTM+8FsMKRtHZaN2UlGXG7dqpWfVtbp8B+9UsKOENrLmhjCGSskTCa4KdhUwERUC2D6te5Mv8atNnDZ6Ej6rO6ur4hvX9beL8WMdolI27FDofWqCDHQCUGOQrCyn9AsszZ8ENhZ6qL0vrO+Szw++fD9gdpAf5DqwY4axRbwQ+Nyl9Bj4LNcV7hLDuS4b/0WL2VNngT2yPd3g23GgeZuarNWvOqGh5HwZ91MPujWh/fALegr9FBUN8SHRjpz5Z3o3nhpzZ/bT3a+rT1+haa4aZ2urkffAu9MPaR3et2o/oGlDb+UgOqgQ+ff4I6TVMDxGT9vHQlaHGc+m5xXbIx6hv8NaCvsKimRjXXD7GVwbR1Wl8b//+iR7fpHwxHMioXtmBapXoCPqFDJi4oX48bFCQ2WSrH8c13nX9SGB/4avmd2P4NN/aPPIhHG/6tAX/AhmnIvfoxpGhT54DQ81rpqaqGIK9WtN/WujPXrNVqLRE0Ddjc2OBK31FWVo6fckWvb4Bbba1C93zafPCUMumBAQDIM+hvV/6N6YFDla/R3Ww+tya/quq5SgW0mq/t/r7btDfOssxDj5p5vpvRpdW+BVGIXrj+pKX5D29288VD/bEmhLMHKTaZ/32PVPBqpVGvFHlaffiZS4vhj8ZdF9t/bj2B5aQ2qdRPVeFT7Ybk3ND6inEX9K8/dS6ct7KShQUxgwGlUjhFrGTzba5XK/jamcgCfrDAenH4rf6O3oANj1XAur9rzpaDsng1X1Y+jy9e/UOFPBOfgoVyilc7RsoVMyqMKbxClhI4T19WrnohLTqUnyXTKjdbr5w0h9RD02H13FT5HD46VVY8J6ea9oRclI9KYUDJRErXCQQVShtaIEnFy3xA7axSJeJbRRqnOqLJCSsi5B4MyZohv7FImJ8iQz2syZTPV2oqK0CsOs8UL6iTkVWVz1fJmiuVBa5R17nmf71fyLXghnF5XZhmIBrS5Cxekn/HkWr8FnWker49f260pADqTWER1FBVRr16pU3chzISBo4bcpWq16hvRG+T95P0PoT6DcdvxS432ye0F49VP/2rATm19me8C/1FzpdALG//UAfw3o9fDerqcAtez9aurVt7tFbG175QKx9x4fWhrrbmSI32Rp6e0Jl602pONX5xOqK269V3MeV9CjrzeHlEe79Ke+eaf/+6wfvmde/bYwtCLDXqn4/Soo8qNPI4bHGw1afumTpvbt/XTf8DvYuILgAwAAA=",
+  "blocks": [
+    {
+      "start": 0,
+      "end": 3223,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 3224,
+      "end": 3231,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 3232,
+      "end": 3295,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 3296,
+      "end": 3356,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 3357,
+      "end": 3399,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 3400,
+      "end": 3447,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 3448,
+      "end": 3679,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 3680,
+      "end": 3695,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 3696,
+      "end": 4095,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4096,
+      "end": 4420,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4421,
+      "end": 4421,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4422,
+      "end": 4481,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4482,
+      "end": 4495,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4496,
+      "end": 4530,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4531,
+      "end": 4531,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4532,
+      "end": 4542,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4543,
+      "end": 4543,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4544,
+      "end": 4566,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4567,
+      "end": 4567,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4568,
+      "end": 4607,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4608,
+      "end": 4611,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4612,
+      "end": 4666,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4667,
+      "end": 4667,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4668,
+      "end": 4795,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4796,
+      "end": 4799,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4800,
+      "end": 4846,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4847,
+      "end": 4847,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4848,
+      "end": 4865,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4866,
+      "end": 4867,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4868,
+      "end": 4886,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 4887,
+      "end": 4887,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 4888,
+      "end": 5015,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5016,
+      "end": 5019,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5020,
+      "end": 5062,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5063,
+      "end": 5063,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5064,
+      "end": 5098,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5099,
+      "end": 5099,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5100,
+      "end": 5132,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5133,
+      "end": 5135,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5136,
+      "end": 5160,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5161,
+      "end": 5161,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5162,
+      "end": 5225,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5226,
+      "end": 5227,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5228,
+      "end": 5331,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5332,
+      "end": 5335,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5336,
+      "end": 5408,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5409,
+      "end": 5411,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5412,
+      "end": 5507,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5508,
+      "end": 5511,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5512,
+      "end": 5582,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5583,
+      "end": 5583,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5584,
+      "end": 5649,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5650,
+      "end": 5651,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5652,
+      "end": 5694,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5695,
+      "end": 5695,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5696,
+      "end": 5727,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5728,
+      "end": 5731,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5732,
+      "end": 5762,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5763,
+      "end": 5763,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5764,
+      "end": 5778,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5779,
+      "end": 5779,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5780,
+      "end": 5784,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5785,
+      "end": 5787,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5788,
+      "end": 5799,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5800,
+      "end": 5803,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5804,
+      "end": 5834,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5835,
+      "end": 5835,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5836,
+      "end": 5869,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5870,
+      "end": 5871,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5872,
+      "end": 5878,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5879,
+      "end": 5879,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5880,
+      "end": 5888,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5889,
+      "end": 5891,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5892,
+      "end": 5967,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5968,
+      "end": 5971,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5972,
+      "end": 5985,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 5986,
+      "end": 5987,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 5988,
+      "end": 6017,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6018,
+      "end": 6019,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6020,
+      "end": 6107,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6108,
+      "end": 6111,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6112,
+      "end": 6135,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6136,
+      "end": 6139,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6140,
+      "end": 6165,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6166,
+      "end": 6167,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6168,
+      "end": 6191,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6192,
+      "end": 6195,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6196,
+      "end": 6290,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6291,
+      "end": 6291,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6292,
+      "end": 6336,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6337,
+      "end": 6339,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6340,
+      "end": 6388,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6389,
+      "end": 6391,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6392,
+      "end": 6458,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6459,
+      "end": 6459,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6460,
+      "end": 6469,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6470,
+      "end": 6471,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6472,
+      "end": 6497,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6498,
+      "end": 6499,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6500,
+      "end": 6577,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6578,
+      "end": 6579,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6580,
+      "end": 6595,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6596,
+      "end": 6599,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6600,
+      "end": 6666,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6667,
+      "end": 6667,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6668,
+      "end": 6695,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6696,
+      "end": 6699,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6700,
+      "end": 6811,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6812,
+      "end": 6815,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6816,
+      "end": 6887,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6888,
+      "end": 6891,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6892,
+      "end": 6898,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 6899,
+      "end": 6899,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 6900,
+      "end": 6999,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7000,
+      "end": 7003,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7004,
+      "end": 7023,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7024,
+      "end": 7027,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7028,
+      "end": 7047,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7048,
+      "end": 7051,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7052,
+      "end": 7068,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7069,
+      "end": 7071,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7072,
+      "end": 7096,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7097,
+      "end": 7099,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7100,
+      "end": 7127,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7128,
+      "end": 7131,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7132,
+      "end": 7151,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7152,
+      "end": 7155,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7156,
+      "end": 7198,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7199,
+      "end": 7199,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7200,
+      "end": 7220,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7221,
+      "end": 7223,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7224,
+      "end": 7240,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7241,
+      "end": 7243,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7244,
+      "end": 7254,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7255,
+      "end": 7257,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7258,
+      "end": 7446,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7447,
+      "end": 7447,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7448,
+      "end": 7486,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7487,
+      "end": 7487,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7488,
+      "end": 7491,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7492,
+      "end": 7495,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7496,
+      "end": 7565,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7566,
+      "end": 7567,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7568,
+      "end": 7590,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7591,
+      "end": 7591,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7592,
+      "end": 7599,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7600,
+      "end": 7603,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7604,
+      "end": 7689,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7690,
+      "end": 7691,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7692,
+      "end": 7698,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7699,
+      "end": 7699,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7700,
+      "end": 7717,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7718,
+      "end": 7719,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7720,
+      "end": 7746,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7747,
+      "end": 7747,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7748,
+      "end": 7786,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7787,
+      "end": 7787,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7788,
+      "end": 7794,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7795,
+      "end": 7795,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7796,
+      "end": 7819,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7820,
+      "end": 7823,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7824,
+      "end": 7857,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7858,
+      "end": 7863,
+      "type_": "Undefined",
+      "collapsed": false
+    },
+    {
+      "start": 7864,
+      "end": 7876,
+      "type_": "Code",
+      "collapsed": false
+    },
+    {
+      "start": 7877,
+      "end": 12287,
+      "type_": "Undefined",
+      "collapsed": false
+    }
+  ],
+  "labels": {
+    "8192": [
+      {
+        "name": "main_init",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8472": [
+      {
+        "name": "irq_handler",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ]
+  },
+  "user_side_comments": {
+    "8192": "Disable IRQs during hardware init",
+    "8195": "Init stack pointer to top of page $01",
+    "8198": "TED: background color = black",
+    "8203": "TED: color register #1 = $71",
+    "8208": "TED: color register #2 = $39",
+    "8213": "TED: color reg #4 = $00 (also used as IRQ frame-sync flag)",
+    "8218": "TED: mute audio output (volume = 0)",
+    "8221": "TED: silence voice 1 frequency (low byte)",
+    "8224": "TED: silence voice 1 frequency (high bits)",
+    "8227": "TED: silence voice 2 frequency (low byte)",
+    "8230": "TED: silence voice 2 frequency (high bits)",
+    "8235": "TED: clock status = $10",
+    "8240": "TED: video matrix/color memory base address = $08",
+    "8245": "TED control reg 1: $1B (standard bitmap/text mode)",
+    "8250": "TED control reg 2: $98",
+    "8255": "Clear 4 pages of screen RAM, fill 4 pages of attr RAM (256-byte loop)",
+    "8257": "Clear screen RAM page 0",
+    "8260": "Clear screen RAM page 1",
+    "8263": "Clear screen RAM page 2",
+    "8266": "Clear screen RAM page 3",
+    "8271": "Fill attribute page 0 with color $39",
+    "8274": "Fill attribute page 1",
+    "8277": "Fill attribute page 2",
+    "8280": "Fill attribute page 3",
+    "8286": "Install game IRQ handler: low byte of p2118 → $0314",
+    "8291": "High byte of p2118 → $0315 (KERNAL IRQ shadow vector)",
+    "8296": "Init 40 entries ($27...$00) of track/tile color & char pointer tables",
+    "8300": "Track data init: store $01",
+    "8323": "Load bitmap color for this column from BMCOLR table",
+    "8326": "Store to display color table",
+    "8331": "Non-zero: add 1 to color for alternate-row shading",
+    "8337": "Load character pointer from ROM table at $1C28",
+    "8340": "Set TED screen character pointer",
+    "8345": "Non-zero: add $14 (20) — row-offset into char/tile data",
+    "8351": "Load attribute byte from ROM table at $1D78",
+    "8354": "Set TED attribute byte for this column",
+    "8363": "Additional game state initialization (called once)",
+    "8382": "Frame phase counter = $FF (wraps to 0 on first IRQ increment)",
+    "8388": "TED Timer 1 latch low byte = $12 (controls IRQ rate)",
+    "8390": "TED Timer 1 control: enable + start — IRQs will fire each frame",
+    "8398": "Enable IRQs — game loop begins",
+    "8399": "Spin-wait: read $FF19 to acknowledge TED IRQ, then check phase",
+    "8404": "Wait until IRQ advances frame phase to 1",
+    "8408": "Increment global frame counter",
+    "8410": "--- Phase 1 subsystem updates begin ---",
+    "8435": "Spin-wait: acknowledge TED IRQ, wait until phase advances to 2",
+    "8440": "Wait until IRQ advances frame phase to 2",
+    "8444": "--- Phase 2 subsystem updates begin ---",
+    "8466": "Unconditional loop back to phase-1 wait (BCC always taken)",
+    "8472": "Read $FF09: check which IRQ source fired",
+    "8475": "Bit 1 = TED Timer 1 IRQ",
+    "8479": "Not our IRQ — chain to KERNAL handler at $FCC3",
+    "8484": "Acknowledge TED Timer 1 IRQ (write $02 to $FF09)",
+    "8488": "Advance frame phase counter: 0→1→2→0",
+    "8492": "Wrap counter at 3",
+    "8502": "Phase 0: dispatch raster task A",
+    "8506": "Phase 1: dispatch raster task B",
+    "8510": "Phase 2: dispatch raster task C"
+  },
+  "user_line_comments": {
+    "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain entry point for Kikstart (Commodore Plus/4).\nPerforms a full cold-start initialization:\n  1. TED chip reset: colors set, audio muted, video matrix configured.\n  2. Screen RAM (4 pages) cleared; attribute RAM filled with color $39.\n  3. Game IRQ handler installed at $0314/$0315 (KERNAL shadow vector).\n  4. Track/tile color tables initialized from ROM data tables.\n  5. TED Timer 1 configured and started to drive per-frame IRQs.\n  6. IRQs enabled; falls into the raster-synced main game loop.\n\nThe main loop is 3-phase, synchronized to the TED Timer 1 IRQ (handled\nby the routine at p2118). The IRQ increments RAM_ZPVEC1 each tick:\n  Phase 1 ($01): 8 game-logic subsystem update subroutines.\n  Phase 2 ($02): 7 more update subroutines, then repeats from phase 1.\n  Phase 0 ($00): Internal raster task dispatched inside the IRQ handler.\n\nInputs:       None (cold start)\nOutputs:      None\nSide Effects: TED chip fully configured, IRQ vector patched to p2118,\n              TED Timer 1 running, game loop active indefinitely.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "8472": "TED Timer 1 IRQ handler.\nFires each raster frame. Acknowledges the TED timer IRQ, increments the\n3-phase frame counter in RAM_ZPVEC1 (wraps 0→1→2→0), then dispatches\nraster state machine tasks for phase 0. Phases 1 and 2 are handled by\nthe spin-waits in the main loop (main_init). Non-timer IRQs are chained\nto the KERNAL handler at $FCC3."
+  },
+  "settings": {
+    "all_labels": false,
+    "preserve_long_bytes": true,
+    "brk_single_byte": true,
+    "patch_brk": false,
+    "platform": "Commodore Plus4",
+    "assembler": "Tass64",
+    "max_xref_count": 5,
+    "max_arrow_columns": 6,
+    "use_illegal_opcodes": false,
+    "text_char_limit": 40,
+    "addresses_per_line": 5,
+    "bytes_per_line": 8,
+    "enabled_features": {},
+    "description": "",
+    "auto_analyze": true,
+    "show_system_comments": true,
+    "fill_run_threshold": 8,
+    "exclude_comments_from_well_known": false
+  },
+  "immediate_value_formats": {
+    "8286": {
+      "LowByte": 8472
+    },
+    "8291": {
+      "HighByte": 8472
+    }
+  },
+  "bookmarks": {},
+  "cursor_address": 8664,
+  "hex_dump_cursor_address": 8656,
+  "sprites_cursor_address": 4096,
+  "charset_cursor_address": 4096,
+  "right_pane_visible": "HexDump",
+  "sprite_multicolor_mode": false,
+  "charset_multicolor_mode": false,
+  "bitmap_cursor_address": 8192,
+  "bitmap_multicolor_mode": false,
+  "hexdump_view_mode": "PETSCIIShifted",
+  "splitters": [],
+  "blocks_view_cursor": null,
+  "scopes": {}
+}
