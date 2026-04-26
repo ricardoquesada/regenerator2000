@@ -134,10 +134,7 @@ impl AboutDialog {
     /// Whether the cursor should be visible right now (blink logic).
     fn cursor_visible(&self) -> bool {
         let elapsed = self.egg_start.map_or(Duration::ZERO, |t| t.elapsed());
-        // Only blink from TYPING_DELAY onwards, up to 1 s after typing finishes.
-        if elapsed < TYPING_DELAY {
-            return false;
-        }
+        // Blink from egg activation until 1 s after typing finishes.
         let blink_end =
             TYPING_DELAY + CHAR_INTERVAL * TYPED_TEXT.len() as u32 + Duration::from_secs(1);
         if elapsed > blink_end {
@@ -319,10 +316,9 @@ impl Widget for AboutDialog {
             return WidgetResult::Handled;
         }
 
-        // A click while the egg is running closes it immediately.
+        // While the egg animation is running, swallow all clicks silently.
         if self.egg_alive() {
-            ui_state.set_status_message("Ready");
-            return WidgetResult::Close;
+            return WidgetResult::Handled;
         }
 
         // Hit-test against the logo area.
