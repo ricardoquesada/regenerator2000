@@ -21,8 +21,11 @@ const EASTER_EGG_CLICKS: u8 = 5;
 /// The text that is "typed" character by character.
 const TYPED_TEXT: &str = "SYS 64738";
 
+/// Delay before the first character starts appearing.
+const TYPING_DELAY: Duration = Duration::from_secs(2);
+
 /// Delay between each typed character.
-const CHAR_INTERVAL: Duration = Duration::from_millis(120);
+const CHAR_INTERVAL: Duration = Duration::from_millis(240);
 
 /// Cursor blink period.
 const BLINK_PERIOD: Duration = Duration::from_millis(400);
@@ -84,9 +87,11 @@ impl AboutDialog {
         let tx = self.event_tx.clone();
         std::thread::spawn(move || {
             // Send ticks until the receiver is gone (dialog closed).
-            // Total animation = header + typing + 2 s close delay.
-            let total =
-                CHAR_INTERVAL * TYPED_TEXT.len() as u32 + CLOSE_DELAY + Duration::from_secs(1);
+            // Total = pre-delay + typing + 2 s close delay.
+            let total = TYPING_DELAY
+                + CHAR_INTERVAL * TYPED_TEXT.len() as u32
+                + CLOSE_DELAY
+                + Duration::from_secs(1);
             let steps = (total.as_millis() / TICK_INTERVAL.as_millis()) as u32 + 4;
             for _ in 0..steps {
                 std::thread::sleep(TICK_INTERVAL);
@@ -100,7 +105,9 @@ impl AboutDialog {
     /// How many characters of `TYPED_TEXT` should be visible right now.
     fn visible_chars(&self) -> usize {
         let elapsed = self.egg_start.map_or(Duration::ZERO, |t| t.elapsed());
-        let chars = elapsed.as_millis() / CHAR_INTERVAL.as_millis();
+        // Characters only start appearing after TYPING_DELAY.
+        let typing_elapsed = elapsed.saturating_sub(TYPING_DELAY);
+        let chars = typing_elapsed.as_millis() / CHAR_INTERVAL.as_millis();
         (chars as usize).min(TYPED_TEXT.len())
     }
 
@@ -119,7 +126,7 @@ impl AboutDialog {
         let Some(start) = self.egg_start else {
             return false;
         };
-        let typing_done_at = CHAR_INTERVAL * TYPED_TEXT.len() as u32;
+        let typing_done_at = TYPING_DELAY + CHAR_INTERVAL * TYPED_TEXT.len() as u32;
         let close_at = typing_done_at + CLOSE_DELAY;
         start.elapsed() >= close_at
     }
@@ -127,8 +134,12 @@ impl AboutDialog {
     /// Whether the cursor should be visible right now (blink logic).
     fn cursor_visible(&self) -> bool {
         let elapsed = self.egg_start.map_or(Duration::ZERO, |t| t.elapsed());
-        // Blink only while typing or within 1 s after.
-        let blink_end = CHAR_INTERVAL * TYPED_TEXT.len() as u32 + Duration::from_secs(1);
+        // Only blink from TYPING_DELAY onwards, up to 1 s after typing finishes.
+        if elapsed < TYPING_DELAY {
+            return false;
+        }
+        let blink_end =
+            TYPING_DELAY + CHAR_INTERVAL * TYPED_TEXT.len() as u32 + Duration::from_secs(1);
         if elapsed > blink_end {
             return false;
         }
