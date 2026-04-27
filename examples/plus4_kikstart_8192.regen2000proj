@@ -5,6 +5,12 @@
   "blocks": [
     {
       "start": 0,
+      "end": 3071,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 3072,
       "end": 3223,
       "type_": "Undefined",
       "collapsed": false
@@ -1058,9 +1064,324 @@
         "kind": "User"
       }
     ],
+    "32": [
+      {
+        "name": "obstacle_vel",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "36": [
+      {
+        "name": "ptr_obj_record_lo",
+        "label_type": "ZeroPagePointer",
+        "kind": "User"
+      }
+    ],
+    "37": [
+      {
+        "name": "ptr_obj_record_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "38": [
+      {
+        "name": "track_scroll_frac",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "39": [
+      {
+        "name": "bike_pos_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "40": [
+      {
+        "name": "bike_pos_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "41": [
+      {
+        "name": "bike_vel",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "42": [
+      {
+        "name": "bike_throttle",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "43": [
+      {
+        "name": "spawn_cooldown",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "44": [
+      {
+        "name": "rng_state_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "45": [
+      {
+        "name": "rng_state_mid",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "46": [
+      {
+        "name": "rng_state_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "47": [
+      {
+        "name": "course_index",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "48": [
+      {
+        "name": "lap_counter",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "49": [
+      {
+        "name": "scroll_dir_flag",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "50": [
+      {
+        "name": "sprite_queue_count",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "51": [
       {
         "name": "joystick_state",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "52": [
+      {
+        "name": "music_step",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "53": [
+      {
+        "name": "music_pos",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "54": [
+      {
+        "name": "track_progress",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "55": [
+      {
+        "name": "track_left_edge",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "56": [
+      {
+        "name": "track_flags",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "57": [
+      {
+        "name": "track_right_edge",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "58": [
+      {
+        "name": "prev_track_flags",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "59": [
+      {
+        "name": "player_active",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "60": [
+      {
+        "name": "anim_frame_count",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "61": [
+      {
+        "name": "raster_colour",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "62": [
+      {
+        "name": "scroll_timer",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "63": [
+      {
+        "name": "frame_counter",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "64": [
+      {
+        "name": "crash_debris_x",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "72": [
+      {
+        "name": "crash_debris_y",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "80": [
+      {
+        "name": "snd_pitch",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "81": [
+      {
+        "name": "snd_pitch_delta",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "82": [
+      {
+        "name": "spawn_type",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "83": [
+      {
+        "name": "scroll_speed",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "84": [
+      {
+        "name": "snd_duration",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "85": [
+      {
+        "name": "snd_volume",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "86": [
+      {
+        "name": "title_row_anim",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "87": [
+      {
+        "name": "title_char_idx",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "247": [
+      {
+        "name": "blit_scratch",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "248": [
+      {
+        "name": "ted_ctrl_staging",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "249": [
+      {
+        "name": "pitch_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "252": [
+      {
+        "name": "blit_col",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "253": [
+      {
+        "name": "blit_row",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "254": [
+      {
+        "name": "blit_colour_ptr",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "255": [
+      {
+        "name": "blit_char_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -1285,6 +1606,53 @@
     "11945": "Reset both secondary position slots to $28 (right-edge start)"
   },
   "user_line_comments": {
+    "32": "ZP array[4]: signed velocity/fractional-position byte per obstacle slot (indexed by X). Used in scroll integration loop at $2530-$2543; negated (bounced) by s293C.",
+    "36": "ZP pointer lo/hi ($24/$25): points to current object/obstacle record. Used with (ptr_obj_record),Y indirect-indexed to read tile types, colour descriptors, and sentinel markers. Reset to $00/$2F on each level init.",
+    "37": "High byte of ptr_obj_record ($24/$25). Loaded from ROM table f1E60[course_index] at level start. Incremented with carry by s2E28 as the pointer walks forward through the object record stream. Wraps back to $2F when ptr_obj_record_lo reaches $D8 and hi reaches $3F (end of course data).",
+    "38": "Track scroll sub-pixel accumulator (fractional part). Decremented by bike_throttle each frame; borrow propagates to integer-position registers that drive obstacle/track rendering.",
+    "39": "Bike horizontal position - integer part (screen column). High byte of 16-bit fixed-point pair ($27:$28). Integrated 4x per frame by bike_vel at $290B. Clamped between a37 and a39 (track left/right walls).",
+    "40": "Bike horizontal position - fractional part. Low byte of 16-bit fixed-point pair ($27:$28). Accumulated via bike_vel; carry feeds into bike_pos_hi. Cleared on collision / phase transitions.",
+    "41": "Bike signed lateral velocity (signed 8-bit). Added 4x per frame to the $28:$27 accumulator. Adjusted by joystick tilt (s2E44 / j2784); clamped to $02-$60 range. Also written directly by s26F0 on special events.",
+    "42": "Bike forward throttle / speed (0-$F9 race, 0-$63 menu). Increased by joystick forward, decreased by joystick back; clamped at limits. Written to TED $FF0E as engine sound pitch. Zero = no engine sound, also gates music enable bit in $F8.",
+    "43": "Obstacle spawn cooldown counter. Incremented by s27FC each time all 4 slots are found empty. Compared against (tile_type_field & $0F) + 6 at $2C96 to gate new spawns; cleared to 0 when a spawn succeeds.",
+    "44": "PRNG state byte 0 (low). 3-byte additive LFSR used by s27E0: lo += $45; mid = mid+$72+carry+lo; hi = hi+$BD+carry+mid. Result (hi byte) used to seed obstacle velocity, position, and type at spawn time.",
+    "45": "PRNG state byte 1 (mid). See rng_state_lo ($2C). Intermediate carry accumulator in s27E0.",
+    "46": "PRNG state byte 2 (high). Output byte from s27E0; bits masked and used to pick obstacle start positions and velocities on each new spawn.",
+    "47": "Course/level index (0-based, wraps via &$0F for 16 courses). Init to $FF at startup; incremented by s2A18 on course completion. Low nibble indexes colour (f1E70) and layout (f1DE0/f1E10) ROM tables. Compared against #$10 to detect full-game completion.",
+    "48": "Laps / course-segment counter. Init $00 at startup; set to #$05 at race start. Decremented when track_progress overflows without game_mode change; compared against #$05 in s2A4A to gate bonus-lap logic. Also used as X-index into course layout tables (f1D38/f1D40) for TED display setup.",
+    "49": "Scroll direction flag. 0 = obstacles scrolling right-to-left (normal play); 1 = obstacles scrolling left-to-right (triggered by $FD sentinel in object record). Controls which code path the object-record walker takes at $232E.",
+    "50": "Sprite/object queue count. Incremented by s23C8 each time a visible sprite entry is added to the display list (f0400/f0430/f0460/f0490). Used as the Y-index into those arrays. Decremented by s21D8 as sprites are rendered and removed. Zero = empty queue.",
+    "52": "Music player sub-step counter (0-5). Incremented each frame by s2AA0; wraps at 6, then increments music_pos. Together with music_pos this forms a 2-level counter that indexes the music data table f1948.",
+    "53": "Music player position (0-$BF). Incremented by s2AA0 every 6 frames (when music_step wraps); wraps at $C0 (192 entries). Used as X-index into f1948 to fetch the next music note/command byte, which drives TED $FF0E (pitch) and $FF12 (volume/control).",
+    "54": "Track scroll progress counter (0-$FF, then $00-$EF before reset). Incremented each object-record step; wraps at $A0 to trigger a lap decrement / game_mode change. Compared to #$A0 (and #$F0 for reset_basic_runtime_state call) to signal course completion.",
+    "55": "Track left boundary (min screen column for bike_pos_hi). Loaded from course data at level init (stored via a37 write). bike_pos_hi is clamped >= track_left_edge; going below triggers a crash via s26AC.",
+    "56": "Track attribute flags byte. Bit 7: special track section active (e.g. tight section requiring joystick hold). AND-ed with prev_track_flags ($3A) and #$40 at $27C3 to detect a flag-rising-edge transition and trigger sound effect s2B74.",
+    "57": "Track right boundary (max screen column for bike_pos_hi). bike_pos_hi is clamped <= track_right_edge; going beyond triggers crash via s26AC. Compared alongside track_left_edge to detect whether bike is inside valid track bounds.",
+    "58": "Previous frame track_flags ($38). AND-ed with current track_flags and #$40 at $27C3 to detect a bit-40 rising edge (new special section entered). Single reference; updated implicitly by whatever writes track_flags.",
+    "59": "Player-active flag. $00 = player inactive (obstacle-scroll only mode, triggered by $FE sentinel); $FF = player active (normal riding). Set $FF at game start and on course transitions; cleared to $00 on crash. Controls whether bike input/physics run each frame.",
+    "60": "Wheel/sprite animation frame counter. Decremented each frame when non-zero (at $2376). Used as a base for the finish-line sound trigger in s2BA0 (added +$C0 to produce sound offset). Written to $05 by s2D89 to restart the animation. Also written directly by s2DA8.",
+    "61": "Raster split colour register. Pushed onto stack and loaded into TED colour register during raster IRQ (at $2146). Value $18 = default background colour; $10 = alternate split colour. Toggled by s21B4 when a3D reaches $18 to blank raster_split_a.",
+    "62": "Track scroll rate sub-timer. Decremented each frame by a53 (speed factor); when it underflows the raster_split_a register is stepped down by 2 (shifting the track display). Acts as a fractional divider to smoothly control how fast the track scrolls relative to a53.",
+    "63": "Global frame counter (incremented every IRQ). Bit 0 used to select even/odd TED volume field in $F8 (stereo-like panning). Low 3 bits (&$07) gate the title-screen menu input rate in s2DB4. Low 2 bits (&$03) gate the per-obstacle sound trigger in the scroll loop at $256C (1-in-4 frame rate per slot).",
+    "64": "ZP array[8]: crash tumble debris X-positions (slots 0-7, at $40-$47). Initialised by s26AC to bike_pos_hi>>2 spread across 8 slots. Each frame (b242C) advanced by velocity table f1C80,x; slot written $FF when particle exits screen right ($28+). Slot 0 read by j2764 to detect animation end.",
+    "72": "ZP array[8]: crash tumble debris Y-positions (slots 0-7, at $48-$4F). Initialised by s26AC to #$10 (top of track). Each frame (b242C) advanced by velocity table f1C88,x; slot written $FF when particle falls off screen bottom (Y >= $13). All $FF = animation complete. Scanned by j2894 to count active slots.",
+    "80": "Sound engine: current pitch byte (written to TED $FF0F each frame via snd_duration countdown). Each frame: snd_pitch += snd_pitch_delta, then (snd_pitch << 2) written to $FF0F/$FF10 as a 10-bit frequency. Callers set this to the starting frequency of each sound effect.",
+    "81": "Sound engine: pitch sweep delta. Added to snd_pitch each frame to produce a rising or falling frequency sweep. Positive = pitch rises; negative (e.g. $FC=$-4, $FE=$-2) = pitch falls. Set alongside snd_pitch and snd_duration by each sound-effect launcher.",
+    "82": "Obstacle spawn type scratch. Written by s2C4C with the PRNG-selected obstacle type nibble (low 4 bits of rng output, biased by course_index and f1DA0/f1DB0 tables). Used as the obstacle_flags value for the new slot and compared against #$08 to pick spawn path.",
+    "83": "Track scroll speed divisor. Loaded from ROM table f1DE0[course_index] by s2DA8/s2A4A. Subtracted from scroll_timer ($3E) each frame; when scroll_timer underflows, raster_split_a steps by 2 (one character row). Higher value = faster scroll.",
+    "84": "Sound engine: duration counter. Decremented each frame; zero = channel free (new effect can start). Non-zero = effect playing. Each sound-effect launcher (s2B5C/s2B74/s2B8C/s2BA0/s2BBC/s2C20/s2C38) sets this before it can fire. Guards s2BA0 and s2BBC from retriggering.",
+    "85": "Sound engine: TED volume/waveform control byte. Written to $F8 each frame (after OR-ing in throttle and frame-parity bits) while snd_duration > 0. $30 = normal waveform; $50 = alternate waveform (used for crash/hit effects). $10 = silent (channel muted).",
+    "86": "Title-screen row animation counter (0-99 / $00-$63). Incremented by s2DB4 each frame when joystick is not tilting both ways simultaneously; cleared to 0 on direction reset. When it reaches $64 (100), the 8-row title character strip is rendered from f1C98. Drives row-select for ROM tile table at f1948.",
+    "87": "Title-screen character/column index (4-bit, 0-$0F). Inc/dec'd by joystick tilt (bits 2-3) in s2DB4; masked to 4 bits. Indexes ROM char tables f1DC0 (colour, -> $0DF7) and f1DD0 (shape, -> $0DF6). Also copied to course_index at $2E07 to select the starting course from the menu.",
+    "247": "Multi-purpose scratch byte. Used as: (1) collision detection Y-offset scratch in $2CF1 (screen row of obstacle vs raster split, clamped to $39-$49 window); (2) loop-counter accumulator in the tyre-sound delay loop at $2D7B. Short-lived; not preserved across calls.",
+    "248": "TED sound/video control staging register. Dual use: (1) Sound driver: snd_pitch shifted left 2 bits stored here (lo byte) before writing to TED $FF0F/$FF10 as 10-bit pitch. (2) TED channel-control: volume/waveform byte assembled here (OR-ing snd_volume, frame parity, throttle-gate, mute bits) then written to TED $FF11.",
+    "249": "Pitch shift hi byte. Holds the high byte of (snd_pitch << 2) during sound driver update; written to TED $FF10. Also used as the second raster-column value (bike 1 position) in the bike sprite draw routine at $2480/$2495.",
+    "252": "Blit destination column (screen X, character cell units). Set before each call to s23C8; stored to f0400,x (screen column table entry). Also used as ZP pointer lo half in (blit_col),Y indirect writes to screen RAM (e.g. at $2229), and as the row-step counter in the obstacle sprite loop at $22E6.",
+    "253": "Blit destination row (screen Y, character row units). Set before each call to s23C8; guard-checked against #$28 (clip at bottom of screen). Stored to f0430,x. Incremented by s22F0 to step down one row per sprite strip.",
+    "254": "Blit colour pointer / colour byte. Set to the colour RAM base address (hi byte or direct value) for the current sprite strip. Stored to f0490,x (colour entry table). Also used as ZP pointer hi in (blit_col),Y indirect writes to colour RAM (at $2233); the XOR #$04 toggles between screen/colour RAM bank.",
+    "255": "Blit character index / column offset. Holds the character-set index or sub-column offset for the current sprite cell. Stored to f0460,x (character index table). Computed from obstacle position bits and type; incremented by #$03 per column step during obstacle sprite drawing.",
+    "4096": "charset",
+    "6144": "double-height characters charst",
     "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain entry point for Kikstart (Commodore Plus/4).\nPerforms a full cold-start initialization:\n  1. TED chip reset: colors set, audio muted, video matrix configured.\n  2. Screen RAM (4 pages) cleared; attribute RAM filled with color $39.\n  3. Game IRQ handler installed at $0314/$0315 (KERNAL shadow vector).\n  4. Track/tile color tables initialized from ROM data tables.\n  5. TED Timer 1 configured and started to drive per-frame IRQs.\n  6. IRQs enabled; falls into the raster-synced main game loop.\n\nThe main loop is 3-phase, synchronized to the TED Timer 1 IRQ (handled\nby the routine at p2118). The IRQ increments RAM_ZPVEC1 each tick:\n  Phase 1 ($01): 8 game-logic subsystem update subroutines.\n  Phase 2 ($02): 7 more update subroutines, then repeats from phase 1.\n  Phase 0 ($00): Internal raster task dispatched inside the IRQ handler.\n\nInputs:       None (cold start)\nOutputs:      None\nSide Effects: TED chip fully configured, IRQ vector patched to p2118,\n              TED Timer 1 running, game loop active indefinitely.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8472": "TED Timer 1 IRQ handler.\nFires each raster frame. Acknowledges the TED timer IRQ, increments the\n3-phase frame counter in RAM_ZPVEC1 (wraps 0→1→2→0), then dispatches\nraster state machine tasks for phase 0. Phases 1 and 2 are handled by\nthe spin-waits in the main loop (main_init). Non-timer IRQs are chained\nto the KERNAL handler at $FCC3.",
     "8964": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame update of obstacle and player bike screen positions.\nCalled every game frame (phase 1 of the IRQ-driven 3-phase main loop).\n\nGuards on a02 (game mode): only active for modes 1, 2, 5, or >=7;\nreturns immediately for menus, attract, or paused states.\n\nReads the obstacle type byte at offset $10 of the object record pointed\nto by p24 ($24/$25):\n  $FE -> clears a3B (player-active flag), calls s2694 (crash/reset)\n  $FD -> sets a31=1 (state-change signal)\n\nDecrement path (a3B=0, obstacles scrolling right->left):\n  Loops over slots X=4,3,1 (slot 2 skipped): decrements f0C07,x and\n  f0C2F,x by 1 each frame. Wraps at $0A back to $14/$28 (track boundary).\n  Calls s2190 to check if any slot crossed the finish threshold.\n\nIncrement path (a3B!=0, player in motion, even frames only):\n  Loops over slots X=1,0: increments f0C07,x and f0C2F,x. Wraps at\n  $15 back down to $0B/$1F. Calls s2E90 to check for a finish-line\n  or bike collision.\n\nInputs:  a02 (game mode), a3B (player-active flag), a31, a3C, a3F\n         (frame counter), (p24)+$10 (obstacle type), f0C07/f0C2F tables\nOutputs: f0C07,x / f0C2F,x (updated screen positions), a3B, a31\nSide Effects: May call s2694 (crash/reset), s2190 (lap check),\n              s2E90 (finish-line/collision check)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1309,8 +1677,8 @@
     "addresses_per_line": 5,
     "bytes_per_line": 8,
     "enabled_features": {
-      "Lower Page": false,
-      "KERNAL": true
+      "KERNAL": true,
+      "Lower Page": false
     },
     "description": "A fast-paced, side-viewed, single-player motorcycle game where players must guide a stunt bike through sixteen courses filled with obstacles and a rapidly decreasing timer",
     "auto_analyze": true,
@@ -1327,14 +1695,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 9988,
-  "hex_dump_cursor_address": 9984,
+  "cursor_address": 6472,
+  "hex_dump_cursor_address": 6464,
   "sprites_cursor_address": 4096,
-  "charset_cursor_address": 4096,
-  "right_pane_visible": "HexDump",
+  "charset_cursor_address": 6472,
+  "right_pane_visible": "Sprites",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],
