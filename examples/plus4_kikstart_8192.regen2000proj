@@ -1677,8 +1677,7 @@
     "addresses_per_line": 5,
     "bytes_per_line": 8,
     "enabled_features": {
-      "KERNAL": true,
-      "Lower Page": false
+      "KERNAL": true
     },
     "description": "A fast-paced, side-viewed, single-player motorcycle game where players must guide a stunt bike through sixteen courses filled with obstacles and a rapidly decreasing timer",
     "auto_analyze": true,
@@ -1695,14 +1694,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 6472,
+  "cursor_address": 8472,
   "hex_dump_cursor_address": 6464,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 6472,
   "right_pane_visible": "Sprites",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],

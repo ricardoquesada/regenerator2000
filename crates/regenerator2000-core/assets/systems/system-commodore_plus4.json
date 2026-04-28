@@ -878,7 +878,7 @@
         "FFFC": "RES Vector",
         "FFFD": "RES Vector",
         "FFFE": "IRQ Vector",
-        "FFFF": "IRQ Vector",
+        "FFFF": "IRQ Vector"
     },
     "excluded": [
         "FC00-FD30",
