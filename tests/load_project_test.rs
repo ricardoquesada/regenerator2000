@@ -49,6 +49,7 @@ mod tests {
             blocks_view_cursor: None,
             bookmarks: BTreeMap::new(),
             scopes: BTreeMap::new(),
+            user_excluded_addresses: std::collections::BTreeSet::new(),
         };
 
         let json = serde_json::to_string(&project).unwrap();
@@ -76,6 +77,126 @@ mod tests {
             "Should be Auto label"
         );
         // Name might be j1005 or b1005 depending on priority, checking existence is main goal.
+
+        // Cleanup
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn test_user_excluded_addresses_roundtrip() {
+        use regenerator2000_core::state::{Addr, ProjectSaveContext};
+
+        let mut app_state = AppState::new();
+
+        // Create a project with code that references $E500 and $FFD2
+        // JMP $E500 (4C 00 E5)
+        // JSR $FFD2 (20 D2 FF)
+        let raw_bytes: Vec<u8> = vec![0x4C, 0x00, 0xE5, 0x20, 0xD2, 0xFF];
+        let raw_data_base64 =
+            regenerator2000_core::state::encode_raw_data_to_base64(&raw_bytes).unwrap();
+
+        let project = ProjectState {
+            version: 1,
+            origin: Addr(0x1000),
+            raw_data: raw_data_base64,
+            blocks: vec![Block {
+                start: 0,
+                end: 5,
+                type_: BlockType::Code,
+                collapsed: false,
+            }],
+            labels: BTreeMap::new(),
+            user_side_comments: BTreeMap::new(),
+            user_line_comments: BTreeMap::new(),
+            immediate_value_formats: BTreeMap::new(),
+            settings: DocumentSettings::default(),
+            cursor_address: None,
+            hex_dump_cursor_address: None,
+            sprites_cursor_address: None,
+            charset_cursor_address: None,
+            bitmap_cursor_address: None,
+            right_pane_visible: None,
+            sprite_multicolor_mode: false,
+            charset_multicolor_mode: false,
+            bitmap_multicolor_mode: false,
+            hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
+            splitters: std::collections::BTreeSet::new(),
+            blocks_view_cursor: None,
+            bookmarks: BTreeMap::new(),
+            scopes: BTreeMap::new(),
+            user_excluded_addresses: [Addr(0xE500), Addr(0xFFD2)].into_iter().collect(),
+        };
+
+        let json = serde_json::to_string(&project).unwrap();
+
+        let mut path = std::env::temp_dir();
+        path.push("test_regen_excluded_addrs.regen2000proj");
+        std::fs::write(&path, json).unwrap();
+
+        // Load the project
+        app_state
+            .load_project(path.clone())
+            .expect("Failed to load project");
+
+        // Verify user_excluded_addresses was restored
+        assert!(
+            app_state.user_excluded_addresses.contains(&Addr(0xE500)),
+            "user_excluded_addresses should contain $E500 after load"
+        );
+        assert!(
+            app_state.user_excluded_addresses.contains(&Addr(0xFFD2)),
+            "user_excluded_addresses should contain $FFD2 after load"
+        );
+        assert_eq!(
+            app_state.user_excluded_addresses.len(),
+            2,
+            "Should have exactly 2 user-excluded addresses"
+        );
+
+        // Verify they are merged into excluded_addresses
+        assert!(
+            app_state.excluded_addresses.contains(&Addr(0xE500)),
+            "excluded_addresses should contain $E500"
+        );
+        assert!(
+            app_state.excluded_addresses.contains(&Addr(0xFFD2)),
+            "excluded_addresses should contain $FFD2"
+        );
+
+        // Now save the project and reload to verify full round-trip
+        app_state.project_path = Some(path.clone());
+        let ctx = ProjectSaveContext {
+            cursor_address: None,
+            hex_dump_cursor_address: None,
+            sprites_cursor_address: None,
+            right_pane_visible: None,
+            charset_cursor_address: None,
+            bitmap_cursor_address: None,
+            sprite_multicolor_mode: false,
+            charset_multicolor_mode: false,
+            bitmap_multicolor_mode: false,
+            hexdump_view_mode: regenerator2000_core::state::HexdumpViewMode::default(),
+            splitters: std::collections::BTreeSet::new(),
+            blocks_view_cursor: None,
+            bookmarks: BTreeMap::new(),
+        };
+        app_state
+            .save_project(ctx, false)
+            .expect("Failed to save project");
+
+        // Reload into a fresh AppState
+        let mut app_state2 = AppState::new();
+        app_state2
+            .load_project(path.clone())
+            .expect("Failed to reload project");
+
+        assert_eq!(
+            app_state2.user_excluded_addresses.len(),
+            2,
+            "Round-trip: should still have 2 user-excluded addresses"
+        );
+        assert!(app_state2.user_excluded_addresses.contains(&Addr(0xE500)));
+        assert!(app_state2.user_excluded_addresses.contains(&Addr(0xFFD2)));
 
         // Cleanup
         let _ = std::fs::remove_file(path);

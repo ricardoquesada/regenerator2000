@@ -50,6 +50,9 @@ pub struct AppState {
     pub undo_stack: crate::commands::UndoStack,
     pub last_saved_pointer: usize,
     pub excluded_addresses: std::collections::HashSet<Addr>,
+    /// Per-project user-defined excluded addresses, always applied during analysis
+    /// regardless of the `exclude_well_known_labels` document setting.
+    pub user_excluded_addresses: BTreeSet<Addr>,
     pub collapsed_blocks: Vec<(usize, usize)>,
     pub splitters: BTreeSet<Addr>,
     pub last_import_labels_path: Option<PathBuf>,
@@ -106,6 +109,7 @@ impl AppState {
             undo_stack: crate::commands::UndoStack::new(),
             last_saved_pointer: 0,
             excluded_addresses: std::collections::HashSet::new(),
+            user_excluded_addresses: BTreeSet::new(),
             collapsed_blocks: Vec::new(),
             splitters: BTreeSet::new(),
             last_import_labels_path: None,
@@ -134,6 +138,11 @@ impl AppState {
         } else {
             self.excluded_addresses.clear();
         }
+
+        // Always apply user-defined per-project excluded addresses,
+        // independent of the `exclude_well_known_labels` setting.
+        self.excluded_addresses
+            .extend(self.user_excluded_addresses.iter().copied());
 
         // Load comments (conditionally)
         if self.settings.show_system_comments {

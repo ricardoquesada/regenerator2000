@@ -84,6 +84,11 @@ pub struct ProjectState {
     pub blocks_view_cursor: Option<usize>,
     #[serde(default)]
     pub scopes: BTreeMap<Addr, Addr>,
+    /// Per-project user-excluded addresses: always excluded from symbolic
+    /// analysis, independent of the `exclude_well_known_labels` setting.
+    /// Defaults to empty so existing project files load without errors.
+    #[serde(default)]
+    pub user_excluded_addresses: BTreeSet<Addr>,
 }
 
 #[derive(Debug)]

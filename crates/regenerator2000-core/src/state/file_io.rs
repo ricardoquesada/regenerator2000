@@ -27,6 +27,7 @@ impl AppState {
         self.bookmarks.clear();
         self.collapsed_blocks.clear(); // clear collapsed blocks
         self.splitters.clear(); // clear splitters
+        self.user_excluded_addresses.clear();
         self.last_import_labels_path = None;
         self.last_export_labels_filename = None;
         self.last_save_as_filename = None;
@@ -185,6 +186,7 @@ impl AppState {
         self.bookmarks.clear();
         self.collapsed_blocks.clear();
         self.splitters.clear();
+        self.user_excluded_addresses.clear();
         self.last_import_labels_path = None;
         self.last_export_labels_filename = None;
         self.last_save_as_filename = None;
@@ -295,6 +297,7 @@ impl AppState {
         }
 
         self.splitters = project.splitters;
+        self.user_excluded_addresses = project.user_excluded_addresses;
         self.last_import_labels_path = None;
         self.last_export_labels_filename = None;
         self.last_save_as_filename = None;
@@ -550,6 +553,7 @@ impl AppState {
                 splitters: ctx.splitters,
                 blocks_view_cursor: ctx.blocks_view_cursor,
                 scopes: self.scopes.clone(),
+                user_excluded_addresses: self.user_excluded_addresses.clone(),
             };
             let data = serde_json::to_string_pretty(&project)?;
             std::fs::write(path, data)?;

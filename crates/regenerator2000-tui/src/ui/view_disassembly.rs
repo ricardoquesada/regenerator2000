@@ -1745,10 +1745,15 @@ impl Widget for DisassemblyView {
                 WidgetResult::Action(AppAction::NudgeScopeBoundary { expand: true })
             }
             KeyCode::Delete if key.modifiers.is_empty() => {
-                let mut allow_delete = false;
                 if !app_state.raw_data.is_empty()
                     && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
                 {
+                    // Priority 1: External address exclusion
+                    if line.external_label_address.is_some() {
+                        return WidgetResult::Action(AppAction::ExcludeExternalAddress);
+                    }
+
+                    // Priority 2: Scope removal (existing behavior)
                     let formatter = app_state.get_formatter();
                     let is_start = formatter
                         .format_scope_start(None)
@@ -1759,14 +1764,11 @@ impl Widget for DisassemblyView {
                         .map(|m| m == line.mnemonic)
                         .unwrap_or(false);
 
-                    allow_delete = is_start || is_end;
+                    if is_start || is_end {
+                        return WidgetResult::Action(AppAction::RemoveScope);
+                    }
                 }
-
-                if allow_delete {
-                    WidgetResult::Action(AppAction::RemoveScope)
-                } else {
-                    WidgetResult::Ignored
-                }
+                WidgetResult::Ignored
             }
             KeyCode::Char('I') if key.modifiers == KeyModifiers::SHIFT => {
                 WidgetResult::Action(AppAction::PreviousImmediateFormat)

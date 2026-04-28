@@ -116,6 +116,10 @@ pub enum AppAction {
         expand: bool,
     },
     RemoveScope,
+    /// Adds the external label's target address to the per-project excluded
+    /// addresses set and re-analyzes, so it no longer appears as a symbolic
+    /// external reference.
+    ExcludeExternalAddress,
     /// Wraps an action that has been explicitly confirmed by the user.
     /// Core will bypass destructive checks for this action.
     Confirmed(Box<AppAction>),

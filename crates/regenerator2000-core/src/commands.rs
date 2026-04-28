@@ -66,6 +66,15 @@ pub enum Command {
         new_name: Option<String>,
         old_name: Option<String>,
     },
+    /// Adds or removes an address from the per-project user-excluded set.
+    /// `add = true` means we are adding the address (applying exclusion);
+    /// `add = false` means we are removing it (undo of an exclusion).
+    SetUserExcludedAddress {
+        address: Addr,
+        add: bool,
+        old_labels: BTreeMap<Addr, Vec<crate::state::Label>>,
+        old_cross_refs: BTreeMap<Addr, Vec<Addr>>,
+    },
     Batch(Vec<Command>),
 }
 
@@ -185,6 +194,23 @@ impl Command {
                 } else {
                     state.bookmarks.remove(address);
                 }
+            }
+            Command::SetUserExcludedAddress {
+                address,
+                add,
+                old_labels: _,
+                old_cross_refs: _,
+            } => {
+                if *add {
+                    state.user_excluded_addresses.insert(*address);
+                } else {
+                    state.user_excluded_addresses.remove(address);
+                }
+                state.load_system_assets();
+                let result = crate::analyzer::analyze(state);
+                state.labels = result.labels;
+                state.cross_refs = result.cross_refs;
+                state.disassemble();
             }
             Command::AddScope {
                 start,
@@ -322,6 +348,24 @@ impl Command {
                 } else {
                     state.bookmarks.remove(address);
                 }
+            }
+            Command::SetUserExcludedAddress {
+                address,
+                add,
+                old_labels,
+                old_cross_refs,
+            } => {
+                // Reverse the exclusion set change
+                if *add {
+                    state.user_excluded_addresses.remove(address);
+                } else {
+                    state.user_excluded_addresses.insert(*address);
+                }
+                state.load_system_assets();
+                // Restore the exact pre-command labels and xrefs
+                state.labels = old_labels.clone();
+                state.cross_refs = old_cross_refs.clone();
+                state.disassemble();
             }
             Command::AddScope {
                 start,
@@ -705,5 +749,106 @@ mod tests {
 
         let labels_2000 = app_state.labels.get(&Addr(0x2000)).unwrap();
         assert_eq!(labels_2000.len(), 1);
+    }
+
+    #[test]
+    fn test_set_user_excluded_address_undo_redo() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        // JMP $E500 (4C 00 E5) -> normally generates label eE500
+        let data = vec![0x4C, 0x00, 0xE5];
+        app_state.raw_data = data;
+        app_state.block_types = vec![BlockType::Code; 3];
+
+        // Initial analysis: label should exist at $E500
+        let result = crate::analyzer::analyze(&app_state);
+        app_state.labels = result.labels;
+        app_state.cross_refs = result.cross_refs;
+        app_state.disassemble();
+
+        assert!(
+            app_state.labels.contains_key(&Addr(0xE500)),
+            "Label at $E500 should exist before exclusion"
+        );
+        assert!(
+            app_state.user_excluded_addresses.is_empty(),
+            "user_excluded_addresses should be empty initially"
+        );
+
+        // Apply: exclude $E500
+        let old_labels = app_state.labels.clone();
+        let old_cross_refs = app_state.cross_refs.clone();
+        let command = Command::SetUserExcludedAddress {
+            address: Addr(0xE500),
+            add: true,
+            old_labels,
+            old_cross_refs,
+        };
+        command.apply(&mut app_state);
+        app_state.undo_stack.push(command);
+
+        // Verify: $E500 should be excluded, no label
+        assert!(
+            app_state.user_excluded_addresses.contains(&Addr(0xE500)),
+            "user_excluded_addresses should contain $E500 after apply"
+        );
+        assert!(
+            !app_state.labels.contains_key(&Addr(0xE500)),
+            "Label at $E500 should be gone after exclusion"
+        );
+
+        // Undo
+        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        stack.undo(&mut app_state);
+        app_state.undo_stack = stack;
+
+        // Verify undo: label should be back
+        assert!(
+            !app_state.user_excluded_addresses.contains(&Addr(0xE500)),
+            "user_excluded_addresses should NOT contain $E500 after undo"
+        );
+        assert!(
+            app_state.labels.contains_key(&Addr(0xE500)),
+            "Label at $E500 should be restored after undo"
+        );
+
+        // Redo
+        let mut stack = std::mem::take(&mut app_state.undo_stack);
+        stack.redo(&mut app_state);
+        app_state.undo_stack = stack;
+
+        // Verify redo: excluded again
+        assert!(
+            app_state.user_excluded_addresses.contains(&Addr(0xE500)),
+            "user_excluded_addresses should contain $E500 after redo"
+        );
+        assert!(
+            !app_state.labels.contains_key(&Addr(0xE500)),
+            "Label at $E500 should be gone after redo"
+        );
+    }
+
+    #[test]
+    fn test_user_excluded_addresses_merged_in_load_system_assets() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        app_state.raw_data = vec![0xEA]; // NOP
+        app_state.block_types = vec![BlockType::Code; 1];
+
+        // Ensure the "exclude well-known labels" setting is OFF
+        app_state.settings.exclude_well_known_labels = false;
+
+        // Add a user-excluded address
+        app_state.user_excluded_addresses.insert(Addr(0xFFD2));
+
+        // Call load_system_assets — should merge user-excluded even when
+        // exclude_well_known_labels is false.
+        app_state.load_system_assets();
+
+        assert!(
+            app_state.excluded_addresses.contains(&Addr(0xFFD2)),
+            "User-excluded $FFD2 should be in excluded_addresses even when \
+             exclude_well_known_labels is off"
+        );
     }
 }

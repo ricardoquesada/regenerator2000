@@ -304,6 +304,32 @@ impl Core {
             AppAction::RemoveScope => {
                 self.handle_remove_scope(&mut events);
             }
+            AppAction::ExcludeExternalAddress => {
+                if let Some(line) = self.state.disassembly.get(self.view.cursor_index)
+                    && let Some(ext_addr) = line.external_label_address
+                {
+                    if self.state.user_excluded_addresses.contains(&ext_addr) {
+                        events.push(CoreEvent::StatusMessage(format!(
+                            "${ext_addr:04X} is already excluded"
+                        )));
+                    } else {
+                        let old_labels = self.state.labels.clone();
+                        let old_cross_refs = self.state.cross_refs.clone();
+                        let command = crate::commands::Command::SetUserExcludedAddress {
+                            address: ext_addr,
+                            add: true,
+                            old_labels,
+                            old_cross_refs,
+                        };
+                        command.apply(&mut self.state);
+                        self.state.push_command(command);
+                        events.push(CoreEvent::StatusMessage(format!(
+                            "Excluded ${ext_addr:04X} from analysis"
+                        )));
+                        events.push(CoreEvent::StateChanged);
+                    }
+                }
+            }
             AppAction::Code => self.apply_block_type(crate::state::BlockType::Code, &mut events),
             AppAction::DisassembleAddress => {
                 let addr = if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
