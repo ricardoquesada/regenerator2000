@@ -137,7 +137,7 @@ impl Widget for CommentDialog {
                 ),
                 Span::styled(":save", dim),
                 Span::styled(
-                    "  Shift+Enter/Alt+Enter",
+                    "  Shift+Enter | Alt+Enter | Ctrl+Enter",
                     Style::default().add_modifier(Modifier::BOLD | Modifier::DIM),
                 ),
                 Span::styled(":line", dim),
@@ -194,8 +194,11 @@ impl Widget for CommentDialog {
                             .modifiers
                             // Shift+Enter is the most intuitive, but doesn't work in terminals with tmux.
                             // Alt+Enter is less intuitive but works in more terminals.
-                            // We accept both.
-                            .intersects(KeyModifiers::SHIFT | KeyModifiers::ALT)
+                            // CTRL+Enter is a fallback for some terminals, like Alacritty on Windows.
+                            // We accept all three.
+                            .intersects(
+                                KeyModifiers::SHIFT | KeyModifiers::ALT | KeyModifiers::CONTROL,
+                            )
                         {
                             self.textarea.insert_newline();
                             WidgetResult::Handled
