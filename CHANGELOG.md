@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.12] - 2026-04-27
+
+### Features
+
+- **Debugger**: Added TED chip register dump view for the Commodore Plus/4 platform.
+- **CLI**: Added `--export_html` command-line option; `--mcp-server` and `--headless` are now mutually exclusive.
+- **UI**: Added `Ctrl+Enter` and `Alt+Enter` as alternative shortcut for newline in Comment dialog.
+- **UI**: Added C64 boot-screen easter egg to About dialog with blinking cursor, typing animation, and auto-close.
+- **UI**: Added `handle_tick` mechanism to UI widgets for auto-close functionality.
+
+### Fixes
+
+- **Labels**: Preserve `label_type` when renaming external labels; external labels now belong to correct group.
+- **HTML Export**: Cross-references now rendered in external label definition lines.
+- **HTML Export**: External labels exported with correct grouping.
+- **Platform**: Improved system comment consistency across different platforms; better "excluded" handling for platforms.
+
+### Changes
+
+- **Labels**: Renamed `exclude_comments_from_well_known` to `exclude_well_known_labels` with updated semantic.
+
+### Refactor / Internal
+
+- **Rust**: Enforced `must_use_candidate`, `missing_errors_doc`, `missing_panics_doc` clippy lints.
+- **Rust**: Applied modern Rust best practices and documented them in `AGENTS.md`.
+- **Dependencies**: Updated dependencies.
+- **HTML Export**: Updated CSS layout for code cells.
+
+### Examples
+
+- **C64**: Annotated Burnin' Rubber with additional labels, comments, and documentation.
+- **VIC-20**: Extensive analysis and annotations for Omega Race.
+- **Plus/4**: Added Kikstart Plus/4 example project with labels and comments.
+- **PET**: Updated Lode Runner example with annotations.
+
 ## [0.9.11] - 2026-04-22
 
 ### Features
