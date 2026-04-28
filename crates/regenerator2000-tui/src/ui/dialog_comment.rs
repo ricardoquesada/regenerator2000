@@ -137,7 +137,7 @@ impl Widget for CommentDialog {
                 ),
                 Span::styled(":save", dim),
                 Span::styled(
-                    "  Shift+Enter",
+                    "  Shift+Enter/Alt+Enter",
                     Style::default().add_modifier(Modifier::BOLD | Modifier::DIM),
                 ),
                 Span::styled(":line", dim),
@@ -190,7 +190,13 @@ impl Widget for CommentDialog {
             KeyCode::Enter => {
                 match self.comment_type {
                     CommentType::Line => {
-                        if key.modifiers.contains(KeyModifiers::SHIFT) {
+                        if key
+                            .modifiers
+                            // Shift+Enter is the most intuitive, but doesn't work in terminals with tmux.
+                            // Alt+Enter is less intuitive but works in more terminals.
+                            // We accept both.
+                            .intersects(KeyModifiers::SHIFT | KeyModifiers::ALT)
+                        {
                             self.textarea.insert_newline();
                             WidgetResult::Handled
                         } else {
