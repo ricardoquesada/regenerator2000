@@ -56,6 +56,7 @@ regenerator2000 [OPTIONS] [FILE]
 - `--mcp-server`: Run MCP server (HTTP on port 3000). See [MCP Integration](mcp.md) for details.
 - `--mcp-server-stdio`: Run MCP server via stdio (headless mode).
 - `--vice <HOST:PORT>`: Auto-connect to the VICE binary monitor at startup (e.g. `--vice localhost:6502`). See [Debugger](debugger.md) for details.
+- `--dump-system-config-files <PATH>`: Dump all built-in system config files (`system-*.json`) to the specified directory and exit. The files can then be edited and placed back in the [app config directory](#system-config-files) to override or extend platform definitions.
 
 ### Recommended Terminals
 
@@ -77,3 +78,30 @@ regenerator2000 [OPTIONS] [FILE]
 [kitty_url]: https://sw.kovidgoyal.net/kitty/
 [wezterm_url]: https://wezfurlong.org/wezterm/
 [windows_terminal_url]: https://github.com/microsoft/terminal
+
+## System Config Files
+
+Regenerator 2000 ships with built-in platform definitions (`system-*.json`) for all supported systems.
+You can override any of these definitions, or add entirely new platforms, by placing edited files in
+the application config directory:
+
+| Platform    | Config directory                                              |
+| :---------- | :------------------------------------------------------------ |
+| **macOS**   | `~/Library/Application Support/regenerator2000/`             |
+| **Linux**   | `~/.config/regenerator2000/`                                  |
+| **Windows** | `C:\Users\<User>\AppData\Roaming\regenerator2000\config\`     |
+
+Files found in this directory take **precedence** over the embedded built-in versions.
+Any `system-*.json` file present *only* in the config directory is surfaced as an additional platform.
+
+### Workflow
+
+1. Dump the built-in files to the config directory:
+
+    ```bash
+    regenerator2000 --dump-system-config-files ~/.config/regenerator2000/
+    ```
+
+2. Open the file you want to customise (e.g. `system-commodore_64.json`) in any text editor.
+
+3. Make your changes and save. The next time you launch Regenerator 2000 your version will be used.

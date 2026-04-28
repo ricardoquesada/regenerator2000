@@ -136,6 +136,7 @@ regenerator2000 [OPTIONS] [path/to/file.prg]
 -   `--mcp-server`: Run MCP server (HTTP on port 3000)
 -   `--mcp-server-stdio`: Run MCP server via stdio
 -   `--vice <HOST:PORT>`: Auto-connect to VICE binary monitor at startup (e.g. `--vice localhost:6502`)
+-   `--dump-system-config-files <PATH>`: Dump all built-in system config files (`system-*.json`) to the specified directory and exit. Useful for inspecting or customizing platform definitions.
 
 Supported file formats: `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, 6502bench (`.dis65`), `.bin`, `.raw`, and `.regen2000proj`.
 
@@ -147,7 +148,7 @@ All the keyboad shortcuts are documented here: [keyboard_shorcuts](https://regen
 ## Support and Documentation
 
 - [Documentation](http://regenerator2000.readthedocs.io/)
-- [Support in Discord][discord] (join the #regenerator2000 channel, under "Misc Projects")
+- [Support in Discord][discord] (join the `#regenerator2000` channel, under **"Misc Projects"**)
 
 [discord]: https://discord.gg/r5aMn6Cw5q
 
