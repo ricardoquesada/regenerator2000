@@ -73,6 +73,10 @@ struct Cli {
     /// Auto-connect to VICE binary monitor at HOST:PORT (e.g. localhost:6502)
     #[arg(long, value_name = "HOST:PORT")]
     vice: Option<String>,
+
+    /// Dump embedded system config files (system-*.json) to the specified directory and exit
+    #[arg(long = "dump-system-config-files", value_name = "PATH")]
+    dump_system_config_files: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -682,6 +686,16 @@ fn main() -> Result<()> {
     if cli.headless && cli.mcp_server {
         eprintln!("Error: The --headless and --mcp-server options are mutually exclusive.");
         std::process::exit(1);
+    }
+
+    // Handle --dump-system-config-files early: write files and exit
+    if let Some(dest) = cli.dump_system_config_files {
+        let dest_path = PathBuf::from(&dest);
+        if let Err(e) = regenerator2000_core::assets::dump_system_config_files(&dest_path) {
+            eprintln!("Error: {e}");
+            std::process::exit(1);
+        }
+        return Ok(());
     }
 
     let mcp_server_stdio = cli.mcp_server_stdio;
