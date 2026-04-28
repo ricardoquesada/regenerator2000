@@ -75,7 +75,7 @@ You can customize how Regenerator 2000 analyzes the binary and exports the code 
 dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
 
 ```text
-┌ Document Settings ----------------------───────────────────────────────┐
+┌ Document Settings ─────────────────────────────────────────────────────┐
 │                                                                        │
 │  [ ] Display External Labels at top                                    │
 │  [x] Preserve long bytes (@w, +2, .abs, etc)                           │
@@ -94,10 +94,21 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
 │  Bytes per line: < 8 >                                                 │
 │  Fill run threshold: < 8 >                                             │
 │  Assembler: < 64tass >                                                 │
-│  Platform: < C64 >                                                     │
+│  Platform: < Commodore 64 >                                            │
+│  System Labels:                                                        │
+│    [x] KERNAL                                                          │
+│    [ ] BASIC                                                           │
+│    [ ] I/O                                                             │
+│  [x] Exclude well-known addresses from symbolic analysis               │
+│  [x] Show system comments                                              │
 │                                                                        │
 └────────────────────────────────────────────────────────────────────────┘
 ```
+
+!!! Note
+
+    The **System Labels**, **Exclude well-known addresses**, and **Show system comments** options are
+    platform-dependent and only appear when the selected platform provides the corresponding data.
 
 ### Options
 
@@ -113,10 +124,7 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
          This is useful to preserve the original byte count of the binary, for example, when disassembling a binary that
          contains absolute addresses.
 
-3. **Description**
-       - **Description**: A short free-form description or note for this document/binary. Press `Enter` to start editing; press `Enter` again to save or `Esc` to cancel.
-
-4. **BRK single byte**
+3. **BRK single byte**
        - **Description**: Treats the `BRK` instruction as a 1-byte instruction. By default, this is enabled as most C64
          code historically used `BRK` as a 1-byte instruction in practice, even though the 6502 architecture technically
          treats it as a 2-byte instruction (the instruction itself followed by a padding/signature byte). Disable this
@@ -134,11 +142,13 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
        $c003   brk
        ```
 
-5. **Patch BRK**
+4. **Patch BRK**
        - **Description**: If `BRK single byte` is disabled, this option ensures that the exported
          assembly code correctly includes the padding byte after `BRK`, preserving the original program structure on
          assemblers that might otherwise treat `BRK` as a single byte.
        - Notice that not all assemblers support the "Patch BRK" disabled.
+       - This option is disabled (greyed out) when `BRK single byte` is enabled, or when the assembler is **KickAssembler**
+         or **ca65**.
 
        When "Patch BRK" is enabled, it gets represented as:
 
@@ -162,7 +172,7 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
        $c002   brk #$00
        ```
 
-6. **Use Illegal Opcodes**
+5. **Use Illegal Opcodes**
        - **Description**: Enables the disassembler to recognize and decode undocumented (illegal) opcodes. If disabled,
          these bytes will be treated as data.
 
@@ -203,7 +213,7 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
          jmp $083e
          ```
 
-         When "Use Illegal Opcodes" is disabled, the disassembly might look like the following:
+         When "Use Illegal Opcodes" is enabled, the disassembly might look like the following:
 
          ```asm
          sei
@@ -232,10 +242,13 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
          jmp $083e
          ```
 
-7. **Auto-generate Labels & Cross-refs**
+6. **Auto-generate Labels & Cross-refs**
        - **Description**: When enabled, the application will automatically perform a code analysis
          to generate auto-labels, cross-references, and other analysis data when the project is loaded or
          as needed.
+
+7. **Description**
+       - **Description**: A short free-form description or note for this document/binary. Press `Enter` to start editing; press `Enter` again to save or `Esc` to cancel.
 
 8. **Max X-Refs**
        - **Description**: The maximum number of Cross-References (addresses that call/jump to a location) to display in the
@@ -288,8 +301,27 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
 14. **Assembler**
         - **Description**: Selects the target assembler syntax for export. Supported assemblers include **64tass**,
           **ACME**, **KickAssembler**, and **ca65**. Changing this updates the syntax used in the disassembly view to match
-          the target.
+          the target. Press `Enter` to open the assembler selector popup, or use `Left`/`Right` to cycle.
 
 15. **Platform**
-        - **Description**: Defines the target hardware platform (e.g., C64). This helps the analyzer identify
+        - **Description**: Defines the target hardware platform (e.g., Commodore 64). This helps the analyzer identify
           system-specific memory maps, hardware registers (like VIC-II or SID), and ROM routines.
+          Press `Enter` to open the platform selector popup, or use `Left`/`Right` to cycle.
+          Changing the platform resets the enabled **System Labels** features.
+
+16. **System Labels** *(platform-dependent)*
+        - **Description**: A group of checkboxes that control which system label sets are loaded for the current platform.
+          For example, on the Commodore 64 the available sets include **KERNAL**, **BASIC**, **I/O**, etc.
+          Each set provides pre-defined labels for well-known addresses (ROM entry points, hardware registers, etc.).
+          Toggle a set with `Space` or `Enter`. The available sets depend on the selected **Platform**.
+
+17. **Exclude well-known addresses from symbolic analysis** *(platform-dependent)*
+        - **Description**: When enabled, addresses that are covered by the platform's system label definitions are excluded
+          from the analyzer's code-walking pass. This prevents the analyzer from chasing into ROM routines or hardware
+          registers, which can reduce false positives in the disassembly. Only appears for platforms that define excluded
+          address ranges in their system config.
+
+18. **Show system comments** *(platform-dependent)*
+        - **Description**: When enabled, pre-defined system comments (e.g. hardware register descriptions like
+          "Border Color" for `$D020` on the C64) are displayed as side comments in the disassembly view.
+          Only appears for platforms that include system comments in their system config.
