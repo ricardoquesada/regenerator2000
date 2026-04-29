@@ -190,17 +190,31 @@ impl Widget for HexDumpView {
             //   [56–57] separator "| " (2 chars)
             //   [58–73] ASCII chars (16 chars, one per byte)
             let click_col = (mouse.column as usize).saturating_sub(inner_area.x as usize);
-            let byte_col = if (7..56).contains(&click_col) {
+            // New layout per row (starting at inner_area.x):
+            //   [0–6]   address "$XXXX  " (7 chars)
+            //   [7–57]  hex bytes with 4-byte group separators (51 chars)
+            //             group 0 (bytes 0–3):  positions  0–11 (12 chars)
+            //             gap                :  position  12
+            //             group 1 (bytes 4–7):  positions 13–24 (12 chars)
+            //             gap                :  position  25
+            //             group 2 (bytes 8–11): positions 26–37 (12 chars)
+            //             gap                :  position  38
+            //             group 3 (bytes 12–15):positions 39–50 (12 chars)
+            //   [58–59] 2-space separator
+            //   [60–75] chars (16 chars, one per byte)
+            let byte_col = if (7..58).contains(&click_col) {
                 let hex_rel = click_col - 7;
-                if hex_rel < 24 {
-                    hex_rel / 3 // bytes 0–7
-                } else if hex_rel == 24 {
-                    7 // gap between halves → snap to byte 7
+                // Each group occupies 13 chars (12 for bytes + 1 gap), except last
+                let group = (hex_rel.min(50)) / 13;
+                let within_group = hex_rel % 13;
+                if within_group == 12 {
+                    // In the gap — snap to last byte of the group
+                    group * 4 + 3
                 } else {
-                    ((hex_rel - 25) / 3 + 8).min(15) // bytes 8–15
+                    (group * 4 + within_group / 3).min(15)
                 }
-            } else if (58..74).contains(&click_col) {
-                click_col - 58 // ASCII area: direct column index
+            } else if (60..76).contains(&click_col) {
+                click_col - 60 // chars area: direct column index
             } else {
                 ui_state.hex_col_cursor // outside hex/ascii area → no change
             };
@@ -381,12 +395,24 @@ impl Widget for HexDumpView {
                         let data_idx = current_addr - origin;
                         let b = app_state.raw_data[data_idx];
 
+                        // Pick palette color based on byte value.
+                        // Index 0 = 0x00, index 17 = 0xFF,
+                        // indices 1–16 = high nibble (0x0x..0xFx, excluding 0x00/0xFF).
+                        let palette_idx = if b == 0x00 {
+                            0
+                        } else if b == 0xFF {
+                            17
+                        } else {
+                            (b >> 4) as usize + 1
+                        };
+                        let palette_color = ui_state.theme.hex_color_palette[palette_idx];
+
                         let hex_style = if is_highlighted {
                             Style::default()
                                 .bg(ui_state.theme.selection_bg)
-                                .fg(ui_state.theme.hex_bytes)
+                                .fg(palette_color)
                         } else {
-                            Style::default().fg(ui_state.theme.hex_bytes)
+                            Style::default().fg(palette_color)
                         };
                         spans.push(Span::styled(format!("{b:02X} "), hex_style));
 
@@ -409,9 +435,9 @@ impl Widget for HexDumpView {
                         let ascii_style = if is_highlighted {
                             Style::default()
                                 .bg(ui_state.theme.selection_bg)
-                                .fg(ui_state.theme.hex_ascii)
+                                .fg(palette_color)
                         } else {
-                            Style::default().fg(ui_state.theme.hex_ascii)
+                            Style::default().fg(palette_color)
                         };
                         ascii_spans.push(Span::styled(char_to_render.to_string(), ascii_style));
                     } else {
@@ -426,8 +452,8 @@ impl Widget for HexDumpView {
                         ));
                     }
 
-                    if j == 7 {
-                        // Extra separator space between the two 8-byte halves
+                    // Extra separator space after every 4th byte (at j=3, 7, 11)
+                    if j % 4 == 3 && j < 15 {
                         spans.push(Span::styled(
                             " ",
                             Style::default().fg(ui_state.theme.hex_bytes),
@@ -435,11 +461,13 @@ impl Widget for HexDumpView {
                     }
                 }
 
-                // ASCII column: separator + per-byte chars
+                // 1-space separator (the last hex byte already has a trailing space,
+                // giving 2 spaces total between the hex dump and the chars)
                 spans.push(Span::styled(
-                    "| ",
-                    Style::default().fg(ui_state.theme.hex_ascii),
+                    " ",
+                    Style::default().fg(ui_state.theme.hex_bytes),
                 ));
+                // chars column
                 spans.extend(ascii_spans);
 
                 // Calculate entropy using a larger window (512 bytes before + 512 bytes after)

@@ -4086,8 +4086,8 @@
     "addresses_per_line": 5,
     "bytes_per_line": 8,
     "enabled_features": {
-      "SYSTEM": false,
-      "KERNAL": true
+      "KERNAL": true,
+      "SYSTEM": false
     },
     "description": "",
     "auto_analyze": true,
@@ -4242,17 +4242,18 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 1608,
-  "hex_dump_cursor_address": 1600,
-  "sprites_cursor_address": 3008,
+  "cursor_address": 26369,
+  "hex_dump_cursor_address": 26368,
+  "sprites_cursor_address": 3072,
   "charset_cursor_address": 1024,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 57344,
+  "bitmap_cursor_address": 0,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
   "blocks_view_cursor": 14,
-  "scopes": {}
+  "scopes": {},
+  "user_excluded_addresses": []
 }

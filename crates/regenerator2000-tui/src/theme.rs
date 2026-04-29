@@ -30,6 +30,10 @@ pub struct Theme {
     // Hex View
     pub hex_bytes: Color,
     pub hex_ascii: Color,
+    /// 18-entry palette for byte-value coloring in the hex dump.
+    /// Index 0 = byte 0x00 (special), indices 1–16 = high nibble 0x0–0xF
+    /// (for bytes 0x01–0xFE), index 17 = byte 0xFF (special).
+    pub hex_color_palette: [Color; 18],
 
     // UI Elements
     pub dialog_bg: Color,
@@ -248,6 +252,59 @@ impl CatppuccinLatte {
 }
 
 impl Theme {
+    /// 18-entry OKLCH-derived palette for dark-background themes (L=0.67, C=0.18).
+    /// Entry 0 = byte 0x00, entries 1–16 = high nibble 0x0–0xF, entry 17 = byte 0xFF.
+    #[must_use]
+    fn hex_palette_dark() -> [Color; 18] {
+        // Based on: https://github.com/simonomi/simonomi.github.io/blob/aa55ea855c17d5253d85d0440f41871aadc27b83/_includes/code.css#L51-L68
+        [
+            Color::Rgb(128, 128, 128), // 00  – #808080
+            Color::Rgb(230, 83, 136),  // 0x  – oklch(67% 0.18 360)
+            Color::Rgb(236, 96, 56),   // 1x  – oklch(67% 0.18  23)
+            Color::Rgb(231, 102, 0),   // 2x  – oklch(67% 0.18  50)
+            Color::Rgb(221, 120, 0),   // 3x  – oklch(67% 0.18  65)
+            Color::Rgb(209, 129, 0),   // 4x  – oklch(67% 0.18  77)
+            Color::Rgb(171, 151, 0),   // 5x  – oklch(67% 0.18 103)
+            Color::Rgb(111, 169, 3),   // 6x  – oklch(67% 0.18 130)
+            Color::Rgb(70, 176, 51),   // 7x  – oklch(67% 0.18 142)
+            Color::Rgb(17, 178, 84),   // 8x  – oklch(67% 0.18 150)
+            Color::Rgb(0, 181, 116),   // 9x  – oklch(67% 0.18 163)
+            Color::Rgb(0, 182, 162),   // Ax  – oklch(67% 0.18 184)
+            Color::Rgb(0, 180, 208),   // Bx  – oklch(67% 0.18 209)
+            Color::Rgb(0, 164, 239),   // Cx  – oklch(67% 0.18 232)
+            Color::Rgb(55, 150, 255),  // Dx  – oklch(67% 0.18 254)
+            Color::Rgb(157, 122, 247), // Ex  – oklch(67% 0.18 294)
+            Color::Rgb(206, 103, 204), // Fx  – oklch(67% 0.18 328)
+            Color::Rgb(255, 255, 255), // FF  – white
+        ]
+    }
+
+    /// 18-entry OKLCH-derived palette for light-background themes (L=0.75, C=0.18).
+    #[must_use]
+    fn hex_palette_light() -> [Color; 18] {
+        // Based on: https://github.com/simonomi/simonomi.github.io/blob/aa55ea855c17d5253d85d0440f41871aadc27b83/_includes/code.css#L51-L68
+        [
+            Color::Rgb(128, 128, 128), // 00  – #808080
+            Color::Rgb(210, 50, 110),  // 0x  – oklch(75% 0.18 360)
+            Color::Rgb(218, 65, 20),   // 1x  – oklch(75% 0.18  23)
+            Color::Rgb(210, 80, 0),    // 2x  – oklch(75% 0.18  50)
+            Color::Rgb(195, 98, 0),    // 3x  – oklch(75% 0.18  65)
+            Color::Rgb(180, 108, 0),   // 4x  – oklch(75% 0.18  77)
+            Color::Rgb(140, 130, 0),   // 5x  – oklch(75% 0.18 103)
+            Color::Rgb(75, 148, 0),    // 6x  – oklch(75% 0.18 130)
+            Color::Rgb(35, 158, 30),   // 7x  – oklch(75% 0.18 142)
+            Color::Rgb(0, 160, 65),    // 8x  – oklch(75% 0.18 150)
+            Color::Rgb(0, 163, 98),    // 9x  – oklch(75% 0.18 163)
+            Color::Rgb(0, 163, 145),   // Ax  – oklch(75% 0.18 184)
+            Color::Rgb(0, 158, 190),   // Bx  – oklch(75% 0.18 209)
+            Color::Rgb(0, 140, 220),   // Cx  – oklch(75% 0.18 232)
+            Color::Rgb(30, 120, 240),  // Dx  – oklch(75% 0.18 254)
+            Color::Rgb(130, 90, 225),  // Ex  – oklch(75% 0.18 294)
+            Color::Rgb(180, 70, 178),  // Fx  – oklch(75% 0.18 328)
+            Color::Rgb(0, 0, 0),       // FF  – black
+        ]
+    }
+
     #[must_use]
     pub fn from_name(name: &str) -> Self {
         match name {
@@ -291,6 +348,7 @@ impl Theme {
 
             hex_bytes: Solarized::BASE1,
             hex_ascii: Solarized::CYAN,
+            hex_color_palette: Self::hex_palette_dark(),
 
             dialog_bg: Solarized::BASE02,
             dialog_fg: Solarized::BASE0,
@@ -367,6 +425,7 @@ impl Theme {
 
             hex_bytes: Solarized::BASE00,
             hex_ascii: Solarized::CYAN,
+            hex_color_palette: Self::hex_palette_light(),
 
             dialog_bg: Solarized::BASE2,
             dialog_fg: Solarized::BASE00,
@@ -458,6 +517,7 @@ impl Theme {
 
             hex_bytes: Dracula::FOREGROUND,
             hex_ascii: Dracula::CYAN,
+            hex_color_palette: Self::hex_palette_dark(),
 
             dialog_bg: Dracula::BACKGROUND,
             dialog_fg: Dracula::FOREGROUND,
@@ -533,6 +593,7 @@ impl Theme {
 
             hex_bytes: Gruvbox::FG,
             hex_ascii: Gruvbox::AQUA,
+            hex_color_palette: Self::hex_palette_dark(),
 
             dialog_bg: Gruvbox::BG1,
             dialog_fg: Gruvbox::FG,
@@ -608,6 +669,7 @@ impl Theme {
 
             hex_bytes: Gruvbox::FG_LIGHT,
             hex_ascii: Gruvbox::AQUA,
+            hex_color_palette: Self::hex_palette_light(),
 
             dialog_bg: Gruvbox::BG1_LIGHT,
             dialog_fg: Gruvbox::FG_LIGHT,
@@ -684,6 +746,7 @@ impl Theme {
 
             hex_bytes: Monokai::FOREGROUND,
             hex_ascii: Monokai::YELLOW,
+            hex_color_palette: Self::hex_palette_dark(),
 
             dialog_bg: Monokai::BACKGROUND,
             dialog_fg: Monokai::FOREGROUND,
@@ -759,6 +822,7 @@ impl Theme {
 
             hex_bytes: Nord::NORD4,
             hex_ascii: Nord::NORD8,
+            hex_color_palette: Self::hex_palette_dark(),
 
             dialog_bg: Nord::NORD1,
             dialog_fg: Nord::NORD4,
@@ -834,6 +898,7 @@ impl Theme {
 
             hex_bytes: CatppuccinMocha::TEXT,
             hex_ascii: CatppuccinMocha::SKY,
+            hex_color_palette: Self::hex_palette_dark(),
 
             dialog_bg: CatppuccinMocha::SURFACE0,
             dialog_fg: CatppuccinMocha::TEXT,
@@ -909,6 +974,7 @@ impl Theme {
 
             hex_bytes: CatppuccinLatte::TEXT,
             hex_ascii: CatppuccinLatte::SKY,
+            hex_color_palette: Self::hex_palette_light(),
 
             dialog_bg: CatppuccinLatte::MANTLE,
             dialog_fg: CatppuccinLatte::TEXT,
