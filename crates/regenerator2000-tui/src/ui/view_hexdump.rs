@@ -470,41 +470,6 @@ impl Widget for HexDumpView {
                 // chars column
                 spans.extend(ascii_spans);
 
-                // Calculate entropy using a larger window (512 bytes before + 512 bytes after)
-                // providing a more reliable value than just the current 16 bytes.
-                let window_size = 512;
-                let entropy_start_addr = row_start_addr.saturating_sub(window_size);
-                let entropy_end_addr = row_start_addr + window_size;
-
-                let effective_start = entropy_start_addr.max(origin);
-                let effective_end = entropy_end_addr.min(origin + app_state.raw_data.len());
-
-                let entropy_val = if effective_start < effective_end {
-                    let start_idx = effective_start - origin;
-                    let end_idx = effective_end - origin;
-                    crate::utils::calculate_entropy(&app_state.raw_data[start_idx..end_idx])
-                } else {
-                    0.0
-                };
-
-                let entropy_char = if entropy_val < 2.0 {
-                    ' '
-                } else if entropy_val < 4.0 {
-                    '░'
-                } else if entropy_val < 6.0 {
-                    '▒'
-                } else if entropy_val < 7.5 {
-                    '▓'
-                } else {
-                    '█'
-                };
-
-                spans.push(Span::styled(" ", Style::default()));
-                spans.push(Span::styled(
-                    entropy_char.to_string(),
-                    Style::default().fg(ui_state.theme.hex_ascii),
-                ));
-
                 ListItem::new(Line::from(spans))
             })
             .collect();

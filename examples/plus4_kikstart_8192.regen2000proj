@@ -1694,17 +1694,18 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8472,
-  "hex_dump_cursor_address": 6464,
+  "cursor_address": 7496,
+  "hex_dump_cursor_address": 7488,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 6472,
-  "right_pane_visible": "Sprites",
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],
   "blocks_view_cursor": 14,
-  "scopes": {}
+  "scopes": {},
+  "user_excluded_addresses": []
 }
