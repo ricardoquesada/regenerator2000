@@ -26,12 +26,9 @@ use clap::Parser;
 
 /// An interactive disassembler for the MOS 6502, focused on Commodore 8-bit computers.
 #[derive(Parser)]
-#[command(
-    version,
-    after_help = "Supported file types: .prg, .crt, .t64, .d64, .d71, .d81, .vsf, .bin, .raw, .regen2000proj"
-)]
+#[command(version)]
 struct Cli {
-    /// File to load (.prg, .crt, .d64, .d71, .d81, .t64, .vsf, .bin, .raw, .regen2000proj)
+    /// File to load (.prg, .crt, .t64, .d64, .d71, .d81, .vsf, .dis65, .bin, .raw, .regen2000proj)
     file: Option<String>,
 
     /// Import VICE labels from the specified file
@@ -673,7 +670,21 @@ fn is_newer_version(current: &str, remote: &str) -> bool {
 fn main() -> Result<()> {
     init_logging()?;
 
-    let cli = Cli::parse();
+    let config_dir_display = regenerator2000_core::assets::user_config_systems_dir().map_or_else(
+        || "(could not determine)".to_string(),
+        |p| p.display().to_string(),
+    );
+    let after_help = format!(
+        "Supported file types: .prg, .crt, .t64, .d64, .d71, .d81, .vsf, .dis65, .bin, .raw, .regen2000proj\n\nConfig directory: {config_dir_display}"
+    );
+
+    let matches = <Cli as clap::CommandFactory>::command()
+        .after_help(after_help)
+        .get_matches();
+    let cli = match <Cli as clap::FromArgMatches>::from_arg_matches(&matches) {
+        Ok(cli) => cli,
+        Err(e) => e.exit(),
+    };
 
     let file_to_load = cli.file;
     let labels_to_import = cli.import_lbl;

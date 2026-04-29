@@ -16,7 +16,7 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 
 === "Disassembly"
 
-    **The Code View**: The heart of the operation. Navigate code, follow jumps, and label everything.
+    **The Code View**: The heart of the operation. Navigate and disassemble code, follow jumps, and label everything.
 
     ![Disassembly View](regenerator2000_disassembly_screenshot.png)
 
@@ -60,7 +60,7 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 
 ## Key Features
 
-- **🚀 6502 & Undocumented Opcodes**: Full support for the 6502 instruction set.
+- **🚀 6502 & Undocumented Opcodes**: Full support for the 6502 instruction set including undocumented opcodes.
 - **⚡ Fast TUI**: Built with Rust for blazingly fast performance.
 - **🧠 Analysis**: Automatically create labels and comments.
 - **⏪ Undo/Redo**: Experiment without fear.
@@ -68,7 +68,7 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 - **🐛 VICE Debugger Integration**: Connect to a running VICE emulator for live debugging — step through code, inspect registers, set breakpoints and watchpoints.
 - **🤖 MCP Integration**: Collaborate with AI assistants for deeper analysis.
 - **💾 Project Saving**: Save your work and resume later.
-- **📤 Export**: Generate compilable source code or VICE labels for debugging.
+- **📤 Export**: Generate compilable assembly code for multiple assemblers, or HTML files for sharing. Exported HTML files include clickable cross-references for labels.
 
 ## Quick Start
 
@@ -86,7 +86,7 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 
 3.  **Explore**:
     - **Move**: Arrow keys, map, or jumps.
-    - **Define Code**: Press ++c++
+    - **Disassemble**: Press ++d++ to start disassembling.
     - **Define Data**: Press ++b++
     - **Comment**: Press ++semicolon++
     - **Rename**: Press ++l++
@@ -110,7 +110,7 @@ A typical workflow involves loading a file, identifying code and data regions, l
 ```mermaid
 flowchart TD
     S1[1. Load File] --> S2[2. Explore]
-    S2 --> S3[3-6. Define Code, Data, Labels, Comments]
+    S2 --> S3[3-6. Disassemble, Define Data, Labels, Comments]
     S3 --> S7[7. Save Project]
     S3 --> S2
     S7 --> Q{Debug?}
