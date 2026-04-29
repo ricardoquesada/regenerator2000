@@ -240,7 +240,8 @@ impl Widget for D64FilePickerDialog {
                                         crate::parser::d64::DiskType::D64 => {
                                             Some(Platform::new(Platform::C64))
                                         }
-                                        crate::parser::d64::DiskType::D71 => {
+                                        crate::parser::d64::DiskType::D71_70
+                                        | crate::parser::d64::DiskType::D71_80 => {
                                             Some(Platform::new(Platform::C128))
                                         }
                                         crate::parser::d64::DiskType::D81 => {

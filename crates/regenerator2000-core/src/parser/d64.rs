@@ -9,7 +9,10 @@ const D64_STANDARD_SIZE: usize = 174_848;
 const D64_WITH_ERROR_INFO_SIZE: usize = 175_531;
 const D64_40_TRACK_SIZE: usize = 196_608;
 const D64_40_TRACK_WITH_ERROR_INFO_SIZE: usize = 197_376; // 196608 + 768 (40 * 19? no, usually 683 for 35 tracks, let's just allow > 40 track size)
+const D64_42_TRACK_SIZE: usize = 205_312; // 802 sectors × 256
 const D71_STANDARD_SIZE: usize = 349_696;
+/// D71 with 40 tracks per side (80 tracks total): 2 × 196,608 bytes.
+const D71_80_TRACK_SIZE: usize = 393_216;
 const D81_STANDARD_SIZE: usize = 819_200;
 const SECTOR_SIZE: usize = 256;
 const DIR_TRACK: u8 = 18;
@@ -22,7 +25,10 @@ const ENTRY_SIZE: usize = 32;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DiskType {
     D64,
-    D71,
+    /// D71 with 35 tracks per side (70 tracks total).
+    D71_70,
+    /// D71 with 40 tracks per side (80 tracks total).
+    D71_80,
     D81,
 }
 
@@ -83,14 +89,15 @@ fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize>
             // Track 1 is at 0
             Ok((track as usize - 1) * 40 * SECTOR_SIZE + sector as usize * SECTOR_SIZE)
         }
-        DiskType::D64 | DiskType::D71 => {
+        DiskType::D64 | DiskType::D71_70 => {
             if track == 0 || track > 70 {
                 return Err(anyhow!("Invalid track: {track}"));
             }
 
-            // Handle D71 second side (Tracks 36-70)
-            // They map to the same geometry as Tracks 1-35 but offset by the size of a D64
-            if track > 35 && disk_type == DiskType::D71 {
+            // Handle D71 second side (Tracks 36-70).
+            // They map to the same geometry as Tracks 1-35 but are offset
+            // by the size of one standard D64 image.
+            if track > 35 && disk_type == DiskType::D71_70 {
                 let offset_in_side_2 = calculate_offset(track - 35, sector, DiskType::D64)?;
                 return Ok(D64_STANDARD_SIZE + offset_in_side_2);
             }
@@ -99,7 +106,7 @@ fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize>
                 1..=17 => 21,
                 18..=24 => 19,
                 25..=30 => 18,
-                31..=40 => 17, // 40-track D64 support
+                31..=42 => 17, // 40- and 42-track D64 support
                 _ => return Err(anyhow!("Invalid track: {track}")),
             };
 
@@ -120,7 +127,7 @@ fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize>
                     1..=17 => 21,
                     18..=24 => 19,
                     25..=30 => 18,
-                    31..=40 => 17,
+                    31..=42 => 17,
                     _ => unreachable!(),
                 } * SECTOR_SIZE;
             }
@@ -129,6 +136,22 @@ fn calculate_offset(track: u8, sector: u8, disk_type: DiskType) -> Result<usize>
             offset += sector as usize * SECTOR_SIZE;
 
             Ok(offset)
+        }
+        DiskType::D71_80 => {
+            // 80-track D71: 40 tracks per side (tracks 1-80).
+            // Side 2 (tracks 41-80) mirrors the 40-track D64 geometry,
+            // offset by D64_40_TRACK_SIZE bytes.
+            if track == 0 || track > 80 {
+                return Err(anyhow!("Invalid track: {track}"));
+            }
+
+            if track > 40 {
+                let offset_in_side_2 = calculate_offset(track - 40, sector, DiskType::D64)?;
+                return Ok(D64_40_TRACK_SIZE + offset_in_side_2);
+            }
+
+            // Side 1: same geometry as a 40-track D64
+            calculate_offset(track, sector, DiskType::D64)
         }
     }
 }
@@ -144,16 +167,19 @@ pub fn parse_d64_directory(data: &[u8]) -> Result<Vec<D64FileEntry>> {
     // 2. D64 with error info (175,531)
     // 3. 40-track D64 (196,608)
     // 4. 40-track D64 with error info (197,376)
-    // 5. D71 (349,696)
-    // 6. D81 (819,200)
+    // 5. 42-track D64 (205,312)
+    // 6. D71_70 (349,696)
+    // 7. D71_80 (393,216)
+    // 8. D81 (819,200)
 
     let size = data.len();
     let is_valid_d64 = size == D64_STANDARD_SIZE
         || size == D64_WITH_ERROR_INFO_SIZE
         || size == D64_40_TRACK_SIZE
-        || size == D64_40_TRACK_WITH_ERROR_INFO_SIZE;
+        || size == D64_40_TRACK_WITH_ERROR_INFO_SIZE
+        || size == D64_42_TRACK_SIZE;
 
-    let is_valid_d71 = size == D71_STANDARD_SIZE;
+    let is_valid_d71 = size == D71_STANDARD_SIZE || size == D71_80_TRACK_SIZE;
     let is_valid_d81 = size == D81_STANDARD_SIZE;
 
     if !is_valid_d64 && !is_valid_d71 && !is_valid_d81 {
@@ -164,8 +190,10 @@ pub fn parse_d64_directory(data: &[u8]) -> Result<Vec<D64FileEntry>> {
 
     let disk_type = if is_valid_d81 {
         DiskType::D81
+    } else if size == D71_80_TRACK_SIZE {
+        DiskType::D71_80
     } else if is_valid_d71 {
-        DiskType::D71
+        DiskType::D71_70
     } else {
         DiskType::D64
     };
@@ -380,6 +408,52 @@ mod tests {
     }
 
     #[test]
+    fn test_calculate_offset_42_tracks() {
+        // Tracks 41 and 42 extend the 40-track geometry with 17 sectors each.
+        // 40-track total = 768 sectors => track 41 starts at 768 * 256
+        let expected_41 = 768 * 256;
+        assert_eq!(calculate_offset(41, 0, DiskType::D64).unwrap(), expected_41);
+
+        // Track 42 starts one track (17 sectors) after track 41
+        let expected_42 = (768 + 17) * 256;
+        assert_eq!(calculate_offset(42, 0, DiskType::D64).unwrap(), expected_42);
+
+        // Last sector of track 42
+        assert_eq!(
+            calculate_offset(42, 16, DiskType::D64).unwrap(),
+            expected_42 + 16 * 256
+        );
+
+        // Track 43 should be invalid
+        assert!(calculate_offset(43, 0, DiskType::D64).is_err());
+    }
+
+    #[test]
+    fn test_d64_42_track_real_file() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../tests/6502/d64_42_tracks.d64"
+        );
+        let Ok(data) = std::fs::read(path) else {
+            return;
+        };
+        assert_eq!(data.len(), D64_42_TRACK_SIZE, "unexpected file size");
+
+        let files = parse_d64_directory(&data).unwrap();
+        assert!(!files.is_empty(), "expected at least one file in the image");
+
+        for entry in &files {
+            let result = extract_file(&data, entry);
+            assert!(
+                result.is_ok(),
+                "failed to extract '{}': {:?}",
+                entry.filename,
+                result.err()
+            );
+        }
+    }
+
+    #[test]
     fn test_invalid_track_sector() {
         assert!(calculate_offset(0, 0, DiskType::D64).is_err());
         assert!(calculate_offset(71, 0, DiskType::D64).is_err());
@@ -466,11 +540,11 @@ mod tests {
         // Track 36, Sector 0 (First sector of Side 2)
         // Should be at D64_STANDARD_SIZE + offset of Track 1, Sector 0
         let expected = D64_STANDARD_SIZE;
-        assert_eq!(calculate_offset(36, 0, DiskType::D71).unwrap(), expected);
+        assert_eq!(calculate_offset(36, 0, DiskType::D71_70).unwrap(), expected);
 
         // Track 36, Sector 1
         let expected = D64_STANDARD_SIZE + 256;
-        assert_eq!(calculate_offset(36, 1, DiskType::D71).unwrap(), expected);
+        assert_eq!(calculate_offset(36, 1, DiskType::D71_70).unwrap(), expected);
 
         // Track 53 (Directory track for Side 2 - mirrors Track 18)
         // Track 53 matches Track 18 geometry wise.
@@ -478,13 +552,13 @@ mod tests {
         // So Track 53 offset = D64_STANDARD_SIZE + calculate_offset(18, 0)
         let t18_offset = calculate_offset(18, 0, DiskType::D64).unwrap();
         let expected = D64_STANDARD_SIZE + t18_offset;
-        assert_eq!(calculate_offset(53, 0, DiskType::D71).unwrap(), expected);
+        assert_eq!(calculate_offset(53, 0, DiskType::D71_70).unwrap(), expected);
 
         // Track 70 (Last track)
         // Matches Track 35 geometry.
         let t35_offset = calculate_offset(35, 0, DiskType::D64).unwrap();
         let expected = D64_STANDARD_SIZE + t35_offset;
-        assert_eq!(calculate_offset(70, 0, DiskType::D71).unwrap(), expected);
+        assert_eq!(calculate_offset(70, 0, DiskType::D71_70).unwrap(), expected);
     }
 
     #[test]
@@ -492,7 +566,7 @@ mod tests {
         let mut data = vec![0u8; D71_STANDARD_SIZE];
 
         // 1. Setup Directory on Side 1 (Track 18) to point to a file on Side 2 (Track 36)
-        let dir_offset = calculate_offset(18, 1, DiskType::D71).unwrap();
+        let dir_offset = calculate_offset(18, 1, DiskType::D71_70).unwrap();
         data[dir_offset] = 0; // Next track
         data[dir_offset + 1] = 255; // Next sector
 
@@ -509,7 +583,7 @@ mod tests {
         data[entry_offset + 29] = 0; // Size high
 
         // 2. Setup File Data on Side 2 (Track 36, Sector 0)
-        let file_offset = calculate_offset(36, 0, DiskType::D71).unwrap();
+        let file_offset = calculate_offset(36, 0, DiskType::D71_70).unwrap();
         // This is physically at D64_STANDARD_SIZE + 0
         assert_eq!(file_offset, D64_STANDARD_SIZE);
 
@@ -534,6 +608,107 @@ mod tests {
     }
 
     #[test]
+    fn test_calculate_offset_d71_80_track() {
+        // Track 41 (first track of side 2 on 80-track D71)
+        // Should be at D64_40_TRACK_SIZE + offset of Track 1, Sector 0
+        let expected = D64_40_TRACK_SIZE;
+        assert_eq!(calculate_offset(41, 0, DiskType::D71_80).unwrap(), expected);
+
+        // Track 41, Sector 1
+        assert_eq!(
+            calculate_offset(41, 1, DiskType::D71_80).unwrap(),
+            D64_40_TRACK_SIZE + 256
+        );
+
+        // Track 58 mirrors Track 18 on side 2 (directory geometry)
+        let t18_offset = calculate_offset(18, 0, DiskType::D64).unwrap();
+        assert_eq!(
+            calculate_offset(58, 0, DiskType::D71_80).unwrap(),
+            D64_40_TRACK_SIZE + t18_offset
+        );
+
+        // Track 80 (last track, mirrors Track 40 of a 40-track D64)
+        let t40_offset = calculate_offset(40, 0, DiskType::D64).unwrap();
+        assert_eq!(
+            calculate_offset(80, 0, DiskType::D71_80).unwrap(),
+            D64_40_TRACK_SIZE + t40_offset
+        );
+
+        // Track 81 should be invalid
+        assert!(calculate_offset(81, 0, DiskType::D71_80).is_err());
+    }
+
+    #[test]
+    fn test_d71_80_track_feature() {
+        let mut data = vec![0u8; D71_80_TRACK_SIZE];
+
+        // Setup Directory on Side 1 (Track 18, Sector 1) pointing to a file on Side 2
+        let dir_offset = calculate_offset(18, 1, DiskType::D71_80).unwrap();
+        data[dir_offset] = 0; // No next sector (last dir sector)
+        data[dir_offset + 1] = 255;
+
+        let entry_offset = dir_offset + 2;
+        data[entry_offset] = 0x82; // PRG
+        data[entry_offset + 1] = 41; // Track 41 (Side 2, track 1)
+        data[entry_offset + 2] = 0; // Sector 0
+        data[entry_offset + 3..entry_offset + 9].copy_from_slice(b"SIDE2B");
+        for i in 9..19 {
+            data[entry_offset + i] = 0xA0;
+        }
+        data[entry_offset + 28] = 1;
+        data[entry_offset + 29] = 0;
+
+        // Setup File Data on Side 2 (Track 41, Sector 0)
+        let file_offset = calculate_offset(41, 0, DiskType::D71_80).unwrap();
+        assert_eq!(file_offset, D64_40_TRACK_SIZE);
+        data[file_offset] = 0; // Last sector
+        data[file_offset + 1] = 5; // 4 bytes of payload
+        data[file_offset + 2] = 0x00; // Load address low
+        data[file_offset + 3] = 0x20; // Load address high (0x2000)
+        data[file_offset + 4] = 0xDE;
+        data[file_offset + 5] = 0xAD;
+
+        let files = parse_d64_directory(&data).unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].filename, "SIDE2B");
+        assert_eq!(files[0].track, 41);
+        assert_eq!(files[0].disk_type, DiskType::D71_80);
+
+        let prg_bytes = extract_file(&data, &files[0]).unwrap();
+        let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
+        let payload = prg_bytes[2..].to_vec();
+        assert_eq!(load_addr, 0x2000);
+        assert_eq!(payload, vec![0xDE, 0xAD]);
+    }
+
+    #[test]
+    fn test_d71_80_track_real_file() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../tests/6502/d71_80_tracks.d71"
+        );
+        // The test fixture may not be present in all CI environments; skip gracefully.
+        let Ok(data) = std::fs::read(path) else {
+            return;
+        };
+        assert_eq!(data.len(), D71_80_TRACK_SIZE, "unexpected file size");
+
+        let files = parse_d64_directory(&data).unwrap();
+        assert!(!files.is_empty(), "expected at least one file in the image");
+
+        // All files should be extractable without error
+        for entry in &files {
+            let result = extract_file(&data, entry);
+            assert!(
+                result.is_ok(),
+                "failed to extract '{}': {:?}",
+                entry.filename,
+                result.err()
+            );
+        }
+    }
+
+    #[test]
     fn test_d64_size_variants() {
         // Standard D64
         let data = vec![0u8; D64_STANDARD_SIZE];
@@ -549,6 +724,18 @@ mod tests {
 
         // 40-track D64 with error info
         let data = vec![0u8; D64_40_TRACK_WITH_ERROR_INFO_SIZE];
+        assert!(parse_d64_directory(&data).is_ok());
+
+        // 42-track D64
+        let data = vec![0u8; D64_42_TRACK_SIZE];
+        assert!(parse_d64_directory(&data).is_ok());
+
+        // D71 standard (70 tracks)
+        let data = vec![0u8; D71_STANDARD_SIZE];
+        assert!(parse_d64_directory(&data).is_ok());
+
+        // D71 80-track
+        let data = vec![0u8; D71_80_TRACK_SIZE];
         assert!(parse_d64_directory(&data).is_ok());
 
         // Invalid size
