@@ -552,7 +552,7 @@
     {
       "start": 6459,
       "end": 6459,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -564,7 +564,7 @@
     {
       "start": 6470,
       "end": 6471,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -1314,6 +1314,104 @@
         "kind": "User"
       }
     ],
+    "7248": [
+      {
+        "name": "screen_row_addr_lo",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7272": [
+      {
+        "name": "screen_row_addr_hi",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7296": [
+      {
+        "name": "debris_vel_x",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7304": [
+      {
+        "name": "debris_vel_y",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7312": [
+      {
+        "name": "obstacle_colour_normal",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7328": [
+      {
+        "name": "obstacle_col_deltas",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7336": [
+      {
+        "name": "obstacle_colour_wide",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7368": [
+      {
+        "name": "bike_char_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7372": [
+      {
+        "name": "bike_subpos_offset",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7872": [
+      {
+        "name": "tile_chars_row0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7936": [
+      {
+        "name": "tile_chars_row1",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "8000": [
+      {
+        "name": "tile_chars_row2",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "8064": [
+      {
+        "name": "tile_chars_row3",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "8128": [
+      {
+        "name": "tile_chars_row4",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
     "8192": [
       {
         "name": "main_init",
@@ -1328,6 +1426,48 @@
         "kind": "User"
       }
     ],
+    "8640": [
+      {
+        "name": "select_raster_colour",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "8664": [
+      {
+        "name": "sprite_erase",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "8708": [
+      {
+        "name": "sprite_draw",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "8764": [
+      {
+        "name": "render_obstacles",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "8896": [
+      {
+        "name": "render_wide_flash_bar",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "8944": [
+      {
+        "name": "obstacle_blit_advance",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
     "8964": [
       {
         "name": "update_obstacle_positions",
@@ -1335,9 +1475,37 @@
         "kind": "User"
       }
     ],
+    "9116": [
+      {
+        "name": "render_track_tiles",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "9160": [
+      {
+        "name": "sprite_queue_push",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
     "9196": [
       {
         "name": "update_tile_colours",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "9232": [
+      {
+        "name": "render_debris_or_bike",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "9432": [
+      {
+        "name": "track_scroll_engine",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -1598,6 +1766,42 @@
     "8502": "Phase 0: dispatch raster task A",
     "8506": "Phase 1: dispatch raster task B",
     "8510": "Phase 2: dispatch raster task C",
+    "8642": "mode 0 (normal ride) -> dark orange",
+    "8646": "mode 4 (track scroll) -> dark orange",
+    "8650": "mode 6 (results screen) -> dark orange",
+    "8654": "$10 = black background (active gameplay)",
+    "8658": "$18 = dark orange/brown background (stationary modes)",
+    "8660": "store for IRQ handler to apply during raster phase 0",
+    "8664": "any sprites in the erase queue?",
+    "8666": "queue empty -> nothing to erase",
+    "8668": "X = screen row index from sprite queue",
+    "8671": "screen row address lo (40-col row table)",
+    "8676": "screen row address hi ($0C-$0F pages)",
+    "8681": "Y = column offset within the row",
+    "8687": "write $00 (blank char) to screen RAM",
+    "8691": "toggle bit 2: screen RAM -> colour RAM ($0Cxx<->$08xx)",
+    "8695": "$3D = default colour attribute",
+    "8697": "restore default colour in colour RAM",
+    "8699": "pop entry, loop until all sprites erased",
+    "8768": "$FF = dead slot, skip to next",
+    "8772": "type >= 8? -> wide obstacle renderer",
+    "8777": "--- Normal: colour from f1C90[type] ---",
+    "8784": "screen col = pos_hi >> 2",
+    "8790": "sub-pixel X = pos_hi & $03 (4 animation phases)",
+    "8796": "type >= 4? -> use alternate animation set (bit 2)",
+    "8806": "char_idx = idx * 6 + $38 (via ASL + ADC trick)",
+    "8819": "vertical position = obstacle lifetime counter",
+    "8825": "blit 6 cells: 2x3 grid (3 cols x 2 rows)",
+    "8838": "--- Wide: screen col = (flags & $03) + 3 ---",
+    "8849": "colour from f1CA8[vel & $1F] (pulsating gradient)",
+    "8862": "char base = (flags & $04) + $68 (2 anim variants)",
+    "8868": "blit 4 vertical cells at life+0, life+1, life+2, life+3",
+    "8884": "render flash bar if bit 4 set (sound-triggered)",
+    "8898": "bit 4 clear? -> no flash bar",
+    "8904": "chars $34-$36 (cycling), colour $71",
+    "8919": "blit bar chars rightward until col >= $10",
+    "8944": "advance Y, char_idx; apply col delta from f1CA0[Y]",
+    "8955": "at cell 3? -> inc row (start 2nd row of 2x3 grid)",
     "8964": "Load game mode byte",
     "8966": "Mode 1 -> active",
     "8970": "Mode 2 -> active",
@@ -1622,8 +1826,22 @@
     "9106": "Secondary counter zero -> skip increment this frame",
     "9108": "Decrement secondary counter",
     "9110": "Increment path: slots X=1,0 (player bikes)",
-    "9123": "At right edge ($15)? Wrap bike back to left side ($0B/$1F)",
+    "9118": "read tile type from track data row",
+    "9120": "mask to 6-bit tile type (0-63)",
+    "9123": "tile row 0 -> screen row 19 ($0E80)",
+    "9129": "tile row 1 -> screen row 20 ($0EA8)",
+    "9135": "tile row 2 -> screen row 21 ($0ED0)",
     "9140": "Finish-line / bike collision check (fires if both bikes at $0B simultaneously)",
+    "9141": "tile row 3 -> screen row 22 ($0EF8)",
+    "9147": "tile row 4 -> screen row 23 ($0F20)",
+    "9154": "40 columns (full screen width)",
+    "9162": "column >= 40? -> off-screen right, clip",
+    "9168": "save X, use sprite_queue_count as queue index",
+    "9172": "store row index into queue",
+    "9177": "store column into queue",
+    "9182": "store character code into queue",
+    "9187": "store colour attribute into queue",
+    "9190": "advance queue pointer for next entry",
     "9196": "Y=$10: start at first tile slot in object record (word-stride loop)",
     "9198": "Read tile type byte from object record via p24 pointer",
     "9200": "Mask to 6-bit type index (0-63 tile types)",
@@ -1635,6 +1853,43 @@
     "9219": "Write background colour into object record at $28+Y",
     "9222": "Advance by 2 (word stride through object record)",
     "9224": "10 entries done when Y=$14 (10 x 2-byte steps from $10)",
+    "9234": "modes 0, 6, 8 -> nothing to render, return",
+    "9246": "modes 1, 5 -> crash debris animation",
+    "9254": "all other modes -> bike renderer",
+    "9258": "--- Debris animation: 8 particles (X=7..0) ---",
+    "9262": "$FF = dead particle, skip",
+    "9267": "Y pos += velocity from f1C88 (signed: up/down)",
+    "9275": "Y >= 19 (off bottom)? -> kill particle",
+    "9288": "X pos += velocity from f1C80 (signed: left/right)",
+    "9293": "X >= 40 (off sides)? -> kill particle",
+    "9307": "$52 = debris character, $37 = debris colour",
+    "9315": "blit debris particle to screen",
+    "9324": "--- Bike renderer: 3x3 character grid ---",
+    "9326": "(split_a XOR $06) >> 1 -> sub-pixel frame index",
+    "9330": "f1CC8[frame] -> base char for top half of bike",
+    "9341": "f1CC8[frame] -> base char for bottom half of bike",
+    "9348": "bike_pos_hi & $03 -> sub-position column offset",
+    "9351": "f1CCC[sub-pos] -> char offset for smooth horizontal motion",
+    "9369": "screen column = bike_pos_hi >> 2",
+    "9375": "outer loop: 3 columns (Y=0..2)",
+    "9383": "select top or bottom half char base",
+    "9395": "$39 = bike colour attribute",
+    "9399": "inner loop: blit 3 rows per column via s23C8",
+    "9406": "char_idx += 3 (next animation frame in sequence)",
+    "9416": "advance both char bases and column for next column",
+    "9435": "frac -= throttle (higher throttle -> faster underflow)",
+    "9439": "no underflow -> skip throttle-driven scroll",
+    "9444": "step split_b by 2 sub-pixels (cycles 0,2,4,6)",
+    "9450": "wrapped past 6? -> full row scroll needed",
+    "9454": "full row scroll: update track screen content",
+    "9457": "advance track data pointer to next row",
+    "9463": "step split_a by 2 sub-pixels (cycles 0,2,4,6)",
+    "9473": "split_a wrapped: update obstacle positions",
+    "9479": "timer -= scroll_speed (base course rate)",
+    "9483": "no underflow -> skip timer-driven scroll",
+    "9488": "timer scroll: step split_a sub-pixels",
+    "9498": "timer split_a wrapped: update obstacle positions",
+    "9501": "update raster colour state for IRQ handler",
     "9508": "Loop over 4 obstacle slots (X=3..0)",
     "9510": "Load obstacle type/flags for this slot",
     "9514": "Slot inactive — skip to next",
@@ -1931,8 +2186,17 @@
     "6144": "double-height characters charst",
     "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain entry point for Kikstart (Commodore Plus/4).\nPerforms a full cold-start initialization:\n  1. TED chip reset: colors set, audio muted, video matrix configured.\n  2. Screen RAM (4 pages) cleared; attribute RAM filled with color $39.\n  3. Game IRQ handler installed at $0314/$0315 (KERNAL shadow vector).\n  4. Track/tile color tables initialized from ROM data tables.\n  5. TED Timer 1 configured and started to drive per-frame IRQs.\n  6. IRQs enabled; falls into the raster-synced main game loop.\n\nThe main loop is 3-phase, synchronized to the TED Timer 1 IRQ (handled\nby the routine at p2118). The IRQ increments RAM_ZPVEC1 each tick:\n  Phase 1 ($01): 8 game-logic subsystem update subroutines.\n  Phase 2 ($02): 7 more update subroutines, then repeats from phase 1.\n  Phase 0 ($00): Internal raster task dispatched inside the IRQ handler.\n\nInputs:       None (cold start)\nOutputs:      None\nSide Effects: TED chip fully configured, IRQ vector patched to p2118,\n              TED Timer 1 running, game loop active indefinitely.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8472": "TED Timer 1 IRQ handler.\nFires each raster frame. Acknowledges the TED timer IRQ, increments the\n3-phase frame counter in RAM_ZPVEC1 (wraps 0→1→2→0), then dispatches\nraster state machine tasks for phase 0. Phases 1 and 2 are handled by\nthe spin-waits in the main loop (main_init). Non-timer IRQs are chained\nto the KERNAL handler at $FCC3.",
+    "8640": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSelects the playfield background colour for the raster split.\nModes 0 (normal ride), 4 (track scroll), 6 (results screen) use $18\n(TED: luminance 1, colour 8 = dark orange/brown).\nAll other modes use $10 (TED: luminance 1, colour 0 = black).\nThe value is read by irq_handler and written to $FF13 (TED background\ncolour register) during raster phase 0.\n\nInputs:  game_mode\nOutputs: raster_colour ($10 or $18)\nSide Effects: None (colour applied later by IRQ handler)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "8664": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSprite erase - clears previous frame's character sprites from screen.\nIterates the sprite queue backwards (sprite_queue_count..1). For each entry:\n  1. Looks up screen row address from f1C50/f1C68 (24-entry row table)\n     using the row index stored in f03FF[Y].\n  2. Writes $00 (blank) to screen RAM at (ptr),column.\n  3. Toggles hi byte bit 2 (EOR #$04) to switch from screen RAM ($0Cxx)\n     to colour RAM ($08xx) and writes $3D (default colour attribute).\n  4. Decrements sprite_queue_count and repeats until zero.\n\nFirst step of the double-buffer sprite technique:\nerase old (this) -> run game logic -> draw new (sprite_draw).\n\nInputs:  sprite_queue_count, f03FF[1..N] (row indices), f042F[1..N] (col)\nOutputs: Screen + colour RAM cleared at previous sprite positions,\n         sprite_queue_count = 0\nSide Effects: Direct writes to screen RAM ($0C00+) and colour RAM ($0800+)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "8764": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nObstacle sprite renderer - draws all active obstacles as character sprites.\nIterates 4 slots (X=3..0), dispatching to normal or wide renderers.\n\nNormal obstacles (type 0-7): 2x3 character grid\n  Colour from f1C90[type]. Screen col = pos_hi >> 2.\n  Char base = ((sub_pos | type_hi_bit) * 6) + $38.\n  Blits 6 cells via sprite_queue_push + obstacle_blit_advance.\n  Column deltas from f1CA0: (0,+1,+1,-2,+1,+1) = two 3-wide rows.\n\nWide obstacles (type >= 8): 4-tall vertical column\n  Screen col = (flags & $03) + 3.\n  Colour from f1CA8[vel & $1F] (32-entry pulsating gradient).\n  Char base = (flags & $04) + $68 (two animation variants).\n  Blits 4 vertical cells, each at obstacle_life + Y.\n  If bit 4 set: render_wide_flash_bar adds 3-char horizontal bar.\n\nInputs:  obstacle_flags/pos_hi/life/vel[0..3], f1C90, f1CA0, f1CA8\nOutputs: Sprite queue entries via sprite_queue_push\nSide Effects: None (deferred rendering)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "8896": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nWide obstacle flash bar - renders a 3-char horizontal bar when bit 4 of\nobstacle_flags is set (sound-triggered visual effect).\nChars $34-$36 (cycling), colour $71, at blit_col+1, row = life+1.\nExtends rightward until column >= $10.\n\nInputs:  obstacle_flags[X] (bit 4), obstacle_life[X], blit_col\nOutputs: Sprite queue entries\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "8944": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nNormal obstacle blit advance helper.\nIncrements Y and blit_char_idx. Applies column delta from f1CA0[Y]\n(pattern: 0,+1,+1,-2,+1,+1 = two 3-wide rows). Increments blit_row\nwhen Y reaches 3 (start of second row).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8964": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame update of obstacle and player bike screen positions.\nCalled every game frame (phase 1 of the IRQ-driven 3-phase main loop).\n\nGuards on a02 (game mode): only active for modes 1, 2, 5, or >=7;\nreturns immediately for menus, attract, or paused states.\n\nReads the obstacle type byte at offset $10 of the object record pointed\nto by p24 ($24/$25):\n  $FE -> clears a3B (player-active flag), calls s2694 (crash/reset)\n  $FD -> sets a31=1 (state-change signal)\n\nDecrement path (a3B=0, obstacles scrolling right->left):\n  Loops over slots X=4,3,1 (slot 2 skipped): decrements f0C07,x and\n  f0C2F,x by 1 each frame. Wraps at $0A back to $14/$28 (track boundary).\n  Calls s2190 to check if any slot crossed the finish threshold.\n\nIncrement path (a3B!=0, player in motion, even frames only):\n  Loops over slots X=1,0: increments f0C07,x and f0C2F,x. Wraps at\n  $15 back down to $0B/$1F. Calls s2E90 to check for a finish-line\n  or bike collision.\n\nInputs:  a02 (game mode), a3B (player-active flag), a31, a3C, a3F\n         (frame counter), (p24)+$10 (obstacle type), f0C07/f0C2F tables\nOutputs: f0C07,x / f0C2F,x (updated screen positions), a3B, a31\nSide Effects: May call s2694 (crash/reset), s2190 (lap check),\n              s2E90 (finish-line/collision check)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9116": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTrack tile renderer - expands a 40-byte track row definition into a\n40x5 character tile grid at the bottom of the screen.\n\nFor each of 40 columns (Y=0..39):\n  1. Reads tile type from (ptr_obj_record_lo),Y\n  2. Masks to 6-bit index (0-63 tile types)\n  3. Looks up 5 ROM tables (f1EC0/f1F00/f1F40/f1F80/f1FC0) to get\n     the 5 characters that form the tile column vertically\n  4. Writes them to 5 consecutive screen rows at the bottom:\n     $0E80+Y (row 19), $0EA8+Y (row 20), $0ED0+Y (row 21),\n     $0EF8+Y (row 22), $0F20+Y (row 23)\n\nInputs:  (ptr_obj_record_lo) -> 40-byte track row data,\n         f1EC0-f1FC0 (5 ROM tile expansion tables, 64 entries each)\nOutputs: Screen RAM $0E80-$0F47 (5 rows x 40 cols at bottom of screen)\nSide Effects: None (pure screen write)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9160": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSprite queue push - adds one sprite entry to the draw queue.\nClips sprites with column >= 40 (off-screen right).\n\nStores (blit_col, blit_row, blit_char_idx, blit_colour_ptr) into\nfour parallel arrays at f0400/f0430/f0460/f0490 indexed by\nsprite_queue_count, then increments the count.\n\nThe queue is processed by sprite_draw ($2204) to write chars to screen,\nand by sprite_erase ($21D8) to clear them next frame.\n\nInputs:  blit_col (row idx), blit_row (col), blit_char_idx (char code),\n         blit_colour_ptr (colour attr), sprite_queue_count\nOutputs: sprite_queue_count (incremented), queue arrays updated\nSide Effects: None (deferred rendering)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9196": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame track tile colour attribute update.\nLoops over 10 entries of the current object record (Y=$10,$12,...,$12;\nword-stride, 10 iterations until Y=$14). For each entry:\n  1. Reads the tile type byte from (p24)+Y and masks to 6 bits (type 0-63).\n  2. Looks up a colour descriptor byte from the ROM table at f1E80[type].\n  3. Splits the descriptor into two TED colour fields:\n       bits 2-5 (& $3C) + $33 -> foreground/ink colour  -> $27+Y\n       bits 6-7 (& $C0)       -> background/paper colour -> $28+Y\n  4. Writes both fields back into the object record via absolute indexed\n     addressing (@w a27,Y / @w a28,Y).\n\nThe ROM table f1E80 encodes up to 64 tile type descriptors:\n  bits 2-5: foreground colour index (offset by $33 into TED palette)\n  bits 6-7: background colour field\n  bits 0-1: used by other routines (e.g. sprite shape selection in s2410)\n\nInputs:  p24 ($24/$25) -- pointer to current object record\n         f1E80         -- ROM tile colour descriptor table (64 entries)\nOutputs: Object record bytes at $27+Y / $28+Y (Y=$10..$12) updated\n         with foreground and background TED colour attributes\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9232": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMode-dependent screen update: crash debris animation or bike renderer.\n\nMode dispatch:\n  Modes 0, 6, 8 -> RTS (nothing to render)\n  Modes 1, 5    -> Crash debris animation (8 particles)\n  Modes 2,3,4,7 -> Bike renderer (3x3 character grid)\n\nDebris animation (modes 1, 5):\n  8 particles (X=7..0) with independent X/Y velocities from f1C80/f1C88.\n  Each frame: pos += velocity, bounds check (Y >= 19 or X >= 40 -> kill),\n  blit char $52 / colour $37 via s23C8. Dead particles marked $FF.\n\nBike renderer (modes 2, 3, 4, 7):\n  Renders bike as a 3x3 character grid. Animation frame derived from\n  raster_split_a/b sub-pixel positions (XOR $06, >> 1 -> f1CC8 lookup).\n  Horizontal sub-position from bike_pos_hi & $03 -> f1CCC offset.\n  Screen column from bike_pos_hi >> 2. Each cell blitted via s23C8\n  with colour $39. Char index += 3 per row for sequential animation.\n\nInputs:  game_mode, crash_debris_x/y[0..7], raster_split_a/b,\n         bike_pos_hi, f1C80/f1C88, f1CC8/f1CCC\nOutputs: Screen RAM (debris or bike chars), crash_debris_x/y (updated)\nSide Effects: Calls s23C8 (character blit) for each visible element\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9432": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTrack scroll engine - converts throttle + course speed into smooth sub-pixel\nscrolling via TED fine scroll registers.\n\nUses a fractional accumulator technique: track_scroll_frac is decremented\nby bike_throttle each frame. On underflow, a scroll step occurs (faster\nthrottle = more frequent steps = faster scroll).\n\nTwo raster splits (raster_split_a/b) cycle through 4 sub-pixel positions\n(0,2,4,6). On wrap past 6->0, a full character row scroll triggers:\n  raster_split_b wrap -> s2A0C (track screen update) + s2E28 (advance ptr)\n  raster_split_a wrap -> s27FC (obstacle position update)\n\nDual scroll sources:\n  Phase 1: Throttle-driven (bike_throttle) - player speed\n  Phase 2: Timer-driven (scroll_speed) - base course rate, independent\n\nInputs:  track_scroll_frac, bike_throttle, raster_split_a/b,\n         scroll_timer, scroll_speed\nOutputs: track_scroll_frac, raster_split_a/b, scroll_timer\nSide Effects: s2A0C (track update), s2E28 (ptr advance), s27FC (obstacles),\n              s21B4 (raster colour)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9508": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame obstacle physics update. Loops over 4 obstacle slots (X=3..0)\nand integrates velocity into position, applies boundary bounce/wrap, and\ntriggers a collision sound when a height threshold is crossed.\n\nPer-slot zero-page layout (base + X):\n  f10,x ($10+X) -- type/flags: $FF=inactive; bits 0-2=type;\n                   bit3=high-speed; bit4=sound-triggered\n  f14,x ($14+X) -- lifetime countdown\n  f18,x ($18+X) -- position high byte (integer Y)\n  f1C,x ($1C+X) -- position low byte (fractional / sub-pixel)\n  f20,x ($20+X) -- velocity (signed)\n\nLow-speed path (f10,x < $08, e.g. barrels):\n  Integrates f20 into f1C/f18 with carry. Boundary checks on f18:\n    $10-$2F -> negate velocity (bounce via s293C)\n    >=  $30 -> nudge position down then bounce\n    <   $10 -> nudge position up then bounce\n\nHigh-speed path (f10,x >= $08, e.g. tyres):\n  Adds f18 into f1C; carry propagates into f20. When (f20 & $1F)==$10\n  AND ((X XOR frame_counter) & $03)==0: arms collision sound via s2C20\n  and sets bit 4 of f10,x. Otherwise clears bit 4.\n  The frame-counter gate staggers triggers across 4 frames to prevent\n  multiple sounds firing simultaneously.\n\nInputs:  f10,x-f20,x (4 slots), a3F (frame counter)\nOutputs: f18,x (position), f1C,x (sub-pixel), f20,x (velocity),\n         f10,x (flags)\nSide Effects: May arm obstacle sound via s2C20 (JMPER, DSCPNT, a51, SIZE)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9608": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the progress/lap HUD bar on two consecutive screen rows.\nPhase 1: Clear 40-char row at $0B98 with blanks ($00).\nPhase 2: Draw course progress markers ($3A) at $0BAF+X, one per completed\n  course (clamped to max 15), filling right-to-left.\nPhase 3: Draw lap pips ($29) at $0B97+X, 3 chars per remaining lap,\n  filling right-to-left.\nPhase 4: Copy the completed row to a second row at $0BC0 (shadow/duplicate).\n\nInputs:  course_index, lap_counter\nOutputs: Screen RAM $0B98-$0BBF (row 1), $0BC0-$0BE7 (row 2)\nSide Effects: None (pure screen write)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9680": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain game state machine dispatcher - called once per frame from the main loop.\nReads game_mode and dispatches to the handler for the current game phase:\n\n  Mode 0: handle_mode_normal_ride     - Fire/jump button -> movement dispatch\n  Mode 1: handle_mode_crash_debris    - Wait for debris landing -> respawn\n  Mode 2: handle_mode_active_ride     - Throttle input, bounds, physics, FX\n  Mode 3: handle_mode_starting_gate   - Left-edge enforce + throttle decay\n  Mode 4: handle_mode_track_scroll    - Track scrolling + finish animation\n  Mode 5: handle_mode_debris_wait     - Wait debris clear -> lap/course end\n  Mode 6: handle_mode_results_screen  - Descending jingle -> return to menu\n  Mode 7: apply_velocity_and_integrate - Velocity + 4x position integration\n  Mode 8: handle_mode_next_lap_init   - Poll readiness -> start next lap\n\nGame flow: 0->2 (ride), crash->1->0 (respawn), bounds->7 (correct),\n  3 (decay)->4 (scroll)->5 (debris wait)->8 (next lap)->1 or 6 (results).\n\nInputs:  game_mode\nOutputs: Delegates entirely to the target handler\nSide Effects: All side effects come from the dispatched handler\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -1985,14 +2249,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8305,
-  "hex_dump_cursor_address": 8304,
+  "cursor_address": 10565,
+  "hex_dump_cursor_address": 10560,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 6472,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],
