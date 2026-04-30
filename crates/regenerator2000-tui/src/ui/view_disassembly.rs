@@ -1227,7 +1227,7 @@ impl Widget for DisassemblyView {
                                 Span::styled(gutter, gutter_style),
                                 Span::styled(
                                     format!("{arrow_padding:<arrow_width$} "),
-                                    base_style.fg(ui_state.theme.arrow),
+                                    Style::default().fg(ui_state.theme.arrow),
                                 ),
                                 Span::styled("                 ".to_string(), base_style),
                                 Span::styled(
@@ -1255,7 +1255,7 @@ impl Widget for DisassemblyView {
                         Span::styled("     ", base_style.fg(ui_state.theme.bytes)),
                         Span::styled(
                             format!("{arrow_padding:arrow_width$} "),
-                            base_style.fg(ui_state.theme.arrow),
+                            Style::default().fg(ui_state.theme.arrow),
                         ),
                         Span::styled("                 ".to_string(), base_style),
                         Span::styled(
@@ -1320,7 +1320,7 @@ impl Widget for DisassemblyView {
                 Span::styled(gutter, gutter_style),
                 Span::styled(
                     format!("{arrow_padding:<arrow_width$} "),
-                    base_style.fg(ui_state.theme.arrow),
+                    Style::default().fg(ui_state.theme.arrow),
                 ),
                 Span::styled(address_str.clone(), base_style.fg(ui_state.theme.address)),
                 Span::styled(
@@ -1364,7 +1364,7 @@ impl Widget for DisassemblyView {
                         Span::styled("     ", base_style),
                         Span::styled(
                             format!("{label_arrow_padding:<arrow_width$} "),
-                            base_style.fg(ui_state.theme.arrow),
+                            Style::default().fg(ui_state.theme.arrow),
                         ),
                         Span::styled("                 ".to_string(), base_style),
                         Span::styled(
@@ -1503,10 +1503,18 @@ impl Widget for DisassemblyView {
                     let is_cursor_sub = is_cursor_row && idx == ui_state.sub_cursor_index;
 
                     let style = if is_cursor_sub && !is_selected_block {
-                        // Sub-cursor Highlight
-                        base_style.bg(ui_state.theme.selection_bg)
-                    } else {
+                        // Sub-cursor Highlight: use selection bg but strip DIM so that
+                        // arrow spans (which use Style::default()) are not dimmed by the
+                        // ListItem patch.
                         base_style
+                            .bg(ui_state.theme.selection_bg)
+                            .remove_modifier(Modifier::DIM)
+                    } else {
+                        // Strip DIM from the ListItem-level style: DIM is already applied
+                        // via base_style on the individual content spans (address, bytes,
+                        // mnemonic, etc.). Keeping DIM here would patch arrow spans that
+                        // intentionally use Style::default() and should stay bright.
+                        base_style.remove_modifier(Modifier::DIM)
                     };
 
                     items.push(ListItem::new(manipulated_part).style(style));

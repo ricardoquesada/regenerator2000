@@ -492,7 +492,7 @@
     {
       "start": 6166,
       "end": 6167,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -504,7 +504,7 @@
     {
       "start": 6192,
       "end": 6195,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -576,7 +576,7 @@
     {
       "start": 6498,
       "end": 6499,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -588,7 +588,7 @@
     {
       "start": 6578,
       "end": 6579,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -1601,6 +1601,41 @@
         "kind": "User"
       }
     ],
+    "9884": [
+      {
+        "name": "enter_mode_track_scroll",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "9900": [
+      {
+        "name": "trigger_crash",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "9932": [
+      {
+        "name": "setup_course_end_screen",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "9968": [
+      {
+        "name": "enter_mode_vel_correct",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "9976": [
+      {
+        "name": "enter_mode_next_lap",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
     "9988": [
       {
         "name": "read_joystick",
@@ -1632,6 +1667,20 @@
     "10208": [
       {
         "name": "prng_next",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "10236": [
+      {
+        "name": "obstacle_life_tick",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "10264": [
+      {
+        "name": "starting_gate_throttle_decay",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -1940,6 +1989,19 @@
     "9781": "Zero ZPVEC2 (temp for renumber), RESHO (expression result high byte), SRCHTK (token search key)",
     "9785": "$2A=$80: set high-bit state flag (signals BASIC engine not inside a loop)",
     "9787": "Zero OLDOV (overflow flag) and TEMPF1 (FP temporary)",
+    "9884": "game_mode = 4 (track scroll)",
+    "9892": "initialize track scroll state",
+    "9900": "--- Init 8 debris particles at bike position ---",
+    "9902": "all particles start at X=$10 (center)",
+    "9908": "Y = bike screen column (pos_hi >> 2)",
+    "9915": "game_mode = 5 (debris wait)",
+    "9927": "trigger crash sound effect",
+    "9934": "copy 16-char course-end text from f1CE0 to screen",
+    "9940": "$71 = course-end text colour",
+    "9952": "game_mode = 6 (results screen)",
+    "9958": "kill all 4 obstacle slots ($FF)",
+    "9968": "store velocity (A) and set game_mode=7",
+    "9976": "throttle=$60, game_mode=8 (next lap)",
     "9988": "Disable IRQs during keyboard matrix scan",
     "9989": "Scan row 1: select keyboard matrix row $FA via $FD30",
     "9997": "Y = row 1 result (directions A + fire in bit 6)",
@@ -1989,6 +2051,18 @@
     "10193": "fire/jump button held? (bit 7)",
     "10195": "fire held -> skip idle sound",
     "10197": "idle engine sound/state ($CC)",
+    "10236": "4 obstacle slots (X=3..0)",
+    "10240": "dead slot ($FF)? -> skip",
+    "10244": "decrement lifetime counter",
+    "10248": "underflowed to $FC? -> expired",
+    "10252": "kill slot: mark dead ($FF)",
+    "10259": "advance spawn cooldown timer",
+    "10264": "age obstacle timers at double speed",
+    "10272": "throttle already zero?",
+    "10274": "yes -> transition to track scroll mode",
+    "10277": "decay throttle by 4 per frame",
+    "10279": "round down to nearest 4 (clear low 2 bits)",
+    "10284": "throttle zero: set game_mode=4 (track scroll)",
     "10294": "finish-line animation phase?",
     "10296": "yes -> run digit countdown animation",
     "10298": "advance track_progress + update engine pitch sound",
@@ -2201,11 +2275,18 @@
     "9608": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the progress/lap HUD bar on two consecutive screen rows.\nPhase 1: Clear 40-char row at $0B98 with blanks ($00).\nPhase 2: Draw course progress markers ($3A) at $0BAF+X, one per completed\n  course (clamped to max 15), filling right-to-left.\nPhase 3: Draw lap pips ($29) at $0B97+X, 3 chars per remaining lap,\n  filling right-to-left.\nPhase 4: Copy the completed row to a second row at $0BC0 (shadow/duplicate).\n\nInputs:  course_index, lap_counter\nOutputs: Screen RAM $0B98-$0BBF (row 1), $0BC0-$0BE7 (row 2)\nSide Effects: None (pure screen write)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9680": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain game state machine dispatcher - called once per frame from the main loop.\nReads game_mode and dispatches to the handler for the current game phase:\n\n  Mode 0: handle_mode_normal_ride     - Fire/jump button -> movement dispatch\n  Mode 1: handle_mode_crash_debris    - Wait for debris landing -> respawn\n  Mode 2: handle_mode_active_ride     - Throttle input, bounds, physics, FX\n  Mode 3: handle_mode_starting_gate   - Left-edge enforce + throttle decay\n  Mode 4: handle_mode_track_scroll    - Track scrolling + finish animation\n  Mode 5: handle_mode_debris_wait     - Wait debris clear -> lap/course end\n  Mode 6: handle_mode_results_screen  - Descending jingle -> return to menu\n  Mode 7: apply_velocity_and_integrate - Velocity + 4x position integration\n  Mode 8: handle_mode_next_lap_init   - Poll readiness -> start next lap\n\nGame flow: 0->2 (ride), crash->1->0 (respawn), bounds->7 (correct),\n  3 (decay)->4 (scroll)->5 (debris wait)->8 (next lap)->1 or 6 (results).\n\nInputs:  game_mode\nOutputs: Delegates entirely to the target handler\nSide Effects: All side effects come from the dispatched handler\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9748": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets the CBM BASIC 3.5 interpreter runtime state to a clean baseline.\nZeroes or re-initialises a suite of zero-page BASIC variables (INDEX2,\nFRESPC, SUBFLG[0-3], ZPVEC2, RESHO, SRCHTK, OLDOV, TEMPF1) and sets\nseveral unlabelled scratch bytes to fixed sentinel values. Called during\nlevel initialisation (after TED screen setup) to ensure no stale BASIC\nengine state leaks between levels.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies RAM_INDEX2, RAM_FRESPC, RAM_SUBFLG[0-3], RAM_ZPVEC2,\n              RAM_RESHO, RAM_SRCHTK, RAM_OLDOV, RAM_TEMPF1; sets $25=$2F,\n              $34=$05, $2A=$80\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9884": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTransition: enter track scroll mode (mode 4).\nSets game_mode=4, clears scroll_dir_flag, calls s2964 to init scroll state.\nCalled when starting gate throttle reaches zero.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9900": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTrigger crash - initializes debris explosion and enters mode 5.\nSets all 8 debris particles to X=$10, Y=bike_pos_hi/4 (bike screen col).\nZeroes track_progress and bike_throttle, triggers crash sound (s2B8C).\nCalled on boundary violations and obstacle collisions.\n\nInputs:  bike_pos_hi\nOutputs: crash_debris_x/y[0..7] (initialized), game_mode=5,\n         track_progress=0, bike_throttle=0\nSide Effects: Crash sound (s2B8C)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9932": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSetup course-end screen - copies 16-char text from f1CE0 to screen $0D4E\nwith colour $71, kills all 4 obstacle slots, resets track_progress,\nand enters mode 6 (results screen).\nCalled when no laps remain after debris clears.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9968": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTransition: enter velocity correction mode (mode 7).\nStores A into bike_vel, sets game_mode=7.\nCalled from physics boundary checks and throttle handlers.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "9976": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTransition: enter next lap mode (mode 8).\nSets bike_throttle=$60 (mid), game_mode=8.\nCalled when laps remain after debris clears.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "9988": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nJoystick input scanner for the Plus/4.\nReads the joystick port by scanning two keyboard matrix rows via $FD30\n(keyboard latch / row select) and $FF08 (TED keyboard input register).\nJoystick signals are active-low on the hardware; this routine extracts\nindividual direction and fire bits from two matrix scans, remaps them\ninto a single byte, and inverts the direction nibble to active-high.\n\nScan 1: $FD30=$FA -> $FF08 read -> Y (directions A + fire bit 6)\nScan 2: $FD30=$FD -> $FF08 read -> X (directions B)\nBit remap: X bits are merged into Y by conditionally clearing Y bits.\nFinal: a33 = ((Y & $0F) | ((Y & $40) << 1)) XOR $0F\n\nOutput bit layout (a33):\n  Bit 0: Direction 1            Bit 4-6: Unused (0)\n  Bit 1: Direction 2            Bit 7:   Fire button\n  Bit 2: Tilt back (subtract)   (directions are active-high;\n  Bit 3: Tilt forward (add)      fire is active-high)\n\nInputs:  $FD30, $FF08 (hardware keyboard matrix registers)\nOutputs: a33 ($33) -- normalized joystick state byte\nSide Effects: Briefly disables IRQs (SEI/CLI) during hardware scan\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "10068": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nGame mode 0: Normal riding state - dispatches movement based on fire/jump button.\nReads joystick bit 7 (fire/jump); if held, calls the jump movement routine,\notherwise calls the standard forward movement routine.\n\nInputs:  joystick_state (bit 7 = fire/jump button)\nOutputs: None (delegates to movement subroutines)\nSide Effects: Calls s2640 (normal move) or s2DB4 (jump move)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "10084": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nGame mode 1: Crash debris flight - waits for debris to reach landing spot,\nthen respawns the bike at its starting position with neutral throttle.\nThe debris landing position is ($10, $0B). Once reached, bike_pos is reset\nto $2A00 and throttle is set to $80 (neutral mid-point).\n\nInputs:  crash_debris_x, crash_debris_y (debris position)\nOutputs: bike_pos_hi, bike_pos_lo (reset to $2A, $00), bike_throttle (reset to $80)\nSide Effects: Calls s26F0 (likely sprite/screen reset at #$30)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "10116": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nGame mode 2: Active riding - processes throttle input, enforces track\nboundaries, updates bike physics, and triggers surface audio/visual effects.\n  - Joystick bit 3: throttle up (+3, capped at $F9)\n  - Joystick bit 2: throttle down (-3, floored at $63)\n  - If bike_pos_hi > track_right_edge or < track_left_edge: crash (s26AC)\n  - Otherwise: run bike physics update (s2E74)\n  - If track_flags & prev_track_flags & $40: trigger surface FX sound (s2B74)\n  - If fire not held: trigger idle sound/state (s2B5C with #$CC)\n\nInputs:  joystick_state, bike_throttle, bike_pos_hi, track_right_edge, track_left_edge,\n         track_flags, prev_track_flags\nOutputs: bike_throttle (adjusted), delegates physics to s2E74\nSide Effects: May trigger crash (s26AC), physics (s2E74), sounds (s2B74, s2B5C)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "10208": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\n24-bit linear congruential PRNG.\nAdvances a 3-byte state (rng_state_lo/mid/hi) using additive constants\n$45, $72, $BD with inter-byte feedback. Returns result in A (= rng_state_hi).\n\nInputs:  rng_state_lo, rng_state_mid, rng_state_hi\nOutputs: A = new rng_state_hi, all three state bytes updated\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "10236": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nObstacle life ticker - per-frame lifetime countdown for all 4 obstacle slots.\nDecrements obstacle_life[X] for each active slot. When life underflows\nto $FC, marks the slot dead (obstacle_flags = $FF).\nAlso increments spawn_cooldown each call, pacing new obstacle spawns.\n\nAlways called in pairs during non-riding phases (gate, debris wait, scroll)\nto age obstacles at double speed, clearing the screen faster.\n\nInputs:  obstacle_flags[0..3], obstacle_life[0..3], spawn_cooldown\nOutputs: obstacle_life (decremented), obstacle_flags ($FF on expiry),\n         spawn_cooldown (incremented)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "10264": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nStarting gate throttle decay - per-frame handler during gate phase (mode 3).\nAges obstacle timers at double speed (s27FC x2), then decays bike_throttle\nby 4 per frame (rounded to multiples of 4 via AND #$FC).\nWhen throttle reaches zero, transitions to track scroll mode (mode 4)\nvia s269C.\n\nInputs:  bike_throttle, obstacle timers (via s27FC)\nOutputs: bike_throttle (decreased by 4, clamped to mult of 4)\nSide Effects: s27FC x2 (obstacle aging), s269C (mode 4 transition on zero)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "10292": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nGame mode 4: Track scrolling phase - advances track_progress each tick with\na matching engine pitch sound, handles the end-of-scroll stop, and runs the\nfinish-line digit countdown animation.\n\nThree phases based on track_progress:\n  != $A0 (scrolling): call s2BF4 to increment progress and update engine sound.\n    When progress hits $E0: stop bike (game_mode=2), reset position, clear\n    track display buffers (s2A2C).\n  == $A0 (finish anim): animate digit counters on screen RAM at $0D0D-$0D0F\n    and $0D5D-$0D5F (PETSCII cycling). When done, advance course_index\n    and load next course layout (s2A18).\n\nInputs:  track_progress, snd_pitch, course_index,\n         screen RAM $0D0D-$0D0F and $0D5D-$0D5F\nOutputs: track_progress, course_index, game_mode, bike_throttle,\n         bike_pos_hi/lo, bike_vel, snd_pitch/delta/duration/volume,\n         screen RAM (digit counters and track buffers)\nSide Effects: Screen buffer clear (s2A2C), next-course load (s2A18),\n              scroll tile update (s29B4)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "10388": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nGame mode 5: Debris wait / lap-end transition.\nWaits for all 8 crash_debris_y slots to read $FF (inactive). While waiting,\nreturns immediately each tick. Once all debris is clear, advances\ntrack_progress each tick (aging obstacles via s27FC x2). When progress\nreaches $A0 the lap outcome is resolved:\n  - Laps remain (lap_counter > 0): throttle=$60, game_mode=8 (next lap).\n  - No laps left (lap_counter = 0): set up course-end screen, game_mode=6.\nSpecial case: if track_progress == 0 when debris clears, lap_counter is\ndecremented first (counts the completed lap before deciding the outcome).\n\nInputs:  crash_debris_y[0..7], track_progress, lap_counter,\n         obstacle_life[], obstacle_flags[]\nOutputs: track_progress, lap_counter, game_mode, bike_throttle,\n         obstacle_flags[], spawn_cooldown, screen RAM $0D4E, color RAM $094E\nSide Effects: Course-end screen setup (s26CC), next-lap start (s26F8)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "10436": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nGame mode 6: Course-end results screen - plays a descending pitch sweep\nsound over ~$D0 ticks as track_progress counts from 0 to $F0.\nEach tick: progress is incremented, a sound note is computed from the\ncurrent progress value (lower 5 bits set pitch offset, bits 5-6 set\noctave), combined, offset by $20, then inverted (EOR $FF) so the pitch\ndescends as progress increases. Duration=1 tick, volume=$30.\nFirst ~32 ticks ($00-$20): BMI skips sound (silent lead-in).\nWhen track_progress reaches $F0: calls reset_basic_runtime_state and\nreturns, ending the results screen and handing control back to menu/title.\n\nInputs:  track_progress (set to 0 by s26CC on entry to this mode)\nOutputs: track_progress, snd_pitch, snd_pitch_delta, snd_duration,\n         snd_volume, ted_ctrl_staging\nSide Effects: Calls reset_basic_runtime_state when sequence completes\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -2249,14 +2330,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 10565,
-  "hex_dump_cursor_address": 10560,
+  "cursor_address": 9884,
+  "hex_dump_cursor_address": 9872,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 6472,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 32768,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],
