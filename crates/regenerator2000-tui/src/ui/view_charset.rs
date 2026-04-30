@@ -136,16 +136,31 @@ impl Widget for CharsetView {
             Style::default().fg(ui_state.theme.border_inactive)
         };
 
-        let title = if ui_state.charset_multicolor_mode {
-            " Charset (Multicolor) "
+        let origin = app_state.origin.0 as usize;
+        // Align origin to next multiple of $400 as per user request (and consistent with events.rs)
+        let base_alignment = 0x400;
+        let aligned_start_addr = (origin / base_alignment) * base_alignment;
+
+        let cursor_info = if app_state.raw_data.is_empty() {
+            String::new()
         } else {
-            " Charset (Single Color) "
+            let cursor_char_addr = aligned_start_addr + ui_state.charset_cursor_index * 8;
+            let cursor_char_idx = (cursor_char_addr / 8) % 256;
+            format!(" - Char #{cursor_char_idx}, Addr: ${cursor_char_addr:04X}")
         };
+
+        let mode_label = if ui_state.charset_multicolor_mode {
+            "Multicolor"
+        } else {
+            "Single Color"
+        };
+
+        let title = format!(" Charset{cursor_info} - {mode_label} ");
 
         let block = Block::default()
             .borders(Borders::ALL)
             .border_style(border_style)
-            .title(title)
+            .title(title.as_str())
             .style(
                 Style::default()
                     .bg(ui_state.theme.background)
@@ -157,11 +172,6 @@ impl Widget for CharsetView {
         if app_state.raw_data.is_empty() {
             return;
         }
-
-        let origin = app_state.origin.0 as usize;
-        // Align origin to next multiple of $400 as per user request (and consistent with events.rs)
-        let base_alignment = 0x400;
-        let aligned_start_addr = (origin / base_alignment) * base_alignment;
 
         // Grid Constants
         // Char is 8x8 pixels. Rendered as 8x4 text cells (half blocks).
@@ -358,6 +368,48 @@ impl Widget for CharsetView {
                             Rect::new(x_pos, y_pos + line as u16, 8, 1),
                         );
                     }
+                }
+
+                // Highlight: fill all four gap sides with selection_bg to form a
+                // clear rectangular frame around the selected char cell.
+                if is_selected {
+                    let gap_style = Style::default()
+                        .bg(ui_state.theme.selection_bg)
+                        .fg(ui_state.theme.selection_bg);
+                    // Top row (only when there is a gap row above)
+                    if y_pos > inner_area.y {
+                        f.render_widget(
+                            Paragraph::new(" ".repeat(10)).style(gap_style),
+                            Rect::new(x_pos - 1, y_pos - 1, 10, 1),
+                        );
+                    }
+                    // Bottom row
+                    f.render_widget(
+                        Paragraph::new(" ".repeat(10)).style(gap_style),
+                        Rect::new(x_pos - 1, y_pos + 4, 10, 1),
+                    );
+                    // Left col
+                    f.render_widget(
+                        Paragraph::new(vec![
+                            Line::from(" "),
+                            Line::from(" "),
+                            Line::from(" "),
+                            Line::from(" "),
+                        ])
+                        .style(gap_style),
+                        Rect::new(x_pos - 1, y_pos, 1, 4),
+                    );
+                    // Right col
+                    f.render_widget(
+                        Paragraph::new(vec![
+                            Line::from(" "),
+                            Line::from(" "),
+                            Line::from(" "),
+                            Line::from(" "),
+                        ])
+                        .style(gap_style),
+                        Rect::new(x_pos + 8, y_pos, 1, 4),
+                    );
                 }
             }
             y_offset += item_height;
