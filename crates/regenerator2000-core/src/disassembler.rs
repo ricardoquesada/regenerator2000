@@ -306,7 +306,7 @@ impl Disassembler {
         labels: &BTreeMap<Addr, Vec<Label>>,
         origin: Addr,
         settings: &DocumentSettings,
-        system_comments: &BTreeMap<Addr, String>,
+        platform_comments: &BTreeMap<Addr, String>,
         user_side_comments: &BTreeMap<Addr, String>,
         user_line_comments: &BTreeMap<Addr, String>,
         immediate_value_formats: &BTreeMap<Addr, crate::state::ImmediateFormat>,
@@ -321,7 +321,7 @@ impl Disassembler {
             labels,
             origin,
             settings,
-            system_comments,
+            platform_comments,
             user_side_comments,
             user_line_comments,
             immediate_value_formats,
@@ -669,7 +669,7 @@ impl Disassembler {
         let block_types = ctx.block_types;
         let labels = ctx.labels;
         let settings = ctx.settings;
-        let system_comments = ctx.system_comments;
+        let platform_comments = ctx.platform_comments;
         let user_side_comments = ctx.user_side_comments;
         let immediate_value_formats = ctx.immediate_value_formats;
         let opcode_byte = data[pc];
@@ -800,11 +800,11 @@ impl Disassembler {
                             // But usually KERNAL/System targets won't be in our 'data' block types loop unless we disassembled the whole memory.
                             // If they are outside (target_idx >= len), is_code_target is false, so we show them (correct for external system calls).
                             // If they are INSIDE and marked as Code, we suppress user comments (to fix the bug).
-                            system_comments.get(&target_addr)
+                            platform_comments.get(&target_addr)
                         } else if let Some(c) = user_side_comments.get(&target_addr) {
                             Some(c)
                         } else {
-                            system_comments.get(&target_addr)
+                            platform_comments.get(&target_addr)
                         };
 
                         if let Some(target_comment) = target_comment {
@@ -1306,7 +1306,7 @@ impl Disassembler {
         let block_types = ctx.block_types;
         let labels = ctx.labels;
         let origin = ctx.origin;
-        let system_comments = ctx.system_comments;
+        let platform_comments = ctx.platform_comments;
         let user_side_comments = ctx.user_side_comments;
         let settings = ctx.settings;
         let user_line_comments = ctx.user_line_comments;
@@ -1351,11 +1351,11 @@ impl Disassembler {
             let target_comment = if target_idx < data.len() {
                 // Target is inside our disassembled data. Avoid appending user side comments
                 // to prevent duplication and propagation (e.g. in BASIC next pointers).
-                system_comments.get(&val)
+                platform_comments.get(&val)
             } else if let Some(c) = user_side_comments.get(&val) {
                 Some(c)
             } else {
-                system_comments.get(&val)
+                platform_comments.get(&val)
             };
 
             if let Some(target_comment) = target_comment {
@@ -1880,7 +1880,7 @@ mod tests {
             labels: &EMPTY_LABELS,
             origin: crate::state::Addr(0xc000),
             settings: settings_box,
-            system_comments: &EMPTY_COMMENTS,
+            platform_comments: &EMPTY_COMMENTS,
             user_side_comments: side_comments,
             user_line_comments: line_comments,
             immediate_value_formats: &EMPTY_IMM,

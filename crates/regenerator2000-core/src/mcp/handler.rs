@@ -1576,7 +1576,7 @@ fn get_address_details_impl(app_state: &AppState, address: Addr) -> Result<Value
     if let Some(c) = app_state.user_side_comments.get(&address) {
         comments.push(format!("[User Side] {c}"));
     }
-    if let Some(c) = app_state.system_comments.get(&address) {
+    if let Some(c) = app_state.platform_comments.get(&address) {
         comments.push(format!("[System] {c}"));
     }
     if !comments.is_empty() {

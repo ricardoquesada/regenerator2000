@@ -33,8 +33,8 @@ pub struct DocumentSettings {
     pub description: String,
     #[serde(default = "default_true")]
     pub auto_analyze: bool, // default true
-    #[serde(default = "default_true")]
-    pub show_system_comments: bool, // default true
+    #[serde(default = "default_true", alias = "show_system_comments")]
+    pub show_platform_comments: bool, // default true
     #[serde(default = "default_fill_run_threshold")]
     pub fill_run_threshold: usize, // default 8 (0 = disabled)
     #[serde(default = "default_true", alias = "exclude_comments_from_well_known")]
@@ -87,7 +87,7 @@ impl Default for DocumentSettings {
             enabled_features: std::collections::HashMap::new(),
             description: String::new(),
             auto_analyze: true,
-            show_system_comments: true,
+            show_platform_comments: true,
             fill_run_threshold: 8,
             exclude_well_known_labels: true,
         }

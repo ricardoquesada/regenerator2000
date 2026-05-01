@@ -37,7 +37,7 @@ pub struct AppState {
     pub block_types: Vec<BlockType>,
     pub labels: BTreeMap<Addr, Vec<Label>>,
     pub settings: DocumentSettings,
-    pub system_comments: BTreeMap<Addr, String>,
+    pub platform_comments: BTreeMap<Addr, String>,
     pub user_side_comments: BTreeMap<Addr, String>,
     pub user_line_comments: BTreeMap<Addr, String>,
     pub immediate_value_formats: BTreeMap<Addr, ImmediateFormat>,
@@ -98,7 +98,7 @@ impl AppState {
             block_types: Vec::new(),
             labels: BTreeMap::new(),
             settings: DocumentSettings::default(),
-            system_comments: BTreeMap::new(),
+            platform_comments: BTreeMap::new(),
             user_side_comments: BTreeMap::new(),
             user_line_comments: BTreeMap::new(),
             immediate_value_formats: BTreeMap::new(),
@@ -145,24 +145,24 @@ impl AppState {
             .extend(self.user_excluded_addresses.iter().copied());
 
         // Load comments (conditionally)
-        if self.settings.show_system_comments {
+        if self.settings.show_platform_comments {
             let comments = crate::assets::load_comments(&self.settings.platform);
-            self.system_comments = comments.into_iter().map(|(k, v)| (Addr(k), v)).collect();
+            self.platform_comments = comments.into_iter().map(|(k, v)| (Addr(k), v)).collect();
         } else {
-            self.system_comments.clear();
+            self.platform_comments.clear();
         }
 
         // Load labels
-        let mut system_labels = crate::assets::load_labels(
+        let mut platform_labels = crate::assets::load_labels(
             &self.settings.platform,
             Some(&self.settings.enabled_features),
         );
 
         if self.settings.exclude_well_known_labels {
-            system_labels.retain(|(k, _)| !excludes.contains(k));
+            platform_labels.retain(|(k, _)| !excludes.contains(k));
         }
 
-        for (addr, label) in system_labels {
+        for (addr, label) in platform_labels {
             self.labels.entry(Addr(addr)).or_default().push(label);
         }
     }
@@ -303,7 +303,7 @@ mod tests {
     }
 
     #[test]
-    fn test_perform_analysis_preserves_system_labels() {
+    fn test_perform_analysis_preserves_platform_labels() {
         let mut app_state = AppState::new();
         app_state.origin = Addr(0xC000);
         app_state.raw_data = vec![0xA9, 0x00, 0x85, 0xFB, 0x60];

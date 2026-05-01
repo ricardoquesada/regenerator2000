@@ -390,7 +390,7 @@ impl AppState {
                     let mut comment_parts = Vec::new();
                     if let Some(user_comment) = self.user_side_comments.get(&Addr(addr)) {
                         comment_parts.push(user_comment.clone());
-                    } else if let Some(sys_comment) = self.system_comments.get(&Addr(addr)) {
+                    } else if let Some(sys_comment) = self.platform_comments.get(&Addr(addr)) {
                         comment_parts.push(sys_comment.clone());
                     }
 

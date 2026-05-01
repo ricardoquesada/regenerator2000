@@ -62,6 +62,7 @@ nav:
       - Debugger (VICE): debugger.md
       - Settings: settings.md
       - Themes: themes.md
+      - Platforms: platforms.md
       - Assemblers: assemblers.md
       - MCP Integration: mcp.md
       - FAQ: faq.md

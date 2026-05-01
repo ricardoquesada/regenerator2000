@@ -166,7 +166,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         labels: &state.labels,
         origin: state.origin,
         settings: &state.settings,
-        system_comments: &state.system_comments,
+        platform_comments: &state.platform_comments,
         user_side_comments: &state.user_side_comments,
         user_line_comments: &state.user_line_comments,
         immediate_value_formats: &state.immediate_value_formats,

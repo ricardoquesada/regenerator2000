@@ -71,9 +71,13 @@ struct Cli {
     #[arg(long, value_name = "HOST:PORT")]
     vice: Option<String>,
 
-    /// Dump embedded system config files (system-*.toml) to the specified directory and exit
-    #[arg(long = "dump-system-config-files", value_name = "PATH")]
-    dump_system_config_files: Option<String>,
+    /// Dump embedded platform config files (platform-*.toml) to the specified directory and exit
+    #[arg(
+        long = "dump-platform-config-files",
+        alias = "dump-system-config-files",
+        value_name = "PATH"
+    )]
+    dump_platform_config_files: Option<String>,
 
     /// Dump built-in theme files (theme-*.toml) to the specified directory and exit
     #[arg(long = "dump-theme-files", value_name = "PATH")]
@@ -674,7 +678,7 @@ fn is_newer_version(current: &str, remote: &str) -> bool {
 fn main() -> Result<()> {
     init_logging()?;
 
-    let config_dir_display = regenerator2000_core::assets::user_config_systems_dir().map_or_else(
+    let config_dir_display = regenerator2000_core::assets::user_config_platforms_dir().map_or_else(
         || "(could not determine)".to_string(),
         |p| p.display().to_string(),
     );
@@ -703,10 +707,10 @@ fn main() -> Result<()> {
         std::process::exit(1);
     }
 
-    // Handle --dump-system-config-files early: write files and exit
-    if let Some(dest) = cli.dump_system_config_files {
+    // Handle --dump-platform-config-files early: write files and exit
+    if let Some(dest) = cli.dump_platform_config_files {
         let dest_path = PathBuf::from(&dest);
-        if let Err(e) = regenerator2000_core::assets::dump_system_config_files(&dest_path) {
+        if let Err(e) = regenerator2000_core::assets::dump_platform_config_files(&dest_path) {
             eprintln!("Error: {e}");
             std::process::exit(1);
         }

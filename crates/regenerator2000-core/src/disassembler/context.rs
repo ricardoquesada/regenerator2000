@@ -10,7 +10,7 @@ pub struct DisassemblyContext<'a> {
     pub labels: &'a BTreeMap<Addr, Vec<Label>>,
     pub origin: Addr,
     pub settings: &'a DocumentSettings,
-    pub system_comments: &'a BTreeMap<Addr, String>,
+    pub platform_comments: &'a BTreeMap<Addr, String>,
     pub user_side_comments: &'a BTreeMap<Addr, String>,
     pub user_line_comments: &'a BTreeMap<Addr, String>,
     pub immediate_value_formats: &'a BTreeMap<Addr, crate::state::ImmediateFormat>,
@@ -42,7 +42,7 @@ impl<'a> DisassemblyContext<'a> {
         labels: &'a BTreeMap<Addr, Vec<Label>>,
         origin: Addr,
         settings: &'a DocumentSettings,
-        system_comments: &'a BTreeMap<Addr, String>,
+        platform_comments: &'a BTreeMap<Addr, String>,
         user_side_comments: &'a BTreeMap<Addr, String>,
         user_line_comments: &'a BTreeMap<Addr, String>,
         immediate_value_formats: &'a BTreeMap<Addr, crate::state::ImmediateFormat>,
@@ -57,7 +57,7 @@ impl<'a> DisassemblyContext<'a> {
             labels,
             origin,
             settings,
-            system_comments,
+            platform_comments,
             user_side_comments,
             user_line_comments,
             immediate_value_formats,
@@ -90,7 +90,7 @@ impl<'a> DisassemblyContext<'a> {
 
         if let Some(user_comment) = self.user_side_comments.get(&address) {
             comment_parts.push(user_comment.clone());
-        } else if let Some(sys_comment) = self.system_comments.get(&address) {
+        } else if let Some(sys_comment) = self.platform_comments.get(&address) {
             comment_parts.push(sys_comment.clone());
         }
 

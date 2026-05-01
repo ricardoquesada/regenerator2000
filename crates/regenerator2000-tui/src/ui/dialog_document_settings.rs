@@ -163,7 +163,7 @@ impl Widget for DocumentSettingsDialog {
         ];
 
         // Dynamic System Config Options
-        let system_config = crate::assets::load_system_config(&settings.platform);
+        let platform_config = crate::assets::load_platform_config(&settings.platform);
 
         // Indices calculation for rigid elements
         let fixed_opts_start = items.len();
@@ -180,7 +180,7 @@ impl Widget for DocumentSettingsDialog {
         let mut dynamic_items = Vec::new();
         let dynamic_start_idx = idx_platform + 1;
 
-        for (i, feature) in system_config.features.iter().enumerate() {
+        for (i, feature) in platform_config.features.iter().enumerate() {
             let idx = dynamic_start_idx + i;
             let is_enabled = settings
                 .enabled_features
@@ -198,7 +198,8 @@ impl Widget for DocumentSettingsDialog {
 
         // Exclude and Comments checkbox indices (after dynamic label items)
         let idx_exclude_comments = dynamic_start_idx + dynamic_items.len();
-        let idx_system_comments = idx_exclude_comments + usize::from(system_config.has_excludes);
+        let idx_platform_comments =
+            idx_exclude_comments + usize::from(platform_config.has_excludes);
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -217,8 +218,8 @@ impl Widget for DocumentSettingsDialog {
                 Constraint::Length(u16::from(!dynamic_items.is_empty())), // System Labels Header
                 Constraint::Length(dynamic_items.len() as u16), // Dynamic items
                 Constraint::Length(0),                      // System Comments Header (Removed)
-                Constraint::Length(u16::from(system_config.has_excludes)), // Exclude comments checkbox
-                Constraint::Length(u16::from(system_config.has_comments)), // System Comments checkbox
+                Constraint::Length(u16::from(platform_config.has_excludes)), // Exclude comments checkbox
+                Constraint::Length(u16::from(platform_config.has_comments)), // System Comments checkbox
             ])
             .split(inner);
 
@@ -259,7 +260,7 @@ impl Widget for DocumentSettingsDialog {
         }
 
         // Render Exclude Labels checkbox
-        if system_config.has_excludes {
+        if platform_config.has_excludes {
             let exclude_checkbox = checkbox(
                 0,
                 "Exclude well-known addresses from symbolic analysis",
@@ -274,12 +275,12 @@ impl Widget for DocumentSettingsDialog {
         }
 
         // Render System Comments section
-        if system_config.has_comments {
+        if platform_config.has_comments {
             let comments_checkbox = checkbox(
                 0,
                 "Show system comments",
-                settings.show_system_comments,
-                self.selected_index == idx_system_comments,
+                settings.show_platform_comments,
+                self.selected_index == idx_platform_comments,
                 false,
             );
             f.render_widget(
@@ -645,8 +646,8 @@ impl Widget for DocumentSettingsDialog {
         ui_state: &mut UIState,
     ) -> WidgetResult {
         // Calculate dynamic max items for navigation
-        let system_config = crate::assets::load_system_config(&app_state.settings.platform);
-        let dynamic_items_count = system_config.features.len();
+        let platform_config = crate::assets::load_platform_config(&app_state.settings.platform);
+        let dynamic_items_count = platform_config.features.len();
 
         let base_items_count = 6; // AllLabels, PreserveLongBytes, BrkSingle, PatchBrk, IllegalOpcodes, AutoAnalyze
 
@@ -661,11 +662,12 @@ impl Widget for DocumentSettingsDialog {
         let idx_platform = base_items_count + 8;
         let dynamic_start_idx = idx_platform + 1;
         let idx_exclude_comments = dynamic_start_idx + dynamic_items_count;
-        let idx_system_comments = idx_exclude_comments + usize::from(system_config.has_excludes);
+        let idx_platform_comments =
+            idx_exclude_comments + usize::from(platform_config.has_excludes);
 
-        let total_items = if system_config.has_comments {
-            idx_system_comments + 1
-        } else if system_config.has_excludes {
+        let total_items = if platform_config.has_comments {
+            idx_platform_comments + 1
+        } else if platform_config.has_excludes {
             idx_exclude_comments + 1
         } else {
             dynamic_start_idx + dynamic_items_count
@@ -1084,14 +1086,14 @@ impl Widget for DocumentSettingsDialog {
                                 app_state.disassemble();
                             }
                         }
-                        idx if idx == idx_system_comments && system_config.has_comments => {
-                            app_state.settings.show_system_comments =
-                                !app_state.settings.show_system_comments;
+                        idx if idx == idx_platform_comments && platform_config.has_comments => {
+                            app_state.settings.show_platform_comments =
+                                !app_state.settings.show_platform_comments;
                             // Reload system assets and re-disassemble for immediate feedback
                             app_state.load_system_assets();
                             app_state.disassemble();
                         }
-                        idx if idx == idx_exclude_comments && system_config.has_excludes => {
+                        idx if idx == idx_exclude_comments && platform_config.has_excludes => {
                             app_state.settings.exclude_well_known_labels =
                                 !app_state.settings.exclude_well_known_labels;
                             // Reload system assets and re-disassemble for immediate feedback
@@ -1100,10 +1102,10 @@ impl Widget for DocumentSettingsDialog {
                         }
                         idx if idx >= dynamic_start_idx => {
                             // Dynamic items (system labels)
-                            let system_config =
-                                crate::assets::load_system_config(&app_state.settings.platform);
+                            let platform_config =
+                                crate::assets::load_platform_config(&app_state.settings.platform);
                             let config_idx = idx - dynamic_start_idx;
-                            if let Some(feature) = system_config.features.get(config_idx) {
+                            if let Some(feature) = platform_config.features.get(config_idx) {
                                 let current_val = app_state
                                     .settings
                                     .enabled_features

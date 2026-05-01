@@ -364,7 +364,7 @@ pub fn search_collapsed_content(
         labels: &app_state.labels,
         origin,
         settings: &app_state.settings,
-        system_comments: &app_state.system_comments,
+        platform_comments: &app_state.platform_comments,
         user_side_comments: &app_state.user_side_comments,
         user_line_comments: &app_state.user_line_comments,
         immediate_value_formats: &app_state.immediate_value_formats,

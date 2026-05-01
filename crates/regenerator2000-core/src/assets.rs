@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
-static SYSTEMS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/assets/systems");
+static PLATFORMS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/assets/platforms");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LabelOption {
@@ -17,14 +17,14 @@ pub struct LabelOption {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct SystemConfig {
+pub struct PlatformConfig {
     pub features: Vec<LabelOption>,
     pub has_comments: bool,
     pub has_excludes: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct SystemData {
+struct PlatformData {
     platform_name: String,
     #[serde(default)]
     enabled: bool,
@@ -36,37 +36,40 @@ struct SystemData {
     excluded: Vec<String>,
 }
 
-/// Parse a `SystemData` from a string, trying TOML first and then JSON
+/// Parse a [`PlatformData`] from a string, trying TOML first and then JSON
 /// as a fallback for backward compatibility with existing user files.
-fn parse_system_data(content: &str) -> Option<SystemData> {
-    toml::from_str::<SystemData>(content)
+fn parse_platform_data(content: &str) -> Option<PlatformData> {
+    toml::from_str::<PlatformData>(content)
         .ok()
-        .or_else(|| serde_json::from_str::<SystemData>(content).ok())
+        .or_else(|| serde_json::from_str::<PlatformData>(content).ok())
 }
 
-/// Returns the path to the user's config directory where custom `system-*.toml`
-/// (or legacy `system-*.json`) files can be placed to override or extend the
-/// built-in platform definitions.
+/// Returns the path to the user's config directory where custom `platform-*.toml`
+/// (or legacy `system-*.toml` / `system-*.json`) files can be placed to override
+/// or extend the built-in platform definitions.
 #[must_use]
-pub fn user_config_systems_dir() -> Option<PathBuf> {
+pub fn user_config_platforms_dir() -> Option<PathBuf> {
     ProjectDirs::from("", "", "regenerator2000").map(|d| d.config_dir().to_path_buf())
 }
 
-/// Read a `system-*.toml` (or legacy `system-*.json`) file for `platform`
-/// as an owned `String`.
+/// Read a `platform-*.toml` (or legacy `system-*.toml` / `system-*.json`) file
+/// for `platform` as an owned `String`.
 ///
 /// The user's config directory is checked first; if a matching file is found
 /// there it takes precedence over the built-in embedded version.  Both the
 /// exact filename and a normalized variant (lowercase, spaces → underscores)
 /// are tried in that order.  TOML files are preferred over JSON.
-fn get_system_file_content_with_config_dir(
+fn get_platform_file_content_with_config_dir(
     platform: &str,
     config_dir: Option<&Path>,
 ) -> Option<String> {
     let normalized = platform.to_lowercase().replace(' ', "_");
 
-    // Build candidate filenames: TOML first, then JSON fallback.
-    let candidates: Vec<String> = [
+    // Build candidate filenames for the user config directory.
+    // Accept both "platform-" and legacy "system-" prefixes.
+    let user_candidates: Vec<String> = [
+        format!("platform-{platform}.toml"),
+        format!("platform-{normalized}.toml"),
         format!("system-{platform}.toml"),
         format!("system-{normalized}.toml"),
         format!("system-{platform}.json"),
@@ -75,17 +78,17 @@ fn get_system_file_content_with_config_dir(
     .into_iter()
     .collect();
 
-    // Deduplicate (when platform == normalized, the pairs are identical).
-    let mut seen = Vec::new();
-    for name in &candidates {
-        if !seen.contains(name) {
-            seen.push(name.clone());
+    // Deduplicate (when platform == normalized, pairs are identical).
+    let mut seen_user = Vec::new();
+    for name in &user_candidates {
+        if !seen_user.contains(name) {
+            seen_user.push(name.clone());
         }
     }
 
     // 1. Check the provided config directory first (user files take precedence).
     if let Some(dir) = config_dir {
-        for name in &seen {
+        for name in &seen_user {
             let path = dir.join(name);
             if let Ok(content) = std::fs::read_to_string(&path) {
                 return Some(content);
@@ -93,9 +96,21 @@ fn get_system_file_content_with_config_dir(
         }
     }
 
-    // 2. Fall back to the embedded assets.
-    for name in &seen {
-        if let Some(file) = SYSTEMS_DIR.get_file(name) {
+    // 2. Fall back to the embedded assets (which only use "platform-" prefix).
+    let embedded_candidates: Vec<String> = [
+        format!("platform-{platform}.toml"),
+        format!("platform-{normalized}.toml"),
+    ]
+    .into_iter()
+    .collect();
+    let mut seen_embedded = Vec::new();
+    for name in &embedded_candidates {
+        if !seen_embedded.contains(name) {
+            seen_embedded.push(name.clone());
+        }
+    }
+    for name in &seen_embedded {
+        if let Some(file) = PLATFORMS_DIR.get_file(name) {
             return file.contents_utf8().map(str::to_owned);
         }
     }
@@ -103,28 +118,28 @@ fn get_system_file_content_with_config_dir(
     None
 }
 
-fn get_system_file_content(platform: &str) -> Option<String> {
-    get_system_file_content_with_config_dir(platform, user_config_systems_dir().as_deref())
+fn get_platform_file_content(platform: &str) -> Option<String> {
+    get_platform_file_content_with_config_dir(platform, user_config_platforms_dir().as_deref())
 }
 
-/// Dump all embedded `system-*.toml` files into `dest_dir`.
+/// Dump all embedded `platform-*.toml` files into `dest_dir`.
 ///
 /// The destination directory is created automatically if it does not exist.
-/// Each file is written with its original filename (e.g. `system-commodore_64.toml`).
+/// Each file is written with its original filename (e.g. `platform-commodore_64.toml`).
 ///
 /// # Errors
 ///
 /// Returns an error if the directory cannot be created or if any file write fails.
-pub fn dump_system_config_files(dest_dir: &Path) -> Result<()> {
+pub fn dump_platform_config_files(dest_dir: &Path) -> Result<()> {
     std::fs::create_dir_all(dest_dir)
         .with_context(|| format!("Failed to create directory {dest_dir:?}"))?;
 
-    for file in SYSTEMS_DIR.files() {
+    for file in PLATFORMS_DIR.files() {
         let Some(filename) = file.path().file_name() else {
             continue;
         };
         let filename_str = filename.to_string_lossy();
-        if !filename_str.starts_with("system-") || !filename_str.ends_with(".toml") {
+        if !filename_str.starts_with("platform-") || !filename_str.ends_with(".toml") {
             continue;
         }
         let dest_path = dest_dir.join(filename);
@@ -136,10 +151,14 @@ pub fn dump_system_config_files(dest_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Check whether a filename has a recognized system config extension.
+/// Check whether a filename has a recognized platform config extension.
+///
+/// Accepts both `platform-*.toml` and legacy `system-*.toml`/`system-*.json`
+/// filenames.
 #[must_use]
-fn is_system_config_file(filename: &str) -> bool {
-    filename.starts_with("system-") && (filename.ends_with(".toml") || filename.ends_with(".json"))
+fn is_platform_config_file(filename: &str) -> bool {
+    (filename.starts_with("platform-") || filename.starts_with("system-"))
+        && (filename.ends_with(".toml") || filename.ends_with(".json"))
 }
 
 /// Collect enabled platform names from an iterator of `(filename, content)` pairs.
@@ -148,10 +167,10 @@ fn collect_platforms_from_iter<'a>(
     platforms: &mut Vec<String>,
 ) {
     for (filename, content) in iter {
-        if !is_system_config_file(filename) {
+        if !is_platform_config_file(filename) {
             continue;
         }
-        if let Some(data) = parse_system_data(&content)
+        if let Some(data) = parse_platform_data(&content)
             && data.enabled
         {
             platforms.push(data.platform_name);
@@ -183,11 +202,11 @@ fn get_available_platforms_with_config_dir(config_dir: Option<&Path>) -> Vec<Str
 
     // 2. Collect from built-in embedded assets, skipping names already added
     //    by the config directory.
-    for file in SYSTEMS_DIR.files() {
+    for file in PLATFORMS_DIR.files() {
         if let Some(filename) = file.path().file_name().and_then(|s| s.to_str())
-            && is_system_config_file(filename)
+            && is_platform_config_file(filename)
             && let Some(content) = file.contents_utf8()
-            && let Some(data) = parse_system_data(content)
+            && let Some(data) = parse_platform_data(content)
             && data.enabled
             && !platforms.contains(&data.platform_name)
         {
@@ -206,17 +225,17 @@ fn get_available_platforms_with_config_dir(config_dir: Option<&Path>) -> Vec<Str
 /// (the built-in duplicate is excluded).
 #[must_use]
 pub fn get_available_platforms() -> Vec<String> {
-    get_available_platforms_with_config_dir(user_config_systems_dir().as_deref())
+    get_available_platforms_with_config_dir(user_config_platforms_dir().as_deref())
 }
 
 #[must_use]
-pub fn load_system_config(platform: &str) -> SystemConfig {
+pub fn load_platform_config(platform: &str) -> PlatformConfig {
     let mut features = Vec::new();
     let mut has_comments = false;
     let mut has_excludes = false;
 
-    if let Some(content) = get_system_file_content(platform)
-        && let Some(data) = parse_system_data(&content)
+    if let Some(content) = get_platform_file_content(platform)
+        && let Some(data) = parse_platform_data(&content)
     {
         has_comments = !data.comments.is_empty();
         has_excludes = !data.excluded.is_empty();
@@ -241,7 +260,7 @@ pub fn load_system_config(platform: &str) -> SystemConfig {
         }
     }
 
-    SystemConfig {
+    PlatformConfig {
         features,
         has_comments,
         has_excludes,
@@ -252,8 +271,8 @@ pub fn load_system_config(platform: &str) -> SystemConfig {
 pub fn load_comments(platform: &str) -> BTreeMap<u16, String> {
     let mut comments = BTreeMap::new();
 
-    if let Some(content) = get_system_file_content(platform)
-        && let Some(data) = parse_system_data(&content)
+    if let Some(content) = get_platform_file_content(platform)
+        && let Some(data) = parse_platform_data(&content)
     {
         for (addr_str, comment) in data.comments {
             if let Ok(addr) = u16::from_str_radix(&addr_str, 16)
@@ -274,8 +293,8 @@ pub fn load_labels(
 ) -> Vec<(u16, Label)> {
     let mut labels = Vec::new();
 
-    if let Some(content) = get_system_file_content(platform)
-        && let Some(data) = parse_system_data(&content)
+    if let Some(content) = get_platform_file_content(platform)
+        && let Some(data) = parse_platform_data(&content)
     {
         let mut defaults = HashMap::new();
         for key in data.labels.keys() {
@@ -316,8 +335,8 @@ pub fn load_labels(
 pub fn load_excludes(platform: &str) -> Vec<u16> {
     let mut excludes = Vec::new();
 
-    if let Some(content) = get_system_file_content(platform)
-        && let Some(data) = parse_system_data(&content)
+    if let Some(content) = get_platform_file_content(platform)
+        && let Some(data) = parse_platform_data(&content)
     {
         for line in data.excluded {
             let line = line.trim();
@@ -356,27 +375,27 @@ mod tests {
     }
 
     #[test]
-    fn test_get_system_file_content() {
+    fn test_get_platform_file_content() {
         // Test simple case
-        let content_nes = get_system_file_content("NES");
+        let content_nes = get_platform_file_content("NES");
         assert!(content_nes.is_some(), "NES config should exist");
 
         // Test normalization case (Spaces -> Underscores)
-        let content_c64 = get_system_file_content("Commodore 64");
+        let content_c64 = get_platform_file_content("Commodore 64");
         assert!(content_c64.is_some(), "Commodore 64 config should exist");
 
         // Test another normalization case
-        let content_atari = get_system_file_content("Atari 8bit");
+        let content_atari = get_platform_file_content("Atari 8bit");
         assert!(content_atari.is_some(), "Atari 8bit config should exist");
 
         // Test VIC-20 case (hyphen)
-        let content_vic20 = get_system_file_content("Commodore VIC-20");
+        let content_vic20 = get_platform_file_content("Commodore VIC-20");
         assert!(content_vic20.is_some(), "VIC-20 config should exist");
     }
 
     #[test]
-    fn test_load_system_config() {
-        let config = load_system_config("Commodore 64");
+    fn test_load_platform_config() {
+        let config = load_platform_config("Commodore 64");
         assert!(!config.features.is_empty(), "C64 should have features");
 
         // Check that KERNAL has default true
@@ -385,7 +404,7 @@ mod tests {
         assert!(kernal.unwrap().default, "KERNAL should default to true");
 
         // Test VIC-20 case
-        let config_vic20 = load_system_config("Commodore VIC-20");
+        let config_vic20 = load_platform_config("Commodore VIC-20");
         assert!(
             !config_vic20.features.is_empty(),
             "VIC-20 should have features"
@@ -394,22 +413,22 @@ mod tests {
         assert!(config_vic20.has_excludes, "VIC-20 should have excludes");
     }
 
-    /// Minimal valid `SystemData` TOML for a custom test platform.
-    fn make_custom_system_toml(platform_name: &str) -> String {
+    /// Minimal valid `PlatformData` TOML for a custom test platform.
+    fn make_custom_platform_toml(platform_name: &str) -> String {
         format!(
             "platform_name = \"{platform_name}\"\nenabled = true\nexcluded = []\n\n[labels.CUSTOM]\n\"1000\" = \"MY_LABEL\"\n\n[comments]\n"
         )
     }
 
-    /// Minimal valid `SystemData` JSON for testing backward compatibility.
-    fn make_custom_system_json(platform_name: &str) -> String {
+    /// Minimal valid `PlatformData` JSON for testing backward compatibility.
+    fn make_custom_platform_json(platform_name: &str) -> String {
         format!(
             r#"{{"platform_name":"{platform_name}","enabled":true,"labels":{{"CUSTOM":{{"1000":"MY_LABEL"}}}},"comments":{{}},"excluded":[]}}"#
         )
     }
 
-    /// Verify that a `system-*.toml` placed in the config directory:
-    ///   1. Is returned by `get_system_file_content_with_config_dir` (overriding built-ins).
+    /// Verify that a `platform-*.toml` placed in the config directory:
+    ///   1. Is returned by `get_platform_file_content_with_config_dir` (overriding built-ins).
     ///   2. Appears in `get_available_platforms_with_config_dir` as a new platform.
     ///   3. Built-in platforms that were NOT overridden are still listed.
     ///   4. An overridden built-in (same `platform_name`) is NOT duplicated.
@@ -424,16 +443,16 @@ mod tests {
         fs::create_dir_all(&config_dir).unwrap();
 
         // ── 1. Custom (new) platform via TOML ─────────────────────────────────
-        let custom_toml = make_custom_system_toml("My Custom Platform");
+        let custom_toml = make_custom_platform_toml("My Custom Platform");
         fs::write(
-            config_dir.join("system-my_custom_platform.toml"),
+            config_dir.join("platform-my_custom_platform.toml"),
             &custom_toml,
         )
         .unwrap();
 
-        // get_system_file_content_with_config_dir must find it.
+        // get_platform_file_content_with_config_dir must find it.
         let content =
-            get_system_file_content_with_config_dir("my_custom_platform", Some(&config_dir));
+            get_platform_file_content_with_config_dir("my_custom_platform", Some(&config_dir));
         assert!(
             content.is_some(),
             "Custom platform file should be found in config dir"
@@ -455,10 +474,15 @@ mod tests {
 
         // ── 4. Override: config-dir TOML file wins over built-in ──────────────
         // Write a file that shadows the built-in Commodore 64 definition.
-        let override_toml = make_custom_system_toml("Commodore 64");
-        fs::write(config_dir.join("system-commodore_64.toml"), &override_toml).unwrap();
+        let override_toml = make_custom_platform_toml("Commodore 64");
+        fs::write(
+            config_dir.join("platform-commodore_64.toml"),
+            &override_toml,
+        )
+        .unwrap();
 
-        let overridden = get_system_file_content_with_config_dir("Commodore 64", Some(&config_dir));
+        let overridden =
+            get_platform_file_content_with_config_dir("Commodore 64", Some(&config_dir));
         assert!(
             overridden.is_some(),
             "Overridden Commodore 64 file should be found"
@@ -492,7 +516,7 @@ mod tests {
         let config_dir = std::env::temp_dir().join(format!("r2000_test_json_compat_{test_id}"));
         fs::create_dir_all(&config_dir).unwrap();
 
-        let custom_json = make_custom_system_json("Legacy JSON Platform");
+        let custom_json = make_custom_platform_json("Legacy JSON Platform");
         fs::write(
             config_dir.join("system-legacy_json_platform.json"),
             &custom_json,
