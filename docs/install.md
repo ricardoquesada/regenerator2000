@@ -56,7 +56,7 @@ regenerator2000 [OPTIONS] [FILE]
 - `--mcp-server`: Run MCP server (HTTP on port 3000). See [MCP Integration](mcp.md) for details.
 - `--mcp-server-stdio`: Run MCP server via stdio (headless mode).
 - `--vice <HOST:PORT>`: Auto-connect to the VICE binary monitor at startup (e.g. `--vice localhost:6502`). See [Debugger](debugger.md) for details.
-- `--dump-platform-config-files <PATH>`: Dump all built-in system config files (`platform-*.toml`) to the specified directory and exit. The files can then be edited and placed back in the [app config directory](#system-config-files) to override or extend platform definitions.
+- `--dump-platform-config-files <PATH>`: Dump all built-in platform config files (`platform-*.toml`) to the specified directory and exit. The files can then be edited and placed back in the [app config directory](#platform-config-files) to override or extend platform definitions.
 - `--dump-theme-files <PATH>`: Dump all built-in theme files (`theme-*.toml`) to the specified directory and exit. The files can be edited and placed in the [config directory](#config-directory-location) to create custom themes. See [Custom Themes](#custom-themes) for details.
 
 ### Recommended Terminals
@@ -80,7 +80,7 @@ regenerator2000 [OPTIONS] [FILE]
 [wezterm_url]: https://wezfurlong.org/wezterm/
 [windows_terminal_url]: https://github.com/microsoft/terminal
 
-## System Config Files
+## Platform Config Files
 
 Regenerator 2000 ships with built-in platform definitions for 13 different 6502-based systems.
 See the [Platforms](platforms.md) page for the full list of supported platforms and documentation

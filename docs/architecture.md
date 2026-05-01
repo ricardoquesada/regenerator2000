@@ -238,7 +238,7 @@ Provides customizable color schemes for the UI.
 
 ### 10. Configuration ([`regenerator2000-core/src/config.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/config.rs))
 
-Manages system-level configuration that persists across sessions.
+Manages application-level configuration that persists across sessions.
 
 - **`SystemConfig`**: User preferences including:
   - Theme selection
@@ -251,7 +251,9 @@ Manages system-level configuration that persists across sessions.
 
 ### 11. Assets ([`regenerator2000-core/src/assets.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/assets.rs))
 
-Handles embedded assets like the application logo and other static resources used in the UI.
+Manages embedded platform definition files (`platform-*.toml`) and theme files (`theme-*.toml`).
+Platform files provide labels, comments, and exclude-address lists for each supported machine.
+Theme files define color palettes for the TUI. Both support user overrides from the config directory.
 
 ### 12. MCP Server ([`regenerator2000-core/src/mcp/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/mcp))
 

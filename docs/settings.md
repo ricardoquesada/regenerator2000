@@ -319,9 +319,9 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
         - **Description**: When enabled, addresses that are covered by the platform's system label definitions are excluded
           from the analyzer's code-walking pass. This prevents the analyzer from chasing into ROM routines or hardware
           registers, which can reduce false positives in the disassembly. Only appears for platforms that define excluded
-          address ranges in their system config.
+          address ranges in their platform config.
 
 18. **Show system comments** *(platform-dependent)*
         - **Description**: When enabled, pre-defined system comments (e.g. hardware register descriptions like
           "Border Color" for `$D020` on the C64) are displayed as side comments in the disassembly view.
-          Only appears for platforms that include system comments in their system config.
+          Only appears for platforms that include system comments in their platform config.
