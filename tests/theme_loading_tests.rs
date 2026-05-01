@@ -48,45 +48,51 @@ fn all_themes_bg_differs_from_fg() {
 
 #[test]
 fn solarized_dark() {
-    assert_eq!(Theme::dark().name, "Solarized Dark");
+    assert_eq!(Theme::from_name("Solarized Dark").name, "Solarized Dark");
 }
 
 #[test]
 fn solarized_light() {
-    assert_eq!(Theme::light().name, "Solarized Light");
+    assert_eq!(Theme::from_name("Solarized Light").name, "Solarized Light");
 }
 
 #[test]
 fn dracula() {
-    assert_eq!(Theme::dracula().name, "Dracula");
+    assert_eq!(Theme::from_name("Dracula").name, "Dracula");
 }
 
 #[test]
 fn gruvbox_dark() {
-    assert_eq!(Theme::gruvbox_dark().name, "Gruvbox Dark");
+    assert_eq!(Theme::from_name("Gruvbox Dark").name, "Gruvbox Dark");
 }
 
 #[test]
 fn gruvbox_light() {
-    assert_eq!(Theme::gruvbox_light().name, "Gruvbox Light");
+    assert_eq!(Theme::from_name("Gruvbox Light").name, "Gruvbox Light");
 }
 
 #[test]
 fn monokai() {
-    assert_eq!(Theme::monokai().name, "Monokai");
+    assert_eq!(Theme::from_name("Monokai").name, "Monokai");
 }
 
 #[test]
 fn nord() {
-    assert_eq!(Theme::nord().name, "Nord");
+    assert_eq!(Theme::from_name("Nord").name, "Nord");
 }
 
 #[test]
 fn catppuccin_mocha() {
-    assert_eq!(Theme::catppuccin_mocha().name, "Catppuccin Mocha");
+    assert_eq!(
+        Theme::from_name("Catppuccin Mocha").name,
+        "Catppuccin Mocha"
+    );
 }
 
 #[test]
 fn catppuccin_latte() {
-    assert_eq!(Theme::catppuccin_latte().name, "Catppuccin Latte");
+    assert_eq!(
+        Theme::from_name("Catppuccin Latte").name,
+        "Catppuccin Latte"
+    );
 }

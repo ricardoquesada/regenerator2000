@@ -1,0 +1,83 @@
+name = "Solarized Light"
+background = "#FDF6E3"
+foreground = "#657B83"
+border_active = "#268BD2"
+border_inactive = "#93A1A1"
+selection_bg = "#EEE8D5"
+selection_fg = "#586E75"
+block_selection_bg = "#93A1A1"
+block_selection_fg = "#FDF6E3"
+status_bar_bg = "#EEE8D5"
+status_bar_fg = "#586E75"
+address = "#586E75"
+bytes = "#93A1A1"
+mnemonic = "#268BD2"
+operand = "#657B83"
+label = "#D33682"
+label_def = "#D33682"
+comment = "#93A1A1"
+arrow = "#93A1A1"
+collapsed_block = "#D33682"
+collapsed_block_bg = "#FDF6E3"
+hex_bytes = "#657B83"
+hex_ascii = "#2AA198"
+hex_color_palette = [
+    "#808080",
+    "#D2326E",
+    "#DA4114",
+    "#D25000",
+    "#C36200",
+    "#B46C00",
+    "#8C8200",
+    "#4B9400",
+    "#239E1E",
+    "#00A041",
+    "#00A362",
+    "#00A391",
+    "#009EBE",
+    "#008CDC",
+    "#1E78F0",
+    "#825AE1",
+    "#B446B2",
+    "#000000",
+]
+dialog_bg = "#EEE8D5"
+dialog_fg = "#657B83"
+dialog_border = "#586E75"
+menu_bg = "#EEE8D5"
+menu_fg = "#657B83"
+menu_selected_bg = "#93A1A1"
+menu_selected_fg = "#FDF6E3"
+menu_disabled_fg = "#93A1A1"
+sprite_multicolor_1 = "#DC322F"
+sprite_multicolor_2 = "#268BD2"
+charset_multicolor_1 = "#CB4B16"
+charset_multicolor_2 = "#859900"
+highlight_fg = "#CB4B16"
+highlight_bg = "#EEE8D5"
+error_fg = "#DC322F"
+block_code_fg = "#268BD2"
+block_scope_fg = "#6C71C4"
+block_data_byte_fg = "#2AA198"
+block_data_word_fg = "#6C71C4"
+block_address_fg = "#B58900"
+block_petscii_text_fg = "#859900"
+block_screencode_text_fg = "#CB4B16"
+block_lohi_fg = "#DC322F"
+block_hilo_fg = "#D33682"
+block_external_file_fg = "#586E75"
+block_undefined_fg = "#93A1A1"
+block_splitter_fg = "#93A1A1"
+block_code_bg = "#EEE8D5"
+block_scope_bg = "#EEE8D5"
+block_data_byte_bg = "#EEE8D5"
+block_data_word_bg = "#EEE8D5"
+block_address_bg = "#EEE8D5"
+block_petscii_text_bg = "#EEE8D5"
+block_screencode_text_bg = "#EEE8D5"
+block_lohi_bg = "#EEE8D5"
+block_hilo_bg = "#EEE8D5"
+block_external_file_bg = "#EEE8D5"
+block_undefined_bg = "#EEE8D5"
+block_splitter_bg = "#EEE8D5"
+minimap_cursor_fg = "#000000"

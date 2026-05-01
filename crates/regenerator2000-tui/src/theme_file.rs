@@ -3,6 +3,10 @@
 //! Provides a serializable representation of [`Theme`] that can be read from
 //! and written to `theme-*.toml` files, enabling user-created custom themes.
 //!
+//! Built-in themes are stored as embedded `theme-*.toml` assets in the
+//! `assets/themes/` directory and loaded at runtime via [`include_dir`].
+//! User-created themes in the config directory take precedence over built-ins.
+//!
 //! # File format
 //!
 //! Theme files are TOML documents whose keys mirror the fields of [`Theme`].
@@ -19,10 +23,17 @@
 use crate::theme::Theme;
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
+use include_dir::{Dir, include_dir};
 use ratatui::style::Color;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+
+/// Embedded built-in theme TOML files.
+static THEMES_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/assets/themes");
+
+/// Global cache of built-in themes loaded from the embedded assets.
+static BUILTIN_THEMES: OnceLock<Vec<Theme>> = OnceLock::new();
 
 /// Global cache of custom themes loaded from the user's config directory.
 static CUSTOM_THEMES: OnceLock<Vec<Theme>> = OnceLock::new();
@@ -164,7 +175,7 @@ fn resolve_color(opt: &Option<String>, fallback: Color) -> Color {
 }
 
 impl ThemeFile {
-    /// Convert a built-in [`Theme`] into a fully-populated [`ThemeFile`].
+    /// Convert a [`Theme`] into a fully-populated [`ThemeFile`].
     #[must_use]
     pub fn from_theme(theme: &Theme) -> Self {
         Self {
@@ -252,7 +263,7 @@ impl ThemeFile {
             .base
             .as_deref()
             .map(builtin_theme_by_name)
-            .unwrap_or_else(Theme::dark);
+            .unwrap_or_else(default_fallback_theme);
 
         // Resolve the hex palette, falling back entry-by-entry.
         let hex_palette = if let Some(ref palette) = self.hex_color_palette {
@@ -394,23 +405,157 @@ impl ThemeFile {
 }
 
 // ---------------------------------------------------------------------------
-// Built-in theme lookup (without custom theme check to avoid recursion)
+// Built-in theme loading from embedded assets
 // ---------------------------------------------------------------------------
+
+/// Load all built-in themes from the embedded `assets/themes/` directory.
+fn load_builtin_themes() -> Vec<Theme> {
+    let mut themes = Vec::new();
+    for file in THEMES_DIR.files() {
+        let Some(filename) = file.path().file_name().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        if !filename.starts_with("theme-") || !filename.ends_with(".toml") {
+            continue;
+        }
+        let Some(content) = file.contents_utf8() else {
+            continue;
+        };
+        match toml::from_str::<ThemeFile>(content) {
+            Ok(tf) => themes.push(tf.to_theme()),
+            Err(e) => {
+                log::warn!("Failed to parse built-in theme {filename}: {e}");
+            }
+        }
+    }
+    themes
+}
+
+/// Access the lazily-initialized built-in theme cache.
+fn get_builtin_themes() -> &'static Vec<Theme> {
+    BUILTIN_THEMES.get_or_init(load_builtin_themes)
+}
+
+/// Find a built-in theme by display name.
+///
+/// Returns `None` if no built-in theme with the given name exists.
+#[must_use]
+pub fn find_builtin_theme(name: &str) -> Option<Theme> {
+    get_builtin_themes()
+        .iter()
+        .find(|t| t.name == name)
+        .cloned()
+}
+
+/// Return the display names of all built-in themes, in the order they are
+/// embedded.
+#[must_use]
+pub fn builtin_theme_names() -> Vec<String> {
+    // Return names in a deterministic, user-friendly order.
+    let order = [
+        "Solarized Dark",
+        "Solarized Light",
+        "Dracula",
+        "Gruvbox Dark",
+        "Gruvbox Light",
+        "Monokai",
+        "Nord",
+        "Catppuccin Mocha",
+        "Catppuccin Latte",
+    ];
+    let builtins = get_builtin_themes();
+    let mut names = Vec::new();
+    // First add names in preferred order
+    for preferred in &order {
+        if builtins.iter().any(|t| t.name == *preferred) {
+            names.push((*preferred).to_string());
+        }
+    }
+    // Then add any remaining built-in themes not in the preferred order
+    for theme in builtins {
+        if !names.iter().any(|n| n == &theme.name) {
+            names.push(theme.name.clone());
+        }
+    }
+    names
+}
 
 /// Look up a built-in theme by name, without checking custom themes.
 /// Used as the fallback for the `base` field in theme files.
 #[must_use]
 fn builtin_theme_by_name(name: &str) -> Theme {
-    match name {
-        "Solarized Light" => Theme::light(),
-        "Dracula" => Theme::dracula(),
-        "Gruvbox Dark" => Theme::gruvbox_dark(),
-        "Gruvbox Light" => Theme::gruvbox_light(),
-        "Monokai" => Theme::monokai(),
-        "Nord" => Theme::nord(),
-        "Catppuccin Mocha" => Theme::catppuccin_mocha(),
-        "Catppuccin Latte" => Theme::catppuccin_latte(),
-        _ => Theme::dark(),
+    find_builtin_theme(name).unwrap_or_else(default_fallback_theme)
+}
+
+/// Hardcoded last-resort fallback theme used when embedded assets cannot be
+/// loaded (should never happen in practice).
+#[must_use]
+pub fn default_fallback_theme() -> Theme {
+    Theme {
+        name: "Solarized Dark".to_string(),
+        background: Color::Rgb(0, 43, 54),
+        foreground: Color::Rgb(131, 148, 150),
+        border_active: Color::Rgb(38, 139, 210),
+        border_inactive: Color::Rgb(88, 110, 117),
+        selection_bg: Color::Rgb(7, 54, 66),
+        selection_fg: Color::Rgb(147, 161, 161),
+        block_selection_bg: Color::Rgb(7, 54, 66),
+        block_selection_fg: Color::Rgb(147, 161, 161),
+        status_bar_bg: Color::Rgb(7, 54, 66),
+        status_bar_fg: Color::Rgb(147, 161, 161),
+        address: Color::Rgb(181, 137, 0),
+        bytes: Color::Rgb(88, 110, 117),
+        mnemonic: Color::Rgb(38, 139, 210),
+        operand: Color::Rgb(147, 161, 161),
+        label: Color::Rgb(211, 54, 130),
+        label_def: Color::Rgb(211, 54, 130),
+        comment: Color::Rgb(88, 110, 117),
+        arrow: Color::Rgb(88, 110, 117),
+        collapsed_block: Color::Rgb(181, 137, 0),
+        collapsed_block_bg: Color::Rgb(0, 43, 54),
+        hex_bytes: Color::Rgb(147, 161, 161),
+        hex_ascii: Color::Rgb(42, 161, 152),
+        hex_color_palette: [Color::Rgb(128, 128, 128); 18],
+        dialog_bg: Color::Rgb(7, 54, 66),
+        dialog_fg: Color::Rgb(131, 148, 150),
+        dialog_border: Color::Rgb(147, 161, 161),
+        menu_bg: Color::Rgb(7, 54, 66),
+        menu_fg: Color::Rgb(131, 148, 150),
+        menu_selected_bg: Color::Rgb(88, 110, 117),
+        menu_selected_fg: Color::Rgb(253, 246, 227),
+        menu_disabled_fg: Color::Rgb(88, 110, 117),
+        sprite_multicolor_1: Color::Rgb(220, 50, 47),
+        sprite_multicolor_2: Color::Rgb(38, 139, 210),
+        charset_multicolor_1: Color::Rgb(203, 75, 22),
+        charset_multicolor_2: Color::Rgb(133, 153, 0),
+        highlight_fg: Color::Rgb(203, 75, 22),
+        highlight_bg: Color::Rgb(7, 54, 66),
+        error_fg: Color::Rgb(220, 50, 47),
+        block_code_fg: Color::Rgb(38, 139, 210),
+        block_scope_fg: Color::Rgb(108, 113, 196),
+        block_data_byte_fg: Color::Rgb(42, 161, 152),
+        block_data_word_fg: Color::Rgb(108, 113, 196),
+        block_address_fg: Color::Rgb(181, 137, 0),
+        block_petscii_text_fg: Color::Rgb(133, 153, 0),
+        block_screencode_text_fg: Color::Rgb(203, 75, 22),
+        block_lohi_fg: Color::Rgb(220, 50, 47),
+        block_hilo_fg: Color::Rgb(211, 54, 130),
+        block_external_file_fg: Color::Rgb(147, 161, 161),
+        block_undefined_fg: Color::Rgb(88, 110, 117),
+        block_splitter_fg: Color::Rgb(147, 161, 161),
+        block_code_bg: Color::Rgb(0, 43, 54),
+        block_scope_bg: Color::Rgb(0, 43, 54),
+        block_data_byte_bg: Color::Rgb(0, 43, 54),
+        block_data_word_bg: Color::Rgb(0, 43, 54),
+        block_address_bg: Color::Rgb(0, 43, 54),
+        block_petscii_text_bg: Color::Rgb(0, 43, 54),
+        block_screencode_text_bg: Color::Rgb(0, 43, 54),
+        block_lohi_bg: Color::Rgb(0, 43, 54),
+        block_hilo_bg: Color::Rgb(0, 43, 54),
+        block_external_file_bg: Color::Rgb(0, 43, 54),
+        block_undefined_bg: Color::Rgb(0, 43, 54),
+        block_splitter_bg: Color::Rgb(0, 43, 54),
+        minimap_cursor_fg: Color::White,
     }
 }
 
@@ -489,7 +634,7 @@ fn get_custom_themes() -> &'static Vec<Theme> {
 
 /// Dump all built-in themes as TOML files into `dest_dir`.
 ///
-/// Creates one file per built-in theme, named `theme-<normalized_name>.toml`.
+/// Writes the embedded `theme-*.toml` files directly to the destination.
 /// The directory is created if it does not exist.
 ///
 /// # Errors
@@ -499,26 +644,16 @@ pub fn dump_theme_files(dest_dir: &Path) -> Result<()> {
     std::fs::create_dir_all(dest_dir)
         .with_context(|| format!("Failed to create directory {dest_dir:?}"))?;
 
-    let themes = [
-        Theme::dark(),
-        Theme::light(),
-        Theme::dracula(),
-        Theme::gruvbox_dark(),
-        Theme::gruvbox_light(),
-        Theme::monokai(),
-        Theme::nord(),
-        Theme::catppuccin_mocha(),
-        Theme::catppuccin_latte(),
-    ];
-
-    for theme in &themes {
-        let tf = ThemeFile::from_theme(theme);
-        let toml_str = toml::to_string_pretty(&tf)
-            .with_context(|| format!("Failed to serialize theme {:?}", theme.name))?;
-        let normalized = theme.name.to_lowercase().replace(' ', "_");
-        let filename = format!("theme-{normalized}.toml");
-        let dest_path = dest_dir.join(&filename);
-        std::fs::write(&dest_path, toml_str)
+    for file in THEMES_DIR.files() {
+        let Some(filename) = file.path().file_name() else {
+            continue;
+        };
+        let filename_str = filename.to_string_lossy();
+        if !filename_str.starts_with("theme-") || !filename_str.ends_with(".toml") {
+            continue;
+        }
+        let dest_path = dest_dir.join(filename);
+        std::fs::write(&dest_path, file.contents())
             .with_context(|| format!("Failed to write {dest_path:?}"))?;
         println!("Wrote {dest_path:?}");
     }
@@ -563,8 +698,31 @@ mod tests {
     }
 
     #[test]
+    fn test_builtin_themes_load() {
+        let themes = get_builtin_themes();
+        assert_eq!(themes.len(), 9, "Should have 9 built-in themes");
+    }
+
+    #[test]
+    fn test_builtin_theme_names() {
+        let names = builtin_theme_names();
+        assert_eq!(names.len(), 9, "Should have 9 built-in theme names");
+        assert_eq!(names[0], "Solarized Dark");
+        assert_eq!(names[2], "Dracula");
+    }
+
+    #[test]
+    fn test_find_builtin_theme() {
+        let dracula = find_builtin_theme("Dracula");
+        assert!(dracula.is_some(), "Should find Dracula theme");
+        let dracula = dracula.unwrap();
+        assert_eq!(dracula.name, "Dracula");
+        assert_eq!(dracula.background, Color::Rgb(40, 42, 54));
+    }
+
+    #[test]
     fn test_theme_file_from_theme_roundtrip() {
-        let original = Theme::dracula();
+        let original = find_builtin_theme("Dracula").unwrap();
         let tf = ThemeFile::from_theme(&original);
         let restored = tf.to_theme();
 
@@ -577,19 +735,9 @@ mod tests {
 
     #[test]
     fn test_all_builtin_themes_roundtrip() {
-        let themes = [
-            Theme::dark(),
-            Theme::light(),
-            Theme::dracula(),
-            Theme::gruvbox_dark(),
-            Theme::gruvbox_light(),
-            Theme::monokai(),
-            Theme::nord(),
-            Theme::catppuccin_mocha(),
-            Theme::catppuccin_latte(),
-        ];
+        let themes = get_builtin_themes();
 
-        for theme in &themes {
+        for theme in themes {
             let tf = ThemeFile::from_theme(theme);
             let toml_str = toml::to_string_pretty(&tf).unwrap();
             let parsed: ThemeFile = toml::from_str(&toml_str).unwrap();
@@ -633,7 +781,7 @@ foreground = "#33FF33"
         assert_eq!(theme.background, Color::Rgb(0, 17, 0));
         assert_eq!(theme.foreground, Color::Rgb(51, 255, 51));
         // Inherited from Dracula
-        let dracula = Theme::dracula();
+        let dracula = find_builtin_theme("Dracula").unwrap();
         assert_eq!(theme.mnemonic, dracula.mnemonic);
         assert_eq!(theme.border_active, dracula.border_active);
     }
@@ -650,7 +798,7 @@ background = "#112233"
         assert_eq!(theme.name, "Minimal");
         assert_eq!(theme.background, Color::Rgb(17, 34, 51));
         // Everything else inherited from Solarized Dark (default)
-        let dark = Theme::dark();
+        let dark = find_builtin_theme("Solarized Dark").unwrap();
         assert_eq!(theme.foreground, dark.foreground);
     }
 

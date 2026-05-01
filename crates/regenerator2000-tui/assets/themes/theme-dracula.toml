@@ -1,0 +1,83 @@
+name = "Dracula"
+background = "#282A36"
+foreground = "#F8F8F2"
+border_active = "#BD93F9"
+border_inactive = "#6272A4"
+selection_bg = "#44475A"
+selection_fg = "#F8F8F2"
+block_selection_bg = "#44475A"
+block_selection_fg = "#F8F8F2"
+status_bar_bg = "#44475A"
+status_bar_fg = "#8BE9FD"
+address = "#BD93F9"
+bytes = "#6272A4"
+mnemonic = "#FF79C6"
+operand = "#F8F8F2"
+label = "#8BE9FD"
+label_def = "#8BE9FD"
+comment = "#6272A4"
+arrow = "#6272A4"
+collapsed_block = "#F1FA8C"
+collapsed_block_bg = "#282A36"
+hex_bytes = "#F8F8F2"
+hex_ascii = "#8BE9FD"
+hex_color_palette = [
+    "#808080",
+    "#E65388",
+    "#EC6038",
+    "#E76600",
+    "#DD7800",
+    "#D18100",
+    "#AB9700",
+    "#6FA903",
+    "#46B033",
+    "#11B254",
+    "#00B574",
+    "#00B6A2",
+    "#00B4D0",
+    "#00A4EF",
+    "#3796FF",
+    "#9D7AF7",
+    "#CE67CC",
+    "#FFFFFF",
+]
+dialog_bg = "#282A36"
+dialog_fg = "#F8F8F2"
+dialog_border = "#BD93F9"
+menu_bg = "#282A36"
+menu_fg = "#F8F8F2"
+menu_selected_bg = "#44475A"
+menu_selected_fg = "#8BE9FD"
+menu_disabled_fg = "#6272A4"
+sprite_multicolor_1 = "#FFB86C"
+sprite_multicolor_2 = "#FF5555"
+charset_multicolor_1 = "#F1FA8C"
+charset_multicolor_2 = "#BD93F9"
+highlight_fg = "#F1FA8C"
+highlight_bg = "#44475A"
+error_fg = "#FF5555"
+block_code_fg = "#FF79C6"
+block_scope_fg = "#BD93F9"
+block_data_byte_fg = "#8BE9FD"
+block_data_word_fg = "#BD93F9"
+block_address_fg = "#50FA7B"
+block_petscii_text_fg = "#F1FA8C"
+block_screencode_text_fg = "#FFB86C"
+block_lohi_fg = "#FF5555"
+block_hilo_fg = "#FF5555"
+block_external_file_fg = "#6272A4"
+block_undefined_fg = "#6272A4"
+block_splitter_fg = "#6272A4"
+block_code_bg = "#282A36"
+block_scope_bg = "#282A36"
+block_data_byte_bg = "#282A36"
+block_data_word_bg = "#282A36"
+block_address_bg = "#282A36"
+block_petscii_text_bg = "#282A36"
+block_screencode_text_bg = "#282A36"
+block_lohi_bg = "#282A36"
+block_hilo_bg = "#282A36"
+block_external_file_bg = "#282A36"
+block_undefined_bg = "#282A36"
+block_splitter_bg = "#282A36"
+minimap_cursor_fg = "#282A36"

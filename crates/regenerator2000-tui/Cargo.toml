@@ -19,6 +19,7 @@ serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0"
 directories = "6"
 log = "0.4"
+include_dir = "0.7"
 
 [lints]
 workspace = true

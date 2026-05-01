@@ -1,0 +1,83 @@
+name = "Gruvbox Light"
+background = "#FBF1C7"
+foreground = "#3C3836"
+border_active = "#FE8019"
+border_inactive = "#EBDBB2"
+selection_bg = "#EBDBB2"
+selection_fg = "#3C3836"
+block_selection_bg = "#928374"
+block_selection_fg = "#FBF1C7"
+status_bar_bg = "#EBDBB2"
+status_bar_fg = "#3C3836"
+address = "#FABD2F"
+bytes = "#928374"
+mnemonic = "#FB4934"
+operand = "#3C3836"
+label = "#8EC07C"
+label_def = "#8EC07C"
+comment = "#928374"
+arrow = "#928374"
+collapsed_block = "#FE8019"
+collapsed_block_bg = "#FBF1C7"
+hex_bytes = "#3C3836"
+hex_ascii = "#8EC07C"
+hex_color_palette = [
+    "#808080",
+    "#D2326E",
+    "#DA4114",
+    "#D25000",
+    "#C36200",
+    "#B46C00",
+    "#8C8200",
+    "#4B9400",
+    "#239E1E",
+    "#00A041",
+    "#00A362",
+    "#00A391",
+    "#009EBE",
+    "#008CDC",
+    "#1E78F0",
+    "#825AE1",
+    "#B446B2",
+    "#000000",
+]
+dialog_bg = "#EBDBB2"
+dialog_fg = "#3C3836"
+dialog_border = "#FE8019"
+menu_bg = "#FBF1C7"
+menu_fg = "#3C3836"
+menu_selected_bg = "#EBDBB2"
+menu_selected_fg = "#FE8019"
+menu_disabled_fg = "#928374"
+sprite_multicolor_1 = "#FB4934"
+sprite_multicolor_2 = "#D3869B"
+charset_multicolor_1 = "#FABD2F"
+charset_multicolor_2 = "#B8BB26"
+highlight_fg = "#FE8019"
+highlight_bg = "#EBDBB2"
+error_fg = "#FB4934"
+block_code_fg = "#FB4934"
+block_scope_fg = "#D3869B"
+block_data_byte_fg = "#D3869B"
+block_data_word_fg = "#83A598"
+block_address_fg = "#FABD2F"
+block_petscii_text_fg = "#B8BB26"
+block_screencode_text_fg = "#8EC07C"
+block_lohi_fg = "#FE8019"
+block_hilo_fg = "#FE8019"
+block_external_file_fg = "#928374"
+block_undefined_fg = "#928374"
+block_splitter_fg = "#928374"
+block_code_bg = "#EBDBB2"
+block_scope_bg = "#EBDBB2"
+block_data_byte_bg = "#EBDBB2"
+block_data_word_bg = "#EBDBB2"
+block_address_bg = "#EBDBB2"
+block_petscii_text_bg = "#EBDBB2"
+block_screencode_text_bg = "#EBDBB2"
+block_lohi_bg = "#EBDBB2"
+block_hilo_bg = "#EBDBB2"
+block_external_file_bg = "#EBDBB2"
+block_undefined_bg = "#EBDBB2"
+block_splitter_bg = "#EBDBB2"
+minimap_cursor_fg = "#000000"

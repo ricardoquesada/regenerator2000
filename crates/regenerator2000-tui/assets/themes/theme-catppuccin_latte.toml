@@ -1,0 +1,83 @@
+name = "Catppuccin Latte"
+background = "#EFF1F5"
+foreground = "#4C4F69"
+border_active = "#8839EF"
+border_inactive = "#BCC0CC"
+selection_bg = "#CCD0DA"
+selection_fg = "#4C4F69"
+block_selection_bg = "#BCC0CC"
+block_selection_fg = "#4C4F69"
+status_bar_bg = "#E6E9EF"
+status_bar_fg = "#6C6F85"
+address = "#DF8E1D"
+bytes = "#9CA0B0"
+mnemonic = "#1E66F5"
+operand = "#4C4F69"
+label = "#179299"
+label_def = "#179299"
+comment = "#9CA0B0"
+arrow = "#9CA0B0"
+collapsed_block = "#8839EF"
+collapsed_block_bg = "#EFF1F5"
+hex_bytes = "#4C4F69"
+hex_ascii = "#04A5E5"
+hex_color_palette = [
+    "#808080",
+    "#D2326E",
+    "#DA4114",
+    "#D25000",
+    "#C36200",
+    "#B46C00",
+    "#8C8200",
+    "#4B9400",
+    "#239E1E",
+    "#00A041",
+    "#00A362",
+    "#00A391",
+    "#009EBE",
+    "#008CDC",
+    "#1E78F0",
+    "#825AE1",
+    "#B446B2",
+    "#000000",
+]
+dialog_bg = "#E6E9EF"
+dialog_fg = "#4C4F69"
+dialog_border = "#8839EF"
+menu_bg = "#EFF1F5"
+menu_fg = "#4C4F69"
+menu_selected_bg = "#CCD0DA"
+menu_selected_fg = "#8839EF"
+menu_disabled_fg = "#9CA0B0"
+sprite_multicolor_1 = "#D20F39"
+sprite_multicolor_2 = "#1E66F5"
+charset_multicolor_1 = "#FE640B"
+charset_multicolor_2 = "#40A02B"
+highlight_fg = "#FE640B"
+highlight_bg = "#CCD0DA"
+error_fg = "#D20F39"
+block_code_fg = "#1E66F5"
+block_scope_fg = "#7287FD"
+block_data_byte_fg = "#04A5E5"
+block_data_word_fg = "#8839EF"
+block_address_fg = "#DF8E1D"
+block_petscii_text_fg = "#40A02B"
+block_screencode_text_fg = "#FE640B"
+block_lohi_fg = "#D20F39"
+block_hilo_fg = "#E64553"
+block_external_file_fg = "#9CA0B0"
+block_undefined_fg = "#9CA0B0"
+block_splitter_fg = "#9CA0B0"
+block_code_bg = "#DCE0E8"
+block_scope_bg = "#DCE0E8"
+block_data_byte_bg = "#DCE0E8"
+block_data_word_bg = "#DCE0E8"
+block_address_bg = "#DCE0E8"
+block_petscii_text_bg = "#DCE0E8"
+block_screencode_text_bg = "#DCE0E8"
+block_lohi_bg = "#DCE0E8"
+block_hilo_bg = "#DCE0E8"
+block_external_file_bg = "#DCE0E8"
+block_undefined_bg = "#DCE0E8"
+block_splitter_bg = "#DCE0E8"
+minimap_cursor_fg = "#4C4F69"

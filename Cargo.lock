@@ -2471,6 +2471,7 @@ dependencies = [
  "crossterm",
  "directories",
  "image",
+ "include_dir",
  "log",
  "opener",
  "ratatui",

@@ -1,0 +1,83 @@
+name = "Nord"
+background = "#2E3440"
+foreground = "#D8DEE9"
+border_active = "#88C0D0"
+border_inactive = "#4C566A"
+selection_bg = "#434C5E"
+selection_fg = "#ECEFF4"
+block_selection_bg = "#434C5E"
+block_selection_fg = "#ECEFF4"
+status_bar_bg = "#3B4252"
+status_bar_fg = "#88C0D0"
+address = "#EBCB8B"
+bytes = "#4C566A"
+mnemonic = "#81A1C1"
+operand = "#D8DEE9"
+label = "#8FBCBB"
+label_def = "#8FBCBB"
+comment = "#4C566A"
+arrow = "#4C566A"
+collapsed_block = "#EBCB8B"
+collapsed_block_bg = "#2E3440"
+hex_bytes = "#D8DEE9"
+hex_ascii = "#88C0D0"
+hex_color_palette = [
+    "#808080",
+    "#E65388",
+    "#EC6038",
+    "#E76600",
+    "#DD7800",
+    "#D18100",
+    "#AB9700",
+    "#6FA903",
+    "#46B033",
+    "#11B254",
+    "#00B574",
+    "#00B6A2",
+    "#00B4D0",
+    "#00A4EF",
+    "#3796FF",
+    "#9D7AF7",
+    "#CE67CC",
+    "#FFFFFF",
+]
+dialog_bg = "#3B4252"
+dialog_fg = "#D8DEE9"
+dialog_border = "#88C0D0"
+menu_bg = "#2E3440"
+menu_fg = "#D8DEE9"
+menu_selected_bg = "#434C5E"
+menu_selected_fg = "#88C0D0"
+menu_disabled_fg = "#4C566A"
+sprite_multicolor_1 = "#BF616A"
+sprite_multicolor_2 = "#5E81AC"
+charset_multicolor_1 = "#D08770"
+charset_multicolor_2 = "#A3BE8C"
+highlight_fg = "#D08770"
+highlight_bg = "#3B4252"
+error_fg = "#BF616A"
+block_code_fg = "#81A1C1"
+block_scope_fg = "#B48EAD"
+block_data_byte_fg = "#88C0D0"
+block_data_word_fg = "#B48EAD"
+block_address_fg = "#EBCB8B"
+block_petscii_text_fg = "#A3BE8C"
+block_screencode_text_fg = "#D08770"
+block_lohi_fg = "#BF616A"
+block_hilo_fg = "#BF616A"
+block_external_file_fg = "#4C566A"
+block_undefined_fg = "#4C566A"
+block_splitter_fg = "#4C566A"
+block_code_bg = "#2E3440"
+block_scope_bg = "#2E3440"
+block_data_byte_bg = "#2E3440"
+block_data_word_bg = "#2E3440"
+block_address_bg = "#2E3440"
+block_petscii_text_bg = "#2E3440"
+block_screencode_text_bg = "#2E3440"
+block_lohi_bg = "#2E3440"
+block_hilo_bg = "#2E3440"
+block_external_file_bg = "#2E3440"
+block_undefined_bg = "#2E3440"
+block_splitter_bg = "#2E3440"
+minimap_cursor_fg = "#ECEFF4"
