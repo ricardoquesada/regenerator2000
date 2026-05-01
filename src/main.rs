@@ -71,7 +71,7 @@ struct Cli {
     #[arg(long, value_name = "HOST:PORT")]
     vice: Option<String>,
 
-    /// Dump embedded system config files (system-*.json) to the specified directory and exit
+    /// Dump embedded system config files (system-*.toml) to the specified directory and exit
     #[arg(long = "dump-system-config-files", value_name = "PATH")]
     dump_system_config_files: Option<String>,
 

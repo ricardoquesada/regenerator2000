@@ -29,37 +29,63 @@ struct SystemData {
     #[serde(default)]
     enabled: bool,
     #[serde(default)]
-    labels: HashMap<String, HashMap<String, String>>,
+    labels: BTreeMap<String, BTreeMap<String, String>>,
     #[serde(default)]
-    comments: HashMap<String, String>,
+    comments: BTreeMap<String, String>,
     #[serde(default)]
     excluded: Vec<String>,
 }
 
-/// Returns the path to the user's config directory where custom `system-*.json`
-/// files can be placed to override or extend the built-in platform definitions.
+/// Parse a `SystemData` from a string, trying TOML first and then JSON
+/// as a fallback for backward compatibility with existing user files.
+fn parse_system_data(content: &str) -> Option<SystemData> {
+    toml::from_str::<SystemData>(content)
+        .ok()
+        .or_else(|| serde_json::from_str::<SystemData>(content).ok())
+}
+
+/// Returns the path to the user's config directory where custom `system-*.toml`
+/// (or legacy `system-*.json`) files can be placed to override or extend the
+/// built-in platform definitions.
 #[must_use]
 pub fn user_config_systems_dir() -> Option<PathBuf> {
     ProjectDirs::from("", "", "regenerator2000").map(|d| d.config_dir().to_path_buf())
 }
 
-/// Read a `system-*.json` file for `platform` as an owned `String`.
+/// Read a `system-*.toml` (or legacy `system-*.json`) file for `platform`
+/// as an owned `String`.
 ///
 /// The user's config directory is checked first; if a matching file is found
 /// there it takes precedence over the built-in embedded version.  Both the
 /// exact filename and a normalized variant (lowercase, spaces → underscores)
-/// are tried in that order.
+/// are tried in that order.  TOML files are preferred over JSON.
 fn get_system_file_content_with_config_dir(
     platform: &str,
     config_dir: Option<&Path>,
 ) -> Option<String> {
-    let filename = format!("system-{platform}.json");
     let normalized = platform.to_lowercase().replace(' ', "_");
-    let normalized_filename = format!("system-{normalized}.json");
+
+    // Build candidate filenames: TOML first, then JSON fallback.
+    let candidates: Vec<String> = [
+        format!("system-{platform}.toml"),
+        format!("system-{normalized}.toml"),
+        format!("system-{platform}.json"),
+        format!("system-{normalized}.json"),
+    ]
+    .into_iter()
+    .collect();
+
+    // Deduplicate (when platform == normalized, the pairs are identical).
+    let mut seen = Vec::new();
+    for name in &candidates {
+        if !seen.contains(name) {
+            seen.push(name.clone());
+        }
+    }
 
     // 1. Check the provided config directory first (user files take precedence).
     if let Some(dir) = config_dir {
-        for name in [filename.as_str(), normalized_filename.as_str()] {
+        for name in &seen {
             let path = dir.join(name);
             if let Ok(content) = std::fs::read_to_string(&path) {
                 return Some(content);
@@ -68,13 +94,10 @@ fn get_system_file_content_with_config_dir(
     }
 
     // 2. Fall back to the embedded assets.
-    if let Some(file) = SYSTEMS_DIR.get_file(&filename) {
-        return file.contents_utf8().map(str::to_owned);
-    }
-    if normalized != platform
-        && let Some(file) = SYSTEMS_DIR.get_file(&normalized_filename)
-    {
-        return file.contents_utf8().map(str::to_owned);
+    for name in &seen {
+        if let Some(file) = SYSTEMS_DIR.get_file(name) {
+            return file.contents_utf8().map(str::to_owned);
+        }
     }
 
     None
@@ -84,33 +107,39 @@ fn get_system_file_content(platform: &str) -> Option<String> {
     get_system_file_content_with_config_dir(platform, user_config_systems_dir().as_deref())
 }
 
-/// Dump all embedded `system-*.json` files into `dest_dir`.
+/// Dump all embedded `system-*.toml` files into `dest_dir`.
 ///
 /// The destination directory is created automatically if it does not exist.
-/// Each file is written with its original filename (e.g. `system-commodore_64.json`).
+/// Each file is written with its original filename (e.g. `system-commodore_64.toml`).
 ///
 /// # Errors
 ///
 /// Returns an error if the directory cannot be created or if any file write fails.
 pub fn dump_system_config_files(dest_dir: &Path) -> Result<()> {
     std::fs::create_dir_all(dest_dir)
-        .with_context(|| format!("Failed to create directory {:?}", dest_dir))?;
+        .with_context(|| format!("Failed to create directory {dest_dir:?}"))?;
 
     for file in SYSTEMS_DIR.files() {
         let Some(filename) = file.path().file_name() else {
             continue;
         };
         let filename_str = filename.to_string_lossy();
-        if !filename_str.starts_with("system-") || !filename_str.ends_with(".json") {
+        if !filename_str.starts_with("system-") || !filename_str.ends_with(".toml") {
             continue;
         }
         let dest_path = dest_dir.join(filename);
         std::fs::write(&dest_path, file.contents())
-            .with_context(|| format!("Failed to write {:?}", dest_path))?;
+            .with_context(|| format!("Failed to write {dest_path:?}"))?;
         println!("Wrote {dest_path:?}");
     }
 
     Ok(())
+}
+
+/// Check whether a filename has a recognized system config extension.
+#[must_use]
+fn is_system_config_file(filename: &str) -> bool {
+    filename.starts_with("system-") && (filename.ends_with(".toml") || filename.ends_with(".json"))
 }
 
 /// Collect enabled platform names from an iterator of `(filename, content)` pairs.
@@ -119,10 +148,10 @@ fn collect_platforms_from_iter<'a>(
     platforms: &mut Vec<String>,
 ) {
     for (filename, content) in iter {
-        if !filename.starts_with("system-") || !filename.ends_with(".json") {
+        if !is_system_config_file(filename) {
             continue;
         }
-        if let Ok(data) = serde_json::from_str::<SystemData>(&content)
+        if let Some(data) = parse_system_data(&content)
             && data.enabled
         {
             platforms.push(data.platform_name);
@@ -156,10 +185,9 @@ fn get_available_platforms_with_config_dir(config_dir: Option<&Path>) -> Vec<Str
     //    by the config directory.
     for file in SYSTEMS_DIR.files() {
         if let Some(filename) = file.path().file_name().and_then(|s| s.to_str())
-            && filename.starts_with("system-")
-            && filename.ends_with(".json")
+            && is_system_config_file(filename)
             && let Some(content) = file.contents_utf8()
-            && let Ok(data) = serde_json::from_str::<SystemData>(content)
+            && let Some(data) = parse_system_data(content)
             && data.enabled
             && !platforms.contains(&data.platform_name)
         {
@@ -188,7 +216,7 @@ pub fn load_system_config(platform: &str) -> SystemConfig {
     let mut has_excludes = false;
 
     if let Some(content) = get_system_file_content(platform)
-        && let Ok(data) = serde_json::from_str::<SystemData>(&content)
+        && let Some(data) = parse_system_data(&content)
     {
         has_comments = !data.comments.is_empty();
         has_excludes = !data.excluded.is_empty();
@@ -225,7 +253,7 @@ pub fn load_comments(platform: &str) -> BTreeMap<u16, String> {
     let mut comments = BTreeMap::new();
 
     if let Some(content) = get_system_file_content(platform)
-        && let Ok(data) = serde_json::from_str::<SystemData>(&content)
+        && let Some(data) = parse_system_data(&content)
     {
         for (addr_str, comment) in data.comments {
             if let Ok(addr) = u16::from_str_radix(&addr_str, 16)
@@ -247,7 +275,7 @@ pub fn load_labels(
     let mut labels = Vec::new();
 
     if let Some(content) = get_system_file_content(platform)
-        && let Ok(data) = serde_json::from_str::<SystemData>(&content)
+        && let Some(data) = parse_system_data(&content)
     {
         let mut defaults = HashMap::new();
         for key in data.labels.keys() {
@@ -289,7 +317,7 @@ pub fn load_excludes(platform: &str) -> Vec<u16> {
     let mut excludes = Vec::new();
 
     if let Some(content) = get_system_file_content(platform)
-        && let Ok(data) = serde_json::from_str::<SystemData>(&content)
+        && let Some(data) = parse_system_data(&content)
     {
         for line in data.excluded {
             let line = line.trim();
@@ -366,14 +394,21 @@ mod tests {
         assert!(config_vic20.has_excludes, "VIC-20 should have excludes");
     }
 
-    /// Minimal valid `SystemData` JSON for a custom test platform.
+    /// Minimal valid `SystemData` TOML for a custom test platform.
+    fn make_custom_system_toml(platform_name: &str) -> String {
+        format!(
+            "platform_name = \"{platform_name}\"\nenabled = true\nexcluded = []\n\n[labels.CUSTOM]\n\"1000\" = \"MY_LABEL\"\n\n[comments]\n"
+        )
+    }
+
+    /// Minimal valid `SystemData` JSON for testing backward compatibility.
     fn make_custom_system_json(platform_name: &str) -> String {
         format!(
             r#"{{"platform_name":"{platform_name}","enabled":true,"labels":{{"CUSTOM":{{"1000":"MY_LABEL"}}}},"comments":{{}},"excluded":[]}}"#
         )
     }
 
-    /// Verify that a `system-*.json` placed in the config directory:
+    /// Verify that a `system-*.toml` placed in the config directory:
     ///   1. Is returned by `get_system_file_content_with_config_dir` (overriding built-ins).
     ///   2. Appears in `get_available_platforms_with_config_dir` as a new platform.
     ///   3. Built-in platforms that were NOT overridden are still listed.
@@ -388,11 +423,11 @@ mod tests {
         let config_dir = std::env::temp_dir().join(format!("r2000_test_assets_{test_id}"));
         fs::create_dir_all(&config_dir).unwrap();
 
-        // ── 1. Custom (new) platform ───────────────────────────────────────────
-        let custom_json = make_custom_system_json("My Custom Platform");
+        // ── 1. Custom (new) platform via TOML ─────────────────────────────────
+        let custom_toml = make_custom_system_toml("My Custom Platform");
         fs::write(
-            config_dir.join("system-my_custom_platform.json"),
-            &custom_json,
+            config_dir.join("system-my_custom_platform.toml"),
+            &custom_toml,
         )
         .unwrap();
 
@@ -403,7 +438,7 @@ mod tests {
             content.is_some(),
             "Custom platform file should be found in config dir"
         );
-        assert_eq!(content.unwrap(), custom_json);
+        assert_eq!(content.unwrap(), custom_toml);
 
         // ── 2. Custom platform appears in platform list ────────────────────────
         let platforms = get_available_platforms_with_config_dir(Some(&config_dir));
@@ -418,10 +453,10 @@ mod tests {
             "Built-in Commodore 64 should still be listed"
         );
 
-        // ── 4. Override: config-dir file wins over built-in ───────────────────
+        // ── 4. Override: config-dir TOML file wins over built-in ──────────────
         // Write a file that shadows the built-in Commodore 64 definition.
-        let override_json = make_custom_system_json("Commodore 64");
-        fs::write(config_dir.join("system-commodore_64.json"), &override_json).unwrap();
+        let override_toml = make_custom_system_toml("Commodore 64");
+        fs::write(config_dir.join("system-commodore_64.toml"), &override_toml).unwrap();
 
         let overridden = get_system_file_content_with_config_dir("Commodore 64", Some(&config_dir));
         assert!(
@@ -430,7 +465,7 @@ mod tests {
         );
         assert_eq!(
             overridden.unwrap(),
-            override_json,
+            override_toml,
             "Config-dir version should take precedence over built-in"
         );
 
@@ -443,6 +478,33 @@ mod tests {
         assert_eq!(c64_count, 1, "Commodore 64 should appear exactly once");
 
         // Cleanup
+        let _ = fs::remove_dir_all(&config_dir);
+    }
+
+    /// Verify that legacy `system-*.json` files in the config directory still
+    /// work for backward compatibility.
+    #[test]
+    fn test_legacy_json_backward_compatibility() {
+        let test_id = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.subsec_nanos())
+            .unwrap_or(0);
+        let config_dir = std::env::temp_dir().join(format!("r2000_test_json_compat_{test_id}"));
+        fs::create_dir_all(&config_dir).unwrap();
+
+        let custom_json = make_custom_system_json("Legacy JSON Platform");
+        fs::write(
+            config_dir.join("system-legacy_json_platform.json"),
+            &custom_json,
+        )
+        .unwrap();
+
+        let platforms = get_available_platforms_with_config_dir(Some(&config_dir));
+        assert!(
+            platforms.contains(&"Legacy JSON Platform".to_string()),
+            "Legacy JSON platform should appear in available platforms"
+        );
+
         let _ = fs::remove_dir_all(&config_dir);
     }
 }
