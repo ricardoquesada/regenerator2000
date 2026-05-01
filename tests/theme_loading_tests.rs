@@ -39,7 +39,7 @@ fn themes_have_distinct_backgrounds() {
 #[test]
 fn all_themes_bg_differs_from_fg() {
     for name in Theme::all_names() {
-        let theme = Theme::from_name(name);
+        let theme = Theme::from_name(&name);
         let bg = format!("{:?}", theme.background);
         let fg = format!("{:?}", theme.foreground);
         assert_ne!(bg, fg, "Theme {name:?} has identical bg and fg");

@@ -57,6 +57,7 @@ regenerator2000 [OPTIONS] [FILE]
 - `--mcp-server-stdio`: Run MCP server via stdio (headless mode).
 - `--vice <HOST:PORT>`: Auto-connect to the VICE binary monitor at startup (e.g. `--vice localhost:6502`). See [Debugger](debugger.md) for details.
 - `--dump-system-config-files <PATH>`: Dump all built-in system config files (`system-*.json`) to the specified directory and exit. The files can then be edited and placed back in the [app config directory](#system-config-files) to override or extend platform definitions.
+- `--dump-theme-files <PATH>`: Dump all built-in theme files (`theme-*.toml`) to the specified directory and exit. The files can be edited and placed in the [config directory](#config-directory-location) to create custom themes. See [Custom Themes](#custom-themes) for details.
 
 ### Recommended Terminals
 
@@ -214,3 +215,92 @@ Regenerator 2000, **Acme Computer** will appear in the Platform selector.
   skipped. Use `python3 -m json.tool system-acme_computer.json` or any online JSON validator.
 - Each label **group** maps to a separate checkbox in Document Settings. Use meaningful group names
   like `"KERNAL"`, `"BASIC"`, `"I/O"`, or `"SOUND"` to let users toggle sets independently.
+
+## Custom Themes
+
+Regenerator 2000 ships with 9 built-in color themes (Solarized Dark/Light, Dracula, Gruvbox
+Dark/Light, Monokai, Nord, Catppuccin Mocha/Latte). You can **create custom themes** or **override
+built-in themes** by placing TOML files in the config directory.
+
+### Override rules
+
+- Theme files **must** be named `theme-<name>.toml` (e.g. `theme-green_screen.toml`).
+- A custom theme with the **same** `name` as a built-in theme **replaces** the built-in.
+- A custom theme with a **new** `name` is added to the theme selector.
+- Fields are **optional** — omit any field to inherit its value from a base theme.
+
+### Getting started
+
+The easiest way to create a custom theme is to start from the built-in files:
+
+1. **Dump** all built-in themes to a directory:
+
+    ```bash
+    # macOS
+    regenerator2000 --dump-theme-files ~/Library/Application\ Support/regenerator2000/
+
+    # Linux
+    regenerator2000 --dump-theme-files ~/.config/regenerator2000/
+
+    # Windows (PowerShell)
+    regenerator2000.exe --dump-theme-files $env:APPDATA\regenerator2000\config\
+    ```
+
+    This writes every `theme-*.toml` to the destination folder and exits.
+
+2. **Edit** a file or create a new one. For example, `theme-green_screen.toml`:
+
+    ```toml
+    name = "Green Screen"
+    base = "Solarized Dark"
+    background = "#001100"
+    foreground = "#33FF33"
+    border_active = "#33FF33"
+    border_inactive = "#116611"
+    ```
+
+3. **Launch** Regenerator 2000 — your custom theme appears in **Settings → Theme**.
+
+### TOML schema reference
+
+Every `theme-*.toml` file has the following top-level keys:
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `name` | string | **Required.** Display name shown in the theme selector. Must be unique. |
+| `base` | string | Optional. Name of a built-in theme to inherit from. Defaults to `"Solarized Dark"`. |
+| _color fields_ | string | Optional. Hex color (`"#RRGGBB"`). See below for the full list. |
+| `hex_color_palette` | array of strings | Optional. 18-entry array of hex colors for the Hex Dump palette. |
+
+### Color fields
+
+All color fields accept hex strings in `#RRGGBB` format. Omitted fields inherit from the base theme.
+
+**Base colors:** `background`, `foreground`, `border_active`, `border_inactive`, `selection_bg`,
+`selection_fg`, `block_selection_bg`, `block_selection_fg`, `status_bar_bg`, `status_bar_fg`
+
+**Code / Disassembly:** `address`, `bytes`, `mnemonic`, `operand`, `label`, `label_def`, `comment`,
+`arrow`, `collapsed_block`, `collapsed_block_bg`
+
+**Hex View:** `hex_bytes`, `hex_ascii`
+
+**UI Elements:** `dialog_bg`, `dialog_fg`, `dialog_border`, `menu_bg`, `menu_fg`, `menu_selected_bg`,
+`menu_selected_fg`, `menu_disabled_fg`, `sprite_multicolor_1`, `sprite_multicolor_2`,
+`charset_multicolor_1`, `charset_multicolor_2`
+
+**Highlights:** `highlight_fg`, `highlight_bg`, `error_fg`
+
+**Block Types (fg/bg):** `block_code_fg`, `block_code_bg`, `block_scope_fg`, `block_scope_bg`,
+`block_data_byte_fg`, `block_data_byte_bg`, `block_data_word_fg`, `block_data_word_bg`,
+`block_address_fg`, `block_address_bg`, `block_petscii_text_fg`, `block_petscii_text_bg`,
+`block_screencode_text_fg`, `block_screencode_text_bg`, `block_lohi_fg`, `block_lohi_bg`,
+`block_hilo_fg`, `block_hilo_bg`, `block_external_file_fg`, `block_external_file_bg`,
+`block_undefined_fg`, `block_undefined_bg`, `block_splitter_fg`, `block_splitter_bg`,
+`minimap_cursor_fg`
+
+### Tips
+
+- **Partial themes** are the recommended approach — only override the colors you care about and inherit the rest.
+- **Back up** your custom files before updating Regenerator 2000.
+- **Validate** your TOML before launching — a syntax error will cause the file to be silently
+  skipped. Check the log file at `/tmp/regenerator2000.log` for parsing errors.

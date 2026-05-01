@@ -74,6 +74,10 @@ struct Cli {
     /// Dump embedded system config files (system-*.json) to the specified directory and exit
     #[arg(long = "dump-system-config-files", value_name = "PATH")]
     dump_system_config_files: Option<String>,
+
+    /// Dump built-in theme files (theme-*.toml) to the specified directory and exit
+    #[arg(long = "dump-theme-files", value_name = "PATH")]
+    dump_theme_files: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -703,6 +707,16 @@ fn main() -> Result<()> {
     if let Some(dest) = cli.dump_system_config_files {
         let dest_path = PathBuf::from(&dest);
         if let Err(e) = regenerator2000_core::assets::dump_system_config_files(&dest_path) {
+            eprintln!("Error: {e}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
+
+    // Handle --dump-theme-files early: write files and exit
+    if let Some(dest) = cli.dump_theme_files {
+        let dest_path = PathBuf::from(&dest);
+        if let Err(e) = regenerator2000_tui::theme_file::dump_theme_files(&dest_path) {
             eprintln!("Error: {e}");
             std::process::exit(1);
         }

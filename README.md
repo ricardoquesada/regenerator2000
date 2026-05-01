@@ -137,6 +137,7 @@ regenerator2000 [OPTIONS] [path/to/file.prg]
 -   `--mcp-server-stdio`: Run MCP server via stdio
 -   `--vice <HOST:PORT>`: Auto-connect to VICE binary monitor at startup (e.g. `--vice localhost:6502`)
 -   `--dump-system-config-files <PATH>`: Dump all built-in system config files (`system-*.json`) to the specified directory and exit. Useful for inspecting or customizing platform definitions.
+-   `--dump-theme-files <PATH>`: Dump all built-in theme files (`theme-*.toml`) to the specified directory and exit. Edit them and place in the [config directory](https://regenerator2000.readthedocs.io/en/latest/install/) to create custom themes.
 
 Supported file formats: `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, 6502bench (`.dis65`), `.bin`, `.raw`, and `.regen2000proj`.
 

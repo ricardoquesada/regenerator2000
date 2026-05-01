@@ -24,6 +24,7 @@ pub use regenerator2000_core::*;
 
 pub mod events;
 pub mod theme;
+pub mod theme_file;
 pub mod ui;
 pub mod ui_state;
 pub mod utils;

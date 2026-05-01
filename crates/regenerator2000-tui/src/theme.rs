@@ -1,9 +1,9 @@
 use ratatui::style::Color;
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Theme {
-    pub name: &'static str,
+    pub name: String,
     pub background: Color,
     pub foreground: Color,
     pub border_active: Color,
@@ -307,6 +307,10 @@ impl Theme {
 
     #[must_use]
     pub fn from_name(name: &str) -> Self {
+        // Check custom themes first (user overrides take precedence)
+        if let Some(theme) = crate::theme_file::find_custom_theme(name) {
+            return theme;
+        }
         match name {
             "Solarized Light" => Self::light(),
             "Dracula" => Self::dracula(),
@@ -323,7 +327,7 @@ impl Theme {
     #[must_use]
     pub fn dark() -> Self {
         Self {
-            name: "Solarized Dark",
+            name: "Solarized Dark".to_string(),
             background: Solarized::BASE03,
             foreground: Solarized::BASE0,
             border_active: Solarized::BLUE,
@@ -400,7 +404,7 @@ impl Theme {
     #[must_use]
     pub fn light() -> Self {
         Self {
-            name: "Solarized Light",
+            name: "Solarized Light".to_string(),
             background: Solarized::BASE3,
             foreground: Solarized::BASE00,
             border_active: Solarized::BLUE,
@@ -475,24 +479,33 @@ impl Theme {
     }
 
     #[must_use]
-    pub fn all_names() -> Vec<&'static str> {
-        vec![
-            "Solarized Dark",
-            "Solarized Light",
-            "Dracula",
-            "Gruvbox Dark",
-            "Gruvbox Light",
-            "Monokai",
-            "Nord",
-            "Catppuccin Mocha",
-            "Catppuccin Latte",
-        ]
+    pub fn all_names() -> Vec<String> {
+        let mut names: Vec<String> = vec![
+            "Solarized Dark".to_string(),
+            "Solarized Light".to_string(),
+            "Dracula".to_string(),
+            "Gruvbox Dark".to_string(),
+            "Gruvbox Light".to_string(),
+            "Monokai".to_string(),
+            "Nord".to_string(),
+            "Catppuccin Mocha".to_string(),
+            "Catppuccin Latte".to_string(),
+        ];
+
+        // Append custom theme names, skipping any that match built-in names
+        for name in crate::theme_file::custom_theme_names() {
+            if !names.iter().any(|n| n == &name) {
+                names.push(name);
+            }
+        }
+
+        names
     }
 
     #[must_use]
     pub fn dracula() -> Self {
         Self {
-            name: "Dracula",
+            name: "Dracula".to_string(),
             background: Dracula::BACKGROUND,
             foreground: Dracula::FOREGROUND,
             border_active: Dracula::PURPLE,
@@ -568,7 +581,7 @@ impl Theme {
     #[must_use]
     pub fn gruvbox_dark() -> Self {
         Self {
-            name: "Gruvbox Dark",
+            name: "Gruvbox Dark".to_string(),
             background: Gruvbox::BG0,
             foreground: Gruvbox::FG,
             border_active: Gruvbox::ORANGE,
@@ -644,7 +657,7 @@ impl Theme {
     #[must_use]
     pub fn gruvbox_light() -> Self {
         Self {
-            name: "Gruvbox Light",
+            name: "Gruvbox Light".to_string(),
             background: Gruvbox::BG0_LIGHT,
             foreground: Gruvbox::FG_LIGHT,
             border_active: Gruvbox::ORANGE,
@@ -721,7 +734,7 @@ impl Theme {
     #[must_use]
     pub fn monokai() -> Self {
         Self {
-            name: "Monokai",
+            name: "Monokai".to_string(),
             background: Monokai::BACKGROUND,
             foreground: Monokai::FOREGROUND,
             border_active: Monokai::YELLOW,
@@ -797,7 +810,7 @@ impl Theme {
     #[must_use]
     pub fn nord() -> Self {
         Self {
-            name: "Nord",
+            name: "Nord".to_string(),
             background: Nord::NORD0,
             foreground: Nord::NORD4,
             border_active: Nord::NORD8,
@@ -873,7 +886,7 @@ impl Theme {
     #[must_use]
     pub fn catppuccin_mocha() -> Self {
         Self {
-            name: "Catppuccin Mocha",
+            name: "Catppuccin Mocha".to_string(),
             background: CatppuccinMocha::BASE,
             foreground: CatppuccinMocha::TEXT,
             border_active: CatppuccinMocha::MAUVE,
@@ -949,7 +962,7 @@ impl Theme {
     #[must_use]
     pub fn catppuccin_latte() -> Self {
         Self {
-            name: "Catppuccin Latte",
+            name: "Catppuccin Latte".to_string(),
             background: CatppuccinLatte::BASE,
             foreground: CatppuccinLatte::TEXT,
             border_active: CatppuccinLatte::MAUVE,
