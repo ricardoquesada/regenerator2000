@@ -54,7 +54,7 @@ A subroutine is considered **already analyzed** if its entry point has a **line 
 To build the candidate list:
 
 1. From the refreshed `r2000_get_symbols` data, filter labels that represent subroutine entry points:
-   - Labels whose name starts with `sub_` (auto-generated subroutine labels), OR
+   - Labels whose name starts with `s_` (auto-generated subroutine labels), OR
    - Labels in a `Code` block that are the target of at least one `JSR` cross-reference.
 2. For each candidate, check if it already has a line comment (from the refreshed `r2000_get_comments` data) whose text contains `=-=-=-=`. If yes → **skip it** (already documented).
 3. The remaining list = **unanalyzed routines**.
@@ -100,13 +100,12 @@ A symbol is considered **already analyzed** if:
 To build the candidate list:
 
 1. From the refreshed `r2000_get_symbols` data, collect all labels whose name matches auto-generated patterns:
-   - `lab_XXXX` — generic auto-generated labels.
-   - `dat_XXXX` — auto-generated data labels.
-   - Do **NOT** include `sub_XXXX` labels — those were handled in Phase 2.
-2. For **external labels** (addresses outside the binary's loaded range):
-   - **Only include unknown addresses** — addresses that don't correspond to well-known platform registers or OS entry points.
-   - **Skip** hardware registers (e.g., VIC-II `$D000–$D3FF`, SID `$D400–$D7FF`, CIA `$DC00–$DDFF` on C64) and KERNAL entry points (e.g., `$FFD2`, `$FFE4` on C64). These are already identifiable by their address alone and don't need a full subagent analysis.
-   - Use your knowledge of the target platform's memory map to determine which external addresses are "well-known" vs "unknown".
+   - `zpp_XX`, `zpf_XX` and `zpa_XX` — auto-generated pointers, fields and absolute addresses in the zero page.
+   - `p_XXXX`, `f_XXXX` and `a_XXXX` — auto-generated pointers, fields and absolute addresses outside the zero page.
+2. Do **NOT** include:
+   - `s_XXXX` labels — those were handled in Phase 2.
+   - `b_XXXX` labels — those are branch labels, not data symbols.
+   - `e_XXXX` labels — those are external jump labels, not data symbols.
 3. The remaining list = **unanalyzed symbols**.
 
 ### 3.2 Launch Parallel Subagents
@@ -151,8 +150,8 @@ After all symbol subagents complete:
 
   | Address | Old Label  | New Label       | Summary                                 |
   | ------- | ---------- | --------------- | --------------------------------------- |
-  | `$C000` | `sub_C000` | `init_screen`   | Clears screen RAM and sets border color |
-  | `$C050` | `sub_C050` | `read_joystick` | Reads CIA1 port A for joystick 2 input  |
+  | `$C000` | `s_C000`   | `init_screen`   | Clears screen RAM and sets border color |
+  | `$C050` | `s_C050`   | `read_joystick` | Reads CIA1 port A for joystick 2 input  |
   | ...     | ...        | ...             | ...                                     |
 
 ### Symbols Summary
