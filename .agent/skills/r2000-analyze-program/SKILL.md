@@ -105,7 +105,7 @@ To build the candidate list:
 2. Do **NOT** include:
    - `s_XXXX` labels — those were handled in Phase 2.
    - `b_XXXX` labels — those are branch labels, not data symbols.
-   - `e_XXXX` labels — those are external jump labels, not data symbols.
+   - `e_XXXX` labels — those are external JMP/JSR targets, not data symbols.
 3. The remaining list = **unanalyzed symbols**.
 
 ### 3.2 Launch Parallel Subagents
