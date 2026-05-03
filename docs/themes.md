@@ -112,7 +112,7 @@ The easiest way to create a custom theme is to start from the built-in files:
     ```toml
     name = "Green Screen"
     base = "Solarized Dark"
-    background = "#001100"
+    background = "#003300"
     foreground = "#33FF33"
     border_active = "#33FF33"
     border_inactive = "#116611"
