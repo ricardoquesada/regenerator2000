@@ -290,66 +290,66 @@ mod serialization_tests {
         // Test zero page addresses with types that should use 4 digits
         assert_eq!(
             LabelType::ExternalJump.format_label(0xFF),
-            "e00FF",
+            "e_00FF",
             "ExternalJump in ZP should use 4 digits"
         );
         assert_eq!(
             LabelType::AbsoluteAddress.format_label(0xA0),
-            "a00A0",
+            "a_00A0",
             "AbsoluteAddress in ZP should use 4 digits"
         );
         assert_eq!(
             LabelType::Field.format_label(0x10),
-            "f0010",
+            "f_0010",
             "Field in ZP should use 4 digits"
         );
         assert_eq!(
             LabelType::Pointer.format_label(0xFB),
-            "p00FB",
+            "p_00FB",
             "Pointer in ZP should use 4 digits"
         );
 
         // Test zero page addresses with types that should use 2 digits
         assert_eq!(
             LabelType::ZeroPageField.format_label(0xFF),
-            "fFF",
+            "zpf_FF",
             "ZeroPageField in ZP should use 2 digits"
         );
         assert_eq!(
             LabelType::ZeroPagePointer.format_label(0xFB),
-            "pFB",
+            "zpp_FB",
             "ZeroPagePointer in ZP should use 2 digits"
         );
         assert_eq!(
             LabelType::Jump.format_label(0x10),
-            "j10",
+            "j_10",
             "Jump in ZP should use 2 digits"
         );
         assert_eq!(
             LabelType::Subroutine.format_label(0x20),
-            "s20",
+            "s_20",
             "Subroutine in ZP should use 2 digits"
         );
 
         // Test non-zero page addresses (all should use 4 digits)
         assert_eq!(
             LabelType::Jump.format_label(0x1000),
-            "j1000",
+            "j_1000",
             "Jump outside ZP should use 4 digits"
         );
         assert_eq!(
             LabelType::Subroutine.format_label(0xC000),
-            "sC000",
+            "s_C000",
             "Subroutine outside ZP should use 4 digits"
         );
         assert_eq!(
             LabelType::Field.format_label(0x1234),
-            "f1234",
+            "f_1234",
             "Field outside ZP should use 4 digits"
         );
         assert_eq!(
             LabelType::Pointer.format_label(0xD020),
-            "pD020",
+            "p_D020",
             "Pointer outside ZP should use 4 digits"
         );
     }

@@ -14,7 +14,7 @@ fn test_export_all_labels_disabled() {
     state.labels.insert(
         regenerator2000_core::state::Addr(0x0010),
         vec![regenerator2000_core::state::Label {
-            name: "f10".to_string(),
+            name: "zpf_10".to_string(),
             kind: regenerator2000_core::state::LabelKind::Auto,
             label_type: regenerator2000_core::state::LabelType::ZeroPageField,
         }],
@@ -27,12 +27,12 @@ fn test_export_all_labels_disabled() {
     state.disassemble();
 
     // precise verification: disassembly should NOT verify external label definition
-    // External label definitions usually look like `f10 = $10`
+    // External label definitions usually look like `zpf_10 = $10`
     // And headers like `; ZP FIELDS`
     // We iterate and ensure none of that is there.
     for line in &state.disassembly {
         assert!(
-            !(line.mnemonic.contains("ZP FIELDS") || line.mnemonic.contains("f10 =")),
+            !(line.mnemonic.contains("ZP FIELDS") || line.mnemonic.contains("zpf_10 =")),
             "Disassembly contained external label definition but 'all_labels' is false!"
         );
     }
@@ -51,7 +51,7 @@ fn test_export_all_labels_disabled() {
     // println!("Content:\n{}", content);
 
     // Must contain the label definition
-    assert!(content.contains("f10 = $10"));
+    assert!(content.contains("zpf_10 = $10"));
     assert!(content.contains("; ZP FIELDS"));
 
     let _ = std::fs::remove_file(&path);

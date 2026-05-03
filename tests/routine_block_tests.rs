@@ -39,7 +39,7 @@ fn test_routine_block_local_symbols_64tass() {
     state.labels.insert(
         Addr(0x1000),
         vec![regenerator2000_core::state::Label {
-            name: "s1000".to_string(),
+            name: "s_1000".to_string(),
             label_type: regenerator2000_core::state::LabelType::Subroutine,
             kind: regenerator2000_core::state::LabelKind::Auto,
         }],
@@ -47,7 +47,7 @@ fn test_routine_block_local_symbols_64tass() {
     state.labels.insert(
         Addr(0x1007),
         vec![regenerator2000_core::state::Label {
-            name: "s1007".to_string(),
+            name: "s_1007".to_string(),
             label_type: regenerator2000_core::state::LabelType::Subroutine,
             kind: regenerator2000_core::state::LabelKind::Auto,
         }],
@@ -69,7 +69,7 @@ fn test_routine_block_local_symbols_64tass() {
 
     // Check entry point is in .proc (now index 1 due to virtual splitter at start)
     assert_eq!(disasm[0].mnemonic, "{splitter}");
-    assert_eq!(disasm[1].label, Some("s1000".to_string()));
+    assert_eq!(disasm[1].label, Some("s_1000".to_string()));
     assert_eq!(disasm[1].mnemonic, ".block");
 
     // Check instruction has NO label (suppressed)
@@ -91,8 +91,8 @@ fn test_routine_block_local_symbols_64tass() {
     assert_eq!(disasm[7].mnemonic, "{splitter}");
 
     // Check second function (not a routine)
-    assert_eq!(disasm[8].label, Some("s1007".to_string()));
-    assert_eq!(disasm[9].operand, "s1007");
+    assert_eq!(disasm[8].label, Some("s_1007".to_string()));
+    assert_eq!(disasm[9].operand, "s_1007");
 }
 
 #[test]
@@ -124,7 +124,7 @@ fn test_routine_block_local_referenced_from_outside() {
     state.labels.insert(
         Addr(0x1000),
         vec![regenerator2000_core::state::Label {
-            name: "s1000".to_string(),
+            name: "s_1000".to_string(),
             label_type: regenerator2000_core::state::LabelType::Subroutine,
             kind: regenerator2000_core::state::LabelKind::Auto,
         }],
@@ -145,12 +145,12 @@ fn test_routine_block_local_referenced_from_outside() {
     // 6:       jmp b1002 (1005)
 
     assert_eq!(disasm[0].mnemonic, "{splitter}");
-    assert_eq!(disasm[1].label, Some("s1000".to_string()));
+    assert_eq!(disasm[1].label, Some("s_1000".to_string()));
     assert_eq!(disasm[3].label, Some("l00".to_string()));
     assert_eq!(disasm[3].operand, "l00");
     assert_eq!(disasm[5].mnemonic, ".bend");
     assert_eq!(disasm[6].mnemonic, "{splitter}");
-    assert_eq!(disasm[7].operand, "s1000.l00");
+    assert_eq!(disasm[7].operand, "s_1000.l00");
 }
 
 #[test]
@@ -203,7 +203,7 @@ fn test_routine_split_by_bytes() {
     state.labels.insert(
         Addr(0x1000),
         vec![regenerator2000_core::state::Label {
-            name: "s1000".to_string(),
+            name: "s_1000".to_string(),
             label_type: regenerator2000_core::state::LabelType::Subroutine,
             kind: regenerator2000_core::state::LabelKind::User,
         }],
@@ -307,7 +307,7 @@ fn test_routine_block_local_symbols_ca65() {
     state.labels.insert(
         Addr(0x1000),
         vec![regenerator2000_core::state::Label {
-            name: "s1000".to_string(),
+            name: "s_1000".to_string(),
             label_type: regenerator2000_core::state::LabelType::Subroutine,
             kind: regenerator2000_core::state::LabelKind::Auto,
         }],
@@ -315,7 +315,7 @@ fn test_routine_block_local_symbols_ca65() {
     state.labels.insert(
         Addr(0x1007),
         vec![regenerator2000_core::state::Label {
-            name: "s1007".to_string(),
+            name: "s_1007".to_string(),
             label_type: regenerator2000_core::state::LabelType::Subroutine,
             kind: regenerator2000_core::state::LabelKind::Auto,
         }],
@@ -328,7 +328,7 @@ fn test_routine_block_local_symbols_ca65() {
     assert_eq!(disasm[0].mnemonic, "{splitter}");
     assert_eq!(disasm[1].label, None); // ca65 emits .proc with operand
     assert_eq!(disasm[1].mnemonic, ".proc");
-    assert_eq!(disasm[1].operand, "s1000");
+    assert_eq!(disasm[1].operand, "s_1000");
 
     // Check instruction has NO label (suppressed)
     assert_eq!(disasm[2].label, None);
@@ -349,8 +349,8 @@ fn test_routine_block_local_symbols_ca65() {
     assert_eq!(disasm[7].mnemonic, "{splitter}");
 
     // Check second function (not a routine)
-    assert_eq!(disasm[8].label, Some("s1007".to_string()));
-    assert_eq!(disasm[9].operand, "s1007");
+    assert_eq!(disasm[8].label, Some("s_1007".to_string()));
+    assert_eq!(disasm[9].operand, "s_1007");
 }
 
 #[test]
@@ -384,7 +384,7 @@ fn test_routine_block_local_symbols_kickasm() {
     state.labels.insert(
         Addr(0x1000),
         vec![regenerator2000_core::state::Label {
-            name: "s1000".to_string(),
+            name: "s_1000".to_string(),
             label_type: regenerator2000_core::state::LabelType::Subroutine,
             kind: regenerator2000_core::state::LabelKind::Auto,
         }],
@@ -392,7 +392,7 @@ fn test_routine_block_local_symbols_kickasm() {
     state.labels.insert(
         Addr(0x1007),
         vec![regenerator2000_core::state::Label {
-            name: "s1007".to_string(),
+            name: "s_1007".to_string(),
             label_type: regenerator2000_core::state::LabelType::Subroutine,
             kind: regenerator2000_core::state::LabelKind::Auto,
         }],
@@ -403,7 +403,7 @@ fn test_routine_block_local_symbols_kickasm() {
 
     // Check entry point is in scope (now index 1 due to virtual splitter at start)
     assert_eq!(disasm[0].mnemonic, "{splitter}");
-    assert_eq!(disasm[1].label, Some("s1000".to_string()));
+    assert_eq!(disasm[1].label, Some("s_1000".to_string()));
     assert_eq!(disasm[1].mnemonic, "{");
 
     // Check instruction has NO label (suppressed)
@@ -425,6 +425,6 @@ fn test_routine_block_local_symbols_kickasm() {
     assert_eq!(disasm[7].mnemonic, "{splitter}");
 
     // Check second function (not a routine)
-    assert_eq!(disasm[8].label, Some("s1007".to_string()));
-    assert_eq!(disasm[9].operand, "s1007");
+    assert_eq!(disasm[8].label, Some("s_1007".to_string()));
+    assert_eq!(disasm[9].operand, "s_1007");
 }

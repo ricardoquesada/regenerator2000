@@ -715,7 +715,7 @@ mod tests {
                 .get(&0x1005)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("j1005")
+            Some("j_1005")
         );
         // $1008 is JSR target -> s1008
         assert_eq!(
@@ -723,7 +723,7 @@ mod tests {
                 .get(&0x1008)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("s1008")
+            Some("s_1008")
         );
         // $1000 is accessed via LDA (Absolute) -> a1000
         assert_eq!(
@@ -731,7 +731,7 @@ mod tests {
                 .get(&0x1000)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("a1000")
+            Some("a_1000")
         );
     }
 
@@ -754,7 +754,7 @@ mod tests {
                 .get(&0x2000)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("e2000")
+            Some("e_2000")
         );
     }
 
@@ -775,7 +775,7 @@ mod tests {
                 .get(&0x0010)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("a10")
+            Some("zpa_10")
         );
     }
 
@@ -796,7 +796,7 @@ mod tests {
                 .get(&0x0050)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("f50")
+            Some("zpf_50")
         );
     }
 
@@ -823,7 +823,7 @@ mod tests {
                 .get(&0x0010)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("e0010")
+            Some("e_0010")
         );
     }
 
@@ -854,7 +854,7 @@ mod tests {
                 .get(&0x1000)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("a1000")
+            Some("a_1000")
         );
 
         // And content of DataWord ($2000) should still be None (assuming it's external/ignored)
@@ -879,7 +879,7 @@ mod tests {
                 .get(&0x1002)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("b1002")
+            Some("b_1002")
         );
 
         // Case 2: $1002 -> jump to $1083. Usage: e1083 (External logic applies to Branch too now)
@@ -888,7 +888,7 @@ mod tests {
                 .get(&0x1083)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("e1083")
+            Some("e_1083")
         );
 
         // Case 3: $1004 -> jump to $0F86. Usage: e0F86
@@ -897,7 +897,7 @@ mod tests {
                 .get(&0x0F86)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("e0F86")
+            Some("e_0F86")
         );
 
         // Case 4: $1006 -> jump to $1007. Usage: b1007
@@ -906,7 +906,7 @@ mod tests {
                 .get(&0x1007)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("b1007")
+            Some("b_1007")
         );
 
         // Case 5: $1008 -> jump to $1008. Usage: b1008
@@ -915,7 +915,7 @@ mod tests {
                 .get(&0x1008)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("b1008")
+            Some("b_1008")
         );
     }
 
@@ -950,7 +950,7 @@ mod tests {
                 .get(&0x1000)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("p1000")
+            Some("p_1000")
         );
 
         // Indirect X -> p10
@@ -959,7 +959,7 @@ mod tests {
                 .get(&0x0010)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("p10")
+            Some("zpp_10")
         );
 
         // Indirect Y -> p20
@@ -968,7 +968,7 @@ mod tests {
                 .get(&0x0020)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("p20")
+            Some("zpp_20")
         );
 
         // Absolute X -> f1050
@@ -977,7 +977,7 @@ mod tests {
                 .get(&0x1050)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("f1050")
+            Some("f_1050")
         );
 
         // Absolute Y -> f1060
@@ -986,7 +986,7 @@ mod tests {
                 .get(&0x1060)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("f1060")
+            Some("f_1060")
         );
 
         // ZeroPage X -> f30
@@ -995,7 +995,7 @@ mod tests {
                 .get(&0x0030)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("f30")
+            Some("zpf_30")
         );
     }
 
@@ -1035,7 +1035,7 @@ mod tests {
                 .get(&0x1005)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("b1005")
+            Some("b_1005")
         );
 
         // Also verify usage map contains all types?
@@ -1069,7 +1069,7 @@ mod tests {
                 .get(&0x1005)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("b1005")
+            Some("b_1005")
         );
     }
 
@@ -1108,7 +1108,7 @@ mod tests {
                 .get(&0xE000)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("aE000")
+            Some("a_E000")
         );
     }
 
@@ -1139,7 +1139,7 @@ mod tests {
                 .get(&0xE500)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("eE500")
+            Some("e_E500")
         );
     }
 
@@ -1164,7 +1164,7 @@ mod tests {
                 .get(&0x1081)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("e1081")
+            Some("e_1081")
         );
     }
 
@@ -1193,9 +1193,9 @@ mod tests {
             .expect("Should have a label at $00A0");
         let label = labels.first().expect("Label vector should not be empty");
 
-        // User wants "a00A0" because it was forced absolute / accessed absolutely.
+        // User wants "a_00A0" because it was forced absolute / accessed absolutely.
         // Current bug: "aA0"
-        assert_eq!(label.name, "a00A0");
+        assert_eq!(label.name, "a_00A0");
     }
 
     #[test]
@@ -1203,7 +1203,7 @@ mod tests {
         let mut app_state = AppState::new();
         // 9D A0 00 -> STA $00A0, X (Absolute, X)
         // Absolute indexed addressing mode targeting a ZP address.
-        // Should generate "f00A0" (Field, 4 digits) NOT "fA0" (ZP Field, 2 digits).
+        // Should generate "f_00A0" (Field, 4 digits) NOT "fA0" (ZP Field, 2 digits).
         app_state.raw_data = vec![0x9D, 0xA0, 0x00];
         app_state.origin = Addr(0x1000);
         app_state.block_types = vec![BlockType::Code; 3];
@@ -1229,7 +1229,7 @@ mod tests {
             LabelType::Field,
             "Should be Field type (Absolute Indexed)"
         );
-        assert_eq!(label.name, "f00A0");
+        assert_eq!(label.name, "f_00A0");
     }
 
     #[test]
@@ -1240,13 +1240,13 @@ mod tests {
         //    - This is AddressingMode::Indirect.
         //    - It targets $FB but the operands are $FB $00.
         //    - It should generate LabelType::Pointer ("p")
-        //    - The USER wants this to be "p00FB" (4 digits) because it's used as a 16-bit pointer.
+        //    - The USER wants this to be "p_00FB" (4 digits) because it's used as a 16-bit pointer.
 
         // 2. LDA ($FB), Y -> B1 FB
         //    - This is AddressingMode::IndirectY.
         //    - It targets $FB.
         //    - It should generate LabelType::ZeroPagePointer ("p")
-        //    - The USER wants this to be "pFB" (2 digits).
+        //    - The USER wants this to be "zpp_FB" (2 digits).
 
         app_state.origin = Addr(0x1000);
         let data = vec![
@@ -1281,17 +1281,17 @@ mod tests {
         let label_vec = labels_map
             .get(&0x00FB)
             .expect("Should have labels at $00FB");
-        // We expect BOTH labels now: "p00FB" (Absolute style) and "pFB" (ZeroPage style).
+        // We expect BOTH labels now: "p_00FB" (Absolute style) and "zpp_FB" (ZeroPage style).
 
         let has_p00fb = label_vec
             .iter()
-            .any(|l| l.name == "p00FB" && l.label_type == LabelType::Pointer);
+            .any(|l| l.name == "p_00FB" && l.label_type == LabelType::Pointer);
         let has_pfb = label_vec
             .iter()
-            .any(|l| l.name == "pFB" && l.label_type == LabelType::ZeroPagePointer);
+            .any(|l| l.name == "zpp_FB" && l.label_type == LabelType::ZeroPagePointer);
 
-        assert!(has_p00fb, "Should have p00FB label for JMP ($00FB)");
-        assert!(has_pfb, "Should have pFB label for LDA ($FB),Y");
+        assert!(has_p00fb, "Should have p_00FB label for JMP ($00FB)");
+        assert!(has_pfb, "Should have zpp_FB label for LDA ($FB),Y");
         assert_eq!(label_vec.len(), 2, "Should have TWO labels for $00FB");
     }
 
@@ -1335,8 +1335,8 @@ mod tests {
             .expect("Should have labels at $00A0");
 
         let names: Vec<_> = label_vec.iter().map(|l| l.name.as_str()).collect();
-        assert!(names.contains(&"aA0"), "Should have aA0 label");
-        assert!(names.contains(&"a00A0"), "Should have a00A0 label");
+        assert!(names.contains(&"zpa_A0"), "Should have zpa_A0 label");
+        assert!(names.contains(&"a_00A0"), "Should have a_00A0 label");
         assert_eq!(
             label_vec.len(),
             2,
@@ -1364,7 +1364,7 @@ mod tests {
                 .get(&0xC000)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("aC000")
+            Some("a_C000")
         );
 
         // Check $D001 -> aD001
@@ -1373,7 +1373,7 @@ mod tests {
                 .get(&0xD001)
                 .and_then(|v| v.first())
                 .map(|l| l.name.as_str()),
-            Some("aD001")
+            Some("a_D001")
         );
     }
 

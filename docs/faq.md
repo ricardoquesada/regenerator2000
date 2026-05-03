@@ -96,17 +96,20 @@ globally — every instruction that references that address will use the new nam
 
 ### What do the label prefixes mean?
 
-Auto-generated labels use a single-letter prefix to indicate how they are referenced:
+Auto-generated labels use a short prefix to indicate how they are referenced:
 
 | Prefix | Meaning                                          |
 | :----- | :----------------------------------------------- |
-| `s`    | Subroutine target (referenced by `JSR`)          |
-| `j`    | Jump target (referenced by `JMP`)                |
-| `b`    | Branch target (referenced by `BNE`, `BEQ`, etc.) |
-| `f`    | Field / indexed address (`LDA fXXXX,x`)          |
-| `a`    | Absolute address (`LDA aXXXX`)                   |
-| `p`    | Pointer / indirect address (`LDA (pXX),y`)       |
-| `e`    | External address (outside the loaded file)       |
+| `s_`   | Subroutine target (referenced by `JSR`)          |
+| `j_`   | Jump target (referenced by `JMP`)                |
+| `b_`   | Branch target (referenced by `BNE`, `BEQ`, etc.) |
+| `f_`   | Field / indexed address (`LDA f_XXXX,x`)         |
+| `a_`   | Absolute address (`LDA a_XXXX`)                  |
+| `p_`   | Pointer / indirect address (`LDA (p_XX),y`)      |
+| `e_`   | External address (outside the loaded file)       |
+| `zpf_` | Zero-page field (`LDA zpf_XX,x`)                 |
+| `zpa_` | Zero-page absolute address (`LDA zpa_XX`)        |
+| `zpp_` | Zero-page pointer (`LDA (zpp_XX),y`)             |
 
 ### What is the difference between a local and a global label?
 

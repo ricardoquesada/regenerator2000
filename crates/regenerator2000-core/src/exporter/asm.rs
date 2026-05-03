@@ -689,7 +689,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x0002),
             vec![crate::state::Label {
-                name: "f0002".to_string(),
+                name: "zpf_0002".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageField,
             }],
@@ -697,7 +697,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0xFFD2),
             vec![crate::state::Label {
-                name: "sFFD2".to_string(),
+                name: "s_FFD2".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::Subroutine,
             }],
@@ -736,8 +736,8 @@ mod tests {
         println!("Content:\n{content}");
 
         // These assertions should currently FAIL because they don't start with 'e'
-        assert!(content.contains("f0002 = $02")); // Now it should be $02 for ZP
-        assert!(content.contains("sFFD2 = $ffd2"));
+        assert!(content.contains("zpf_0002 = $02")); // Now it should be $02 for ZP
+        assert!(content.contains("s_FFD2 = $ffd2"));
 
         let _ = std::fs::remove_file(&path);
     }
@@ -868,7 +868,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x0010),
             vec![crate::state::Label {
-                name: "f10".to_string(),
+                name: "zpf_10".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageField,
             }],
@@ -876,7 +876,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x0005),
             vec![crate::state::Label {
-                name: "f05".to_string(),
+                name: "zpf_05".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageField,
             }],
@@ -886,7 +886,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x0020),
             vec![crate::state::Label {
-                name: "a20".to_string(),
+                name: "zpa_20".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageAbsoluteAddress,
             }],
@@ -896,7 +896,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x0030),
             vec![crate::state::Label {
-                name: "p30".to_string(),
+                name: "zpp_30".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPagePointer,
             }],
@@ -906,7 +906,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x1000),
             vec![crate::state::Label {
-                name: "f1000".to_string(),
+                name: "f_1000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::Field,
             }],
@@ -916,7 +916,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x2000),
             vec![crate::state::Label {
-                name: "a2000".to_string(),
+                name: "a_2000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::AbsoluteAddress,
             }],
@@ -926,7 +926,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x3000),
             vec![crate::state::Label {
-                name: "p3000".to_string(),
+                name: "p_3000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::Pointer,
             }],
@@ -936,7 +936,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x4000),
             vec![crate::state::Label {
-                name: "e4000".to_string(),
+                name: "e_4000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ExternalJump,
             }],
@@ -946,7 +946,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x5000),
             vec![crate::state::Label {
-                name: "b5000".to_string(),
+                name: "b_5000".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::Branch,
             }],
@@ -956,7 +956,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x0011),
             vec![crate::state::Label {
-                name: "a0011".to_string(), // Manually named absolute
+                name: "a_0011".to_string(), // Manually named absolute
                 kind: crate::state::LabelKind::User,
                 label_type: crate::state::LabelType::AbsoluteAddress,
             }],
@@ -994,60 +994,60 @@ mod tests {
         let mut idx = 9; // Skip header lines (Separator is line 8, ZP FIELDS is line 9)
         assert_eq!(lines[idx], "; ZP FIELDS");
         idx += 1;
-        assert_eq!(lines[idx], "f05 = $05");
+        assert_eq!(lines[idx], "zpf_05 = $05");
         idx += 1;
-        assert_eq!(lines[idx], "f10 = $10");
+        assert_eq!(lines[idx], "zpf_10 = $10");
         idx += 1;
         assert_eq!(lines[idx], "");
         idx += 1;
 
         assert_eq!(lines[idx], "; ZP ABSOLUTE ADDRESSES");
         idx += 1;
-        assert_eq!(lines[idx], "a20 = $20");
+        assert_eq!(lines[idx], "zpa_20 = $20");
         idx += 1;
         assert_eq!(lines[idx], "");
         idx += 1;
 
         assert_eq!(lines[idx], "; ZP POINTERS");
         idx += 1;
-        assert_eq!(lines[idx], "p30 = $30");
+        assert_eq!(lines[idx], "zpp_30 = $30");
         idx += 1;
         assert_eq!(lines[idx], "");
         idx += 1;
 
         assert_eq!(lines[idx], "; FIELDS");
         idx += 1;
-        assert_eq!(lines[idx], "f1000 = $1000");
+        assert_eq!(lines[idx], "f_1000 = $1000");
         idx += 1;
         assert_eq!(lines[idx], "");
         idx += 1;
 
         assert_eq!(lines[idx], "; ABSOLUTE ADDRESSES");
         idx += 1;
-        assert_eq!(lines[idx], "a0011 = $0011"); // Added case
+        assert_eq!(lines[idx], "a_0011 = $0011"); // Added case
         idx += 1;
-        assert_eq!(lines[idx], "a2000 = $2000");
+        assert_eq!(lines[idx], "a_2000 = $2000");
         idx += 1;
         assert_eq!(lines[idx], "");
         idx += 1;
 
         assert_eq!(lines[idx], "; POINTERS");
         idx += 1;
-        assert_eq!(lines[idx], "p3000 = $3000");
+        assert_eq!(lines[idx], "p_3000 = $3000");
         idx += 1;
         assert_eq!(lines[idx], "");
         idx += 1;
 
         assert_eq!(lines[idx], "; EXTERNAL JUMPS");
         idx += 1;
-        assert_eq!(lines[idx], "e4000 = $4000");
+        assert_eq!(lines[idx], "e_4000 = $4000");
         idx += 1;
         assert_eq!(lines[idx], "");
         idx += 1;
 
         assert_eq!(lines[idx], "; OTHERS");
         idx += 1;
-        assert_eq!(lines[idx], "b5000 = $5000");
+        assert_eq!(lines[idx], "b_5000 = $5000");
 
         let _ = std::fs::remove_file(&path);
     }
@@ -1346,7 +1346,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x0010),
             vec![crate::state::Label {
-                name: "f10".to_string(),
+                name: "zpf_10".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageField,
             }],
@@ -1361,7 +1361,7 @@ mod tests {
         // precise verification: disassembly should NOT contain external label definition
         for line in &state.disassembly {
             assert!(
-                !line.mnemonic.contains("ZP FIELDS") && !line.mnemonic.contains("f10 ="),
+                !line.mnemonic.contains("ZP FIELDS") && !line.mnemonic.contains("zpf_10 ="),
                 "Disassembly contained external label definition but 'all_labels' is false!"
             );
         }
@@ -1379,7 +1379,7 @@ mod tests {
         let content = std::fs::read_to_string(&path).unwrap();
 
         // Must contain the label definition
-        assert!(content.contains("f10 = $10"));
+        assert!(content.contains("zpf_10 = $10"));
         assert!(content.contains("; ZP FIELDS"));
 
         if path.exists() {
@@ -1399,7 +1399,7 @@ mod tests {
         state.labels.insert(
             crate::state::Addr(0x0002),
             vec![crate::state::Label {
-                name: "f0002".to_string(),
+                name: "zpf_0002".to_string(),
                 kind: crate::state::LabelKind::Auto,
                 label_type: crate::state::LabelType::ZeroPageField,
             }],
@@ -1418,7 +1418,7 @@ mod tests {
         // Check for KickAssembler comment style in header
         assert!(content.contains("// ZP FIELDS"));
         // Standard check
-        assert!(content.contains("f0002 = $02"));
+        assert!(content.contains("zpf_0002 = $02"));
 
         if path.exists() {
             let _ = std::fs::remove_file(&path);

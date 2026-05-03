@@ -189,6 +189,24 @@ For the best results, we recommend applying these skills in the following order:
 2. **Micro Analysis (Control Flow)**: Use `r2000-analyze-routine` to understand the logic of individual subroutines.
 3. **Micro Analysis (Data Flow)**: Use `r2000-analyze-symbol` to identify variables, pointers, and hardware registers.
 
+Or, use **`r2000-analyze-program`** to run all three steps automatically in the correct order, with parallel subagents for throughput.
+
+### Skill: `r2000-analyze-program`
+
+Orchestrates a full end-to-end analysis of the loaded binary. Runs block classification first, then launches parallel subagents to analyze every unanalyzed subroutine and data symbol.
+
+**What it does:**
+
+1. Gathers binary info, existing blocks, symbols, and comments.
+2. Runs `r2000-analyze-blocks` to classify all memory regions (code, data, text, tables).
+3. Identifies unanalyzed subroutines (those without a documentation header) and launches up to 10 parallel subagents, each running `r2000-analyze-routine` to document one routine.
+4. Identifies unanalyzed data symbols (auto-generated `lab_XXXX` / `dat_XXXX` names) and launches up to 10 parallel subagents, each running `r2000-analyze-symbol` to classify and rename one symbol.
+5. Saves the project and produces a summary report with all changes made.
+
+!!! example "Prompt"
+
+    > "Analyze this program", "Full analysis", "Analyze everything"
+
 ### Skill: `r2000-analyze-blocks`
 
 Scans a memory range (or the entire binary) and converts each region to the correct block type — separating code from data, text from tables, and pointers from raw bytes. This is the foundational reverse-engineering pass you run on a freshly loaded binary.

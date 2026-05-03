@@ -375,21 +375,21 @@ pub enum LabelType {
 
 impl LabelType {
     #[must_use]
-    pub fn prefix(&self) -> char {
+    pub fn prefix(&self) -> &'static str {
         match self {
-            LabelType::ZeroPageField => 'f',
-            LabelType::Field => 'f',
-            LabelType::ZeroPageAbsoluteAddress => 'a',
-            LabelType::AbsoluteAddress => 'a',
-            LabelType::Pointer => 'p',
-            LabelType::ZeroPagePointer => 'p',
-            LabelType::ExternalJump => 'e',
-            LabelType::Jump => 'j',
-            LabelType::Subroutine => 's',
-            LabelType::Branch => 'b',
-            LabelType::Predefined => 'L',
-            LabelType::UserDefined => 'L',
-            LabelType::LocalUserDefined => 'L',
+            LabelType::ZeroPageField => "zpf_",
+            LabelType::Field => "f_",
+            LabelType::ZeroPageAbsoluteAddress => "zpa_",
+            LabelType::AbsoluteAddress => "a_",
+            LabelType::Pointer => "p_",
+            LabelType::ZeroPagePointer => "zpp_",
+            LabelType::ExternalJump => "e_",
+            LabelType::Jump => "j_",
+            LabelType::Subroutine => "s_",
+            LabelType::Branch => "b_",
+            LabelType::Predefined => "L_",
+            LabelType::UserDefined => "L_",
+            LabelType::LocalUserDefined => "L_",
         }
     }
 
