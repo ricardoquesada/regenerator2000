@@ -23,7 +23,7 @@ fn default_config_values() {
 }
 
 #[test]
-fn serialize_deserialize_roundtrip() {
+fn serialize_deserialize_roundtrip_toml() {
     let config = SystemConfig {
         theme: "Nord".to_string(),
         open_last_project: false,
@@ -38,8 +38,8 @@ fn serialize_deserialize_roundtrip() {
         ..Default::default()
     };
 
-    let json = serde_json::to_string_pretty(&config).unwrap();
-    let deserialized: SystemConfig = serde_json::from_str(&json).unwrap();
+    let toml_str = toml::to_string_pretty(&config).unwrap();
+    let deserialized: SystemConfig = toml::from_str(&toml_str).unwrap();
 
     assert_eq!(deserialized.theme, "Nord");
     assert!(!deserialized.open_last_project);
@@ -88,18 +88,18 @@ fn unknown_fields_are_ignored() {
 #[test]
 fn config_path_override_is_not_serialized() {
     let config = SystemConfig {
-        config_path_override: Some(PathBuf::from("/tmp/override.json")),
+        config_path_override: Some(PathBuf::from("/tmp/override.toml")),
         ..Default::default()
     };
 
-    let json = serde_json::to_string(&config).unwrap();
+    let toml_str = toml::to_string(&config).unwrap();
     assert!(
-        !json.contains("config_path_override"),
+        !toml_str.contains("config_path_override"),
         "config_path_override should be skipped in serialization"
     );
 
     // And deserialization should set it to None
-    let deserialized: SystemConfig = serde_json::from_str(&json).unwrap();
+    let deserialized: SystemConfig = toml::from_str(&toml_str).unwrap();
     assert!(deserialized.config_path_override.is_none());
 }
 
@@ -107,7 +107,7 @@ fn config_path_override_is_not_serialized() {
 fn save_and_load_with_override_path() {
     let dir = std::env::temp_dir().join("r2000_config_test");
     let _ = std::fs::create_dir_all(&dir);
-    let config_path = dir.join("test_config.json");
+    let config_path = dir.join("test_config.toml");
 
     let config = SystemConfig {
         config_path_override: Some(config_path.clone()),
@@ -119,9 +119,9 @@ fn save_and_load_with_override_path() {
     let save_result = config.save();
     assert!(save_result.is_ok(), "Save failed: {:?}", save_result.err());
 
-    // Read back and verify
+    // Read back and verify — save() now writes TOML
     let data = std::fs::read_to_string(&config_path).unwrap();
-    let loaded: SystemConfig = serde_json::from_str(&data).unwrap();
+    let loaded: SystemConfig = toml::from_str(&data).unwrap();
     assert_eq!(loaded.theme, "Monokai");
     assert!(!loaded.open_last_project);
 
@@ -222,9 +222,17 @@ fn clean_recent_projects_filters_non_regen2000proj() {
 }
 
 #[test]
-fn corrupted_json_does_not_crash_load() {
+fn corrupted_toml_does_not_crash_load() {
     // SystemConfig::load() reads from the config directory,
-    // so we test the JSON parsing directly
+    // so we test the TOML parsing directly
+    let bad_toml = "this is [[[not valid toml";
+    let result = toml::from_str::<SystemConfig>(bad_toml);
+    assert!(result.is_err());
+}
+
+#[test]
+fn corrupted_json_does_not_crash_legacy_load() {
+    // Legacy JSON parsing should also handle corruption
     let bad_json = "{ this is not valid json }}}}}";
     let result = serde_json::from_str::<SystemConfig>(bad_json);
     assert!(result.is_err());
@@ -237,7 +245,7 @@ fn entropy_threshold_serialization() {
         ..Default::default()
     };
 
-    let json = serde_json::to_string(&config).unwrap();
-    let loaded: SystemConfig = serde_json::from_str(&json).unwrap();
+    let toml_str = toml::to_string(&config).unwrap();
+    let loaded: SystemConfig = toml::from_str(&toml_str).unwrap();
     assert!((loaded.entropy_threshold - 5.25).abs() < f32::EPSILON);
 }

@@ -90,21 +90,56 @@ impl SystemConfig {
     #[must_use]
     pub fn load() -> Self {
         if let Some(proj_dirs) = ProjectDirs::from("", "", "regenerator2000") {
-            let config_path = proj_dirs.config_dir().join("config.json");
-            if config_path.exists()
-                && let Ok(data) = std::fs::read_to_string(&config_path)
+            let config_dir = proj_dirs.config_dir();
+
+            // Try config.toml first (preferred format).
+            let toml_path = config_dir.join("config.toml");
+            if toml_path.exists()
+                && let Ok(data) = std::fs::read_to_string(&toml_path)
             {
-                match serde_json::from_str::<Self>(&data) {
+                match toml::from_str::<Self>(&data) {
                     Ok(mut config) => {
                         config.clean_recent_projects();
                         return config;
                     }
                     Err(e) => {
-                        let backup_path = config_path.with_extension("json.bak");
-                        let _ = std::fs::copy(&config_path, &backup_path);
+                        let backup_path = toml_path.with_extension("toml.bak");
+                        let _ = std::fs::copy(&toml_path, &backup_path);
                         log::error!(
                             "Failed to parse config file: {}. Backed up to {:?}. Error: {}",
-                            config_path.display(),
+                            toml_path.display(),
+                            backup_path,
+                            e
+                        );
+                    }
+                }
+            }
+
+            // Fall back to legacy config.json and migrate.
+            let json_path = config_dir.join("config.json");
+            if json_path.exists()
+                && let Ok(data) = std::fs::read_to_string(&json_path)
+            {
+                match serde_json::from_str::<Self>(&data) {
+                    Ok(mut config) => {
+                        config.clean_recent_projects();
+                        // Migrate: save as TOML and remove the old JSON file.
+                        if config.save().is_ok() {
+                            let _ = std::fs::remove_file(&json_path);
+                            log::info!(
+                                "Migrated config from {} to {}",
+                                json_path.display(),
+                                toml_path.display()
+                            );
+                        }
+                        return config;
+                    }
+                    Err(e) => {
+                        let backup_path = json_path.with_extension("json.bak");
+                        let _ = std::fs::copy(&json_path, &backup_path);
+                        log::error!(
+                            "Failed to parse legacy config file: {}. Backed up to {:?}. Error: {}",
+                            json_path.display(),
                             backup_path,
                             e
                         );
@@ -121,15 +156,15 @@ impl SystemConfig {
     /// Returns an error if the directory cannot be created or the file cannot be written.
     pub fn save(&self) -> anyhow::Result<()> {
         if let Some(path) = &self.config_path_override {
-            let data = serde_json::to_string_pretty(self)?;
+            let data = toml::to_string_pretty(self)?;
             std::fs::write(path, data)?;
             return Ok(());
         }
         if let Some(proj_dirs) = ProjectDirs::from("", "", "regenerator2000") {
             let config_dir = proj_dirs.config_dir();
             std::fs::create_dir_all(config_dir)?;
-            let config_path = config_dir.join("config.json");
-            let data = serde_json::to_string_pretty(self)?;
+            let config_path = config_dir.join("config.toml");
+            let data = toml::to_string_pretty(self)?;
             std::fs::write(config_path, data)?;
         }
         Ok(())

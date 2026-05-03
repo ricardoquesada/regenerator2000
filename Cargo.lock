@@ -2440,6 +2440,7 @@ dependencies = [
  "serde_json",
  "simplelog",
  "tokio",
+ "toml",
  "vergen-gitcl",
 ]
 

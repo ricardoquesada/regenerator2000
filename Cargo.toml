@@ -59,5 +59,8 @@ tokio = { version = "1.52", features = ["rt-multi-thread", "sync", "net", "macro
 anyhow = "1.0"
 vergen-gitcl = "9.1.0"
 
+[dev-dependencies]
+toml = "0.8"
+
 [lints]
 workspace = true
