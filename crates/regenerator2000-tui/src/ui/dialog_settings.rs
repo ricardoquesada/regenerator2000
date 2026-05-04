@@ -41,7 +41,7 @@ impl Widget for SettingsDialog {
         let theme = &ui_state.theme;
         let block = crate::ui::widget::create_dialog_block(" Settings ", theme);
 
-        let area = crate::utils::centered_rect_adaptive(50, 40, 40, 14, area); // Increased height for popup space
+        let area = crate::utils::centered_rect_adaptive(50, 40, 40, 17, area);
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
@@ -49,14 +49,7 @@ impl Widget for SettingsDialog {
         let inner = block.inner(area);
 
         let items = vec![
-            format!(
-                "{} Open the latest file on startup",
-                if app_state.system_config.open_last_project {
-                    "[X]"
-                } else {
-                    "[ ]"
-                }
-            ),
+            // Group 1: Sync views (indices 0-4)
             format!(
                 "{} Sync Blocks View",
                 if app_state.system_config.sync_blocks_view {
@@ -97,9 +90,10 @@ impl Widget for SettingsDialog {
                     "[ ]"
                 }
             ),
+            // Group 2: General toggles (indices 5-7)
             format!(
-                "{} Check for updates",
-                if app_state.system_config.check_for_updates {
+                "{} Open the latest file on startup",
+                if app_state.system_config.open_last_project {
                     "[X]"
                 } else {
                     "[ ]"
@@ -114,11 +108,32 @@ impl Widget for SettingsDialog {
                 }
             ),
             format!(
+                "{} Check for updates",
+                if app_state.system_config.check_for_updates {
+                    "[X]"
+                } else {
+                    "[ ]"
+                }
+            ),
+            // Group 3: Entropy threshold (index 8)
+            format!(
                 "Entropy Warning Threshold: < {:.1} >",
                 app_state.system_config.entropy_threshold
             ),
+            // Group 4: Theme (index 9)
             format!("Theme: < {} >", app_state.system_config.theme),
         ];
+
+        // Extra y-offset for visual group separators:
+        // Group 1 (0-4), gap, Group 2 (5-7), gap, Group 3 (8), gap, Group 4 (9)
+        let group_offset = |i: usize| -> u16 {
+            match i {
+                0..=4 => 0, // Sync views
+                5..=7 => 1, // General toggles (1 separator after sync views)
+                8 => 2,     // Entropy (2 separators total)
+                _ => 3,     // Theme (3 separators total)
+            }
+        };
 
         for (i, item) in items.into_iter().enumerate() {
             let style = if self.selected_index == i {
@@ -129,9 +144,10 @@ impl Widget for SettingsDialog {
                 Style::default().fg(theme.dialog_fg)
             };
 
+            let y = inner.y + 1 + i as u16 + group_offset(i);
             f.render_widget(
                 Paragraph::new(item).style(style),
-                Rect::new(inner.x + 2, inner.y + 1 + i as u16, inner.width - 4, 1),
+                Rect::new(inner.x + 2, y, inner.width - 4, 1),
             );
         }
 
@@ -261,35 +277,35 @@ impl Widget for SettingsDialog {
                     self.is_selecting_theme = false;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 0 {
-                    app_state.system_config.open_last_project =
-                        !app_state.system_config.open_last_project;
-                    let _ = app_state.system_config.save();
-                } else if self.selected_index == 1 {
                     app_state.system_config.sync_blocks_view =
                         !app_state.system_config.sync_blocks_view;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 2 {
+                } else if self.selected_index == 1 {
                     app_state.system_config.sync_hex_dump = !app_state.system_config.sync_hex_dump;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 3 {
+                } else if self.selected_index == 2 {
                     app_state.system_config.sync_sprites_view =
                         !app_state.system_config.sync_sprites_view;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 4 {
+                } else if self.selected_index == 3 {
                     app_state.system_config.sync_charset_view =
                         !app_state.system_config.sync_charset_view;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 5 {
+                } else if self.selected_index == 4 {
                     app_state.system_config.sync_bitmap_view =
                         !app_state.system_config.sync_bitmap_view;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 6 {
-                    app_state.system_config.check_for_updates =
-                        !app_state.system_config.check_for_updates;
+                } else if self.selected_index == 5 {
+                    app_state.system_config.open_last_project =
+                        !app_state.system_config.open_last_project;
                     let _ = app_state.system_config.save();
-                } else if self.selected_index == 7 {
+                } else if self.selected_index == 6 {
                     app_state.system_config.default_is_unexplored =
                         !app_state.system_config.default_is_unexplored;
+                    let _ = app_state.system_config.save();
+                } else if self.selected_index == 7 {
+                    app_state.system_config.check_for_updates =
+                        !app_state.system_config.check_for_updates;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 9 {
                     self.is_selecting_theme = true;

@@ -12,15 +12,18 @@ The Settings dialog allows you to configure global preferences for the applicati
 ```text
 ┌ Settings ----------------------------------------┐
 │                                                  │
-│  [X] Open the latest file on startup             │
 │  [X] Sync Blocks View                            │
 │  [X] Sync Hex Dump View                          │
 │  [ ] Sync Sprites View                           │
 │  [ ] Sync Charset View                           │
 │  [ ] Sync Bitmap View                            │
-│  [X] Check for updates                           │
+│                                                  │
+│  [X] Open the latest file on startup             │
 │  [X] Default is Unexplored (for new files)       │
+│  [X] Check for updates                           │
+│                                                  │
 │  Entropy Warning Threshold: < 7.5 >              │
+│                                                  │
 │  Theme: < Dracula >                              │
 │                                                  │
 └──────────────────────────────────────────────────┘
@@ -28,45 +31,51 @@ The Settings dialog allows you to configure global preferences for the applicati
 
 ### Options
 
-1. **Open the latest file on startup**
-       - **Description**: When enabled, the application will automatically open the
+#### Sync View Options
+
+The following options control whether different views automatically
+synchronize their cursor with the main Disassembly View.
+When enabled, navigating in the Disassembly View will update the others to show
+the corresponding memory location. Listed in keyboard shortcut order (++ctrl+1++ through ++ctrl+5++).
+
+1. **Sync Blocks View** (++ctrl+1++): Synchronizes the Blocks view.
+2. **Sync Hex Dump View** (++ctrl+2++): Synchronizes the Hex Dump view.
+3. **Sync Sprites View** (++ctrl+3++): Synchronizes the Sprites view.
+4. **Sync Charset View** (++ctrl+4++): Synchronizes the Charset view.
+5. **Sync Bitmap View** (++ctrl+5++): Synchronizes the Bitmap view.
+
+#### General Options
+
+6. **Open the latest file on startup**
+       - When enabled, the application will automatically open the
          last project you were working on when it starts up. This allows you to quickly
          resume your work.
 
-2. **Sync View Options**
-       - **Description**: The following options control whether different views automatically
-         synchronize their cursor with the main Disassembly View.
-         When enabled, navigating in the Disassembly View will update the others to show
-         the corresponding memory location. Listed in keyboard shortcut order (++ctrl+1++ through ++ctrl+5++).
-       - **Sync Blocks View** (++ctrl+1++): Synchronizes the Blocks view.
-       - **Sync Hex Dump View** (++ctrl+2++): Synchronizes the Hex Dump view.
-       - **Sync Sprites View** (++ctrl+3++): Synchronizes the Sprites view.
-       - **Sync Charset View** (++ctrl+4++): Synchronizes the Charset view.
-       - **Sync Bitmap View** (++ctrl+5++): Synchronizes the Bitmap view.
-
-3. **Check for updates**
-       - **Description**: When enabled, the application checks for new releases on startup and displays
-         the latest available version in the top-right corner if an update is available.
-
-4. **Default is Unexplored (for new files)**
-       - **Description**: When enabled, newly loaded files will treat all memory regions as
+7. **Default is Unexplored (for new files)**
+       - When enabled, newly loaded files will treat all memory regions as
          Undefined/Unexplored rather than assuming they are Code. This is useful
          when you want to start disassembly from scratch without any automatic assumptions.
 
-5. **Entropy Warning Threshold**
-       - **Description**: Sets the Shannon entropy value above which the *entire binary file* is
+8. **Check for updates**
+       - When enabled, the application checks for new releases on startup and displays
+         the latest available version in the top-right corner if an update is available.
+
+#### Advanced Options
+
+9. **Entropy Warning Threshold**
+       - Sets the Shannon entropy value above which the *entire binary file* is
          flagged as potentially encrypted or compressed during initial load. Use `Left`/`Right`
          to decrease/increase the value in 0.1 increments (range 0.0–8.0).
 
-6. **Theme**
-       - **Description**: Allows you to choose the visual theme of the application.
-         There are 9 built-in themes available. You can change themes in two ways:
+10. **Theme**
+        - Allows you to choose the visual theme of the application.
+          There are 9 built-in themes available. You can change themes in two ways:
 
-         - **Quick cycle**: Press `Left`/`Right` to cycle through themes with instant live preview.
-         - **Full list**: Press `Enter` to open the theme selector popup and pick from the list.
+          - **Quick cycle**: Press `Left`/`Right` to cycle through themes with instant live preview.
+          - **Full list**: Press `Enter` to open the theme selector popup and pick from the list.
 
-         Available themes: Solarized Dark, Solarized Light, Dracula (default), Gruvbox Dark,
-         Gruvbox Light, Monokai, Nord, Catppuccin Mocha, Catppuccin Latte.
+          Available themes: Solarized Dark, Solarized Light, Dracula (default), Gruvbox Dark,
+          Gruvbox Light, Monokai, Nord, Catppuccin Mocha, Catppuccin Latte.
          See [Themes](themes.md) for screenshots and details.
 
 ## Document Settings
