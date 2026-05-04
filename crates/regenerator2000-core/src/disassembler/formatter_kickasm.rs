@@ -256,7 +256,11 @@ impl Formatter for KickAsmFormatter {
 
     fn screencode_byte_threshold(&self) -> u8 {
         // KickAssembler's screencode_mixed encoding can only round-trip
-        // screen codes $00-$3F correctly. Values $40+ are remapped.
+        // screen codes $01-$1A (letters A-Z, via case-swap) and $20-$3F
+        // (space, digits, punctuation). Screen codes $00 and $1B-$1F
+        // ($40-$5F non-letter ASCII: @, [, \, ], ^, _) are NOT remapped by
+        // screencode_mixed and must be emitted as raw bytes. Values $40+
+        // are handled by the threshold check in handle_screencode_text.
         0x40
     }
 
@@ -267,49 +271,69 @@ impl Formatter for KickAsmFormatter {
         use super::formatter::TextFragment;
         let mut lines = Vec::new();
 
-        let mut current_text_parts = Vec::new();
-        let mut current_byte_parts = Vec::new();
+        // `current_text`: raw (unquoted) characters to flush as a .text literal.
+        // `current_bytes`: hex strings to flush as a .byte directive.
+        let mut current_text = String::new();
+        let mut current_bytes: Vec<String> = Vec::new();
+
+        let flush_text =
+            |text: &mut String, lines: &mut Vec<(String, String, bool)>, fmt: &KickAsmFormatter| {
+                if !text.is_empty() {
+                    let literal = fmt.format_string_literal(text);
+                    lines.push((".text".to_string(), literal, true));
+                    text.clear();
+                }
+            };
+        let flush_bytes = |bytes: &mut Vec<String>, lines: &mut Vec<(String, String, bool)>| {
+            if !bytes.is_empty() {
+                lines.push((".byte".to_string(), bytes.join(", "), true));
+                bytes.clear();
+            }
+        };
 
         for fragment in fragments {
             match fragment {
                 TextFragment::Text(s) => {
-                    // Flush bytes if any
-                    if !current_byte_parts.is_empty() {
-                        lines.push((".byte".to_string(), current_byte_parts.join(", "), true));
-                        current_byte_parts.clear();
-                    }
-                    let swapped: String = s
-                        .chars()
-                        .map(|c| {
-                            if c.is_uppercase() {
-                                c.to_lowercase().collect::<String>()
+                    // Process each character individually. Under KickAssembler's
+                    // screencode_mixed encoding, only letters round-trip (via
+                    // case swap). Non-letter characters in the ASCII $40-$5F
+                    // range (@, [, \, ], ^, _) were derived from screen codes
+                    // $00/$1B-$1F and must be re-emitted as raw screen-code
+                    // bytes to avoid producing the wrong value.
+                    for c in s.chars() {
+                        let b = c as u8;
+                        if (0x40..=0x5F).contains(&b) && !c.is_ascii_alphabetic() {
+                            // Non-letter in $40-$5F: screencode_mixed won't remap
+                            // this back, so emit the original screen code as a raw byte.
+                            // Screen code = ASCII - $40 (e.g. $5E '^' → sc $1E).
+                            flush_text(&mut current_text, &mut lines, self);
+                            current_bytes.push(format!("${:02x}", b - 0x40));
+                        } else {
+                            // Letter or non-$40-$5F character: case-swap for
+                            // screencode_mixed and accumulate in a text literal.
+                            flush_bytes(&mut current_bytes, &mut lines);
+                            let swapped = if c.is_uppercase() {
+                                c.to_ascii_lowercase()
                             } else if c.is_lowercase() {
-                                c.to_uppercase().collect::<String>()
+                                c.to_ascii_uppercase()
                             } else {
-                                c.to_string()
-                            }
-                        })
-                        .collect();
-                    current_text_parts.push(self.format_string_literal(&swapped));
+                                c
+                            };
+                            current_text.push(swapped);
+                        }
+                    }
+                    // Flush any accumulated text at end of this fragment.
+                    flush_text(&mut current_text, &mut lines, self);
                 }
                 TextFragment::Byte(b) => {
-                    // Flush text if any
-                    if !current_text_parts.is_empty() {
-                        lines.push((".text".to_string(), current_text_parts.join(", "), true));
-                        current_text_parts.clear();
-                    }
-                    current_byte_parts.push(format!("${b:02x}"));
+                    flush_text(&mut current_text, &mut lines, self);
+                    current_bytes.push(format!("${b:02x}"));
                 }
             }
         }
 
-        // Flush remaining
-        if !current_text_parts.is_empty() {
-            lines.push((".text".to_string(), current_text_parts.join(", "), true));
-        }
-        if !current_byte_parts.is_empty() {
-            lines.push((".byte".to_string(), current_byte_parts.join(", "), true));
-        }
+        // Flush any remaining raw bytes.
+        flush_bytes(&mut current_bytes, &mut lines);
 
         lines
     }

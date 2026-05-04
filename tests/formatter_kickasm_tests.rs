@@ -261,6 +261,43 @@ fn test_screencode_case_swap() {
     );
 }
 
+/// Regression test: screen codes $00 and $1B-$1F map to ASCII $40-$5F
+/// non-letter characters (@, [, \, ], ^, _). KickAssembler's
+/// screencode_mixed encoding does NOT remap these back to their screen
+/// code values, so they must be emitted as raw `.byte` values.
+///
+/// Specifically, screen code $1E maps to '^' (ASCII $5E). If emitted as
+/// `.text "^"` under screencode_mixed the assembler produces $5E, not $1E.
+#[test]
+fn test_screencode_non_letter_chars_as_raw_bytes() {
+    let settings = DocumentSettings {
+        assembler: Assembler::Kick,
+        ..Default::default()
+    };
+    let formatter = Disassembler::create_formatter(settings.assembler);
+    use regenerator2000_core::disassembler::formatter::TextFragment;
+
+    // Screen codes $00, $1B, $1C, $1D, $1E, $1F are mapped in
+    // handle_screencode_text to ASCII $40, $5B, $5C, $5D, $5E, $5F
+    // (@, [, \, ], ^, _). Each must come back as its original screen code.
+    let fragments = vec![TextFragment::Text("@[\\]^_".to_string())];
+    let lines = formatter.format_screencode(&fragments);
+
+    // Expect: .byte $00, $1b, $1c, $1d, $1e, $1f
+    assert_eq!(lines.len(), 1, "expected single .byte line, got: {lines:?}");
+    assert_eq!(lines[0].0, ".byte");
+    assert_eq!(lines[0].1, "$00, $1b, $1c, $1d, $1e, $1f");
+
+    // Letters interleaved with non-letters: "A^B" should yield:
+    //   .text "a", .byte $1e, .text "b"
+    let fragments2 = vec![TextFragment::Text("A^B".to_string())];
+    let lines2 = formatter.format_screencode(&fragments2);
+    assert_eq!(lines2.len(), 3, "expected 3 lines, got: {lines2:?}");
+    assert_eq!(lines2[0], (".text".to_string(), "\"a\"".to_string(), true));
+    assert_eq!(lines2[1], (".byte".to_string(), "$1e".to_string(), true));
+    assert_eq!(lines2[2], (".text".to_string(), "\"b\"".to_string(), true));
+}
+
 #[test]
 fn test_mixed_encoding() {
     let settings = DocumentSettings {
