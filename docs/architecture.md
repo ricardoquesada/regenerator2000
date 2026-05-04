@@ -125,20 +125,22 @@ A heuristic engine that runs after state changes. It:
 
 - Traces code paths (following JMPs and branches).
 - Identifies referenced addresses.
-- Auto-generates labels (e.g., `j_loop_0400`) based on usage context (subroutine, branch target, pointer).
+- Auto-generates labels (e.g., `s_C000`, `j_0400`, `zpf_A0`) based on usage context (subroutine, branch, jump, pointer, field). See [Analysis — Label Prefixes](analysis.md#label-prefixes) for the complete prefix reference.
 
 ### 6. Parser ([`regenerator2000-core/src/parser/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/parser))
 
 Handles importing various Commodore file formats and label files.
 
-- **[`crt.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/crt.rs)**: Parser for Commodore 64 cartridge (.crt) files.
-- **[`d64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/d64.rs)**: Parser for D64 disk image files, supporting file extraction from 1541 disk images.
-- **[`parser.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser.rs)**: Internal file classification and parser selection logic.
+- **[`parser.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser.rs)**: Module re-exports for all parser sub-modules.
+- **[`prg.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/prg.rs)**: Parser for standard Commodore PRG files (2-byte load address header). Also parses embedded BASIC SYS addresses to suggest entry points.
+- **[`crt.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/crt.rs)**: Parser for Commodore 64 cartridge (.crt) files with multi-bank chip selection.
+- **[`d64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/d64.rs)**: Unified parser for D64 (35/40/42-track), D71 (70/80-track), and D81 disk image files. Supports file extraction from 1541/1571/1581 disk images.
 - **[`t64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/t64.rs)**: Parser for T64 tape archive files.
-- **[`vice_lbl.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_lbl.rs)**: Parser for VICE label files (for importing debug symbols).
-- **[`vice_vsf.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_vsf.rs)**: Parser for VICE snapshot files (.vsf).
+- **[`dis65.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/dis65.rs)**: Parser for 6502bench SourceGen (.dis65) project files.
+- **[`vice_lbl.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_lbl.rs)**: Parser for VICE label files (.lbl) for importing debug symbols.
+- **[`vice_vsf.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_vsf.rs)**: Parser for VICE snapshot files (.vsf). Auto-detects the platform from the VSF header.
 
-These parsers allow Regenerator 2000 to load programs from multiple source formats (PRG, CRT, D64, T64, VSF) and import debugging symbols from VICE emulator sessions.
+These parsers allow Regenerator 2000 to load programs from multiple source formats (PRG, CRT, D64/D71/D81, T64, VSF, DIS65) and import debugging symbols from VICE emulator sessions.
 
 ### 7. Exporter ([`regenerator2000-core/src/exporter/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/exporter))
 
@@ -228,13 +230,13 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   - **Layout Areas**: Cached rectangles for mouse interaction detection.
   - **TUI Widgets**: `status_bar`, `menu`, and list states for various side-panels.
 
-### 9. Theme System ([`regenerator2000-tui/src/theme.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme.rs))
+### 9. Theme System ([`regenerator2000-tui/src/theme.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme.rs) & [`theme_file.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme_file.rs))
 
 Provides customizable color schemes for the UI.
 
-- Defines color palettes for different UI elements (dialogs, menus, status bar, syntax highlighting).
-- Supports multiple built-in themes.
-- Allows users to customize the appearance of the application.
+- **[`theme.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme.rs)**: Defines color palettes for different UI elements (dialogs, menus, status bar, syntax highlighting). Loads themes by name.
+- **[`theme_file.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme_file.rs)**: Parses TOML-based theme definition files (`theme-*.toml`). Built-in themes are embedded as assets; users can override or create custom themes by placing TOML files in the config directory.
+- Supports multiple built-in themes (Dracula, Nord, Catppuccin, Gruvbox, etc.).
 
 ### 10. Configuration ([`regenerator2000-core/src/config.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/config.rs))
 
