@@ -11,7 +11,7 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 
 - **Get the Target**: If the user provides a label or address, use that. If not, use `r2000_get_disassembly_cursor` or `r2000_get_address_details` to identify the address under the cursor.
 - **Get the Platform**: Use `r2000_get_binary_info`.
-  - **CRITICAL**: Knowing the platform (e.g., C64, VIC-20) is essential for identifying hardware registers (VIC-II, SID, CIA, VIA).
+  - **CRITICAL**: Knowing the platform is essential for identifying hardware registers and OS/KERNAL addresses. You **MUST** use your knowledge of the specific target computer's memory map, hardware registers, and OS entry points.
   - **CONTEXT**: Use the `filename` response and `description` (if provided) to identify the specific game or program. This allows you to infer domain-specific labels (e.g., "lap_counter" for a racing game, "lives" for a platformer) and look up known memory maps for popular titles.
   - **UNDOCUMENTED OPCODES**: If `may_contain_undocumented_opcodes` is `true`, the binary may use illegal/undocumented MOS 6502 opcodes. When tracing cross-references, be aware that instructions like `LAX`, `SAX`, `DCP`, etc. are valid and their read/write side effects must be considered in the data flow analysis.
 
@@ -25,20 +25,15 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
     - **Modify**: `INC`, `DEC`, `ASL`, `LSR`, `ROR`, `ROL` (read-modify-write).
 - **If `r2000_get_cross_references` returns zero results**:
   - The symbol may be referenced **indirectly** via a pointer — check if the address is in Zero Page (`$00–$FF`) and whether nearby code uses `($addr),Y` or `($addr,X)` patterns.
-  - It may be a well-known OS/KERNAL address that the disassembler doesn't generate an explicit cross-reference for — check the platform's memory map. If **platform = C64**, see the **C64 Reference** section below.
+  - The symbol may be a well-known OS/KERNAL address that the disassembler doesn't generate an explicit cross-reference for — use your knowledge of the target platform's memory map based on the `platform` value from `r2000_get_binary_info`.
   - It may be **dead code / an unused variable**. Note this in the report.
 
 ## 3. Analyze Patterns (Heuristics)
 
 ### Is it a Hardware Register?
 
-- Check the address against the **platform's memory map**. Use your knowledge of the target computer's hardware registers.
-- **If platform = C64** (see **C64 Reference** section below):
-  - `$D000–$D02E`: VIC-II (Sprites, Screen control, IRQ).
-  - `$D400–$D7FF`: SID (Sound voices, filters, volume).
-  - `$DC00–$DCFF`: CIA 1 (Joystick, Keyboard, IRQ).
-  - `$DD00–$DDFF`: CIA 2 (Serial bus, NMI, VIC bank).
-- If it matches a hardware register, rename it to the standard hardware name (e.g., `VIC_SPR0_X`, `SID_FreqLo1`, `CIA1_PRA`).
+- Check the address against the **platform's memory map**. Use your knowledge of the target computer's hardware registers based on the `platform` value from `r2000_get_binary_info`.
+- If it matches a known hardware register, rename it to the standard hardware name (e.g., the chip name + register, or the platform's conventional name for that register).
 
 ### Is it a Pointer (16-bit)?
 
@@ -90,62 +85,19 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 
 ---
 
-## C64 Reference (only when platform = C64)
-
-> **Use this section only if `r2000_get_binary_info` returns platform = C64.**
-> For other platforms (VIC-20, Apple II, NES, etc.), rely on your own knowledge of that platform's memory map and OS addresses.
-
-### C64 Memory Map
-
-| Address Range | Description                              |
-| ------------- | ---------------------------------------- |
-| `$0000–$00FF` | Zero Page (fast variables, pointers)     |
-| `$0100–$01FF` | CPU Stack                                |
-| `$0200–$03FF` | OS work area, BASIC input buffer         |
-| `$0314–$0315` | Hardware IRQ vector shadow (CINV)        |
-| `$0400–$07FF` | Default Screen RAM (1000 bytes + spare)  |
-| `$0800–$9FFF` | BASIC program area / free RAM            |
-| `$A000–$BFFF` | BASIC ROM (or RAM underneath)            |
-| `$C000–$CFFF` | Free RAM                                 |
-| `$D000–$D3FF` | VIC-II registers (when I/O visible)      |
-| `$D400–$D7FF` | SID registers (when I/O visible)         |
-| `$D800–$DBFF` | Color RAM                                |
-| `$DC00–$DCFF` | CIA 1 (keyboard, joystick, IRQ timer)    |
-| `$DD00–$DDFF` | CIA 2 (serial bus, NMI, VIC bank select) |
-| `$E000–$FFFF` | KERNAL ROM (or RAM underneath)           |
-
-### Well-Known Zero Page Addresses (C64)
-
-| Address   | KERNAL / BASIC Usage                     |
-| --------- | ---------------------------------------- |
-| `$00–$01` | CPU I/O port (memory map control)        |
-| `$02–$0F` | KERNAL/BASIC temporaries — avoid reusing |
-| `$22–$25` | KERNAL indirect pointer temporaries      |
-| `$39–$3E` | Floating-point accumulator (BASIC)       |
-| `$61–$66` | Floating-point register 1 (BASIC)        |
-| `$90`     | KERNAL status flag (ST)                  |
-| `$91`     | Stop-key flag                            |
-| `$C5`     | Last key pressed (matrix code)           |
-| `$CB`     | Matrix position of current key           |
-| `$D3`     | Current cursor column                    |
-
----
-
 ## Example Output
 
-If you analyze `$0314` on C64 and see:
+If you analyze an IRQ vector address and see:
 
 - References: Written during init, read during IRQ handler.
-- Context: `$0314` is the hardware IRQ vector shadow.
-- **Action**: Rename to `IRQ_VECTOR_LO` (or standard `CINV`). Add comment: "Hardware IRQ vector shadow".
+- Context: Platform's IRQ vector shadow location.
+- **Action**: Rename to `IRQ_VECTOR_LO`. Add comment: "Hardware IRQ vector shadow".
 
-If you analyze `$20` and see:
+If you analyze a Zero Page address and see:
 
 - References: `STA ($20),Y`.
 - Context: Zero Page.
 - **Action**: Rename to `ptr_dest`. Add comment: "Destination pointer for memory copy".
-
----
 
 ## Reporting Results
 
@@ -156,5 +108,3 @@ After completing the analysis, report to the user:
 - **Evidence**: The key cross-references or usage patterns that led to the conclusion.
 - **Actions taken**: What was renamed or commented.
 - **Uncertain / no refs**: If `r2000_get_cross_references` returned nothing, explain the possibilities (indirect use, KERNAL address, or dead variable).
-
-Always ask the user's confirmation before applying `r2000_set_label_name` or adding comments, unless they explicitly said "go ahead and rename it."
