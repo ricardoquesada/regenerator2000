@@ -19,8 +19,8 @@ Regenerator 2000 supports the following formats:
 | :--------------- | :--------------------------------------------------------------- |
 | `.prg`           | Standard Commodore program (first 2 bytes = load address)        |
 | `.crt`           | C64 cartridge image with bank selection                          |
-| `.d64`           | 35/40-track disk image (pick a PRG from within)                  |
-| `.d71`           | 70-track double-sided disk image                                 |
+| `.d64`           | 35/40/42-track disk image (pick a PRG from within)               |
+| `.d71`           | 70/80-track double-sided disk image                              |
 | `.d81`           | 80-track disk image                                              |
 | `.t64`           | Tape image container (pick a PRG from within)                    |
 | `.vsf`           | VICE snapshot — extracts RAM and uses PC as start address        |
@@ -227,21 +227,6 @@ right pane using:
 
 By default, the Hex Dump and Blocks views sync with the Disassembly cursor. You can enable or disable syncing for each
 view independently in **File → Settings** (++alt+p++ or ++ctrl+comma++).
-
-### What do the entropy values in the Hex Dump mean?
-
-Entropy measures how "random" a block of data is (Shannon entropy, 0.0–8.0):
-
-| Symbol  | Entropy Level     | Typical Content                |
-| :------ | :---------------- | :----------------------------- |
-| (empty) | Low (< 2.0)       | Repetitive data, zeroed memory |
-| `░`     | Moderate (< 4.0)  | Text, simple data tables       |
-| `▒`     | Mixed (< 6.0)     | Code, structured data          |
-| `▓`     | High (< 7.5)      | Graphics, music data           |
-| `█`     | Very High (≥ 7.5) | Compressed or encrypted data   |
-
-If a file has overall high entropy, Regenerator 2000 displays a warning suggesting it may be packed or compressed.
-You can adjust the threshold in Settings.
 
 ---
 
