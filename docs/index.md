@@ -99,6 +99,7 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 
 - **[Installation & Usage](install.md)**: Setup guide.
 - **[Views](views.md)**: Detailed breakdown of each view.
+- **[Analysis](analysis.md)**: How the auto-analyzer works and label prefix reference.
 - **[Keyboard Shortcuts](keyboard_shortcuts.md)**: Master the controls.
 - **[Debugger (VICE)](debugger.md)**: Connect to VICE for live debugging.
 - **[MCP Integration](mcp.md)**: meaningful AI collaboration.

@@ -57,6 +57,7 @@ nav:
       - Tutorial: tutorial.md
       - Views: views.md
       - Blocks: blocks.md
+      - Analysis: analysis.md
   - User Reference:
       - Keyboard Shortcuts: keyboard_shortcuts.md
       - Debugger (VICE): debugger.md

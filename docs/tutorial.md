@@ -64,9 +64,11 @@ appears.
 When you first load a file, Regenerator 2000 automatically analyzes the binary (if enabled in Settings). It will:
 
 - Trace code flow from known entry points.
-- Create labels for subroutines (`sXXXX`), jump targets (`jXXXX`), and branch targets (`bXXXX`).
+- Create labels for subroutines (`s_XXXX`), jump targets (`j_XXXX`), branch targets (`b_XXXX`), and more.
 - Build cross-references so you can see _who_ calls _what_.
 - Identify system addresses (KERNAL, I/O registers, etc.) based on the selected platform.
+
+See [Analysis](analysis.md) for a full explanation of how the analyzer works and what the label prefixes mean.
 
 If auto-analyze is disabled, you can trigger it manually with ++ctrl+a++.
 

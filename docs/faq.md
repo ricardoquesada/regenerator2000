@@ -96,20 +96,11 @@ globally — every instruction that references that address will use the new nam
 
 ### What do the label prefixes mean?
 
-Auto-generated labels use a short prefix to indicate how they are referenced:
+Auto-generated labels use a short prefix that indicates how the address is referenced in the code. For example,
+`s_C000` means a subroutine entry point at `$C000`, while `zpa_A0` means a zero-page absolute address at `$A0`.
 
-| Prefix | Meaning                                          |
-| :----- | :----------------------------------------------- |
-| `s_`   | Subroutine target (referenced by `JSR`)          |
-| `j_`   | Jump target (referenced by `JMP`)                |
-| `b_`   | Branch target (referenced by `BNE`, `BEQ`, etc.) |
-| `f_`   | Field / indexed address (`LDA f_XXXX,x`)         |
-| `a_`   | Absolute address (`LDA a_XXXX`)                  |
-| `p_`   | Pointer / indirect address (`LDA (p_XX),y`)      |
-| `e_`   | External address (outside the loaded file)       |
-| `zpf_` | Zero-page field (`LDA zpf_XX,x`)                 |
-| `zpa_` | Zero-page absolute address (`LDA zpa_XX`)        |
-| `zpp_` | Zero-page pointer (`LDA (zpp_XX),y`)             |
+See [Analysis — Label Prefixes](analysis.md#label-prefixes) for the complete prefix reference and how the
+analyzer decides which prefix to assign.
 
 ### What is the difference between a local and a global label?
 
