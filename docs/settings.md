@@ -54,9 +54,9 @@ The Settings dialog allows you to configure global preferences for the applicati
          when you want to start disassembly from scratch without any automatic assumptions.
 
 5. **Entropy Warning Threshold**
-       - **Description**: Sets the Shannon entropy value above which a memory region is
-         flagged as potentially encrypted or compressed. Use `Left`/`Right` to decrease/increase
-         the value in 0.1 increments (range 0.0–8.0).
+       - **Description**: Sets the Shannon entropy value above which the *entire binary file* is
+         flagged as potentially encrypted or compressed during initial load. Use `Left`/`Right`
+         to decrease/increase the value in 0.1 increments (range 0.0–8.0).
 
 6. **Theme**
        - **Description**: Allows you to choose the visual theme of the application.
@@ -95,19 +95,19 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
 │  Fill run threshold: < 8 >                                             │
 │  Assembler: < 64tass >                                                 │
 │  Platform: < Commodore 64 >                                            │
-│  System Labels:                                                        │
+│  Platform Labels:                                                      │
 │    [x] KERNAL                                                          │
 │    [ ] BASIC                                                           │
 │    [ ] I/O                                                             │
 │  [x] Exclude well-known addresses from symbolic analysis               │
-│  [x] Show system comments                                              │
+│  [x] Show platform comments                                            │
 │                                                                        │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 !!! Note
 
-    The **System Labels**, **Exclude well-known addresses**, and **Show system comments** options are
+    The **Platform Labels**, **Exclude well-known addresses**, and **Show platform comments** options are
     platform-dependent and only appear when the selected platform provides the corresponding data.
 
 ### Options
@@ -227,8 +227,8 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
          lax $0900,y      ; x-ref: $0833
          stx $d020        ; Border Color
          lda #$04
-         sta a02
-         dcp a02          ; x-ref: $082b
+         sta a_0002
+         dcp a_0002          ; x-ref: $082b
          bne $0829
          sax $0400
          iny
@@ -305,23 +305,23 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
 
 15. **Platform**
         - **Description**: Defines the target hardware platform (e.g., Commodore 64). This helps the analyzer identify
-          system-specific memory maps, hardware registers (like VIC-II or SID), and ROM routines.
+          platform-specific memory maps, hardware registers (like VIC-II or SID), and ROM routines.
           Press `Enter` to open the platform selector popup, or use `Left`/`Right` to cycle.
-          Changing the platform resets the enabled **System Labels** features.
+          Changing the platform resets the enabled **Platform Labels** features.
 
-16. **System Labels** *(platform-dependent)*
-        - **Description**: A group of checkboxes that control which system label sets are loaded for the current platform.
+16. **Platform Labels** *(platform-dependent)*
+        - **Description**: A group of checkboxes that control which platform label sets are loaded for the current platform.
           For example, on the Commodore 64 the available sets include **KERNAL**, **BASIC**, **I/O**, etc.
           Each set provides pre-defined labels for well-known addresses (ROM entry points, hardware registers, etc.).
           Toggle a set with `Space` or `Enter`. The available sets depend on the selected **Platform**.
 
 17. **Exclude well-known addresses from symbolic analysis** *(platform-dependent)*
-        - **Description**: When enabled, addresses that are covered by the platform's system label definitions are excluded
+        - **Description**: When enabled, addresses that are covered by the platform's platform label definitions are excluded
           from the analyzer's code-walking pass. This prevents the analyzer from chasing into ROM routines or hardware
           registers, which can reduce false positives in the disassembly. Only appears for platforms that define excluded
           address ranges in their platform config.
 
-18. **Show system comments** *(platform-dependent)*
-        - **Description**: When enabled, pre-defined system comments (e.g. hardware register descriptions like
+18. **Show platform comments** *(platform-dependent)*
+        - **Description**: When enabled, pre-defined platform comments (e.g. hardware register descriptions like
           "Border Color" for `$D020` on the C64) are displayed as side comments in the disassembly view.
-          Only appears for platforms that include system comments in their platform config.
+          Only appears for platforms that include platform comments in their platform config.

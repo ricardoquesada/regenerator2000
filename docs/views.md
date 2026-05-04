@@ -11,7 +11,8 @@ In this view, you can:
 - **Navigate Memory**: Move through the address space, jump to specific addresses or labels, and follow code execution flows.
 - **Define Block Types**: Classify memory regions as Code, Byte data, Word data, or various Text formats to make sense of the binary.
 - **Annotate**: Add comments to lines or specific instructions and rename labels to something meaningful.
-- **Analyze Flow**: Visual indicators show jump and branch targets, helping you understand the program's logic.
+- **Analyze Flow**: Visual indicators show jump and branch targets, and unexplored code blocks are dimmed for visual clarity.
+- **Minimap Bar**: A horizontal bar at the bottom of the main view shows a high-level overview of block types across the entire address space. It uses sub-character precision and allows mouse interaction for navigation.
 
 ![Disassembly View](regenerator2000_disassembly_screenshot.png)
 
@@ -91,7 +92,7 @@ This bird's-eye view is essential for understanding the overall structure of the
 
 The Hexdump View provides a raw hexadecimal representation of the memory, side-by-side with an text representation. It is useful for inspecting data that hasn't been formatted yet or for verifying the exact byte values in a region.
 
-This view supports different text decoding modes to help you spot strings in standard C64 formats. It also shows the entropy of the data, which can help you identify regions that are likely to contain compressed data.
+This view supports different text decoding modes to help you spot strings in standard C64 formats. Bytes are colored using a **byte-value color palette** for improved visual pattern recognition, making it easier to spot repeating values or data structures.
 
 ![Hexdump View](regenerator2000_hexdump_screenshot.png)
 
@@ -100,19 +101,9 @@ The Hex Dump view consists of:
 - **a**: The address
 - **b**: 16 bytes of hex dump
 - **c**: The text representation, that can be any of: "Screencode shifted", "Screencode unshifted", "PETSCII shifted", "PETSCII unshifted".
-- **d**: The entropy of the data. The higher the value, the more random it is.
 
 ![Hexdump Only](regenerator2000_hexdump_only.png)
 
-The entropy is represented by these characters:
-
-- ` ` (Empty) for Low Entropy (< 2.0)
-- `░` (Light shade) for Moderate Entropy (< 4.0)
-- `▒` (Medium shade) for Mixed Entropy (< 6.0)
-- `▓` (Dark shade) for High Entropy (< 7.5)
-- `█` (Full block) for Very High Entropy (> 7.5)
-
-And entropy is calculated in 1024-bytes blocks. So the character shown is the entropy of the previous 512 bytes starting at the address of the row, plus the following 512 bytes.
 
 ### Keyboard Shortcuts
 

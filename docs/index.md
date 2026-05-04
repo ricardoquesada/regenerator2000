@@ -6,7 +6,7 @@
 
 # The Modern 6502 Disassembler
 
-**Regenerator 2000** is a modern, interactive disassembler for the Commodore 64 and other 6502-based systems. It combines the retro feel of Turbo Debugger with the power of modern tools like IDA Pro, all within a fast, keyboard-centric terminal interface.
+**Regenerator 2000** is a modern, interactive disassembler for the Commodore 64 and other 6502-based platforms. It combines the retro feel of Turbo Debugger with the power of modern tools like IDA Pro, all within a fast, keyboard-centric terminal interface.
 
 ---
 
@@ -64,7 +64,9 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 - **⚡ Fast TUI**: Built with Rust for blazingly fast performance.
 - **🧠 Analysis**: Automatically create labels and comments.
 - **⏪ Undo/Redo**: Experiment without fear.
-- **🏷️ Labels & Comments**: Rename subroutines and variable for readability.
+- **🏷️ Labels & Comments**: Rename subroutines and variables for readability.
+- **📂 Scopes**: Organize code with namespaces.
+- **🎨 Custom Themes**: Personalize your experience with TOML-based theme files.
 - **🐛 VICE Debugger Integration**: Connect to a running VICE emulator for live debugging — step through code, inspect registers, set breakpoints and watchpoints.
 - **🤖 MCP Integration**: Collaborate with AI assistants for deeper analysis.
 - **💾 Project Saving**: Save your work and resume later.
@@ -83,6 +85,8 @@ Explore the regenerative power of Regenerator 2000 through its various views:
     ```bash
     regenerator2000 my_game.prg
     ```
+
+    When importing a new binary, use the **Import Context** dialog to configure the Platform, Origin, and Entry Point.
 
 3.  **Explore**:
     - **Move**: Arrow keys, map, or jumps.
@@ -112,10 +116,10 @@ A typical workflow involves loading a file, identifying code and data regions, l
 flowchart TD
     S1[1. Load File] --> S2[2. Explore]
     S2 --> S3[3-6. Disassemble, Define Data, Labels, Comments]
-    S3 --> S7[7. Save Project]
+    S3 --> S7[7. Save]
     S3 --> S2
     S7 --> Q{Debug?}
-    Q -- No --> S10[10. Export Project]
+    Q -- No --> S10[10. Export to .asm / .html]
     Q -- Yes --> S8[8. Connect to VICE]
     S8 --> S9[9. Live Debugging]
     S9 --> S2

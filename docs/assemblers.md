@@ -88,7 +88,7 @@ Regenerator 2000 generates a single assembly file that can be assembled and link
 cl65 -t c64 -C c64-asm.cfg -o output.prg input.asm
 ```
 
-- `-t c64`: Set the target system to Commodore 64 (sets up default memory configuration).
+- `-t c64`: Set the target platform to Commodore 64 (sets up default memory configuration).
 - `-C c64-asm.cfg`: Uses the default configuration file for C64 assembly.
 - `-o`: Specify the output filename.
 
@@ -125,6 +125,34 @@ in the [cc65 documentation][cc65-docs].
 
 [c64-asm.cfg]: https://github.com/cc65/cc65/blob/master/cfg/c64-asm.cfg
 [cc65-docs]: https://cc65.github.io/doc/ld65.html#s5
+
+---
+
+## Assembler Comparison
+
+Regenerator 2000 abstracts away many assembler-specific differences, but some features use different directives depending on the target.
+
+### Fill Directives
+
+When a range of memory contains identical values (and exceeds the **Fill run threshold** in Document Settings), Regenerator 2000 emits a fill directive instead of individual bytes.
+
+| Assembler      | Directive       | Example syntax        |
+| :------------- | :-------------- | :-------------------- |
+| 64tass         | `.fill`         | `.fill 10, $00`       |
+| ACME           | `!fill`         | `!fill 10, $00`       |
+| ca65           | `.res`          | `.res 10, $00`        |
+| KickAssembler  | `.fill`         | `.fill 10, $00`       |
+
+### Scope Directives
+
+Scopes allow you to reuse label names (like `loop` or `next`) in different parts of the program without conflicts.
+
+| Assembler      | Start Directive | End Directive    | Notes                    |
+| :------------- | :-------------- | :--------------- | :----------------------- |
+| 64tass         | `.block`        | `.endblock`      |                          |
+| ACME           | `!zone`         |                  | Limited scope support    |
+| ca65           | `.proc`         | `.endproc`       |                          |
+| KickAssembler  | `.namespace`    | `.endnamespace`  |                          |
 
 ---
 

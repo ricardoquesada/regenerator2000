@@ -5,7 +5,7 @@ Regenerator 2000 is designed to be a keyboard-centric application. While it feat
 The shortcut scheme follows a simple logic:
 
 - **Block Type Operations:** These are usually a single letter or `Shift` + letter (e.g., `c` for Code, `b` for Byte).
-- **Dialogs & System Actions:** Operations that open a dialog or perform system-level tasks typically use `Ctrl` + letter or `Alt` + letter.
+- **Dialogs & Application Actions:** Operations that open a dialog or perform application-level tasks typically use `Ctrl` + letter or `Alt` + letter.
 
 We've tested these shortcuts extensively across Windows, macOS, and Linux, and in various terminal environments (including inside `tmux`). Wherever a standard shortcut might conflict with a reserved key combination (like `Ctrl+2` in `tmux`), we've provided alternatives (e.g., `Alt+2`).
 
@@ -18,6 +18,8 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Save Project As**                                                                     | ++alt+s++ or ++ctrl+shift+s++                                 |
 |                                    | **Export to .asm**                                                                      | ++ctrl+e++                                                    |
 |                                    | **Export to .asm as...**                                                                | ++alt+e++ or ++ctrl+shift+e++                                 |
+|                                    | **Import VICE Labels**                                                                  | (menu only)                                                   |
+|                                    | **Export VICE Labels**                                                                  | (menu only)                                                   |
 |                                    | **Document Settings**                                                                   | ++alt+d++ or ++ctrl+shift+d++                                 |
 |                                    | **Settings**                                                                            | ++alt+p++ or ++ctrl+comma++                                   |
 |                                    | **Open Recent Projects**                                                                | ++alt+o++ or ++ctrl+shift+o++                                 |
@@ -31,6 +33,7 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Toggle Bitmap View**                                                                  | ++alt+5++ or ++ctrl+5++                                       |
 |                                    | **Toggle Debugger Panel**                                                               | ++alt+6++ or ++ctrl+6++                                       |
 | **View: Disassembly** (editing)    | **Create Scope**                                                                        | ++r++                                                         |
+|                                    | **Nudge Scope Boundary**                                                                | ++alt+up++ / ++alt+down++                                     |
 |                                    | **Convert to Code**                                                                     | ++c++                                                         |
 |                                    | **Convert to Byte**                                                                     | ++b++                                                         |
 |                                    | **Convert to Word**                                                                     | ++w++                                                         |
@@ -62,10 +65,11 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Jump to Line**                                                                        | ++ctrl+shift+g++ or ++alt+shift+g++                           |
 |                                    | **Jump to Line / End of File**                                                          | number + ++shift+g++                                          |
 |                                    | **Jump to Operand**                                                                     | ++enter++                                                     |
-|                                    | **Remove Scope**                                                                      | ++delete++                                                    |
+|                                    | **Remove Scope / Exclude External Address**                                             | ++delete++                                                    |
 |                                    | **Jump Back (History)**                                                                 | ++backspace++                                                 |
 |                                    | **Previous/Next 10 Lines**                                                              | ++ctrl+u++ / ++ctrl+d++                                       |
 | **View: Hexdump**                  | **Convert to Byte**                                                                     | ++b++                                                         |
+|                                    | **Column Navigation**                                                                   | ++left++ / ++right++ / ++h++ / ++l++                          |
 |                                    | **Next / Prev Hex Text Mode** (Screencode shifted/unshifted, PETSCII shifted/unshifted) | ++m++ / ++shift+m++                                           |
 |                                    | **Jump to Disassembly + update cursor**                                                 | ++enter++                                                     |
 | **View: Sprites**                  | **Convert to Byte**                                                                     | ++b++                                                         |

@@ -48,6 +48,8 @@ regenerator2000 my_game.prg
 You are now in the **Disassembly View**. The interface might look overwhelming at first, but it's simpler than it
 appears.
 
+When loading a raw binary (not a `.regen2000proj` file), the **Import Context** dialog will appear. This allows you to specify the target **Platform** (e.g., C64, VIC20), the **Origin** address, and the main **Entry Point** of the program before analysis begins.
+
 - **Grey text**: Bytes that are "unknown" (not yet analyzed).
 - **White text**: Valid 6502 instructions.
 - **Addresses (Left)**: The memory location of each line.
@@ -66,7 +68,7 @@ When you first load a file, Regenerator 2000 automatically analyzes the binary (
 - Trace code flow from known entry points.
 - Create labels for subroutines (`s_XXXX`), jump targets (`j_XXXX`), branch targets (`b_XXXX`), and more.
 - Build cross-references so you can see _who_ calls _what_.
-- Identify system addresses (KERNAL, I/O registers, etc.) based on the selected platform.
+- Identify platform addresses (KERNAL, I/O registers, etc.) based on the selected platform.
 
 See [Analysis](analysis.md) for a full explanation of how the analyzer works and what the label prefixes mean.
 
@@ -188,9 +190,9 @@ Good for section headers or detailed explanations.
 
     - Use **++shift+enter++** or **++ctrl+j++** to insert a new line while in the comment dialog.
     - Use the following shortcuts within the dialog for quick formatting:
-        - ++ctrl+minus++: Insert a line of dashes (`---`).
-        - ++ctrl+plus++: Insert a line of equals signs (`===`).
-        - ++ctrl+backslash++: Insert a mixed separator (`-=-`).
+        - ++alt+minus++: Insert a line of dashes (`---`).
+        - ++alt+equals++: Insert a line of equals signs (`===`).
+        - ++alt+backslash++: Insert a mixed separator (`-=-`).
 
 ### Using Bookmarks
 
@@ -230,7 +232,7 @@ Use ++f3++ / ++shift+f3++ to jump to the next / previous match after closing the
 Some data isn't code or numbers—it's art.
 
 - **Hex Dump**: Press ++alt+2++ to view raw hex. Use ++m++ to cycle through text modes (PETSCII shifted/unshifted,
-  Screencode shifted/unshifted) and look at the entropy column to spot compressed or encrypted regions.
+  Screencode shifted/unshifted). The byte values are colored by value (0x00 is dimmed, 0xFF is bright, text characters are distinct) to help spot data patterns.
 - **Sprites**: Press ++alt+3++ to open the **Sprite View**. If you see a Space Invader, you've found the sprite data!
   Select that memory range and mark it as bytes.
 - **Charset**: Press ++alt+4++ to check for custom charsets.
@@ -246,9 +248,16 @@ Knowing _where_ graphics are helps you avoid trying to disassemble them as code.
 
 ---
 
-## Phase 7: Organizing with Splitters & Collapsed Blocks
+## Phase 7: Organizing with Scopes, Splitters & Collapsed Blocks
 
 As your disassembly grows, keeping things tidy becomes important.
+
+### Scopes
+
+Scopes provide namespace-like grouping for your code (similar to `.proc`/`.endproc` in ca65 or `.namespace` in other assemblers). They help keep local labels isolated and organize related routines together.
+
+- Press ++r++ to create a new scope starting at the current address.
+- Use the ++delete++ key to remove a scope boundary.
 
 ### Splitters
 
@@ -282,6 +291,7 @@ assemblers.
 - Press ++ctrl+e++ to export.
 - Choose the target assembler in **Document Settings** (++alt+d++) — supported options are **64tass**, **ACME**,
   **KickAssembler**, and **ca65**.
+- In Document Settings, you can also adjust the **Fill run threshold** (default 8). This setting determines how many identical consecutive bytes are grouped into a `.fill`, `!fill`, or `.res` directive, keeping your data sections clean.
 
 ### Batch Processing (Headless Mode)
 
@@ -386,11 +396,13 @@ See [MCP Integration](mcp.md) for the full list of available tools and resources
 | ++w++               | **W**ord                             |
 | ++a++               | **A**ddress                          |
 | ++r++               | Create Scope                         |
+| ++delete++          | Exclude Address / Remove Scope       |
 | ++l++               | **L**abel                            |
 | ++semicolon++       | Side Comment                         |
 | ++colon++           | Line Comment                         |
 | ++i++ / ++shift+i++ | Cycle Immediate Format (hex/dec/bin) |
 | ++open-bracket++    | Pack Lo/Hi Address                   |
+| ++close-bracket++   | Pack Hi/Lo Address                   |
 | ++shift+v++         | Visual Mode (selection)              |
 | ++enter++           | Follow Jump / Jump to Operand        |
 | ++backspace++       | Go Back                              |

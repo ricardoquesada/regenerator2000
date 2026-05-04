@@ -194,6 +194,8 @@ A default label is created at the scope's start address if one doesn't already e
 
 Place the cursor on the first or last line of the scope and press ++delete++.
 
+The ++delete++ key also serves a second purpose: it excludes external addresses from analysis when the cursor is on an external label.
+
 ### Which assemblers support scopes?
 
 | Assembler     | Scope Syntax            |
@@ -225,7 +227,7 @@ right pane using:
 
 ### How do I sync the right pane with the disassembly?
 
-By default, the Hex Dump and Blocks views sync with the Disassembly cursor. You can enable or disable syncing for each
+By default, the [Hex Dump](views.md#hexdump-view) and Blocks views sync with the Disassembly cursor. You can enable or disable syncing for each
 view independently in **File → Settings** (++alt+p++ or ++ctrl+comma++).
 
 ---
@@ -312,8 +314,8 @@ add comments, and manipulate blocks.
 
 ### How do I start the MCP server?
 
-- **HTTP mode** (port 3000): `regenerator2000 --mcp-server my_file.prg`
-- **stdio mode** (headless): `regenerator2000 --mcp-server-stdio my_file.prg`
+- **HTTP mode** (port 3000): `regenerator2000 --mcp-server my_project.regen2000proj`
+- **stdio mode** (headless): `regenerator2000 --mcp-server-stdio my_project.regen2000proj`
 
 See [MCP Integration](mcp.md) for the full list of available tools and resources.
 

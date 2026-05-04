@@ -319,7 +319,7 @@ pub fn load_labels(
                             Label {
                                 name,
                                 label_type: LabelType::Predefined,
-                                kind: LabelKind::System,
+                                kind: LabelKind::Platform,
                             },
                         ));
                     }

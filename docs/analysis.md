@@ -60,6 +60,10 @@ The analyzer also scans **data blocks** that encode addresses:
     Use [splitters](tutorial.md#splitters) (++pipe++) to divide adjacent address tables. Without a splitter,
     the analyzer treats a continuous run of the same block type as a single table and pairs bytes accordingly.
 
+#### Fill Run Detection
+
+When a **Byte** block contains a contiguous run of identical bytes that exceeds the **Fill run threshold** (set in [Document Settings](settings.md)), the disassembler automatically groups them. These runs are represented using assembler-specific fill directives (like `.fill` or `.res`) during export, keeping the output clean.
+
 ### Step 3: Label Generation
 
 After scanning, the analyzer has a map of every referenced address and _how_ it was used. It then generates labels:
@@ -116,9 +120,8 @@ These labels are generated from data-access instructions (loads, stores, indexed
 
 ### User-Defined Labels
 
-| Prefix | Full Name    | Description                                        |
-| :----- | :----------- | :------------------------------------------------- |
-| `L_`   | User-Defined | Default prefix when you create a label manually    |
+| `L_`   | User-Defined      | Default prefix when you create a label manually    |
+| `scope_` | LocalUserDefined | Prefix for labels within a scope (e.g. .proc, .block) |
 
 !!! tip
 
@@ -202,19 +205,19 @@ entirely — no label or cross-reference is generated.
 ## Platform-Specific Labels
 
 When a [platform](platforms.md) is selected (e.g., Commodore 64), the analyzer benefits from pre-defined
-**system labels** — well-known addresses for hardware registers, KERNAL entry points, and OS variables.
-These labels have `LabelKind::System` and are preserved across analysis runs just like user labels.
+**platform labels** — well-known addresses for hardware registers, KERNAL entry points, and OS variables.
+These labels have `LabelKind::Platform` and are preserved across analysis runs just like user labels.
 
 For example, on the C64:
 
-| Address   | System Label | Description              |
+| Address   | Platform Label | Description              |
 | :-------- | :----------- | :----------------------- |
 | `$D020`   | `BORDER`     | Border color register    |
 | `$D021`   | `BGCOL0`     | Background color 0       |
 | `$FFD2`   | `CHROUT`     | KERNAL: Output character |
 | `$FFE4`   | `GETIN`      | KERNAL: Get input        |
 
-System labels take precedence over auto-generated labels. If the analyzer detects a `JSR $FFD2`, it will
+Platform labels take precedence over auto-generated labels. If the analyzer detects a `JSR $FFD2`, it will
 display `JSR CHROUT` rather than `JSR s_FFD2`.
 
 ---

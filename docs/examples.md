@@ -74,7 +74,7 @@ A disassembly of the game [Omega Race][vic20_omega_race_info] for VIC-20.
 
 Main takeaways:
 
-- [TODO: Write something here]
+- Omega Race is a vector-style space shooter. This example demonstrates VIC-20 cartridge analysis with extensive labels and comments documenting the game's rendering engine, collision system, and input handling.
 
 Source:
 
@@ -99,11 +99,11 @@ Main takeaways:
 
 - The code was written in a [monitor][monitor], not with an assembler. Evidence:
     - Dead code / Dead tables: Although not uncommon to have some dead code / tables in a program, it is a lot more common when using a [monitor].
-    - There is a `.T0400,07FF,2C00` [monitor] command [in the code][c64_burning_rubber_monitor_cmd]. Which means "Transfer the bytes from $0400-$07FF to $2C00". Funny thing, that command is at `$2C00`, which makes sense. The programmed might haved typed it at the top-left of the screen.
+    - There is a `.T0400,07FF,2C00` [monitor] command [in the code][c64_burnin_rubber_monitor_cmd]. Which means "Transfer the bytes from $0400-$07FF to $2C00". Funny thing, that command is at `$2C00`, which makes sense. The programmer might have typed it at the top-left of the screen.
     - Functions that are split in multiple places, using `JMP` to connect them.
     - Three `NOP` opcodes padding at the beginning of some functions. Possibly to remove a possible `JSR` to a debug routine.
     - Some ZP variables are accessed using the three-byte variant of `LDA`. E.g.: `LDA $F2` translates to `AD F2 00` instead of `A5 F2`
-    - Lack of a "clean" high level architectur: for example the main loop is split in multiple places.
+    - Lack of a "clean" high level architecture: for example the main loop is split in multiple places.
 - Good place to learn how early C64 games were programmed using a [monitor], but not a good place to learn modern best practices.
     - Trivia: It is not possible to add comments when using a [monitor], so, the developers might have used other tools, like a notebook, to document the code ([that's what I used to do when I was a kid!][chardef_scan]).
 
@@ -112,14 +112,36 @@ Source:
 - TAP file: [Burnin' Rubber.tap][burnin_rubber_tap]
 - The game was taken from the original TAP source.
 - The game was encrypted. Part of the game code was in the loader, and part was in the main program.
-- The diassembly contains a single file that includes the decrypted main program with part of the loader code.
+- The disassembly contains a single file that includes the decrypted main program with part of the loader code.
 - Part of the encrypted code is still present, but not used.
-- Run it with with: `SYS 4752`
+- Run it with: `SYS 4752`
 
 [burnin_rubber_tap]: https://archive.org/download/Ultimate_Tape_Archive_V5/Ultimate_Tape_Archive_V5.zip/Ultimate_Tape_Archive_V5.0%2FBurnin%27_Rubber_%281983_Audiogenic_Ltd.%29_%5B5346%5D%2FBurnin%27_Rubber.tap
 [burnin_rubber_info]: https://www.c64-wiki.com/wiki/Burnin_Rubber>
 [monitor]: https://www.c64-wiki.com/wiki/Machine_Code_Monitor
-[c64_burning_rubber_monitor_cmd]: examples/c64_burnin_rubber.html#L2BE0
+[c64_burnin_rubber_monitor_cmd]: examples/c64_burnin_rubber.html#L2BE0
 [chardef_scan]: https://github.com/ricardoquesada/c64-c128-erasoft/blob/master/scans/chardef.pdf
 
 ---
+
+## Kikstart - Commodore Plus/4
+
+![screenshot](examples/plus4_kikstart_screenshot.png)
+
+A disassembly of the Commodore Plus/4 motorcycle obstacle course game [Kikstart][kikstart_info].
+
+!!! example "Disassembly"
+
+    * 🔗 [plus4_kikstart_8192.html](examples/plus4_kikstart_8192.html)
+
+Main takeaways:
+
+- Kikstart is a motorcycle obstacle course game.
+- Great example of a Commodore Plus/4 game.
+- This disassembly demonstrates the use of platform-specific labels and symbols for the Plus/4.
+
+Source:
+
+- [Kikstart on Plus/4 World][kikstart_info]
+
+[kikstart_info]: http://plus4world.powweb.com/software/Kikstart

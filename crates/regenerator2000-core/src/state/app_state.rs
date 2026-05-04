@@ -125,7 +125,7 @@ impl AppState {
     pub fn load_system_assets(&mut self) {
         // Clear existing system labels
         for labels in self.labels.values_mut() {
-            labels.retain(|l| l.kind != LabelKind::System);
+            labels.retain(|l| l.kind != LabelKind::Platform);
         }
         // Remove empty entries
         self.labels.retain(|_, v| !v.is_empty());
@@ -387,7 +387,7 @@ mod tests {
             .or_default()
             .push(Label {
                 name: "SYS_LABEL".to_string(),
-                kind: LabelKind::System,
+                kind: LabelKind::Platform,
                 label_type: LabelType::Field,
             });
 
@@ -399,7 +399,7 @@ mod tests {
         let has_system = labels_at_fb
             .unwrap()
             .iter()
-            .any(|l| l.name == "SYS_LABEL" && l.kind == LabelKind::System);
+            .any(|l| l.name == "SYS_LABEL" && l.kind == LabelKind::Platform);
         assert!(has_system, "System label should be preserved");
     }
 

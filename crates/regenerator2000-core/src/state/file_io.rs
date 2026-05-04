@@ -837,7 +837,7 @@ mod save_project_tests {
             .or_default()
             .push(Label {
                 name: "SYS_LABEL".to_string(),
-                kind: LabelKind::System,
+                kind: LabelKind::Platform,
                 label_type: LabelType::Field,
             });
 
@@ -962,7 +962,7 @@ mod vice_label_tests {
             Addr(0xFFD2),
             vec![Label {
                 name: "CHROUT".to_string(),
-                kind: LabelKind::System,
+                kind: LabelKind::Platform,
                 label_type: LabelType::Predefined,
             }],
         );

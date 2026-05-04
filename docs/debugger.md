@@ -46,11 +46,22 @@ Once connected, the Debugger panel shows connection status and, when the emulato
 
 ## What the Debugger Panel Shows
 
-- **Connection status**: Whether Regenerator 2000 is connected to VICE and whether the emulator is running or stopped.
+- **Connection status**: Whether Regenerator 2000 is connected to VICE and whether the emulator is running or stopped. When paused, the specific stop reason (e.g., which watchpoint was hit) is displayed next to the "PAUSED" status indicator.
 - **Live disassembly**: When stopped, a small window of disassembly around the current PC, with the current instruction highlighted.
-- **Registers**: A, X, Y, SP, and P (status) when available.
+- **Registers**: CPU registers (A, X, Y, SP, and P) are shown.
+- **Hardware Registers**: Platform-specific registers are displayed to monitor hardware state:
+    - **C64/C128**: VIC-II registers, CIA 1 & 2 registers, and the 6510/8502 I/O port ($00/$01).
+    - **VIC-20**: VIC-I registers ($9000–$900F).
+    - **Plus/4**: TED chip registers ($FF00–$FF3F).
+    - **All platforms**: 6502 Hardware Vectors (NMI at $FFFA, RESET at $FFFC, IRQ at $FFFE).
+- **Change Highlighting**: Changed register values, memory bytes, and hardware vectors are highlighted in a distinct color after each execution step to quickly identify what changed.
 - **Breakpoints**: List of breakpoints set in VICE.
 - **Watchpoints**: List of watchpoints set in VICE.
+
+!!! note
+
+    The debugger panel uses a multi-column layout on wider terminals to show more information at once (e.g., Stack and Hardware Registers side-by-side). Screenshots below might show an older single-column layout.
+
 
 ![Debugger Only](regenerator2000_debugger_screenshot_only.png)
 
@@ -85,7 +96,7 @@ All debugger actions are available from the **Debugger** menu and have keyboard 
 | Run to Cursor        | ++f4++       |
 | Watchpoint           | ++f6++       |
 | Memory Dump...       | ++m++        |
-| Step Instruction     | ++f7++       |
+| Step Into            | ++f7++       |
 | Step Over            | ++f8++       |
 | Step Out             | ++shift+f8++ |
 | Run / Continue       | ++f9++       |

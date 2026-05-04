@@ -271,7 +271,7 @@ fn list_tools() -> Result<Value, McpError> {
             },
             {
                 "name": "r2000_get_symbols",
-                "description": "Returns defined labels (user and/or system) and their addresses. With no arguments returns ALL symbols. Provide optional filters to narrow results: 'names' resolves specific label names to addresses, 'start_address'/'end_address' limits to an address range, 'kind' filters by label kind. Filters are combined (AND logic).",
+                "description": "Returns defined labels (user and/or platform) and their addresses. With no arguments returns ALL symbols. Provide optional filters to narrow results: 'names' resolves specific label names to addresses, 'start_address'/'end_address' limits to an address range, 'kind' filters by label kind. Filters are combined (AND logic).",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -284,8 +284,8 @@ fn list_tools() -> Result<Value, McpError> {
                         "end_address":   { "type": "integer", "description": "Optional upper bound (inclusive) of the address range to filter by (decimal)." },
                         "kind": {
                             "type": "string",
-                            "enum": ["user", "system"],
-                            "description": "Optional filter to return only labels of a given kind. 'user' = user-defined labels, 'system' = auto-generated labels."
+                            "enum": ["user", "platform", "auto"],
+                            "description": "Optional filter to return only labels of a given kind. 'user' = user-defined labels, 'platform' = predefined platform labels (e.g. KERNAL, hardware registers), 'auto' = auto-generated labels (e.g. s_C000)."
                         }
                     }
                 }
@@ -1279,12 +1279,13 @@ fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec<Value>, Mc
 
     let kind_filter = match args.get("kind").and_then(|v| v.as_str()) {
         Some("user") => Some("user"),
-        Some("system") => Some("system"),
+        Some("platform") | Some("system") => Some("platform"),
+        Some("auto") => Some("auto"),
         Some(other) => {
             return Err(McpError {
                 code: -32602,
                 message: format!(
-                    "Invalid 'kind' value \"{other}\": expected \"user\" or \"system\""
+                    "Invalid 'kind' value \"{other}\": expected \"user\", \"platform\", or \"auto\""
                 ),
                 data: None,
             });
@@ -1563,7 +1564,7 @@ fn get_address_details_impl(app_state: &AppState, address: Addr) -> Result<Value
         comments.push(format!("[User Side] {c}"));
     }
     if let Some(c) = app_state.platform_comments.get(&address) {
-        comments.push(format!("[System] {c}"));
+        comments.push(format!("[Platform] {c}"));
     }
     if !comments.is_empty() {
         details["metadata"]["comments"] = json!(comments);

@@ -78,15 +78,15 @@ The project is organized as a Cargo workspace with three primary components:
 The core engine state, organized across multiple modules:
 
 - **[`core.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/core.rs)**: The central `Core` hub. Orchestrates persistent state (`AppState`) and transient view state (`CoreViewState`). Frontends interact with it via `apply_action()`.
-- **[`app_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/app_state.rs)**: The main `AppState` struct that holds the runtime data hub. Contains the Undo Stack, Disassembly Cache, and connection state for VICE.
+- **[`app_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/app_state.rs)**: The main `AppState` struct that holds the runtime data hub. Contains the Undo Stack, Disassembly Cache, scopes, and connection state for VICE.
 - **[`view_state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/view_state.rs)**: Defines `CoreViewState` — the frontend-agnostic representation of cursor positions, selections, and active panes.
 - **[`actions.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/actions.rs)**: Defines the `AppAction` enum — semantic actions that any frontend (TUI, GUI, Web, MCP) can produce.
 - **[`blocks.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/blocks.rs)**: Block management logic (Code, Data, Text, etc.) and memory layout queries.
 - **[`disassembly.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/disassembly.rs)**: Disassembly orchestration and line-index lookups.
 - **[`file_io.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/file_io.rs)**: Loading and importing of various formats into `AppState`.
 - **[`navigation.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/navigation.rs)**: Pure navigation helpers (jumping to addresses, creating save contexts) that operate on `AppState` + `CoreViewState`.
-- **[`project.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/project.rs)**: The `ProjectState` struct — the persistent part of the state saved to `.regen2000proj` files.
-- **[`settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/settings.rs)**: Document-level settings (assembler, platform, display preferences).
+- **[`project.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/project.rs)**: The `ProjectState` struct — the persistent part of the state saved to `.regen2000proj` files (includes labels, comments, blocks, and scopes).
+- **[`settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/settings.rs)**: Document-level settings (assembler, platform, display preferences, fill run threshold).
 - **[`search.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/search.rs)**: Centralized search logic (hex, text, PETSCII).
 - **[`types.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/types.rs)**: Core type definitions used across the workspace (`Addr`, `Platform`, `BlockType`, `Assembler`, `LabelType`, etc.).
 - **[`event.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/event.rs)**: Defines `CoreEvent` (state changes, dialog requests, status messages) and `DialogType` — the frontend-agnostic event vocabulary returned by `Core::apply_action()`.
@@ -126,6 +126,7 @@ A heuristic engine that runs after state changes. It:
 
 - Traces code paths (following JMPs and branches).
 - Identifies referenced addresses.
+- Identifies and marks fill sequences based on the "Fill run threshold" setting.
 - Auto-generates labels (e.g., `s_C000`, `j_0400`, `zpf_A0`) based on usage context (subroutine, branch, jump, pointer, field). See [Analysis — Label Prefixes](analysis.md#label-prefixes) for the complete prefix reference.
 
 ### 6. Parser ([`regenerator2000-core/src/parser/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/parser))
@@ -308,5 +309,6 @@ Projects are saved as JSON files (`.regen2000proj`).
 - **Efficiency**:
   - Raw data is gzip-compressed and base64-encoded to reduce file size.
   - Block types use run-length encoding to compress long sequences of the same type.
+- **Scopes**: Saved as start/end address pairs to represent named memory regions (.proc, .block, .namespace, etc).
 - **Portability**: Designed to be portable across different machines, storing relative paths where possible.
 - **Session State**: Cursor positions and view settings are saved with the project for seamless session restoration.

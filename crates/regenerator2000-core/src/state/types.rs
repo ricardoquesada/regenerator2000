@@ -353,7 +353,8 @@ impl std::fmt::Display for BlockType {
 pub enum LabelKind {
     User,
     Auto,
-    System,
+    #[serde(alias = "System")]
+    Platform,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]

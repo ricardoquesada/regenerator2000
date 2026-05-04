@@ -31,15 +31,15 @@ regenerator2000 [OPTIONS] [FILE]
 
 ### Supported file formats
 
-- `.prg`: the common Commodore 8-bit program, where the first two bytes indicates the start address.
+- `.prg`: the common Commodore 8-bit program. Files with BASIC stubs automatically have their SYS address parsed for the entry point.
 - `.crt`: Commodore 64 cartridge files. It parses the CHIP packets and maps them into memory. Supports bank selection.
-- `.d64`: Commodore 64 disk image files (35/40 tracks). It allows the user to pick a `.prg` file from the disk container.
-- `.d71`: Commodore 64 disk image files (70 tracks, double-sided). It allows the user to pick a `.prg` file from the disk container.
+- `.d64`: Commodore 64 disk image files (up to 42 tracks). It allows the user to pick a `.prg` file from the disk container.
+- `.d71`: Commodore 64 disk image files (80 tracks, double-sided). It allows the user to pick a `.prg` file from the disk container.
 - `.d81`: Commodore 64 disk image files (80 tracks). It allows the user to pick a `.prg` file from the disk container.
 - `.t64`: Commodore 64 tape image files. It allows the user to pick a `.prg` from the container.
 - `.vsf`: VICE snapshot files. It extracts the 64KB RAM and uses the Program Counter (PC) as the start address.
 - `.dis65`: 6502bench SourceGen project file.
-- `.bin` and `.raw`: pure binary files. Requires that the user sets the origin manually. Menu -> Edit -> Change Origin
+- `.bin` and `.raw`: pure binary files. The **Import Context** dialog handles setting the Platform, Origin, and Entry Point automatically.
 - `.regen2000proj`: Regenerator 2000 project file
 
 ### Supported options
@@ -48,12 +48,12 @@ regenerator2000 [OPTIONS] [FILE]
 - `--version`: Displays the current version of Regenerator 2000.
 - `--import_lbl <PATH>`: Import VICE labels from the specified file.
 - `--export_lbl <PATH>`: Export labels to the specified file (after analysis/import).
-- `--export_asm <PATH>`: Export assembly to the specified file (after analysis/import).
-- `--export_html <PATH>`: Export HTML to the specified file (after analysis/import).
+- `--export_asm <PATH>`: Export assembly to the specified file. Headless mode only accepts `.regen2000proj` project files.
+- `--export_html <PATH>`: Export HTML to the specified file. Headless mode only accepts `.regen2000proj` project files.
 - `--assembler <NAME>`: Override the assembler format used for export. Valid values: `64tass`, `acme`, `ca65`, `kick`. If omitted, the project's saved setting is used.
-- `--headless`: Run in headless mode (no TUI), useful for batch processing.
+- `--headless`: Run in headless mode (no TUI). Only supports `.regen2000proj` project files. Mutually exclusive with `--mcp-server`.
 - `--verify`: Verify export roundtrip (export → assemble → diff) for all 4 assemblers. Requires `--headless` (implied automatically). See [Assemblers](assemblers.md) for details.
-- `--mcp-server`: Run MCP server (HTTP on port 3000). See [MCP Integration](mcp.md) for details.
+- `--mcp-server`: Run MCP server (HTTP on port 3000). Only supports `.regen2000proj` project files in headless mode. Mutually exclusive with `--headless`. See [MCP Integration](mcp.md) for details.
 - `--mcp-server-stdio`: Run MCP server via stdio (headless mode).
 - `--vice <HOST:PORT>`: Auto-connect to the VICE binary monitor at startup (e.g. `--vice localhost:6502`). See [Debugger](debugger.md) for details.
 - `--dump-platform-config-files <PATH>`: Dump all built-in platform config files (`platform-*.toml`) to the specified directory and exit. The files can then be edited and placed back in the [app config directory](#platform-config-files) to override or extend platform definitions.

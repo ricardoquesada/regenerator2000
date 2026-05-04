@@ -35,7 +35,7 @@ The available Block Types are:
         ```asm
         ; Code blocks are represented as code
         lda #$00
-        sta aD020
+        sta a_D020
         ```
 
     === "ACME"
@@ -43,7 +43,7 @@ The available Block Types are:
         ```asm
         ; Code blocks are represented as code
         lda #$00
-        sta aD020
+        sta a_D020
         ```
 
     === "KickAssembler"
@@ -51,7 +51,7 @@ The available Block Types are:
         ```asm
         // Code blocks are represented as code
         lda #$00
-        sta aD020
+        sta a_D020
         ```
 
     === "ca65"
@@ -59,7 +59,7 @@ The available Block Types are:
         ```asm
         ; Code blocks are represented as code
         lda #$00
-        sta aD020
+        sta a_D020
         ```
 
 ## 3. Data Byte
@@ -98,6 +98,16 @@ The available Block Types are:
         ; Byte blocks are represented as bytes
         .byte $80, $40, $a2, $ff
         ```
+
+
+!!! note "Fill Run Threshold"
+
+    When a contiguous run of identical bytes exceeds the **Fill run threshold** (configurable in settings), they are grouped and exported using fill directives:
+
+    - 64tass: `.fill N, $XX`
+    - ACME: `!fill N, $XX`
+    - KickAssembler: `.fill N, $XX`
+    - ca65: `.res N, $XX`
 
 ## 4. Data Word
 
@@ -149,28 +159,28 @@ The available Block Types are:
 
         ```asm
         ; Address blocks are represented as words, that generates an address reference
-        .word a1234, aFFAA, a5678, a0000, aABCD
+        .word a_1234, a_FFAA, a_5678, a_0000, a_ABCD
         ```
 
     === "ACME"
 
         ```asm
         ; Address blocks are represented as words, that generates an address reference
-        !word a1234, aFFAA, a5678, a0000, aABCD
+        !word a_1234, a_FFAA, a_5678, a_0000, a_ABCD
         ```
 
     === "KickAssembler"
 
         ```asm
         // Address blocks are represented as words, that generates an address reference
-        .word a1234, aFFAA, a5678, a0000, aABCD
+        .word a_1234, a_FFAA, a_5678, a_0000, a_ABCD
         ```
 
     === "ca65"
 
         ```asm
         ; Address blocks are represented as words, that generates an address reference
-        .word a1234, aFFAA, a5678, a0000, aABCD
+        .word a_1234, a_FFAA, a_5678, a_0000, a_ABCD
         ```
 
 ## 6. PETSCII Text
@@ -185,8 +195,10 @@ The available Block Types are:
     === "64tass"
 
         ```asm
-        .encode "none"
+        .encode
+        .enc "none"
         .text "hello world"
+        .endencode
         ```
 
     === "ACME"
@@ -220,8 +232,10 @@ The available Block Types are:
     === "64tass"
 
         ```asm
-        .encode "screen"
+        .encode
+        .enc "screen"
         .text "hello world"
+        .endencode
         ```
 
     === "ACME"
@@ -259,8 +273,8 @@ The available Block Types are:
         ; Assume that you have these bytes:
         ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
         ; They will be represented as:
-        .byte <aC000, <aD101, <aE202, <aF303
-        .byte >aC000, >aD101, >aE202, >aF303
+        .byte <a_C000, <a_D101, <a_E202, <a_F303
+        .byte >a_C000, >a_D101, >a_E202, >a_F303
         ```
 
     === "ACME"
@@ -269,8 +283,8 @@ The available Block Types are:
         ; Assume that you have these bytes:
         ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
         ; They will be represented as:
-        !byte <aC000, <aD101, <aE202, <aF303
-        !byte >aC000, >aD101, >aE202, >aF303
+        !byte <a_C000, <a_D101, <a_E202, <a_F303
+        !byte >a_C000, >a_D101, >a_E202, >a_F303
         ```
 
     === "KickAssembler"
@@ -279,8 +293,8 @@ The available Block Types are:
         // Assume that you have these bytes:
         // $00, $01, $02, $03, $c0, $d1, $e2, $f3
         // They will be represented as:
-        .byte <aC000, <aD101, <aE202, <aF303
-        .byte >aC000, >aD101, >aE202, >aF303
+        .byte <a_C000, <a_D101, <a_E202, <a_F303
+        .byte >a_C000, >a_D101, >a_E202, >a_F303
         ```
 
     === "ca65"
@@ -289,8 +303,8 @@ The available Block Types are:
         ; Assume that you have these bytes:
         ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
         ; They will be represented as:
-        .byte <aC000, <aD101, <aE202, <aF303
-        .byte >aC000, >aD101, >aE202, >aF303
+        .byte <a_C000, <a_D101, <a_E202, <a_F303
+        .byte >a_C000, >a_D101, >a_E202, >a_F303
         ```
 
 ## 9. Hi/Lo Address Table
@@ -308,8 +322,8 @@ The available Block Types are:
         ; Assume that you have these bytes:
         ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
         ; They will be represented as:
-        .byte >a00C0, >a01D1, >a02E2, >a03F3
-        .byte <a00C0, <a01D1, <a02E2, <a03F3
+        .byte >a_00C0, >a_01D1, >a_02E2, >a_03F3
+        .byte <a_00C0, <a_01D1, <a_02E2, <a_03F3
         ```
 
     === "ACME"
@@ -318,8 +332,8 @@ The available Block Types are:
         ; Assume that you have these bytes:
         ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
         ; They will be represented as:
-        !byte >a00C0, >a01D1, >a02E2, >a03F3
-        !byte <a00C0, <a01D1, <a02E2, <a03F3
+        !byte >a_00C0, >a_01D1, >a_02E2, >a_03F3
+        !byte <a_00C0, <a_01D1, <a_02E2, <a_03F3
         ```
 
     === "KickAssembler"
@@ -328,8 +342,8 @@ The available Block Types are:
         // Assume that you have these bytes:
         // $00, $01, $02, $03, $c0, $d1, $e2, $f3
         // They will be represented as:
-        .byte >a00C0, >a01D1, >a02E2, >a03F3
-        .byte <a00C0, <a01D1, <a02E2, <a03F3
+        .byte >a_00C0, >a_01D1, >a_02E2, >a_03F3
+        .byte <a_00C0, <a_01D1, <a_02E2, <a_03F3
         ```
 
     === "ca65"
@@ -338,8 +352,8 @@ The available Block Types are:
         ; Assume that you have these bytes:
         ; $00, $01, $02, $03, $c0, $d1, $e2, $f3
         ; They will be represented as:
-        .byte >a00C0, >a01D1, >a02E2, >a03F3
-        .byte <a00C0, <a01D1, <a02E2, <a03F3
+        .byte >a_00C0, >a_01D1, >a_02E2, >a_03F3
+        .byte <a_00C0, <a_01D1, <a_02E2, <a_03F3
         ```
 
 ## 10. Lo/Hi Word Table
@@ -580,13 +594,13 @@ And it will be converted to a "lo/hi" address, and it will look like:
 
 ```asm
     ; And the LDA #immediate_mode will be converted to an lo/hi address
-    lda #<p1480
+    lda #<p_1480
     sta $0314
-    lda #>p1480
+    lda #>p_1480
     sta $0315
 
 ; IRQ handler in address $1480
-p1480
+p_1480
     rti
 ```
 
@@ -617,6 +631,7 @@ You can add comments to any line to annotate your disassembly.
 
 - **Create Scope**: ++r++
 - **Remove Scope**: ++delete++ (only at the beginning or end of a scope)
+- **Exclude External Address**: ++delete++ (when cursor is on an external label address, excludes it from analysis)
 
 !!! note
 
@@ -691,7 +706,7 @@ When you export your disassembly, scopes are directly translated into the corres
             ; IMPORTANT: ca65 is a one-pass assembler, so if calling a label defined in a scope,
             ; the label must be defined before the call. Otherwise, it will be treated as an undefined label,
             ; and the assembly will fail.
-            jmp my_routine.l00
+            jmp my_routine::l00
         ```
 
 ### Splitters and Auto-Merging
@@ -750,13 +765,13 @@ graph TD
 
     **Expanded View:**
     ```asm
-    a1000   .byte $01, $02, $03, $04, $05, $06, $07, $08
+    a_1000   .byte $01, $02, $03, $04, $05, $06, $07, $08
             .byte $09, $0a, $0b, $0c, $0d, $0e, $0f, $10
     ```
 
     **Collapsed View:**
     ```asm
-    a1000  ; Collapsed Byte block from $1000-$100F
+    a_1000  ; Collapsed Byte block from $1000-$100F
     ```
 
 !!! example

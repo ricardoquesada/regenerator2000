@@ -1,7 +1,7 @@
 # Platforms
 
 Regenerator 2000 ships with built-in platform definitions for a range of 6502-based systems.
-Each platform provides **system labels** (ROM entry points, hardware registers, zero-page
+Each platform provides **platform labels** (ROM entry points, hardware registers, zero-page
 variables), **side comments**, and **excluded address ranges** that help produce cleaner
 disassembly output.
 
@@ -19,7 +19,7 @@ These platforms are visible in the Platform selector out of the box:
 | **Commodore 64** | BASIC, KERNAL, Lower Page | ✅ | ✅ |
 | **Commodore 128** | KERNAL | ✅ | ✅ |
 | **Commodore VIC-20** | BASIC, KERNAL, Lower Page | ✅ | ✅ |
-| **Commodore Plus/4** | KERNAL, Lower Page | ✅ | ✅ |
+| **Commodore Plus4** | KERNAL, Lower Page | ✅ | ✅ |
 | **Commodore PET 2.0** | BASIC, KERNAL, Lower Page | ✅ | ✅ |
 | **Commodore PET 4.0** | BASIC, KERNAL, Lower Page | ✅ | ✅ |
 | **Commodore 1541** | — | ❌ | ❌ |
@@ -32,16 +32,16 @@ configs and set `enabled = true` (see [Custom Platforms](#custom-platforms) belo
 | Platform | Label Groups | Comments | Excludes |
 | :--- | :--- | :---: | :---: |
 | **NES** | SYSTEM | ✅ | ❌ |
-| **Apple II** | — | ❌ | ❌ |
-| **Atari 8-bit** | SYSTEM | ✅ | ❌ |
-| **BBC Micro** | SYSTEM | ✅ | ❌ |
-| **Oric 1.0** | SYSTEM | ✅ | ❌ |
-| **Oric 1.1** | SYSTEM | ✅ | ❌ |
+| **Apple II** | — | ✅ | ✅ |
+| **Atari 8bit** | SYSTEM | ✅ | ✅ |
+| **BBC Micro** | SYSTEM | ✅ | ✅ |
+| **Oric 1.0** | SYSTEM | ✅ | ✅ |
+| **Oric 1.1** | SYSTEM | ✅ | ✅ |
 
 ## Label Groups
 
 Each platform can define one or more **label groups** — named sets of address-to-label mappings.
-In Document Settings, each group appears as a separate checkbox under **System Labels**, letting
+In Document Settings, each group appears as a separate checkbox under **Platform Labels**, letting
 users toggle them independently.
 
 Common groups include:
@@ -120,15 +120,15 @@ excluded = ["9000-900F"]
 | :--- | :--- | :--- |
 | `platform_name` | string | Display name shown in the Document Settings **Platform** selector. Must be unique across all configs. |
 | `enabled` | bool | If `false`, the platform is hidden from the selector. Useful for WIP configs. |
-| `labels` | table | Groups of address → label mappings. Each key is a **group name** (e.g. `"KERNAL"`, `"I/O"`) that appears as a toggle in Document Settings → **System Labels**. |
+| `labels` | table | Groups of address → label mappings. Each key is a **group name** (e.g. `"KERNAL"`, `"I/O"`) that appears as a toggle in Document Settings → **Platform Labels**. |
 | `labels.GROUP_NAME` | table | Map of hex address strings to label names. Addresses use uppercase hex **without** the `$` prefix or `0x` prefix (e.g. `"D020"` not `"$D020"`). |
-| `comments` | table | Map of hex addresses to side-comment strings. When enabled via **Show system comments** in Document Settings, these appear as side comments in the disassembly. |
+| `comments` | table | Map of hex addresses to side-comment strings. When enabled via **Show platform comments** in Document Settings, these appear as side comments in the disassembly. |
 | `excluded` | array of strings | Address ranges the analyzer should skip (e.g. `"D000-D031"`). Ranges use `START-END` notation in uppercase hex. Enables the **Exclude well-known addresses** checkbox in Document Settings. |
 
 !!! note
 
     `labels`, `comments`, and `excluded` are all optional — you can omit any section you don't need.
-    An empty `labels` table means no **System Labels** checkboxes appear; an empty `excluded` array
+    An empty `labels` table means no **Platform Labels** checkboxes appear; an empty `excluded` array
     means the **Exclude well-known addresses** checkbox is hidden.
 
 ### Example: creating a custom platform
@@ -163,6 +163,6 @@ Regenerator 2000, **Acme Computer** will appear in the Platform selector.
 - **Back up** the original files before editing — you can always re-dump with `--dump-platform-config-files`.
 - **Disable** a config temporarily by setting `enabled = false` instead of deleting the file.
 - **Validate** your TOML before launching — a syntax error will cause the file to be silently
-  skipped. Check the log file at `/tmp/regenerator2000.log` for parsing errors.
+  skipped. Check the log file (path varies by OS) for parsing errors.
 - Each label **group** maps to a separate checkbox in Document Settings. Use meaningful group names
   like `"KERNAL"`, `"BASIC"`, `"I/O"`, or `"SOUND"` to let users toggle sets independently.

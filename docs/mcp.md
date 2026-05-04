@@ -200,7 +200,7 @@ Orchestrates a full end-to-end analysis of the loaded binary. Runs block classif
 1. **Phase 0 — Gather Context**: Collects binary info, existing blocks, all symbols, and line comments.
 2. **Phase 1 — Classify Blocks**: Runs `r2000-analyze-blocks` to classify all memory regions (code, data, text, tables), then refreshes state.
 3. **Phase 2 — Analyze Routines**: Identifies unanalyzed subroutines — those with `s_XXXX` labels or `JSR` targets that lack a documentation header (`=-=-=-=`). Launches up to 10 parallel subagents, each running `r2000-analyze-routine` to document one routine.
-4. **Phase 3 — Analyze Symbols**: Identifies unanalyzed data symbols — auto-generated names like `a_XXXX`, `f_XXXX`, `p_XXXX`, `zpa_XX`, `zpf_XX`, `zpp_XX`. Launches up to 10 parallel subagents, each running `r2000-analyze-symbol` to classify and rename one symbol.
+4. **Phase 3 — Analyze Symbols**: Identifies unanalyzed data symbols — auto-generated names with prefixes like `s_`, `j_`, `b_`, `zpf_`, `p_`, `f_`, `a_`, `zpa_`, `e_`, `zpp_`. Launches up to 10 parallel subagents, each running `r2000-analyze-symbol` to classify and rename one symbol.
 5. **Phase 4 — Save & Report**: Saves the project and produces a summary report with tables of all routines analyzed, symbols renamed, and any uncertain items flagged for manual review.
 
 !!! example "Prompt"
@@ -343,14 +343,14 @@ _No arguments._
 
 ### `r2000_get_symbols`
 
-Returns defined labels (user and/or system) and their addresses. With no arguments returns ALL symbols. Provide optional filters to narrow results: 'names' resolves specific label names to addresses, 'start_address'/'end_address' limits to an address range, 'kind' filters by label kind. Filters are combined (AND logic).
+Returns defined labels (user and/or platform) and their addresses. With no arguments returns ALL symbols. Provide optional filters to narrow results: 'names' resolves specific label names to addresses, 'start_address'/'end_address' limits to an address range, 'kind' filters by label kind. Filters are combined (AND logic).
 
 **Arguments:**
 
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
 | `end_address` | `integer` | Optional upper bound (inclusive) of the address range to filter by (decimal). | No |
-| `kind` | `string` | Optional filter to return only labels of a given kind. 'user' = user-defined labels, 'system' = auto-generated labels. | No |
+| `kind` | `string` | Optional filter to return only labels of a given kind. 'user' = user-defined labels, 'platform' = predefined platform labels (e.g. KERNAL, hardware registers), 'auto' = auto-generated labels (e.g. s_C000). | No |
 | `names` | `array` | Optional list of label names to look up. Only symbols whose name matches one of these strings are returned. Case-sensitive. | No |
 | `start_address` | `integer` | Optional lower bound (inclusive) of the address range to filter by (decimal). | No |
 

@@ -42,7 +42,7 @@ pub fn resolve_label<'a>(
     let get_priority = |k: &LabelKind| -> u8 {
         match k {
             LabelKind::User => 100,
-            LabelKind::System => 50,
+            LabelKind::Platform => 50,
             LabelKind::Auto => 0,
         }
     };
@@ -252,7 +252,7 @@ impl Disassembler {
                 if let Some(labels_at_addr) = ctx.labels.get(&current_addr) {
                     let has_user_or_system = labels_at_addr.iter().any(|l| {
                         l.kind == crate::state::LabelKind::User
-                            || l.kind == crate::state::LabelKind::System
+                            || l.kind == crate::state::LabelKind::Platform
                     });
 
                     if !has_user_or_system {
