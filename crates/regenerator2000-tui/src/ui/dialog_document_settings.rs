@@ -162,7 +162,7 @@ impl Widget for DocumentSettingsDialog {
             ),
         ];
 
-        // Dynamic System Config Options
+        // Dynamic Platform Config Options
         let platform_config = crate::assets::load_platform_config(&settings.platform);
 
         // Indices calculation for rigid elements
@@ -215,11 +215,11 @@ impl Widget for DocumentSettingsDialog {
                 Constraint::Length(2),                      // Fill Run Threshold
                 Constraint::Length(2),                      // Assembler
                 Constraint::Length(2),                      // Platform
-                Constraint::Length(u16::from(!dynamic_items.is_empty())), // System Labels Header
+                Constraint::Length(u16::from(!dynamic_items.is_empty())), // Platform Labels Header
                 Constraint::Length(dynamic_items.len() as u16), // Dynamic items
-                Constraint::Length(0),                      // System Comments Header (Removed)
+                Constraint::Length(0),                      // Platform Comments Header (Removed)
                 Constraint::Length(u16::from(platform_config.has_excludes)), // Exclude comments checkbox
-                Constraint::Length(u16::from(platform_config.has_comments)), // System Comments checkbox
+                Constraint::Length(u16::from(platform_config.has_comments)), // Platform Comments checkbox
             ])
             .split(inner);
 
@@ -240,7 +240,7 @@ impl Widget for DocumentSettingsDialog {
         if !dynamic_items.is_empty() {
             f.render_widget(
                 Paragraph::new(Span::styled(
-                    "System Labels:",
+                    "Platform Labels:",
                     Style::default().add_modifier(Modifier::BOLD),
                 )),
                 Rect::new(layout[11].x + 2, layout[11].y, layout[11].width - 4, 1),
@@ -274,11 +274,11 @@ impl Widget for DocumentSettingsDialog {
             );
         }
 
-        // Render System Comments section
+        // Render Platform Comments section
         if platform_config.has_comments {
             let comments_checkbox = checkbox(
                 0,
-                "Show system comments",
+                "Show platform comments",
                 settings.show_platform_comments,
                 self.selected_index == idx_platform_comments,
                 false,
@@ -1089,19 +1089,19 @@ impl Widget for DocumentSettingsDialog {
                         idx if idx == idx_platform_comments && platform_config.has_comments => {
                             app_state.settings.show_platform_comments =
                                 !app_state.settings.show_platform_comments;
-                            // Reload system assets and re-disassemble for immediate feedback
+                            // Reload platform assets and re-disassemble for immediate feedback
                             app_state.load_system_assets();
                             app_state.disassemble();
                         }
                         idx if idx == idx_exclude_comments && platform_config.has_excludes => {
                             app_state.settings.exclude_well_known_labels =
                                 !app_state.settings.exclude_well_known_labels;
-                            // Reload system assets and re-disassemble for immediate feedback
+                            // Reload platform assets and re-disassemble for immediate feedback
                             app_state.load_system_assets();
                             app_state.disassemble();
                         }
                         idx if idx >= dynamic_start_idx => {
-                            // Dynamic items (system labels)
+                            // Dynamic items (platform labels)
                             let platform_config =
                                 crate::assets::load_platform_config(&app_state.settings.platform);
                             let config_idx = idx - dynamic_start_idx;
@@ -1117,7 +1117,7 @@ impl Widget for DocumentSettingsDialog {
                                     .enabled_features
                                     .insert(feature.id.clone(), !current_val);
 
-                                // Reload system labels and re-disassemble for immediate feedback
+                                // Reload platform labels and re-disassemble for immediate feedback
                                 app_state.load_system_assets();
                                 app_state.disassemble();
                             }

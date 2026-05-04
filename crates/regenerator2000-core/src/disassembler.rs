@@ -796,7 +796,7 @@ impl Disassembler {
                         // If it's code, NO (avoids propagation in loops).
                         // If it's data/unknown, YES.
                         let target_comment = if is_code_target {
-                            // Even if we suppress user comments for code, we might want system comments (e.g. KERNAL)
+                            // Even if we suppress user comments for code, we might want platform comments (e.g. KERNAL)
                             // But usually KERNAL/System targets won't be in our 'data' block types loop unless we disassembled the whole memory.
                             // If they are outside (target_idx >= len), is_code_target is false, so we show them (correct for external system calls).
                             // If they are INSIDE and marked as Code, we suppress user comments (to fix the bug).
