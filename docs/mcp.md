@@ -197,11 +197,11 @@ Orchestrates a full end-to-end analysis of the loaded binary. Runs block classif
 
 **What it does:**
 
-1. Gathers binary info, existing blocks, symbols, and comments.
-2. Runs `r2000-analyze-blocks` to classify all memory regions (code, data, text, tables).
-3. Identifies unanalyzed subroutines (those without a documentation header) and launches up to 10 parallel subagents, each running `r2000-analyze-routine` to document one routine.
-4. Identifies unanalyzed data symbols (auto-generated `lab_XXXX` / `dat_XXXX` names) and launches up to 10 parallel subagents, each running `r2000-analyze-symbol` to classify and rename one symbol.
-5. Saves the project and produces a summary report with all changes made.
+1. **Phase 0 — Gather Context**: Collects binary info, existing blocks, all symbols, and line comments.
+2. **Phase 1 — Classify Blocks**: Runs `r2000-analyze-blocks` to classify all memory regions (code, data, text, tables), then refreshes state.
+3. **Phase 2 — Analyze Routines**: Identifies unanalyzed subroutines — those with `s_XXXX` labels or `JSR` targets that lack a documentation header (`=-=-=-=`). Launches up to 10 parallel subagents, each running `r2000-analyze-routine` to document one routine.
+4. **Phase 3 — Analyze Symbols**: Identifies unanalyzed data symbols — auto-generated names like `a_XXXX`, `f_XXXX`, `p_XXXX`, `zpa_XX`, `zpf_XX`, `zpp_XX`. Launches up to 10 parallel subagents, each running `r2000-analyze-symbol` to classify and rename one symbol.
+5. **Phase 4 — Save & Report**: Saves the project and produces a summary report with tables of all routines analyzed, symbols renamed, and any uncertain items flagged for manual review.
 
 !!! example "Prompt"
 

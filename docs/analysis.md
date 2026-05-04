@@ -169,11 +169,33 @@ needs both forms to generate the correct opcode size during reassembly.
 
 ## Excluded Addresses
 
-Some addresses are excluded from label generation. The **excluded addresses** set (managed per-project) lets
-you suppress labels for addresses that would create noise, such as addresses that are computed dynamically
-and don't represent real targets.
+Some addresses are excluded from label generation. There are two levels of exclusion:
 
-When an address is in the excluded set, the analyzer skips it entirely — no label or cross-reference is generated.
+### Platform-Level Exclusion
+
+When a platform is selected, the **"Exclude well-known addresses from symbolic analysis"** checkbox in
+[Document Settings](settings.md) lets you suppress labels for platform-specific addresses that typically
+create noise (e.g., hardware registers that are accessed indirectly or computed dynamically). This setting
+uses a curated exclusion list shipped with the platform definition.
+
+### Per-Project User Exclusion
+
+You can also exclude individual external addresses on a per-project basis by pressing ++delete++ while the
+cursor is on an **external label** in the disassembly. This adds the address to the project's
+**user-excluded addresses** set, which is saved with the project file.
+
+This is useful for suppressing labels that are not real targets — for example, addresses that are computed
+dynamically and appear as false references in the code.
+
+!!! tip
+
+    The exclusion is undoable (++ctrl+z++). You can also see excluded addresses reflected immediately:
+    the label and its cross-references are removed from the disassembly after exclusion.
+
+### Effect
+
+When an address is in either exclusion set (platform-level or per-project), the analyzer skips it
+entirely — no label or cross-reference is generated.
 
 ---
 
