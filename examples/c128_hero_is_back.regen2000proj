@@ -4722,6 +4722,15 @@
     "24096": "Restore character to draw",
     "24097": "Store character in screen memory",
     "24101": "Draw character at (X, Y) on screen ($0400)",
+    "24378": "great job",
+    "24407": "with your help, roderick",
+    "24434": "has saved all the miners",
+    "24461": "trapped in the mount",
+    "24488": "leone mines.",
+    "24518": "you get 10000 extra points",
+    "24545": "for each life left",
+    "24575": "your final score is",
+    "24604": "000000",
     "25271": "Unpack LIVES label to HUD",
     "25289": "Unpack LEVEL label to HUD",
     "25316": "Unpack SCORE label to HUD",
@@ -5734,6 +5743,30 @@
     "23214": {
       "HighByte": 25814
     },
+    "24710": {
+      "LowByte": 20724
+    },
+    "24714": {
+      "HighByte": 20724
+    },
+    "24718": {
+      "LowByte": 24614
+    },
+    "24722": {
+      "HighByte": 24614
+    },
+    "24731": {
+      "LowByte": 24378
+    },
+    "24735": {
+      "HighByte": 24378
+    },
+    "24739": {
+      "LowByte": 1231
+    },
+    "24743": {
+      "HighByte": 1231
+    },
     "24927": {
       "LowByte": 25746
     },
@@ -5772,14 +5805,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 31546,
-  "hex_dump_cursor_address": 31536,
-  "sprites_cursor_address": 8960,
+  "cursor_address": 14230,
+  "hex_dump_cursor_address": 14224,
+  "sprites_cursor_address": 9024,
   "charset_cursor_address": 7168,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 40960,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
