@@ -94,7 +94,7 @@ After all routine subagents complete:
 
 A symbol is considered **already analyzed** if:
 
-- It has a **user-defined** name (i.e., NOT an auto-generated `lab_XXXX` or `dat_XXXX` name), OR
+- It has a **user-defined** name (i.e., NOT an auto-generated prefix name like `a_XXXX`, `f_XXXX`, `p_XXXX`, `zpa_XX`, `zpf_XX`, `zpp_XX`), OR
 - It is a well-known platform address (hardware register, KERNAL entry point, OS variable).
 
 To build the candidate list:
@@ -115,7 +115,7 @@ To build the candidate list:
 
   > Read the skill file at `.agent/skills/r2000-analyze-symbol/SKILL.md` and follow its workflow.
   >
-  > Analyze the symbol at address `$XXXX` (decimal: NNNNN). Current label: `lab_XXXX`.
+  > Analyze the symbol at address `$XXXX` (decimal: NNNNN). Current label: `{current_label}`.
   >
   > Binary info: platform = {platform}, filename = {filename}, description = {description}, may_contain_undocumented_opcodes = {hint}.
   >
@@ -161,8 +161,8 @@ After all symbol subagents complete:
 
   | Address | Old Label  | New Label       | Classification        |
   | ------- | ---------- | --------------- | --------------------- |
-  | `$02`   | `lab_02`   | `ptr_screen`    | Pointer (ZP indirect) |
-  | `$0400` | `dat_0400` | `score_display` | Screencode buffer     |
+  | `$02`   | `zpp_02`   | `ptr_screen`    | Pointer (ZP indirect) |
+  | `$0400` | `a_0400`   | `score_display` | Screencode buffer     |
   | ...     | ...        | ...             | ...                   |
 
 ### Uncertain Items
