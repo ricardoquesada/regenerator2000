@@ -8,20 +8,29 @@ The project is split into two main crates to separate logic from presentation:
 
 - **`regenerator2000-core`**: Contains all UI-agnostic logic.
   - `analyzer.rs`: Auto-analysis (walking code, generating labels).
+  - `assets.rs`: Platform asset loading (labels, comments, exclude lists).
   - `commands.rs`: The `Command` enum and `UndoStack`. Every undoable action is a command.
+  - `config.rs`: System-wide configuration management.
+  - `core.rs`: Central orchestration logic (file loading, command dispatch, integration).
   - `cpu.rs`: 6502 opcode table and addressing mode logic.
   - `disassembler/`: 6502 decoding and assembler formatters (64tass, ACME, KickAssembler, ca65).
+  - `event.rs`: Application event types.
+  - `exporter/`: Code for exporting disassembly to ASM or HTML, with roundtrip verification.
   - `mcp/`: MCP server implementation (stdio and HTTP transports).
-  - `parser/`: File format parsers (.prg, .d64, .t64, .crt, .vsf snapshots).
+  - `navigation.rs`: Address navigation logic.
+  - `parser/`: File format parsers (.prg, .d64/.d71/.d81, .t64, .crt, .vsf snapshots, .dis65, VICE labels).
   - `state/`: Persistent application state and project serialization.
+  - `utils.rs`: Shared utility functions.
   - `vice/`: VICE binary monitor protocol client for live debugging.
-  - `exporter/`: Code for exporting disassembly to ASM or HTML.
+  - `view_state.rs`: View state management.
 
 - **`regenerator2000-tui`**: Contains all terminal UI-related code.
-  - `ui/`: TUI widgets, views (Disassembly, HexDump, etc.), and dialogs.
+  - `ui/`: TUI widgets, views (Disassembly, HexDump, Sprites, Charset, Bitmap, Blocks, Debugger), and dialogs.
   - `ui_state.rs`: Transient UI state (cursor, scroll, active dialog).
   - `events/`: Input handling and event loop.
   - `theme.rs`: Color scheme and styling logic.
+  - `theme_file.rs`: Theme file parsing and custom theme support.
+  - `utils.rs`: TUI utility functions.
 
 ## Core Domain Model
 
@@ -30,12 +39,12 @@ The project is split into two main crates to separate logic from presentation:
 - **`Addr`**: A wrapper around `u16` representing a 6502 address.
 - **`Platform`**: Target machine (C64, C128, VIC20, PET, etc.).
 - **`Assembler`**: Target assembler syntax (Tass64, Acme, Ca65, Kick).
-- **`BlockType`**: How a range of bytes is interpreted (Code, DataByte, PetsciiText, LoHiAddress, etc.).
-- **`LabelType`**: Semantic meaning of a label (Subroutine, Jump, Branch, Pointer, etc.).
+- **`BlockType`**: How a range of bytes is interpreted (Code, DataByte, DataWord, Address, PetsciiText, ScreencodeText, LoHiAddress, HiLoAddress, LoHiWord, HiLoWord, ExternalFile, Undefined).
+- **`LabelType`**: Semantic meaning of a label (Subroutine, Jump, Branch, Pointer, ZeroPagePointer, Field, ZeroPageField, AbsoluteAddress, ZeroPageAbsoluteAddress, ExternalJump, Predefined, UserDefined, LocalUserDefined).
 
 ### State Management
 
-- **`AppState`** (`crates/regenerator2000-core/src/state/app_state.rs`): The single source of truth for persistent data. Includes `raw_data`, `block_types`, `labels`, `user_comments`, `undo_stack`, and `settings`. Serialized to `.regen2000proj`.
+- **`AppState`** (`crates/regenerator2000-core/src/state/app_state.rs`): The single source of truth for persistent data. Includes `raw_data`, `block_types`, `labels`, `user_side_comments`, `user_line_comments`, `undo_stack`, `settings`, `cross_refs`, `bookmarks`, and `scopes`. Serialized to `.regen2000proj`.
 - **`UIState`** (`crates/regenerator2000-tui/src/ui_state.rs`): Transient state like cursor positions, scroll offsets, and active dialogs. Never serialized.
 
 ## Application Logic Flow
@@ -48,17 +57,30 @@ Regenerator 2000 follows a unidirectional data flow (Redux/Elm style):
 4. **Analysis**: `AppState::analyze()` (via `analyzer.rs`) updates labels and cross-references.
 5. **Render**: `ui()` in `crates/regenerator2000-tui/src/ui.rs` re-renders the TUI from `AppState` + `UIState`.
 
+### No Logic Duplication — State Logic Lives in Core
+
+All validation, business rules, and state-mutation logic **must** live in `regenerator2000-core` (typically as methods on `AppState` in `state/`). Both the TUI (`regenerator2000-tui`) and the MCP server (`mcp/handler.rs`) are **consumers** of core logic — they must call shared `AppState` methods, not re-implement the same checks independently.
+
+For example, if label creation needs to reject duplicate names, that validation belongs in an `AppState` method (e.g., `create_set_user_label_command`). The MCP handler and the TUI dialog both call that single method. **Never** add domain logic directly into `mcp/handler.rs` or `events/input.rs` if it can be expressed as a core method.
+
+When adding or modifying a feature, ask: *"Would this logic need to be duplicated if a third client (e.g., a GUI, a CLI) were added?"* If yes, it belongs in `regenerator2000-core`.
+
 ## AI Agent Skills (`.agent/skills/`)
 
 Specialized tools are available for common tasks. Invoke them via `activate_skill`:
 
 - `r2000-analyze-basic`: Analyze BASIC programs and mark pointers.
 - `r2000-analyze-blocks`: Auto-detect and set block types (text, data).
+- `r2000-analyze-program`: Orchestrate full-program analysis using subagents for blocks, routines, and symbols.
 - `r2000-analyze-routine`: Trace a subroutine and mark code paths.
 - `r2000-analyze-symbol`: Find and label all references to a specific address.
 - `add-mcp-tool`: Templates for adding new programmatic tools to the MCP server.
+- `bump-version`: Automate version bumping and changelog updates.
 - `coding`: General Rust coding assistance with project context.
 - `code-review`: Review changes for idiomatic Rust and project conventions.
+- `update-keyboard-shortcuts`: Sync keyboard shortcuts across docs and source files.
+- `update-mcp-docs`: Sync `docs/mcp.md` with the actual MCP handler tools.
+- `verify-mcp`: Run MCP integration test suite to verify server functionality.
 
 ## Rust Best Practices
 
