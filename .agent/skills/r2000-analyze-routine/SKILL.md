@@ -33,13 +33,12 @@ Use this skill when the user asks to "analyze this routine" or "what does this f
   - Loop with `LDA`/`STA` and `DEX`/`DEY`/`BNE` → Memory copy or fill.
   - Bit-shifting, `ADC`/`SBC` chains → Math or decompressor.
   - Reads a memory-mapped I/O address then branches → Hardware polling.
-- **If platform = Commodore 64**, also look for these C64-specific patterns (see **C64 Reference** section below):
-  - `JSR $FFD2` (CHROUT) in a loop → Text output to screen.
-  - Reads `$DC00`/`$DC01` (CIA 1) → Joystick / keyboard input.
-  - Writes to `$D000–$D027` (VIC-II sprites) → Sprite update.
-  - Reads `$D019` / writes `$D01A` → IRQ raster handler tick.
-  - Writes to `$D400–$D418` (SID) → Sound / music driver tick.
-  - `SEI` + stores to `$FFFE/$FFFF` or `$0314/$0315` → IRQ vector setup.
+- Use your knowledge of the **target platform** (from `r2000_get_binary_info`) to recognize platform-specific patterns:
+  - Calls to OS/KERNAL entry points → System service calls.
+  - Reads/writes to hardware register addresses → I/O, video, sound, or input handling.
+  - Writes to interrupt vector locations → IRQ/NMI setup.
+  - Writes to sound chip registers → Music/SFX driver tick.
+  - Reads input port registers → Joystick, keyboard, or controller polling.
 
 ## 4. Check Context
 
@@ -53,7 +52,7 @@ Use this skill when the user asks to "analyze this routine" or "what does this f
 ## 5. Analyze Data Usage
 
 - For each memory address accessed by the routine (e.g., `LDA $C000`, `STA $02`):
-  - Check whether it falls in the **platform's hardware register range**. If **platform = Commodore 64**, see the **C64 Reference** section below. For other platforms, use your knowledge of their memory maps.
+  - Check whether it falls in the **platform's hardware register range**. Use your knowledge of the target platform's memory map (hardware registers, OS variables, ROM entry points) based on the `platform` value from `r2000_get_binary_info`.
   - Otherwise, call `r2000_get_cross_references` on that address to understand:
     - Is it written only once (init)? → likely a constant or config variable.
     - Is it written _and_ read by multiple routines? → shared state / global variable.
@@ -70,9 +69,9 @@ Combine findings into a summary:
 
 > See **Step 7** for the exact comment block format to use when documenting your findings.
 
-## 7. Optional: Document
+## 7. Document
 
-If the analysis is solid, offer to add a multi-line comment block on top of the routine, rename the label to a descriptive one, and add **side-comments** to key instructions to explain the logic flow.
+Add a multi-line comment block on top of the routine, rename the label to a descriptive one, and add **side-comments** to key instructions to explain the logic flow.
 
 The multi-line comment block must be placed **above the first instruction** of the routine using `r2000_set_comment` with `"type": "line"`. It should follow this exact format — the separator line must be used as both the **first** and **last** line of the comment:
 
@@ -91,51 +90,6 @@ To document the routine, use:
 - `r2000_set_label_name` — to give the routine a descriptive name.
 - `r2000_set_comment` with `"type": "line"` — to add the multi-line comment block above the entry point.
 - `r2000_set_comment` with `"type": "side"` — to annotate key instructions within the routine body with short inline notes (e.g., explaining what a register holds, why a branch is taken, or what a memory address represents). **Crucial for making the code readable for others.**
-
----
-
-## C64 Reference (only when platform = Commodore 64)
-
-> **Use this section only if `r2000_get_binary_info` returns platform = Commodore 64.**
-> For other platforms (VIC-20, Apple II, NES, etc.), rely on your own knowledge of that platform's memory map and OS entry points.
-
-### C64 Memory Map
-
-| Address Range | Description                              |
-| ------------- | ---------------------------------------- |
-| `$0000–$00FF` | Zero Page (fast variables, pointers)     |
-| `$0100–$01FF` | CPU Stack                                |
-| `$0200–$03FF` | OS work area, BASIC input buffer         |
-| `$0314–$0315` | Hardware IRQ vector shadow (CINV)        |
-| `$0317–$0318` | BRK / NMI vector shadow                  |
-| `$0400–$07FF` | Default Screen RAM (1000 bytes + spare)  |
-| `$0800–$9FFF` | BASIC program area / free RAM            |
-| `$A000–$BFFF` | BASIC ROM (or RAM underneath)            |
-| `$C000–$CFFF` | Free RAM                                 |
-| `$D000–$D3FF` | VIC-II registers (when I/O visible)      |
-| `$D400–$D7FF` | SID registers (when I/O visible)         |
-| `$D800–$DBFF` | Color RAM                                |
-| `$DC00–$DCFF` | CIA 1 (keyboard, joystick, IRQ timer)    |
-| `$DD00–$DDFF` | CIA 2 (serial bus, NMI, VIC bank select) |
-| `$E000–$FFFF` | KERNAL ROM (or RAM underneath)           |
-| `$FFFE–$FFFF` | Hardware IRQ vector                      |
-| `$FFFA–$FFFB` | NMI vector                               |
-| `$FFFC–$FFFD` | RESET vector                             |
-
-### Well-Known KERNAL Entry Points
-
-| Address | Name   | Purpose                       |
-| ------- | ------ | ----------------------------- |
-| `$FFD2` | CHROUT | Output a character            |
-| `$FFE4` | GETIN  | Get a character from keyboard |
-| `$FFE1` | STOP   | Check STOP key                |
-| `$FFCF` | CHRIN  | Input a character             |
-| `$FFD5` | LOAD   | Load from device              |
-| `$FFD8` | SAVE   | Save to device                |
-| `$FF81` | CINT   | Initialize screen editor      |
-| `$FF84` | IOINIT | Initialize I/O                |
-| `$FFBA` | SETLFS | Set logical file              |
-| `$FFBD` | SETNAM | Set filename                  |
 
 ---
 
@@ -159,5 +113,3 @@ After completing the analysis, report to the user:
 - **Evidence**: Key instructions or cross-references that led to the conclusion.
 - **Actions taken**: What was renamed, what line-comments were added, and which key instructions received **side-comments** for clarity.
 - **Uncertain areas**: Any instructions or addresses whose purpose is still unclear.
-
-Always ask the user's confirmation before applying `r2000_set_label_name` or adding comments, unless they explicitly said "go ahead and document it."
