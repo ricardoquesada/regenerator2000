@@ -88,7 +88,8 @@ The core engine state, organized across multiple modules:
 - **[`project.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/project.rs)**: The `ProjectState` struct — the persistent part of the state saved to `.regen2000proj` files.
 - **[`settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/settings.rs)**: Document-level settings (assembler, platform, display preferences).
 - **[`search.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/search.rs)**: Centralized search logic (hex, text, PETSCII).
-- **[`types.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/types.rs)**: Core type definitions used across the workspace.
+- **[`types.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/types.rs)**: Core type definitions used across the workspace (`Addr`, `Platform`, `BlockType`, `Assembler`, `LabelType`, etc.).
+- **[`event.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/event.rs)**: Defines `CoreEvent` (state changes, dialog requests, status messages) and `DialogType` — the frontend-agnostic event vocabulary returned by `Core::apply_action()`.
 
 ### 2. Disassembly Engine ([`regenerator2000-core/src/disassembler/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/disassembler))
 
@@ -249,7 +250,7 @@ Manages application-level configuration that persists across sessions.
   - Entropy threshold for analysis
   - Recent projects list
   - Update checking preference
-- Stored separately from project state to maintain user preferences across different projects.
+- Stored as `config.toml` in the platform-specific config directory (migrated from JSON in v0.9.13). Stored separately from project state to maintain user preferences across different projects.
 
 ### 11. Assets ([`regenerator2000-core/src/assets.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/assets.rs))
 
