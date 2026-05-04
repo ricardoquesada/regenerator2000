@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.13] - 2026-05-03
+
+### Features
+
+- **Configuration**: Migrate configuration format from JSON to TOML with automatic legacy file conversion.
+- **Themes**: Move built-in themes from Rust code to embedded TOML assets; add custom theme support via TOML files.
+- **Disk Images**: Add support for D71 80-track, and D64 42-track disk images.
+- **Hexdump**: Implement byte-value color palettes and updated hex dump UI layout for improved readability.
+- **Charset**: Show cursor address in charset view title and improve cursor visibility.
+- **Labels**: Add centralized label validation and helper for setting user labels with duplicate name detection.
+- **CLI**: Display config directory path in `--help` output.
+- **UI**: Add Delete key to exclude external addresses from analysis.
+
+### Fixes
+
+- **Labels**: Exclude external addresses from being marked as unexplored in disassembly view.
+
+### Changes
+
+- **Labels**: Update label naming convention to use underscored prefixes (`s_`, `j_`, `zpf_`, `p_`, `f_`, `a_`) for improved searchability.
+- **Platform**: Rename 'system' to 'platform' across the codebase.
+
+### Refactor / Internal
+
+- **Hexdump**: Remove entropy visualization from hexdump view.
+
+### Documentation
+
+- **Analysis**: Add analysis documentation and update label prefix references.
+- **Settings**: Update settings documentation with platform-specific system label and analysis options.
+- **CLI**: Add `--dump-system-config-files` CLI documentation and system config override workflow.
+- **Themes**: Move custom theme documentation from install.md to themes.md.
+
+### Tools
+
+- **Verifier**: Add verifier tool for project binary reproducibility checks.
+
+### Agent / Skills
+
+- **Skills**: Add `r2000-analyze-program` orchestration skill for full-program analysis.
+- **Skills**: Generalize `r2000-analyze-symbol` and `r2000-analyze-routine` instructions by removing platform-specific C64 references.
+- **Skills**: Update subroutine and data symbol naming conventions in analysis skill documentation. Also, they should not ask user for confirmation.
+
+### Examples
+
+- **C64**: Updated Burnin' Rubber, Kikstart, and Moving Tubes with additional labels, comments, and project metadata.
+
 ## [0.9.12] - 2026-04-27
 
 ### Features
