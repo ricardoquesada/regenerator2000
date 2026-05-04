@@ -33,15 +33,15 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
   - Side-by-side view with disassembly.
 - **Debugger**: Connect to VICE for live disassembly, breakpoints, run/step (F2–F9); Debugger panel in the right pane.
 - **Mini map**: Mini map of the file being analyzed.
-- **Platforms**: Supports Commodore 8-bit machines like C64, C128, Plus/4, etc.
+- **Platforms**: Supports Commodore 8-bit machines: C64, C128, VIC-20, Plus/4, PET 4.0, PET 2.0, and 1541.
 - **Import**: Load the following file formats
   - PRG: PRG files
   - CRT: Cartridge images with bank selection support
-  - D64: 35/40-track disk images
-  - D71: 70-track double-sided disk images
+  - D64: 35/40/42-track disk images
+  - D71: 70/80-track double-sided disk images
   - D81: 80-track disk images
   - T64: Tape images
-  - VSf: VICE Session files
+  - VSF: VICE Session files
   - RAW / BIN: Raw binaries files
   - DIS65: 6502bench project files
   - REGEN2000PROJ: Regenerator 2000 project files
@@ -56,8 +56,8 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
   - **Labels**: Add, edit, and remove local and global labels.
   - **Comments**: Add side comments and line comments.
   - **Origin**: Change the load address/origin of the binary.
-  - **Data Types**: Convert regions to Code, Byte, Word, Address, Lo/Hi Address, Hi/Lo Address, PETSCII Text,
-    Screencode Text, External file or Unknown.
+  - **Data Types**: Convert regions to Code, Byte, Word, Address, Lo/Hi Address, Hi/Lo Address,
+    Lo/Hi Word, Hi/Lo Word, PETSCII Text, Screencode Text, External File, or Undefined.
   - **Undo/Redo**: Full history support for all actions.
 - **Navigation**:
   - **Jump**: Go to specific addresses, specific line numbers, or follow
