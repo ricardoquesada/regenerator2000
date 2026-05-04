@@ -2021,63 +2021,27 @@ impl Core {
         is_local: bool,
         events: &mut Vec<CoreEvent>,
     ) {
-        let label_name = name.trim().to_string();
-
-        let old_label_vec = self.state.labels.get(&address).cloned();
-
-        if label_name.is_empty() {
-            let command = crate::commands::Command::SetLabel {
-                address,
-                new_label: None,
-                old_label: old_label_vec,
-            };
-            command.apply(&mut self.state);
-            self.state.push_command(command);
-            events.push(CoreEvent::StatusMessage("Label removed".to_string()));
-        } else {
-            let exists = self.state.labels.iter().any(|(addr, label_vec)| {
-                *addr != address && label_vec.iter().any(|l| l.name == label_name)
-            });
-
-            if exists {
-                events.push(CoreEvent::StatusMessage(format!(
-                    "Error: Label '{label_name}' already exists"
-                )));
+        match self
+            .state
+            .create_set_user_label_command(address, &name, is_local)
+        {
+            Ok(command) => {
+                let is_removal = matches!(
+                    command,
+                    crate::commands::Command::SetLabel { ref new_label, .. } if new_label.is_none()
+                );
+                command.apply(&mut self.state);
+                self.state.push_command(command);
+                events.push(CoreEvent::StatusMessage(if is_removal {
+                    "Label removed".to_string()
+                } else {
+                    "Label set".to_string()
+                }));
+            }
+            Err(msg) => {
+                events.push(CoreEvent::StatusMessage(format!("Error: {msg}")));
                 return;
             }
-
-            let mut new_label_vec = old_label_vec.clone().unwrap_or_default();
-            // Preserve the existing label_type when renaming so that external labels
-            // (e.g. ZeroPageAbsoluteAddress) remain in their display category.
-            // Only fall back to UserDefined when there is no prior label to inherit from.
-            let inherited_type = new_label_vec
-                .first()
-                .map(|l| l.label_type)
-                .unwrap_or(crate::state::LabelType::UserDefined);
-            let new_label_entry = crate::state::Label {
-                name: label_name,
-                kind: crate::state::LabelKind::User,
-                label_type: if is_local {
-                    crate::state::LabelType::LocalUserDefined
-                } else {
-                    inherited_type
-                },
-            };
-
-            if new_label_vec.is_empty() {
-                new_label_vec.push(new_label_entry);
-            } else {
-                new_label_vec[0] = new_label_entry;
-            }
-
-            let command = crate::commands::Command::SetLabel {
-                address,
-                new_label: Some(new_label_vec),
-                old_label: old_label_vec,
-            };
-            command.apply(&mut self.state);
-            self.state.push_command(command);
-            events.push(CoreEvent::StatusMessage("Label set".to_string()));
         }
 
         // Trigger re-disassembly as it might have changed labels in the view

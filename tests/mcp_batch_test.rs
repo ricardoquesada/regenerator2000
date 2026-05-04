@@ -90,4 +90,65 @@ mod tests {
         let comment = app_state.user_side_comments.get(&0x1000).unwrap();
         assert_eq!(comment, "Loop Entry");
     }
+
+    #[test]
+    fn test_set_label_rejects_duplicate_name() {
+        let mut app_state = AppState::default();
+        let origin = regenerator2000_core::state::Addr(0x1000);
+        let data = vec![0xEA; 10]; // NOPs
+        app_state.load_binary(origin, data).unwrap();
+
+        let mut ui_state = UIState::new(Theme::default());
+
+        // Set a label at $1000
+        let (tx, _) = oneshot::channel();
+        let req = McpRequest {
+            method: "tools/call".to_string(),
+            params: json!({
+                "name": "r2000_set_label_name",
+                "arguments": { "address": 0x1000, "name": "my_label" }
+            }),
+            response_sender: tx,
+        };
+        let response = handle_request(&req, &mut app_state, &mut ui_state);
+        assert!(response.result.is_some(), "First label set should succeed");
+
+        // Try to set the same label name at a different address — should fail
+        let (tx2, _) = oneshot::channel();
+        let req2 = McpRequest {
+            method: "tools/call".to_string(),
+            params: json!({
+                "name": "r2000_set_label_name",
+                "arguments": { "address": 0x1002, "name": "my_label" }
+            }),
+            response_sender: tx2,
+        };
+        let response2 = handle_request(&req2, &mut app_state, &mut ui_state);
+        assert!(
+            response2.error.is_some(),
+            "Duplicate label name at different address should return error"
+        );
+        let err = response2.error.unwrap();
+        assert!(
+            err.message.contains("already exists"),
+            "Error message should mention 'already exists', got: {}",
+            err.message
+        );
+
+        // Setting the same label at the SAME address should succeed (rename/overwrite)
+        let (tx3, _) = oneshot::channel();
+        let req3 = McpRequest {
+            method: "tools/call".to_string(),
+            params: json!({
+                "name": "r2000_set_label_name",
+                "arguments": { "address": 0x1000, "name": "my_label" }
+            }),
+            response_sender: tx3,
+        };
+        let response3 = handle_request(&req3, &mut app_state, &mut ui_state);
+        assert!(
+            response3.result.is_some(),
+            "Re-setting the same label at the same address should succeed"
+        );
+    }
 }

@@ -256,6 +256,76 @@ impl AppState {
         }
         self.undo_stack.push(command);
     }
+
+    /// Creates a [`Command::SetLabel`] for a user-defined label at the given address,
+    /// validating that no other address already uses the same name.
+    ///
+    /// If `name` is empty the returned command will **remove** any existing label.
+    /// When `is_local` is true the label receives [`LabelType::LocalUserDefined`];
+    /// otherwise the existing label type is preserved (useful when renaming an
+    /// external/system label) or defaults to [`LabelType::UserDefined`].
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` with a human-readable message when a label with the same
+    /// name already exists at a different address.
+    pub fn create_set_user_label_command(
+        &self,
+        address: Addr,
+        name: &str,
+        is_local: bool,
+    ) -> Result<crate::commands::Command, String> {
+        let label_name = name.trim();
+        let old_label = self.labels.get(&address).cloned();
+
+        if label_name.is_empty() {
+            return Ok(crate::commands::Command::SetLabel {
+                address,
+                new_label: None,
+                old_label,
+            });
+        }
+
+        // Reject duplicate label names at other addresses
+        let exists = self.labels.iter().any(|(addr, label_vec)| {
+            *addr != address && label_vec.iter().any(|l| l.name == label_name)
+        });
+        if exists {
+            return Err(format!("Label '{label_name}' already exists"));
+        }
+
+        let mut new_label_vec = old_label.clone().unwrap_or_default();
+
+        // Preserve the existing label_type when renaming so that external labels
+        // (e.g. ZeroPageAbsoluteAddress) remain in their display category.
+        // Only fall back to UserDefined when there is no prior label to inherit from.
+        let inherited_type = new_label_vec
+            .first()
+            .map(|l| l.label_type)
+            .unwrap_or(super::LabelType::UserDefined);
+
+        let new_label_entry = Label {
+            name: label_name.to_string(),
+            kind: LabelKind::User,
+            label_type: if is_local {
+                super::LabelType::LocalUserDefined
+            } else {
+                inherited_type
+            },
+        };
+
+        if new_label_vec.is_empty() {
+            new_label_vec.push(new_label_entry);
+        } else {
+            new_label_vec[0] = new_label_entry;
+        }
+
+        Ok(crate::commands::Command::SetLabel {
+            address,
+            new_label: Some(new_label_vec),
+            old_label,
+        })
+    }
 }
 
 #[cfg(test)]

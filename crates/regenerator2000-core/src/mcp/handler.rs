@@ -434,27 +434,13 @@ fn handle_tool_call_internal(
                     data: None,
                 })?;
 
-            // Preserve the existing label_type when renaming so that external labels
-            // (e.g. ZeroPageAbsoluteAddress) remain in their display category.
-            // Only fall back to UserDefined when creating a brand-new label.
-            let inherited_type = app_state
-                .labels
-                .get(&address)
-                .and_then(|v| v.first())
-                .map(|l| l.label_type)
-                .unwrap_or(crate::state::LabelType::UserDefined);
-
-            let label = crate::state::Label {
-                name: label_name.to_string(),
-                kind: crate::state::LabelKind::User,
-                label_type: inherited_type,
-            };
-
-            let command = crate::commands::Command::SetLabel {
-                address,
-                new_label: Some(vec![label]),
-                old_label: app_state.labels.get(&address).cloned(),
-            };
+            let command = app_state
+                .create_set_user_label_command(address, label_name, false)
+                .map_err(|msg| McpError {
+                    code: -32602,
+                    message: msg,
+                    data: None,
+                })?;
 
             command.apply(app_state);
             app_state.push_command(command);
