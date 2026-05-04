@@ -3814,34 +3814,6 @@
         "kind": "User"
       }
     ],
-    "35144": [
-      {
-        "name": ".init",
-        "label_type": "Branch",
-        "kind": "User"
-      }
-    ],
-    "35168": [
-      {
-        "name": ".update",
-        "label_type": "Branch",
-        "kind": "User"
-      }
-    ],
-    "35174": [
-      {
-        "name": ".play_check",
-        "label_type": "Branch",
-        "kind": "User"
-      }
-    ],
-    "35202": [
-      {
-        "name": ".stop",
-        "label_type": "Branch",
-        "kind": "User"
-      }
-    ],
     "35208": [
       {
         "name": "backpack_sfx_status",
@@ -5800,14 +5772,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8832,
-  "hex_dump_cursor_address": 11776,
-  "sprites_cursor_address": 8896,
+  "cursor_address": 31546,
+  "hex_dump_cursor_address": 31536,
+  "sprites_cursor_address": 8960,
   "charset_cursor_address": 7168,
-  "right_pane_visible": "Sprites",
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],

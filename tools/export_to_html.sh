@@ -9,6 +9,9 @@ cargo build --release
 REGEN="./target/release/regenerator2000"
 
 # Export each example
+echo "Exporting c128_hero_is_back..."
+$REGEN --headless --export_html docs/examples/c128_hero_is_back.html examples/c128_hero_is_back.regen2000proj
+
 echo "Exporting c64_burnin_rubber..."
 $REGEN --headless --export_html docs/examples/c64_burnin_rubber.html examples/c64_burnin_rubber.regen2000proj
 

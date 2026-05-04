@@ -25,6 +25,7 @@ run_verify() {
     echo ""
 }
 
+run_verify examples/c128_hero_is_back.regen2000proj
 run_verify examples/c64_burnin_rubber.regen2000proj
 #run_verify examples/c64_burnin_rubber_tape_loader.regen2000proj
 run_verify examples/c64_moving_tubes_lxt.regen2000proj
