@@ -1145,10 +1145,11 @@ impl Widget for DisassemblyView {
             };
 
             let offset = line.address.0.saturating_sub(app_state.origin.0) as usize;
-            let is_unexplored = matches!(
-                app_state.block_types.get(offset),
-                Some(&regenerator2000_core::state::BlockType::Undefined)
-            );
+            let is_unexplored = line.external_label_address.is_none()
+                && matches!(
+                    app_state.block_types.get(offset),
+                    Some(&regenerator2000_core::state::BlockType::Undefined)
+                );
 
             let mut base_style = if is_selected_block {
                 Style::default()
