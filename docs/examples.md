@@ -74,7 +74,7 @@ A disassembly of the game [Omega Race][vic20_omega_race_info] for VIC-20.
 
 Main takeaways:
 
-- Omega Race is a vector-style space shooter. This example demonstrates VIC-20 cartridge analysis with extensive labels and comments documenting the game's rendering engine, collision system, and input handling.
+- WIP
 
 Source:
 
@@ -136,9 +136,7 @@ A disassembly of the Commodore Plus/4 motorcycle obstacle course game [Kikstart]
 
 Main takeaways:
 
-- Kikstart is a motorcycle obstacle course game.
-- Great example of a Commodore Plus/4 game.
-- This disassembly demonstrates the use of platform-specific labels and symbols for the Plus/4.
+- WIP
 
 Source:
 

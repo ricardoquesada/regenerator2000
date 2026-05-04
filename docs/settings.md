@@ -13,11 +13,11 @@ The Settings dialog allows you to configure global preferences for the applicati
 ┌ Settings ----------------------------------------┐
 │                                                  │
 │  [X] Open the latest file on startup             │
-│  [X] Sync Hex Dump View                          │
-│  [ ] Sync Charset View                           │
-│  [ ] Sync Sprites View                           │
-│  [ ] Sync Bitmap View                            │
 │  [X] Sync Blocks View                            │
+│  [X] Sync Hex Dump View                          │
+│  [ ] Sync Sprites View                           │
+│  [ ] Sync Charset View                           │
+│  [ ] Sync Bitmap View                            │
 │  [X] Check for updates                           │
 │  [X] Default is Unexplored (for new files)       │
 │  Entropy Warning Threshold: < 7.5 >              │
@@ -37,12 +37,12 @@ The Settings dialog allows you to configure global preferences for the applicati
        - **Description**: The following options control whether different views automatically
          synchronize their cursor with the main Disassembly View.
          When enabled, navigating in the Disassembly View will update the others to show
-         the corresponding memory location.
-       - **Sync Hex Dump View**: Synchronizes the Hex Dump view.
-       - **Sync Charset View**: Synchronizes the Charset view.
-       - **Sync Sprites View**: Synchronizes the Sprites view.
-       - **Sync Bitmap View**: Synchronizes the Bitmap view.
-       - **Sync Blocks View**: Synchronizes the Blocks view.
+         the corresponding memory location. Listed in keyboard shortcut order (++ctrl+1++ through ++ctrl+5++).
+       - **Sync Blocks View** (++ctrl+1++): Synchronizes the Blocks view.
+       - **Sync Hex Dump View** (++ctrl+2++): Synchronizes the Hex Dump view.
+       - **Sync Sprites View** (++ctrl+3++): Synchronizes the Sprites view.
+       - **Sync Charset View** (++ctrl+4++): Synchronizes the Charset view.
+       - **Sync Bitmap View** (++ctrl+5++): Synchronizes the Bitmap view.
 
 3. **Check for updates**
        - **Description**: When enabled, the application checks for new releases on startup and displays

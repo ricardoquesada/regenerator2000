@@ -58,16 +58,16 @@ impl Widget for SettingsDialog {
                 }
             ),
             format!(
-                "{} Sync Hex Dump View",
-                if app_state.system_config.sync_hex_dump {
+                "{} Sync Blocks View",
+                if app_state.system_config.sync_blocks_view {
                     "[X]"
                 } else {
                     "[ ]"
                 }
             ),
             format!(
-                "{} Sync Charset View",
-                if app_state.system_config.sync_charset_view {
+                "{} Sync Hex Dump View",
+                if app_state.system_config.sync_hex_dump {
                     "[X]"
                 } else {
                     "[ ]"
@@ -82,16 +82,16 @@ impl Widget for SettingsDialog {
                 }
             ),
             format!(
-                "{} Sync Bitmap View",
-                if app_state.system_config.sync_bitmap_view {
+                "{} Sync Charset View",
+                if app_state.system_config.sync_charset_view {
                     "[X]"
                 } else {
                     "[ ]"
                 }
             ),
             format!(
-                "{} Sync Blocks View",
-                if app_state.system_config.sync_blocks_view {
+                "{} Sync Bitmap View",
+                if app_state.system_config.sync_bitmap_view {
                     "[X]"
                 } else {
                     "[ ]"
@@ -265,23 +265,23 @@ impl Widget for SettingsDialog {
                         !app_state.system_config.open_last_project;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 1 {
-                    app_state.system_config.sync_hex_dump = !app_state.system_config.sync_hex_dump;
+                    app_state.system_config.sync_blocks_view =
+                        !app_state.system_config.sync_blocks_view;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 2 {
-                    app_state.system_config.sync_charset_view =
-                        !app_state.system_config.sync_charset_view;
+                    app_state.system_config.sync_hex_dump = !app_state.system_config.sync_hex_dump;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 3 {
                     app_state.system_config.sync_sprites_view =
                         !app_state.system_config.sync_sprites_view;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 4 {
-                    app_state.system_config.sync_bitmap_view =
-                        !app_state.system_config.sync_bitmap_view;
+                    app_state.system_config.sync_charset_view =
+                        !app_state.system_config.sync_charset_view;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 5 {
-                    app_state.system_config.sync_blocks_view =
-                        !app_state.system_config.sync_blocks_view;
+                    app_state.system_config.sync_bitmap_view =
+                        !app_state.system_config.sync_bitmap_view;
                     let _ = app_state.system_config.save();
                 } else if self.selected_index == 6 {
                     app_state.system_config.check_for_updates =
