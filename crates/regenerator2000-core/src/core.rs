@@ -1262,19 +1262,15 @@ impl Core {
                     events.push(CoreEvent::StatusMessage("Uncollapsed block".to_string()));
                 }
             } else {
-                // To collapse from disassembly, we need a block at cursor.
-                // In TUI this was possible if cursor was on a block header.
-                // The analyzer already has blocks.
+                // Use get_block_range() rather than get_compressed_blocks() so
+                // that virtual splitters are respected: a splitter inside a
+                // DataByte block virtually splits it in two, allowing each part
+                // to be collapsed independently.
                 let addr = line.address;
-                let offset = addr.offset_from(self.state.origin);
-                let block = self
-                    .state
-                    .get_compressed_blocks()
-                    .into_iter()
-                    .find(|b| offset >= b.start && offset <= b.end);
-
-                if let Some(b) = block {
-                    let range = (b.start, b.end);
+                if let Some((start_addr, end_addr)) = self.state.get_block_range(addr) {
+                    let start_offset = start_addr.offset_from(self.state.origin);
+                    let end_offset = end_addr.offset_from(self.state.origin);
+                    let range = (start_offset, end_offset);
                     let command = crate::commands::Command::CollapseBlock { range };
                     command.apply(&mut self.state);
                     self.state.push_command(command);
@@ -2616,6 +2612,62 @@ mod tests {
             line.external_label_address,
             Some(Addr(0xD020)),
             "Cursor should stay on the external label definition after Analyze"
+        );
+    }
+
+    /// Regression test: Ctrl+K (ToggleCollapsedBlock) on a DataByte block that
+    /// has a splitter in the middle must collapse only the sub-block the cursor
+    /// is in, not the entire merged block.  Previously `toggle_collapsed_block`
+    /// used `get_compressed_blocks()` which ignores splitters.
+    #[test]
+    fn test_toggle_collapse_respects_splitter() {
+        use crate::state::types::BlockType;
+
+        let mut core = Core::new();
+        // 10 data bytes at $1000–$1009
+        core.state
+            .load_binary(Addr(0x1000), vec![0x00; 10])
+            .unwrap();
+        core.state.block_types = vec![BlockType::DataByte; 10];
+
+        // Splitter at $1005 → two virtual sub-blocks: $1000–$1004 and $1005–$1009
+        core.state.toggle_splitter(Addr(0x1005));
+        core.state.disassemble();
+
+        // Place cursor on the first byte ($1000) and collapse
+        core.view.active_pane = ActivePane::Disassembly;
+        core.view.cursor_index = 0;
+
+        let events = core.apply_action(AppAction::ToggleCollapsedBlock);
+        assert!(
+            events
+                .iter()
+                .any(|e| matches!(e, CoreEvent::StatusMessage(msg) if msg.contains("Collapsed"))),
+            "Should emit 'Collapsed block' status"
+        );
+
+        // Only the first sub-block ($1000–$1004, offsets 0–4) should be collapsed
+        assert_eq!(
+            core.state.collapsed_blocks.len(),
+            1,
+            "Exactly one collapsed range expected"
+        );
+        assert_eq!(
+            core.state.collapsed_blocks[0],
+            (0, 4),
+            "Collapsed range should be offsets 0–4 (the first sub-block)"
+        );
+
+        // The second sub-block ($1005–$1009) must still be fully visible in
+        // the disassembly — look for a non-collapsed line at $1005.
+        let has_1005 = core
+            .state
+            .disassembly
+            .iter()
+            .any(|l| l.address == Addr(0x1005) && !l.is_collapsed);
+        assert!(
+            has_1005,
+            "Address $1005 should still be visible (not collapsed)"
         );
     }
 

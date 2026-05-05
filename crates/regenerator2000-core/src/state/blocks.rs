@@ -480,6 +480,46 @@ mod tests {
         assert_eq!(range2, Some((Addr(0x1005), Addr(0x1009))));
     }
 
+    /// Regression test: Ctrl+K on a DataByte block that has a splitter in the
+    /// middle must collapse only the sub-block the cursor is in, not the entire
+    /// merged block.  Previously, `toggle_collapsed_block` used
+    /// `get_compressed_blocks()` which ignores splitters, so pressing Ctrl+K
+    /// anywhere in the block would always collapse the full span.
+    #[test]
+    fn test_collapse_respects_splitter() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x1000);
+        // 10 data bytes: $1000–$1009
+        app_state.raw_data = vec![0x00; 10];
+        app_state.block_types = vec![BlockType::DataByte; 10];
+        // Splitter at $1005 splits the block into $1000–$1004 and $1005–$1009
+        app_state.splitters.insert(Addr(0x1005));
+        app_state.disassemble();
+
+        // Collapse only the first sub-block ($1000–$1004) using get_block_range
+        let (start_addr, end_addr) = app_state.get_block_range(Addr(0x1000)).unwrap();
+        assert_eq!(start_addr, Addr(0x1000));
+        assert_eq!(end_addr, Addr(0x1004));
+
+        let start_offset = start_addr.offset_from(app_state.origin);
+        let end_offset = end_addr.offset_from(app_state.origin);
+        app_state.collapsed_blocks.push((start_offset, end_offset));
+        app_state.disassemble();
+
+        // The second sub-block ($1005–$1009) must NOT be collapsed
+        let (start2, end2) = app_state.get_block_range(Addr(0x1005)).unwrap();
+        assert_eq!(start2, Addr(0x1005));
+        assert_eq!(end2, Addr(0x1009));
+        let start2_offset = start2.offset_from(app_state.origin);
+        assert!(
+            !app_state
+                .collapsed_blocks
+                .iter()
+                .any(|(s, _)| *s == start2_offset),
+            "Second sub-block ($1005–$1009) should not be collapsed"
+        );
+    }
+
     #[test]
     fn test_set_block_type_lohi_creates_labels() {
         let mut app_state = AppState::new();
