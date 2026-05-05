@@ -268,6 +268,7 @@ EXPECTED_TOOLS = {
     "r2000_get_disassembly_cursor",
     "r2000_jump_to_address",
     "r2000_search_memory",
+    "r2000_search_disassembly",
     "r2000_get_cross_references",
     "r2000_set_operand_format",
     "r2000_get_symbols",
@@ -643,6 +644,90 @@ def test_misc_tools(client):
         print(f"  PASS: expected error — {res['error']['message']}")
     elif res and "result" in res:
         print("  PASS: saved (unexpected but valid)")
+    else:
+        print(f"  FAIL: {res}")
+
+
+def test_search_disassembly(client):
+    print("\nTesting r2000_search_disassembly...")
+
+    def call(arguments):
+        return client.rpc("tools/call", {
+            "name": "r2000_search_disassembly",
+            "arguments": arguments,
+        })
+
+    def get_results(res):
+        """Parse the JSON result list from an MCP response."""
+        try:
+            text = res["result"]["content"][0]["text"]
+            return json.loads(text)
+        except Exception:
+            return None
+
+    # Plain-text search — should return a list (possibly empty on a blank project)
+    print("- plain-text search (query='NOP')")
+    res = call({"query": "NOP"})
+    if res and "result" in res:
+        results = get_results(res)
+        if isinstance(results, list):
+            print(f"  PASS: returned {len(results)} result(s)")
+            if results:
+                r = results[0]
+                required_keys = {"address", "address_decimal", "label", "mnemonic", "operand", "comment"}
+                if required_keys.issubset(r.keys()):
+                    print(f"  PASS: result structure OK — {r['address']} {r['mnemonic']} {r['operand']}")
+                else:
+                    print(f"  FAIL: missing keys in result: {set(r.keys())}")
+        else:
+            print(f"  FAIL: expected list, got: {results}")
+    else:
+        print(f"  FAIL: {res}")
+
+    # Regex search — valid pattern
+    print("- regex search (query='NOP|BRK', use_regex=True)")
+    res = call({"query": "NOP|BRK", "use_regex": True})
+    if res and "result" in res:
+        results = get_results(res)
+        if isinstance(results, list):
+            print(f"  PASS: regex search returned {len(results)} result(s)")
+        else:
+            print(f"  FAIL: expected list, got: {results}")
+    else:
+        print(f"  FAIL: {res}")
+
+    # Regex search — invalid pattern must return an error
+    print("- regex search with invalid pattern (expect error)")
+    res = call({"query": "[unclosed", "use_regex": True})
+    if res and "error" in res:
+        print(f"  PASS: invalid regex correctly returned error — {res['error']['message'][:60]!r}")
+    elif res and "result" in res:
+        # Some servers surface errors inside content
+        text = res["result"].get("content", [{}])[0].get("text", "")
+        if "invalid regex" in text.lower() or "regex" in text.lower():
+            print(f"  PASS (error in content): {text[:60]!r}")
+        else:
+            print(f"  FAIL: expected error for invalid regex, got: {text[:60]!r}")
+    else:
+        print(f"  FAIL: no response")
+
+    # Filter flags — search only labels
+    print("- filter: search_labels=True, search_comments=False, search_instructions=False")
+    res = call({"query": "NOP", "search_labels": True, "search_comments": False, "search_instructions": False})
+    if res and "result" in res:
+        print("  PASS: filter flags accepted")
+    else:
+        print(f"  FAIL: {res}")
+
+    # max_results cap
+    print("- max_results=1")
+    res = call({"query": "NOP", "max_results": 1})
+    if res and "result" in res:
+        results = get_results(res)
+        if isinstance(results, list) and len(results) <= 1:
+            print(f"  PASS: max_results respected ({len(results)} result(s))")
+        else:
+            print(f"  FAIL: got {len(results) if isinstance(results, list) else '?'} results with max_results=1")
     else:
         print(f"  FAIL: {res}")
 
@@ -1039,6 +1124,14 @@ def test_malformed_calls(client):
     )
 
     # -----------------------------------------------------------------------
+    # r2000_search_disassembly
+    # -----------------------------------------------------------------------
+    check(
+        call("r2000_search_disassembly", {}),
+        "r2000_search_disassembly: missing 'query'"
+    )
+
+    # -----------------------------------------------------------------------
     # r2000_batch_execute
     # -----------------------------------------------------------------------
     check(
@@ -1073,6 +1166,7 @@ if __name__ == "__main__":
     test_get_disassembly_cursor(client)
     test_jump_to_address(client)
     test_misc_tools(client)
+    test_search_disassembly(client)
     test_toggle_splitter(client)
     test_add_scope(client)
     test_undo_redo(client)

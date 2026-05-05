@@ -263,7 +263,7 @@ Analyzes a specific memory address or label to determine its purpose (variable, 
 
 ## Available Tools
 
-The server currently exposes **21** tools.
+The server currently exposes **22** tools.
 
 ### `r2000_add_scope`
 
@@ -408,6 +408,21 @@ Search for a sequence of bytes or a text string in the memory. Returns a list of
 | :--- | :--- | :--- | :---: |
 | `encoding` | `string` | Encoding for the query. 'text' searches both PETSCII and Screencode. 'hex' for raw byte patterns. Defaults to 'hex' if query looks like hex bytes, otherwise 'text'. | No |
 | `query` | `string` | The search query. For hex: space-separated bytes, e.g. 'A9 00'. For text: plain string. | Yes |
+
+### `r2000_search_disassembly`
+
+Search the disassembly text for a query string or regular expression. Returns a list of matching addresses with context (label, mnemonic, operand, comment). Searches labels, comments, and instructions by default; individual fields can be disabled.
+
+**Arguments:**
+
+| Name | Type | Description | Required |
+| :--- | :--- | :--- | :---: |
+| `query` | `string` | The search query. Interpreted as a plain case-insensitive substring by default, or as a regex when `use_regex` is `true`. | Yes |
+| `use_regex` | `boolean` | When `true` the query is compiled as a case-insensitive regular expression (`(?i)` is prepended automatically). Defaults to `false`. | No |
+| `search_labels` | `boolean` | Include label names in the search. Defaults to `true`. | No |
+| `search_comments` | `boolean` | Include side and line comments in the search. Defaults to `true`. | No |
+| `search_instructions` | `boolean` | Include mnemonic and operand text in the search. Defaults to `true`. | No |
+| `max_results` | `integer` | Maximum number of matching addresses to return. Defaults to `50`. | No |
 
 ### `r2000_set_comment`
 
