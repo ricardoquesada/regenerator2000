@@ -44,6 +44,12 @@ based on the **addressing mode**:
 
     Instructions with no memory operand (Implied, Accumulator, Immediate) do not generate labels.
 
+!!! note
+
+    If the target of a `JSR`, `JMP`, or branch instruction is an internal address whose first byte is
+    `RTS` ($60) or `RTI` ($40), the label is promoted to a **Return** (`r_`) label regardless of the
+    calling instruction type. This mirrors IDA Pro's `locret_` convention.
+
 ### Step 2: Data Block Scanning
 
 The analyzer also scans **data blocks** that encode addresses:
@@ -103,6 +109,7 @@ These labels are generated from control-flow instructions (jumps, calls, branche
 | `s_`   | Subroutine    | Target of a `JSR` instruction                    | `s_C000`             |
 | `j_`   | Jump          | Target of a `JMP` instruction                    | `j_C100`             |
 | `b_`   | Branch        | Target of a branch instruction (`BNE`, `BEQ`, …) | `b_C010`             |
+| `r_`   | Return        | Target of a branch/`JMP`/`JSR` whose first instruction is `RTS` or `RTI` | `r_AACC` |
 | `e_`   | External Jump | `JSR`/`JMP`/branch target outside the binary     | `e_FFD2`             |
 
 ### Data-Access Labels

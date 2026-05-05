@@ -372,6 +372,9 @@ pub enum LabelType {
     Predefined = 10,
     UserDefined = 11,
     LocalUserDefined = 12,
+    /// Target of a branch/JMP/JSR whose first instruction is `RTS` or `RTI`.
+    /// Mirrors IDA Pro's `locret_` convention.
+    Return = 13,
 }
 
 impl LabelType {
@@ -388,6 +391,7 @@ impl LabelType {
             LabelType::Jump => "j_",
             LabelType::Subroutine => "s_",
             LabelType::Branch => "b_",
+            LabelType::Return => "r_",
             LabelType::Predefined => "L_",
             LabelType::UserDefined => "L_",
             LabelType::LocalUserDefined => "L_",

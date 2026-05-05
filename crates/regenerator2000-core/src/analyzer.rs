@@ -183,6 +183,12 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
         }
     }
 
+    // === Pre-label promotion passes ===
+
+    // Promote Branch/Jump/Subroutine labels to Return when the target's first
+    // instruction is RTS ($60) or RTI ($40).
+    promote_return_labels(state, &mut usage_map);
+
     // Generate labels
     let mut labels: BTreeMap<Addr, Vec<crate::state::Label>> = BTreeMap::new();
     let mut cross_refs: BTreeMap<Addr, Vec<Addr>> = BTreeMap::new();
@@ -236,13 +242,15 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
                 candidates.push(t);
             }
             if let Some(t) = first_abs {
-                let canonical =
-                    if t == LabelType::Jump || t == LabelType::Subroutine || t == LabelType::Branch
-                    {
-                        LabelType::ExternalJump
-                    } else {
-                        t
-                    };
+                let canonical = if t == LabelType::Jump
+                    || t == LabelType::Subroutine
+                    || t == LabelType::Branch
+                    || t == LabelType::Return
+                {
+                    LabelType::ExternalJump
+                } else {
+                    t
+                };
                 candidates.push(canonical);
             }
 
@@ -389,6 +397,68 @@ fn analyze_instruction(
             }
         }
         AddressingMode::Unknown => {}
+    }
+}
+
+/// Promote `Branch`, `Jump`, and `Subroutine` label types to `Return` when the
+/// target address is an internal address whose first byte is `RTS` ($60) or
+/// `RTI` ($40).
+///
+/// This mirrors IDA Pro's `locret_` convention: if a branch or call lands
+/// directly on a return instruction, the label gets the `r_` prefix so it is
+/// immediately recognisable as a "return stub".
+fn promote_return_labels(state: &AppState, usage_map: &mut BTreeMap<Addr, UsageData>) {
+    let origin = state.origin;
+    let data = &state.raw_data;
+    let data_len = data.len();
+    let end_addr = origin.wrapping_add(data_len as u16);
+
+    for (addr, (_types, _refs, first_type, _first_zp, first_abs)) in usage_map.iter_mut() {
+        // Only promote code-flow label types.
+        let is_code_flow = matches!(
+            first_type,
+            LabelType::Branch | LabelType::Jump | LabelType::Subroutine
+        );
+        if !is_code_flow {
+            continue;
+        }
+
+        // Only for internal addresses (we cannot inspect external bytes).
+        let is_internal = if origin < end_addr {
+            addr.0 >= origin.0 && addr.0 < end_addr.0
+        } else {
+            addr.0 >= origin.0 || addr.0 < end_addr.0
+        };
+        if !is_internal {
+            continue;
+        }
+
+        let offset = addr.0.wrapping_sub(origin.0) as usize;
+
+        // Target must be in a Code block.
+        if state
+            .block_types
+            .get(offset)
+            .copied()
+            .unwrap_or(BlockType::Code)
+            != BlockType::Code
+        {
+            continue;
+        }
+
+        // Check if the first byte at the target is RTS ($60) or RTI ($40).
+        let first_byte = data[offset];
+        if first_byte == 0x60 || first_byte == 0x40 {
+            *first_type = LabelType::Return;
+            if let Some(abs) = first_abs
+                && matches!(
+                    abs,
+                    LabelType::Branch | LabelType::Jump | LabelType::Subroutine
+                )
+            {
+                *abs = LabelType::Return;
+            }
+        }
     }
 }
 
@@ -1409,5 +1479,155 @@ mod tests {
 
         // Verify NO labels generated for the wrong pairings (e.g., $5154 from data[0]+data[6])
         assert!(!labels.contains_key(&0x5154));
+    }
+
+    // -----------------------------------------------------------------------
+    // Tests for the `r_` Return label promotion
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_branch_to_rts_becomes_return_label() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000: BEQ +0 (F0 00) → target $1002
+        // $1002: RTS (60)
+        let data = vec![0xF0, 0x00, 0x60];
+        state.raw_data = data;
+        state.block_types = vec![BlockType::Code; 3];
+
+        let result = analyze(&state);
+        assert_eq!(
+            result
+                .labels
+                .get(&0x1002)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("r_1002"),
+            "Branch to RTS must get the r_ prefix"
+        );
+    }
+
+    #[test]
+    fn test_jmp_to_rts_becomes_return_label() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000: JMP $1003 (4C 03 10)
+        // $1003: RTS (60)
+        let data = vec![0x4C, 0x03, 0x10, 0x60];
+        state.raw_data = data;
+        state.block_types = vec![BlockType::Code; 4];
+
+        let result = analyze(&state);
+        assert_eq!(
+            result
+                .labels
+                .get(&0x1003)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("r_1003"),
+            "JMP to RTS must get the r_ prefix"
+        );
+    }
+
+    #[test]
+    fn test_jsr_to_rts_becomes_return_label() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000: JSR $1003 (20 03 10)
+        // $1003: RTS (60)
+        let data = vec![0x20, 0x03, 0x10, 0x60];
+        state.raw_data = data;
+        state.block_types = vec![BlockType::Code; 4];
+
+        let result = analyze(&state);
+        assert_eq!(
+            result
+                .labels
+                .get(&0x1003)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("r_1003"),
+            "JSR to RTS must get the r_ prefix"
+        );
+    }
+
+    #[test]
+    fn test_branch_to_rti_becomes_return_label() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000: BNE +0 (D0 00) → target $1002
+        // $1002: RTI (40)
+        let data = vec![0xD0, 0x00, 0x40];
+        state.raw_data = data;
+        state.block_types = vec![BlockType::Code; 3];
+
+        let result = analyze(&state);
+        assert_eq!(
+            result
+                .labels
+                .get(&0x1002)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("r_1002"),
+            "Branch to RTI must get the r_ prefix"
+        );
+    }
+
+    #[test]
+    fn test_branch_to_nop_keeps_branch_label() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // $1000: BEQ +0 (F0 00) → target $1002
+        // $1002: NOP (EA)
+        let data = vec![0xF0, 0x00, 0xEA];
+        state.raw_data = data;
+        state.block_types = vec![BlockType::Code; 3];
+
+        let result = analyze(&state);
+        assert_eq!(
+            result
+                .labels
+                .get(&0x1002)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("b_1002"),
+            "Branch to NOP must keep the b_ prefix"
+        );
+    }
+
+    #[test]
+    fn test_external_rts_target_stays_external_jump() {
+        let mut state = AppState::new();
+        state.origin = Addr(0x1000);
+        // JMP $2000 (external)
+        let data = vec![0x4C, 0x00, 0x20];
+        state.raw_data = data;
+        state.block_types = vec![BlockType::Code; 3];
+
+        let result = analyze(&state);
+        // External addresses cannot be inspected; must remain e_
+        assert_eq!(
+            result
+                .labels
+                .get(&0x2000)
+                .and_then(|v| v.first())
+                .map(|l| l.name.as_str()),
+            Some("e_2000"),
+            "External target must stay as e_ even if it happens to start with RTS"
+        );
+    }
+
+    #[test]
+    fn test_return_label_format() {
+        assert_eq!(
+            LabelType::Return.format_label(0xAACC),
+            "r_AACC",
+            "Return label outside ZP must use 4 hex digits"
+        );
+        assert_eq!(
+            LabelType::Return.format_label(0x10),
+            "r_10",
+            "Return label in ZP must use 2 hex digits"
+        );
     }
 }
