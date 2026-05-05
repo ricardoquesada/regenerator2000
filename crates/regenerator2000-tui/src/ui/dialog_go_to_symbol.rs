@@ -235,7 +235,7 @@ mod tests {
             crate::state::Addr(0xfffe),
             vec![Label {
                 name: "IRQVector".to_string(),
-                kind: LabelKind::System,
+                kind: LabelKind::Platform,
                 label_type: LabelType::Predefined,
             }],
         );

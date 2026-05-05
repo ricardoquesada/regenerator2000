@@ -38,10 +38,26 @@ fn sync_hex_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
     // first byte is in a previous row), snap forward to the first instruction
     // that starts at or after the row boundary instead.  This prevents the
     // disassembly cursor from jumping backwards when the user presses Down.
-    let inst_idx = app_state
-        .get_line_index_containing_address(crate::state::Addr(cursor_byte_addr))
+    //
+    // The fallback chain is:
+    //   1. Line containing cursor_byte_addr that starts at/after row_start_addr.
+    //   2. First *content* (non-empty bytes) line at/after row_start_addr.
+    //   3. The containing block itself (e.g. a large .fill spanning the row
+    //      boundary) — prevents landing on an external-label definition line
+    //      that may appear early in the disassembly array when all_labels=true.
+    let containing =
+        app_state.get_line_index_containing_address(crate::state::Addr(cursor_byte_addr));
+    let inst_idx = containing
         .filter(|&idx| app_state.disassembly[idx].address >= row_start_addr)
-        .or_else(|| app_state.get_line_index_for_address(crate::state::Addr(row_start_addr)));
+        .or_else(|| {
+            // Try to find the first real content line at/after row_start_addr.
+            app_state
+                .get_line_index_for_address(crate::state::Addr(row_start_addr))
+                .filter(|&idx| !app_state.disassembly[idx].bytes.is_empty())
+                // Last resort: use the containing block even if it starts before
+                // the row boundary (beats jumping to an external label).
+                .or(containing)
+        });
 
     if let Some(inst_idx) = inst_idx {
         ui_state.cursor_index = inst_idx;
@@ -705,5 +721,110 @@ impl Widget for HexDumpView {
             sync_hex_to_disassembly(app_state, ui_state);
         }
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sync_hex_to_disassembly;
+    use regenerator2000_core::{
+        state::{AppState, BlockType, LabelKind, LabelType},
+        view_state::CoreViewState,
+    };
+
+    /// Regression test for: hex-dump right-arrow at the last column of a row
+    /// that sits inside a large multi-byte block (e.g. `.fill`) causes the
+    /// disassembly cursor to jump to the "external labels" section when
+    /// "Display External Labels at top" (`settings.all_labels`) is enabled.
+    ///
+    /// Root cause: `sync_hex_to_disassembly` filtered out the containing block
+    /// (it starts before the current hex row) then fell back to
+    /// `get_line_index_for_address`, whose old "first address >= target" pass
+    /// found an external-label definition line (prepended at the top of the
+    /// `disassembly` array) with a large address, before the real content line.
+    #[test]
+    fn test_sync_hex_to_disassembly_fill_block_row_boundary_with_all_labels() {
+        use regenerator2000_core::state::project::Label;
+
+        // --- Build AppState ---
+        // Origin $3A00; 48 bytes of identical data → emitted as one .fill block.
+        let mut app_state = AppState::new();
+        app_state.origin = regenerator2000_core::state::Addr(0x3A00);
+        app_state.raw_data = vec![0x98u8; 48];
+        app_state.block_types = vec![BlockType::DataByte; 48];
+
+        // An external label at $989A — a high address that appears before the
+        // main disassembly body in the array when all_labels = true, and whose
+        // address ($989A) satisfies `address >= $3A10`, making it the old buggy
+        // winner of the "first address >= target" third pass.
+        app_state
+            .labels
+            .entry(regenerator2000_core::state::Addr(0x989A))
+            .or_default()
+            .push(Label {
+                name: "s_external_routine".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::ExternalJump,
+            });
+        app_state.settings.all_labels = true;
+        app_state.disassemble();
+
+        // --- Build UIState (just the core view fields we need) ---
+        // Simulate hex cursor at $3A0F (last byte of the row starting at $3A00).
+        // hex_cursor_index = ($3A0F - $3A00) / 16 = 0, hex_col_cursor = 15.
+        // After a right-arrow the cursor would be at ($3A10, col 0), i.e. index 1
+        // col 0 — but sync_hex_to_disassembly is called with the *post-move*
+        // state, so we set it to the state after the move: row 1, col 0 → $3A10.
+        let mut core = CoreViewState::new();
+        core.hex_cursor_index = 1; // row index 1 = addresses $3A10..$3A1F
+        core.hex_col_cursor = 0; // column 0 → byte address $3A10
+        core.cursor_index = 999; // sentinel: must be overwritten
+
+        // We need a UIState, but sync_hex_to_disassembly only touches the
+        // CoreViewState fields — so we can create a minimal UIState via Default
+        // on the TUI wrapper and replace its core.
+        //
+        // Since UIState::new requires a Theme (a lot of colours), we instead
+        // call sync_hex_to_disassembly with a thin stand-in: a UIState whose
+        // fields are all defaulted via a helper that calls CoreViewState::new()
+        // for the non-TUI parts.  The function only reads/writes core fields.
+        //
+        // Because this test lives in the same module as sync_hex_to_disassembly
+        // we can call it with a real UIState too, but constructing one requires
+        // a Theme.  Use Theme::default() if available, otherwise build manually.
+        let theme = crate::theme::Theme::default();
+        let mut ui_state = crate::ui_state::UIState::new(theme);
+        // Overwrite the core view state with our carefully crafted one.
+        ui_state.core = core;
+
+        // --- Call the function under test ---
+        sync_hex_to_disassembly(&app_state, &mut ui_state);
+
+        // --- Assertions ---
+        let landed_idx = ui_state.cursor_index;
+        assert_ne!(
+            landed_idx, 999,
+            "sync_hex_to_disassembly must update cursor_index"
+        );
+
+        let landed_line = app_state
+            .disassembly
+            .get(landed_idx)
+            .expect("cursor_index must be a valid disassembly index");
+
+        assert!(
+            !landed_line.bytes.is_empty(),
+            "Disassembly cursor must land on a content line (has bytes), \
+             not on an external-label definition (bytes empty). \
+             Landed at address ${:04X} (index {landed_idx})",
+            landed_line.address.0,
+        );
+
+        assert!(
+            landed_line.address.0 <= 0x3A10,
+            "Landed line address (${:04X}) must not be above the hex cursor \
+             address ($3A10); it should be the fill block at $3A00",
+            landed_line.address.0,
+        );
     }
 }

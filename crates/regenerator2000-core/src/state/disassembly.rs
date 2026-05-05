@@ -122,7 +122,22 @@ impl AppState {
         {
             return Some(idx);
         }
-        // Third pass: find first address >= target
+        // Third pass: find first *content* line (has bytes) with address >= target.
+        // We intentionally skip external-label / header / separator lines (those
+        // with no bytes) here: they are prepended when `settings.all_labels` is
+        // enabled and can have large addresses that would otherwise be returned
+        // before the real instruction in the main disassembly body.
+        if let Some(idx) = self
+            .disassembly
+            .iter()
+            .position(|line| !line.bytes.is_empty() && line.address >= address)
+        {
+            return Some(idx);
+        }
+
+        // Fourth pass: any line (including label-only / header) with address >= target.
+        // This is the last resort — external label lines can still match here when no
+        // content line is at or above the requested address.
         self.disassembly
             .iter()
             .position(|line| line.address >= address)
@@ -248,6 +263,62 @@ mod tests {
         assert!(idx.is_some());
         let line = &app_state.disassembly[idx.unwrap()];
         assert_eq!(line.address, Addr(0xC003));
+    }
+
+    /// Regression test: when `all_labels = true` and the third pass of
+    /// `get_line_index_for_address` ("first line with address >= target") is
+    /// triggered, it must prefer *content* lines over external-label definition
+    /// lines that are prepended at the start of `disassembly` and may have
+    /// addresses larger than the target.
+    ///
+    /// This was the root cause of the hex-dump right-arrow causing the
+    /// disassembly cursor to jump to the "external labels" section.
+    #[test]
+    fn test_get_line_index_prefers_content_over_external_label_on_third_pass() {
+        use super::super::project::Label;
+
+        // Two code bytes at $3A20 (comes AFTER the queried address $3A10).
+        // With `all_labels = true` and an external label at $9000, the external
+        // label line is prepended before the main disassembly body. The old
+        // "first address >= target" pass would return the $9000 label line
+        // (which appears before $3A20 in the array); the new pass must skip it
+        // and return the $3A20 content line instead.
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x3A20);
+        app_state.raw_data = vec![0xEA, 0x60]; // NOP ; RTS
+        app_state.block_types = vec![BlockType::Code; 2];
+
+        // External label at $9000 — higher than origin $3A20, so it gets
+        // prepended by `all_labels = true` before $3A20 in the disassembly array.
+        app_state
+            .labels
+            .entry(Addr(0x9000))
+            .or_default()
+            .push(Label {
+                name: "ext_high".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::ExternalJump,
+            });
+        app_state.settings.all_labels = true;
+        app_state.disassemble();
+
+        // Ask for $3A10 — below origin $3A20, so passes 1 and 2 find nothing.
+        // The third pass must return the first *content* line ($3A20 NOP),
+        // not the external label definition at $9000.
+        let idx = app_state.get_line_index_for_address(Addr(0x3A10));
+        assert!(idx.is_some(), "Should find a line for $3A10");
+        let line = &app_state.disassembly[idx.unwrap()];
+        assert!(
+            !line.bytes.is_empty(),
+            "Returned line must have content bytes, not be a label-only external definition \
+             (got address ${:04X})",
+            line.address.0
+        );
+        assert_eq!(
+            line.address,
+            Addr(0x3A20),
+            "Returned line should be the first real content line at $3A20"
+        );
     }
 
     #[test]
