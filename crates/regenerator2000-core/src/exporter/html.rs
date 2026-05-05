@@ -2,6 +2,13 @@ use crate::disassembler::LABEL_COLUMN_WIDTH;
 use crate::state::AppState;
 use std::path::PathBuf;
 
+// CSS class name abbreviations used throughout this file:
+//   ad = address          by = bytes           mn = mnemonic
+//   op = operand          cm = comment         lb = label
+//   il = inline-label     cc = code-cell       ml = mid-label
+//   mld = mid-label-def   sr = separator-row   bh = block-header
+//   as = assignment
+
 const HTML_START: &str = r#"<!DOCTYPE html>
 <html>
 <head>
@@ -41,24 +48,25 @@ table { border-collapse: collapse; width: 100%; max-width: 1200px; margin: 0 aut
 td { padding: 0px 8px; line-height: 1.4; vertical-align: top; white-space: pre; }
 a { color: var(--link-color); text-decoration: none; }
 a:hover { text-decoration: underline; }
-.address { color: var(--address-color); text-align: left; }
-.address a { color: inherit; }
-.bytes { color: var(--bytes-color); text-align: left; }
-.mnemonic { color: var(--mnemonic-color); text-align: left; }
-.operand { color: var(--operand-color); text-align: left; }
-.comment { color: var(--comment-color); }
-.label { color: var(--label-color); font-weight: bold; }
-.mid-label { color: var(--mid-label-color); }
-.separator-row { height: 15px; }
-.code-cell { display: flex; align-items: top; padding: 0 !important; }
-.code-cell .inline-label { width: 20ch; flex-shrink: 0; color: var(--label-color); font-weight: bold; }
-.code-cell .mnemonic { min-width: 6ch; flex-shrink: 0; }
-.code-cell .operand { min-width: 15ch; flex-shrink: 0; padding-left: 1ch; }
-.code-cell .comment { padding: 0 8px; margin-left: 4ch; }
-.code-cell.assignment { padding: 0 8px !important; }
-.code-cell.assignment .label { min-width: 40ch; flex-shrink: 0; }
-.code-cell.block-header .comment { margin-left: 0ch; padding: 0; }
-.mid-label-def { display: inline-block; min-width: 60ch; }
+.ad { color: var(--address-color); text-align: left; }
+.ad a { color: inherit; }
+.by { color: var(--bytes-color); text-align: left; }
+.mn { color: var(--mnemonic-color); text-align: left; }
+.op { color: var(--operand-color); text-align: left; }
+.cm { color: var(--comment-color); }
+.lb { color: var(--label-color); font-weight: bold; }
+.ml { color: var(--mid-label-color); }
+.sr { height: 15px; }
+.cc { display: flex; align-items: top; padding: 0 !important; }
+.cc .il { width: 20ch; flex-shrink: 0; color: var(--label-color); font-weight: bold; }
+.cc .mn { min-width: 6ch; flex-shrink: 0; }
+.cc > .mn:first-child { padding-left: 20ch; }
+.cc .op { min-width: 15ch; flex-shrink: 0; padding-left: 1ch; }
+.cc .cm { padding: 0 8px; margin-left: 4ch; }
+.cc.as { padding: 0 8px !important; }
+.cc.as .lb { min-width: 40ch; flex-shrink: 0; }
+.cc.bh .cm { margin-left: 0ch; padding: 0; }
+.mld { display: inline-block; min-width: 60ch; }
 tr:target td { background-color: var(--highlight-bg); }
 tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 #theme-toggle { position: fixed; top: 20px; right: 20px; padding: 8px 16px; background-color: var(--text-color); color: var(--bg-color); border: 1px solid var(--text-color); cursor: pointer; font-family: inherit; font-weight: bold; }
@@ -112,7 +120,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     ];
     for header_line in &static_header_lines {
         output.push_str(&format!(
-            "<tr><td colspan=\"5\" class=\"comment\">{}</td></tr>\n",
+            "<tr><td colspan=\"5\" class=\"cm\">{}</td></tr>\n",
             header_line
         ));
     }
@@ -128,7 +136,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             formatter.name()
         );
         output.push_str(&format!(
-            "<tr><td colspan=\"5\" class=\"comment\">{}</td></tr>\n",
+            "<tr><td colspan=\"5\" class=\"cm\">{}</td></tr>\n",
             linked_header
         ));
         // Remaining lines (the actual command, blank separator, etc.)
@@ -138,7 +146,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 .replace('<', "&lt;")
                 .replace('>', "&gt;");
             output.push_str(&format!(
-                "<tr><td colspan=\"5\" class=\"comment\">{}</td></tr>\n",
+                "<tr><td colspan=\"5\" class=\"cm\">{}</td></tr>\n",
                 escaped
             ));
         }
@@ -150,15 +158,15 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             formatter.name()
         );
         output.push_str(&format!(
-            "<tr><td colspan=\"5\" class=\"comment\">{}</td></tr>\n",
+            "<tr><td colspan=\"5\" class=\"cm\">{}</td></tr>\n",
             fallback
         ));
     }
     output.push_str(&format!(
-        "<tr><td colspan=\"5\" class=\"comment\">{}</td></tr>\n",
+        "<tr><td colspan=\"5\" class=\"cm\">{}</td></tr>\n",
         separator
     ));
-    output.push_str("<tr class=\"separator-row\"><td colspan=\"5\"></td></tr>\n");
+    output.push_str("<tr class=\"sr\"><td colspan=\"5\"></td></tr>\n");
 
     let ctx = crate::disassembler::context::DisassemblyContext {
         data: &state.raw_data,
@@ -195,7 +203,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         let mut row_str = String::new();
         // Special case: Empty line (separator)
         if line.mnemonic.is_empty() && line.bytes.is_empty() && line.comment.is_empty() {
-            row_str.push_str("<tr class=\"separator-row\"><td colspan=\"5\"></td></tr>\n");
+            row_str.push_str("<tr class=\"sr\"><td colspan=\"5\"></td></tr>\n");
             formatted_rows.push(row_str);
             continue;
         }
@@ -247,7 +255,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                             })
                             .collect();
                         format!(
-                            "<span class=\"comment\"> {} x-ref: {}{}</span>",
+                            "<span class=\"cm\"> {} x-ref: {}{}</span>",
                             formatter.comment_prefix(),
                             refs_str.join(", "),
                             suffix
@@ -256,7 +264,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                         String::new()
                     };
 
-                    row_str.push_str(&format!("<tr id=\"L{:04X}\"><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell mid-label\"><span class=\"mid-label-def\">{}</span>{}</td></tr>\n", mid_addr.0, label_def, mid_comment));
+                    row_str.push_str(&format!("<tr id=\"L{:04X}\"><td colspan=\"2\"></td><td colspan=\"3\" class=\"cc ml\"><span class=\"mld\">{}</span>{}</td></tr>\n", mid_addr.0, label_def, mid_comment));
                 }
             }
         }
@@ -265,7 +273,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         if let Some(comment) = &line.line_comment {
             for comment_line in comment.lines() {
                 row_str.push_str(&format!(
-                    "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell block-header\"><span class=\"comment\">{} {}</span></td></tr>\n",
+                    "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"cc bh\"><span class=\"cm\">{} {}</span></td></tr>\n",
                     formatter.comment_prefix(),
                     comment_line
                 ));
@@ -284,26 +292,25 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             let label_on_own_line = label_text.len() > LABEL_COLUMN_WIDTH;
             if label_on_own_line {
                 row_str.push_str(&format!(
-                    "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell label\">{}</td></tr>\n",
+                    "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"cc lb\">{}</td></tr>\n",
                     label_text
                 ));
             } else {
-                inline_label_html = format!("<span class=\"inline-label\">{}</span>", label_text);
+                inline_label_html = format!("<span class=\"il\">{}</span>", label_text);
             }
         }
 
-        if inline_label_html.is_empty() {
-            inline_label_html = String::from("<span class=\"inline-label\"></span>");
-        }
+        // When no inline label, omit the span entirely. CSS rule
+        // `.cc > .mn:first-child { padding-left: 20ch }` handles alignment.
 
         // 4. Address part
         let address_td = if !line.bytes.is_empty() || line.label.is_some() {
             format!(
-                "<td class=\"address\"><a href=\"#L{:04X}\">${:04X}</a></td>",
+                "<td class=\"ad\"><a href=\"#L{:04X}\">${:04X}</a></td>",
                 line.address.0, line.address.0
             )
         } else {
-            "<td class=\"address\"></td>".to_string()
+            "<td></td>".to_string()
         };
 
         // 5. Bytes part
@@ -314,9 +321,9 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 .map(|b| format!("{:02x}", b))
                 .collect::<Vec<_>>()
                 .join(" ");
-            format!("<td class=\"bytes\">{}</td>", bytes_formatted)
+            format!("<td class=\"by\">{}</td>", bytes_formatted)
         } else {
-            "<td class=\"bytes\"></td>".to_string()
+            "<td></td>".to_string()
         };
 
         // 6. Instruction part
@@ -392,7 +399,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             String::new()
         } else {
             format!(
-                "<span class=\"comment\">{} {}</span>",
+                "<span class=\"cm\">{} {}</span>",
                 formatter.comment_prefix(),
                 comment_str
             )
@@ -401,7 +408,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         if is_assignment {
             let addr_val = line.external_label_address.unwrap_or(line.address).0;
             row_str.push_str(&format!(
-                "<tr id=\"L{:04X}\"><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell assignment\"><span class=\"label\">{} {}</span>{}</td></tr>\n",
+                "<tr id=\"L{:04X}\"><td colspan=\"2\"></td><td colspan=\"3\" class=\"cc as\"><span class=\"lb\">{} {}</span>{}</td></tr>\n",
                 addr_val, line.mnemonic, operand_str, comment_part
             ));
         } else {
@@ -411,7 +418,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 String::new()
             };
             row_str.push_str(&format!(
-                "<tr{}>{}{}<td colspan=\"3\" class=\"code-cell\">{}<span class=\"mnemonic\">{}</span><span class=\"operand\">{}</span>{}</td></tr>\n",
+                "<tr{}>{}{}<td colspan=\"3\" class=\"cc\">{}<span class=\"mn\">{}</span><span class=\"op\">{}</span>{}</td></tr>\n",
                 tr_id, address_td, bytes_td, inline_label_html, line.mnemonic, operand_str, comment_part
             ));
         }
@@ -474,7 +481,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
                 &format!("<a href=\"{}\">{}</a>", ext_filename, ext_filename),
             );
             let link_row = format!(
-                "<tr><td class=\"address\">${:04X}</td><td class=\"bytes\"></td><td colspan=\"3\" class=\"code-cell\"><span class=\"inline-label\"></span><span class=\"mnemonic\">{}</span><span class=\"operand\">{}</span></td></tr>\n",
+                "<tr><td class=\"ad\">${:04X}</td><td></td><td colspan=\"3\" class=\"cc\"><span class=\"mn\">{}</span><span class=\"op\">{}</span></td></tr>\n",
                 start_addr.0, mnemonic, linked_operand
             );
             output.push_str(&link_row);
@@ -565,8 +572,8 @@ mod tests {
         assert!(content.contains("a9 00"));
         assert!(content.contains("8d 20 d0"));
 
-        assert!(content.contains("class=\"mnemonic\""));
-        assert!(content.contains("class=\"operand\""));
+        assert!(content.contains("class=\"mn\""));
+        assert!(content.contains("class=\"op\""));
 
         let _ = std::fs::remove_file(&path);
     }
@@ -574,8 +581,9 @@ mod tests {
     /// Regression test: line comments must align with the label column.
     ///
     /// The code-cell for a line comment must:
-    /// - Use the `block-header` class (which has `margin-left: 0; padding: 0`)
-    /// - NOT contain an `inline-label` span (which would push content to the mnemonic column)
+    /// - Use the `bh` (block-header) class (which has `margin-left: 0; padding: 0`)
+    /// - NOT contain an `il` (inline-label) span (which would push content to the
+    ///   mnemonic column)
     /// This ensures line comments start at the same column as labels.
     #[test]
     fn test_line_comment_aligns_with_label_column() {
@@ -604,29 +612,27 @@ mod tests {
 
         let content = std::fs::read_to_string(&path).unwrap();
 
-        // Line comment row must use block-header class (not regular code-cell).
-        // block-header has margin-left:0 and padding:0, placing it at the label column.
+        // Line comment row must use bh (block-header) class for label-column alignment.
         assert!(
-            content.contains("class=\"code-cell block-header\""),
-            "Line comment must use block-header class for label-column alignment"
+            content.contains("class=\"cc bh\""),
+            "Line comment must use bh class for label-column alignment"
         );
 
-        // Line comment must NOT contain an inline-label span, which would shift it right.
-        // Extract the block-header row and verify it has no inline-label.
+        // Line comment must NOT contain an il (inline-label) span, which would shift it right.
         for line in content.lines() {
-            if line.contains("block-header") {
+            if line.contains("cc bh") {
                 assert!(
-                    !line.contains("inline-label"),
-                    "Line comment row must not contain inline-label span (would misalign): {line}"
+                    !line.contains("class=\"il\""),
+                    "Line comment row must not contain il span (would misalign): {line}"
                 );
             }
         }
 
-        // The inline-label span must appear in regular instruction rows (sanity check
+        // The il span must appear in regular instruction rows (sanity check
         // that labels are rendered in code-cells with inline-label).
         assert!(
-            content.contains("<span class=\"inline-label\">my_routine</span>"),
-            "Inline labels must use the inline-label span"
+            content.contains("<span class=\"il\">my_routine</span>"),
+            "Inline labels must use the il span"
         );
 
         let _ = std::fs::remove_file(&path);
@@ -703,7 +709,7 @@ mod tests {
     /// Regression test: the CSS must include `padding: 0` for block-header comments.
     ///
     /// Without this, block-header comments inherit `padding: 0 8px` from
-    /// `.code-cell .comment`, causing a ~1ch horizontal offset vs labels.
+    /// `.cc .cm`, causing a ~1ch horizontal offset vs labels.
     #[test]
     fn test_css_block_header_has_zero_padding() {
         let mut state = AppState::new();
@@ -720,9 +726,9 @@ mod tests {
         let content = std::fs::read_to_string(&path).unwrap();
 
         // The block-header comment rule must zero out padding to prevent
-        // inheriting the 8px left-padding from `.code-cell .comment`.
+        // inheriting the 8px left-padding from `.cc .cm`.
         assert!(
-            content.contains(".code-cell.block-header .comment { margin-left: 0ch; padding: 0; }"),
+            content.contains(".cc.bh .cm { margin-left: 0ch; padding: 0; }"),
             "CSS must include padding: 0 for block-header comments to align with labels"
         );
 
@@ -751,8 +757,8 @@ mod tests {
 
         let content = std::fs::read_to_string(&path).unwrap();
 
-        // Each line of a multi-line comment must be in its own block-header row
-        let block_header_count = content.matches("code-cell block-header").count();
+        // Each line of a multi-line comment must be in its own bh (block-header) row
+        let block_header_count = content.matches("cc bh").count();
         assert!(
             block_header_count >= 3,
             "Expected at least 3 block-header rows for 3 comment lines, got {block_header_count}"
@@ -763,15 +769,49 @@ mod tests {
         assert!(content.contains("; Second line"));
         assert!(content.contains("; Third line"));
 
-        // No block-header row should contain an inline-label span
+        // No block-header row should contain an il (inline-label) span
         for line in content.lines() {
-            if line.contains("block-header") {
+            if line.contains("cc bh") {
                 assert!(
-                    !line.contains("inline-label"),
-                    "Multi-line comment row must not contain inline-label: {line}"
+                    !line.contains("class=\"il\""),
+                    "Multi-line comment row must not contain il span: {line}"
                 );
             }
         }
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Regression test: instruction rows without labels must NOT emit an empty
+    /// inline-label span. The CSS rule `.cc > .mn:first-child` handles the
+    /// 20ch indent automatically.
+    #[test]
+    fn test_no_empty_inline_label_span() {
+        let mut state = AppState::new();
+        state.origin = crate::state::Addr(0x6000);
+        state.raw_data = vec![0xA9, 0x00, 0x60]; // LDA #$00 ; RTS
+        state.block_types = vec![crate::state::BlockType::Code; 3];
+
+        // No labels — all rows should omit the inline-label span
+        let path = PathBuf::from("test_no_empty_il.html");
+        let _ = std::fs::remove_file(&path);
+
+        let res = export_html(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        // The CSS rule for first-child mnemonic must exist
+        assert!(
+            content.contains(".cc > .mn:first-child { padding-left: 20ch; }"),
+            "CSS must have .cc > .mn:first-child rule for label-less alignment"
+        );
+
+        // No instruction row should contain an empty il span
+        assert!(
+            !content.contains("<span class=\"il\"></span>"),
+            "Empty il spans must not be emitted; CSS :first-child handles alignment"
+        );
 
         let _ = std::fs::remove_file(&path);
     }
