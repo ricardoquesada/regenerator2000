@@ -107,27 +107,9 @@
     },
     {
       "start": 1663,
-      "end": 4614,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 4615,
-      "end": 4647,
-      "type_": "Code",
-      "collapsed": false
-    },
-    {
-      "start": 4648,
-      "end": 6710,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 6711,
       "end": 6711,
-      "type_": "Undefined",
-      "collapsed": false
+      "type_": "DataByte",
+      "collapsed": true
     },
     {
       "start": 6712,
@@ -149,14 +131,8 @@
     },
     {
       "start": 7132,
-      "end": 8831,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 8832,
       "end": 8832,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -317,6 +293,18 @@
     },
     {
       "start": 19020,
+      "end": 19020,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 19021,
+      "end": 19037,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 19038,
       "end": 19051,
       "type_": "DataByte",
       "collapsed": false
@@ -329,6 +317,30 @@
     },
     {
       "start": 19241,
+      "end": 19246,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 19247,
+      "end": 19322,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 19323,
+      "end": 19323,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 19324,
+      "end": 19443,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 19444,
       "end": 19804,
       "type_": "DataByte",
       "collapsed": false
@@ -341,6 +353,12 @@
     },
     {
       "start": 20683,
+      "end": 20683,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 20684,
       "end": 20796,
       "type_": "ScreencodeText",
       "collapsed": false
@@ -1170,28 +1188,63 @@
     ],
     "11008": [
       {
-        "name": "spr_hero_frame_1",
+        "name": "spr_enemy_frame_ac",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "11072": [
       {
-        "name": "spr_hero_frame_2",
+        "name": "spr_enemy_frame_ad",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "11136": [
       {
-        "name": "spr_hero_frame_3",
+        "name": "spr_enemy_frame_ae",
         "label_type": "UserDefined",
         "kind": "User"
       }
     ],
     "11200": [
       {
-        "name": "spr_hero_frame_4",
+        "name": "spr_enemy_snake_1_af",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11264": [
+      {
+        "name": "spr_enemy_snake_b0",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11328": [
+      {
+        "name": "spr_enemy_snake_b1",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11392": [
+      {
+        "name": "spr_enemy_snake_b2",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11456": [
+      {
+        "name": "spr_enemy_snake_b3",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11520": [
+      {
+        "name": "spr_enemy_b4",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -1199,6 +1252,48 @@
     "11776": [
       {
         "name": "spr_hero_frame_13",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11840": [
+      {
+        "name": "spr_50_frame_b9",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "11904": [
+      {
+        "name": "spr_lamp_frame_ba",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12032": [
+      {
+        "name": "spr_miner_left_frame_bc",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12096": [
+      {
+        "name": "spr_miner_left_frame_bd",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12160": [
+      {
+        "name": "spr_miner_right_be",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12224": [
+      {
+        "name": "spr_miner_right_bf",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2243,6 +2338,41 @@
       {
         "name": "ui_update_zone_range_text",
         "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "27853": [
+      {
+        "name": "txt_best_heroes",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "27865": [
+      {
+        "name": "txt_rank_score_lvl_name",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "27890": [
+      {
+        "name": "txt_1st_2nd_3rd",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "27930": [
+      {
+        "name": "txt_saving_data",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "27945": [
+      {
+        "name": "txt_resetting_ranking",
+        "label_type": "Pointer",
         "kind": "User"
       }
     ],
@@ -4343,10 +4473,10 @@
     "13983": "Wait until raster < $FB",
     "13988": "Next frame",
     "13992": "Store the color for this draw operation",
-    "14002": "Is it the \\\"skip to next line\\\" marker?",
+    "14002": "Is it the \"skip to next line\" marker?",
     "14004": "Branch if $FF to skip remaining bytes in the line",
     "14006": "Write literal character to screen memory",
-    "14008": "Is it the \\\"skip to next line\\\" marker?",
+    "14008": "Is it the \"skip to next line\" marker?",
     "14012": "Calculate Color RAM high byte from Screen RAM address...",
     "14017": "...by mapping $0400-$07FF to $D800-$DBFF",
     "14018": "Calculate Color RAM high byte...",
@@ -4722,6 +4852,11 @@
     "24096": "Restore character to draw",
     "24097": "Store character in screen memory",
     "24101": "Draw character at (X, Y) on screen ($0400)",
+    "24128": "programming, graphics, sound",
+    "24160": "testing",
+    "24173": "email: luca carminati, stefano carminati",
+    "24212": "paolo carminati",
+    "24231": "lucacarminati1967@gmail.com",
     "24378": "great job",
     "24407": "with your help, roderick",
     "24434": "has saved all the miners",
@@ -4772,6 +4907,12 @@
     "25737": "Check player laser collision",
     "25740": "Update hazards group 4",
     "25743": "Sort entities by Y position for rendering",
+    "25938": "this game is a homage to h.e.r.o.",
+    "25973": "from john van ryzin, published,",
+    "26005": "by activision in 1984.",
+    "26030": "this version contains completely",
+    "26064": "new levels",
+    "26076": "press fire to continue",
     "26287": "Disable all sprites before reconfiguration",
     "26301": "A = sprite_index * 2",
     "26304": "Set sprite X position register",
@@ -4783,6 +4924,15 @@
     "26379": "Set sprites 0, 1, 2 Y pos (move down)",
     "26388": "Sprite 3 Y pos is slightly offset from 0-2",
     "26394": "Set sprites 4, 5, 6 Y pos (move up, inverse)",
+    "26411": "start",
+    "26416": "start",
+    "26437": "best heroes",
+    "26456": "play levels",
+    "26475": "credits",
+    "26493": "joy down",
+    "26523": "double joy down",
+    "26553": "space bar",
+    "26583": "2nd fire button",
     "27102": "Source char data: $680E",
     "27110": "Source color data: $68B6",
     "27118": "Dest screen: $0430 (Row 1, Col 8)",
@@ -4829,7 +4979,7 @@
     "28240": "Move destination 2 lines down for next entry",
     "28339": "Stop display and interrupts",
     "28342": "Clear screen RAM",
-    "28345": "Set source string pointer to \\\"RESETTING RANKING...\\\"",
+    "28345": "Set source string pointer to \"RESETTING RANKING...\"",
     "28353": "Set destination screen pointer (middle of line 12)",
     "28361": "Color 1 (White)",
     "28363": "Print the message",
@@ -4838,7 +4988,7 @@
     "28372": "Save to disk",
     "28381": "Stop display and interrupts",
     "28384": "Clear screen RAM",
-    "28387": "Set source string pointer to \\\"SAVING DATA...\\\"",
+    "28387": "Set source string pointer to \"SAVING DATA...\"",
     "28395": "Set destination screen pointer (middle of line 12)",
     "28403": "Color 1 (White)",
     "28405": "Print the message",
@@ -5507,6 +5657,8 @@
     "8620": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMultiplies the accumulator by 7.\n\nInputs:  A - Value to multiply\nOutputs: A - Result (A * 7)\nSide Effects: Modifies ZP $ED\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8629": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMultiplies the value in the Accumulator by 30.\n\nInputs:  A = value to multiply\nOutputs: A = result (A * 30)\nSide Effects: Modifies $ED\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8642": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFast approximation of division by 10 using shifts and additions.\nResult is A / 10.\n\nInputs:  A = value to divide\nOutputs: A = A / 10\nSide Effects: Overwrites $ED\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "8832": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nSprites\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
+    "12288": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\ncharset\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
     "13881": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets the VIC-II chip to 25-line Standard Text Mode.\nPreserves Screen On/Off status and Extended Color Mode.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies VIC Control Register 1 ($D011)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13892": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears the 40-column text screen with spaces and fills color RAM.\n\nInputs:  Y = Color (0-15)\nOutputs: None\nSide Effects: Clears screen memory ($0400-$07E7) and sets color RAM ($D800-$DBE7).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13950": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisables the VIC-II display at the bottom of the screen and restores the\nsystem IRQ handler. Used when transitioning out of the main game loop.\n\nInputs:  None\nOutputs: None\nSide Effects: Disables VIC-II display (DEN=0), restores system IRQ.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -5568,8 +5720,8 @@
     "27480": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the Dynamite control instruction message on the screen.\nCycles through different control methods (Joystick Down, Double Down, Space, 2nd Fire).\n\nInputs:  dynamite_control_index ($60D7) - index (0-3) of the message to display.\nOutputs: None (modifies screen memory at $060D).\nSide Effects: Updates 30 characters of screen memory.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27502": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the depth/zone range text in the UI based on the current selection.\nThis copies a 5-byte string (e.g., \\\"05-08\\\") to the screen status area.\n\nInputs:  v_selected_zone_index (byte index into t_zone_range_strings)\nOutputs: v_ui_zone_range_pos (5 bytes written to screen RAM)\nSide Effects: Updates display of current zone range in the menu or status bar.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28008": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPrepares and displays the high score table on the VIC-II text screen.\nUnpacks title and headers, then iterates 10 times to display each entry:\nRank string, Score (BCD), Level, and Initials.\n\nInputs:  None (uses global high score data)\nOutputs: Screen memory starting at $0437\nSide Effects: Updates VIC-II text screen memory\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "28339": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears the screen, displays a \\\"RESETTING RANKING...\\\" message, initializes the\nhigh score table with default values, and saves it to disk.\n\nInputs:  None\nOutputs: None\nSide Effects: Disables interrupts/display, clears screen, updates disk file.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "28381": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears the screen, displays a \\\"SAVING DATA...\\\" message, and saves the current\nhigh score table to disk. Used during game exit or manual save.\n\nInputs:  None\nOutputs: None\nSide Effects: Disables interrupts/display, clears screen, updates disk file.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "28339": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears the screen, displays a \"RESETTING RANKING...\" message, initializes the\nhigh score table with default values, and saves it to disk.\n\nInputs:  None\nOutputs: None\nSide Effects: Disables interrupts/display, clears screen, updates disk file.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "28381": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears the screen, displays a \"SAVING DATA...\" message, and saves the current\nhigh score table to disk. Used during game exit or manual save.\n\nInputs:  None\nOutputs: None\nSide Effects: Disables interrupts/display, clears screen, updates disk file.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28431": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the screen flash state machine. This effect is used during\ndynamite explosions and miner rescues.\n\nInputs:  None\nOutputs: v_screen_flash_state = 0 (Idle)\n         zpa_82 = 7 (Unknown purpose, possibly initial dynamite count)\nSide Effects: Resets any active screen flash effect.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28441": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the state and animation of the player's dynamite.\nHandles three states:\n1. Placed: Countdown timer and sprite frame cycling ($A1-$A4).\n2. Exploding: Background color cycling and final sprite frame ($A5).\n3. Wait: Final delay before disappearing.\n\nInputs:  v_dynamite_state, v_dynamite_timer, v_dynamite_anim_timer\nOutputs: v_dynamite_state, v_dynamite_timer, v_dynamite_anim_timer, v_dynamite_frame, v_dynamite_bg_color\nSide Effects: Updates background color ($D021) during explosion.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28551": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the explosion effect sequence. Typically called when the\ndynamite fuse timer reaches zero. It sets up the animation state,\ninitial color, and triggers the sound effect.\n\nInputs:  None\nOutputs: v_screen_flash_state, v_screen_flash_anim_frame, v_screen_flash_timer\nSide Effects: Triggers sound effect via v_sfx_slot_1_status\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -5645,7 +5797,7 @@
     "35704": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the state machine for sound effect slot 7 (Voice 1).\nHandles a short (1-frame) pulse waveform blip after a short delay.\n\nInputs:  sound_effect_7_status, sound_effect_7_timer\nOutputs: sound_effect_7_status, sound_effect_7_timer\nSide Effects: Modifies SID Voice 1 hardware registers ($D400-$D406)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
   },
   "settings": {
-    "all_labels": true,
+    "all_labels": false,
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
@@ -5743,6 +5895,54 @@
     "23214": {
       "HighByte": 25814
     },
+    "24270": {
+      "LowByte": 24128
+    },
+    "24274": {
+      "HighByte": 24128
+    },
+    "24278": {
+      "LowByte": 1310
+    },
+    "24282": {
+      "HighByte": 1310
+    },
+    "24291": {
+      "LowByte": 24179
+    },
+    "24295": {
+      "HighByte": 24179
+    },
+    "24299": {
+      "LowByte": 1350
+    },
+    "24303": {
+      "HighByte": 1350
+    },
+    "24312": {
+      "LowByte": 24179
+    },
+    "24316": {
+      "HighByte": 24179
+    },
+    "24320": {
+      "LowByte": 1510
+    },
+    "24324": {
+      "HighByte": 1510
+    },
+    "24333": {
+      "LowByte": 24194
+    },
+    "24337": {
+      "HighByte": 24194
+    },
+    "24341": {
+      "LowByte": 1550
+    },
+    "24345": {
+      "HighByte": 1550
+    },
     "24710": {
       "LowByte": 20724
     },
@@ -5773,11 +5973,95 @@
     "24929": {
       "HighByte": 25746
     },
+    "26123": {
+      "LowByte": 25938
+    },
+    "26127": {
+      "HighByte": 25938
+    },
+    "26131": {
+      "LowByte": 1268
+    },
+    "26135": {
+      "HighByte": 1268
+    },
+    "26144": {
+      "LowByte": 26076
+    },
+    "26148": {
+      "HighByte": 26076
+    },
+    "26152": {
+      "LowByte": 1753
+    },
+    "26156": {
+      "HighByte": 1753
+    },
+    "26991": {
+      "LowByte": 26412
+    },
+    "26995": {
+      "HighByte": 26412
+    },
+    "26999": {
+      "LowByte": 1336
+    },
+    "27003": {
+      "HighByte": 1336
+    },
+    "27012": {
+      "LowByte": 26416
+    },
+    "27016": {
+      "HighByte": 26416
+    },
+    "27020": {
+      "LowByte": 1475
+    },
+    "27024": {
+      "HighByte": 1475
+    },
+    "27058": {
+      "LowByte": 26633
+    },
+    "27062": {
+      "HighByte": 26633
+    },
+    "27066": {
+      "LowByte": 1965
+    },
+    "27070": {
+      "HighByte": 1965
+    },
     "27095": {
       "LowByte": 27524
     },
     "27097": {
       "HighByte": 27524
+    },
+    "27102": {
+      "LowByte": 26638
+    },
+    "27106": {
+      "HighByte": 26638
+    },
+    "27110": {
+      "LowByte": 26806
+    },
+    "27114": {
+      "HighByte": 26806
+    },
+    "27118": {
+      "LowByte": 1072
+    },
+    "27122": {
+      "HighByte": 1072
+    },
+    "27126": {
+      "LowByte": 55344
+    },
+    "27130": {
+      "HighByte": 55344
     },
     "27615": {
       "LowByte": 27622
@@ -5802,21 +6086,72 @@
     },
     "27847": {
       "HighByte": 27524
+    },
+    "28008": {
+      "LowByte": 27853
+    },
+    "28012": {
+      "HighByte": 27853
+    },
+    "28016": {
+      "LowByte": 1079
+    },
+    "28020": {
+      "HighByte": 1079
+    },
+    "28024": "Hex",
+    "28029": {
+      "LowByte": 27865
+    },
+    "28033": {
+      "HighByte": 27865
+    },
+    "28037": {
+      "LowByte": 1152
+    },
+    "28041": {
+      "HighByte": 1152
+    },
+    "28345": {
+      "LowByte": 27945
+    },
+    "28349": {
+      "HighByte": 27945
+    },
+    "28353": {
+      "LowByte": 1514
+    },
+    "28357": {
+      "HighByte": 1514
+    },
+    "28387": {
+      "LowByte": 27930
+    },
+    "28391": {
+      "HighByte": 27930
+    },
+    "28395": {
+      "LowByte": 1517
+    },
+    "28399": {
+      "HighByte": 1517
     }
   },
   "bookmarks": {},
-  "cursor_address": 14230,
-  "hex_dump_cursor_address": 14224,
-  "sprites_cursor_address": 9024,
-  "charset_cursor_address": 7168,
-  "right_pane_visible": "HexDump",
+  "cursor_address": 8651,
+  "hex_dump_cursor_address": 14896,
+  "sprites_cursor_address": 12352,
+  "charset_cursor_address": 11008,
+  "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 49152,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
-  "splitters": [],
-  "blocks_view_cursor": 47,
+  "splitters": [
+    12288
+  ],
+  "blocks_view_cursor": 14,
   "scopes": {},
   "user_excluded_addresses": []
 }
