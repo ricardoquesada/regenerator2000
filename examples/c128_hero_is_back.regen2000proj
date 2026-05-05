@@ -5797,7 +5797,7 @@
     "35704": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the state machine for sound effect slot 7 (Voice 1).\nHandles a short (1-frame) pulse waveform blip after a short delay.\n\nInputs:  sound_effect_7_status, sound_effect_7_timer\nOutputs: sound_effect_7_status, sound_effect_7_timer\nSide Effects: Modifies SID Voice 1 hardware registers ($D400-$D406)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
   },
   "settings": {
-    "all_labels": false,
+    "all_labels": true,
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
@@ -6135,10 +6135,13 @@
     },
     "28399": {
       "HighByte": 1517
-    }
+    },
+    "30609": "Hex",
+    "30632": "Hex",
+    "30640": "Hex"
   },
   "bookmarks": {},
-  "cursor_address": 8651,
+  "cursor_address": 30609,
   "hex_dump_cursor_address": 14896,
   "sprites_cursor_address": 12352,
   "charset_cursor_address": 11008,
@@ -6151,7 +6154,7 @@
   "splitters": [
     12288
   ],
-  "blocks_view_cursor": 14,
+  "blocks_view_cursor": 66,
   "scopes": {},
   "user_excluded_addresses": []
 }

@@ -57,7 +57,7 @@ a:hover { text-decoration: underline; }
 .code-cell .comment { padding: 0 8px; margin-left: 4ch; }
 .code-cell.assignment { padding: 0 8px !important; }
 .code-cell.assignment .label { min-width: 40ch; flex-shrink: 0; }
-.code-cell.block-header .comment { margin-left: 0ch; }
+.code-cell.block-header .comment { margin-left: 0ch; padding: 0; }
 .mid-label-def { display: inline-block; min-width: 60ch; }
 tr:target td { background-color: var(--highlight-bg); }
 tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
@@ -265,7 +265,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         if let Some(comment) = &line.line_comment {
             for comment_line in comment.lines() {
                 row_str.push_str(&format!(
-                    "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell block-header\"><span class=\"comment\">{}{}</span></td></tr>\n",
+                    "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"code-cell block-header\"><span class=\"comment\">{} {}</span></td></tr>\n",
                     formatter.comment_prefix(),
                     comment_line
                 ));
@@ -567,6 +567,211 @@ mod tests {
 
         assert!(content.contains("class=\"mnemonic\""));
         assert!(content.contains("class=\"operand\""));
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Regression test: line comments must align with the label column.
+    ///
+    /// The code-cell for a line comment must:
+    /// - Use the `block-header` class (which has `margin-left: 0; padding: 0`)
+    /// - NOT contain an `inline-label` span (which would push content to the mnemonic column)
+    /// This ensures line comments start at the same column as labels.
+    #[test]
+    fn test_line_comment_aligns_with_label_column() {
+        let mut state = AppState::new();
+        state.origin = crate::state::Addr(0x1000);
+        state.raw_data = vec![0xA9, 0x00, 0x60];
+        state.block_types = vec![crate::state::BlockType::Code; 3];
+
+        state.labels.insert(
+            crate::state::Addr(0x1000),
+            vec![crate::state::Label {
+                name: "my_routine".to_string(),
+                kind: crate::state::LabelKind::User,
+                label_type: crate::state::LabelType::UserDefined,
+            }],
+        );
+        state
+            .user_line_comments
+            .insert(crate::state::Addr(0x1000), "Load accumulator".to_string());
+
+        let path = PathBuf::from("test_line_comment_align.html");
+        let _ = std::fs::remove_file(&path);
+
+        let res = export_html(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        // Line comment row must use block-header class (not regular code-cell).
+        // block-header has margin-left:0 and padding:0, placing it at the label column.
+        assert!(
+            content.contains("class=\"code-cell block-header\""),
+            "Line comment must use block-header class for label-column alignment"
+        );
+
+        // Line comment must NOT contain an inline-label span, which would shift it right.
+        // Extract the block-header row and verify it has no inline-label.
+        for line in content.lines() {
+            if line.contains("block-header") {
+                assert!(
+                    !line.contains("inline-label"),
+                    "Line comment row must not contain inline-label span (would misalign): {line}"
+                );
+            }
+        }
+
+        // The inline-label span must appear in regular instruction rows (sanity check
+        // that labels are rendered in code-cells with inline-label).
+        assert!(
+            content.contains("<span class=\"inline-label\">my_routine</span>"),
+            "Inline labels must use the inline-label span"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Regression test: line comments must have a space between the comment prefix and text.
+    ///
+    /// Correct:   `; Load accumulator`
+    /// Bug was:   `;Load accumulator`
+    #[test]
+    fn test_line_comment_has_space_after_prefix() {
+        let mut state = AppState::new();
+        state.origin = crate::state::Addr(0x2000);
+        state.raw_data = vec![0x60];
+        state.block_types = vec![crate::state::BlockType::Code; 1];
+
+        state
+            .user_line_comments
+            .insert(crate::state::Addr(0x2000), "Return to caller".to_string());
+
+        let path = PathBuf::from("test_line_comment_space.html");
+        let _ = std::fs::remove_file(&path);
+
+        let res = export_html(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        // Must have "; Return" (with space), not ";Return"
+        assert!(
+            content.contains("; Return to caller"),
+            "Line comment must have a space between ';' and the comment text"
+        );
+        assert!(
+            !content.contains(";Return"),
+            "Line comment must not have ';' directly adjacent to the comment text"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Regression test: side comments (on instruction lines) must have a space after the prefix.
+    ///
+    /// Correct:   `; Save value`
+    /// Bug would be:  `;Save value`
+    #[test]
+    fn test_side_comment_has_space_after_prefix() {
+        let mut state = AppState::new();
+        state.origin = crate::state::Addr(0x3000);
+        state.raw_data = vec![0x8D, 0x00, 0xD0];
+        state.block_types = vec![crate::state::BlockType::Code; 3];
+
+        state
+            .user_side_comments
+            .insert(crate::state::Addr(0x3000), "Store to VIC".to_string());
+
+        let path = PathBuf::from("test_side_comment_space.html");
+        let _ = std::fs::remove_file(&path);
+
+        let res = export_html(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        // Side comment must have "; Store" (with space)
+        assert!(
+            content.contains("; Store to VIC"),
+            "Side comment must have a space between ';' and the comment text"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Regression test: the CSS must include `padding: 0` for block-header comments.
+    ///
+    /// Without this, block-header comments inherit `padding: 0 8px` from
+    /// `.code-cell .comment`, causing a ~1ch horizontal offset vs labels.
+    #[test]
+    fn test_css_block_header_has_zero_padding() {
+        let mut state = AppState::new();
+        state.origin = crate::state::Addr(0x4000);
+        state.raw_data = vec![0x60];
+        state.block_types = vec![crate::state::BlockType::Code; 1];
+
+        let path = PathBuf::from("test_css_padding.html");
+        let _ = std::fs::remove_file(&path);
+
+        let res = export_html(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        // The block-header comment rule must zero out padding to prevent
+        // inheriting the 8px left-padding from `.code-cell .comment`.
+        assert!(
+            content.contains(".code-cell.block-header .comment { margin-left: 0ch; padding: 0; }"),
+            "CSS must include padding: 0 for block-header comments to align with labels"
+        );
+
+        let _ = std::fs::remove_file(&path);
+    }
+
+    /// Regression test: multi-line comments must each be on their own row,
+    /// all aligned at the label column.
+    #[test]
+    fn test_multiline_comment_alignment() {
+        let mut state = AppState::new();
+        state.origin = crate::state::Addr(0x5000);
+        state.raw_data = vec![0xA9, 0x00, 0x60];
+        state.block_types = vec![crate::state::BlockType::Code; 3];
+
+        state.user_line_comments.insert(
+            crate::state::Addr(0x5000),
+            "First line\nSecond line\nThird line".to_string(),
+        );
+
+        let path = PathBuf::from("test_multiline_comment.html");
+        let _ = std::fs::remove_file(&path);
+
+        let res = export_html(&state, &path);
+        assert!(res.is_ok());
+
+        let content = std::fs::read_to_string(&path).unwrap();
+
+        // Each line of a multi-line comment must be in its own block-header row
+        let block_header_count = content.matches("code-cell block-header").count();
+        assert!(
+            block_header_count >= 3,
+            "Expected at least 3 block-header rows for 3 comment lines, got {block_header_count}"
+        );
+
+        // Each line must have proper spacing
+        assert!(content.contains("; First line"));
+        assert!(content.contains("; Second line"));
+        assert!(content.contains("; Third line"));
+
+        // No block-header row should contain an inline-label span
+        for line in content.lines() {
+            if line.contains("block-header") {
+                assert!(
+                    !line.contains("inline-label"),
+                    "Multi-line comment row must not contain inline-label: {line}"
+                );
+            }
+        }
 
         let _ = std::fs::remove_file(&path);
     }
