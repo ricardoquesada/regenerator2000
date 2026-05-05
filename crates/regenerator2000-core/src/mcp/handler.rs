@@ -243,6 +243,40 @@ fn list_tools() -> Result<Value, McpError> {
                 }
             },
             {
+                "name": "r2000_search_disassembly",
+                "description": "Search the disassembly text for a query string or regular expression. Returns a list of matching addresses with context (label, mnemonic, operand, comment). Searches labels, comments, and instructions by default; individual fields can be disabled.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "The search query. Interpreted as a plain case-insensitive substring by default, or as a regex when 'use_regex' is true."
+                        },
+                        "use_regex": {
+                            "type": "boolean",
+                            "description": "When true the query is compiled as a case-insensitive regular expression ((?i) is prepended automatically). Defaults to false."
+                        },
+                        "search_labels": {
+                            "type": "boolean",
+                            "description": "Include label names in the search. Defaults to true."
+                        },
+                        "search_comments": {
+                            "type": "boolean",
+                            "description": "Include side and line comments in the search. Defaults to true."
+                        },
+                        "search_instructions": {
+                            "type": "boolean",
+                            "description": "Include mnemonic and operand text in the search. Defaults to true."
+                        },
+                        "max_results": {
+                            "type": "integer",
+                            "description": "Maximum number of matching addresses to return. Defaults to 50."
+                        }
+                    },
+                    "required": ["query"]
+                }
+            },
+            {
                 "name": "r2000_get_cross_references",
                 "description": "Get a list of addresses that reference the given address (e.g. JSRs, JMPs, loads).",
                 "inputSchema": {
@@ -792,6 +826,71 @@ fn handle_tool_call_internal(
                 "content": [{
                     "type": "text",
                     "text": serde_json::to_string_pretty(&matches).unwrap_or_default()
+                }]
+            }))
+        }
+
+        "r2000_search_disassembly" => {
+            use crate::state::search::{self, SearchFilters};
+
+            let query = args
+                .get("query")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| McpError {
+                    code: -32602,
+                    message: "Missing 'query'".to_string(),
+                    data: None,
+                })?;
+            let use_regex = args
+                .get("use_regex")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            let filters = SearchFilters {
+                labels: args
+                    .get("search_labels")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true),
+                comments: args
+                    .get("search_comments")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true),
+                instructions: args
+                    .get("search_instructions")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true),
+                hex_bytes: false, // raw-byte scan not meaningful for disassembly text
+                text: false,      // PETSCII/Screencode byte scan not meaningful here
+                use_regex,
+            };
+            let max_results = args
+                .get("max_results")
+                .and_then(|v| v.as_u64())
+                .map(|n| n as usize)
+                .unwrap_or(50);
+
+            let results = search::search_disassembly(app_state, query, &filters, max_results)
+                .map_err(|msg| McpError {
+                    code: -32602,
+                    message: msg,
+                    data: None,
+                })?;
+            let values: Vec<_> = results
+                .into_iter()
+                .map(|r| {
+                    json!({
+                        "address": format!("${:04X}", r.address.0),
+                        "address_decimal": r.address.0,
+                        "label": r.label.as_deref().unwrap_or(""),
+                        "mnemonic": r.mnemonic,
+                        "operand": r.operand,
+                        "comment": r.comment,
+                    })
+                })
+                .collect();
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": serde_json::to_string_pretty(&values).unwrap_or_default()
                 }]
             }))
         }

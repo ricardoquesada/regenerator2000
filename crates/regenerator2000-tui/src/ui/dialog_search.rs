@@ -24,6 +24,9 @@ pub struct SearchDialog {
     pub editing_filters: bool,
     pub selected_filter: usize,
     pub filters: SearchFilters,
+    /// Holds a regex error message when [`SearchFilters::use_regex`] is `true`
+    /// and the current query is not a valid regular expression.
+    pub regex_error: Option<String>,
 }
 
 impl SearchDialog {
@@ -34,13 +37,27 @@ impl SearchDialog {
             editing_filters: false,
             selected_filter: 0,
             filters,
+            regex_error: None,
+        }
+    }
+
+    /// Validate the current input as a regex and update [`Self::regex_error`].
+    /// Clears the error when regex mode is off or the pattern is valid.
+    fn validate_regex(&mut self) {
+        if self.filters.use_regex && !self.input.is_empty() {
+            match search::compile_regex(&self.input) {
+                Ok(_) => self.regex_error = None,
+                Err(e) => self.regex_error = Some(e.to_string()),
+            }
+        } else {
+            self.regex_error = None;
         }
     }
 }
 
 use crossterm::event::KeyModifiers;
 
-const FILTER_COUNT: usize = 5;
+const FILTER_COUNT: usize = 6;
 
 // Each entry: (label_text, shortcut_char, shortcut_position_in_label)
 const FILTER_INFO: [(&str, char, usize); FILTER_COUNT] = [
@@ -49,6 +66,7 @@ const FILTER_INFO: [(&str, char, usize); FILTER_COUNT] = [
     ("Instructions", 'i', 0),
     ("Hex bytes", 'h', 0),
     ("Text (PETSCII, Screencode)", 't', 0),
+    ("Regex mode", 'r', 0),
 ];
 
 impl Widget for SearchDialog {
@@ -56,8 +74,8 @@ impl Widget for SearchDialog {
         let theme = &ui_state.theme;
 
         // Create a proper centered modal dialog
-        // Height: 2 (border) + 3 (input w/ border) + 1 (filters label) + 5 (filters) + 1 (help) = 12
-        let dialog_area = crate::utils::centered_rect_adaptive(50, 40, 50, 12, area);
+        // Height: 2 (border) + 3 (input w/ border) + 1 (filters label) + 6 (filters) + 1 (error hint) + 1 (help) = 14
+        let dialog_area = crate::utils::centered_rect_adaptive(50, 40, 50, 14, area);
         ui_state.active_dialog_area = dialog_area;
 
         f.render_widget(ratatui::widgets::Clear, dialog_area);
@@ -74,6 +92,7 @@ impl Widget for SearchDialog {
                 Constraint::Length(3),           // search input (with border)
                 Constraint::Length(1),           // filters label / separator
                 Constraint::Length(filter_rows), // filter checkboxes
+                Constraint::Length(1),           // regex error hint
                 Constraint::Length(1),           // help text
             ])
             .split(inner);
@@ -86,7 +105,8 @@ impl Widget for SearchDialog {
             inner.width.saturating_sub(4),
             filter_rows,
         );
-        let help_area = layout[3];
+        let error_area = layout[3];
+        let help_area = layout[4];
 
         // Search input with a bordered sub-block and background
         let is_input_focused = !self.editing_filters;
@@ -177,6 +197,20 @@ impl Widget for SearchDialog {
         )
         .style(Style::default().fg(theme.comment));
         f.render_widget(help, help_area);
+
+        // Regex error hint (shown when use_regex is on and pattern is invalid)
+        if let Some(err) = &self.regex_error {
+            let truncated = if err.len() > 60 {
+                format!(" [!] {}…", &err[..57])
+            } else {
+                format!(" [!] {err}")
+            };
+            f.render_widget(
+                Paragraph::new(truncated)
+                    .style(Style::default().fg(ratatui::style::Color::LightRed)),
+                error_area,
+            );
+        }
     }
 
     fn handle_input(
@@ -238,6 +272,10 @@ impl Widget for SearchDialog {
                     }
                     KeyCode::Char(' ') => {
                         self.filters.toggle(self.selected_filter);
+                        // Re-validate when toggling regex mode (index 5).
+                        if self.selected_filter == 5 {
+                            self.validate_regex();
+                        }
                     }
                     _ => {}
                 }
@@ -245,10 +283,12 @@ impl Widget for SearchDialog {
             }
             KeyCode::Backspace => {
                 self.input.pop();
+                self.validate_regex();
                 WidgetResult::Handled
             }
             KeyCode::Char(c) => {
                 self.input.push(c);
+                self.validate_regex();
                 WidgetResult::Handled
             }
             _ => WidgetResult::Handled,
@@ -263,6 +303,19 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
         return;
     }
 
+    // Compile regex once up-front when regex mode is active.
+    let regex = if ui_state.search_filters.use_regex {
+        match search::compile_regex(&query) {
+            Ok(re) => Some(re),
+            Err(e) => {
+                ui_state.set_status_message(format!("Invalid regex: {e}"));
+                return;
+            }
+        }
+    } else {
+        None
+    };
+
     let query_lower = query.to_lowercase();
     let disassembly_len = app_state.disassembly.len();
     if disassembly_len == 0 {
@@ -273,7 +326,8 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
     let mut found_idx = None;
     let mut found_sub_idx = 0;
 
-    let hex_pattern = if ui_state.search_filters.hex_bytes {
+    // Hex-byte pattern parsing is a plain-text-only feature; skip in regex mode.
+    let hex_pattern = if !ui_state.search_filters.use_regex && ui_state.search_filters.hex_bytes {
         search::parse_hex_pattern(&query)
     } else {
         None
@@ -287,6 +341,7 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
             app_state,
             &query_lower,
             hex_pattern.as_deref(),
+            regex.as_ref(),
             filters,
         );
 
@@ -331,6 +386,7 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
                 app_state,
                 &query_lower,
                 hex_pattern.as_deref(),
+                regex.as_ref(),
                 filters,
             );
             if !matches.is_empty() {
@@ -357,6 +413,7 @@ pub fn perform_search(app_state: &mut AppState, ui_state: &mut UIState, forward:
                         end,
                         &query_lower,
                         hex_pattern.as_deref(),
+                        regex.as_ref(),
                         filters,
                     )
                 })

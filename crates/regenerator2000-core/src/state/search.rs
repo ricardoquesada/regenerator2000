@@ -1,5 +1,6 @@
 use crate::state::AppState;
 use crate::utils::{petscii_to_unicode, screencode_to_petscii};
+use regex::Regex;
 
 // ---------------------------------------------------------------------------
 // SearchFilters
@@ -12,6 +13,9 @@ pub struct SearchFilters {
     pub instructions: bool,
     pub hex_bytes: bool,
     pub text: bool,
+    /// When `true`, the search query is interpreted as a regular expression.
+    /// Hex-byte and PETSCII/Screencode byte scanning are disabled in regex mode.
+    pub use_regex: bool,
 }
 
 impl Default for SearchFilters {
@@ -22,19 +26,21 @@ impl Default for SearchFilters {
             instructions: true,
             hex_bytes: true,
             text: true,
+            use_regex: false,
         }
     }
 }
 
 impl SearchFilters {
     #[must_use]
-    pub fn as_array(&self) -> [bool; 5] {
+    pub fn as_array(&self) -> [bool; 6] {
         [
             self.labels,
             self.comments,
             self.instructions,
             self.hex_bytes,
             self.text,
+            self.use_regex,
         ]
     }
 
@@ -45,6 +51,7 @@ impl SearchFilters {
             2 => self.instructions = !self.instructions,
             3 => self.hex_bytes = !self.hex_bytes,
             4 => self.text = !self.text,
+            5 => self.use_regex = !self.use_regex,
             _ => {}
         }
     }
@@ -66,6 +73,27 @@ impl SearchFilters {
     }
 }
 
+// ---------------------------------------------------------------------------
+// SearchResult
+// ---------------------------------------------------------------------------
+
+/// A single disassembly line that matched a search query.
+///
+/// Returned by [`search_disassembly`] so callers can display context
+/// without issuing a follow-up read request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SearchResult {
+    /// Address of the matching disassembly line.
+    pub address: crate::state::Addr,
+    /// Label at this address, if any.
+    pub label: Option<String>,
+    /// Mnemonic text (e.g. `"LDA"`).
+    pub mnemonic: String,
+    /// Operand text (e.g. `"$D020"`).
+    pub operand: String,
+    /// Side comment text, if any.
+    pub comment: String,
+}
 // ---------------------------------------------------------------------------
 // Hex pattern helpers
 // ---------------------------------------------------------------------------
@@ -105,6 +133,19 @@ pub fn parse_hex_pattern(query: &str) -> Option<Vec<Option<u8>>> {
         }
     }
     Some(pattern)
+}
+
+/// Compile a case-insensitive regular expression from `query`.
+///
+/// Wraps the pattern with `(?i)` so matching is case-insensitive, consistent
+/// with plain-text search mode.  Users who need case-sensitive matching can
+/// override this by prefixing their pattern with `(?-i)`.
+///
+/// # Errors
+/// Returns a [`regex::Error`] if `query` is not a valid regular expression.
+pub fn compile_regex(query: &str) -> Result<Regex, regex::Error> {
+    let pattern = format!("(?i){query}");
+    Regex::new(&pattern)
 }
 
 #[must_use]
@@ -214,13 +255,34 @@ pub fn check_string_pattern(
 // Instruction / disassembly-line matching
 // ---------------------------------------------------------------------------
 
+/// Test whether `haystack` contains a match for the query.
+///
+/// In plain mode (`regex` is `None`) this performs a case-insensitive
+/// substring search using the pre-lowercased `query_lower`.  In regex mode
+/// (`regex` is `Some`) the compiled regex (already `(?i)`-wrapped) is used
+/// directly on the original string.
+#[must_use]
+fn text_matches(haystack: &str, query_lower: &str, regex: Option<&Regex>) -> bool {
+    match regex {
+        Some(re) => re.is_match(haystack),
+        None => haystack.to_lowercase().contains(query_lower),
+    }
+}
+
+/// Returns `true` when the disassembly line's textual content matches the query.
+///
+/// Hex-byte matching uses alignment-aware byte-level scanning and is disabled
+/// in regex mode (the query is a pattern, not a hex string).  Mnemonic,
+/// operand, comment, and label fields are matched via [`text_matches`].
 #[must_use]
 pub fn match_instruction_content(
     line: &crate::disassembler::DisassemblyLine,
     query_lower: &str,
+    regex: Option<&Regex>,
     filters: &SearchFilters,
 ) -> bool {
-    if filters.hex_bytes {
+    // Hex-byte scan is plain-text only; skip when using regex.
+    if filters.hex_bytes && regex.is_none() {
         let bytes_hex = line
             .bytes
             .iter()
@@ -244,21 +306,21 @@ pub fn match_instruction_content(
         }
     }
 
-    if filters.instructions && line.mnemonic.to_lowercase().contains(query_lower) {
+    if filters.instructions && text_matches(&line.mnemonic, query_lower, regex) {
         return true;
     }
 
-    if filters.instructions && line.operand.to_lowercase().contains(query_lower) {
+    if filters.instructions && text_matches(&line.operand, query_lower, regex) {
         return true;
     }
 
-    if filters.comments && line.comment.to_lowercase().contains(query_lower) {
+    if filters.comments && text_matches(&line.comment, query_lower, regex) {
         return true;
     }
 
     if filters.labels
         && let Some(lbl) = &line.label
-        && lbl.to_lowercase().contains(query_lower)
+        && text_matches(lbl, query_lower, regex)
     {
         return true;
     }
@@ -266,12 +328,22 @@ pub fn match_instruction_content(
     false
 }
 
+/// Returns the list of sub-indices within `line` that match the query.
+///
+/// Sub-indices map to: mid-address labels (relative offsets), line-comment
+/// lines, and then the instruction itself (mnemonic / operand / comment /
+/// label).  Used by the TUI to highlight individual matches within a row.
+///
+/// * `query_lower` – the query string lowercased; used for plain-text search.
+/// * `hex_pattern` – pre-parsed hex byte pattern; `None` in regex mode.
+/// * `regex`       – compiled regex; `None` in plain-text mode.
 #[must_use]
 pub fn get_line_matches(
     line: &crate::disassembler::DisassemblyLine,
     app_state: &AppState,
     query_lower: &str,
     hex_pattern: Option<&[Option<u8>]>,
+    regex: Option<&Regex>,
     filters: &SearchFilters,
 ) -> Vec<usize> {
     let mut matches = Vec::new();
@@ -286,7 +358,7 @@ pub fn get_line_matches(
                     if filters.labels
                         && labels
                             .iter()
-                            .any(|l| l.name.to_lowercase().contains(query_lower))
+                            .any(|l| text_matches(&l.name, query_lower, regex))
                     {
                         matches.push(current_sub);
                     }
@@ -299,7 +371,7 @@ pub fn get_line_matches(
     // 2. Line Comment
     if let Some(lc) = &line.line_comment {
         for comment_line in lc.lines() {
-            if filters.comments && comment_line.to_lowercase().contains(query_lower) {
+            if filters.comments && text_matches(comment_line, query_lower, regex) {
                 matches.push(current_sub);
             }
             current_sub += 1;
@@ -307,10 +379,10 @@ pub fn get_line_matches(
     }
 
     // 3. Instruction Content
-    let mut instruction_match = match_instruction_content(line, query_lower, filters);
+    let mut instruction_match = match_instruction_content(line, query_lower, regex, filters);
 
-    // 4. Hex pattern search and String pattern search
-    if !instruction_match {
+    // 4. Hex pattern and string-encoding search (plain-text mode only)
+    if !instruction_match && regex.is_none() {
         for offset in 0..line.bytes.len() {
             let addr = line.address.wrapping_add(offset as u16);
 
@@ -337,6 +409,10 @@ pub fn get_line_matches(
     matches
 }
 
+/// Search the expanded content of a collapsed block for a match.
+///
+/// Returns `true` as soon as any line in the block matches, without
+/// materialising the full result set.
 #[must_use]
 pub fn search_collapsed_content(
     app_state: &AppState,
@@ -344,6 +420,7 @@ pub fn search_collapsed_content(
     end: usize,
     query_lower: &str,
     hex_pattern: Option<&[Option<u8>]>,
+    regex: Option<&Regex>,
     filters: &SearchFilters,
 ) -> bool {
     if start >= app_state.raw_data.len() || end >= app_state.raw_data.len() {
@@ -376,7 +453,8 @@ pub fn search_collapsed_content(
     let expanded_lines = app_state.disassembler.disassemble_ctx(&ctx);
 
     for line in expanded_lines {
-        if !get_line_matches(&line, app_state, query_lower, hex_pattern, filters).is_empty() {
+        if !get_line_matches(&line, app_state, query_lower, hex_pattern, regex, filters).is_empty()
+        {
             return true;
         }
     }
@@ -479,6 +557,61 @@ pub fn search_memory_raw(
 }
 
 // ---------------------------------------------------------------------------
+// search_disassembly
+// ---------------------------------------------------------------------------
+
+/// Search all disassembly lines for `query`, returning structured results.
+///
+/// `filters.use_regex` controls whether the query is compiled as a
+/// case-insensitive regular expression (via [`compile_regex`]) or treated as
+/// a plain case-insensitive substring.  `filters.hex_bytes` and `filters.text`
+/// are ignored here — raw-byte scanning is not meaningful for disassembly text.
+///
+/// Results are capped at `max_results`.
+///
+/// # Errors
+/// Returns a `String` error if `filters.use_regex` is `true` and `query` is
+/// not a valid regular expression.
+#[must_use = "search results should be inspected or returned to the caller"]
+pub fn search_disassembly(
+    app_state: &AppState,
+    query: &str,
+    filters: &SearchFilters,
+    max_results: usize,
+) -> Result<Vec<SearchResult>, String> {
+    let regex = if filters.use_regex {
+        match compile_regex(query) {
+            Ok(re) => Some(re),
+            Err(e) => return Err(format!("Invalid regex: {e}")),
+        }
+    } else {
+        None
+    };
+
+    let query_lower = query.to_lowercase();
+    let mut results = Vec::new();
+
+    for line in &app_state.disassembly {
+        if results.len() >= max_results {
+            break;
+        }
+        let matches =
+            get_line_matches(line, app_state, &query_lower, None, regex.as_ref(), filters);
+        if !matches.is_empty() {
+            results.push(SearchResult {
+                address: line.address,
+                label: line.label.clone(),
+                mnemonic: line.mnemonic.clone(),
+                operand: line.operand.clone(),
+                comment: line.comment.clone(),
+            });
+        }
+    }
+
+    Ok(results)
+}
+
+// ---------------------------------------------------------------------------
 // Encoding helpers (moved from mcp/handler.rs)
 // ---------------------------------------------------------------------------
 
@@ -531,6 +664,7 @@ mod tests {
         assert!(!match_instruction_content(
             &line,
             "d020",
+            None,
             &SearchFilters::default()
         ));
 
@@ -538,6 +672,7 @@ mod tests {
         assert!(match_instruction_content(
             &line,
             "8d02",
+            None,
             &SearchFilters::default()
         ));
     }
@@ -580,38 +715,131 @@ mod tests {
 
         // Test label match
         let filters = SearchFilters::default();
-        let matches = get_line_matches(&line, &app_state, "mid_label", None, &filters);
+        let matches = get_line_matches(&line, &app_state, "mid_label", None, None, &filters);
         assert_eq!(matches, vec![0]);
 
         // Test line comment matches
         assert_eq!(
-            get_line_matches(&line, &app_state, "line 1", None, &filters),
+            get_line_matches(&line, &app_state, "line 1", None, None, &filters),
             vec![1]
         );
         assert_eq!(
-            get_line_matches(&line, &app_state, "line 2", None, &filters),
+            get_line_matches(&line, &app_state, "line 2", None, None, &filters),
             vec![2]
         );
         assert_eq!(
-            get_line_matches(&line, &app_state, "line 3", None, &filters),
+            get_line_matches(&line, &app_state, "line 3", None, None, &filters),
             vec![3]
         );
 
         // Test instruction matches
         assert_eq!(
-            get_line_matches(&line, &app_state, "lda", None, &filters),
+            get_line_matches(&line, &app_state, "lda", None, None, &filters),
             vec![4]
         );
         assert_eq!(
-            get_line_matches(&line, &app_state, "side", None, &filters),
+            get_line_matches(&line, &app_state, "side", None, None, &filters),
             vec![4]
         );
 
         // Test multiple matches (e.g. "line" matches all comment lines)
         assert_eq!(
-            get_line_matches(&line, &app_state, "line", None, &filters),
+            get_line_matches(&line, &app_state, "line", None, None, &filters),
             vec![1, 2, 3]
         );
+    }
+}
+
+#[cfg(test)]
+mod tests_regex {
+    use super::*;
+    use crate::disassembler::DisassemblyLine;
+
+    fn make_line(
+        mnemonic: &str,
+        operand: &str,
+        comment: &str,
+        label: Option<&str>,
+    ) -> DisassemblyLine {
+        DisassemblyLine {
+            address: crate::state::Addr(0x1000),
+            bytes: vec![0xEA],
+            mnemonic: mnemonic.to_string(),
+            operand: operand.to_string(),
+            comment: comment.to_string(),
+            line_comment: None,
+            label: label.map(str::to_string),
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        }
+    }
+
+    #[test]
+    fn test_compile_regex_valid() {
+        let re = compile_regex("lda.*sta").unwrap();
+        assert!(re.is_match("LDA #$00 ; STA"));
+    }
+
+    #[test]
+    fn test_compile_regex_invalid() {
+        assert!(compile_regex("[invalid").is_err());
+    }
+
+    #[test]
+    fn test_compile_regex_case_insensitive() {
+        let re = compile_regex("LDA").unwrap();
+        assert!(re.is_match("lda"));
+        assert!(re.is_match("LDA"));
+        assert!(re.is_match("Lda"));
+    }
+
+    #[test]
+    fn test_regex_matches_mnemonic() {
+        let line = make_line("LDA", "#$00", "", None);
+        let re = compile_regex("ld.").unwrap();
+        let filters = SearchFilters::default();
+        assert!(match_instruction_content(&line, "", Some(&re), &filters));
+    }
+
+    #[test]
+    fn test_regex_matches_comment() {
+        let line = make_line("NOP", "", "TODO: fix this", None);
+        let re = compile_regex("(TODO|FIXME)").unwrap();
+        let filters = SearchFilters::default();
+        assert!(match_instruction_content(&line, "", Some(&re), &filters));
+    }
+
+    #[test]
+    fn test_regex_matches_label() {
+        let line = make_line("RTS", "", "", Some("s_init_sprites"));
+        let re = compile_regex("s_.*init").unwrap();
+        let filters = SearchFilters::default();
+        assert!(match_instruction_content(&line, "", Some(&re), &filters));
+    }
+
+    #[test]
+    fn test_regex_does_not_match_hex_bytes() {
+        // bytes = [0xA9] -> hex string "a9"; pattern matches "a" followed by any char
+        // But hex scanning is disabled in regex mode, so this should NOT match
+        // via hex bytes — only via mnemonic/operand/comment/label.
+        let line = make_line("LDA", "#$09", "", None); // mnemonic won't match "a."
+        let re = compile_regex("^a.$").unwrap(); // matches "a9" if hex scan were active
+        let mut filters = SearchFilters::default();
+        filters.instructions = false;
+        filters.comments = false;
+        filters.labels = false;
+        assert!(!match_instruction_content(&line, "", Some(&re), &filters));
+    }
+
+    #[test]
+    fn test_regex_no_match() {
+        let line = make_line("STA", "$D020", "", None);
+        let re = compile_regex("^lda$").unwrap();
+        let filters = SearchFilters::default();
+        assert!(!match_instruction_content(&line, "", Some(&re), &filters));
     }
 }
 

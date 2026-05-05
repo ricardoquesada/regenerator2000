@@ -1899,11 +1899,26 @@ impl Core {
 
         use crate::state::search;
 
-        let hex_pattern = if self.view.search_filters.hex_bytes {
-            search::parse_hex_pattern(&query)
+        // Compile regex once up-front when regex mode is active.
+        let regex = if self.view.search_filters.use_regex {
+            match search::compile_regex(&query) {
+                Ok(re) => Some(re),
+                Err(e) => {
+                    events.push(CoreEvent::StatusMessage(format!("Invalid regex: {e}")));
+                    return;
+                }
+            }
         } else {
             None
         };
+
+        // Hex-byte pattern parsing is a plain-text-only feature; skip in regex mode.
+        let hex_pattern =
+            if !self.view.search_filters.use_regex && self.view.search_filters.hex_bytes {
+                search::parse_hex_pattern(&query)
+            } else {
+                None
+            };
         let filters = &self.view.search_filters;
 
         // Check current line first for subsequent matches
@@ -1913,6 +1928,7 @@ impl Core {
                 &self.state,
                 &query_lower,
                 hex_pattern.as_deref(),
+                regex.as_ref(),
                 filters,
             );
 
@@ -1958,6 +1974,7 @@ impl Core {
                     &self.state,
                     &query_lower,
                     hex_pattern.as_deref(),
+                    regex.as_ref(),
                     filters,
                 );
                 if !matches.is_empty() {
@@ -1985,6 +2002,7 @@ impl Core {
                             end,
                             &query_lower,
                             hex_pattern.as_deref(),
+                            regex.as_ref(),
                             filters,
                         )
                     })
