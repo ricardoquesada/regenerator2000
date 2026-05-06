@@ -15,7 +15,7 @@ use crate::ui::navigable::{Navigable, handle_nav_input};
 
 const PAGE_SCROLL_AMOUNT: usize = 30;
 // LABEL_COLUMN_WIDTH moved to regenerator2000_core::disassembler
-use regenerator2000_core::disassembler::{DEFINITION_COLUMN_WIDTH, LABEL_COLUMN_WIDTH};
+use regenerator2000_core::disassembler::LABEL_COLUMN_WIDTH;
 
 pub struct VisualLineCounts {
     pub labels: usize,
@@ -1395,23 +1395,30 @@ impl Widget for DisassemblyView {
                         .add_modifier(Modifier::BOLD)
                 };
 
-                inst_spans.push(Span::styled(label_column_text, label_style));
+                // External-label section lines: both the definition lines
+                // (equates like `name = $value`) and the header/legend comment
+                // lines should render at the label column position so they
+                // align with code labels.  The total width spans the label,
+                // mnemonic (6) and operand (15) columns so trailing x-ref
+                // comments stay aligned with code comments.
+                let is_ext_section_line =
+                    line.bytes.is_empty() && !line.mnemonic.is_empty() && !is_unindented_scope;
 
-                // External-label definition lines (equates): mnemonic holds the
-                // full `name = $value` string; operand is empty.  Pad to
-                // DEFINITION_COLUMN_WIDTH so the trailing x-ref comment always
-                // starts at the same column regardless of definition length.
-                let is_ext_label_def =
-                    line.external_label_address.is_some() && line.bytes.is_empty();
-
-                if is_ext_label_def {
-                    inst_spans.push(Span::styled(
-                        format!("{:<DEFINITION_COLUMN_WIDTH$}", line.mnemonic),
+                if is_ext_section_line {
+                    const EXT_COL_WIDTH: usize = LABEL_COLUMN_WIDTH + 6 + 15;
+                    let style = if line.external_label_address.is_some() {
                         base_style
-                            .fg(ui_state.theme.mnemonic)
-                            .add_modifier(Modifier::BOLD),
+                            .fg(ui_state.theme.label_def)
+                            .add_modifier(Modifier::BOLD)
+                    } else {
+                        base_style.fg(ui_state.theme.comment)
+                    };
+                    inst_spans.push(Span::styled(
+                        format!("{:<EXT_COL_WIDTH$}", line.mnemonic),
+                        style,
                     ));
                 } else {
+                    inst_spans.push(Span::styled(label_column_text, label_style));
                     let mnemonic_text = if is_unindented_scope {
                         "      ".to_string()
                     } else {
