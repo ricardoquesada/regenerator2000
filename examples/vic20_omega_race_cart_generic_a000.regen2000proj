@@ -595,588 +595,588 @@
   "labels": {
     "23": [
       {
-        "name": "score_cursor_x",
+        "name": "zp_score_cursor_x",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "24": [
       {
-        "name": "collision_type",
+        "name": "zp_collision_type",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "25": [
       {
-        "name": "bullet_slots_free",
+        "name": "zp_bullet_slots_free",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "26": [
       {
-        "name": "marker_idx",
+        "name": "zp_marker_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "27": [
       {
-        "name": "collision_check_flag",
+        "name": "zp_collision_check_flag",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "28": [
       {
-        "name": "temp_bcd_score",
+        "name": "zp_temp_bcd_score",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "31": [
       {
-        "name": "player_lives",
+        "name": "zp_player_lives",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "32": [
       {
-        "name": "current_level",
+        "name": "zp_current_level",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "33": [
       {
-        "name": "current_phase",
+        "name": "zp_current_phase",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "34": [
       {
-        "name": "irq_tick_counter",
+        "name": "zp_irq_tick_counter",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "35": [
       {
-        "name": "hiscore_lo",
+        "name": "zp_hiscore_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "36": [
       {
-        "name": "hiscore_mid",
+        "name": "zp_hiscore_mid",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "37": [
       {
-        "name": "hiscore_hi",
+        "name": "zp_hiscore_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "38": [
       {
-        "name": "bullet_hit_mask",
+        "name": "zp_bullet_hit_mask",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "39": [
       {
-        "name": "playfield_color",
+        "name": "zp_playfield_color",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "40": [
       {
-        "name": "cur_entity_idx",
+        "name": "zp_cur_entity_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "41": [
       {
-        "name": "prev_heading",
+        "name": "zp_prev_heading",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "42": [
       {
-        "name": "temp_frame_idx",
+        "name": "zp_temp_frame_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "43": [
       {
-        "name": "player_wall_hits",
+        "name": "zp_player_wall_hits",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "44": [
       {
-        "name": "ptr_gfx_str",
+        "name": "zp_ptr_gfx_str",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "45": [
       {
-        "name": "ptr_gfx_str_hi",
+        "name": "zp_ptr_gfx_str_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "46": [
       {
-        "name": "entity_type_to_slot",
+        "name": "zp_entity_type_to_slot",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "47": [
       {
-        "name": "enemy1_slot_idx",
+        "name": "zp_enemy1_slot_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "48": [
       {
-        "name": "enemy3_slot_idx",
+        "name": "zp_enemy3_slot_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "49": [
       {
-        "name": "enemy2_slot_idx",
+        "name": "zp_enemy2_slot_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "53": [
       {
-        "name": "fire_cooldown",
+        "name": "zp_fire_cooldown",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "54": [
       {
-        "name": "enemy_ai_speed_mask",
+        "name": "zp_enemy_ai_speed_mask",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "55": [
       {
-        "name": "frame_counter",
+        "name": "zp_frame_counter",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "56": [
       {
-        "name": "enemy1_fire_timer",
+        "name": "zp_enemy1_fire_timer",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "57": [
       {
-        "name": "enemy3_fire_timer",
+        "name": "zp_enemy3_fire_timer",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "58": [
       {
-        "name": "enemy2_fire_timer",
+        "name": "zp_enemy2_fire_timer",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "59": [
       {
-        "name": "firing_entity_slot",
+        "name": "zp_firing_entity_slot",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "60": [
       {
-        "name": "attract_delay_ctr",
+        "name": "zp_attract_delay_ctr",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "61": [
       {
-        "name": "max_enemy_count",
+        "name": "zp_max_enemy_count",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "62": [
       {
-        "name": "game_tick",
+        "name": "zp_game_tick",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "64": [
       {
-        "name": "entity_count",
+        "name": "zp_entity_count",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "65": [
       {
-        "name": "snd_bass_dur",
+        "name": "zp_snd_bass_dur",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "66": [
       {
-        "name": "snd_alto_dur",
+        "name": "zp_snd_alto_dur",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "67": [
       {
-        "name": "snd_soprano_dur",
+        "name": "zp_snd_soprano_dur",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "68": [
       {
-        "name": "snd_noise_dur",
+        "name": "zp_snd_noise_dur",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "69": [
       {
-        "name": "snd_bass_seq_idx",
+        "name": "zp_snd_bass_seq_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "70": [
       {
-        "name": "snd_alto_seq_idx",
+        "name": "zp_snd_alto_seq_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "71": [
       {
-        "name": "snd_soprano_seq_idx",
+        "name": "zp_snd_soprano_seq_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "72": [
       {
-        "name": "snd_noise_seq_idx",
+        "name": "zp_snd_noise_seq_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "73": [
       {
-        "name": "snd_bass_step",
+        "name": "zp_snd_bass_step",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "74": [
       {
-        "name": "snd_alto_step",
+        "name": "zp_snd_alto_step",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "75": [
       {
-        "name": "snd_soprano_step",
+        "name": "zp_snd_soprano_step",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "76": [
       {
-        "name": "snd_noise_step",
+        "name": "zp_snd_noise_step",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "77": [
       {
-        "name": "snd_volume_state",
+        "name": "zp_snd_volume_state",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "78": [
       {
-        "name": "game_phase",
+        "name": "zp_game_phase",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "79": [
       {
-        "name": "enemy1_spawn_timer",
+        "name": "zp_enemy1_spawn_timer",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "80": [
       {
-        "name": "enemy2_spawn_timer",
+        "name": "zp_enemy2_spawn_timer",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "81": [
       {
-        "name": "temp_entity_type",
+        "name": "zp_temp_entity_type",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "82": [
       {
-        "name": "enemy1_mine_timer",
+        "name": "zp_enemy1_mine_timer",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "83": [
       {
-        "name": "enemy3_mine_timer",
+        "name": "zp_enemy3_mine_timer",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "84": [
       {
-        "name": "extra_life_awarded",
+        "name": "zp_extra_life_awarded",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "85": [
       {
-        "name": "difficulty_cap",
+        "name": "zp_difficulty_cap",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "86": [
       {
-        "name": "enemy_rot_dir",
+        "name": "zp_enemy_rot_dir",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "87": [
       {
-        "name": "wave_vel_x",
+        "name": "zp_wave_vel_x",
         "label_type": "ZeroPageField",
         "kind": "User"
       }
     ],
     "92": [
       {
-        "name": "wave_vel_y",
+        "name": "zp_wave_vel_y",
         "label_type": "ZeroPageField",
         "kind": "User"
       }
     ],
     "97": [
       {
-        "name": "wide_boundary_flag",
+        "name": "zp_wide_boundary_flag",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "98": [
       {
-        "name": "show_score_table",
+        "name": "zp_show_score_table",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "163": [
       {
-        "name": "pos_x",
+        "name": "zp_pos_x",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "164": [
       {
-        "name": "pos_y",
+        "name": "zp_pos_y",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "165": [
       {
-        "name": "ptr_bmp_col",
+        "name": "zp_ptr_bmp_col",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "166": [
       {
-        "name": "ptr_bmp_col_hi",
+        "name": "zp_ptr_bmp_col_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "167": [
       {
-        "name": "ptr_bmp_spill",
+        "name": "zp_ptr_bmp_spill",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "168": [
       {
-        "name": "ptr_bmp_spill_hi",
+        "name": "zp_ptr_bmp_spill_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "169": [
       {
-        "name": "ptr_glyph",
+        "name": "zp_ptr_glyph",
         "label_type": "ZeroPagePointer",
         "kind": "User"
       }
     ],
     "170": [
       {
-        "name": "ptr_glyph_hi",
+        "name": "zp_ptr_glyph_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "171": [
       {
-        "name": "spr_row_mask",
+        "name": "zp_spr_row_mask",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "172": [
       {
-        "name": "spr_spill_mask",
+        "name": "zp_spr_spill_mask",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "173": [
       {
-        "name": "spr_bit_offset",
+        "name": "zp_spr_bit_offset",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "174": [
       {
-        "name": "step_x",
+        "name": "zp_step_x",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "175": [
       {
-        "name": "step_y",
+        "name": "zp_step_y",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "176": [
       {
-        "name": "joy_fire",
+        "name": "zp_joy_fire",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "177": [
       {
-        "name": "player_angle",
+        "name": "zp_player_angle",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "178": [
       {
-        "name": "joy_left",
+        "name": "zp_joy_left",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "179": [
       {
-        "name": "pixel_mask",
+        "name": "zp_pixel_mask",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "180": [
       {
-        "name": "loop_idx",
+        "name": "zp_loop_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "189": [
       {
-        "name": "seg_len",
+        "name": "zp_seg_len",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "247": [
       {
-        "name": "score_lo",
+        "name": "zp_score_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "248": [
       {
-        "name": "score_mid",
+        "name": "zp_score_mid",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "249": [
       {
-        "name": "score_hi",
+        "name": "zp_score_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -2927,9 +2927,9 @@
     "addresses_per_line": 5,
     "bytes_per_line": 8,
     "enabled_features": {
-      "SYSTEM": false,
-      "BASIC": false,
       "Lower Page": false,
+      "BASIC": false,
+      "SYSTEM": false,
       "KERNAL": true
     },
     "description": "Omega Race VIC20 video game. Original cartridge version",
@@ -3030,8 +3030,8 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 46063,
-  "hex_dump_cursor_address": 46048,
+  "cursor_address": 248,
+  "hex_dump_cursor_address": 49136,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
   "right_pane_visible": "HexDump",

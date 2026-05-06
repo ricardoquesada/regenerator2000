@@ -385,420 +385,420 @@
   "labels": {
     "40": [
       {
-        "name": "key_row_down",
+        "name": "zp_key_row_down",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "41": [
       {
-        "name": "key_row_up",
+        "name": "zp_key_row_up",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "42": [
       {
-        "name": "key_row_left",
+        "name": "zp_key_row_left",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "43": [
       {
-        "name": "key_row_right",
+        "name": "zp_key_row_right",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "44": [
       {
-        "name": "key_row_dig1",
+        "name": "zp_key_row_dig1",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "45": [
       {
-        "name": "key_row_dig2",
+        "name": "zp_key_row_dig2",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "46": [
       {
-        "name": "key_row_pause",
+        "name": "zp_key_row_pause",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "49": [
       {
-        "name": "key_col_down",
+        "name": "zp_key_col_down",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "50": [
       {
-        "name": "key_col_up",
+        "name": "zp_key_col_up",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "51": [
       {
-        "name": "key_col_left",
+        "name": "zp_key_col_left",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "52": [
       {
-        "name": "key_col_right",
+        "name": "zp_key_col_right",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "53": [
       {
-        "name": "key_col_dig1",
+        "name": "zp_key_col_dig1",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "54": [
       {
-        "name": "key_col_dig2",
+        "name": "zp_key_col_dig2",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "55": [
       {
-        "name": "key_col_pause",
+        "name": "zp_key_col_pause",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "80": [
       {
-        "name": "random_seed",
+        "name": "zp_random_seed",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "81": [
       {
-        "name": "screen_width",
+        "name": "zp_screen_width",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "82": [
       {
-        "name": "ptr_screen_lo",
+        "name": "zp_ptr_screen_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "83": [
       {
-        "name": "ptr_screen_hi",
+        "name": "zp_ptr_screen_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "84": [
       {
-        "name": "ptr_attr_lo",
+        "name": "zp_ptr_attr_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "85": [
       {
-        "name": "ptr_attr_hi",
+        "name": "zp_ptr_attr_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "86": [
       {
-        "name": "ptr_render_buf_lo",
+        "name": "zp_ptr_render_buf_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "87": [
       {
-        "name": "ptr_render_buf_hi",
+        "name": "zp_ptr_render_buf_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "88": [
       {
-        "name": "ptr_wipe_buf_lo",
+        "name": "zp_ptr_wipe_buf_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "89": [
       {
-        "name": "ptr_wipe_buf_hi",
+        "name": "zp_ptr_wipe_buf_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "90": [
       {
-        "name": "ptr_playfield_lo",
+        "name": "zp_ptr_playfield_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "91": [
       {
-        "name": "ptr_playfield_hi",
+        "name": "zp_ptr_playfield_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "92": [
       {
-        "name": "ptr_attr_ram_lo",
+        "name": "zp_ptr_attr_ram_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "93": [
       {
-        "name": "ptr_attr_ram_hi",
+        "name": "zp_ptr_attr_ram_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "94": [
       {
-        "name": "ptr_move_grid_lo",
+        "name": "zp_ptr_move_grid_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "95": [
       {
-        "name": "ptr_move_grid_hi",
+        "name": "zp_ptr_move_grid_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "96": [
       {
-        "name": "ptr_pathfinding_lo",
+        "name": "zp_ptr_pathfinding_lo",
         "label_type": "ZeroPagePointer",
         "kind": "User"
       }
     ],
     "97": [
       {
-        "name": "ptr_pathfinding_hi",
+        "name": "zp_ptr_pathfinding_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "98": [
       {
-        "name": "queue_head_temp",
+        "name": "zp_queue_head_temp",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "99": [
       {
-        "name": "queue_tail",
+        "name": "zp_queue_tail",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "100": [
       {
-        "name": "scratch_reg_a",
+        "name": "zp_scratch_reg_a",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "101": [
       {
-        "name": "scratch_reg_x",
+        "name": "zp_scratch_reg_x",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "102": [
       {
-        "name": "scratch_reg_y",
+        "name": "zp_scratch_reg_y",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "103": [
       {
-        "name": "game_state_flag",
+        "name": "zp_game_state_flag",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "104": [
       {
-        "name": "ptr_dig_screen_lo",
+        "name": "zp_ptr_dig_screen_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "105": [
       {
-        "name": "ptr_dig_screen_hi",
+        "name": "zp_ptr_dig_screen_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "106": [
       {
-        "name": "ptr_gold_screen_lo",
+        "name": "zp_ptr_gold_screen_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "107": [
       {
-        "name": "ptr_gold_screen_hi",
+        "name": "zp_ptr_gold_screen_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "108": [
       {
-        "name": "ptr_bonus_walk_lo",
+        "name": "zp_ptr_bonus_walk_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "109": [
       {
-        "name": "ptr_bonus_walk_hi",
+        "name": "zp_ptr_bonus_walk_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "110": [
       {
-        "name": "ptr_guard_top_lo",
+        "name": "zp_ptr_guard_top_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "111": [
       {
-        "name": "ptr_guard_top_hi",
+        "name": "zp_ptr_guard_top_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "112": [
       {
-        "name": "ptr_guard_bot_lo",
+        "name": "zp_ptr_guard_bot_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "113": [
       {
-        "name": "ptr_guard_bot_hi",
+        "name": "zp_ptr_guard_bot_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "114": [
       {
-        "name": "ptr_hole_screen_lo",
+        "name": "zp_ptr_hole_screen_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "115": [
       {
-        "name": "ptr_hole_screen_hi",
+        "name": "zp_ptr_hole_screen_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "116": [
       {
-        "name": "ptr_level_data",
+        "name": "zp_ptr_level_data",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "117": [
       {
-        "name": "difficulty_scalar",
+        "name": "zp_difficulty_scalar",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "118": [
       {
-        "name": "guard_draw_idx",
+        "name": "zp_guard_draw_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "119": [
       {
-        "name": "ptr_ai_grid_lo",
+        "name": "zp_ptr_ai_grid_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "120": [
       {
-        "name": "ptr_ai_grid_hi",
+        "name": "zp_ptr_ai_grid_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "121": [
       {
-        "name": "ptr_menu_buf_lo",
+        "name": "zp_ptr_menu_buf_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "122": [
       {
-        "name": "ptr_menu_buf_hi",
+        "name": "zp_ptr_menu_buf_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "144": [
       {
-        "name": "irq_vector_lo",
+        "name": "zp_irq_vector_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "145": [
       {
-        "name": "irq_vector_hi",
+        "name": "zp_irq_vector_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "255": [
       {
-        "name": "kernal_ff_sentinel",
+        "name": "zp_kernal_ff_sentinel",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -4242,14 +4242,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 26369,
+  "cursor_address": 0,
   "hex_dump_cursor_address": 26368,
-  "sprites_cursor_address": 3136,
+  "sprites_cursor_address": 3200,
   "charset_cursor_address": 1024,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],

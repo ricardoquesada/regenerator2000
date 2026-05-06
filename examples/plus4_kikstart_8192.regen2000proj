@@ -937,385 +937,385 @@
   "labels": {
     "2": [
       {
-        "name": "game_mode",
+        "name": "zp_game_mode",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "3": [
       {
-        "name": "frame_phase",
+        "name": "zp_frame_phase",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "4": [
       {
-        "name": "raster_split_a",
+        "name": "zp_raster_split_a",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "5": [
       {
-        "name": "raster_split_b",
+        "name": "zp_raster_split_b",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "6": [
       {
-        "name": "raster_target",
+        "name": "zp_raster_target",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "16": [
       {
-        "name": "obstacle_flags",
+        "name": "zp_obstacle_flags",
         "label_type": "ZeroPageField",
         "kind": "User"
       }
     ],
     "20": [
       {
-        "name": "obstacle_life",
+        "name": "zp_obstacle_life",
         "label_type": "ZeroPageField",
         "kind": "User"
       }
     ],
     "24": [
       {
-        "name": "obstacle_pos_hi",
+        "name": "zp_obstacle_pos_hi",
         "label_type": "ZeroPageField",
         "kind": "User"
       }
     ],
     "28": [
       {
-        "name": "obstacle_pos_lo",
+        "name": "zp_obstacle_pos_lo",
         "label_type": "ZeroPageField",
         "kind": "User"
       }
     ],
     "32": [
       {
-        "name": "obstacle_vel",
+        "name": "zp_obstacle_vel",
         "label_type": "ZeroPageField",
         "kind": "User"
       }
     ],
     "36": [
       {
-        "name": "ptr_obj_record_lo",
+        "name": "zp_ptr_obj_record_lo",
         "label_type": "ZeroPagePointer",
         "kind": "User"
       }
     ],
     "37": [
       {
-        "name": "ptr_obj_record_hi",
+        "name": "zp_ptr_obj_record_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "38": [
       {
-        "name": "track_scroll_frac",
+        "name": "zp_track_scroll_frac",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "39": [
       {
-        "name": "bike_pos_hi",
+        "name": "zp_bike_pos_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "40": [
       {
-        "name": "bike_pos_lo",
+        "name": "zp_bike_pos_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "41": [
       {
-        "name": "bike_vel",
+        "name": "zp_bike_vel",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "42": [
       {
-        "name": "bike_throttle",
+        "name": "zp_bike_throttle",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "43": [
       {
-        "name": "spawn_cooldown",
+        "name": "zp_spawn_cooldown",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "44": [
       {
-        "name": "rng_state_lo",
+        "name": "zp_rng_state_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "45": [
       {
-        "name": "rng_state_mid",
+        "name": "zp_rng_state_mid",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "46": [
       {
-        "name": "rng_state_hi",
+        "name": "zp_rng_state_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "47": [
       {
-        "name": "course_index",
+        "name": "zp_course_index",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "48": [
       {
-        "name": "lives_counter",
+        "name": "zp_lives_counter",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "49": [
       {
-        "name": "scroll_dir_flag",
+        "name": "zp_scroll_dir_flag",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "50": [
       {
-        "name": "sprite_queue_count",
+        "name": "zp_sprite_queue_count",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "51": [
       {
-        "name": "joystick_state",
+        "name": "zp_joystick_state",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "52": [
       {
-        "name": "music_step",
+        "name": "zp_music_step",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "53": [
       {
-        "name": "music_pos",
+        "name": "zp_music_pos",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "54": [
       {
-        "name": "track_progress",
+        "name": "zp_track_progress",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "55": [
       {
-        "name": "track_left_edge",
+        "name": "zp_track_left_edge",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "56": [
       {
-        "name": "track_flags",
+        "name": "zp_track_flags",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "57": [
       {
-        "name": "track_right_edge",
+        "name": "zp_track_right_edge",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "58": [
       {
-        "name": "prev_track_flags",
+        "name": "zp_prev_track_flags",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "59": [
       {
-        "name": "player_active",
+        "name": "zp_player_active",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "60": [
       {
-        "name": "anim_frame_count",
+        "name": "zp_anim_frame_count",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "61": [
       {
-        "name": "raster_colour",
+        "name": "zp_raster_colour",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "62": [
       {
-        "name": "scroll_timer",
+        "name": "zp_scroll_timer",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "63": [
       {
-        "name": "frame_counter",
+        "name": "zp_frame_counter",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "64": [
       {
-        "name": "crash_debris_x",
+        "name": "zp_crash_debris_x",
         "label_type": "ZeroPageField",
         "kind": "User"
       }
     ],
     "72": [
       {
-        "name": "crash_debris_y",
+        "name": "zp_crash_debris_y",
         "label_type": "ZeroPageField",
         "kind": "User"
       }
     ],
     "80": [
       {
-        "name": "snd_pitch",
+        "name": "zp_snd_pitch",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "81": [
       {
-        "name": "snd_pitch_delta",
+        "name": "zp_snd_pitch_delta",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "82": [
       {
-        "name": "spawn_type",
+        "name": "zp_spawn_type",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "83": [
       {
-        "name": "scroll_speed",
+        "name": "zp_scroll_speed",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "84": [
       {
-        "name": "snd_duration",
+        "name": "zp_snd_duration",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "85": [
       {
-        "name": "snd_volume",
+        "name": "zp_snd_volume",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "86": [
       {
-        "name": "title_row_anim",
+        "name": "zp_title_row_anim",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "87": [
       {
-        "name": "title_char_idx",
+        "name": "zp_title_char_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "247": [
       {
-        "name": "blit_scratch",
+        "name": "zp_blit_scratch",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "248": [
       {
-        "name": "ted_ctrl_staging",
+        "name": "zp_ted_ctrl_staging",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "249": [
       {
-        "name": "pitch_hi",
+        "name": "zp_pitch_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "252": [
       {
-        "name": "blit_col",
+        "name": "zp_blit_col",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "253": [
       {
-        "name": "blit_row",
+        "name": "zp_blit_row",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "254": [
       {
-        "name": "blit_colour_ptr",
+        "name": "zp_blit_colour_ptr",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "255": [
       {
-        "name": "blit_char_idx",
+        "name": "zp_blit_char_idx",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -3262,14 +3262,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 10652,
+  "cursor_address": 55,
   "hex_dump_cursor_address": 10640,
   "sprites_cursor_address": 4096,
   "charset_cursor_address": 6472,
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],
