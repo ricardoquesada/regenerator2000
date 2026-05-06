@@ -2918,7 +2918,7 @@
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
-    "platform": "Commodore VIC-20",
+    "system": "Commodore VIC-20",
     "assembler": "Tass64",
     "max_xref_count": 8,
     "max_arrow_columns": 6,
@@ -2927,14 +2927,14 @@
     "addresses_per_line": 5,
     "bytes_per_line": 8,
     "enabled_features": {
-      "KERNAL": true,
       "SYSTEM": false,
       "BASIC": false,
-      "Lower Page": false
+      "Lower Page": false,
+      "KERNAL": true
     },
     "description": "Omega Race VIC20 video game. Original cartridge version",
     "auto_analyze": true,
-    "show_platform_comments": false,
+    "show_system_comments": false,
     "fill_run_threshold": 8,
     "exclude_well_known_labels": true
   },

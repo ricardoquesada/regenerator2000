@@ -716,7 +716,7 @@ fn handle_tool_call_internal(
         "r2000_get_binary_info" => {
             let origin = app_state.origin;
             let size = app_state.raw_data.len();
-            let platform = &app_state.settings.system;
+            let system = &app_state.settings.system;
             let filename = app_state
                 .file_path
                 .as_ref()
@@ -731,7 +731,7 @@ fn handle_tool_call_internal(
                     "text": serde_json::to_string_pretty(&json!({
                         "origin": origin,
                         "size": size,
-                        "platform": platform,
+                        "system": system,
                         "filename": filename,
                         "description": app_state.settings.description,
                         "may_contain_undocumented_opcodes": app_state.settings.use_illegal_opcodes

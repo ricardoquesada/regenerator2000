@@ -134,7 +134,7 @@ Production code must never panic silently.
 ### Ownership and Borrowing
 
 - Prefer `&str` over `&String`, `&[T]` over `&Vec<T>`, and `&Path` over `&PathBuf` in function signatures.
-- Use `impl Into<String>` (or `impl AsRef<str>`) for constructor arguments that store a `String`, as `Platform::new` does.
+- Use `impl Into<String>` (or `impl AsRef<str>`) for constructor arguments that store a `String`, as `System::new` does.
 - Avoid unnecessary `.clone()` — pass references where ownership is not needed.
 - When passing closures that only forward to a free function (`|x| f(x)`), write `f` directly (`clippy::redundant_closure`).
 

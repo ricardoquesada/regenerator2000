@@ -505,7 +505,7 @@ impl Widget for DocumentSettingsDialog {
         );
 
         // System Section (Moved to end)
-        let system_label = Span::raw("System:");
+        let system_label = Span::raw("Target System:");
         f.render_widget(
             Paragraph::new(system_label),
             Rect::new(layout[10].x + 2, layout[10].y, layout[10].width - 4, 1),

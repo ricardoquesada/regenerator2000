@@ -2091,7 +2091,7 @@
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
-    "platform": "Commodore 64",
+    "system": "Commodore 64",
     "assembler": "Tass64",
     "max_xref_count": 8,
     "max_arrow_columns": 6,
@@ -2221,7 +2221,7 @@
   "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": true,
-  "bitmap_cursor_address": 40960,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
@@ -2229,5 +2229,6 @@
     5871
   ],
   "blocks_view_cursor": 0,
-  "scopes": {}
+  "scopes": {},
+  "user_excluded_addresses": []
 }
