@@ -181,12 +181,12 @@ needs both forms to generate the correct opcode size during reassembly.
 
 Some addresses are excluded from label generation. There are two levels of exclusion:
 
-### Platform-Level Exclusion
+### System-Level Exclusion
 
-When a platform is selected, the **"Exclude well-known addresses from symbolic analysis"** checkbox in
-[Document Settings](settings.md) lets you suppress labels for platform-specific addresses that typically
+When a system is selected, the **"Exclude well-known addresses from symbolic analysis"** checkbox in
+[Document Settings](settings.md) lets you suppress labels for system-specific addresses that typically
 create noise (e.g., hardware registers that are accessed indirectly or computed dynamically). This setting
-uses a curated exclusion list shipped with the platform definition.
+uses a curated exclusion list shipped with the system definition.
 
 ### Per-Project User Exclusion
 
@@ -204,27 +204,27 @@ dynamically and appear as false references in the code.
 
 ### Effect
 
-When an address is in either exclusion set (platform-level or per-project), the analyzer skips it
+When an address is in either exclusion set (system-level or per-project), the analyzer skips it
 entirely — no label or cross-reference is generated.
 
 ---
 
-## Platform-Specific Labels
+## System-Specific Labels
 
-When a [platform](platforms.md) is selected (e.g., Commodore 64), the analyzer benefits from pre-defined
-**platform labels** — well-known addresses for hardware registers, KERNAL entry points, and OS variables.
-These labels have `LabelKind::Platform` and are preserved across analysis runs just like user labels.
+When a [system](systems.md) is selected (e.g., Commodore 64), the analyzer benefits from pre-defined
+**system labels** — well-known addresses for hardware registers, KERNAL entry points, and OS variables.
+These labels have `LabelKind::System` and are preserved across analysis runs just like user labels.
 
 For example, on the C64:
 
-| Address   | Platform Label | Description              |
+| Address   | System Label | Description              |
 | :-------- | :----------- | :----------------------- |
 | `$D020`   | `BORDER`     | Border color register    |
 | `$D021`   | `BGCOL0`     | Background color 0       |
 | `$FFD2`   | `CHROUT`     | KERNAL: Output character |
 | `$FFE4`   | `GETIN`      | KERNAL: Get input        |
 
-Platform labels take precedence over auto-generated labels. If the analyzer detects a `JSR $FFD2`, it will
+System labels take precedence over auto-generated labels. If the analyzer detects a `JSR $FFD2`, it will
 display `JSR CHROUT` rather than `JSR s_FFD2`.
 
 ---
@@ -235,7 +235,7 @@ You should re-run the analyzer (++ctrl+a++) after making significant changes:
 
 - After converting blocks between Code and Data types.
 - After defining new Address, Lo/Hi, or Hi/Lo tables.
-- After loading additional platform definition files.
+- After loading additional system definition files.
 
 The analyzer rebuilds all auto-generated labels and cross-references from scratch, while always preserving
 your user-defined labels and comments.
