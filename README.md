@@ -33,7 +33,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
   - Side-by-side view with disassembly.
 - **Debugger**: Connect to VICE for live disassembly, breakpoints, run/step (F2–F9); Debugger panel in the right pane.
 - **Mini map**: Mini map of the file being analyzed.
-- **Platforms**: Supports Commodore 8-bit machines: C64, C128, VIC-20, Plus/4, PET 4.0, PET 2.0, and 1541.
+- **Systems**: Supports Commodore 8-bit machines: C64, C128, VIC-20, Plus/4, PET 4.0, PET 2.0, and 1541.
 - **Import**: Load the following file formats
   - PRG: PRG files
   - CRT: Cartridge images with bank selection support
@@ -65,7 +65,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
   - **X-Ref**: Inspect cross-references for labels/addresses.
   - **History**: Navigate back to previous locations.
 - **Customization**:
-  - Configure document settings (max x-refs, platform, assembler).
+  - Configure document settings (max x-refs, system, assembler).
   - Customizable display options (show/hide all labels, etc.).
 - **TUI**:
   - Text User interface
@@ -136,7 +136,7 @@ regenerator2000 [OPTIONS] [path/to/file.prg]
 -   `--mcp-server`: Run MCP server (HTTP on port 3000)
 -   `--mcp-server-stdio`: Run MCP server via stdio
 -   `--vice <HOST:PORT>`: Auto-connect to VICE binary monitor at startup (e.g. `--vice localhost:6502`)
--   `--dump-platform-config-files <PATH>`: Dump all built-in platform config files (`platform-*.toml`) to the specified directory and exit. Useful for inspecting or customizing platform definitions.
+-   `--dump-system-config-files <PATH>`: Dump all built-in system config files (`system-*.toml`) to the specified directory and exit. Useful for inspecting or customizing system definitions.
 -   `--dump-theme-files <PATH>`: Dump all built-in theme files (`theme-*.toml`) to the specified directory and exit. Edit them and place in the [config directory](https://regenerator2000.readthedocs.io/en/latest/install/) to create custom themes.
 
 Supported file formats: `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, 6502bench (`.dis65`), `.bin`, `.raw`, and `.regen2000proj`.
