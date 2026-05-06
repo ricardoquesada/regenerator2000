@@ -103,7 +103,7 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
 │  Bytes per line: < 8 >                                                 │
 │  Fill run threshold: < 8 >                                             │
 │  Assembler: < 64tass >                                                 │
-│  System: < Commodore 64 >                                              │
+│  Target System: < Commodore 64 >                                       │
 │  System Labels:                                                        │
 │    [x] KERNAL                                                          │
 │    [ ] BASIC                                                           │
@@ -312,7 +312,7 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
           **ACME**, **KickAssembler**, and **ca65**. Changing this updates the syntax used in the disassembly view to match
           the target. Press `Enter` to open the assembler selector popup, or use `Left`/`Right` to cycle.
 
-15. **System**
+15. **Target System**
         - **Description**: Defines the target hardware system (e.g., Commodore 64). This helps the analyzer identify
           system-specific memory maps, hardware registers (like VIC-II or SID), and ROM routines.
           Press `Enter` to open the system selector popup, or use `Left`/`Right` to cycle.

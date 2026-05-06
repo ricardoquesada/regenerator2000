@@ -516,7 +516,7 @@ impl Widget for DocumentSettingsDialog {
         // Check if system is selected
         let system_selected = self.selected_index == idx_system;
 
-        let system_text = format!("System: < {} >", settings.system);
+        let system_text = format!("Target System: < {} >", settings.system);
         let system_widget = Paragraph::new(system_text).style(if system_selected {
             Style::default()
                 .fg(theme.highlight_fg)
