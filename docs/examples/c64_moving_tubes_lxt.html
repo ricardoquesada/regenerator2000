@@ -76,14 +76,25 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr><td colspan="5" class="cm">;</td></tr>
 <tr><td colspan="5" class="cm">;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</td></tr>
 <tr class="sr"><td colspan="5"></td></tr>
-<tr><td></td><td class="by"></td><td colspan="3" class="cc"><span class="mn">; ZP ABSOLUTE ADDRESSES</span><span class="op"></span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; EXTERNAL LABELS</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">;   zpa_ = Zero Page Absolute Address</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">;   f_   = Field</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">;   a_   = Absolute Address</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">;   p_   = Pointer</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">;   e_   = External Jump</span></td></tr>
+<tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">;   L_   = Other / User-defined</span></td></tr>
+<tr class="sr"><td colspan="5"></td></tr>
 <tr id="L0001"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">zpa_01 = $01 </span><span class="cm">; x-ref: <a href="#L21F5">$21F5</a>, <a href="#L2EF1">$2EF1</a></span></td></tr>
 <tr id="L00C6"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">zpa_C6 = $c6 </span><span class="cm">; x-ref: <a href="#L2EC1">$2EC1</a></span></td></tr>
 <tr id="L00FB"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">zpa_FB = $fb </span><span class="cm">; x-ref: <a href="#L10DE">$10DE</a>, <a href="#L1113">$1113</a>, <a href="#L1120">$1120</a>, <a href="#L1131">$1131</a>, <a href="#L1137">$1137</a>, <a href="#L1141">$1141</a>, <a href="#L1268">$1268</a>, <a href="#L127D">$127D</a>, ...</span></td></tr>
 <tr id="L00FC"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">zpa_FC = $fc </span><span class="cm">; x-ref: <a href="#L10E1">$10E1</a>, <a href="#L1118">$1118</a>, <a href="#L113C">$113C</a>, <a href="#L1287">$1287</a>, <a href="#L1622">$1622</a></span></td></tr>
-<tr class="sr"><td colspan="5"></td></tr>
-<tr><td></td><td class="by"></td><td colspan="3" class="cc"><span class="mn">; FIELDS</span><span class="op"></span></td></tr>
+<tr id="L0286"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_0286 = $0286 </span><span class="cm">; x-ref: <a href="#L2E0E">$2E0E</a></span></td></tr>
+<tr id="L0314"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_0314 = $0314 </span><span class="cm">; IRQ ; x-ref: <a href="#L2E9D">$2E9D</a></span></td></tr>
+<tr id="L0315"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_0315 = $0315 </span><span class="cm">; IRQ ; x-ref: <a href="#L2E9A">$2E9A</a></span></td></tr>
+<tr id="L0318"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_0318 = $0318 </span><span class="cm">; NMI ; x-ref: <a href="#L2E16">$2E16</a></span></td></tr>
 <tr id="L0340"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_0340 = $0340 </span><span class="cm">; x-ref: <a href="#L2EF6">$2EF6</a>, <a href="#L2EFC">$2EFC</a></span></td></tr>
+<tr id="L0344"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_0344 = $0344 </span><span class="cm">; x-ref: <a href="#L21EE">$21EE</a></span></td></tr>
+<tr id="L0347"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_0347 = $0347 </span><span class="cm">; x-ref: <a href="#L21EB">$21EB</a></span></td></tr>
 <tr id="L0400"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_0400 = $0400 </span><span class="cm">; x-ref: <a href="#L0E1A">$0E1A</a></span></td></tr>
 <tr id="L0428"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_0428 = $0428 </span><span class="cm">; x-ref: <a href="#L0E1F">$0E1F</a></span></td></tr>
 <tr id="L0450"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_0450 = $0450 </span><span class="cm">; x-ref: <a href="#L2E36">$2E36</a></span></td></tr>
@@ -97,6 +108,10 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L062F"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_062F = $062f </span><span class="cm">; x-ref: <a href="#L2E29">$2E29</a></span></td></tr>
 <tr id="L0630"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_0630 = $0630 </span><span class="cm">; x-ref: <a href="#L2E3E">$2E3E</a></span></td></tr>
 <tr id="L0658"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_0658 = $0658 </span><span class="cm">; x-ref: <a href="#L2E4E">$2E4E</a></span></td></tr>
+<tr id="L06A7"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_06A7 = $06a7 </span><span class="cm">; x-ref: <a href="#L0ED5">$0ED5</a></span></td></tr>
+<tr id="L06CF"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_06CF = $06cf </span><span class="cm">; x-ref: <a href="#L0EDB">$0EDB</a>, <a href="#L2E2C">$2E2C</a></span></td></tr>
+<tr id="L06F7"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_06F7 = $06f7 </span><span class="cm">; x-ref: <a href="#L0EE1">$0EE1</a></span></td></tr>
+<tr id="L071F"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_071F = $071f </span><span class="cm">; x-ref: <a href="#L0EE7">$0EE7</a></span></td></tr>
 <tr id="L0720"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_0720 = $0720 </span><span class="cm">; x-ref: <a href="#L2E51">$2E51</a></span></td></tr>
 <tr id="L0748"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_0748 = $0748 </span><span class="cm">; x-ref: <a href="#L2E41">$2E41</a></span></td></tr>
 <tr id="L0770"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_0770 = $0770 </span><span class="cm">; x-ref: <a href="#L0E5A">$0E5A</a></span></td></tr>
@@ -107,31 +122,13 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="LDA58"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_DA58 = $da58 </span><span class="cm">; x-ref: <a href="#L2E56">$2E56</a></span></td></tr>
 <tr id="LDB20"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_DB20 = $db20 </span><span class="cm">; x-ref: <a href="#L2E59">$2E59</a></span></td></tr>
 <tr id="LDB48"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">f_DB48 = $db48 </span><span class="cm">; x-ref: <a href="#L2E49">$2E49</a></span></td></tr>
-<tr class="sr"><td colspan="5"></td></tr>
-<tr><td></td><td class="by"></td><td colspan="3" class="cc"><span class="mn">; ABSOLUTE ADDRESSES</span><span class="op"></span></td></tr>
-<tr id="L0286"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_0286 = $0286 </span><span class="cm">; x-ref: <a href="#L2E0E">$2E0E</a></span></td></tr>
-<tr id="L0314"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_0314 = $0314 </span><span class="cm">; IRQ ; x-ref: <a href="#L2E9D">$2E9D</a></span></td></tr>
-<tr id="L0315"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_0315 = $0315 </span><span class="cm">; IRQ ; x-ref: <a href="#L2E9A">$2E9A</a></span></td></tr>
-<tr id="L0318"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_0318 = $0318 </span><span class="cm">; NMI ; x-ref: <a href="#L2E16">$2E16</a></span></td></tr>
-<tr id="L0344"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_0344 = $0344 </span><span class="cm">; x-ref: <a href="#L21EE">$21EE</a></span></td></tr>
-<tr id="L0347"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_0347 = $0347 </span><span class="cm">; x-ref: <a href="#L21EB">$21EB</a></span></td></tr>
-<tr id="L06A7"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_06A7 = $06a7 </span><span class="cm">; x-ref: <a href="#L0ED5">$0ED5</a></span></td></tr>
-<tr id="L06CF"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_06CF = $06cf </span><span class="cm">; x-ref: <a href="#L0EDB">$0EDB</a>, <a href="#L2E2C">$2E2C</a></span></td></tr>
-<tr id="L06F7"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_06F7 = $06f7 </span><span class="cm">; x-ref: <a href="#L0EE1">$0EE1</a></span></td></tr>
-<tr id="L071F"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">a_071F = $071f </span><span class="cm">; x-ref: <a href="#L0EE7">$0EE7</a></span></td></tr>
-<tr class="sr"><td colspan="5"></td></tr>
-<tr><td></td><td class="by"></td><td colspan="3" class="cc"><span class="mn">; POINTERS</span><span class="op"></span></td></tr>
-<tr id="LEA31"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">p_EA31 = $ea31 </span><span class="cm">; x-ref: <a href="#L2ECE">$2ECE</a>, <a href="#L2ED1">$2ED1</a></span></td></tr>
-<tr id="LFEC1"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">p_FEC1 = $fec1 </span><span class="cm">; x-ref: <a href="#L2E14">$2E14</a></span></td></tr>
-<tr class="sr"><td colspan="5"></td></tr>
-<tr><td></td><td class="by"></td><td colspan="3" class="cc"><span class="mn">; EXTERNAL JUMPS</span><span class="op"></span></td></tr>
 <tr id="LE544"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">e_E544 = $e544 </span><span class="cm">; x-ref: <a href="#L2E11">$2E11</a>, <a href="#L2ECB">$2ECB</a></span></td></tr>
 <tr id="LE5AA"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">e_E5AA = $e5aa </span><span class="cm">; x-ref: <a href="#L2ED8">$2ED8</a></span></td></tr>
+<tr id="LEA31"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">p_EA31 = $ea31 </span><span class="cm">; x-ref: <a href="#L2ECE">$2ECE</a>, <a href="#L2ED1">$2ED1</a></span></td></tr>
 <tr id="LEA7E"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">e_EA7E = $ea7e </span><span class="cm">; x-ref: <a href="#L23D1">$23D1</a></span></td></tr>
-<tr class="sr"><td colspan="5"></td></tr>
-<tr><td></td><td class="by"></td><td colspan="3" class="cc"><span class="mn">; OTHERS</span><span class="op"></span></td></tr>
 <tr id="LFCE2"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">KERNAL_RESET_VECTOR = $fce2 </span><span class="cm">; x-ref: <a href="#L21F8">$21F8</a></span></td></tr>
 <tr id="LFDA3"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">KERNAL_IOINITj = $fda3 </span><span class="cm">; $FDA3 (jmp) - initialize CIA & IRQ ; x-ref: <a href="#L2EDB">$2EDB</a></span></td></tr>
+<tr id="LFEC1"><td colspan="2"></td><td colspan="3" class="cc as"><span class="lb">p_FEC1 = $fec1 </span><span class="cm">; x-ref: <a href="#L2E14">$2E14</a></span></td></tr>
 <tr class="sr"><td colspan="5"></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; Charset: $0800 - $0E07 for Laxity logo</span></td></tr>
@@ -429,7 +426,7 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0E7E"><td class="ad"><a href="#L0E7E">$0E7E</a></td><td class="by">38</td><td colspan="3" class="cc"><span class="mn">sec</span><span class="op"></span></td></tr>
 <tr id="L0E7F"><td class="ad"><a href="#L0E7F">$0E7F</a></td><td class="by">e9 03</td><td colspan="3" class="cc"><span class="mn">sbc</span><span class="op">#$03</span><span class="cm">; Subtract 3 pixels per frame</span></td></tr>
 <tr id="L0E81"><td class="ad"><a href="#L0E81">$0E81</a></td><td class="by">8d 34 23</td><td colspan="3" class="cc"><span class="mn">sta</span><span class="op"><a href="#L2334">smooth_scroll_phase</a></span></td></tr>
-<tr id="L0E84"><td class="ad"><a href="#L0E84">$0E84</a></td><td class="by">10 64</td><td colspan="3" class="cc"><span class="mn">bpl</span><span class="op"><a href="#L0EEA">b_0EEA</a></span><span class="cm">; No underflow = skip char fetch</span></td></tr>
+<tr id="L0E84"><td class="ad"><a href="#L0E84">$0E84</a></td><td class="by">10 64</td><td colspan="3" class="cc"><span class="mn">bpl</span><span class="op"><a href="#L0EEA">r_0EEA</a></span><span class="cm">; No underflow = skip char fetch</span></td></tr>
 <tr id="L0E86"><td class="ad"><a href="#L0E86">$0E86</a></td><td class="by">29 07</td><td colspan="3" class="cc"><span class="mn">and</span><span class="op">#$07</span><span class="cm">; Wrap to 0-7 range</span></td></tr>
 <tr id="L0E88"><td class="ad"><a href="#L0E88">$0E88</a></td><td class="by">8d 34 23</td><td colspan="3" class="cc"><span class="mn">sta</span><span class="op"><a href="#L2334">smooth_scroll_phase</a></span></td></tr>
 <tr id="L0E8B"><td class="ad"><a href="#L0E8B">$0E8B</a></td><td class="by">a2 61</td><td colspan="3" class="cc"><span class="mn">ldx</span><span class="op">#97</span><span class="cm">; 256-97 = 159  ~ 4 * 40</span></td></tr>
@@ -475,7 +472,7 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L0EE1"><td class="ad"><a href="#L0EE1">$0EE1</a></td><td class="by">8d f7 06</td><td colspan="3" class="cc"><span class="mn">sta</span><span class="op"><a href="#L06F7">a_06F7</a></span></td></tr>
 <tr id="L0EE4"><td class="ad"><a href="#L0EE4">$0EE4</a></td><td class="by">bd 5e 26</td><td colspan="3" class="cc"><span class="mn">lda</span><span class="op"><a href="#L265E">font_row_3</a>,x</span><span class="cm">; Font row 3 → screen $071F</span></td></tr>
 <tr id="L0EE7"><td class="ad"><a href="#L0EE7">$0EE7</a></td><td class="by">8d 1f 07</td><td colspan="3" class="cc"><span class="mn">sta</span><span class="op"><a href="#L071F">a_071F</a></span></td></tr>
-<tr id="L0EEA"><td class="ad"><a href="#L0EEA">$0EEA</a></td><td class="by">60</td><td colspan="3" class="cc"><span class="il">b_0EEA</span><span class="mn">rts</span><span class="op"></span><span class="cm">; x-ref: <a href="#L0E84">$0E84</a></span></td></tr>
+<tr id="L0EEA"><td class="ad"><a href="#L0EEA">$0EEA</a></td><td class="by">60</td><td colspan="3" class="cc"><span class="il">r_0EEA</span><span class="mn">rts</span><span class="op"></span><span class="cm">; x-ref: <a href="#L0E84">$0E84</a></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; 2-bit circular left rotation of scroller_star_char_1 ($0FF8-$0FFF).</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; scroller_star_char_1 is charset character 255 in the $0800 charset (last).</span></td></tr>
@@ -2745,9 +2742,9 @@ tr:target td:first-child { border-left: 3px solid var(--highlight-border); }
 <tr id="L2EA8"><td class="ad"><a href="#L2EA8">$2EA8</a></td><td class="by">ce a5 2e</td><td colspan="3" class="cc"><span class="mn">dec</span><span class="op"><a href="#L2EA5">a_2EA5</a></span></td></tr>
 <tr id="L2EAB"><td class="ad"><a href="#L2EAB">$2EAB</a></td><td class="by">ad 01 dc</td><td colspan="3" class="cc"><span class="mn">lda</span><span class="op">$dc01</span><span class="cm">; CIA1: Data Port Register B</span></td></tr>
 <tr id="L2EAE"><td class="ad"><a href="#L2EAE">$2EAE</a></td><td class="by">c9 ef</td><td colspan="3" class="cc"><span class="mn">cmp</span><span class="op">#$ef</span></td></tr>
-<tr id="L2EB0"><td class="ad"><a href="#L2EB0">$2EB0</a></td><td class="by">d0 03</td><td colspan="3" class="cc"><span class="mn">bne</span><span class="op"><a href="#L2EB5">b_2EB5</a></span></td></tr>
+<tr id="L2EB0"><td class="ad"><a href="#L2EB0">$2EB0</a></td><td class="by">d0 03</td><td colspan="3" class="cc"><span class="mn">bne</span><span class="op"><a href="#L2EB5">r_2EB5</a></span></td></tr>
 <tr id="L2EB2"><td class="ad"><a href="#L2EB2">$2EB2</a></td><td class="by">4c b6 2e</td><td colspan="3" class="cc"><span class="mn">jmp</span><span class="op"><a href="#L2EB6">handle_exit</a></span></td></tr>
-<tr id="L2EB5"><td class="ad"><a href="#L2EB5">$2EB5</a></td><td class="by">60</td><td colspan="3" class="cc"><span class="il">b_2EB5</span><span class="mn">rts</span><span class="op"></span><span class="cm">; x-ref: <a href="#L2EB0">$2EB0</a></span></td></tr>
+<tr id="L2EB5"><td class="ad"><a href="#L2EB5">$2EB5</a></td><td class="by">60</td><td colspan="3" class="cc"><span class="il">r_2EB5</span><span class="mn">rts</span><span class="op"></span><span class="cm">; x-ref: <a href="#L2EB0">$2EB0</a></span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; Demo exit and full system cleanup handler.</span></td></tr>
 <tr><td colspan="2"></td><td colspan="3" class="cc bh"><span class="cm">; Triggered by joystick fire button (port 2) detected in wait_frame_or_exit.</span></td></tr>
