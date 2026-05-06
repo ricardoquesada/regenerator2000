@@ -588,7 +588,7 @@
     {
       "start": 28694,
       "end": 28727,
-      "type_": "DataByte",
+      "type_": "LoHiAddress",
       "collapsed": false
     }
   ],
@@ -637,120 +637,316 @@
     ],
     "29": [
       {
-        "name": "v_room_index",
+        "name": "zp_room_index",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "30": [
       {
-        "name": "item_count",
+        "name": "zp_item_count",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "31": [
       {
-        "name": "line_byte_count",
+        "name": "zp_line_byte_count",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "32": [
       {
-        "name": "v_entity_order",
+        "name": "zp_entity_order_tbl",
         "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "33": [
+      {
+        "name": "zp_entity_order_1",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "34": [
+      {
+        "name": "zp_entity_order_2",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "35": [
+      {
+        "name": "zp_entity_order_3",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "36": [
+      {
+        "name": "zp_entity_order_4",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "37": [
+      {
+        "name": "zp_entity_order_5",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "38": [
+      {
+        "name": "zp_entity_order_6",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "39": [
+      {
+        "name": "zp_entity_order_7",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "51": [
       {
-        "name": "v_entity_y",
+        "name": "zp_entity_y_tbl",
         "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "52": [
+      {
+        "name": "zp_entity_y_1",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "53": [
       {
-        "name": "laser_y_pos",
+        "name": "zp_entity_y_2",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "54": [
+      {
+        "name": "zp_entity_y_3",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "55": [
+      {
+        "name": "zp_entity_y_4",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "69": [
+      {
+        "name": "zp_entity_y_18",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "70": [
       {
-        "name": "v_entity_x",
+        "name": "zp_entity_x_tbl",
         "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "71": [
+      {
+        "name": "zp_entity_x_1",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "72": [
       {
-        "name": "laser_x_lo",
+        "name": "zp_entity_x_2",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "73": [
+      {
+        "name": "zp_entity_x_3",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "74": [
+      {
+        "name": "zp_entity_x_4",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "88": [
+      {
+        "name": "zp_entity_x_18",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "89": [
       {
-        "name": "v_entity_x_hi",
+        "name": "zp_entity_x_hi_tbl",
         "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "90": [
+      {
+        "name": "zp_entity_x_hi_1",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "91": [
       {
-        "name": "laser_x_hi",
+        "name": "zp_entity_x_hi_2",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "92": [
+      {
+        "name": "zp_entity_x_hi_3",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "93": [
+      {
+        "name": "zp_entity_x_hi_4",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "107": [
+      {
+        "name": "zp_entity_x_hi_18",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "108": [
       {
-        "name": "v_entity_ptr_lo",
+        "name": "zp_entity_sprite_frame_tbl",
         "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "109": [
+      {
+        "name": "zp_entity_sprite_frame_1",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "110": [
       {
-        "name": "laser_frame_index",
+        "name": "zp_entity_sprite_frame_2",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "111": [
+      {
+        "name": "zp_entity_sprite_frame_3",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "112": [
+      {
+        "name": "zp_entity_sprite_frame_4",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "126": [
+      {
+        "name": "zp_entity_sprite_frame_18",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "127": [
       {
-        "name": "v_sprite_colors",
+        "name": "zp_sprite_color_tbl",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "128": [
+      {
+        "name": "zp_sprite_color_1",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "129": [
+      {
+        "name": "zp_sprite_color_2",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "130": [
+      {
+        "name": "zp_sprite_color_3",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "131": [
+      {
+        "name": "zp_sprite_color_4",
         "label_type": "ZeroPageField",
         "kind": "User"
       }
     ],
     "145": [
       {
-        "name": "v_laser_color",
+        "name": "zp_sprite_color_18",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "146": [
       {
-        "name": "v_entity_expand_x",
+        "name": "zp_entity_expand_x_tbl",
         "label_type": "ZeroPageField",
         "kind": "User"
       }
     ],
     "148": [
       {
-        "name": "laser_visibility_flag",
+        "name": "zp_entity_expand_x_2",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "165": [
       {
-        "name": "v_entity_bg_priority",
+        "name": "zp_entity_bg_priority_tbl",
         "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "167": [
+      {
+        "name": "zp_entity_bg_priority_2",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -842,6 +1038,62 @@
       {
         "name": "v_ui_dynamite_row_bottom",
         "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2040": [
+      {
+        "name": "spr_frame_0",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2041": [
+      {
+        "name": "spr_frame_1",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2042": [
+      {
+        "name": "spr_frame_2",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2043": [
+      {
+        "name": "spr_frame_3",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2044": [
+      {
+        "name": "spr_frame_4",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2045": [
+      {
+        "name": "spr_frame_5",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2046": [
+      {
+        "name": "spr_frame_6",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2047": [
+      {
+        "name": "spr_frame_7",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -1379,21 +1631,21 @@
     ],
     "14063": [
       {
-        "name": "byte_to_ascii",
+        "name": "byte_to_petscii",
         "label_type": "Subroutine",
         "kind": "User"
       }
     ],
     "14094": [
       {
-        "name": "bcd_to_ascii",
+        "name": "bcd_to_petscii",
         "label_type": "Subroutine",
         "kind": "User"
       }
     ],
     "14131": [
       {
-        "name": "print_ascii_digits",
+        "name": "print_petscii_digits",
         "label_type": "Jump",
         "kind": "User"
       }
@@ -2282,7 +2534,7 @@
     ],
     "24614": [
       {
-        "name": "txt_bonus_score_ascii",
+        "name": "txt_bonus_score_petscii",
         "label_type": "Pointer",
         "kind": "User"
       }
@@ -4580,7 +4832,7 @@
     "7415": "X = '/' (one before '0')",
     "7418": "Calculate tens digit (X) and ones digit (A)",
     "7419": "Subtract 10",
-    "7423": "Convert ones digit to ASCII and store in \"CAVEXX\"",
+    "7423": "Convert ones digit to PETSCII and store in \"CAVEXX\"",
     "7425": "Store units digit",
     "7428": "Store tens digit in \"CAVEXX\"",
     "7492": "Check if an event sequence is active",
@@ -4848,12 +5100,12 @@
     "14047": "Skip those bytes in the destination screen pointer",
     "14055": "Reset column counter and start a new line of 40 columns",
     "14063": "Store digit count",
-    "14065": "Initialize hundreds counter (ASCII '0'-1)",
-    "14067": "Initialize tens counter (ASCII '9'+1)",
+    "14065": "Initialize hundreds counter (PETSCII '0'-1)",
+    "14067": "Initialize tens counter (PETSCII '9'+1)",
     "14070": "Start division by 100",
     "14071": "Subtract 100",
     "14075": "Subtract 10 (A was negative) to find tens digit",
-    "14080": "Format units digit as ASCII",
+    "14080": "Format units digit as PETSCII",
     "14082": "Store units digit (Buffer index 0)",
     "14085": "Store tens digit (Buffer index 1)",
     "14088": "Store hundreds digit (Buffer index 2)",
@@ -5254,7 +5506,7 @@
     "24680": "BCD mode for decimal score arithmetic",
     "24685": "Add 10,000 per life (BCD: $00,$00,$01)",
     "24706": "Exit BCD mode",
-    "24710": "Convert bonus score BCD → ASCII",
+    "24710": "Convert bonus score BCD → PETSCII",
     "24731": "Source: \"GREAT JOB!\" + score message",
     "24739": "Dest: screen row for scrolling text",
     "24750": "Wait 60 frames before showing",
@@ -5491,8 +5743,8 @@
     "28054": "Initialize high score data pointer",
     "28073": "Loop: Set destination to screen for current entry",
     "28088": "Copy rank string (\" 1ST\", \" 2ND\", etc.)",
-    "28122": "Convert score from BCD to ASCII and display",
-    "28177": "Convert level byte to ASCII or handle $FF marker",
+    "28122": "Convert score from BCD to PETSCII and display",
+    "28177": "Convert level byte to PETSCII or handle $FF marker",
     "28210": "Copy player initials (3 bytes)",
     "28240": "Move destination 2 lines down for next entry",
     "28257": "Cursor X = column 29 ($1D)",
@@ -6157,7 +6409,7 @@
     "165": "Per-entity flag: if nonzero, sprite is drawn behind background ($D01B)",
     "7245": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLoads 20 level data files (\"CAVE01\" through \"CAVE20\") from disk into memory\nsequentially starting at $2000. It stores the starting address of each level\nin a lookup table for later access.\n\nInputs:  None\nOutputs: table_level_start_addresses (word pointers), all_levels_end_addr\nSide Effects: Loads data from disk; Modifies memory from $2000 onwards.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "7331": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCopies the level data for the current level index into the buffer at $1300.\nThe routine switches to C128 Bank 1 to perform the copy.\n\nInputs:  current_level_index ($60D9)\nOutputs: Memory at $1300 (Bank 1) updated with level data\nSide Effects: Switches to Bank 1, modifies $FB-$FC, $FD-$FE, and $02-$03\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "7415": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts a binary number (1-20) in the Accumulator into two ASCII digits\nand stores them into the filename template \"CAVEXX\".\n\nInputs:  A = Level number\nOutputs: str_filename_template updated with ASCII digits\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "7415": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts a binary number (1-20) in the Accumulator into two PETSCII digits\nand stores them into the filename template \"CAVEXX\".\n\nInputs:  A = Level number\nOutputs: str_filename_template updated with PETSCII digits\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "7439": "Delay table for attract-mode demo.\nEach entry = # frames to hold the corresponding input from attract_mode_data before advancing to the next step.\nIndexed in pairs: attract_mode_data[x] = input, attract_mode_delays[x] = delay.",
     "7492": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nManages the sequence of events during state transitions (Game Over, Level End).\nUses a 16-bit countdown timer for delays and a table-driven sequencer for steps.\n\nInputs:  event_sequence_active, game_state, event_flags\nOutputs: game_state, event_timer_lo/hi, event_flags\nSide Effects: Resets game objects, triggers jumps to state handlers\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "7653": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances the event sequence by loading the next command and delay from tables.\n\nInputs:  event_table_index, event_step_delay\nOutputs: event_current_value, event_step_delay\nSide Effects: Increments event_table_index\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -6195,8 +6447,8 @@
     "13950": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisables the VIC-II display at the bottom of the screen and restores the\nsystem IRQ handler. Used when transitioning out of the main game loop.\n\nInputs:  None\nOutputs: None\nSide Effects: Disables VIC-II display (DEN=0), restores system IRQ.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13976": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nWait for a specified number of video frames.\nEach frame is synchronized with raster line $FB.\n\nInputs:  X = Number of frames to wait\nOutputs: None\nSide Effects: Trashes A, X.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13992": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUnpacks RLE-compressed screen data from p_load_ptr to p_save_end.\nAlso fills Color RAM (derived from p_save_end) with the specified color.\n\nInputs:  A = Color for the characters\n         p_load_ptr ($FB) = Source data pointer\n         p_save_end ($FD) = Destination screen pointer\nOutputs: p_load_ptr, p_save_end (advanced)\nSide Effects: Updates Screen RAM and Color RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "14063": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts a binary byte to a 3-digit decimal ASCII string.\nSupports leading zero suppression and copies the result to a buffer.\n\nInputs:  A = value to convert (0-255)\n         X = number of digits (usually 3)\n         p_save_end_lo/hi = destination buffer pointer\n         force_leading_zeros_flag = 0: suppress, !=0: keep zeros\nOutputs: (p_save_end_lo),y = resulting ASCII string\n         Y = updated buffer offset\nSide Effects: Modifies ascii_temp_buffer and num_digits ($FF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "14094": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts a BCD byte sequence to an ASCII string.\nSupports leading zero suppression and copies the result to a buffer.\n\nInputs:  X = number of digits to process\n         p_load_ptr_lo/hi = pointer to BCD bytes\n         p_save_end_lo/hi = destination buffer pointer\n         force_leading_zeros_flag = 0: suppress, !=0: keep zeros\nOutputs: (p_save_end_lo),y = resulting ASCII string\n         Y = updated buffer offset\nSide Effects: Modifies ascii_temp_buffer and num_digits ($FF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "14063": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts a binary byte to a 3-digit decimal PETSCII string.\nSupports leading zero suppression and copies the result to a buffer.\n\nInputs:  A = value to convert (0-255)\n         X = number of digits (usually 3)\n         p_save_end_lo/hi = destination buffer pointer\n         force_leading_zeros_flag = 0: suppress, !=0: keep zeros\nOutputs: (p_save_end_lo),y = resulting PETSCII string\n         Y = updated buffer offset\nSide Effects: Modifies petscii_temp_buffer and num_digits ($FF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "14094": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts a BCD byte sequence to an PETSCII string.\nSupports leading zero suppression and copies the result to a buffer.\n\nInputs:  X = number of digits to process\n         p_load_ptr_lo/hi = pointer to BCD bytes\n         p_save_end_lo/hi = destination buffer pointer\n         force_leading_zeros_flag = 0: suppress, !=0: keep zeros\nOutputs: (p_save_end_lo),y = resulting PETSCII string\n         Y = updated buffer offset\nSide Effects: Modifies petscii_temp_buffer and num_digits ($FF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "14171": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the message renderer state.\n\nInputs:  None\nOutputs: message_finished_flag ($3758) = 0\n         message_column_index ($3759) = 0\n         message_timer ($375A) = 1\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "14185": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the message renderer, processing one character or command per tick.\nHandles special codes: $00 (End), $FF (Newline), $FE (Wait), $1E (Skip).\n\nInputs:  p_message_data ($F5) - Pointer to message data\n         p_message_screen ($F7) - Pointer to current screen row\nOutputs: message_finished_flag ($3758) set to $FF when done\nSide Effects: Updates screen memory, triggers sound effect\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "16002": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPolls Joystick 2 and Paddle 1 to update the global input state.\nMaintains previous state in previous_event_flags for edge detection.\n\nInputs:  $DC00 (Joystick 2), $D419 (Paddle 1)\nOutputs: event_flags ($3E80), previous_event_flags ($3E81)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -6249,7 +6501,7 @@
     "24044": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the visual blinking of the input cursor or selected character.\nAlternates between a space and either the default cursor ($1E) or the\ncurrently selected character from the input table.\n\nInputs:  a_input_blink_cnt, a_input_char_idx, a_input_cursor_x, a_input_cursor_y\nOutputs: None\nSide Effects: Draws character to screen memory via s_draw_char_at_cursor\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "24063": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws a character at the current name-entry cursor position on the screen.\nCalculates the screen address based on a_input_cursor_x and a_input_cursor_y.\n\nInputs:  A = Character screencode to draw\nOutputs: None\nSide Effects: Modifies screen memory at $0400 + (row * 40) + col\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "24100": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDeletes the last character entered in the name entry buffer.\nMoves the cursor position left and clears the characters on screen.\n\nInputs:  None (reads v_name_curr_len and v_name_cursor_x_pos)\nOutputs: Decrements v_name_curr_len and v_name_cursor_x_pos\nSide Effects: Updates screen memory to clear characters\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "24631": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the \"Level Complete\" congratulations screen (game_state = 6).\nCalled when the player finishes all levels in a zone (level 19/$13).\n\nAwards a bonus of 10,000 points per remaining life using BCD arithmetic,\nconverts the bonus to ASCII, then displays a scrolling \"GREAT JOB!\" message\nwith the score. After a 60-frame delay, enables display.\n\nInputs:  lives, score_lo/med/hi\nOutputs: game_state = 6, score updated with life bonus\nSide Effects: Screen cleared, Color RAM painted, message renderer initialized\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "24631": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the \"Level Complete\" congratulations screen (game_state = 6).\nCalled when the player finishes all levels in a zone (level 19/$13).\n\nAwards a bonus of 10,000 points per remaining life using BCD arithmetic,\nconverts the bonus to PETSCII, then displays a scrolling \"GREAT JOB!\" message\nwith the score. After a 60-frame delay, enables display.\n\nInputs:  lives, score_lo/med/hi\nOutputs: game_state = 6, score updated with life bonus\nSide Effects: Screen cleared, Color RAM painted, message renderer initialized\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "24758": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame handler for the level complete screen (game_state = 6).\nUpdates SFX and advances the scrolling text renderer. When the message\nfinishes and fire is pressed, mutes SID and transitions to high score check.\n\nInputs:  message_finished_flag, input_state, previous_event_flags\nOutputs: None (jumps to check_and_submit_high_score on fire press)\nSide Effects: SFX update, scrolling text advance\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "24790": "Death-in-progress flag: 0 = normal play, 1 = death sequence active",
     "24792": "Starting level index for the selected zone (copied to current_level_index)",
@@ -6862,14 +7114,14 @@
     "30640": "Hex"
   },
   "bookmarks": {},
-  "cursor_address": 7,
+  "cursor_address": 14063,
   "hex_dump_cursor_address": 14896,
-  "sprites_cursor_address": 12928,
+  "sprites_cursor_address": 12992,
   "charset_cursor_address": 11008,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
