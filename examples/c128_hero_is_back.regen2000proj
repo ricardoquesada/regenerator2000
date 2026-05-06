@@ -766,30 +766,58 @@
         "kind": "User"
       }
     ],
+    "245": [
+      {
+        "name": "zp_ptr_a_lo",
+        "label_type": "ZeroPagePointer",
+        "kind": "User"
+      }
+    ],
+    "246": [
+      {
+        "name": "zp_ptr_a_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "247": [
+      {
+        "name": "zp_ptr_b_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "248": [
+      {
+        "name": "zp_ptr_b_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "251": [
       {
-        "name": "p_load_ptr_lo",
+        "name": "zp_ptr_c_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "252": [
       {
-        "name": "p_load_ptr_hi",
+        "name": "zp_ptr_c_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "253": [
       {
-        "name": "p_save_end_lo",
+        "name": "zp_ptr_d_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "254": [
       {
-        "name": "p_save_end_hi",
+        "name": "zp_ptr_d_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -6733,14 +6761,14 @@
     "30640": "Hex"
   },
   "bookmarks": {},
-  "cursor_address": 7169,
+  "cursor_address": 1965,
   "hex_dump_cursor_address": 14896,
-  "sprites_cursor_address": 12608,
+  "sprites_cursor_address": 12864,
   "charset_cursor_address": 11008,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 57344,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
