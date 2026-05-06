@@ -215,18 +215,6 @@
     },
     {
       "start": 16298,
-      "end": 16308,
-      "type_": "Code",
-      "collapsed": false
-    },
-    {
-      "start": 16309,
-      "end": 16309,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 16310,
       "end": 16335,
       "type_": "Code",
       "collapsed": false
@@ -6443,6 +6431,54 @@
     "8601": {
       "HighByte": 59953
     },
+    "21219": {
+      "LowByte": 21119
+    },
+    "21223": {
+      "HighByte": 21119
+    },
+    "21229": {
+      "LowByte": 21193
+    },
+    "21231": {
+      "HighByte": 21193
+    },
+    "21244": {
+      "LowByte": 21190
+    },
+    "21246": {
+      "HighByte": 21190
+    },
+    "21258": {
+      "LowByte": 21119
+    },
+    "21262": {
+      "HighByte": 21119
+    },
+    "21266": {
+      "LowByte": 21190
+    },
+    "21270": {
+      "HighByte": 21190
+    },
+    "21276": {
+      "LowByte": 21193
+    },
+    "21278": {
+      "HighByte": 21193
+    },
+    "21286": {
+      "LowByte": 21119
+    },
+    "21290": {
+      "HighByte": 21119
+    },
+    "21451": {
+      "LowByte": 21119
+    },
+    "21455": {
+      "HighByte": 21119
+    },
     "22070": {
       "LowByte": 22077
     },
@@ -6496,6 +6532,18 @@
     },
     "23214": {
       "HighByte": 25814
+    },
+    "23467": {
+      "LowByte": 23478
+    },
+    "23472": {
+      "HighByte": 23478
+    },
+    "24064": {
+      "LowByte": 1024
+    },
+    "24068": {
+      "HighByte": 1024
     },
     "24270": {
       "LowByte": 24128
@@ -6761,14 +6809,14 @@
     "30640": "Hex"
   },
   "bookmarks": {},
-  "cursor_address": 1965,
+  "cursor_address": 24314,
   "hex_dump_cursor_address": 14896,
-  "sprites_cursor_address": 12864,
+  "sprites_cursor_address": 12928,
   "charset_cursor_address": 11008,
   "right_pane_visible": "None",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 57344,
+  "bitmap_cursor_address": 0,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
