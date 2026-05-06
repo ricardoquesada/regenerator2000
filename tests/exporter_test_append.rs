@@ -32,7 +32,7 @@ fn test_export_all_labels_disabled() {
     // We iterate and ensure none of that is there.
     for line in &state.disassembly {
         assert!(
-            !(line.mnemonic.contains("ZP FIELDS") || line.mnemonic.contains("zpf_10 =")),
+            !(line.mnemonic.contains("EXTERNAL LABELS") || line.mnemonic.contains("zpf_10 =")),
             "Disassembly contained external label definition but 'all_labels' is false!"
         );
     }
@@ -50,9 +50,10 @@ fn test_export_all_labels_disabled() {
     let content = std::fs::read_to_string(&path).unwrap();
     // println!("Content:\n{}", content);
 
-    // Must contain the label definition
+    // Must contain the label definition and the new legend header.
     assert!(content.contains("zpf_10 = $10"));
-    assert!(content.contains("; ZP FIELDS"));
+    assert!(content.contains("; EXTERNAL LABELS"));
+    assert!(content.contains("zpf_ = Zero Page Field"));
 
     let _ = std::fs::remove_file(&path);
 }

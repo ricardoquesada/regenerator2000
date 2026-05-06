@@ -1,4 +1,4 @@
-use crate::disassembler::LABEL_COLUMN_WIDTH;
+use crate::disassembler::{DEFINITION_COLUMN_WIDTH, LABEL_COLUMN_WIDTH};
 use crate::state::AppState;
 use std::path::PathBuf;
 /// Column width for the instruction+label portion before side comments.
@@ -42,7 +42,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
 
     let mut origin_printed = false;
 
-    let external_lines = state.get_external_label_definitions(false);
+    let external_lines = state.get_external_label_definitions(true);
 
     // Regenerate disassembly without collapsed blocks for export
     let ctx = crate::disassembler::context::DisassemblyContext {
@@ -84,9 +84,19 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             continue;
         }
 
-        // Special case: Equate (contains =)
+        // Special case: Equate (contains '=') that is NOT a pure comment line.
+        // Pure comment lines (legend/header) are caught above.
         if line.mnemonic.contains('=') {
-            output.push_str(&format!("{}\n", line.mnemonic));
+            if line.comment.is_empty() {
+                output.push_str(&format!("{}\n", line.mnemonic));
+            } else {
+                output.push_str(&format!(
+                    "{:<DEFINITION_COLUMN_WIDTH$} {} {}\n",
+                    line.mnemonic,
+                    formatter.comment_prefix(),
+                    line.comment
+                ));
+            }
             i += 1;
             continue;
         }
@@ -978,76 +988,51 @@ mod tests {
         let content = std::fs::read_to_string(&path).unwrap();
         println!("Content:\n{content}");
 
-        let lines: Vec<&str> = content.lines().collect();
-        // Check order of lines before "* = $C000"
-        // Expected order:
-        // Fields with Headers. ZP addresses formatted as $XX
-        //
-        // ; ZP FIELDS
-        // f05 = $05
-        // f10 = $10
-        //
-        // ; ZP ABSOLUTE ADDRESSES
-        // a20 = $20
-        // ...
+        // The new format: single "EXTERNAL LABELS" header, legend lines, blank, then
+        // all labels sorted by address in one flat group.
 
-        let mut idx = 9; // Skip header lines (Separator is line 8, ZP FIELDS is line 9)
-        assert_eq!(lines[idx], "; ZP FIELDS");
-        idx += 1;
-        assert_eq!(lines[idx], "zpf_05 = $05");
-        idx += 1;
-        assert_eq!(lines[idx], "zpf_10 = $10");
-        idx += 1;
-        assert_eq!(lines[idx], "");
-        idx += 1;
+        // Legend lines must be present for the types used in this test.
+        assert!(content.contains("; EXTERNAL LABELS"));
+        assert!(content.contains("zpf_ = Zero Page Field"));
+        assert!(content.contains("zpa_ = Zero Page Absolute Address"));
+        assert!(content.contains("zpp_ = Zero Page Pointer"));
+        assert!(content.contains("f_   = Field"));
+        assert!(content.contains("a_   = Absolute Address"));
+        assert!(content.contains("p_   = Pointer"));
+        assert!(content.contains("e_   = External Jump"));
+        assert!(content.contains("L_   = Other / User-defined"));
 
-        assert_eq!(lines[idx], "; ZP ABSOLUTE ADDRESSES");
-        idx += 1;
-        assert_eq!(lines[idx], "zpa_20 = $20");
-        idx += 1;
-        assert_eq!(lines[idx], "");
-        idx += 1;
+        // All labels must be present.
+        assert!(content.contains("zpf_05 = $05"));
+        assert!(content.contains("zpf_10 = $10"));
+        assert!(content.contains("a_0011 = $0011"));
+        assert!(content.contains("zpa_20 = $20"));
+        assert!(content.contains("zpp_30 = $30"));
+        assert!(content.contains("f_1000 = $1000"));
+        assert!(content.contains("a_2000 = $2000"));
+        assert!(content.contains("p_3000 = $3000"));
+        assert!(content.contains("e_4000 = $4000"));
+        assert!(content.contains("b_5000 = $5000"));
 
-        assert_eq!(lines[idx], "; ZP POINTERS");
-        idx += 1;
-        assert_eq!(lines[idx], "zpp_30 = $30");
-        idx += 1;
-        assert_eq!(lines[idx], "");
-        idx += 1;
+        // Labels must appear in strictly ascending address order in the file.
+        let order = [
+            "zpf_05", "zpf_10", "a_0011", "zpa_20", "zpp_30", "f_1000", "a_2000", "p_3000",
+            "e_4000", "b_5000",
+        ];
+        let mut last_pos = 0usize;
+        for label in &order {
+            let pos = content.find(label).expect("label not found in output");
+            assert!(
+                pos >= last_pos,
+                "Label '{label}' appeared before the previous label in the output"
+            );
+            last_pos = pos;
+        }
 
-        assert_eq!(lines[idx], "; FIELDS");
-        idx += 1;
-        assert_eq!(lines[idx], "f_1000 = $1000");
-        idx += 1;
-        assert_eq!(lines[idx], "");
-        idx += 1;
-
-        assert_eq!(lines[idx], "; ABSOLUTE ADDRESSES");
-        idx += 1;
-        assert_eq!(lines[idx], "a_0011 = $0011"); // Added case
-        idx += 1;
-        assert_eq!(lines[idx], "a_2000 = $2000");
-        idx += 1;
-        assert_eq!(lines[idx], "");
-        idx += 1;
-
-        assert_eq!(lines[idx], "; POINTERS");
-        idx += 1;
-        assert_eq!(lines[idx], "p_3000 = $3000");
-        idx += 1;
-        assert_eq!(lines[idx], "");
-        idx += 1;
-
-        assert_eq!(lines[idx], "; EXTERNAL JUMPS");
-        idx += 1;
-        assert_eq!(lines[idx], "e_4000 = $4000");
-        idx += 1;
-        assert_eq!(lines[idx], "");
-        idx += 1;
-
-        assert_eq!(lines[idx], "; OTHERS");
-        idx += 1;
-        assert_eq!(lines[idx], "b_5000 = $5000");
+        // No old-style group headers must appear.
+        assert!(!content.contains("; ZP FIELDS"));
+        assert!(!content.contains("; ZP ABSOLUTE ADDRESSES"));
+        assert!(!content.contains("; FIELDS"));
 
         let _ = std::fs::remove_file(&path);
     }
@@ -1378,9 +1363,10 @@ mod tests {
 
         let content = std::fs::read_to_string(&path).unwrap();
 
-        // Must contain the label definition
+        // Must contain the label definition and the new legend header.
         assert!(content.contains("zpf_10 = $10"));
-        assert!(content.contains("; ZP FIELDS"));
+        assert!(content.contains("; EXTERNAL LABELS"));
+        assert!(content.contains("zpf_ = Zero Page Field"));
 
         if path.exists() {
             let _ = std::fs::remove_file(&path);
@@ -1415,8 +1401,9 @@ mod tests {
         assert!(res.is_ok());
 
         let content = std::fs::read_to_string(&path).unwrap();
-        // Check for KickAssembler comment style in header
-        assert!(content.contains("// ZP FIELDS"));
+        // Check for KickAssembler comment style in the new legend header.
+        assert!(content.contains("// EXTERNAL LABELS"));
+        assert!(content.contains("zpf_ = Zero Page Field"));
         // Standard check
         assert!(content.contains("zpf_0002 = $02"));
 
@@ -1499,18 +1486,14 @@ mod tests {
         state.disassemble();
 
         let definitions = state.get_external_label_definitions(false);
-        let has_ext_file_section = definitions
+        // The new format puts all labels in one flat list; ext-file labels no longer
+        // get their own group header, but must still appear as definition lines.
+        let has_label_def = definitions
             .iter()
-            .any(|l| l.mnemonic.contains("EXTERNAL FILE LABELS"));
-        assert!(
-            has_ext_file_section,
-            "Expected an EXTERNAL FILE LABELS section"
-        );
-
-        let has_label_def = definitions.iter().any(|l| l.mnemonic.contains("ext_data"));
+            .any(|l| l.external_label_address == Some(crate::state::Addr(0x1001)));
         assert!(
             has_label_def,
-            "Expected ext_data label definition in external file labels section"
+            "Expected ext_data label definition line in external label definitions"
         );
 
         // Also verify the exported ASM contains the label definition

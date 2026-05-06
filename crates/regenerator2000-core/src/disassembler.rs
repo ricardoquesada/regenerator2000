@@ -20,6 +20,11 @@ use formatter_ca65::Ca65Formatter;
 use formatter_kickasm::KickAsmFormatter;
 
 pub const LABEL_COLUMN_WIDTH: usize = 20;
+/// Column width for the `name = $value` portion of equate / external-label
+/// definition lines.  All renderers (TUI, ASM exporter, HTML exporter) pad
+/// to this width so that trailing comments (x-refs) start at the same column.
+/// Must match `.cc.as .lb { min-width: 40ch }` in the HTML exporter CSS.
+pub const DEFINITION_COLUMN_WIDTH: usize = 40;
 
 #[must_use]
 pub fn resolve_label<'a>(

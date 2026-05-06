@@ -306,40 +306,34 @@ impl AppState {
             }
         }
 
-        let mut zp_fields = Vec::new();
-        let mut zp_abs = Vec::new();
-        let mut zp_ptrs = Vec::new();
-        let mut fields = Vec::new();
-        let mut abs = Vec::new();
-        let mut ptrs = Vec::new();
-        let mut ext_jumps = Vec::new();
-        let mut others = Vec::new();
-
-        for (addr, l_type, name) in all_externals {
-            match l_type {
-                LabelType::ZeroPageField => zp_fields.push((addr.0, name)),
-                LabelType::ZeroPageAbsoluteAddress => zp_abs.push((addr.0, name)),
-                LabelType::ZeroPagePointer => zp_ptrs.push((addr.0, name)),
-                LabelType::Field => fields.push((addr.0, name)),
-                LabelType::AbsoluteAddress => abs.push((addr.0, name)),
-                LabelType::Pointer => ptrs.push((addr.0, name)),
-                LabelType::ExternalJump => ext_jumps.push((addr.0, name)),
-                _ => others.push((addr.0, name)),
-            }
+        // Determine which prefix types are actually present among external labels,
+        // then build a merged flat list sorted by address.
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum ExtGroup {
+            ZpField,
+            ZpAbs,
+            ZpPtr,
+            Field,
+            Abs,
+            Ptr,
+            ExtJump,
+            Other,
         }
 
-        let sort_group = |group: &mut Vec<(u16, &String)>| {
-            group.sort_by_key(|(a, _)| *a);
-        };
-
-        sort_group(&mut zp_fields);
-        sort_group(&mut zp_abs);
-        sort_group(&mut zp_ptrs);
-        sort_group(&mut fields);
-        sort_group(&mut abs);
-        sort_group(&mut ptrs);
-        sort_group(&mut ext_jumps);
-        sort_group(&mut others);
+        let mut flat: Vec<(u16, &String, ExtGroup, bool)> = Vec::new(); // (addr, name, group, is_zp)
+        for (addr, l_type, name) in all_externals {
+            let (group, is_zp) = match l_type {
+                LabelType::ZeroPageField => (ExtGroup::ZpField, true),
+                LabelType::ZeroPageAbsoluteAddress => (ExtGroup::ZpAbs, true),
+                LabelType::ZeroPagePointer => (ExtGroup::ZpPtr, true),
+                LabelType::Field => (ExtGroup::Field, false),
+                LabelType::AbsoluteAddress => (ExtGroup::Abs, false),
+                LabelType::Pointer => (ExtGroup::Ptr, false),
+                LabelType::ExternalJump => (ExtGroup::ExtJump, false),
+                _ => (ExtGroup::Other, false),
+            };
+            flat.push((addr.0, name, group, is_zp));
+        }
 
         // Collect labels whose addresses fall inside ExternalFile blocks.
         let mut ext_file_labels: Vec<(u16, &String)> = Vec::new();
@@ -361,72 +355,56 @@ impl AppState {
                     }
                 }
             }
-            ext_file_labels.sort_by_key(|(a, _)| *a);
         }
+
+        // Sort the flat list by address.
+        flat.sort_by_key(|(a, _, _, _)| *a);
+        ext_file_labels.sort_by_key(|(a, _)| *a);
 
         let mut lines = Vec::new();
 
+        if flat.is_empty() && ext_file_labels.is_empty() {
+            return lines;
+        }
+
         let formatter = self.get_formatter();
+        let cp = formatter.comment_prefix();
 
-        let mut add_group = |title: &str, group: Vec<(u16, &String)>, is_zp: bool| {
-            if !group.is_empty() {
+        // Build legend lines for every prefix type that appears in the data.
+        let legend_entries: &[(&str, &str, ExtGroup)] = &[
+            ("zpf_", "Zero Page Field", ExtGroup::ZpField),
+            ("zpa_", "Zero Page Absolute Address", ExtGroup::ZpAbs),
+            ("zpp_", "Zero Page Pointer", ExtGroup::ZpPtr),
+            ("f_  ", "Field", ExtGroup::Field),
+            ("a_  ", "Absolute Address", ExtGroup::Abs),
+            ("p_  ", "Pointer", ExtGroup::Ptr),
+            ("e_  ", "External Jump", ExtGroup::ExtJump),
+            ("L_  ", "Other / User-defined", ExtGroup::Other),
+        ];
+
+        // Header comment: "EXTERNAL LABELS"
+        lines.push(DisassemblyLine {
+            address: Addr::ZERO,
+            bytes: vec![],
+            mnemonic: format!("{cp} EXTERNAL LABELS"),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        });
+
+        // Legend: one line per prefix type that is actually used.
+        for (prefix, description, group) in legend_entries {
+            if flat.iter().any(|(_, _, g, _)| g == group) {
                 lines.push(DisassemblyLine {
                     address: Addr::ZERO,
                     bytes: vec![],
-                    mnemonic: format!("{} {}", formatter.comment_prefix(), title),
-                    operand: String::new(),
-                    comment: String::new(),
-                    line_comment: None,
-                    label: None,
-                    opcode: None,
-                    show_bytes: true,
-                    target_address: None,
-                    external_label_address: None,
-                    is_collapsed: false,
-                });
-
-                for (addr, name) in group {
-                    // Logic for side comment
-                    let mut comment_parts = Vec::new();
-                    if let Some(user_comment) = self.user_side_comments.get(&Addr(addr)) {
-                        comment_parts.push(user_comment.clone());
-                    } else if let Some(sys_comment) = self.platform_comments.get(&Addr(addr)) {
-                        comment_parts.push(sys_comment.clone());
-                    }
-
-                    if include_xrefs
-                        && let Some(refs) = self.cross_refs.get(&Addr(addr))
-                        && !refs.is_empty()
-                        && self.settings.max_xref_count > 0
-                    {
-                        comment_parts.push(crate::disassembler::context::format_cross_references(
-                            refs,
-                            self.settings.max_xref_count,
-                        ));
-                    }
-
-                    let comment = comment_parts.join(&format!(" {} ", formatter.comment_prefix()));
-
-                    lines.push(DisassemblyLine {
-                        address: Addr(addr),
-                        bytes: vec![],
-                        mnemonic: formatter.format_definition(name, addr, is_zp),
-                        operand: String::new(),
-                        comment,
-                        line_comment: None,
-                        label: None,
-                        opcode: None,
-                        show_bytes: true,
-                        target_address: None,
-                        external_label_address: Some(Addr(addr)),
-                        is_collapsed: false,
-                    });
-                }
-
-                lines.push(DisassemblyLine {
-                    address: Addr::ZERO,
-                    bytes: vec![],
-                    mnemonic: String::new(),
+                    mnemonic: format!("{cp}   {prefix} = {description}"),
                     operand: String::new(),
                     comment: String::new(),
                     line_comment: None,
@@ -438,17 +416,131 @@ impl AppState {
                     is_collapsed: false,
                 });
             }
-        };
+        }
+        if !ext_file_labels.is_empty() {
+            lines.push(DisassemblyLine {
+                address: Addr::ZERO,
+                bytes: vec![],
+                mnemonic: format!("{cp}   (ext) = External File Label"),
+                operand: String::new(),
+                comment: String::new(),
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: true,
+                target_address: None,
+                external_label_address: None,
+                is_collapsed: false,
+            });
+        }
 
-        add_group("ZP FIELDS", zp_fields, true);
-        add_group("ZP ABSOLUTE ADDRESSES", zp_abs, true);
-        add_group("ZP POINTERS", zp_ptrs, true);
-        add_group("FIELDS", fields, false);
-        add_group("ABSOLUTE ADDRESSES", abs, false);
-        add_group("POINTERS", ptrs, false);
-        add_group("EXTERNAL JUMPS", ext_jumps, false);
-        add_group("EXTERNAL FILE LABELS", ext_file_labels, false);
-        add_group("OTHERS", others, false);
+        // Blank separator line after legend.
+        lines.push(DisassemblyLine {
+            address: Addr::ZERO,
+            bytes: vec![],
+            mnemonic: String::new(),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        });
+
+        // Emit all flat external labels in address order.
+        for (addr, name, _, is_zp) in flat {
+            let mut comment_parts = Vec::new();
+            if let Some(user_comment) = self.user_side_comments.get(&Addr(addr)) {
+                comment_parts.push(user_comment.clone());
+            } else if let Some(sys_comment) = self.platform_comments.get(&Addr(addr)) {
+                comment_parts.push(sys_comment.clone());
+            }
+
+            if include_xrefs
+                && let Some(refs) = self.cross_refs.get(&Addr(addr))
+                && !refs.is_empty()
+                && self.settings.max_xref_count > 0
+            {
+                comment_parts.push(crate::disassembler::context::format_cross_references(
+                    refs,
+                    self.settings.max_xref_count,
+                ));
+            }
+
+            let comment = comment_parts.join(&format!(" {cp} "));
+
+            lines.push(DisassemblyLine {
+                address: Addr(addr),
+                bytes: vec![],
+                mnemonic: formatter.format_definition(name, addr, is_zp),
+                operand: String::new(),
+                comment,
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: true,
+                target_address: None,
+                external_label_address: Some(Addr(addr)),
+                is_collapsed: false,
+            });
+        }
+
+        // Emit external-file labels after all the others.
+        for (addr, name) in ext_file_labels {
+            let mut comment_parts = Vec::new();
+            if let Some(user_comment) = self.user_side_comments.get(&Addr(addr)) {
+                comment_parts.push(user_comment.clone());
+            } else if let Some(sys_comment) = self.platform_comments.get(&Addr(addr)) {
+                comment_parts.push(sys_comment.clone());
+            }
+
+            if include_xrefs
+                && let Some(refs) = self.cross_refs.get(&Addr(addr))
+                && !refs.is_empty()
+                && self.settings.max_xref_count > 0
+            {
+                comment_parts.push(crate::disassembler::context::format_cross_references(
+                    refs,
+                    self.settings.max_xref_count,
+                ));
+            }
+
+            let comment = comment_parts.join(&format!(" {cp} "));
+
+            lines.push(DisassemblyLine {
+                address: Addr(addr),
+                bytes: vec![],
+                mnemonic: formatter.format_definition(name, addr, false),
+                operand: String::new(),
+                comment,
+                line_comment: None,
+                label: None,
+                opcode: None,
+                show_bytes: true,
+                target_address: None,
+                external_label_address: Some(Addr(addr)),
+                is_collapsed: false,
+            });
+        }
+
+        // Trailing blank line.
+        lines.push(DisassemblyLine {
+            address: Addr::ZERO,
+            bytes: vec![],
+            mnemonic: String::new(),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        });
 
         lines
     }

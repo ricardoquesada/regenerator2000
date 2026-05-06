@@ -214,6 +214,24 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             continue;
         }
 
+        // Special case: Pure comment line (e.g. legend/header from external label
+        // definitions). These have no bytes and their mnemonic is already a full
+        // comment string starting with the comment prefix.  Render them as a
+        // block-header comment row so they don't get misclassified as assignments
+        // (the mnemonic may contain '=' as part of "zpf_ = Zero Page Field").
+        if line.bytes.is_empty() && line.mnemonic.starts_with(formatter.comment_prefix()) {
+            let escaped = line
+                .mnemonic
+                .replace('&', "&amp;")
+                .replace('<', "&lt;")
+                .replace('>', "&gt;");
+            row_str.push_str(&format!(
+                "<tr><td colspan=\"2\"></td><td colspan=\"3\" class=\"cc bh\"><span class=\"cm\">{escaped}</span></td></tr>\n"
+            ));
+            formatted_rows.push(row_str);
+            continue;
+        }
+
         // 1. Mid-instruction labels
         if line.bytes.len() > 1 {
             for j in 1..line.bytes.len() {

@@ -15,7 +15,7 @@ use crate::ui::navigable::{Navigable, handle_nav_input};
 
 const PAGE_SCROLL_AMOUNT: usize = 30;
 // LABEL_COLUMN_WIDTH moved to regenerator2000_core::disassembler
-use regenerator2000_core::disassembler::LABEL_COLUMN_WIDTH;
+use regenerator2000_core::disassembler::{DEFINITION_COLUMN_WIDTH, LABEL_COLUMN_WIDTH};
 
 pub struct VisualLineCounts {
     pub labels: usize,
@@ -1397,22 +1397,38 @@ impl Widget for DisassemblyView {
 
                 inst_spans.push(Span::styled(label_column_text, label_style));
 
-                let mnemonic_text = if is_unindented_scope {
-                    "      ".to_string()
-                } else {
-                    format!("{: <5} ", line.mnemonic)
-                };
+                // External-label definition lines (equates): mnemonic holds the
+                // full `name = $value` string; operand is empty.  Pad to
+                // DEFINITION_COLUMN_WIDTH so the trailing x-ref comment always
+                // starts at the same column regardless of definition length.
+                let is_ext_label_def =
+                    line.external_label_address.is_some() && line.bytes.is_empty();
 
-                inst_spans.push(Span::styled(
-                    mnemonic_text,
-                    base_style
-                        .fg(ui_state.theme.mnemonic)
-                        .add_modifier(Modifier::BOLD),
-                ));
-                inst_spans.push(Span::styled(
-                    format!("{: <15}", line.operand),
-                    base_style.fg(ui_state.theme.operand),
-                ));
+                if is_ext_label_def {
+                    inst_spans.push(Span::styled(
+                        format!("{:<DEFINITION_COLUMN_WIDTH$}", line.mnemonic),
+                        base_style
+                            .fg(ui_state.theme.mnemonic)
+                            .add_modifier(Modifier::BOLD),
+                    ));
+                } else {
+                    let mnemonic_text = if is_unindented_scope {
+                        "      ".to_string()
+                    } else {
+                        format!("{: <5} ", line.mnemonic)
+                    };
+
+                    inst_spans.push(Span::styled(
+                        mnemonic_text,
+                        base_style
+                            .fg(ui_state.theme.mnemonic)
+                            .add_modifier(Modifier::BOLD),
+                    ));
+                    inst_spans.push(Span::styled(
+                        format!("{: <15}", line.operand),
+                        base_style.fg(ui_state.theme.operand),
+                    ));
+                }
                 inst_spans.push(Span::styled(
                     if line.comment.is_empty() {
                         String::new()
