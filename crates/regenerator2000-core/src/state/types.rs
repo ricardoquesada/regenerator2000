@@ -1,19 +1,19 @@
 use serde::{Deserialize, Serialize};
 
 // =============================================================================
-// Platform newtype
+// System newtype
 // =============================================================================
 
-/// A target platform identifier (e.g. "Commodore 64", "NES").
+/// A target system identifier (e.g. "Commodore 64", "NES").
 ///
 /// Wraps a `String` to prevent accidentally passing an arbitrary string where
-/// a platform name is expected. Serialises transparently as a plain JSON string
+/// a system name is expected. Serialises transparently as a plain JSON string
 /// so existing project files keep working.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct Platform(String);
+pub struct System(String);
 
-impl Platform {
+impl System {
     pub const C64: &'static str = "Commodore 64";
     pub const C128: &'static str = "Commodore 128";
     pub const VIC20: &'static str = "Commodore VIC-20";
@@ -40,58 +40,58 @@ impl Platform {
     }
 }
 
-impl Default for Platform {
+impl Default for System {
     fn default() -> Self {
-        default_platform()
+        default_system()
     }
 }
 
-impl std::fmt::Display for Platform {
+impl std::fmt::Display for System {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
     }
 }
 
-impl std::ops::Deref for Platform {
+impl std::ops::Deref for System {
     type Target = str;
     fn deref(&self) -> &str {
         &self.0
     }
 }
 
-impl PartialEq<str> for Platform {
+impl PartialEq<str> for System {
     fn eq(&self, other: &str) -> bool {
         self.0 == other
     }
 }
 
-impl PartialEq<&str> for Platform {
+impl PartialEq<&str> for System {
     fn eq(&self, other: &&str) -> bool {
         self.0 == *other
     }
 }
 
-impl PartialEq<String> for Platform {
+impl PartialEq<String> for System {
     fn eq(&self, other: &String) -> bool {
         self.0 == *other
     }
 }
 
-impl From<&str> for Platform {
+impl From<&str> for System {
     fn from(s: &str) -> Self {
         Self(s.to_string())
     }
 }
 
-impl From<String> for Platform {
+impl From<String> for System {
     fn from(s: String) -> Self {
         Self(s)
     }
 }
 
 #[must_use]
-pub fn default_platform() -> Platform {
-    Platform::new(Platform::C64)
+pub fn default_system() -> System {
+    System::new(System::C64)
 }
 
 // =============================================================================

@@ -10,7 +10,7 @@ use ratatui::widgets::{Clear, List, ListItem, ListState, Paragraph};
 
 pub struct DocumentSettingsDialog {
     pub selected_index: usize,
-    pub is_selecting_platform: bool,
+    pub is_selecting_system: bool,
     pub is_selecting_assembler: bool,
     pub is_editing_xref_count: bool,
     pub xref_count_input: String,
@@ -39,7 +39,7 @@ impl DocumentSettingsDialog {
     pub fn new() -> Self {
         Self {
             selected_index: 0,
-            is_selecting_platform: false,
+            is_selecting_system: false,
             is_selecting_assembler: false,
             is_editing_xref_count: false,
             xref_count_input: String::new(),
@@ -162,8 +162,8 @@ impl Widget for DocumentSettingsDialog {
             ),
         ];
 
-        // Dynamic Platform Config Options
-        let platform_config = crate::assets::load_platform_config(&settings.platform);
+        // Dynamic System Config Options
+        let system_config = crate::assets::load_system_config(&settings.system);
 
         // Indices calculation for rigid elements
         let fixed_opts_start = items.len();
@@ -175,12 +175,12 @@ impl Widget for DocumentSettingsDialog {
         let idx_bytes_limit = fixed_opts_start + 5;
         let idx_fill_threshold = fixed_opts_start + 6;
         let idx_assembler = fixed_opts_start + 7;
-        let idx_platform = fixed_opts_start + 8;
+        let idx_system = fixed_opts_start + 8;
 
         let mut dynamic_items = Vec::new();
-        let dynamic_start_idx = idx_platform + 1;
+        let dynamic_start_idx = idx_system + 1;
 
-        for (i, feature) in platform_config.features.iter().enumerate() {
+        for (i, feature) in system_config.features.iter().enumerate() {
             let idx = dynamic_start_idx + i;
             let is_enabled = settings
                 .enabled_features
@@ -198,8 +198,7 @@ impl Widget for DocumentSettingsDialog {
 
         // Exclude and Comments checkbox indices (after dynamic label items)
         let idx_exclude_comments = dynamic_start_idx + dynamic_items.len();
-        let idx_platform_comments =
-            idx_exclude_comments + usize::from(platform_config.has_excludes);
+        let idx_system_comments = idx_exclude_comments + usize::from(system_config.has_excludes);
 
         let layout = Layout::default()
             .direction(Direction::Vertical)
@@ -214,12 +213,12 @@ impl Widget for DocumentSettingsDialog {
                 Constraint::Length(2),                      // Bytes Per Line
                 Constraint::Length(2),                      // Fill Run Threshold
                 Constraint::Length(2),                      // Assembler
-                Constraint::Length(2),                      // Platform
-                Constraint::Length(u16::from(!dynamic_items.is_empty())), // Platform Labels Header
+                Constraint::Length(2),                      // System
+                Constraint::Length(u16::from(!dynamic_items.is_empty())), // System Labels Header
                 Constraint::Length(dynamic_items.len() as u16), // Dynamic items
-                Constraint::Length(0),                      // Platform Comments Header (Removed)
-                Constraint::Length(u16::from(platform_config.has_excludes)), // Exclude comments checkbox
-                Constraint::Length(u16::from(platform_config.has_comments)), // Platform Comments checkbox
+                Constraint::Length(0),                      // System Comments Header (Removed)
+                Constraint::Length(u16::from(system_config.has_excludes)), // Exclude comments checkbox
+                Constraint::Length(u16::from(system_config.has_comments)), // System Comments checkbox
             ])
             .split(inner);
 
@@ -260,7 +259,7 @@ impl Widget for DocumentSettingsDialog {
         }
 
         // Render Exclude Labels checkbox
-        if platform_config.has_excludes {
+        if system_config.has_excludes {
             let exclude_checkbox = checkbox(
                 0,
                 "Exclude well-known addresses from symbolic analysis",
@@ -274,13 +273,13 @@ impl Widget for DocumentSettingsDialog {
             );
         }
 
-        // Render Platform Comments section
-        if platform_config.has_comments {
+        // Render System Comments section
+        if system_config.has_comments {
             let comments_checkbox = checkbox(
                 0,
                 "Show system comments",
                 settings.show_system_comments,
-                self.selected_index == idx_platform_comments,
+                self.selected_index == idx_system_comments,
                 false,
             );
             f.render_widget(
@@ -505,20 +504,20 @@ impl Widget for DocumentSettingsDialog {
             Rect::new(layout[9].x + 2, layout[9].y, layout[9].width - 4, 1),
         );
 
-        // Platform Section (Moved to end)
-        let platform_label = Span::raw("System:");
+        // System Section (Moved to end)
+        let system_label = Span::raw("System:");
         f.render_widget(
-            Paragraph::new(platform_label),
+            Paragraph::new(system_label),
             Rect::new(layout[10].x + 2, layout[10].y, layout[10].width - 4, 1),
         );
 
-        let platforms = crate::assets::get_available_platforms();
+        let systems = crate::assets::get_available_systems();
 
-        // Check if platform is selected
-        let platform_selected = self.selected_index == idx_platform;
+        // Check if system is selected
+        let system_selected = self.selected_index == idx_system;
 
-        let platform_text = format!("System: < {} >", settings.platform);
-        let platform_widget = Paragraph::new(platform_text).style(if platform_selected {
+        let system_text = format!("System: < {} >", settings.system);
+        let system_widget = Paragraph::new(system_text).style(if system_selected {
             Style::default()
                 .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD)
@@ -527,20 +526,20 @@ impl Widget for DocumentSettingsDialog {
         });
 
         f.render_widget(
-            platform_widget,
+            system_widget,
             Rect::new(layout[10].x + 2, layout[10].y, layout[10].width - 4, 1),
         );
 
-        // Platform Popup
-        if self.is_selecting_platform {
+        // System Popup
+        if self.is_selecting_system {
             let popup_area = crate::utils::centered_rect_adaptive(40, 50, 50, 10, area);
             f.render_widget(Clear, popup_area);
             let block = crate::ui::widget::create_dialog_block(" Select System ", theme);
 
-            let list_items: Vec<ListItem> = platforms
+            let list_items: Vec<ListItem> = systems
                 .iter()
                 .map(|p| {
-                    let is_selected = settings.platform == *p;
+                    let is_selected = settings.system == *p;
                     let style = if is_selected {
                         Style::default()
                             .bg(theme.menu_selected_bg)
@@ -552,9 +551,9 @@ impl Widget for DocumentSettingsDialog {
                 })
                 .collect();
 
-            let selected_idx = platforms
+            let selected_idx = systems
                 .iter()
-                .position(|p| settings.platform == *p)
+                .position(|p| settings.system == *p)
                 .unwrap_or(0);
 
             let mut list_state = ListState::default();
@@ -646,8 +645,8 @@ impl Widget for DocumentSettingsDialog {
         ui_state: &mut UIState,
     ) -> WidgetResult {
         // Calculate dynamic max items for navigation
-        let platform_config = crate::assets::load_platform_config(&app_state.settings.platform);
-        let dynamic_items_count = platform_config.features.len();
+        let system_config = crate::assets::load_system_config(&app_state.settings.system);
+        let dynamic_items_count = system_config.features.len();
 
         let base_items_count = 6; // AllLabels, PreserveLongBytes, BrkSingle, PatchBrk, IllegalOpcodes, AutoAnalyze
 
@@ -659,15 +658,14 @@ impl Widget for DocumentSettingsDialog {
         let idx_bytes_limit = base_items_count + 5;
         let idx_fill_threshold = base_items_count + 6;
         let idx_assembler = base_items_count + 7;
-        let idx_platform = base_items_count + 8;
-        let dynamic_start_idx = idx_platform + 1;
+        let idx_system = base_items_count + 8;
+        let dynamic_start_idx = idx_system + 1;
         let idx_exclude_comments = dynamic_start_idx + dynamic_items_count;
-        let idx_platform_comments =
-            idx_exclude_comments + usize::from(platform_config.has_excludes);
+        let idx_system_comments = idx_exclude_comments + usize::from(system_config.has_excludes);
 
-        let total_items = if platform_config.has_comments {
-            idx_platform_comments + 1
-        } else if platform_config.has_excludes {
+        let total_items = if system_config.has_comments {
+            idx_system_comments + 1
+        } else if system_config.has_excludes {
             idx_exclude_comments + 1
         } else {
             dynamic_start_idx + dynamic_items_count
@@ -707,8 +705,8 @@ impl Widget for DocumentSettingsDialog {
 
         match key.code {
             KeyCode::Esc => {
-                if self.is_selecting_platform {
-                    self.is_selecting_platform = false;
+                if self.is_selecting_system {
+                    self.is_selecting_system = false;
                 } else if self.is_selecting_assembler {
                     self.is_selecting_assembler = false;
                 } else if self.is_editing_xref_count {
@@ -764,23 +762,23 @@ impl Widget for DocumentSettingsDialog {
                 }
             }
             KeyCode::Up => {
-                if self.is_selecting_platform {
-                    let platforms = crate::assets::get_available_platforms();
-                    if !platforms.is_empty() {
-                        let current_idx = platforms
+                if self.is_selecting_system {
+                    let systems = crate::assets::get_available_systems();
+                    if !systems.is_empty() {
+                        let current_idx = systems
                             .iter()
-                            .position(|p| app_state.settings.platform == *p)
+                            .position(|p| app_state.settings.system == *p)
                             .unwrap_or(0);
                         let new_idx = if current_idx == 0 {
-                            platforms.len() - 1
+                            systems.len() - 1
                         } else {
                             current_idx - 1
                         };
-                        app_state.settings.platform =
-                            crate::state::Platform::from(platforms[new_idx].clone());
-                        // Reset features when changing platform
+                        app_state.settings.system =
+                            crate::state::System::from(systems[new_idx].clone());
+                        // Reset features when changing system
                         app_state.settings.enabled_features.clear();
-                        self.selected_index = idx_platform;
+                        self.selected_index = idx_system;
                     }
                 } else if self.is_selecting_assembler {
                     let assemblers = crate::state::Assembler::all();
@@ -858,23 +856,23 @@ impl Widget for DocumentSettingsDialog {
                     {
                         app_state.settings.patch_brk = true;
                     }
-                } else if self.selected_index == idx_platform {
-                    let platforms = crate::assets::get_available_platforms();
-                    if !platforms.is_empty() {
-                        let current_idx = platforms
+                } else if self.selected_index == idx_system {
+                    let systems = crate::assets::get_available_systems();
+                    if !systems.is_empty() {
+                        let current_idx = systems
                             .iter()
-                            .position(|p| app_state.settings.platform == *p)
+                            .position(|p| app_state.settings.system == *p)
                             .unwrap_or(0);
                         let new_idx = if current_idx == 0 {
-                            platforms.len() - 1
+                            systems.len() - 1
                         } else {
                             current_idx - 1
                         };
-                        app_state.settings.platform =
-                            crate::state::Platform::from(platforms[new_idx].clone());
-                        // Reset features when changing platform
+                        app_state.settings.system =
+                            crate::state::System::from(systems[new_idx].clone());
+                        // Reset features when changing system
                         app_state.settings.enabled_features.clear();
-                        self.selected_index = idx_platform;
+                        self.selected_index = idx_system;
                     }
                 }
             }
@@ -925,36 +923,36 @@ impl Widget for DocumentSettingsDialog {
                     {
                         app_state.settings.patch_brk = true;
                     }
-                } else if self.selected_index == idx_platform {
-                    let platforms = crate::assets::get_available_platforms();
-                    if !platforms.is_empty() {
-                        let current_idx = platforms
+                } else if self.selected_index == idx_system {
+                    let systems = crate::assets::get_available_systems();
+                    if !systems.is_empty() {
+                        let current_idx = systems
                             .iter()
-                            .position(|p| app_state.settings.platform == *p)
+                            .position(|p| app_state.settings.system == *p)
                             .unwrap_or(0);
-                        let new_idx = (current_idx + 1) % platforms.len();
-                        app_state.settings.platform =
-                            crate::state::Platform::from(platforms[new_idx].clone());
-                        // Reset features when changing platform
+                        let new_idx = (current_idx + 1) % systems.len();
+                        app_state.settings.system =
+                            crate::state::System::from(systems[new_idx].clone());
+                        // Reset features when changing system
                         app_state.settings.enabled_features.clear();
-                        self.selected_index = idx_platform;
+                        self.selected_index = idx_system;
                     }
                 }
             }
             KeyCode::Down => {
-                if self.is_selecting_platform {
-                    let platforms = crate::assets::get_available_platforms();
-                    if !platforms.is_empty() {
-                        let current_idx = platforms
+                if self.is_selecting_system {
+                    let systems = crate::assets::get_available_systems();
+                    if !systems.is_empty() {
+                        let current_idx = systems
                             .iter()
-                            .position(|p| app_state.settings.platform == *p)
+                            .position(|p| app_state.settings.system == *p)
                             .unwrap_or(0);
-                        let new_idx = (current_idx + 1) % platforms.len();
-                        app_state.settings.platform =
-                            crate::state::Platform::from(platforms[new_idx].clone());
-                        // Reset features when changing platform
+                        let new_idx = (current_idx + 1) % systems.len();
+                        app_state.settings.system =
+                            crate::state::System::from(systems[new_idx].clone());
+                        // Reset features when changing system
                         app_state.settings.enabled_features.clear();
-                        self.selected_index = idx_platform;
+                        self.selected_index = idx_system;
                     }
                 } else if self.is_selecting_assembler {
                     let assemblers = crate::state::Assembler::all();
@@ -982,8 +980,8 @@ impl Widget for DocumentSettingsDialog {
                 }
             }
             KeyCode::Enter | KeyCode::Char(' ') => {
-                if self.is_selecting_platform {
-                    self.is_selecting_platform = false;
+                if self.is_selecting_system {
+                    self.is_selecting_system = false;
                 } else if self.is_selecting_assembler {
                     self.is_selecting_assembler = false;
                 } else if self.is_editing_xref_count {
@@ -1086,26 +1084,26 @@ impl Widget for DocumentSettingsDialog {
                                 app_state.disassemble();
                             }
                         }
-                        idx if idx == idx_platform_comments && platform_config.has_comments => {
+                        idx if idx == idx_system_comments && system_config.has_comments => {
                             app_state.settings.show_system_comments =
                                 !app_state.settings.show_system_comments;
-                            // Reload platform assets and re-disassemble for immediate feedback
+                            // Reload system assets and re-disassemble for immediate feedback
                             app_state.load_system_assets();
                             app_state.disassemble();
                         }
-                        idx if idx == idx_exclude_comments && platform_config.has_excludes => {
+                        idx if idx == idx_exclude_comments && system_config.has_excludes => {
                             app_state.settings.exclude_well_known_labels =
                                 !app_state.settings.exclude_well_known_labels;
-                            // Reload platform assets and re-disassemble for immediate feedback
+                            // Reload system assets and re-disassemble for immediate feedback
                             app_state.load_system_assets();
                             app_state.disassemble();
                         }
                         idx if idx >= dynamic_start_idx => {
-                            // Dynamic items (platform labels)
-                            let platform_config =
-                                crate::assets::load_platform_config(&app_state.settings.platform);
+                            // Dynamic items (system labels)
+                            let system_config =
+                                crate::assets::load_system_config(&app_state.settings.system);
                             let config_idx = idx - dynamic_start_idx;
-                            if let Some(feature) = platform_config.features.get(config_idx) {
+                            if let Some(feature) = system_config.features.get(config_idx) {
                                 let current_val = app_state
                                     .settings
                                     .enabled_features
@@ -1117,7 +1115,7 @@ impl Widget for DocumentSettingsDialog {
                                     .enabled_features
                                     .insert(feature.id.clone(), !current_val);
 
-                                // Reload platform labels and re-disassemble for immediate feedback
+                                // Reload system labels and re-disassemble for immediate feedback
                                 app_state.load_system_assets();
                                 app_state.disassemble();
                             }
@@ -1161,8 +1159,8 @@ impl Widget for DocumentSettingsDialog {
                         idx if idx == idx_assembler => {
                             self.is_selecting_assembler = true;
                         }
-                        idx if idx == idx_platform => {
-                            self.is_selecting_platform = true;
+                        idx if idx == idx_system => {
+                            self.is_selecting_system = true;
                         }
                         _ => {}
                     }

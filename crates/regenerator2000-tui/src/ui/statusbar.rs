@@ -98,7 +98,7 @@ impl Widget for StatusBar {
 
         let info = format!(
             "{} | {}Cursor: ${:04X} | Origin: ${:04X} | File: {:?}{}",
-            app_state.settings.platform,
+            app_state.settings.system,
             block_info,
             cursor_addr,
             app_state.origin,

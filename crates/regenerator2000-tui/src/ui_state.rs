@@ -288,10 +288,10 @@ impl UIState {
         if ext != "regen2000proj" {
             self.push_dialog(Box::new(
                 crate::ui::dialog_import_context::ImportContextDialog::new(
-                    &app_state.settings.platform.to_string(),
+                    &app_state.settings.system.to_string(),
                     app_state.origin,
                     loaded_data.suggested_entry_point,
-                    loaded_data.suggested_platform.clone(),
+                    loaded_data.suggested_system.clone(),
                     loaded_data.entropy_warning,
                 ),
             ));

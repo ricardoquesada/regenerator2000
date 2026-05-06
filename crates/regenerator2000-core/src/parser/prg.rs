@@ -1,10 +1,10 @@
-use crate::state::types::Platform;
+use crate::state::types::System;
 use anyhow::{Result, anyhow};
 
 pub struct PrgData {
     pub origin: u16,
     pub raw_data: Vec<u8>,
-    pub suggested_platform: Option<Platform>,
+    pub suggested_system: Option<System>,
     pub suggested_entry_point: Option<u16>,
 }
 
@@ -20,19 +20,19 @@ pub fn parse_prg(data: &[u8]) -> Result<PrgData> {
     let origin = u16::from(data[1]) << 8 | u16::from(data[0]);
     let raw_data = data[2..].to_vec();
 
-    let suggested_platform = match origin {
-        0x0801 => Some(Platform::new(Platform::C64)),
-        0x1C01 => Some(Platform::new(Platform::C128)),
-        0x1001 => Some(Platform::new(Platform::PLUS4)),
-        0x0401 => Some(Platform::new(Platform::PET)),
-        0x1201 => Some(Platform::new(Platform::VIC20)),
+    let suggested_system = match origin {
+        0x0801 => Some(System::new(System::C64)),
+        0x1C01 => Some(System::new(System::C128)),
+        0x1001 => Some(System::new(System::PLUS4)),
+        0x0401 => Some(System::new(System::PET)),
+        0x1201 => Some(System::new(System::VIC20)),
         _ => None,
     };
 
     let mut suggested_entry_point = None;
 
     // Try to find SYS address if it looks like a BASIC program
-    if suggested_platform.is_some() && data.len() >= 7 {
+    if suggested_system.is_some() && data.len() >= 7 {
         let mut offset = 2;
         while offset + 4 < data.len() {
             let next_ptr = u16::from(data[offset]) | (u16::from(data[offset + 1]) << 8);
@@ -89,7 +89,7 @@ pub fn parse_prg(data: &[u8]) -> Result<PrgData> {
     Ok(PrgData {
         origin,
         raw_data,
-        suggested_platform,
+        suggested_system,
         suggested_entry_point,
     })
 }
@@ -113,7 +113,7 @@ mod tests {
         assert!(result.is_ok());
         let prg = result.unwrap();
         assert_eq!(prg.origin, 0x0801);
-        assert_eq!(prg.suggested_platform, Some(Platform::new(Platform::C64)));
+        assert_eq!(prg.suggested_system, Some(System::new(System::C64)));
         assert_eq!(prg.suggested_entry_point, Some(2061));
     }
 

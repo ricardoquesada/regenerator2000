@@ -28,9 +28,9 @@ Regenerator 2000 supports the following formats:
 | `.dis65`         | 6502bench SourceGen project file                                 |
 | `.regen2000proj` | Regenerator 2000 project file (includes all labels and comments) |
 
-### What platforms are supported?
+### What systems are supported?
 
-Regenerator 2000 includes platform-specific labels, comments, and memory maps for:
+Regenerator 2000 includes system-specific labels, comments, and memory maps for:
 
 - Commodore 64
 - Commodore 128
@@ -39,7 +39,7 @@ Regenerator 2000 includes platform-specific labels, comments, and memory maps fo
 - Commodore PET (BASIC 2.0 and 4.0)
 - Commodore 1541 disk drive
 
-You can set the platform in **Document Settings** (++alt+d++ or ++ctrl+shift+d++).
+You can set the system in **Document Settings** (++alt+d++ or ++ctrl+shift+d++).
 
 ### How do I save my work?
 

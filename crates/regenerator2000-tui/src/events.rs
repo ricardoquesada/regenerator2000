@@ -7,7 +7,7 @@ use input::handle_global_input;
 use ratatui::{Terminal, backend::Backend};
 use regenerator2000_core::Core;
 use regenerator2000_core::state::AppState;
-use regenerator2000_core::state::types::Platform;
+use regenerator2000_core::state::types::System;
 use std::io;
 
 pub enum AppEvent {
@@ -319,15 +319,13 @@ fn handle_vice_registers_get(
         client.send_memory_get(mem_start, mem_end, 1);
         client.send_memory_get(0x0100, 0x01FF, 2);
 
-        if app_state.settings.platform == Platform::C64
-            || app_state.settings.platform == Platform::C128
-        {
+        if app_state.settings.system == System::C64 || app_state.settings.system == System::C128 {
             client.send_memory_get(0xD000, 0xDFFF, 3);
             client.send_memory_get(0x0000, 0x0001, 4);
-        } else if app_state.settings.platform == Platform::VIC20 {
+        } else if app_state.settings.system == System::VIC20 {
             // VIC-I registers: $9000–$900F
             client.send_memory_get(0x9000, 0x900F, 3);
-        } else if app_state.settings.platform == Platform::PLUS4 {
+        } else if app_state.settings.system == System::PLUS4 {
             // TED chip registers: $FF00–$FF3F
             client.send_memory_get(0xFF00, 0xFF3F, 3);
         }

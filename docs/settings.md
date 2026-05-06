@@ -103,21 +103,21 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
 │  Bytes per line: < 8 >                                                 │
 │  Fill run threshold: < 8 >                                             │
 │  Assembler: < 64tass >                                                 │
-│  Platform: < Commodore 64 >                                            │
-│  Platform Labels:                                                      │
+│  System: < Commodore 64 >                                              │
+│  System Labels:                                                        │
 │    [x] KERNAL                                                          │
 │    [ ] BASIC                                                           │
 │    [ ] I/O                                                             │
 │  [x] Exclude well-known addresses from symbolic analysis               │
-│  [x] Show platform comments                                            │
+│  [x] Show system comments                                              │
 │                                                                        │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 !!! Note
 
-    The **Platform Labels**, **Exclude well-known addresses**, and **Show platform comments** options are
-    platform-dependent and only appear when the selected platform provides the corresponding data.
+    The **System Labels**, **Exclude well-known addresses**, and **Show system comments** options are
+    system-dependent and only appear when the selected system provides the corresponding data.
 
 ### Options
 
@@ -312,25 +312,25 @@ dialog (Shortcut: ++alt+d++ or ++ctrl+shift+d++).
           **ACME**, **KickAssembler**, and **ca65**. Changing this updates the syntax used in the disassembly view to match
           the target. Press `Enter` to open the assembler selector popup, or use `Left`/`Right` to cycle.
 
-15. **Platform**
-        - **Description**: Defines the target hardware platform (e.g., Commodore 64). This helps the analyzer identify
-          platform-specific memory maps, hardware registers (like VIC-II or SID), and ROM routines.
-          Press `Enter` to open the platform selector popup, or use `Left`/`Right` to cycle.
-          Changing the platform resets the enabled **Platform Labels** features.
+15. **System**
+        - **Description**: Defines the target hardware system (e.g., Commodore 64). This helps the analyzer identify
+          system-specific memory maps, hardware registers (like VIC-II or SID), and ROM routines.
+          Press `Enter` to open the system selector popup, or use `Left`/`Right` to cycle.
+          Changing the system resets the enabled **System Labels** features.
 
-16. **Platform Labels** *(platform-dependent)*
-        - **Description**: A group of checkboxes that control which platform label sets are loaded for the current platform.
+16. **System Labels** *(system-dependent)*
+        - **Description**: A group of checkboxes that control which system label sets are loaded for the current system.
           For example, on the Commodore 64 the available sets include **KERNAL**, **BASIC**, **I/O**, etc.
           Each set provides pre-defined labels for well-known addresses (ROM entry points, hardware registers, etc.).
-          Toggle a set with `Space` or `Enter`. The available sets depend on the selected **Platform**.
+          Toggle a set with `Space` or `Enter`. The available sets depend on the selected **System**.
 
-17. **Exclude well-known addresses from symbolic analysis** *(platform-dependent)*
-        - **Description**: When enabled, addresses that are covered by the platform's platform label definitions are excluded
+17. **Exclude well-known addresses from symbolic analysis** *(system-dependent)*
+        - **Description**: When enabled, addresses that are covered by the system's system label definitions are excluded
           from the analyzer's code-walking pass. This prevents the analyzer from chasing into ROM routines or hardware
-          registers, which can reduce false positives in the disassembly. Only appears for platforms that define excluded
-          address ranges in their platform config.
+          registers, which can reduce false positives in the disassembly. Only appears for systems that define excluded
+          address ranges in their system config.
 
-18. **Show platform comments** *(platform-dependent)*
-        - **Description**: When enabled, pre-defined platform comments (e.g. hardware register descriptions like
+18. **Show system comments** *(system-dependent)*
+        - **Description**: When enabled, pre-defined system comments (e.g. hardware register descriptions like
           "Border Color" for `$D020` on the C64) are displayed as side comments in the disassembly view.
-          Only appears for platforms that include platform comments in their platform config.
+          Only appears for systems that include system comments in their system config.

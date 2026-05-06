@@ -77,7 +77,7 @@ struct Cli {
         alias = "dump-platform-config-files",
         value_name = "PATH"
     )]
-    dump_platform_config_files: Option<String>,
+    dump_system_config_files: Option<String>,
 
     /// Dump built-in theme files (theme-*.toml) to the specified directory and exit
     #[arg(long = "dump-theme-files", value_name = "PATH")]
@@ -708,7 +708,7 @@ fn main() -> Result<()> {
     }
 
     // Handle --dump-system-config-files early: write files and exit
-    if let Some(dest) = cli.dump_platform_config_files {
+    if let Some(dest) = cli.dump_system_config_files {
         let dest_path = PathBuf::from(&dest);
         if let Err(e) = regenerator2000_core::assets::dump_system_config_files(&dest_path) {
             eprintln!("Error: {e}");

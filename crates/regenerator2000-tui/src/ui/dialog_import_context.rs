@@ -1,4 +1,4 @@
-use crate::state::{Addr, AppState, Platform};
+use crate::state::{Addr, AppState, System};
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{
@@ -12,41 +12,38 @@ use ratatui::{
 use crate::ui::widget::{Widget, WidgetResult};
 
 pub struct ImportContextDialog {
-    pub platforms: Vec<String>,
-    pub selected_platform_idx: usize,
+    pub systems: Vec<String>,
+    pub selected_system_idx: usize,
     pub origin_input: String,
     pub start_input: String,
     pub disassemble_sequence: bool,
-    pub active_field: usize, // 0: Platform, 1: Origin, 2: Start, 3: Checkbox, 4: Confirm, 5: Cancel
+    pub active_field: usize, // 0: System, 1: Origin, 2: Start, 3: Checkbox, 4: Confirm, 5: Cancel
     pub entropy: Option<f32>,
-    pub is_selecting_platform: bool,
+    pub is_selecting_system: bool,
 }
 
 impl ImportContextDialog {
     #[must_use]
     pub fn new(
-        current_platform: &str,
+        current_system: &str,
         current_origin: Addr,
         suggested_entry: Option<Addr>,
-        suggested_platform: Option<Platform>,
+        suggested_system: Option<System>,
         entropy: Option<f32>,
     ) -> Self {
-        let platforms = crate::assets::get_available_platforms();
-        let target_platform = suggested_platform.as_deref().unwrap_or(current_platform);
-        let selected_platform_idx = platforms
-            .iter()
-            .position(|p| p == target_platform)
-            .unwrap_or(0);
+        let systems = crate::assets::get_available_systems();
+        let target_system = suggested_system.as_deref().unwrap_or(current_system);
+        let selected_system_idx = systems.iter().position(|p| p == target_system).unwrap_or(0);
 
         Self {
-            platforms,
-            selected_platform_idx,
+            systems,
+            selected_system_idx,
             origin_input: format!("{:04X}", current_origin.0),
             start_input: format!("{:04X}", suggested_entry.unwrap_or(current_origin).0),
             disassemble_sequence: true,
             active_field: 4, // Default to Confirm button
             entropy,
-            is_selecting_platform: false,
+            is_selecting_system: false,
         }
     }
 }
@@ -68,7 +65,7 @@ impl Widget for ImportContextDialog {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Length(1), // Spacer
-                Constraint::Length(1), // Platform
+                Constraint::Length(1), // System
                 Constraint::Length(1), // Spacer
                 Constraint::Length(1), // Origin
                 Constraint::Length(1), // Start
@@ -80,18 +77,18 @@ impl Widget for ImportContextDialog {
             ])
             .split(inner);
 
-        // --- 1. Platform ---
-        let platform_selected = self.active_field == 0;
-        let platform_name = self
-            .platforms
-            .get(self.selected_platform_idx)
+        // --- 1. System ---
+        let system_selected = self.active_field == 0;
+        let system_name = self
+            .systems
+            .get(self.selected_system_idx)
             .cloned()
             .unwrap_or_default();
-        let platform_text = Line::from(vec![
-            Span::raw("Platform: "),
+        let system_text = Line::from(vec![
+            Span::raw("System: "),
             Span::styled(
-                format!("< {} >", platform_name),
-                if platform_selected {
+                format!("< {} >", system_name),
+                if system_selected {
                     Style::default()
                         .fg(theme.highlight_fg)
                         .add_modifier(Modifier::BOLD)
@@ -100,7 +97,7 @@ impl Widget for ImportContextDialog {
                 },
             ),
         ]);
-        f.render_widget(Paragraph::new(platform_text), layout[1]);
+        f.render_widget(Paragraph::new(system_text), layout[1]);
 
         // --- 2. Origin ---
         let origin_selected = self.active_field == 1;
@@ -198,18 +195,18 @@ impl Widget for ImportContextDialog {
             );
         }
 
-        // Platform Popup
-        if self.is_selecting_platform {
+        // System Popup
+        if self.is_selecting_system {
             let popup_area = crate::utils::centered_rect_adaptive(40, 50, 50, 10, area);
             f.render_widget(Clear, popup_area);
-            let block = crate::ui::widget::create_dialog_block(" Select Platform ", theme);
+            let block = crate::ui::widget::create_dialog_block(" Select System ", theme);
 
             let list_items: Vec<ListItem> = self
-                .platforms
+                .systems
                 .iter()
                 .enumerate()
                 .map(|(i, p)| {
-                    let is_selected = self.selected_platform_idx == i;
+                    let is_selected = self.selected_system_idx == i;
                     let style = if is_selected {
                         Style::default()
                             .bg(theme.menu_selected_bg)
@@ -222,7 +219,7 @@ impl Widget for ImportContextDialog {
                 .collect();
 
             let mut list_state = ListState::default();
-            list_state.select(Some(self.selected_platform_idx));
+            list_state.select(Some(self.selected_system_idx));
 
             let list = List::new(list_items)
                 .block(block)
@@ -250,26 +247,26 @@ impl Widget for ImportContextDialog {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        if self.is_selecting_platform {
+        if self.is_selecting_system {
             match key.code {
                 KeyCode::Esc | KeyCode::Enter => {
-                    self.is_selecting_platform = false;
+                    self.is_selecting_system = false;
                     return WidgetResult::Handled;
                 }
                 KeyCode::Up => {
-                    if !self.platforms.is_empty() {
-                        if self.selected_platform_idx == 0 {
-                            self.selected_platform_idx = self.platforms.len() - 1;
+                    if !self.systems.is_empty() {
+                        if self.selected_system_idx == 0 {
+                            self.selected_system_idx = self.systems.len() - 1;
                         } else {
-                            self.selected_platform_idx -= 1;
+                            self.selected_system_idx -= 1;
                         }
                     }
                     return WidgetResult::Handled;
                 }
                 KeyCode::Down => {
-                    if !self.platforms.is_empty() {
-                        self.selected_platform_idx =
-                            (self.selected_platform_idx + 1) % self.platforms.len();
+                    if !self.systems.is_empty() {
+                        self.selected_system_idx =
+                            (self.selected_system_idx + 1) % self.systems.len();
                     }
                     return WidgetResult::Handled;
                 }
@@ -295,11 +292,11 @@ impl Widget for ImportContextDialog {
                 WidgetResult::Handled
             }
             KeyCode::Left => {
-                if self.active_field == 0 && !self.platforms.is_empty() {
-                    if self.selected_platform_idx == 0 {
-                        self.selected_platform_idx = self.platforms.len() - 1;
+                if self.active_field == 0 && !self.systems.is_empty() {
+                    if self.selected_system_idx == 0 {
+                        self.selected_system_idx = self.systems.len() - 1;
                     } else {
-                        self.selected_platform_idx -= 1;
+                        self.selected_system_idx -= 1;
                     }
                 } else if self.active_field == 4 || self.active_field == 5 {
                     // Toggle confirmation buttons
@@ -310,9 +307,8 @@ impl Widget for ImportContextDialog {
                 WidgetResult::Handled
             }
             KeyCode::Right => {
-                if self.active_field == 0 && !self.platforms.is_empty() {
-                    self.selected_platform_idx =
-                        (self.selected_platform_idx + 1) % self.platforms.len();
+                if self.active_field == 0 && !self.systems.is_empty() {
+                    self.selected_system_idx = (self.selected_system_idx + 1) % self.systems.len();
                 } else if self.active_field == 4 {
                     self.active_field = 5;
                 }
@@ -331,7 +327,7 @@ impl Widget for ImportContextDialog {
                     self.disassemble_sequence = !self.disassemble_sequence;
                     WidgetResult::Handled
                 } else if self.active_field == 0 {
-                    self.is_selecting_platform = true;
+                    self.is_selecting_system = true;
                     WidgetResult::Handled
                 } else if self.active_field == 4
                     || (key.code == KeyCode::Enter && self.active_field != 5)
@@ -339,15 +335,14 @@ impl Widget for ImportContextDialog {
                     // Apply changes
                     if let Ok(new_origin) = u16::from_str_radix(&self.origin_input, 16) {
                         if let Ok(new_start) = u16::from_str_radix(&self.start_input, 16) {
-                            let platform_name = self
-                                .platforms
-                                .get(self.selected_platform_idx)
+                            let system_name = self
+                                .systems
+                                .get(self.selected_system_idx)
                                 .cloned()
                                 .unwrap_or_default();
 
-                            // 1. Update Platform
-                            app_state.settings.platform =
-                                crate::state::Platform::from(platform_name);
+                            // 1. Update System
+                            app_state.settings.system = crate::state::System::from(system_name);
                             app_state.load_system_assets();
 
                             // 2. Apply Origin (Trigger command so it's undoable)

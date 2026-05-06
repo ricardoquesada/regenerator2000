@@ -250,7 +250,7 @@ Analyzes a specific memory address or label to determine its purpose (variable, 
 
 **What it does:**
 
-1. Determines the target address/label and the platform (C64, VIC-20, etc.).
+1. Determines the target address/label and the system (C64, VIC-20, etc.).
 2. Checks if the address corresponds to a known hardware register.
 3. Analyzes all cross-references to see how the symbol is used (read, write, modify).
 4. Identifies patterns: Pointers (indirect indexed), Flags (boolean checks), Counters (loops), State variables.
@@ -308,7 +308,7 @@ Returns the list of memory blocks as analyzed, including their range and type. R
 
 ### `r2000_get_binary_info`
 
-Returns the origin address, size in bytes, target platform (e.g. 'Commodore 64'), filename, user-provided description, and whether the binary may contain undocumented opcodes (a hint, not guaranteed).
+Returns the origin address, size in bytes, target system (e.g. 'Commodore 64'), filename, user-provided description, and whether the binary may contain undocumented opcodes (a hint, not guaranteed).
 
 _No arguments._
 
@@ -350,7 +350,7 @@ Returns defined labels (user and/or platform) and their addresses. With no argum
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
 | `end_address` | `integer` | Optional upper bound (inclusive) of the address range to filter by (decimal). | No |
-| `kind` | `string` | Optional filter to return only labels of a given kind. 'user' = user-defined labels, 'platform' = predefined platform labels (e.g. KERNAL, hardware registers), 'auto' = auto-generated labels (e.g. s_C000). | No |
+| `kind` | `string` | Optional filter to return only labels of a given kind. 'user' = user-defined labels, 'system' = predefined system labels (e.g. KERNAL, hardware registers), 'auto' = auto-generated labels (e.g. s_C000). | No |
 | `names` | `array` | Optional list of label names to look up. Only symbols whose name matches one of these strings are returned. Case-sensitive. | No |
 | `start_address` | `integer` | Optional lower bound (inclusive) of the address range to filter by (decimal). | No |
 

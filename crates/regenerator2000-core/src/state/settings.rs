@@ -1,4 +1,4 @@
-use super::types::{Assembler, Platform};
+use super::types::{Assembler, System};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -11,8 +11,8 @@ pub struct DocumentSettings {
     pub brk_single_byte: bool, // default true
     #[serde(default)]
     pub patch_brk: bool, // default false
-    #[serde(default)]
-    pub platform: Platform, // default C64
+    #[serde(default, alias = "platform")]
+    pub system: System, // default C64
     #[serde(default)]
     pub assembler: Assembler, // default Tass64
     #[serde(default = "default_max_xref")]
@@ -76,7 +76,7 @@ impl Default for DocumentSettings {
             preserve_long_bytes: true,
             brk_single_byte: true,
             patch_brk: false,
-            platform: Platform::default(),
+            system: System::default(),
             assembler: Assembler::default(),
             max_xref_count: 5,
             max_arrow_columns: 6,

@@ -48,7 +48,7 @@ regenerator2000 my_game.prg
 You are now in the **Disassembly View**. The interface might look overwhelming at first, but it's simpler than it
 appears.
 
-When loading a raw binary (not a `.regen2000proj` file), the **Import Context** dialog will appear. This allows you to specify the target **Platform** (e.g., C64, VIC20), the **Origin** address, and the main **Entry Point** of the program before analysis begins.
+When loading a raw binary (not a `.regen2000proj` file), the **Import Context** dialog will appear. This allows you to specify the target **System** (e.g., C64, VIC20), the **Origin** address, and the main **Entry Point** of the program before analysis begins.
 
 - **Grey text**: Bytes that are "unknown" (not yet analyzed).
 - **White text**: Valid 6502 instructions.
@@ -68,7 +68,7 @@ When you first load a file, Regenerator 2000 automatically analyzes the binary (
 - Trace code flow from known entry points.
 - Create labels for subroutines (`s_XXXX`), jump targets (`j_XXXX`), branch targets (`b_XXXX`), and more.
 - Build cross-references so you can see _who_ calls _what_.
-- Identify platform addresses (KERNAL, I/O registers, etc.) based on the selected platform.
+- Identify system addresses (KERNAL, I/O registers, etc.) based on the selected system.
 
 See [Analysis](analysis.md) for a full explanation of how the analyzer works and what the label prefixes mean.
 

@@ -86,9 +86,9 @@ The core engine state, organized across multiple modules:
 - **[`file_io.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/file_io.rs)**: Loading and importing of various formats into `AppState`.
 - **[`navigation.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/navigation.rs)**: Pure navigation helpers (jumping to addresses, creating save contexts) that operate on `AppState` + `CoreViewState`.
 - **[`project.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/project.rs)**: The `ProjectState` struct — the persistent part of the state saved to `.regen2000proj` files (includes labels, comments, blocks, and scopes).
-- **[`settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/settings.rs)**: Document-level settings (assembler, platform, display preferences, fill run threshold).
+- **[`settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/settings.rs)**: Document-level settings (assembler, system, display preferences, fill run threshold).
 - **[`search.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/search.rs)**: Centralized search logic (hex, text, PETSCII).
-- **[`types.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/types.rs)**: Core type definitions used across the workspace (`Addr`, `Platform`, `BlockType`, `Assembler`, `LabelType`, etc.).
+- **[`types.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/types.rs)**: Core type definitions used across the workspace (`Addr`, `System`, `BlockType`, `Assembler`, `LabelType`, etc.).
 - **[`event.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/event.rs)**: Defines `CoreEvent` (state changes, dialog requests, status messages) and `DialogType` — the frontend-agnostic event vocabulary returned by `Core::apply_action()`.
 
 ### 2. Disassembly Engine ([`regenerator2000-core/src/disassembler/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/disassembler))
@@ -140,7 +140,7 @@ Handles importing various Commodore file formats and label files.
 - **[`t64.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/t64.rs)**: Parser for T64 tape archive files.
 - **[`dis65.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/dis65.rs)**: Parser for 6502bench SourceGen (.dis65) project files.
 - **[`vice_lbl.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_lbl.rs)**: Parser for VICE label files (.lbl) for importing debug symbols.
-- **[`vice_vsf.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_vsf.rs)**: Parser for VICE snapshot files (.vsf). Auto-detects the platform from the VSF header.
+- **[`vice_vsf.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/parser/vice_vsf.rs)**: Parser for VICE snapshot files (.vsf). Auto-detects the system from the VSF header.
 
 These parsers allow Regenerator 2000 to load programs from multiple source formats (PRG, CRT, D64/D71/D81, T64, VSF, DIS65) and import debugging symbols from VICE emulator sessions.
 
@@ -207,7 +207,7 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   - **[`dialog_export_as.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_export_as.rs)**: Export source code dialog (ASM or HTML).
   - **[`dialog_export_labels.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_export_labels.rs)**: Export labels to VICE format.
   - **[`dialog_find_references.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_find_references.rs)**: Find cross-references to an address.
-  - **[`dialog_import_context.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_import_context.rs)**: Import Context Setup dialog. Shown when loading a raw binary (no PRG header) to let the user configure the target platform, binary origin address, entry-point address, and whether to auto-disassemble the code sequence from that entry point. Displays a high-entropy warning when the binary may be packed or compressed.
+  - **[`dialog_import_context.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_import_context.rs)**: Import Context Setup dialog. Shown when loading a raw binary (no PRG header) to let the user configure the target system, binary origin address, entry-point address, and whether to auto-disassemble the code sequence from that entry point. Displays a high-entropy warning when the binary may be packed or compressed.
   - **[`dialog_go_to_symbol.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_go_to_symbol.rs)**: Navigate to a label by name.
   - **[`dialog_jump_to_address.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_jump_to_address.rs)**: Jump to a specific memory address.
   - **[`dialog_jump_to_line.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_jump_to_line.rs)**: Jump to a specific line number.
@@ -251,12 +251,12 @@ Manages application-level configuration that persists across sessions.
   - Entropy threshold for analysis
   - Recent projects list
   - Update checking preference
-- Stored as `config.toml` in the platform-specific config directory (migrated from JSON in v0.9.13). Stored separately from project state to maintain user preferences across different projects.
+- Stored as `config.toml` in the OS-specific config directory (migrated from JSON in v0.9.13). Stored separately from project state to maintain user preferences across different projects.
 
 ### 11. Assets ([`regenerator2000-core/src/assets.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/assets.rs))
 
-Manages embedded platform definition files (`platform-*.toml`) and theme files (`theme-*.toml`).
-Platform files provide labels, comments, and exclude-address lists for each supported machine.
+Manages embedded system definition files (`system-*.toml`) and theme files (`theme-*.toml`).
+System files provide labels, comments, and exclude-address lists for each supported machine.
 Theme files define color palettes for the TUI. Both support user overrides from the config directory.
 
 ### 12. MCP Server ([`regenerator2000-core/src/mcp/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/mcp))

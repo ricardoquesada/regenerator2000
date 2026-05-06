@@ -6,7 +6,7 @@
 
 # The Modern 6502 Disassembler
 
-**Regenerator 2000** is a modern, interactive disassembler for the Commodore 64 and other 6502-based platforms. It combines the retro feel of Turbo Debugger with the power of modern tools like IDA Pro, all within a fast, keyboard-centric terminal interface.
+**Regenerator 2000** is a modern, interactive disassembler for the Commodore 64 and other 6502-based systems. It combines the retro feel of Turbo Debugger with the power of modern tools like IDA Pro, all within a fast, keyboard-centric terminal interface.
 
 ---
 
@@ -86,7 +86,7 @@ Explore the regenerative power of Regenerator 2000 through its various views:
     regenerator2000 my_game.prg
     ```
 
-    When importing a new binary, use the **Import Context** dialog to configure the Platform, Origin, and Entry Point.
+    When importing a new binary, use the **Import Context** dialog to configure the System, Origin, and Entry Point.
 
 3.  **Explore**:
     - **Move**: Arrow keys, map, or jumps.

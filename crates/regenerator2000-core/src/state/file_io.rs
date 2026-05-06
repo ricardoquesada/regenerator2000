@@ -4,7 +4,7 @@ use super::project::{
     compress_block_types, decode_raw_data_from_base64, encode_raw_data_to_base64, expand_blocks,
 };
 use super::settings::DocumentSettings;
-use super::types::{Addr, BlockType, HexdumpViewMode, LabelKind, LabelType, Platform};
+use super::types::{Addr, BlockType, HexdumpViewMode, LabelKind, LabelType, System};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -36,7 +36,7 @@ impl AppState {
 
         let mut cursor_start = None;
         let hex_cursor_start = None;
-        let mut suggested_platform = None;
+        let mut suggested_system = None;
 
         if let Some(ext) = self
             .file_path
@@ -79,12 +79,12 @@ impl AppState {
                     .map_err(|e| anyhow::anyhow!("Failed to parse PRG: {e}"))?;
                 self.origin = Addr(prg_data.origin);
                 self.raw_data = prg_data.raw_data;
-                let default_platform = if ext.eq_ignore_ascii_case("t64") {
-                    Some(Platform::new(Platform::C64))
+                let default_system = if ext.eq_ignore_ascii_case("t64") {
+                    Some(System::new(System::C64))
                 } else {
                     None
                 };
-                suggested_platform = prg_data.suggested_platform.or(default_platform);
+                suggested_system = prg_data.suggested_system.or(default_system);
                 cursor_start = prg_data.suggested_entry_point;
             } else if ext.eq_ignore_ascii_case("crt") {
                 let (origin, raw_data) = crate::parser::crt::parse_crt(&data)
@@ -97,12 +97,12 @@ impl AppState {
                 self.origin = Addr::ZERO;
                 self.raw_data = vsf_data.memory;
                 cursor_start = vsf_data.start_address;
-                suggested_platform = match vsf_data.machine_name.as_str() {
-                    "C64" => Some(Platform::new(Platform::C64)),
-                    "C128" => Some(Platform::new(Platform::C128)),
-                    "VIC20" => Some(Platform::new(Platform::VIC20)),
-                    "PET" => Some(Platform::new(Platform::PET)),
-                    "PLUS4" => Some(Platform::new(Platform::PLUS4)),
+                suggested_system = match vsf_data.machine_name.as_str() {
+                    "C64" => Some(System::new(System::C64)),
+                    "C128" => Some(System::new(System::C128)),
+                    "VIC20" => Some(System::new(System::VIC20)),
+                    "PET" => Some(System::new(System::PET)),
+                    "PLUS4" => Some(System::new(System::PLUS4)),
                     _ => None,
                 };
             } else if ext.eq_ignore_ascii_case("bin") || ext.eq_ignore_ascii_case("raw") {
@@ -151,7 +151,7 @@ impl AppState {
             blocks_view_cursor: None,
             entropy_warning: self.check_entropy(),
             suggested_entry_point: cursor_start.map(Addr),
-            suggested_platform,
+            suggested_system,
         })
     }
 
@@ -216,7 +216,7 @@ impl AppState {
             blocks_view_cursor: None,
             entropy_warning: self.check_entropy(),
             suggested_entry_point: None,
-            suggested_platform: None,
+            suggested_system: None,
         })
     }
 
@@ -284,15 +284,15 @@ impl AppState {
         self.bookmarks = project.bookmarks;
         self.settings = project.settings;
 
-        // Migration for legacy platform names
-        match self.settings.platform.as_str() {
-            "Commodore64" => self.settings.platform = Platform::new(Platform::C64),
-            "Commodore128" => self.settings.platform = Platform::new(Platform::C128),
-            "Commodore1541" => self.settings.platform = Platform::new(Platform::C1541),
-            "CommodorePET20" => self.settings.platform = Platform::new(Platform::PET20),
-            "CommodorePET40" => self.settings.platform = Platform::new(Platform::PET),
-            "CommodorePlus4" => self.settings.platform = Platform::new(Platform::PLUS4),
-            "CommodoreVIC20" => self.settings.platform = Platform::new(Platform::VIC20),
+        // Migration for legacy system names
+        match self.settings.system.as_str() {
+            "Commodore64" => self.settings.system = System::new(System::C64),
+            "Commodore128" => self.settings.system = System::new(System::C128),
+            "Commodore1541" => self.settings.system = System::new(System::C1541),
+            "CommodorePET20" => self.settings.system = System::new(System::PET20),
+            "CommodorePET40" => self.settings.system = System::new(System::PET),
+            "CommodorePlus4" => self.settings.system = System::new(System::PLUS4),
+            "CommodoreVIC20" => self.settings.system = System::new(System::VIC20),
             _ => {}
         }
 
@@ -332,7 +332,7 @@ impl AppState {
             blocks_view_cursor: project.blocks_view_cursor,
             entropy_warning: None,
             suggested_entry_point: None,
-            suggested_platform: None,
+            suggested_system: None,
         })
     }
 
@@ -501,7 +501,7 @@ impl AppState {
             blocks_view_cursor: None,
             entropy_warning: self.check_entropy(),
             suggested_entry_point: None,
-            suggested_platform: None,
+            suggested_system: None,
         })
     }
 
@@ -703,7 +703,7 @@ mod load_file_tests {
         let result = app_state.load_file(file_path.clone());
         assert!(result.is_ok());
         let data = result.unwrap();
-        assert_eq!(data.suggested_platform, Some(Platform::new(Platform::C64)));
+        assert_eq!(data.suggested_system, Some(System::new(System::C64)));
         assert_eq!(data.suggested_entry_point, Some(Addr(2061)));
 
         let _ = std::fs::remove_file(file_path);
@@ -749,7 +749,7 @@ mod load_file_tests {
         let result = app_state.load_file(file_path.clone());
         assert!(result.is_ok());
         let data = result.unwrap();
-        assert_eq!(data.suggested_platform, Some(Platform::new(Platform::C64)));
+        assert_eq!(data.suggested_system, Some(System::new(System::C64)));
 
         let _ = std::fs::remove_file(file_path);
     }

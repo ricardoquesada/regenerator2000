@@ -8,7 +8,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
-use regenerator2000_core::state::types::Platform;
+use regenerator2000_core::state::types::System;
 
 use crate::ui::widget::{Widget, WidgetResult};
 
@@ -513,10 +513,10 @@ impl Widget for DebuggerView {
             ]),
         ]);
 
-        let is_c64_or_128 = app_state.settings.platform == Platform::C64
-            || app_state.settings.platform == Platform::C128;
-        let is_vic20 = app_state.settings.platform == Platform::VIC20;
-        let is_plus4 = app_state.settings.platform == Platform::PLUS4;
+        let is_c64_or_128 =
+            app_state.settings.system == System::C64 || app_state.settings.system == System::C128;
+        let is_vic20 = app_state.settings.system == System::VIC20;
+        let is_plus4 = app_state.settings.system == System::PLUS4;
 
         let (stack_rect, hw_rect) = if debugger_area.width > 50 {
             let ch = Layout::default()

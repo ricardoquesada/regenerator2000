@@ -1,6 +1,6 @@
 use super::settings::DocumentSettings;
 use super::types::{
-    Addr, BlockType, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType, Platform,
+    Addr, BlockType, HexdumpViewMode, ImmediateFormat, LabelKind, LabelType, System,
 };
 use base64::{Engine as _, engine::general_purpose};
 use flate2::Compression;
@@ -106,7 +106,7 @@ pub struct LoadedProjectData {
     pub blocks_view_cursor: Option<usize>,
     pub entropy_warning: Option<f32>,
     pub suggested_entry_point: Option<Addr>,
-    pub suggested_platform: Option<Platform>,
+    pub suggested_system: Option<System>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

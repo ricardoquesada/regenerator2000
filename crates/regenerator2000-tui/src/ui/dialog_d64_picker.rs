@@ -3,7 +3,7 @@
 
 use crate::parser::d64::{D64FileEntry, FileType};
 use crate::state::AppState;
-use crate::state::types::Platform;
+use crate::state::types::System;
 use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui_state::UIState;
 use ratatui::{
@@ -236,20 +236,20 @@ impl Widget for D64FilePickerDialog {
                                 .load_binary(crate::state::Addr(prg_data.origin), prg_data.raw_data)
                             {
                                 Ok(mut loaded_data) => {
-                                    let default_platform = match selected_entry.disk_type {
+                                    let default_system = match selected_entry.disk_type {
                                         crate::parser::d64::DiskType::D64 => {
-                                            Some(Platform::new(Platform::C64))
+                                            Some(System::new(System::C64))
                                         }
                                         crate::parser::d64::DiskType::D71_70
                                         | crate::parser::d64::DiskType::D71_80 => {
-                                            Some(Platform::new(Platform::C128))
+                                            Some(System::new(System::C128))
                                         }
                                         crate::parser::d64::DiskType::D81 => {
-                                            Some(Platform::new(Platform::C128))
+                                            Some(System::new(System::C128))
                                         }
                                     };
-                                    loaded_data.suggested_platform =
-                                        prg_data.suggested_platform.or(default_platform);
+                                    loaded_data.suggested_system =
+                                        prg_data.suggested_system.or(default_system);
                                     loaded_data.suggested_entry_point =
                                         prg_data.suggested_entry_point.map(crate::state::Addr);
                                     app_state.file_path = Some(self.disk_path.clone());

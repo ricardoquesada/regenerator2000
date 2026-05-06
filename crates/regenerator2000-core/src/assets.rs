@@ -61,25 +61,25 @@ pub fn user_config_systems_dir() -> Option<PathBuf> {
 /// exact filename and a normalized variant (lowercase, spaces → underscores)
 /// are tried in that order.  TOML files are preferred over JSON.
 fn get_system_file_content_with_config_dir(
-    platform: &str,
+    system: &str,
     config_dir: Option<&Path>,
 ) -> Option<String> {
-    let normalized = platform.to_lowercase().replace(' ', "_");
+    let normalized = system.to_lowercase().replace(' ', "_");
 
     // Build candidate filenames for the user config directory.
     // Accept both "system-" and legacy "platform-" prefixes.
     let user_candidates: Vec<String> = [
-        format!("system-{platform}.toml"),
+        format!("system-{system}.toml"),
         format!("system-{normalized}.toml"),
-        format!("platform-{platform}.toml"),
+        format!("platform-{system}.toml"),
         format!("platform-{normalized}.toml"),
-        format!("platform-{platform}.json"),
+        format!("platform-{system}.json"),
         format!("platform-{normalized}.json"),
     ]
     .into_iter()
     .collect();
 
-    // Deduplicate (when platform == normalized, pairs are identical).
+    // Deduplicate (when system == normalized, pairs are identical).
     let mut seen_user = Vec::new();
     for name in &user_candidates {
         if !seen_user.contains(name) {
@@ -99,7 +99,7 @@ fn get_system_file_content_with_config_dir(
 
     // 2. Fall back to the embedded assets (which only use "system-" prefix).
     let embedded_candidates: Vec<String> = [
-        format!("system-{platform}.toml"),
+        format!("system-{system}.toml"),
         format!("system-{normalized}.toml"),
     ]
     .into_iter()
@@ -119,8 +119,8 @@ fn get_system_file_content_with_config_dir(
     None
 }
 
-fn get_system_file_content(platform: &str) -> Option<String> {
-    get_system_file_content_with_config_dir(platform, user_config_systems_dir().as_deref())
+fn get_system_file_content(system: &str) -> Option<String> {
+    get_system_file_content_with_config_dir(system, user_config_systems_dir().as_deref())
 }
 
 /// Dump all embedded `system-*.toml` files into `dest_dir`.
@@ -165,7 +165,7 @@ fn is_system_config_file(filename: &str) -> bool {
 /// Collect enabled system names from an iterator of `(filename, content)` pairs.
 fn collect_systems_from_iter<'a>(
     iter: impl Iterator<Item = (&'a str, String)>,
-    platforms: &mut Vec<String>,
+    systems: &mut Vec<String>,
 ) {
     for (filename, content) in iter {
         if !is_system_config_file(filename) {
@@ -174,13 +174,13 @@ fn collect_systems_from_iter<'a>(
         if let Some(data) = parse_system_data(&content)
             && data.enabled
         {
-            platforms.push(data.system_name);
+            systems.push(data.system_name);
         }
     }
 }
 
 fn get_available_systems_with_config_dir(config_dir: Option<&Path>) -> Vec<String> {
-    let mut platforms: Vec<String> = Vec::new();
+    let mut systems: Vec<String> = Vec::new();
 
     // 1. Collect from the provided config directory.
     if let Some(dir) = config_dir
@@ -197,7 +197,7 @@ fn get_available_systems_with_config_dir(config_dir: Option<&Path>) -> Vec<Strin
         let pairs: Vec<(String, String)> = iter.collect();
         collect_systems_from_iter(
             pairs.iter().map(|(f, c)| (f.as_str(), c.clone())),
-            &mut platforms,
+            &mut systems,
         );
     }
 
@@ -209,14 +209,14 @@ fn get_available_systems_with_config_dir(config_dir: Option<&Path>) -> Vec<Strin
             && let Some(content) = file.contents_utf8()
             && let Some(data) = parse_system_data(content)
             && data.enabled
-            && !platforms.contains(&data.system_name)
+            && !systems.contains(&data.system_name)
         {
-            platforms.push(data.system_name);
+            systems.push(data.system_name);
         }
     }
 
-    platforms.sort();
-    platforms
+    systems.sort();
+    systems
 }
 
 /// Return the list of all available system names.
@@ -225,17 +225,17 @@ fn get_available_systems_with_config_dir(config_dir: Option<&Path>) -> Vec<Strin
 /// system name matches a built-in one, the user's version takes precedence
 /// (the built-in duplicate is excluded).
 #[must_use]
-pub fn get_available_platforms() -> Vec<String> {
+pub fn get_available_systems() -> Vec<String> {
     get_available_systems_with_config_dir(user_config_systems_dir().as_deref())
 }
 
 #[must_use]
-pub fn load_platform_config(platform: &str) -> SystemConfig {
+pub fn load_system_config(system: &str) -> SystemConfig {
     let mut features = Vec::new();
     let mut has_comments = false;
     let mut has_excludes = false;
 
-    if let Some(content) = get_system_file_content(platform)
+    if let Some(content) = get_system_file_content(system)
         && let Some(data) = parse_system_data(&content)
     {
         has_comments = !data.comments.is_empty();
@@ -269,10 +269,10 @@ pub fn load_platform_config(platform: &str) -> SystemConfig {
 }
 
 #[must_use]
-pub fn load_comments(platform: &str) -> BTreeMap<u16, String> {
+pub fn load_comments(system: &str) -> BTreeMap<u16, String> {
     let mut comments = BTreeMap::new();
 
-    if let Some(content) = get_system_file_content(platform)
+    if let Some(content) = get_system_file_content(system)
         && let Some(data) = parse_system_data(&content)
     {
         for (addr_str, comment) in data.comments {
@@ -289,12 +289,12 @@ pub fn load_comments(platform: &str) -> BTreeMap<u16, String> {
 
 #[must_use]
 pub fn load_labels(
-    platform: &str,
+    system: &str,
     enabled_features: Option<&HashMap<String, bool>>,
 ) -> Vec<(u16, Label)> {
     let mut labels = Vec::new();
 
-    if let Some(content) = get_system_file_content(platform)
+    if let Some(content) = get_system_file_content(system)
         && let Some(data) = parse_system_data(&content)
     {
         let mut defaults = HashMap::new();
@@ -333,10 +333,10 @@ pub fn load_labels(
 }
 
 #[must_use]
-pub fn load_excludes(platform: &str) -> Vec<u16> {
+pub fn load_excludes(system: &str) -> Vec<u16> {
     let mut excludes = Vec::new();
 
-    if let Some(content) = get_system_file_content(platform)
+    if let Some(content) = get_system_file_content(system)
         && let Some(data) = parse_system_data(&content)
     {
         for line in data.excluded {
@@ -370,9 +370,9 @@ mod tests {
     #[test]
     fn test_assets_load() {
         // Smoke test to ensure we can list systems
-        let platforms = get_available_platforms();
-        println!("Systems: {platforms:?}");
-        assert!(!platforms.is_empty(), "Should have at least one system");
+        let systems = get_available_systems();
+        println!("Systems: {systems:?}");
+        assert!(!systems.is_empty(), "Should have at least one system");
     }
 
     #[test]
@@ -396,7 +396,7 @@ mod tests {
 
     #[test]
     fn test_load_system_config() {
-        let config = load_platform_config("Commodore 64");
+        let config = load_system_config("Commodore 64");
         assert!(!config.features.is_empty(), "C64 should have features");
 
         // Check that KERNAL has default true
@@ -405,7 +405,7 @@ mod tests {
         assert!(kernal.unwrap().default, "KERNAL should default to true");
 
         // Test VIC-20 case
-        let config_vic20 = load_platform_config("Commodore VIC-20");
+        let config_vic20 = load_system_config("Commodore VIC-20");
         assert!(
             !config_vic20.features.is_empty(),
             "VIC-20 should have features"
@@ -415,17 +415,17 @@ mod tests {
     }
 
     /// Minimal valid `SystemData` TOML for a custom test system.
-    fn make_custom_platform_toml(platform_name: &str) -> String {
+    fn make_custom_system_toml(system_name: &str) -> String {
         format!(
-            "system_name = \"{platform_name}\"\nenabled = true\nexcluded = []\n\n[labels.CUSTOM]\n\"1000\" = \"MY_LABEL\"\n\n[comments]\n"
+            "system_name = \"{system_name}\"\nenabled = true\nexcluded = []\n\n[labels.CUSTOM]\n\"1000\" = \"MY_LABEL\"\n\n[comments]\n"
         )
     }
 
     /// Minimal valid `SystemData` JSON for testing backward compatibility
     /// (uses the legacy `platform_name` key to verify the serde alias).
-    fn make_custom_platform_json(platform_name: &str) -> String {
+    fn make_custom_system_json(system_name: &str) -> String {
         format!(
-            r#"{{"platform_name":"{platform_name}","enabled":true,"labels":{{"CUSTOM":{{"1000":"MY_LABEL"}}}},"comments":{{}},"excluded":[]}}"#
+            r#"{{"platform_name":"{system_name}","enabled":true,"labels":{{"CUSTOM":{{"1000":"MY_LABEL"}}}},"comments":{{}},"excluded":[]}}"#
         )
     }
 
@@ -445,16 +445,16 @@ mod tests {
         fs::create_dir_all(&config_dir).unwrap();
 
         // ── 1. Custom (new) system via TOML ─────────────────────────────────
-        let custom_toml = make_custom_platform_toml("My Custom Platform");
+        let custom_toml = make_custom_system_toml("My Custom System");
         fs::write(
-            config_dir.join("system-my_custom_platform.toml"),
+            config_dir.join("system-my_custom_system.toml"),
             &custom_toml,
         )
         .unwrap();
 
         // get_system_file_content_with_config_dir must find it.
         let content =
-            get_system_file_content_with_config_dir("my_custom_platform", Some(&config_dir));
+            get_system_file_content_with_config_dir("my_custom_system", Some(&config_dir));
         assert!(
             content.is_some(),
             "Custom system file should be found in config dir"
@@ -462,21 +462,21 @@ mod tests {
         assert_eq!(content.unwrap(), custom_toml);
 
         // ── 2. Custom system appears in system list ────────────────────────
-        let platforms = get_available_systems_with_config_dir(Some(&config_dir));
+        let systems = get_available_systems_with_config_dir(Some(&config_dir));
         assert!(
-            platforms.contains(&"My Custom Platform".to_string()),
+            systems.contains(&"My Custom System".to_string()),
             "Custom system should appear in available systems"
         );
 
         // ── 3. Built-in systems are still listed ─────────────────────────────
         assert!(
-            platforms.contains(&"Commodore 64".to_string()),
+            systems.contains(&"Commodore 64".to_string()),
             "Built-in Commodore 64 should still be listed"
         );
 
         // ── 4. Override: config-dir TOML file wins over built-in ──────────────
         // Write a file that shadows the built-in Commodore 64 definition.
-        let override_toml = make_custom_platform_toml("Commodore 64");
+        let override_toml = make_custom_system_toml("Commodore 64");
         fs::write(config_dir.join("system-commodore_64.toml"), &override_toml).unwrap();
 
         let overridden = get_system_file_content_with_config_dir("Commodore 64", Some(&config_dir));
@@ -491,8 +491,8 @@ mod tests {
         );
 
         // System list must not contain duplicate "Commodore 64" entries.
-        let platforms_after_override = get_available_systems_with_config_dir(Some(&config_dir));
-        let c64_count = platforms_after_override
+        let systems_after_override = get_available_systems_with_config_dir(Some(&config_dir));
+        let c64_count = systems_after_override
             .iter()
             .filter(|p| p.as_str() == "Commodore 64")
             .count();
@@ -513,16 +513,16 @@ mod tests {
         let config_dir = std::env::temp_dir().join(format!("r2000_test_json_compat_{test_id}"));
         fs::create_dir_all(&config_dir).unwrap();
 
-        let custom_json = make_custom_platform_json("Legacy JSON Platform");
+        let custom_json = make_custom_system_json("Legacy JSON System");
         fs::write(
             config_dir.join("platform-legacy_json_platform.json"),
             &custom_json,
         )
         .unwrap();
 
-        let platforms = get_available_systems_with_config_dir(Some(&config_dir));
+        let systems = get_available_systems_with_config_dir(Some(&config_dir));
         assert!(
-            platforms.contains(&"Legacy JSON Platform".to_string()),
+            systems.contains(&"Legacy JSON System".to_string()),
             "Legacy JSON system should appear in available systems"
         );
 

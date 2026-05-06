@@ -716,7 +716,7 @@ fn handle_tool_call_internal(
         "r2000_get_binary_info" => {
             let origin = app_state.origin;
             let size = app_state.raw_data.len();
-            let platform = &app_state.settings.platform;
+            let platform = &app_state.settings.system;
             let filename = app_state
                 .file_path
                 .as_ref()
