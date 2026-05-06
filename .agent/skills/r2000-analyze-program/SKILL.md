@@ -21,7 +21,7 @@ This skill **orchestrates** the following existing skills in order:
 
 Before starting, collect the information needed by all subsequent phases:
 
-1. **Binary info**: Call `r2000_get_binary_info` → get `platform`, `filename`, `description`, `may_contain_undocumented_opcodes`.
+1. **Binary info**: Call `r2000_get_binary_info` → get `system`, `filename`, `description`, `may_contain_undocumented_opcodes`.
 2. **Existing blocks**: Call `r2000_get_analyzed_blocks` → get the current block classification map.
 3. **All symbols**: Call `r2000_get_symbols` → get all labels (user + system), including external labels.
 4. **Existing line comments**: Call `r2000_get_comments` with `type = "line"` → used to detect routines that already have documentation header blocks.
@@ -68,7 +68,7 @@ To build the candidate list:
   >
   > Analyze the routine at address `$XXXX` (decimal: NNNNN).
   >
-  > Binary info: platform = {platform}, filename = {filename}, description = {description}, may_contain_undocumented_opcodes = {hint}.
+  > Binary info: system = {system}, filename = {filename}, description = {description}, may_contain_undocumented_opcodes = {hint}.
   >
   > **Apply all changes automatically** — rename the label, add the header comment block, and add side comments to key instructions. Do NOT ask for user confirmation.
   >
@@ -95,7 +95,7 @@ After all routine subagents complete:
 A symbol is considered **already analyzed** if:
 
 - It has a **user-defined** name (i.e., NOT an auto-generated prefix name like `a_XXXX`, `f_XXXX`, `p_XXXX`, `zpa_XX`, `zpf_XX`, `zpp_XX`), OR
-- It is a well-known platform address (hardware register, KERNAL entry point, OS variable).
+- It is a well-known system address (hardware register, KERNAL entry point, OS variable).
 
 To build the candidate list:
 
@@ -117,7 +117,7 @@ To build the candidate list:
   >
   > Analyze the symbol at address `$XXXX` (decimal: NNNNN). Current label: `{current_label}`.
   >
-  > Binary info: platform = {platform}, filename = {filename}, description = {description}, may_contain_undocumented_opcodes = {hint}.
+  > Binary info: system = {system}, filename = {filename}, description = {description}, may_contain_undocumented_opcodes = {hint}.
   >
   > **Apply all changes automatically** — rename the label and add comments (line and/or side). Do NOT ask for user confirmation.
   >

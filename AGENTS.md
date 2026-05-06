@@ -8,7 +8,7 @@ The project is split into two main crates to separate logic from presentation:
 
 - **`regenerator2000-core`**: Contains all UI-agnostic logic.
   - `analyzer.rs`: Auto-analysis (walking code, generating labels).
-  - `assets.rs`: Platform asset loading (labels, comments, exclude lists).
+  - `assets.rs`: System asset loading (labels, comments, exclude lists).
   - `commands.rs`: The `Command` enum and `UndoStack`. Every undoable action is a command.
   - `config.rs`: System-wide configuration management.
   - `core.rs`: Central orchestration logic (file loading, command dispatch, integration).
@@ -37,7 +37,7 @@ The project is split into two main crates to separate logic from presentation:
 ### Key Types (`crates/regenerator2000-core/src/state/types.rs`)
 
 - **`Addr`**: A wrapper around `u16` representing a 6502 address.
-- **`Platform`**: Target machine (C64, C128, VIC20, PET, etc.).
+- **`System`**: Target machine (C64, C128, VIC20, PET, etc.).
 - **`Assembler`**: Target assembler syntax (Tass64, Acme, Ca65, Kick).
 - **`BlockType`**: How a range of bytes is interpreted (Code, DataByte, DataWord, Address, PetsciiText, ScreencodeText, LoHiAddress, HiLoAddress, LoHiWord, HiLoWord, ExternalFile, Undefined).
 - **`LabelType`**: Semantic meaning of a label (Subroutine, Jump, Branch, Pointer, ZeroPagePointer, Field, ZeroPageField, AbsoluteAddress, ZeroPageAbsoluteAddress, ExternalJump, Predefined, UserDefined, LocalUserDefined).

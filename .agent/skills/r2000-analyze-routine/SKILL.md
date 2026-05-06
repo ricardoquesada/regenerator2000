@@ -1,16 +1,16 @@
 ---
 name: r2000-analyze-routine
-description: Analyzes a disassembly subroutine to determine its function by examining code, cross-references, and memory usage, leveraging target platform expertise.
+description: Analyzes a disassembly subroutine to determine its function by examining code, cross-references, and memory usage, leveraging target system expertise.
 ---
 
 # Analyze Routine Workflow
 
 Use this skill when the user asks to "analyze this routine" or "what does this function do?"
 
-## 1. Determine Platform & Context
+## 1. Determine System & Context
 
-- Use `r2000_get_binary_info` to get the **platform**, **filename**, **description**, and **`may_contain_undocumented_opcodes`** hint.
-- **CRITICAL**: The `platform` field tells you the target computer (e.g., Commodore 64, VIC-20). You **MUST** become an expert in that specific target computer's memory map, hardware registers, and KERNAL routines.
+- Use `r2000_get_binary_info` to get the **system**, **filename**, **description**, and **`may_contain_undocumented_opcodes`** hint.
+- **CRITICAL**: The `system` field tells you the target computer (e.g., Commodore 64, VIC-20). You **MUST** become an expert in that specific target computer's memory map, hardware registers, and KERNAL routines.
 - **CONTEXT**: The `filename` and `description` tell you the specific software being analyzed. Use this to identify standard libraries (e.g., "Hubbard music driver", "Exomizer decompressor") and to understand the likely purpose of routines based on the game's genre (e.g., "check_collision" in a shooter).
 - **UNDOCUMENTED OPCODES**: If `may_contain_undocumented_opcodes` is `true`, expect illegal/undocumented MOS 6502 opcodes (e.g., `LAX`, `SAX`, `SLO`, `DCP`, `ISC`) within routines. These are valid instructions — do not treat them as disassembly errors.
 
@@ -33,7 +33,7 @@ Use this skill when the user asks to "analyze this routine" or "what does this f
   - Loop with `LDA`/`STA` and `DEX`/`DEY`/`BNE` → Memory copy or fill.
   - Bit-shifting, `ADC`/`SBC` chains → Math or decompressor.
   - Reads a memory-mapped I/O address then branches → Hardware polling.
-- Use your knowledge of the **target platform** (from `r2000_get_binary_info`) to recognize platform-specific patterns:
+- Use your knowledge of the **target system** (from `r2000_get_binary_info`) to recognize system-specific patterns:
   - Calls to OS/KERNAL entry points → System service calls.
   - Reads/writes to hardware register addresses → I/O, video, sound, or input handling.
   - Writes to interrupt vector locations → IRQ/NMI setup.
@@ -52,7 +52,7 @@ Use this skill when the user asks to "analyze this routine" or "what does this f
 ## 5. Analyze Data Usage
 
 - For each memory address accessed by the routine (e.g., `LDA $C000`, `STA $02`):
-  - Check whether it falls in the **platform's hardware register range**. Use your knowledge of the target platform's memory map (hardware registers, OS variables, ROM entry points) based on the `platform` value from `r2000_get_binary_info`.
+  - Check whether it falls in the **target system's hardware register range**. Use your knowledge of the target system's memory map (hardware registers, OS variables, ROM entry points) based on the `system` value from `r2000_get_binary_info`.
   - Otherwise, call `r2000_get_cross_references` on that address to understand:
     - Is it written only once (init)? → likely a constant or config variable.
     - Is it written _and_ read by multiple routines? → shared state / global variable.

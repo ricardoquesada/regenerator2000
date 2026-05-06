@@ -674,7 +674,7 @@ impl Disassembler {
         let block_types = ctx.block_types;
         let labels = ctx.labels;
         let settings = ctx.settings;
-        let platform_comments = ctx.system_comments;
+        let system_comments = ctx.system_comments;
         let user_side_comments = ctx.user_side_comments;
         let immediate_value_formats = ctx.immediate_value_formats;
         let opcode_byte = data[pc];
@@ -801,15 +801,15 @@ impl Disassembler {
                         // If it's code, NO (avoids propagation in loops).
                         // If it's data/unknown, YES.
                         let target_comment = if is_code_target {
-                            // Even if we suppress user comments for code, we might want platform comments (e.g. KERNAL)
+                            // Even if we suppress user comments for code, we might want system comments (e.g. KERNAL).
                             // But usually KERNAL/System targets won't be in our 'data' block types loop unless we disassembled the whole memory.
                             // If they are outside (target_idx >= len), is_code_target is false, so we show them (correct for external system calls).
                             // If they are INSIDE and marked as Code, we suppress user comments (to fix the bug).
-                            platform_comments.get(&target_addr)
+                            system_comments.get(&target_addr)
                         } else if let Some(c) = user_side_comments.get(&target_addr) {
                             Some(c)
                         } else {
-                            platform_comments.get(&target_addr)
+                            system_comments.get(&target_addr)
                         };
 
                         if let Some(target_comment) = target_comment {
@@ -1311,7 +1311,7 @@ impl Disassembler {
         let block_types = ctx.block_types;
         let labels = ctx.labels;
         let origin = ctx.origin;
-        let platform_comments = ctx.system_comments;
+        let system_comments = ctx.system_comments;
         let user_side_comments = ctx.user_side_comments;
         let settings = ctx.settings;
         let user_line_comments = ctx.user_line_comments;
@@ -1356,11 +1356,11 @@ impl Disassembler {
             let target_comment = if target_idx < data.len() {
                 // Target is inside our disassembled data. Avoid appending user side comments
                 // to prevent duplication and propagation (e.g. in BASIC next pointers).
-                platform_comments.get(&val)
+                system_comments.get(&val)
             } else if let Some(c) = user_side_comments.get(&val) {
                 Some(c)
             } else {
-                platform_comments.get(&val)
+                system_comments.get(&val)
             };
 
             if let Some(target_comment) = target_comment {

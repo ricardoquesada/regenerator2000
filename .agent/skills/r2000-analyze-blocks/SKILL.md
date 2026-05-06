@@ -1,6 +1,6 @@
 ---
 name: r2000-analyze-blocks
-description: Analyzes memory regions of a disassembled binary and converts them to the correct block types (code, bytes, words, text, tables, etc.) using MOS 6502 and the target platform's expertise.
+description: Analyzes memory regions of a disassembled binary and converts them to the correct block types (code, bytes, words, text, tables, etc.) using MOS 6502 and the target system's expertise.
 ---
 
 # Analyze Blocks Workflow
@@ -40,8 +40,8 @@ Use `r2000_set_data_type` with the `data_type` enum value from the right column.
 ### 1. Determine Scope
 
 - Ask the user what range to analyze, or default to the **entire binary**.
-- Use `r2000_get_binary_info` to get the origin address, size, **platform**, **description**, and **`may_contain_undocumented_opcodes`** hint.
-  - **CRITICAL**: The `platform` field tells you the target computer (e.g., C64, VIC-20). You **MUST** become an expert in that specific target computer's memory map, hardware registers, and KERNAL routines for the duration of the analysis.
+- Use `r2000_get_binary_info` to get the origin address, size, **system**, **description**, and **`may_contain_undocumented_opcodes`** hint.
+  - **CRITICAL**: The `system` field tells you the target computer (e.g., C64, VIC-20). You **MUST** become an expert in that specific target computer's memory map, hardware registers, and KERNAL routines for the duration of the analysis.
   - **CONTEXT**: The `filename` field (e.g., "burnin_rubber.prg", "turrican.d64") and `description` (if provided by the user) give you the specific software context. Use this to search for known memory maps, common drivers (music, compression), and game-specific variables.
   - **UNDOCUMENTED OPCODES**: If `may_contain_undocumented_opcodes` is `true`, the binary may use illegal/undocumented MOS 6502 opcodes (e.g., `LAX`, `SAX`, `SLO`, `DCP`, `ISC`). Do **NOT** misclassify these instructions as data — they are valid code. This is a hint set by the user; it is not guaranteed, but you should be prepared to encounter them.
 - Use `r2000_get_analyzed_blocks` to see what has already been classified.
@@ -162,55 +162,6 @@ A region is likely an **External File** if:
 - Charset data: 2048 bytes ($0800), 256 chars × 8 bytes each.
 - Sprite data blocks: multiples of 64 bytes.
 - The binary loads it to a hardware-mapped region (e.g., $D000 for charset, bitmap areas).
-
----
-
-## C64 Reference (only when platform = Commodore 64)
-
-> **Use this section only if `r2000_get_binary_info` returns platform = Commodore 64.**
-> For other platforms (VIC-20, Apple II, NES, etc.), rely on your own knowledge of that platform's memory map, hardware registers, and OS entry points.
-
-### C64 Memory Map
-
-When analyzing, keep these known address ranges in mind:
-
-| Address Range | Description                             |
-| ------------- | --------------------------------------- |
-| `$0000–$00FF` | Zero Page (fast variables, pointers)    |
-| `$0100–$01FF` | CPU Stack                               |
-| `$0200–$03FF` | OS work area, BASIC input buffer        |
-| `$0400–$07FF` | Default Screen RAM (1000 bytes + spare) |
-| `$0800–$9FFF` | BASIC program area / free RAM           |
-| `$A000–$BFFF` | BASIC ROM (or RAM underneath)           |
-| `$C000–$CFFF` | Free RAM                                |
-| `$D000–$D3FF` | VIC-II registers (when I/O visible)     |
-| `$D400–$D7FF` | SID registers (when I/O visible)        |
-| `$D800–$DBFF` | Color RAM                               |
-| `$DC00–$DCFF` | CIA 1 (keyboard, joystick, IRQ)         |
-| `$DD00–$DDFF` | CIA 2 (serial, NMI, VIC bank)           |
-| `$E000–$FFFF` | KERNAL ROM (or RAM underneath)          |
-
-### Well-Known KERNAL Entry Points
-
-| Address | Name    | Purpose                       |
-| ------- | ------- | ----------------------------- |
-| `$FFD2` | CHROUT  | Output a character            |
-| `$FFE4` | GETIN   | Get a character from keyboard |
-| `$FFE1` | STOP    | Check STOP key                |
-| `$FFCF` | CHRIN   | Input a character             |
-| `$FFE7` | CLALL   | Close all files               |
-| `$FFC0` | OPEN    | Open file                     |
-| `$FFC3` | CLOSE   | Close file                    |
-| `$FFBA` | SETLFS  | Set logical file              |
-| `$FFBD` | SETNAM  | Set filename                  |
-| `$FFD5` | LOAD    | Load from device              |
-| `$FFD8` | SAVE    | Save to device                |
-| `$FF81` | CINT    | Initialize screen editor      |
-| `$FF84` | IOINIT  | Initialize I/O                |
-| `$FF87` | RAMTAS  | Initialize RAM, tape, vectors |
-| `$FFFE` | IRQ Vec | Hardware IRQ vector           |
-| `$FFFA` | NMI Vec | Non-maskable interrupt vector |
-| `$FFFC` | RESET   | Reset vector                  |
 
 ---
 

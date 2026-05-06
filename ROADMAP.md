@@ -1,9 +1,9 @@
 # Roadmap - Regenerator 2000
 
 ## 🎯 Vision
-Regenerator 2000 aims to be the ultimate interactive disassembler for retro computing platforms. Our philosophy is **visual fidelity and platform-native idioms**. We do not want to just say "we support Commodore 64" because it uses a 6502; we want the disassembler to *understand* the Commodore 64—its memory maps, its specific graphics modes, and its hardware registers.
+Regenerator 2000 aims to be the ultimate interactive disassembler for retro computing systems. Our philosophy is **visual fidelity and system-native idioms**. We do not want to just say "we support Commodore 64" because it uses a 6502; we want the disassembler to *understand* the Commodore 64—its memory maps, its specific graphics modes, and its hardware registers.
 
-To achieve this without compromising code quality, we are planning a major architectural shift to a **Plugin/Platform Modular System**.
+To achieve this without compromising code quality, we are planning a major architectural shift to a **Plugin/System Modular System**.
 
 ---
 
@@ -23,9 +23,9 @@ To achieve this without compromising code quality, we are planning a major archi
     - Adding new or updated views.
 
 ### 🏗️ v2.0 - The Architectural Refactor (Plugin System)
-To scale to other platforms properly, we need a robust abstraction layer.
+To scale to other systems properly, we need a robust abstraction layer.
 - **Modular Views**: Abstract views (Charset, Sprites, Bitmaps) so they are not hardcoded to Commodore.
-- **Platform Definitions**: Each platform (C64, Apple II, NES) will define its own memory maps, CPU variants, and supported views.
+- **System Definitions**: Each system (C64, Apple II, NES) will define its own memory maps, CPU variants, and supported views.
 
 ---
 

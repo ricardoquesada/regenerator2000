@@ -7,11 +7,11 @@ description: Analyzes a specific memory address or label to determine its purpos
 
 Use this skill when the user asks to "analyze this label", "what is this variable?", or "trace this address". This skill focuses on **data flow**—understanding what a memory location _represents_ rather than just what code executes.
 
-## 1. Determine Context & Platform
+## 1. Determine Context & System
 
 - **Get the Target**: If the user provides a label or address, use that. If not, use `r2000_get_disassembly_cursor` or `r2000_get_address_details` to identify the address under the cursor.
-- **Get the Platform**: Use `r2000_get_binary_info`.
-  - **CRITICAL**: Knowing the platform is essential for identifying hardware registers and OS/KERNAL addresses. You **MUST** use your knowledge of the specific target computer's memory map, hardware registers, and OS entry points.
+- **Get the System**: Use `r2000_get_binary_info`.
+  - **CRITICAL**: Knowing the system is essential for identifying hardware registers and OS/KERNAL addresses. You **MUST** use your knowledge of the specific target computer's memory map, hardware registers, and OS entry points.
   - **CONTEXT**: Use the `filename` response and `description` (if provided) to identify the specific game or program. This allows you to infer domain-specific labels (e.g., "lap_counter" for a racing game, "lives" for a platformer) and look up known memory maps for popular titles.
   - **UNDOCUMENTED OPCODES**: If `may_contain_undocumented_opcodes` is `true`, the binary may use illegal/undocumented MOS 6502 opcodes. When tracing cross-references, be aware that instructions like `LAX`, `SAX`, `DCP`, etc. are valid and their read/write side effects must be considered in the data flow analysis.
 
@@ -25,15 +25,15 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
     - **Modify**: `INC`, `DEC`, `ASL`, `LSR`, `ROR`, `ROL` (read-modify-write).
 - **If `r2000_get_cross_references` returns zero results**:
   - The symbol may be referenced **indirectly** via a pointer — check if the address is in Zero Page (`$00–$FF`) and whether nearby code uses `($addr),Y` or `($addr,X)` patterns.
-  - The symbol may be a well-known OS/KERNAL address that the disassembler doesn't generate an explicit cross-reference for — use your knowledge of the target platform's memory map based on the `platform` value from `r2000_get_binary_info`.
+  - The symbol may be a well-known OS/KERNAL address that the disassembler doesn't generate an explicit cross-reference for — use your knowledge of the target system's memory map based on the `system` value from `r2000_get_binary_info`.
   - It may be **dead code / an unused variable**. Note this in the report.
 
 ## 3. Analyze Patterns (Heuristics)
 
 ### Is it a Hardware Register?
 
-- Check the address against the **platform's memory map**. Use your knowledge of the target computer's hardware registers based on the `platform` value from `r2000_get_binary_info`.
-- If it matches a known hardware register, rename it to the standard hardware name (e.g., the chip name + register, or the platform's conventional name for that register).
+- Check the address against the **target system's memory map**. Use your knowledge of the target system's hardware registers based on the `system` value from `r2000_get_binary_info`.
+- If it matches a known hardware register, rename it to the standard hardware name (e.g., the chip name + register, or the system's conventional name for that register).
 
 ### Is it a Pointer (16-bit)?
 
@@ -96,7 +96,7 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 If you analyze an IRQ vector address and see:
 
 - References: Written during init, read during IRQ handler.
-- Context: Platform's IRQ vector shadow location.
+- Context: Target system's IRQ vector shadow location.
 - **Action**: Rename to `IRQ_VECTOR_LO`. Add comment: "Hardware IRQ vector shadow".
 
 If you analyze a Zero Page address (≤ `$FF`) and see:
