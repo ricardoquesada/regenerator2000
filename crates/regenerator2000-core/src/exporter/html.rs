@@ -445,12 +445,15 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
     let mut i = 0;
     while i < all_lines.len() {
         let line = all_lines[i];
+        // External-label definition lines carry the label's address in `line.address`
+        // which may coincidentally fall inside an ExternalFile block.  They must
+        // never be treated as ExternalFile content — they are just equate definitions.
+        let is_ext_label_def = line.external_label_address.is_some() && line.bytes.is_empty();
         let offset = line.address.0 as isize - state.origin.0 as isize;
-        let is_external = if offset >= 0 && (offset as usize) < state.block_types.len() {
-            state.block_types[offset as usize] == crate::state::BlockType::ExternalFile
-        } else {
-            false
-        };
+        let is_external = !is_ext_label_def
+            && offset >= 0
+            && (offset as usize) < state.block_types.len()
+            && state.block_types[offset as usize] == crate::state::BlockType::ExternalFile;
 
         if is_external {
             let start_idx = i;
