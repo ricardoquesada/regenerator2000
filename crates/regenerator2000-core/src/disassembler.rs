@@ -47,7 +47,7 @@ pub fn resolve_label<'a>(
     let get_priority = |k: &LabelKind| -> u8 {
         match k {
             LabelKind::User => 100,
-            LabelKind::Platform => 50,
+            LabelKind::System => 50,
             LabelKind::Auto => 0,
         }
     };
@@ -257,7 +257,7 @@ impl Disassembler {
                 if let Some(labels_at_addr) = ctx.labels.get(&current_addr) {
                     let has_user_or_system = labels_at_addr.iter().any(|l| {
                         l.kind == crate::state::LabelKind::User
-                            || l.kind == crate::state::LabelKind::Platform
+                            || l.kind == crate::state::LabelKind::System
                     });
 
                     if !has_user_or_system {
@@ -311,7 +311,7 @@ impl Disassembler {
         labels: &BTreeMap<Addr, Vec<Label>>,
         origin: Addr,
         settings: &DocumentSettings,
-        platform_comments: &BTreeMap<Addr, String>,
+        system_comments: &BTreeMap<Addr, String>,
         user_side_comments: &BTreeMap<Addr, String>,
         user_line_comments: &BTreeMap<Addr, String>,
         immediate_value_formats: &BTreeMap<Addr, crate::state::ImmediateFormat>,
@@ -326,7 +326,7 @@ impl Disassembler {
             labels,
             origin,
             settings,
-            platform_comments,
+            system_comments,
             user_side_comments,
             user_line_comments,
             immediate_value_formats,
@@ -674,7 +674,7 @@ impl Disassembler {
         let block_types = ctx.block_types;
         let labels = ctx.labels;
         let settings = ctx.settings;
-        let platform_comments = ctx.platform_comments;
+        let platform_comments = ctx.system_comments;
         let user_side_comments = ctx.user_side_comments;
         let immediate_value_formats = ctx.immediate_value_formats;
         let opcode_byte = data[pc];
@@ -1311,7 +1311,7 @@ impl Disassembler {
         let block_types = ctx.block_types;
         let labels = ctx.labels;
         let origin = ctx.origin;
-        let platform_comments = ctx.platform_comments;
+        let platform_comments = ctx.system_comments;
         let user_side_comments = ctx.user_side_comments;
         let settings = ctx.settings;
         let user_line_comments = ctx.user_line_comments;
@@ -1885,7 +1885,7 @@ mod tests {
             labels: &EMPTY_LABELS,
             origin: crate::state::Addr(0xc000),
             settings: settings_box,
-            platform_comments: &EMPTY_COMMENTS,
+            system_comments: &EMPTY_COMMENTS,
             user_side_comments: side_comments,
             user_line_comments: line_comments,
             immediate_value_formats: &EMPTY_IMM,

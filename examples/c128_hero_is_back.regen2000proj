@@ -6641,7 +6641,7 @@
     "enabled_features": {},
     "description": "You control a character equipped with a helicopter backpack, laser and dynamite to navigate dangerous mineshafts, blast through walls, and avoid creatures to rescue trapped miners before your power runs out",
     "auto_analyze": true,
-    "show_platform_comments": true,
+    "show_system_comments": true,
     "fill_run_threshold": 8,
     "exclude_well_known_labels": true
   },
@@ -7114,14 +7114,14 @@
     "30640": "Hex"
   },
   "bookmarks": {},
-  "cursor_address": 14063,
-  "hex_dump_cursor_address": 14896,
-  "sprites_cursor_address": 12992,
+  "cursor_address": 7432,
+  "hex_dump_cursor_address": 7424,
+  "sprites_cursor_address": 13056,
   "charset_cursor_address": 11008,
-  "right_pane_visible": "None",
+  "right_pane_visible": "HexDump",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [

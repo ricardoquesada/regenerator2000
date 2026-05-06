@@ -37,7 +37,7 @@ pub struct AppState {
     pub block_types: Vec<BlockType>,
     pub labels: BTreeMap<Addr, Vec<Label>>,
     pub settings: DocumentSettings,
-    pub platform_comments: BTreeMap<Addr, String>,
+    pub system_comments: BTreeMap<Addr, String>,
     pub user_side_comments: BTreeMap<Addr, String>,
     pub user_line_comments: BTreeMap<Addr, String>,
     pub immediate_value_formats: BTreeMap<Addr, ImmediateFormat>,
@@ -98,7 +98,7 @@ impl AppState {
             block_types: Vec::new(),
             labels: BTreeMap::new(),
             settings: DocumentSettings::default(),
-            platform_comments: BTreeMap::new(),
+            system_comments: BTreeMap::new(),
             user_side_comments: BTreeMap::new(),
             user_line_comments: BTreeMap::new(),
             immediate_value_formats: BTreeMap::new(),
@@ -125,7 +125,7 @@ impl AppState {
     pub fn load_system_assets(&mut self) {
         // Clear existing system labels
         for labels in self.labels.values_mut() {
-            labels.retain(|l| l.kind != LabelKind::Platform);
+            labels.retain(|l| l.kind != LabelKind::System);
         }
         // Remove empty entries
         self.labels.retain(|_, v| !v.is_empty());
@@ -145,11 +145,11 @@ impl AppState {
             .extend(self.user_excluded_addresses.iter().copied());
 
         // Load comments (conditionally)
-        if self.settings.show_platform_comments {
+        if self.settings.show_system_comments {
             let comments = crate::assets::load_comments(&self.settings.platform);
-            self.platform_comments = comments.into_iter().map(|(k, v)| (Addr(k), v)).collect();
+            self.system_comments = comments.into_iter().map(|(k, v)| (Addr(k), v)).collect();
         } else {
-            self.platform_comments.clear();
+            self.system_comments.clear();
         }
 
         // Load labels
@@ -373,7 +373,7 @@ mod tests {
     }
 
     #[test]
-    fn test_perform_analysis_preserves_platform_labels() {
+    fn test_perform_analysis_preserves_system_labels() {
         let mut app_state = AppState::new();
         app_state.origin = Addr(0xC000);
         app_state.raw_data = vec![0xA9, 0x00, 0x85, 0xFB, 0x60];
@@ -387,7 +387,7 @@ mod tests {
             .or_default()
             .push(Label {
                 name: "SYS_LABEL".to_string(),
-                kind: LabelKind::Platform,
+                kind: LabelKind::System,
                 label_type: LabelType::Field,
             });
 
@@ -399,7 +399,7 @@ mod tests {
         let has_system = labels_at_fb
             .unwrap()
             .iter()
-            .any(|l| l.name == "SYS_LABEL" && l.kind == LabelKind::Platform);
+            .any(|l| l.name == "SYS_LABEL" && l.kind == LabelKind::System);
         assert!(has_system, "System label should be preserved");
     }
 

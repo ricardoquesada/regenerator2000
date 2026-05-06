@@ -9,7 +9,7 @@ impl AppState {
             labels: &self.labels,
             origin: self.origin,
             settings: &self.settings,
-            platform_comments: &self.platform_comments,
+            system_comments: &self.system_comments,
             user_side_comments: &self.user_side_comments,
             user_line_comments: &self.user_line_comments,
             immediate_value_formats: &self.immediate_value_formats,

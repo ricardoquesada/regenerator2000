@@ -1,4 +1,4 @@
-platform_name = "Commodore Plus4"
+system_name = "Commodore Plus4"
 enabled = true
 excluded = ["FC00-FD30", "FF00-FF3F", "FFFA-FFFF"]
 

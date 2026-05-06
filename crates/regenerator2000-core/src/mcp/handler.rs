@@ -317,10 +317,10 @@ fn list_tools() -> Result<Value, McpError> {
                         "start_address": { "type": "integer", "description": "Optional lower bound (inclusive) of the address range to filter by (decimal)." },
                         "end_address":   { "type": "integer", "description": "Optional upper bound (inclusive) of the address range to filter by (decimal)." },
                         "kind": {
-                            "type": "string",
-                            "enum": ["user", "platform", "auto"],
-                            "description": "Optional filter to return only labels of a given kind. 'user' = user-defined labels, 'platform' = predefined platform labels (e.g. KERNAL, hardware registers), 'auto' = auto-generated labels (e.g. s_C000)."
-                        }
+                             "type": "string",
+                             "enum": ["user", "system", "auto"],
+                             "description": "Optional filter to return only labels of a given kind. 'user' = user-defined labels, 'system' = predefined system labels (e.g. KERNAL, hardware registers), 'auto' = auto-generated labels (e.g. s_C000)."
+                         }
                     }
                 }
             },
@@ -1378,13 +1378,13 @@ fn get_symbols_impl(app_state: &AppState, args: &Value) -> Result<Vec<Value>, Mc
 
     let kind_filter = match args.get("kind").and_then(|v| v.as_str()) {
         Some("user") => Some("user"),
-        Some("platform") | Some("system") => Some("platform"),
+        Some("system") | Some("platform") => Some("System"),
         Some("auto") => Some("auto"),
         Some(other) => {
             return Err(McpError {
                 code: -32602,
                 message: format!(
-                    "Invalid 'kind' value \"{other}\": expected \"user\", \"platform\", or \"auto\""
+                    "Invalid 'kind' value \"{other}\": expected \"user\", \"system\", or \"auto\""
                 ),
                 data: None,
             });
@@ -1662,8 +1662,8 @@ fn get_address_details_impl(app_state: &AppState, address: Addr) -> Result<Value
     if let Some(c) = app_state.user_side_comments.get(&address) {
         comments.push(format!("[User Side] {c}"));
     }
-    if let Some(c) = app_state.platform_comments.get(&address) {
-        comments.push(format!("[Platform] {c}"));
+    if let Some(c) = app_state.system_comments.get(&address) {
+        comments.push(format!("[System] {c}"));
     }
     if !comments.is_empty() {
         details["metadata"]["comments"] = json!(comments);

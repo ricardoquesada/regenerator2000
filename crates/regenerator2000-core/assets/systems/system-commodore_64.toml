@@ -1,4 +1,4 @@
-platform_name = "Commodore 64"
+system_name = "Commodore 64"
 enabled = true
 excluded = ["D000-D031", "D400-D41D", "DC00-DC10", "DD00-DD10", "FFFA-FFFF"]
 

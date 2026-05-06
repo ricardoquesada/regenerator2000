@@ -218,7 +218,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
         if let Some(existing_vec) = state.labels.get(&addr) {
             for existing in existing_vec {
                 let should_preserve = existing.kind == crate::state::LabelKind::User
-                    || existing.kind == crate::state::LabelKind::Platform;
+                    || existing.kind == crate::state::LabelKind::System;
 
                 if should_preserve {
                     addr_labels.push(crate::state::Label {

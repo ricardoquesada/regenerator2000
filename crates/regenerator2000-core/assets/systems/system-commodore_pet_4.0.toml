@@ -1,4 +1,4 @@
-platform_name = "Commodore PET 4.0"
+system_name = "Commodore PET 4.0"
 enabled = true
 excluded = ["E810-E850", "FFFA-FFFF"]
 

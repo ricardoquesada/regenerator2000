@@ -240,7 +240,7 @@ impl Widget for DocumentSettingsDialog {
         if !dynamic_items.is_empty() {
             f.render_widget(
                 Paragraph::new(Span::styled(
-                    "Platform Labels:",
+                    "System Labels:",
                     Style::default().add_modifier(Modifier::BOLD),
                 )),
                 Rect::new(layout[11].x + 2, layout[11].y, layout[11].width - 4, 1),
@@ -278,8 +278,8 @@ impl Widget for DocumentSettingsDialog {
         if platform_config.has_comments {
             let comments_checkbox = checkbox(
                 0,
-                "Show platform comments",
-                settings.show_platform_comments,
+                "Show system comments",
+                settings.show_system_comments,
                 self.selected_index == idx_platform_comments,
                 false,
             );
@@ -506,7 +506,7 @@ impl Widget for DocumentSettingsDialog {
         );
 
         // Platform Section (Moved to end)
-        let platform_label = Span::raw("Platform:");
+        let platform_label = Span::raw("System:");
         f.render_widget(
             Paragraph::new(platform_label),
             Rect::new(layout[10].x + 2, layout[10].y, layout[10].width - 4, 1),
@@ -517,7 +517,7 @@ impl Widget for DocumentSettingsDialog {
         // Check if platform is selected
         let platform_selected = self.selected_index == idx_platform;
 
-        let platform_text = format!("Platform: < {} >", settings.platform);
+        let platform_text = format!("System: < {} >", settings.platform);
         let platform_widget = Paragraph::new(platform_text).style(if platform_selected {
             Style::default()
                 .fg(theme.highlight_fg)
@@ -535,7 +535,7 @@ impl Widget for DocumentSettingsDialog {
         if self.is_selecting_platform {
             let popup_area = crate::utils::centered_rect_adaptive(40, 50, 50, 10, area);
             f.render_widget(Clear, popup_area);
-            let block = crate::ui::widget::create_dialog_block(" Select Platform ", theme);
+            let block = crate::ui::widget::create_dialog_block(" Select System ", theme);
 
             let list_items: Vec<ListItem> = platforms
                 .iter()
@@ -1087,8 +1087,8 @@ impl Widget for DocumentSettingsDialog {
                             }
                         }
                         idx if idx == idx_platform_comments && platform_config.has_comments => {
-                            app_state.settings.show_platform_comments =
-                                !app_state.settings.show_platform_comments;
+                            app_state.settings.show_system_comments =
+                                !app_state.settings.show_system_comments;
                             // Reload platform assets and re-disassemble for immediate feedback
                             app_state.load_system_assets();
                             app_state.disassemble();

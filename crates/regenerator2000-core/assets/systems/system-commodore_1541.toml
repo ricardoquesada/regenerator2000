@@ -1,4 +1,4 @@
-platform_name = "Commodore 1541"
+system_name = "Commodore 1541"
 enabled = true
 excluded = []
 

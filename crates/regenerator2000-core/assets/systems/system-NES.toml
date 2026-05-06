@@ -1,4 +1,4 @@
-platform_name = "NES"
+system_name = "NES"
 enabled = false
 excluded = []
 

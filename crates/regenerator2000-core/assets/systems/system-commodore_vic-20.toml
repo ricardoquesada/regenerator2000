@@ -1,4 +1,4 @@
-platform_name = "Commodore VIC-20"
+system_name = "Commodore VIC-20"
 enabled = true
 excluded = ["9000-900F", "9110-911F", "9120-912F", "FFFA-FFFF"]
 
