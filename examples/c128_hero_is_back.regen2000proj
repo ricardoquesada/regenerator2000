@@ -595,42 +595,42 @@
   "labels": {
     "2": [
       {
-        "name": "p_room_data_lo",
+        "name": "zp_room_data_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "3": [
       {
-        "name": "p_room_data_hi",
+        "name": "zp_room_data_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "4": [
       {
-        "name": "dest_ptr_lo",
+        "name": "zp_dest_ptr_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "5": [
       {
-        "name": "dest_ptr_hi",
+        "name": "zp_dest_ptr_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "6": [
       {
-        "name": "temp_ptr_lo",
+        "name": "zp_temp_ptr_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "7": [
       {
-        "name": "temp_ptr_hi",
+        "name": "zp_temp_ptr_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -1675,13 +1675,6 @@
       {
         "name": "init_level_map_data",
         "label_type": "Subroutine",
-        "kind": "User"
-      }
-    ],
-    "18953": [
-      {
-        "name": "s_init_level_room_pointers",
-        "label_type": "UserDefined",
         "kind": "User"
       }
     ],
@@ -6431,6 +6424,66 @@
     "8601": {
       "HighByte": 59953
     },
+    "18964": {
+      "LowByte": 4864
+    },
+    "18968": {
+      "HighByte": 4864
+    },
+    "18972": {
+      "LowByte": 57344
+    },
+    "18976": {
+      "HighByte": 57344
+    },
+    "19280": {
+      "LowByte": 57536
+    },
+    "19284": {
+      "HighByte": 57536
+    },
+    "19302": {
+      "LowByte": 57536
+    },
+    "19306": {
+      "HighByte": 57536
+    },
+    "19310": {
+      "LowByte": 58216
+    },
+    "19314": {
+      "HighByte": 58216
+    },
+    "19318": {
+      "LowByte": 17011
+    },
+    "19322": {
+      "HighByte": 17011
+    },
+    "19326": {
+      "LowByte": 17691
+    },
+    "19330": {
+      "HighByte": 17691
+    },
+    "19334": {
+      "LowByte": 16331
+    },
+    "19338": {
+      "HighByte": 16331
+    },
+    "19342": {
+      "LowByte": 58896
+    },
+    "19346": {
+      "HighByte": 58896
+    },
+    "19515": {
+      "LowByte": 58256
+    },
+    "19519": {
+      "HighByte": 58256
+    },
     "21219": {
       "LowByte": 21119
     },
@@ -6809,7 +6862,7 @@
     "30640": "Hex"
   },
   "bookmarks": {},
-  "cursor_address": 24314,
+  "cursor_address": 7,
   "hex_dump_cursor_address": 14896,
   "sprites_cursor_address": 12928,
   "charset_cursor_address": 11008,

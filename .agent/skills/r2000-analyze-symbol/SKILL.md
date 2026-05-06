@@ -70,14 +70,20 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 1.  **Rename**: Use `r2000_set_label_name` to give it a meaningful, descriptive name based on your analysis.
     Use the following naming conventions consistently:
 
-    | Symbol Kind         | Convention    | Example                       |
-    | ------------------- | ------------- | ----------------------------- |
-    | Zero Page variable  | `snake_case`  | `player_lives`, `delay_timer` |
-    | RAM variable        | `snake_case`  | `score_hi`, `current_level`   |
-    | Pointer / vector    | `ptr_` prefix | `ptr_screen`, `vec_irq`       |
-    | Hardware register   | `UPPER_SNAKE` | `VIC_SPR0_X`, `SID_FreqLo1`   |
-    | Constant / address  | `UPPER_SNAKE` | `SCREEN_RAM`, `CHR_ROM_BASE`  |
-    | Routine entry point | `snake_case`  | `init_screen`, `draw_sprite`  |
+    | Symbol Kind         | Convention       | Example                              |
+    | ------------------- | ---------------- | ------------------------------------ |
+    | Zero Page variable  | `zp_` prefix     | `zp_player_lives`, `zp_delay_timer`  |
+    | Zero Page pointer   | `zp_ptr_` prefix | `zp_ptr_screen`, `zp_ptr_dest`       |
+    | RAM variable        | `snake_case`     | `score_hi`, `current_level`          |
+    | Pointer / vector    | `ptr_` prefix    | `ptr_screen`, `vec_irq`              |
+    | Hardware register   | `UPPER_SNAKE`    | `VIC_SPR0_X`, `SID_FreqLo1`          |
+    | Constant / address  | `UPPER_SNAKE`    | `SCREEN_RAM`, `CHR_ROM_BASE`         |
+    | Routine entry point | `snake_case`     | `init_screen`, `draw_sprite`         |
+
+    > **Zero Page rule**: If the symbol's address is ≤ `$FF`, it **must** be prefixed with `zp_`.
+    > This applies to all categories above — a Zero Page pointer becomes `zp_ptr_`, a Zero Page flag
+    > becomes `zp_is_active`, and so on. Hardware registers and OS/KERNAL constants that live in Zero Page
+    > (e.g., C64 Zero Page OS variables) should also use `zp_` to make their addressing mode explicit.
 
 2.  **Document**:
     - Use `r2000_set_comment` with `"type": "line"` at the definition (if it's a variable in memory) to explain its range, purpose, or bitfield layout.
@@ -93,11 +99,11 @@ If you analyze an IRQ vector address and see:
 - Context: Platform's IRQ vector shadow location.
 - **Action**: Rename to `IRQ_VECTOR_LO`. Add comment: "Hardware IRQ vector shadow".
 
-If you analyze a Zero Page address and see:
+If you analyze a Zero Page address (≤ `$FF`) and see:
 
 - References: `STA ($20),Y`.
 - Context: Zero Page.
-- **Action**: Rename to `ptr_dest`. Add comment: "Destination pointer for memory copy".
+- **Action**: Rename to `zp_ptr_dest`. Add comment: "Destination pointer for memory copy".
 
 ## Reporting Results
 
