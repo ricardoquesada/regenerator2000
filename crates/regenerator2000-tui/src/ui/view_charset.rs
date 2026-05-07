@@ -1,6 +1,6 @@
 use crate::state::AppState;
 use crate::ui_state::{ActivePane, AppAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -92,6 +92,132 @@ impl Navigable for CharsetView {
     }
 }
 
+impl CharsetView {
+    /// Grid layout constants (must stay in sync with `render`).
+    const GRID_COLS: usize = 8;
+    const CHAR_RENDER_WIDTH: usize = 8;
+    const COL_SPACING: usize = 1;
+    const ROW_SPACING: usize = 1;
+    const ITEM_WIDTH: usize = Self::CHAR_RENDER_WIDTH + Self::COL_SPACING; // 9
+    const ITEM_HEIGHT: usize = 4 + Self::ROW_SPACING; // 5
+
+    /// Compute the scroll row using scrolloff (scroll-margin) logic.
+    ///
+    /// The cursor can move freely within the viewport without scrolling;
+    /// the viewport only shifts when the cursor enters the margin zone
+    /// near the top or bottom edge.
+    ///
+    /// Updates `ui_state.charset_scroll_row` in place and returns the value.
+    fn compute_scroll_row(ui_state: &mut UIState, rows_fit: usize) -> usize {
+        let cursor_grid_row = ui_state.charset_cursor_index / Self::GRID_COLS;
+        let margin = 1_usize.min(rows_fit / 3);
+
+        let mut scroll_row = ui_state.charset_scroll_row;
+
+        // Cursor too close to the bottom → scroll down
+        if cursor_grid_row >= scroll_row + rows_fit.saturating_sub(margin) {
+            scroll_row =
+                cursor_grid_row.saturating_sub(rows_fit.saturating_sub(margin).saturating_sub(1));
+        }
+        // Cursor too close to the top → scroll up
+        if cursor_grid_row < scroll_row + margin {
+            scroll_row = cursor_grid_row.saturating_sub(margin);
+        }
+
+        ui_state.charset_scroll_row = scroll_row;
+        scroll_row
+    }
+
+    /// Map a mouse position (column, row) to a character index, replicating the
+    /// render loop's grid layout (scroll offset, header rows, grid geometry).
+    ///
+    /// Returns `None` if the position doesn't land on a character cell.
+    #[must_use]
+    fn hit_test_char_index(
+        &self,
+        mouse_col: u16,
+        mouse_row: u16,
+        app_state: &AppState,
+        ui_state: &UIState,
+    ) -> Option<usize> {
+        let area = ui_state.right_pane_area;
+        let inner_area = Rect {
+            x: area.x + 1,
+            y: area.y + 1,
+            width: area.width.saturating_sub(2),
+            height: area.height.saturating_sub(2),
+        };
+
+        if app_state.raw_data.is_empty() {
+            return None;
+        }
+
+        let origin = app_state.origin.0 as usize;
+        let base_alignment = 0x400;
+        let aligned_start_addr = (origin / base_alignment) * base_alignment;
+        let end_address = origin + app_state.raw_data.len();
+        let total_chars = (end_address.saturating_sub(aligned_start_addr)).div_ceil(8);
+
+        let visible_rows = inner_area.height as usize;
+        let rows_fit = visible_rows.div_ceil(Self::ITEM_HEIGHT);
+
+        // Use the stored scroll row (already computed by the last render frame)
+        let scroll_row = ui_state.charset_scroll_row;
+        let end_row = scroll_row + rows_fit + 1;
+
+        // Walk the render layout to find which char_idx the click lands on
+        let mut y_offset: usize = 0;
+        let click_rel_y = (mouse_row - inner_area.y) as usize;
+        // +1 margin matches render's `x_pos = inner_area.x + (col_idx * item_width) as u16 + 1`
+        let click_rel_x = (mouse_col as usize).checked_sub(inner_area.x as usize + 1)?;
+
+        for row_idx in scroll_row..end_row {
+            if y_offset >= visible_rows {
+                break;
+            }
+
+            let charset_address = aligned_start_addr + (row_idx * Self::GRID_COLS * 8);
+            // Header row (every 2048 bytes)
+            if charset_address.is_multiple_of(2048) {
+                if click_rel_y == y_offset {
+                    // Clicked on a header row — not a char cell
+                    return None;
+                }
+                y_offset += 1;
+                if y_offset >= visible_rows {
+                    break;
+                }
+            }
+
+            // Check if click_rel_y falls within this grid row's 4-line char area
+            if click_rel_y >= y_offset && click_rel_y < y_offset + 4 {
+                // Determine column
+                let col_idx = click_rel_x / Self::ITEM_WIDTH;
+                // Check if the click is in the gap between columns
+                let col_offset = click_rel_x % Self::ITEM_WIDTH;
+                if col_idx >= Self::GRID_COLS || col_offset >= Self::CHAR_RENDER_WIDTH {
+                    return None; // In the spacing gap or beyond grid
+                }
+
+                let char_idx = row_idx * Self::GRID_COLS + col_idx;
+                if char_idx < total_chars {
+                    return Some(char_idx);
+                }
+                return None;
+            }
+
+            // Check if click is in the row_spacing gap below the char cells
+            if click_rel_y >= y_offset + 4 && click_rel_y < y_offset + Self::ITEM_HEIGHT {
+                return None; // In the vertical gap between rows
+            }
+
+            y_offset += Self::ITEM_HEIGHT;
+        }
+
+        None
+    }
+}
+
 impl Widget for CharsetView {
     fn handle_mouse(
         &mut self,
@@ -122,6 +248,27 @@ impl Widget for CharsetView {
             }
             MouseEventKind::ScrollUp => {
                 self.move_up(app_state, ui_state, 3);
+                WidgetResult::Handled
+            }
+            MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Drag(MouseButton::Left) => {
+                let is_drag = matches!(mouse.kind, MouseEventKind::Drag(_));
+                let shift_held = mouse.modifiers.contains(KeyModifiers::SHIFT);
+
+                if let Some(char_idx) =
+                    self.hit_test_char_index(mouse.column, mouse.row, app_state, ui_state)
+                {
+                    // Drag or Shift+Click or visual mode: anchor selection
+                    if is_drag || shift_held || ui_state.is_visual_mode {
+                        if ui_state.charset_selection_start.is_none() {
+                            ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
+                        }
+                    } else {
+                        // Plain click: clear selection
+                        ui_state.charset_selection_start = None;
+                    }
+
+                    ui_state.charset_cursor_index = char_idx;
+                }
                 WidgetResult::Handled
             }
             _ => WidgetResult::Ignored,
@@ -173,44 +320,15 @@ impl Widget for CharsetView {
             return;
         }
 
-        // Grid Constants
-        // Char is 8x8 pixels. Rendered as 8x4 text cells (half blocks).
-        let char_render_width = 8;
-        // let char_render_height = 4;
-        let grid_cols = 8;
-        let col_spacing = 1;
-        let row_spacing = 1;
-
-        // Width of one grid item including spacing
-        let item_width = char_render_width + col_spacing;
-        // Height of one grid item including spacing
-        let item_height = 4 + row_spacing;
-
         let visible_rows = inner_area.height as usize;
-
-        // We navigate by "Character Index" (0..N).
-        // Mapping Index -> (GridRow, GridCol)
-        // GridRow = Index / grid_cols
-        // GridCol = Index % grid_cols
 
         let end_address = origin + app_state.raw_data.len();
         let total_chars = (end_address.saturating_sub(aligned_start_addr)).div_ceil(8);
 
-        // Scroll Logic
-        // We want the cursor row to be visible.
-        let cursor_grid_row = ui_state.charset_cursor_index / grid_cols;
-
-        // items fit vertically
-        let rows_fit = visible_rows.div_ceil(item_height);
-
-        // Calculate scroll offset (in grid rows)
-        // If cursor is not in view/center, adjust scroll.
-
-        let scroll_row = if cursor_grid_row > rows_fit / 2 {
-            cursor_grid_row.saturating_sub(rows_fit / 2)
-        } else {
-            0
-        };
+        // Scrolloff logic: cursor can move freely within the viewport;
+        // viewport only shifts when cursor enters the margin zone.
+        let rows_fit = visible_rows.div_ceil(Self::ITEM_HEIGHT);
+        let scroll_row = Self::compute_scroll_row(ui_state, rows_fit);
 
         let end_row = scroll_row + rows_fit + 1; // Render a bit extra
 
@@ -221,7 +339,7 @@ impl Widget for CharsetView {
                 break;
             }
 
-            let charset_address = aligned_start_addr + (row_idx * grid_cols * 8);
+            let charset_address = aligned_start_addr + (row_idx * Self::GRID_COLS * 8);
             // Header every 2048 bytes (address-aligned)
             if charset_address.is_multiple_of(2048) {
                 // There can only be at most 8 charsets per VIC-II bank (16K per bank)
@@ -245,8 +363,8 @@ impl Widget for CharsetView {
                 }
             }
 
-            for col_idx in 0..grid_cols {
-                let char_idx = row_idx * grid_cols + col_idx;
+            for col_idx in 0..Self::GRID_COLS {
+                let char_idx = row_idx * Self::GRID_COLS + col_idx;
                 if char_idx >= total_chars {
                     continue;
                 }
@@ -255,7 +373,7 @@ impl Widget for CharsetView {
                 let char_addr = aligned_start_addr + char_offset;
 
                 // Render Char
-                let x_pos = inner_area.x + (col_idx * item_width) as u16 + 1; // +1 margin
+                let x_pos = inner_area.x + (col_idx * Self::ITEM_WIDTH) as u16 + 1; // +1 margin
                 let y_pos = inner_area.y + y_offset as u16;
 
                 let is_selected = if let Some(sel_start) = ui_state.charset_selection_start {
@@ -412,7 +530,7 @@ impl Widget for CharsetView {
                     );
                 }
             }
-            y_offset += item_height;
+            y_offset += Self::ITEM_HEIGHT;
         }
     }
 

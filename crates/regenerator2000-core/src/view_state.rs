@@ -77,6 +77,7 @@ pub struct CoreViewState {
     pub sprites_selection_start: Option<usize>,
     pub charset_cursor_index: usize,
     pub charset_selection_start: Option<usize>,
+    pub charset_scroll_row: usize,
     pub bitmap_cursor_index: usize,
     pub bitmap_screen_ram_mode: ScreenRamMode,
 
@@ -123,6 +124,7 @@ impl CoreViewState {
             sprites_selection_start: None,
             charset_cursor_index: 0,
             charset_selection_start: None,
+            charset_scroll_row: 0,
             bitmap_cursor_index: 0,
             bitmap_screen_ram_mode: ScreenRamMode::AfterBitmap,
 
