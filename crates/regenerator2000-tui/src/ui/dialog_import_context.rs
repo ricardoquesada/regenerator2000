@@ -365,12 +365,10 @@ impl Widget for ImportContextDialog {
                                     }
                                 }
 
-                                // Label the entry point as "main_init"
-                                if let Ok(cmd) = app_state.create_set_user_label_command(
-                                    entry_addr,
-                                    "main_init",
-                                    false,
-                                ) {
+                                // Label the entry point as "start"
+                                if let Ok(cmd) = app_state
+                                    .create_set_user_label_command(entry_addr, "start", false)
+                                {
                                     cmd.apply(app_state);
                                     app_state.push_command(cmd);
                                 }

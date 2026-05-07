@@ -61,10 +61,10 @@ To build the candidate list:
       - **NMI/IRQ handlers** loaded directly into hardware vectors (`$FFFA`–`$FFFF`) or shadow vectors (`$0314`/`$0315`, `$0318`/`$0319`).
       - **Jump table targets** or **callback pointers** stored via indirect addressing.
       - Since all of these are code entry points that deserve analysis, treat **every `p_XXXX` label in a Code block** as a routine candidate. This avoids the need for fragile pattern-matching against specific vector addresses or instruction sequences.
-   - **Entry point label** — a label named exactly `main_init`. This is the program's entry point and is critical for understanding the overall program flow.
+   - **Entry point label** — a label named exactly `start`. This is the program's entry point and is critical for understanding the overall program flow.
 2. For each candidate, check if it already has a line comment (from the refreshed `r2000_get_comments` data). If yes → **skip it** (already documented).
 3. The remaining list = **unanalyzed routines**.
-4. **Ordering**: If `main_init` is in the unanalyzed list, it must be placed **first** — it is the program entry point and should be analyzed before all other routines. This ensures that the entry-point context is available when analyzing subsequent routines.
+4. **Ordering**: If `start` is in the unanalyzed list, it must be placed **first** — it is the program entry point and should be analyzed before all other routines. This ensures that the entry-point context is available when analyzing subsequent routines.
 
 ### 2.2 Launch Parallel Subagents
 
