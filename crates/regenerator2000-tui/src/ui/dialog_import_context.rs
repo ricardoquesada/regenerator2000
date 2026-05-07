@@ -366,7 +366,12 @@ impl Widget for ImportContextDialog {
                                 }
                             }
 
-                            app_state.disassemble();
+                            if app_state.settings.auto_analyze {
+                                let (command, _msg) = app_state.perform_analysis();
+                                app_state.push_command(command);
+                            } else {
+                                app_state.disassemble();
+                            }
                             ui_state.set_status_message("Context applied");
 
                             // Navigate cursor to Entry point
