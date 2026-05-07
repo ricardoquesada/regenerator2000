@@ -354,8 +354,8 @@ impl Widget for ImportContextDialog {
 
                             // 3. Disassemble entry sequence if requested
                             if self.disassemble_sequence {
-                                let ranges =
-                                    crate::analyzer::flow_analyze(app_state, Addr(new_start));
+                                let entry_addr = Addr(new_start);
+                                let ranges = crate::analyzer::flow_analyze(app_state, entry_addr);
                                 for range in ranges {
                                     for i in range.start..range.end {
                                         if i < app_state.block_types.len() {
@@ -363,6 +363,16 @@ impl Widget for ImportContextDialog {
                                                 crate::state::BlockType::Code;
                                         }
                                     }
+                                }
+
+                                // Label the entry point as "main_init"
+                                if let Ok(cmd) = app_state.create_set_user_label_command(
+                                    entry_addr,
+                                    "main_init",
+                                    false,
+                                ) {
+                                    cmd.apply(app_state);
+                                    app_state.push_command(cmd);
                                 }
                             }
 
