@@ -5,6 +5,18 @@
   "blocks": [
     {
       "start": 0,
+      "end": 2567,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 2568,
+      "end": 2631,
+      "type_": "LoHiWord",
+      "collapsed": false
+    },
+    {
+      "start": 2632,
       "end": 3151,
       "type_": "DataByte",
       "collapsed": false
@@ -390,7 +402,7 @@
     {
       "start": 5835,
       "end": 5835,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -402,7 +414,7 @@
     {
       "start": 5870,
       "end": 5871,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -414,7 +426,7 @@
     {
       "start": 5879,
       "end": 5879,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -426,7 +438,7 @@
     {
       "start": 5889,
       "end": 5891,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -462,7 +474,7 @@
     {
       "start": 6018,
       "end": 6019,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -546,7 +558,7 @@
     {
       "start": 6389,
       "end": 6391,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -1028,14 +1040,14 @@
     ],
     "39": [
       {
-        "name": "zp_bike_pos_hi",
+        "name": "zp_bike_pos_x_hi",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
     "40": [
       {
-        "name": "zp_bike_pos_lo",
+        "name": "zp_bike_pos_x_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -1525,7 +1537,7 @@
     ],
     "7168": [
       {
-        "name": "track_column_colours",
+        "name": "track_column_colors",
         "label_type": "Field",
         "kind": "User"
       }
@@ -1588,7 +1600,7 @@
     ],
     "7336": [
       {
-        "name": "obstacle_colour_wide",
+        "name": "obstacle_color_wide",
         "label_type": "Field",
         "kind": "User"
       }
@@ -1728,14 +1740,14 @@
     ],
     "7760": [
       {
-        "name": "course_layout_ptr_lo",
+        "name": "levels_ptr_lo",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "7776": [
       {
-        "name": "course_layout_ptr_hi",
+        "name": "levels_ptr_hi",
         "label_type": "Field",
         "kind": "User"
       }
@@ -1749,7 +1761,7 @@
     ],
     "7808": [
       {
-        "name": "tile_colour_descriptors",
+        "name": "tile_color_descriptors",
         "label_type": "Field",
         "kind": "User"
       }
@@ -1882,7 +1894,7 @@
     ],
     "9196": [
       {
-        "name": "update_tile_colours",
+        "name": "update_tile_colors",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -2505,6 +2517,13 @@
     ]
   },
   "user_side_comments": {
+    "6776": "flag upper",
+    "6784": "flag bottom",
+    "6800": "0",
+    "6904": "'",
+    "6912": "-",
+    "7104": "x",
+    "7112": "y",
     "8192": "Disable IRQs during hardware init",
     "8195": "Init stack pointer to top of page $01",
     "8198": "TED: background color = black",
@@ -2641,7 +2660,7 @@
     "9196": "Y=$10: start at first tile slot in object record (word-stride loop)",
     "9198": "Read tile type byte from object record via p24 pointer",
     "9200": "Mask to 6-bit type index (0-63 tile types)",
-    "9203": "Fetch colour descriptor from ROM table f1E80[type]",
+    "9203": "Fetch color descriptor from ROM table f1E80[type]",
     "9206": "Extract foreground colour field (bits 2-5), offset by $33 into TED palette",
     "9211": "Write foreground colour into object record at $27+Y",
     "9214": "Re-fetch same descriptor for background field",
@@ -3128,9 +3147,7 @@
     "6144": "double-height characters charst",
     "6472": "Packed music notes. High nibble=Voice 2, Low nibble=Voice 1",
     "6664": "Voice 2 frequency low bytes for music",
-    "6680": "Voice 2 frequency high bytes for music",
     "6696": "Voice 1 frequency low bytes for music",
-    "6712": "Voice 1 frequency high bytes for music",
     "7392": "Text for 'game over' or course end",
     "7408": "Text for 'bonus for time left'",
     "7432": "Text for 'bikes left bonus'",
@@ -3147,8 +3164,7 @@
     "7696": "Number of track scroll tile steps per frame per course (1-5). Used by update_scroll_tiles to control track speed, and displayed in the speed footer.",
     "7712": "Obstacle spawn configuration table. Indexed by course_index + f1DA0[spawn_type]. Specifies if a spawn is allowed (when ANDed with mask) and the cooldown timer (lower 4 bits + 6).",
     "7760": "Low bytes of 16-bit pointers to the level data for each course.",
-    "7776": "High bytes of 16-bit pointers to the level data for each course.",
-    "7808": "ROM tile color descriptor table (64 entries). \nBits 0-1: used for sprite shape selection\nBits 2-5: foreground TED colour index offset by $33. \nBits 6-7: background colour field.",
+    "7808": "ROM tile color descriptor table (64 entries). \nBits 0-1: used for sprite shape selection\nBits 2-5: foreground TED color index offset by $33. \nBits 6-7: background color field.",
     "8192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain entry point for Kikstart (Commodore Plus/4).\nPerforms a full cold-start initialization:\n  1. TED chip reset: colors set, audio muted, video matrix configured.\n  2. Screen RAM (4 pages) cleared; attribute RAM filled with color $39.\n  3. Game IRQ handler installed at $0314/$0315 (KERNAL shadow vector).\n  4. Track/tile color tables initialized from ROM data tables.\n  5. TED Timer 1 configured and started to drive per-frame IRQs.\n  6. IRQs enabled; falls into the raster-synced main game loop.\n\nThe main loop is 3-phase, synchronized to the TED Timer 1 IRQ (handled\nby the routine at p2118). The IRQ increments RAM_ZPVEC1 each tick:\n  Phase 1 ($01): 8 game-logic subsystem update subroutines.\n  Phase 2 ($02): 7 more update subroutines, then repeats from phase 1.\n  Phase 0 ($00): Internal raster task dispatched inside the IRQ handler.\n\nInputs:       None (cold start)\nOutputs:      None\nSide Effects: TED chip fully configured, IRQ vector patched to p2118,\n              TED Timer 1 running, game loop active indefinitely.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8472": "TED Timer 1 IRQ handler.\nFires each raster frame. Acknowledges the TED timer IRQ, increments the\n3-phase frame counter in RAM_ZPVEC1 (wraps 0→1→2→0), then dispatches\nraster state machine tasks for phase 0. Phases 1 and 2 are handled by\nthe spin-waits in the main loop (main_init). Non-timer IRQs are chained\nto the KERNAL handler at $FCC3.",
     "8592": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTitle/attract-mode collision detector. Checks whether any scrolling\nobstacle (slots 4,3,1,0; slot 2 skipped as the player slot) has reached\nthe left-edge sentinel position ($0B in $0C07,x). If any slot hits the\nsentinel, exits early (obstacle still in transit). Once all slots are\nchecked with none at $0B AND player_active is clear, arms the crash:\nsets player_active=$FF, lives_counter=1, and calls trigger_crash (debris\nexplosion + mode 5). Called every frame from the title scroll loop.\n\nInputs:  $0C07,x (screen X positions for 5 slots), player_active\nOutputs: player_active=$FF, lives_counter=1 (only when triggered)\nSide Effects: Calls trigger_crash (debris, sound, game_mode=5)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -3262,14 +3278,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 55,
-  "hex_dump_cursor_address": 10640,
+  "cursor_address": 9196,
+  "hex_dump_cursor_address": 6144,
   "sprites_cursor_address": 4096,
-  "charset_cursor_address": 6472,
-  "right_pane_visible": "HexDump",
+  "charset_cursor_address": 6728,
+  "right_pane_visible": "Charset",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],

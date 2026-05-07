@@ -163,7 +163,7 @@ impl Widget for CommentDialog {
             f.render_widget(hint, chunks[1]);
         } else {
             let mut textarea = self.textarea.clone();
-            textarea.set_block(block);
+            textarea.set_block(block.clone());
 
             let style = Style::default().fg(theme.highlight_fg);
             textarea.set_style(style);
@@ -172,6 +172,8 @@ impl Widget for CommentDialog {
             textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
             textarea.set_cursor_line_style(Style::default());
 
+            // Store the inner textarea area for mouse hit-testing.
+            ui_state.comment_textarea_area = block.inner(area);
             f.render_widget(&textarea, area);
         }
     }
@@ -277,11 +279,6 @@ impl Widget for CommentDialog {
         _app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
-        // Mouse support is only available in multi-line (Line) comment mode.
-        if self.comment_type != CommentType::Line {
-            return WidgetResult::Ignored;
-        }
-
         let is_down = mouse.kind == MouseEventKind::Down(MouseButton::Left);
         let is_drag = mouse.kind == MouseEventKind::Drag(MouseButton::Left);
 
