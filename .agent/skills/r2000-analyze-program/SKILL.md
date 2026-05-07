@@ -68,7 +68,7 @@ To build the candidate list:
 
 ### 2.2 Launch Parallel Subagents
 
-- Launch up to **10 subagents in parallel**, each analyzing one routine.
+- Use a **rolling window** of up to **10 concurrent subagents**.
 - For each subagent, provide this prompt:
 
   > Read the skill file at `.agent/skills/r2000-analyze-routine/SKILL.md` and follow its workflow.
@@ -81,8 +81,11 @@ To build the candidate list:
   >
   > When done, report: the new label name, a one-line summary of what the routine does, and any uncertain areas.
 
-- **Wait for all subagents in the current batch to complete** before launching the next batch.
-- If there are more than 10 unanalyzed routines, process them in batches of 10.
+- **Rolling window strategy**:
+  1. Launch the first 10 subagents (or fewer if the queue is smaller) to fill all slots.
+  2. When **any** subagent completes, immediately launch the **next** routine from the queue into the freed slot — do NOT wait for the entire batch to finish.
+  3. Continue until all routines in the queue have been launched and all subagents have completed.
+  4. This keeps utilization high — if one subagent is slow, the other 9 slots stay busy.
 
 ### 2.3 Post-Phase Refresh
 
@@ -118,7 +121,7 @@ To build the candidate list:
 
 ### 3.2 Launch Parallel Subagents
 
-- Same parallelism strategy as Phase 2: up to **10 subagents in parallel**, batched.
+- Same **rolling window** strategy as Phase 2: up to **10 concurrent subagents**.
 - For each subagent, provide this prompt:
 
   > Read the skill file at `.agent/skills/r2000-analyze-symbol/SKILL.md` and follow its workflow.
@@ -131,7 +134,7 @@ To build the candidate list:
   >
   > When done, report: the old label, the new label name, the classification (flag, counter, pointer, state variable, etc.), and any uncertain areas.
 
-- **Wait for all subagents in the current batch to complete** before launching the next batch.
+- As each subagent completes, immediately launch the next symbol from the queue into the freed slot.
 
 ### 3.3 Post-Phase Refresh
 
@@ -199,6 +202,6 @@ The agent:
 1. Reads this skill file.
 2. Gathers context (Phase 0).
 3. Classifies blocks (Phase 1) — this may take several minutes for large binaries.
-4. Identifies 15 unanalyzed subroutines → launches 10 subagents, waits, launches 5 more (Phase 2).
+4. Identifies 15 unanalyzed subroutines → launches 10 subagents, and as each one finishes immediately launches the next from the remaining 5 (Phase 2).
 5. Identifies 8 unanalyzed symbols → launches 8 subagents (Phase 3).
 6. Saves and produces the summary report (Phase 4).
