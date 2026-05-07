@@ -49,14 +49,23 @@ Store all of this data — you will reference it in every subsequent phase to sk
 
 ### 2.1 Identify Unanalyzed Subroutines
 
-A subroutine is considered **already analyzed** if its entry point has a **line comment** containing the `=-=-=-=` separator (the header comment block produced by `r2000-analyze-routine`).
+A subroutine is considered **already analyzed** if its entry point has **any line comment** (the presence of a line comment indicates it has already been documented).
 
 To build the candidate list:
 
 1. From the refreshed `r2000_get_symbols` data, filter labels that represent subroutine entry points:
    - Labels whose name starts with `s_` (auto-generated subroutine labels), OR
-   - Labels in a `Code` block that are the target of at least one `JSR` cross-reference.
-2. For each candidate, check if it already has a line comment (from the refreshed `r2000_get_comments` data) whose text contains `=-=-=-=`. If yes → **skip it** (already documented).
+   - Labels in a `Code` block that are the target of at least one `JSR` cross-reference, OR
+   - **NMI/IRQ handler labels** — `p_XXXX` labels that are targets of interrupt vector addresses. These are pointers set up by the program to handle hardware interrupts and should be analyzed as routines. Identify them by checking whether the label's address is referenced by any of the following vector locations:
+     - **Hardware vectors (all 6502 systems)**:
+       - `$FFFA`/`$FFFB` — NMI vector
+       - `$FFFE`/`$FFFF` — IRQ/BRK vector
+     - **Shadow vectors (Commodore 64 / C128 only)**:
+       - `$0314`/`$0315` — IRQ shadow vector
+       - `$0318`/`$0319` — NMI shadow vector
+     - To detect these: check whether the `p_XXXX` label's address appears as the target of a cross-reference originating from any of the vector addresses listed above, or whether the label's address is stored as a 16-bit word at those vector locations.
+     - **RTI heuristic**: Additionally, any `p_XXXX` label in a `Code` block whose routine ends with an `RTI` instruction should be treated as a candidate NMI/IRQ handler, even if no direct vector cross-reference was found. An `RTI` (Return from Interrupt) is a strong indicator that the code is an interrupt service routine.
+2. For each candidate, check if it already has a line comment (from the refreshed `r2000_get_comments` data). If yes → **skip it** (already documented).
 3. The remaining list = **unanalyzed routines**.
 
 ### 2.2 Launch Parallel Subagents
@@ -106,6 +115,7 @@ To build the candidate list:
    - `s_XXXX` labels — those were handled in Phase 2.
    - `b_XXXX` labels — those are branch labels, not data symbols.
    - `e_XXXX` labels — those are external JMP/JSR targets, not data symbols.
+   - `p_XXXX` labels that were already identified as NMI/IRQ handlers in Phase 2 — those are routines, not data symbols.
 3. The remaining list = **unanalyzed symbols**.
 
 ### 3.2 Launch Parallel Subagents
