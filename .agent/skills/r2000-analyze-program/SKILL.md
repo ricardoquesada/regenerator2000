@@ -65,8 +65,10 @@ To build the candidate list:
        - `$0318`/`$0319` — NMI shadow vector
      - To detect these: check whether the `p_XXXX` label's address appears as the target of a cross-reference originating from any of the vector addresses listed above, or whether the label's address is stored as a 16-bit word at those vector locations.
      - **RTI heuristic**: Additionally, any `p_XXXX` label in a `Code` block whose routine ends with an `RTI` instruction should be treated as a candidate NMI/IRQ handler, even if no direct vector cross-reference was found. An `RTI` (Return from Interrupt) is a strong indicator that the code is an interrupt service routine.
+   - **Entry point label** — a label named exactly `main_init`. This is the program's entry point and is critical for understanding the overall program flow.
 2. For each candidate, check if it already has a line comment (from the refreshed `r2000_get_comments` data). If yes → **skip it** (already documented).
 3. The remaining list = **unanalyzed routines**.
+4. **Ordering**: If `main_init` is in the unanalyzed list, it must be placed **first** — it is the program entry point and should be analyzed before all other routines. This ensures that the entry-point context is available when analyzing subsequent routines.
 
 ### 2.2 Launch Parallel Subagents
 
