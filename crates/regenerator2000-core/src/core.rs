@@ -246,6 +246,7 @@ impl Core {
                 } else {
                     self.view.right_pane = crate::view_state::RightPane::HexDump;
                     self.view.active_pane = crate::view_state::ActivePane::HexDump;
+                    self.sync_pane_cursor_to_disassembly();
                     events.push(CoreEvent::StatusMessage("Hex Dump View Shown".to_string()));
                 }
                 events.push(CoreEvent::ViewChanged);
@@ -260,6 +261,7 @@ impl Core {
                 } else {
                     self.view.right_pane = crate::view_state::RightPane::Sprites;
                     self.view.active_pane = crate::view_state::ActivePane::Sprites;
+                    self.sync_pane_cursor_to_disassembly();
                     events.push(CoreEvent::StatusMessage("Sprites View Shown".to_string()));
                 }
                 events.push(CoreEvent::ViewChanged);
@@ -274,6 +276,7 @@ impl Core {
                 } else {
                     self.view.right_pane = crate::view_state::RightPane::Charset;
                     self.view.active_pane = crate::view_state::ActivePane::Charset;
+                    self.sync_pane_cursor_to_disassembly();
                     events.push(CoreEvent::StatusMessage("Charset View Shown".to_string()));
                 }
                 events.push(CoreEvent::ViewChanged);
@@ -288,6 +291,7 @@ impl Core {
                 } else {
                     self.view.right_pane = crate::view_state::RightPane::Bitmap;
                     self.view.active_pane = crate::view_state::ActivePane::Bitmap;
+                    self.sync_pane_cursor_to_disassembly();
                     events.push(CoreEvent::StatusMessage("Bitmap View Shown".to_string()));
                 }
                 events.push(CoreEvent::ViewChanged);
@@ -652,6 +656,7 @@ impl Core {
                 } else {
                     self.view.right_pane = crate::view_state::RightPane::Blocks;
                     self.view.active_pane = crate::view_state::ActivePane::Blocks;
+                    self.sync_pane_cursor_to_disassembly();
                     events.push(CoreEvent::StatusMessage("Blocks View Shown".to_string()));
                 }
                 events.push(CoreEvent::ViewChanged);
@@ -1165,6 +1170,102 @@ impl Core {
         }
 
         events
+    }
+
+    /// Sync the newly-opened right pane's cursor to the current disassembly
+    /// cursor address, if the corresponding sync setting is enabled.
+    ///
+    /// Call this once when a side panel is first opened so the user sees the
+    /// panel already scrolled to the address they are looking at.
+    fn sync_pane_cursor_to_disassembly(&mut self) {
+        let Some(line) = self.state.disassembly.get(self.view.cursor_index) else {
+            return;
+        };
+        let target_addr = line.address;
+
+        match self.view.right_pane {
+            crate::view_state::RightPane::Blocks => {
+                if self.state.system_config.sync_blocks_view
+                    && let Some(idx) = self
+                        .state
+                        .get_block_index_for_address(target_addr, line.mnemonic == "{splitter}")
+                {
+                    self.view.blocks_selected_index = Some(idx);
+                }
+            }
+            crate::view_state::RightPane::HexDump => {
+                if self.state.system_config.sync_hex_dump {
+                    let origin = self.state.origin.0 as usize;
+                    let alignment_padding = origin % 16;
+                    let aligned_origin = origin - alignment_padding;
+                    let addr = target_addr.0 as usize;
+
+                    if addr >= aligned_origin {
+                        let offset = addr - aligned_origin;
+                        let row = offset / 16;
+                        let total_len = self.state.raw_data.len() + alignment_padding;
+                        let max_rows = total_len.div_ceil(16);
+                        if row < max_rows {
+                            self.view.hex_cursor_index = row;
+                        }
+                    }
+                }
+            }
+            crate::view_state::RightPane::Charset => {
+                if self.state.system_config.sync_charset_view {
+                    let origin = self.state.origin.0 as usize;
+                    let base_alignment = 0x400;
+                    let aligned_start_addr = (origin / base_alignment) * base_alignment;
+                    let addr = target_addr.0 as usize;
+
+                    if addr >= aligned_start_addr {
+                        let char_offset = addr - aligned_start_addr;
+                        let idx = char_offset / 8;
+                        let end_addr = origin + self.state.raw_data.len();
+                        let total_chars = (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+                        if idx < total_chars {
+                            self.view.charset_cursor_index = idx;
+                        }
+                    }
+                }
+            }
+            crate::view_state::RightPane::Sprites => {
+                if self.state.system_config.sync_sprites_view {
+                    let origin = self.state.origin.0 as usize;
+                    let aligned_origin = (origin / 64) * 64;
+                    let addr = target_addr.0 as usize;
+
+                    if addr >= aligned_origin {
+                        let offset = addr - aligned_origin;
+                        let idx = offset / 64;
+                        let end_addr = origin + self.state.raw_data.len();
+                        let total_sprites = (end_addr.saturating_sub(aligned_origin)).div_ceil(64);
+                        if idx < total_sprites {
+                            self.view.sprites_cursor_index = idx;
+                        }
+                    }
+                }
+            }
+            crate::view_state::RightPane::Bitmap => {
+                if self.state.system_config.sync_bitmap_view {
+                    let origin = self.state.origin.0 as usize;
+                    let addr = target_addr.0 as usize;
+                    let first_aligned_addr = (origin / 8192) * 8192;
+
+                    if addr >= first_aligned_addr {
+                        let offset = addr - first_aligned_addr;
+                        let idx = offset / 8192;
+                        let end_addr = origin + self.state.raw_data.len();
+                        let total_bitmaps =
+                            (end_addr.saturating_sub(first_aligned_addr)).div_ceil(8192);
+                        if idx < total_bitmaps {
+                            self.view.bitmap_cursor_index = idx;
+                        }
+                    }
+                }
+            }
+            crate::view_state::RightPane::None | crate::view_state::RightPane::Debugger => {}
+        }
     }
 
     fn cycle_immediate_format(&mut self, forward: bool, events: &mut Vec<CoreEvent>) {
