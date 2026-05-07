@@ -57,12 +57,8 @@ To build the candidate list:
    - Labels whose name starts with `s_` (auto-generated subroutine labels), OR
    - Labels in a `Code` block that are the target of at least one `JSR` cross-reference, OR
    - **NMI/IRQ handler labels** — `p_XXXX` labels that are targets of interrupt vector addresses. These are pointers set up by the program to handle hardware interrupts and should be analyzed as routines. Identify them by checking whether the label's address is referenced by any of the following vector locations:
-     - **Hardware vectors (all 6502 systems)**:
-       - `$FFFA`/`$FFFB` — NMI vector
-       - `$FFFE`/`$FFFF` — IRQ/BRK vector
-     - **Shadow vectors (Commodore 64 / C128 only)**:
-       - `$0314`/`$0315` — IRQ shadow vector
-       - `$0318`/`$0319` — NMI shadow vector
+     - **Hardware vectors (all 6502 systems)**: `$FFFA`/`$FFFB` (NMI), `$FFFE`/`$FFFF` (IRQ).
+     - **Shadow vectors (Commodore 64 / C128 only)**: `$0314`/`$0315` (IRQ), `$0318`/`$0319` (NMI).
      - To detect these: check whether the `p_XXXX` label's address appears as the target of a cross-reference originating from any of the vector addresses listed above, or whether the label's address is stored as a 16-bit word at those vector locations.
      - **RTI heuristic**: Additionally, any `p_XXXX` label in a `Code` block whose routine ends with an `RTI` instruction should be treated as a candidate NMI/IRQ handler, even if no direct vector cross-reference was found. An `RTI` (Return from Interrupt) is a strong indicator that the code is an interrupt service routine.
    - **Entry point label** — a label named exactly `main_init`. This is the program's entry point and is critical for understanding the overall program flow.
@@ -160,22 +156,22 @@ After all symbol subagents complete:
 - Total number of routines analyzed.
 - Table of results:
 
-  | Address | Old Label  | New Label       | Summary                                 |
-  | ------- | ---------- | --------------- | --------------------------------------- |
-  | `$C000` | `s_C000`   | `init_screen`   | Clears screen RAM and sets border color |
-  | `$C050` | `s_C050`   | `read_joystick` | Reads CIA1 port A for joystick 2 input  |
-  | ...     | ...        | ...             | ...                                     |
+  | Address | Old Label | New Label       | Summary                                 |
+  | ------- | --------- | --------------- | --------------------------------------- |
+  | `$C000` | `s_C000`  | `init_screen`   | Clears screen RAM and sets border color |
+  | `$C050` | `s_C050`  | `read_joystick` | Reads CIA1 port A for joystick 2 input  |
+  | ...     | ...       | ...             | ...                                     |
 
 ### Symbols Summary
 
 - Total number of symbols analyzed.
 - Table of results:
 
-  | Address | Old Label  | New Label       | Classification        |
-  | ------- | ---------- | --------------- | --------------------- |
-  | `$02`   | `zpp_02`   | `ptr_screen`    | Pointer (ZP indirect) |
-  | `$0400` | `a_0400`   | `score_display` | Screencode buffer     |
-  | ...     | ...        | ...             | ...                   |
+  | Address | Old Label | New Label       | Classification        |
+  | ------- | --------- | --------------- | --------------------- |
+  | `$02`   | `zpp_02`  | `ptr_screen`    | Pointer (ZP indirect) |
+  | `$0400` | `a_0400`  | `score_display` | Screencode buffer     |
+  | ...     | ...       | ...             | ...                   |
 
 ### Uncertain Items
 

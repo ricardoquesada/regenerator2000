@@ -102,7 +102,7 @@ impl Widget for ImportContextDialog {
         // --- 2. Origin ---
         let origin_selected = self.active_field == 1;
         let origin_text = Line::from(vec![
-            Span::raw("Binary Origin: "),
+            Span::raw("Origin Address: "),
             Span::styled(
                 format!("${}", self.origin_input),
                 if origin_selected {
@@ -119,7 +119,7 @@ impl Widget for ImportContextDialog {
         // --- 3. Start Address ---
         let start_selected = self.active_field == 2;
         let start_text = Line::from(vec![
-            Span::raw("Binary Entry Point: "),
+            Span::raw("Entry Point Address: "),
             Span::styled(
                 format!("${}", self.start_input),
                 if start_selected {
@@ -230,12 +230,12 @@ impl Widget for ImportContextDialog {
         // Show blinking cursor at end of input
         if origin_selected {
             f.set_cursor_position((
-                layout[3].x + 16 + self.origin_input.len() as u16,
+                layout[3].x + 17 + self.origin_input.len() as u16,
                 layout[3].y,
             ));
         } else if start_selected {
             f.set_cursor_position((
-                layout[4].x + 21 + self.start_input.len() as u16,
+                layout[4].x + 22 + self.start_input.len() as u16,
                 layout[4].y,
             ));
         }
