@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.14] - 2026-05-07
+
+### Features
+
+- **Search**: Add regex search support to TUI dialog and MCP server.
+- **MCP**: Add `r2000_search_disassembly` tool for searching disassembly output.
+- **Labels**: Add `r_` (Return) label type for RTS/RTI targets.
+- **Import**: Trigger auto-analysis during context import.
+- **Import**: Label entry point as `start` during context import disassembly.
+- **UI**: Implement automatic synchronization of right pane cursors to disassembly address.
+
+### Fixes
+
+- **HTML Export**: Skip `ExternalFile` detection for external-label definition lines.
+- **HTML Export**: Fix line comment alignment and spacing.
+- **Disassembly**: Fix collapse (`Ctrl+K`) ignoring splitters in data blocks.
+- **KickAssembler**: Fix screencode roundtrip for non-letter chars `$00`/`$1B`-`$1F` for KickAsm.
+
+### Changes
+
+- **Terminology**: Rename "Platform" back to "System" throughout codebase, labels, docs, and UI.
+- **Labels**: Update symbol naming conventions to use `zp_` prefix for Zero Page and underscored prefixes for improved searchability.
+- **Disassembly View**, **ASM/HTML Export**: Flatten external labels into single sorted list with legend.
+- **Disassembly View**, **ASM/HTML Export**: External Labels and its comments aligned with code.
+- **HTML Export**: Reduce exported file size by ~20%.
+- **UI**: Remove origin address display from status bar to simplify UI layout.
+- **UI**: Reorganize settings dialog layout with logical groupings.
+
+### Documentation
+
+- **Architecture**: Update documentation for label naming conventions, expanded parser support, TOML-based theme system, and event system.
+- **Systems**: Rename `docs/platforms.md` to `docs/systems.md` and update terminology.
+- **FAQ**: Update disk image track counts and remove entropy section.
+- **README**: Update platform list, disk image formats, and data type definitions.
+- **Analysis**: Clarify address exclusion levels and refine MCP analysis phase descriptions.
+
+### Agent / Skills
+
+- **Skills**: Update `r2000-analyze-program` skill with "start" entry point identification, rolling window parallel processing, and improved routine detection for NMI/IRQ handlers.
+- **Skills**: Simplify routine detection for `p_XXXX` labels by including all code-block pointers.
+
+### Examples
+
+- **C64/C128/Plus4**: Update example projects with additional labels and documentation.
+
 ## [0.9.13] - 2026-05-03
 
 ### Features
