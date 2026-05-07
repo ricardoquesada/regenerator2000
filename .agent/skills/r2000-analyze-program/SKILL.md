@@ -56,11 +56,11 @@ To build the candidate list:
 1. From the refreshed `r2000_get_symbols` data, filter labels that represent subroutine entry points:
    - Labels whose name starts with `s_` (auto-generated subroutine labels), OR
    - Labels in a `Code` block that are the target of at least one `JSR` cross-reference, OR
-   - **NMI/IRQ handler labels** — `p_XXXX` labels that are targets of interrupt vector addresses. These are pointers set up by the program to handle hardware interrupts and should be analyzed as routines. Identify them by checking whether the label's address is referenced by any of the following vector locations:
-     - **Hardware vectors (all 6502 systems)**: `$FFFA`/`$FFFB` (NMI), `$FFFE`/`$FFFF` (IRQ).
-     - **Shadow vectors (Commodore 64 / C128 only)**: `$0314`/`$0315` (IRQ), `$0318`/`$0319` (NMI).
-     - To detect these: check whether the `p_XXXX` label's address appears as the target of a cross-reference originating from any of the vector addresses listed above, or whether the label's address is stored as a 16-bit word at those vector locations.
-     - **RTI heuristic**: Additionally, any `p_XXXX` label in a `Code` block whose routine ends with an `RTI` instruction should be treated as a candidate NMI/IRQ handler, even if no direct vector cross-reference was found. An `RTI` (Return from Interrupt) is a strong indicator that the code is an interrupt service routine.
+   - **Pointer-to-code labels** — any `p_XXXX` label that is inside a `Code` block. These are addresses referenced as pointers (via immediate lo/hi byte loads like `LDX #<addr` / `LDY #>addr`, or stored in address tables) and point to executable code. They are almost always one of:
+      - **Chained raster IRQ handlers**: In C64/C128 demos, multiple raster interrupts are "chained" — each handler sets the *next* handler's address into the IRQ vector (`$0314`/`$0315`) via a helper routine. The pointer labels are created from the `LDX #<p_XXXX` / `LDY #>p_XXXX` immediate loads, not from direct vector writes. This is the most common case.
+      - **NMI/IRQ handlers** loaded directly into hardware vectors (`$FFFA`–`$FFFF`) or shadow vectors (`$0314`/`$0315`, `$0318`/`$0319`).
+      - **Jump table targets** or **callback pointers** stored via indirect addressing.
+      - Since all of these are code entry points that deserve analysis, treat **every `p_XXXX` label in a Code block** as a routine candidate. This avoids the need for fragile pattern-matching against specific vector addresses or instruction sequences.
    - **Entry point label** — a label named exactly `main_init`. This is the program's entry point and is critical for understanding the overall program flow.
 2. For each candidate, check if it already has a line comment (from the refreshed `r2000_get_comments` data). If yes → **skip it** (already documented).
 3. The remaining list = **unanalyzed routines**.
@@ -116,7 +116,7 @@ To build the candidate list:
    - `s_XXXX` labels — those were handled in Phase 2.
    - `b_XXXX` labels — those are branch labels, not data symbols.
    - `e_XXXX` labels — those are external JMP/JSR targets, not data symbols.
-   - `p_XXXX` labels that were already identified as NMI/IRQ handlers in Phase 2 — those are routines, not data symbols.
+   - `p_XXXX` labels that are inside a `Code` block — those were handled as routine candidates in Phase 2.
 3. The remaining list = **unanalyzed symbols**.
 
 ### 3.2 Launch Parallel Subagents
