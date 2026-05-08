@@ -164,11 +164,14 @@ impl Widget for HexDumpView {
                 self.move_up(app_state, ui_state, 3);
                 return WidgetResult::Handled;
             }
-            MouseEventKind::Down(MouseButton::Left) => {
-                // Proceed with click handling
+            MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Drag(MouseButton::Left) => {
+                // Proceed with click / drag handling below
             }
             _ => return WidgetResult::Ignored,
         }
+
+        let is_drag = matches!(mouse.kind, MouseEventKind::Drag(_));
+        let shift_held = mouse.modifiers.contains(KeyModifiers::SHIFT);
 
         let area = ui_state.right_pane_area;
         let inner_area = Rect {
@@ -199,15 +202,6 @@ impl Widget for HexDumpView {
             // Determine which byte column was clicked.
             // Layout per row (starting at inner_area.x):
             //   [0–6]   address "$XXXX  " (7 chars)
-            //   [7–55]  hex bytes (49 chars = 16×3 + 1 gap)
-            //             bytes 0–7 : positions 0–23 within hex area
-            //             gap       : position 24
-            //             bytes 8–15: positions 25–48
-            //   [56–57] separator "| " (2 chars)
-            //   [58–73] ASCII chars (16 chars, one per byte)
-            let click_col = (mouse.column as usize).saturating_sub(inner_area.x as usize);
-            // New layout per row (starting at inner_area.x):
-            //   [0–6]   address "$XXXX  " (7 chars)
             //   [7–57]  hex bytes with 4-byte group separators (51 chars)
             //             group 0 (bytes 0–3):  positions  0–11 (12 chars)
             //             gap                :  position  12
@@ -218,6 +212,7 @@ impl Widget for HexDumpView {
             //             group 3 (bytes 12–15):positions 39–50 (12 chars)
             //   [58–59] 2-space separator
             //   [60–75] chars (16 chars, one per byte)
+            let click_col = (mouse.column as usize).saturating_sub(inner_area.x as usize);
             let byte_col = if (7..58).contains(&click_col) {
                 let hex_rel = click_col - 7;
                 // Each group occupies 13 chars (12 for bytes + 1 gap), except last
@@ -236,12 +231,14 @@ impl Widget for HexDumpView {
             };
             ui_state.hex_col_cursor = byte_col;
 
-            if ui_state.is_visual_mode {
+            // Drag, Shift+Click, or visual mode: anchor selection at current position
+            if is_drag || shift_held || ui_state.is_visual_mode {
                 if ui_state.hex_selection_start.is_none() {
                     ui_state.hex_selection_start = Some(ui_state.hex_cursor_index);
                     ui_state.hex_selection_start_col = ui_state.hex_col_cursor;
                 }
             } else {
+                // Plain click: clear any existing selection
                 ui_state.hex_selection_start = None;
             }
             sync_hex_to_disassembly(app_state, ui_state);
