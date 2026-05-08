@@ -184,8 +184,8 @@ fn list_tools() -> Result<Value, McpError> {
                 "inputSchema": { "type": "object", "properties": {} }
             },
             {
-                "name": "r2000_get_analyzed_blocks",
-                "description": "Returns the list of memory blocks as analyzed, including their range and type. Respects splitters.",
+                "name": "r2000_get_blocks",
+                "description": "Returns all memory blocks with their address range and type (Code, Byte, Word, Address, PETSCII, Screencode, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined). Respects splitters.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -740,9 +740,9 @@ fn handle_tool_call_internal(
             }))
         }
 
-        "r2000_get_analyzed_blocks" => {
+        "r2000_get_blocks" => {
             let filter = args.get("block_type").and_then(|v| v.as_str());
-            let blocks = get_analyzed_blocks_impl(app_state, filter);
+            let blocks = get_blocks_impl(app_state, filter);
             Ok(json!({
                 "content": [{
                     "type": "text",
@@ -1254,7 +1254,7 @@ fn get_hexdump_text(app_state: &AppState, start_addr: Addr, end_addr: Addr) -> S
     output
 }
 
-fn get_analyzed_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec<Value> {
+fn get_blocks_impl(app_state: &AppState, filter: Option<&str>) -> Vec<Value> {
     let mut blocks = Vec::new();
     let origin = app_state.origin;
     let max_len = app_state.block_types.len();

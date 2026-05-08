@@ -22,7 +22,7 @@ This skill **orchestrates** the following existing skills in order:
 Before starting, collect the information needed by all subsequent phases:
 
 1. **Binary info**: Call `r2000_get_binary_info` → get `system`, `filename`, `description`, `may_contain_undocumented_opcodes`.
-2. **Existing blocks**: Call `r2000_get_analyzed_blocks` → get the current block classification map.
+2. **Existing blocks**: Call `r2000_get_blocks` → get the current block classification map.
 3. **All symbols**: Call `r2000_get_symbols` → get all labels (user + system), including external labels.
 4. **Existing line comments**: Call `r2000_get_comments` with `type = "line"` → used to detect routines that already have documentation header blocks.
 
@@ -37,7 +37,7 @@ Store all of this data — you will reference it in every subsequent phase to sk
 1. Read the skill file at `.agent/skills/r2000-analyze-blocks/SKILL.md`.
 2. Execute the `r2000-analyze-blocks` workflow **directly** (not via a subagent — this is a single long-running pass over the entire binary that you perform yourself).
 3. After completion, **refresh the state** for later phases:
-   - Call `r2000_get_analyzed_blocks` again.
+   - Call `r2000_get_blocks` again.
    - Call `r2000_get_symbols` again (new labels may have been created during block analysis).
    - Call `r2000_get_comments` with `type = "line"` again.
 

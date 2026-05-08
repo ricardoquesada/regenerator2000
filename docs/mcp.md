@@ -135,7 +135,7 @@ The true power of the MCP server comes from combining the AI's semantic understa
 
     > "Scan the region from $2000 to $4000. Identify any valid code sequences and mark the rest as byte data. If you see patterns resembling text, mark them as PETSCII."
 
-**What happens**: The AI uses `r2000_read_region` or `r2000_get_analyzed_blocks` to inspect the memory. It then iteratively applies `r2000_set_data_type` with `"data_type": "code"` or `"byte"` based on its analysis.
+**What happens**: The AI uses `r2000_read_region` or `r2000_get_blocks` to inspect the memory. It then iteratively applies `r2000_set_data_type` with `"data_type": "code"` or `"byte"` based on its analysis.
 
 ### 3. Trace Cross-References
 
@@ -214,7 +214,7 @@ Scans a memory range (or the entire binary) and converts each region to the corr
 **What it does:**
 
 1. Determines the scope (user-specified range or full binary via `r2000_get_binary_info`).
-2. Reads existing block classifications with `r2000_get_analyzed_blocks`.
+2. Reads existing block classifications with `r2000_get_blocks`.
 3. Performs multiple passes: traces code from entry points, identifies text strings, detects data tables, and classifies remaining regions.
 4. Applies conversions in batches using `r2000_batch_execute` for efficiency.
 5. Uses `r2000_toggle_splitter` to correctly separate adjacent tables of the same type.
@@ -296,9 +296,9 @@ Returns detailed information about a specific memory address: instruction semant
 | :--- | :--- | :--- | :---: |
 | `address` | `integer` | The memory address to inspect (decimal). | Yes |
 
-### `r2000_get_analyzed_blocks`
+### `r2000_get_blocks`
 
-Returns the list of memory blocks as analyzed, including their range and type. Respects splitters.
+Returns all memory blocks with their address range and type (Code, Byte, Word, Address, PETSCII, Screencode, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined). Respects splitters.
 
 **Arguments:**
 

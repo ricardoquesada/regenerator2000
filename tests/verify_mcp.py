@@ -263,7 +263,7 @@ EXPECTED_TOOLS = {
     "r2000_read_region",
     "r2000_read_selected",
     "r2000_get_binary_info",
-    "r2000_get_analyzed_blocks",
+    "r2000_get_blocks",
     "r2000_get_address_details",
     "r2000_get_disassembly_cursor",
     "r2000_jump_to_address",
@@ -299,6 +299,7 @@ REMOVED_TOOLS = {
     "r2000_read_selected_hexdump",
     "r2000_get_symbol_table",
     "r2000_get_all_comments",
+    "r2000_get_analyzed_blocks",
 }
 
 

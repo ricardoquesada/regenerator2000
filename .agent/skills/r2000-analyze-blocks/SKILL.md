@@ -11,10 +11,12 @@ with their correct block types.
 
 ## Overview
 
-A freshly loaded binary in Regenerator 2000 starts with everything marked as **Code**. The goal
-of this skill is to walk through the binary, identify what each region _actually_ is, and convert
-it to the appropriate block type. This is a fundamental step in reverse engineering — separating
-code from data, text from tables, and pointers from raw bytes.
+When a binary is loaded in Regenerator 2000, the auto-analyzer traces reachable code starting from
+the entry point and marks those regions as **Code**. Everything else remains **Undefined** — these
+are the blocks that have not yet been explored. The goal of this skill is to walk through the
+undefined/unexplored regions, identify what each one _actually_ is, and convert it to the
+appropriate block type. This is a fundamental step in reverse engineering — separating code from
+data, text from tables, and pointers from raw bytes.
 
 ## Block Types Reference
 
@@ -44,17 +46,17 @@ Use `r2000_set_data_type` with the `data_type` enum value from the right column.
   - **CRITICAL**: The `system` field tells you the target computer (e.g., C64, VIC-20). You **MUST** become an expert in that specific target computer's memory map, hardware registers, and KERNAL routines for the duration of the analysis.
   - **CONTEXT**: The `filename` field (e.g., "burnin_rubber.prg", "turrican.d64") and `description` (if provided by the user) give you the specific software context. Use this to search for known memory maps, common drivers (music, compression), and game-specific variables.
   - **UNDOCUMENTED OPCODES**: If `may_contain_undocumented_opcodes` is `true`, the binary may use illegal/undocumented MOS 6502 opcodes (e.g., `LAX`, `SAX`, `SLO`, `DCP`, `ISC`). Do **NOT** misclassify these instructions as data — they are valid code. This is a hint set by the user; it is not guaranteed, but you should be prepared to encounter them.
-- Use `r2000_get_analyzed_blocks` to see what has already been classified.
+- Use `r2000_get_blocks` to see what has already been classified. **Focus on the Undefined blocks** — these are the unexplored regions that need classification.
 - If the user says "the whole thing" or "entire binary", work in chunks of **~256–512 bytes** to avoid overwhelming context windows.
 
 ### 2. Plan the Analysis Order
 
-Process the binary in **multiple passes**, in this order:
+Process the **Undefined** blocks in **multiple passes**, in this order:
 
-1. **Pass 1 — Find entry points and trace code**: Start from known entry points (reset vector, `JSR`/`JMP` targets). Mark reachable code as Code.
-2. **Pass 2 — Identify text strings**: Look for PETSCII or screencode strings embedded between code blocks.
+1. **Pass 1 — Identify provably-reachable code**: Mark Undefined regions as Code **only** when there is concrete proof they are executed. See the strict criteria in [Recognizing Code](#recognizing-code) below. **Do NOT** convert a region to Code just because it "looks like" valid 6502 instructions — random data often disassembles into plausible-looking instruction sequences.
+2. **Pass 2 — Identify text strings**: Look for PETSCII or screencode strings within Undefined regions.
 3. **Pass 3 — Identify data tables**: Look for byte tables, word tables, address tables, and split (Lo/Hi) tables.
-4. **Pass 4 — Classify remaining regions**: Anything not yet classified — decide if it's code, data, or unknown.
+4. **Pass 4 — Classify remaining Undefined regions**: Anything still Undefined — decide if it's data or leave it as Undefined for human review. **Never** speculatively convert Undefined to Code in this pass.
 
 ### 3. Read and Analyze Each Region
 
@@ -67,7 +69,7 @@ For each chunk of the binary:
 ### 4. Apply Conversions
 
 - Use `r2000_batch_execute` to apply multiple `r2000_set_data_type` calls at once for efficiency.
-- After each batch, use `r2000_get_analyzed_blocks` to verify the result.
+- After each batch, use `r2000_get_blocks` to verify the result.
 - If a conversion was wrong, use `r2000_undo` to revert.
 - Use `r2000_toggle_splitter` when you need to separate two adjacent regions of the same type (e.g., two separate byte tables side by side).
 
@@ -84,15 +86,16 @@ After classifying blocks, optionally:
 
 ### Recognizing Code
 
-A region is likely **Code** if:
+> **CRITICAL**: Do NOT mark an Undefined region as Code just because it disassembles into valid-looking 6502 instructions. Random data frequently produces plausible instruction sequences. You **MUST** have at least one of the following concrete proofs before converting to Code:
 
-- It begins with valid MOS 6502 opcodes that form coherent instruction sequences.
-- It contains control flow: `JMP`, `JSR`, `BEQ`, `BNE`, `BCC`, `BCS`, `RTS`, `RTI`, `BRK`.
-- Branch/jump targets point to valid instruction boundaries.
-- It has cross-references: other code calls it via `JSR` or jumps to it.
-- It is referenced by a vector table or known entry point.
-- Common prologues: `SEI`, `LDA #imm`, `LDX #imm`, `CLD`, `TXS`.
-- **Warning signs of NOT code**: consecutive `BRK` ($00), long runs of same byte, decoded instructions that would crash (e.g., `JMP ($0000)`).
+A region should be marked as **Code** only when **at least one** of these conditions is met:
+
+- **It is a `JSR`/`JMP` target**: Existing analyzed code contains a `JSR $addr` or `JMP $addr` that lands in this region. Check cross-references with `r2000_get_cross_references`.
+- **It is a branch target**: An already-analyzed branch instruction (`BNE`, `BEQ`, `BCC`, `BCS`, `BPL`, `BMI`, `BVC`, `BVS`) targets this region.
+- **It is a vector/handler**: The region's address appears in a known vector table (e.g., NMI, IRQ/BRK vectors at `$FFFA`–`$FFFF`), an Address or Lo/Hi Address block, or a jump table referenced by `JMP ($addr)`.
+- **It is explicitly identified by the user**: The user tells you this region is code.
+
+If none of these conditions are met, leave the region as **Undefined** or classify it as data — even if the bytes happen to disassemble into valid instructions.
 
 ### Recognizing Data Bytes
 
@@ -183,12 +186,13 @@ This avoids making dozens of individual round-trip tool calls.
 
 ## Common Pitfalls
 
-1. **Data misidentified as code**: Look for disassembly with nonsensical instruction sequences, impossible branches, or `BRK` ($00) floods. These are data, not code.
-2. **Code misidentified as data**: If raw bytes form valid instruction sequences _and_ have incoming cross-references (JSR/JMP targets), they are probably code even if they look odd.
-3. **Forgetting splitters**: Two adjacent byte tables will auto-merge into one. Use `r2000_toggle_splitter` at the boundary.
-4. **Lo/Hi table half-size errors**: Lo/Hi and Hi/Lo tables _must_ have an even total byte count. Verify the halves are equal-sized.
-5. **Text encoding confusion**: PETSCII ≠ Screencode. If copied to $0400, it's screencode. If passed to CHROUT ($FFD2), it's PETSCII.
-6. **Undocumented opcodes**: Some programs use illegal/undocumented opcodes (e.g., `LAX`, `SAX`, `SLO`). Check the `may_contain_undocumented_opcodes` hint from `r2000_get_binary_info`. If `true`, be extra cautious about classifying unfamiliar instruction sequences as data — they may be valid code using undocumented opcodes. Even if `false`, some programs still use them, so remain vigilant.
+1. **Speculative code conversion**: This is the **most dangerous mistake**. Never mark a region as Code unless you have concrete proof it is executed (JSR/JMP/branch target, vector table entry, or user confirmation). Random data routinely disassembles into plausible-looking instruction sequences — this does NOT make it code.
+2. **Data misidentified as code**: Look for disassembly with nonsensical instruction sequences, impossible branches, or `BRK` ($00) floods. These are data, not code.
+3. **Code misidentified as data**: If raw bytes form valid instruction sequences _and_ have incoming cross-references (JSR/JMP targets), they are probably code even if they look odd.
+4. **Forgetting splitters**: Two adjacent byte tables will auto-merge into one. Use `r2000_toggle_splitter` at the boundary.
+5. **Lo/Hi table half-size errors**: Lo/Hi and Hi/Lo tables _must_ have an even total byte count. Verify the halves are equal-sized.
+6. **Text encoding confusion**: PETSCII ≠ Screencode. If copied to $0400, it's screencode. If passed to CHROUT ($FFD2), it's PETSCII.
+7. **Undocumented opcodes**: Some programs use illegal/undocumented opcodes (e.g., `LAX`, `SAX`, `SLO`). Check the `may_contain_undocumented_opcodes` hint from `r2000_get_binary_info`. If `true`, be extra cautious about classifying unfamiliar instruction sequences as data — they may be valid code using undocumented opcodes. Even if `false`, some programs still use them, so remain vigilant.
 
 ---
 
