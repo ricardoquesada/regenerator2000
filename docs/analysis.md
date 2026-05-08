@@ -77,9 +77,9 @@ After scanning, the analyzer has a map of every referenced address and _how_ it 
 1. **User labels are preserved**: If you have already defined a label at an address (`LabelKind::User`), the
    analyzer keeps it and does not add an auto-generated label.
 2. **Internal addresses** (within the loaded binary) get a single label based on the first usage type encountered.
-3. **External addresses** (outside the loaded binary) may get **up to two labels** — one for zero-page access
-   and one for absolute access — since the same address can be referenced both ways (see
-   [Zero Page vs. Absolute](#zero-page-vs-absolute-dual-labels) below).
+3. **External addresses** (outside the loaded binary) get a single label based on the first usage type
+   encountered — the same rule as internal addresses. Code-flow types (`JSR`, `JMP`, branches) are
+   promoted to **External Jump** (`e_`) labels.
 
 ### Step 4: Cross-Reference Building
 
@@ -146,34 +146,6 @@ Label names include the target address in hexadecimal. The number of hex digits 
 | Zero page ($00–$FF) with a ZP type | 2      | `zpa_A0`, `zpf_30`, `zpp_FB`    |
 | Zero page ($00–$FF) with an absolute type | 4      | `a_00A0`, `f_0030`, `p_00FB` |
 | Above zero page ($0100+)   | 4      | `s_C000`, `j_1005`, `a_D020`    |
-
-This distinction matters because the same zero-page address can be accessed with _both_ a 2-byte zero-page
-instruction and a 3-byte absolute instruction (see next section).
-
----
-
-## Zero Page vs. Absolute (Dual Labels)
-
-A common pattern in 6502 code is accessing the same zero-page address with two different addressing modes:
-
-```asm
-LDA $A0       ; Zero Page mode  → 2 bytes (A5 A0)
-LDA $00A0     ; Absolute mode   → 3 bytes (AD A0 00)
-```
-
-When this happens for **external addresses** (outside the loaded binary), the analyzer generates **two labels**
-at the same address:
-
-- `zpa_A0` — the zero-page variant (2-digit address)
-- `a_00A0` — the absolute variant (4-digit address)
-
-This ensures that each instruction uses the correct label name matching its addressing mode. The assembler
-needs both forms to generate the correct opcode size during reassembly.
-
-!!! note
-
-    For **internal addresses** (within the loaded binary), only one label is generated using the first
-    addressing mode encountered during the scan.
 
 ---
 

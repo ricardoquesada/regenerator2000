@@ -13,17 +13,8 @@ pub struct AnalysisResult {
 type UsageData = (
     BTreeMap<LabelType, usize>,
     Vec<Addr>,
-    LabelType,         // first overall
-    Option<LabelType>, // first ZeroPage style (2-digit)
-    Option<LabelType>, // first Absolute style (4-digit)
+    LabelType, // first overall
 );
-
-fn is_zp_style(t: LabelType) -> bool {
-    matches!(
-        t,
-        LabelType::ZeroPageAbsoluteAddress | LabelType::ZeroPageField | LabelType::ZeroPagePointer
-    )
-}
 
 #[must_use]
 pub fn analyze(state: &AppState) -> AnalysisResult {
@@ -208,7 +199,7 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
     }
 
     // 1. Process all used addresses
-    for (addr, (_types_map, refs, first_type, first_zp, first_abs)) in usage_map {
+    for (addr, (_types_map, refs, first_type)) in usage_map {
         let mut addr_labels = Vec::new();
 
         // Populate cross_refs
@@ -233,58 +224,29 @@ pub fn analyze(state: &AppState) -> AnalysisResult {
         // If we have User labels for *all* needed contexts, we might skip Auto generation?
         // But for now, let's just generate Auto labels if needed.
 
-        let is_ext = state.is_external(addr);
+        // Single canonical label (first-wins) for both internal and external.
+        // If User/System label exists, do not add an Auto label.
+        if addr_labels.is_empty() {
+            let is_ext = state.is_external(addr);
 
-        if is_ext {
-            // External: up to TWO labels based on first usage in each category
-            let mut candidates = Vec::new();
-            if let Some(t) = first_zp {
-                candidates.push(t);
-            }
-            if let Some(t) = first_abs {
-                let canonical = if t == LabelType::Jump
-                    || t == LabelType::Subroutine
-                    || t == LabelType::Branch
-                    || t == LabelType::Return
-                {
-                    LabelType::ExternalJump
-                } else {
-                    t
-                };
-                candidates.push(canonical);
-            }
+            // For external addresses, promote code-flow types to ExternalJump.
+            let final_type = if is_ext
+                && matches!(
+                    first_type,
+                    LabelType::Jump | LabelType::Subroutine | LabelType::Branch | LabelType::Return
+                ) {
+                LabelType::ExternalJump
+            } else {
+                first_type
+            };
 
-            for l_type in candidates {
-                // Check if we already have this type in addr_labels (User defined or already added)
-                if !addr_labels
-                    .iter()
-                    .any(|l| l.label_type == l_type || l.label_type == LabelType::UserDefined)
-                    && !state.excluded_addresses.contains(&addr)
-                {
-                    addr_labels.push(crate::state::Label {
-                        name: l_type.format_label(addr.0),
-                        label_type: l_type,
-                        kind: crate::state::LabelKind::Auto,
-                    });
-                }
-            }
-        } else {
-            // Internal: Single canonical label (first_type or best?)
-            // If User label exists, do we add Auto label? No, User label supersedes.
-            if addr_labels.is_empty() {
-                // Match ignored types logic from earlier or just rely on first found?
-                // Logic: if usage contains Subroutine, promote to 's'.
-                // Internal: Single canonical label (first_wins)
-                let final_type = first_type;
+            if !state.excluded_addresses.contains(&addr) {
                 let name = final_type.format_label(addr.0);
-
                 addr_labels.push(crate::state::Label {
                     name,
                     label_type: final_type,
                     kind: crate::state::LabelKind::Auto,
                 });
-            } else {
-                // User label exists, nothing to do on labels.
             }
         }
 
@@ -413,7 +375,7 @@ fn promote_return_labels(state: &AppState, usage_map: &mut BTreeMap<Addr, UsageD
     let data_len = data.len();
     let end_addr = origin.wrapping_add(data_len as u16);
 
-    for (addr, (_types, _refs, first_type, _first_zp, first_abs)) in usage_map.iter_mut() {
+    for (addr, (_types, _refs, first_type)) in usage_map.iter_mut() {
         // Only promote code-flow label types.
         let is_code_flow = matches!(
             first_type,
@@ -450,14 +412,6 @@ fn promote_return_labels(state: &AppState, usage_map: &mut BTreeMap<Addr, UsageD
         let first_byte = data[offset];
         if first_byte == 0x60 || first_byte == 0x40 {
             *first_type = LabelType::Return;
-            if let Some(abs) = first_abs
-                && matches!(
-                    abs,
-                    LabelType::Branch | LabelType::Jump | LabelType::Subroutine
-                )
-            {
-                *abs = LabelType::Return;
-            }
         }
     }
 }
@@ -469,32 +423,15 @@ fn update_usage(
     from_addr: Addr,
 ) {
     map.entry(addr)
-        .and_modify(|(types, refs, _, first_zp, first_abs)| {
+        .and_modify(|(types, refs, _first)| {
             *types.entry(priority).or_insert(0) += 1;
             refs.push(from_addr);
-            if is_zp_style(priority) {
-                if first_zp.is_none() {
-                    *first_zp = Some(priority);
-                }
-            } else if first_abs.is_none() {
-                *first_abs = Some(priority);
-            }
         })
         .or_insert_with(|| {
             let mut types = BTreeMap::new();
             types.insert(priority, 1);
             let refs = vec![from_addr];
-            let zp = if is_zp_style(priority) {
-                Some(priority)
-            } else {
-                None
-            };
-            let abs = if is_zp_style(priority) {
-                None
-            } else {
-                Some(priority)
-            };
-            (types, refs, priority, zp, abs)
+            (types, refs, priority)
         });
 }
 
@@ -1303,20 +1240,13 @@ mod tests {
     }
 
     #[test]
-    fn test_dual_pointer_labels() {
+    fn test_external_pointer_first_wins() {
         let mut app_state = AppState::new();
         // Scenario: Two instructions using address $00FB.
-        // 1. Indirect JMP ($00FB) -> JMP ($00FB) -> 6C FB 00
-        //    - This is AddressingMode::Indirect.
-        //    - It targets $FB but the operands are $FB $00.
-        //    - It should generate LabelType::Pointer ("p")
-        //    - The USER wants this to be "p_00FB" (4 digits) because it's used as a 16-bit pointer.
-
-        // 2. LDA ($FB), Y -> B1 FB
-        //    - This is AddressingMode::IndirectY.
-        //    - It targets $FB.
-        //    - It should generate LabelType::ZeroPagePointer ("p")
-        //    - The USER wants this to be "zpp_FB" (2 digits).
+        // 1. JMP ($00FB) -> 6C FB 00  (Indirect) -> LabelType::Pointer
+        // 2. LDA ($FB), Y -> B1 FB    (IndirectY) -> LabelType::ZeroPagePointer
+        //
+        // First-wins: JMP comes first, so the label should be "p_00FB".
 
         app_state.origin = Addr(0x1000);
         let data = vec![
@@ -1326,7 +1256,6 @@ mod tests {
         app_state.raw_data = data;
         app_state.block_types = vec![BlockType::Code; 5];
 
-        // Mock Opcode info
         // JMP Indirect
         app_state.disassembler.opcodes[0x6C] = Some(crate::cpu::Opcode {
             mnemonic: "JMP",
@@ -1350,69 +1279,13 @@ mod tests {
         let labels_map = result.labels;
         let label_vec = labels_map
             .get(&0x00FB)
-            .expect("Should have labels at $00FB");
-        // We expect BOTH labels now: "p_00FB" (Absolute style) and "zpp_FB" (ZeroPage style).
+            .expect("Should have a label at $00FB");
 
-        let has_p00fb = label_vec
-            .iter()
-            .any(|l| l.name == "p_00FB" && l.label_type == LabelType::Pointer);
-        let has_pfb = label_vec
-            .iter()
-            .any(|l| l.name == "zpp_FB" && l.label_type == LabelType::ZeroPagePointer);
-
-        assert!(has_p00fb, "Should have p_00FB label for JMP ($00FB)");
-        assert!(has_pfb, "Should have zpp_FB label for LDA ($FB),Y");
-        assert_eq!(label_vec.len(), 2, "Should have TWO labels for $00FB");
+        assert_eq!(label_vec.len(), 1, "Should have ONE label for $00FB");
+        assert_eq!(label_vec[0].name, "p_00FB");
+        assert_eq!(label_vec[0].label_type, LabelType::Pointer);
     }
 
-    #[test]
-    fn test_dual_external_zp_abs_labels() {
-        let mut app_state = AppState::new();
-        // 1000: LDA $A0    -> A5 A0    (ZP Addressing Mode) -> ZeroPageAbsoluteAddress
-        // 1002: LDA $00A0  -> AD A0 00 (Absolute Addressing Mode) -> AbsoluteAddress
-        // Address $A0 is external (origin is 1000).
-
-        app_state.origin = Addr(0x1000);
-        app_state.raw_data = vec![
-            0xA5, 0xA0, // LDA $A0
-            0xAD, 0xA0, 0x00, // LDA $00A0
-        ];
-        app_state.block_types = vec![BlockType::Code; 5];
-
-        // LDA ZP
-        app_state.disassembler.opcodes[0xA5] = Some(crate::cpu::Opcode {
-            mnemonic: "LDA",
-            mode: AddressingMode::ZeroPage,
-            size: 2,
-            cycles: 3,
-            description: "Load Accumulator ZP",
-            illegal: false,
-        });
-        // LDA Abs
-        app_state.disassembler.opcodes[0xAD] = Some(crate::cpu::Opcode {
-            mnemonic: "LDA",
-            mode: AddressingMode::Absolute,
-            size: 3,
-            cycles: 4,
-            description: "Load Accumulator Abs",
-            illegal: false,
-        });
-
-        let result = analyze(&app_state);
-        let labels_map = result.labels;
-        let label_vec = labels_map
-            .get(&0x00A0)
-            .expect("Should have labels at $00A0");
-
-        let names: Vec<_> = label_vec.iter().map(|l| l.name.as_str()).collect();
-        assert!(names.contains(&"zpa_A0"), "Should have zpa_A0 label");
-        assert!(names.contains(&"a_00A0"), "Should have a_00A0 label");
-        assert_eq!(
-            label_vec.len(),
-            2,
-            "Should have TWO labels for external $00A0"
-        );
-    }
     #[test]
     fn test_hilo_analysis() {
         let mut state = AppState::new();

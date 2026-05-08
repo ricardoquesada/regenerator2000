@@ -162,6 +162,11 @@ impl AppState {
             platform_labels.retain(|(k, _)| !excludes.contains(k));
         }
 
+        // Also exclude user-excluded addresses from system labels.
+        if !self.user_excluded_addresses.is_empty() {
+            platform_labels.retain(|(k, _)| !self.user_excluded_addresses.contains(&Addr(*k)));
+        }
+
         for (addr, label) in platform_labels {
             self.labels.entry(Addr(addr)).or_default().push(label);
         }
