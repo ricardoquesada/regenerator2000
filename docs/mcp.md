@@ -199,8 +199,8 @@ Orchestrates a full end-to-end analysis of the loaded binary. Runs block classif
 
 1. **Phase 0 — Gather Context**: Collects binary info, existing blocks, all symbols, and line comments.
 2. **Phase 1 — Classify Blocks**: Runs `r2000-analyze-blocks` to classify all memory regions (code, data, text, tables), then refreshes state.
-3. **Phase 2 — Analyze Routines**: Identifies unanalyzed subroutines — those with `s_XXXX` labels or `JSR` targets that lack a documentation header (`=-=-=-=`). Launches up to 10 parallel subagents, each running `r2000-analyze-routine` to document one routine.
-4. **Phase 3 — Analyze Symbols**: Identifies unanalyzed data symbols — auto-generated names with prefixes like `s_`, `j_`, `b_`, `zpf_`, `p_`, `f_`, `a_`, `zpa_`, `e_`, `zpp_`. Launches up to 10 parallel subagents, each running `r2000-analyze-symbol` to classify and rename one symbol.
+3. **Phase 2 — Analyze Routines**: Identifies unanalyzed subroutines — `s_XXXX` labels, `JSR` targets without a line comment, `p_XXXX` labels inside `Code` blocks (pointer-to-code, e.g. chained IRQ handlers), and the `start` entry point. Launches a rolling window of up to 10 parallel subagents, each running `r2000-analyze-routine`. As each subagent completes, the next routine is immediately launched into the freed slot.
+4. **Phase 3 — Analyze Symbols**: Identifies unanalyzed data symbols — auto-generated names with prefixes `zpp_`, `zpf_`, `zpa_` (zero page) and `p_`, `f_`, `a_` (non-zero page). Excludes `s_` (routines, handled in Phase 2), `b_` (branches), `e_` (external targets), and `p_` labels in `Code` blocks (handled as routines in Phase 2). Launches up to 10 parallel subagents, each running `r2000-analyze-symbol` to classify and rename one symbol.
 5. **Phase 4 — Save & Report**: Saves the project and produces a summary report with tables of all routines analyzed, symbols renamed, and any uncertain items flagged for manual review.
 
 !!! example "Prompt"
