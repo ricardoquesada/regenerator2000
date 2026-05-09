@@ -124,27 +124,26 @@ regenerator2000 [OPTIONS] [path/to/file.prg]
 
 ## CLI Options
 
--   `--help`: Print help message
--   `--version`: Print version information
--   `--import_lbl <PATH>`: Import VICE labels from the specified file
--   `--export_lbl <PATH>`: Export labels to the specified file (after analysis/import)
--   `--export_asm <PATH>`: Export assembly to the specified file (after analysis/import)
--   `--export_html <PATH>`: Export HTML to the specified file (after analysis/import)
--   `--assembler <NAME>`: Override the assembler format for export. Valid values: `64tass`, `acme`, `ca65`, `kick`
--   `--headless`: Run in headless mode (no TUI), useful for batch processing
--   `--verify`: Verify export roundtrip (export → assemble → diff) for all assemblers. Implies `--headless`
--   `--mcp-server`: Run MCP server (HTTP on port 3000)
--   `--mcp-server-stdio`: Run MCP server via stdio
--   `--vice <HOST:PORT>`: Auto-connect to VICE binary monitor at startup (e.g. `--vice localhost:6502`)
--   `--dump-system-config-files <PATH>`: Dump all built-in system config files (`system-*.toml`) to the specified directory and exit. Useful for inspecting or customizing system definitions.
--   `--dump-theme-files <PATH>`: Dump all built-in theme files (`theme-*.toml`) to the specified directory and exit. Edit them and place in the [config directory](https://regenerator2000.readthedocs.io/en/latest/install/) to create custom themes.
+- `--help`: Print help message
+- `--version`: Print version information
+- `--import_lbl <PATH>`: Import VICE labels from the specified file
+- `--export_lbl <PATH>`: Export labels to the specified file (after analysis/import)
+- `--export_asm <PATH>`: Export assembly to the specified file (after analysis/import)
+- `--export_html <PATH>`: Export HTML to the specified file (after analysis/import)
+- `--assembler <NAME>`: Override the assembler format for export. Valid values: `64tass`, `acme`, `ca65`, `kick`
+- `--headless`: Run in headless mode (no TUI), useful for batch processing
+- `--verify`: Verify export roundtrip (export → assemble → diff) for all assemblers. Implies `--headless`
+- `--mcp-server`: Run MCP server (HTTP on port 3000)
+- `--mcp-server-stdio`: Run MCP server via stdio
+- `--vice <HOST:PORT>`: Auto-connect to VICE binary monitor at startup (e.g. `--vice localhost:6502`)
+- `--dump-system-config-files <PATH>`: Dump all built-in system config files (`system-*.toml`) to the specified directory and exit. Useful for inspecting or customizing system definitions.
+- `--dump-theme-files <PATH>`: Dump all built-in theme files (`theme-*.toml`) to the specified directory and exit. Edit them and place in the [config directory](https://regenerator2000.readthedocs.io/en/latest/install/) to create custom themes.
 
 Supported file formats: `.prg`, `.crt`, `.d64`, `.d71`, `.d81`, `.t64`, `.vsf`, 6502bench (`.dis65`), `.bin`, `.raw`, and `.regen2000proj`.
 
 ## Keyboard Shortcuts
 
-All the keyboad shortcuts are documented here: [keyboard_shorcuts](https://regenerator2000.readthedocs.io/en/latest/keyboard_shortcuts/)
-
+All the keyboard shortcuts are documented here: [keyboard_shortcuts](https://regenerator2000.readthedocs.io/en/latest/keyboard_shortcuts/)
 
 ## Support and Documentation
 
