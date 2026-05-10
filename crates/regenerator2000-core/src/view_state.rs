@@ -33,7 +33,10 @@ pub enum RightPane {
     Sprites2Col,
     /// 1-column sprite view (narrower, single sprite per row).
     Sprites1Col,
-    Charset,
+    /// 8-column charset view (standard width).
+    Charset8Col,
+    /// 4-column charset view (narrower).
+    Charset4Col,
     Bitmap,
     Blocks,
     Debugger,
@@ -66,6 +69,9 @@ pub struct CoreViewState {
     /// Remembers the last active sprites column mode (`Sprites2Col` or
     /// `Sprites1Col`) so that toggling back from another pane restores it.
     pub last_sprites_pane: RightPane,
+    /// Remembers the last active charset column mode (`Charset8Col` or
+    /// `Charset4Col`) so that toggling back from another pane restores it.
+    pub last_charset_pane: RightPane,
 
     // Disassembly cursors
     pub cursor_index: usize,
@@ -119,6 +125,7 @@ impl CoreViewState {
             right_pane: RightPane::HexDump16,
             last_hexdump_pane: RightPane::HexDump16,
             last_sprites_pane: RightPane::Sprites2Col,
+            last_charset_pane: RightPane::Charset8Col,
 
             cursor_index: 0,
             sub_cursor_index: 0,

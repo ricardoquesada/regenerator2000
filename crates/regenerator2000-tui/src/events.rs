@@ -705,7 +705,8 @@ fn handle_mouse_views(
                 | crate::ui_state::RightPane::Sprites1Col => {
                     ui_state.active_pane = ActivePane::Sprites;
                 }
-                crate::ui_state::RightPane::Charset => {
+                crate::ui_state::RightPane::Charset8Col
+                | crate::ui_state::RightPane::Charset4Col => {
                     ui_state.active_pane = ActivePane::Charset;
                 }
                 crate::ui_state::RightPane::Bitmap => {
@@ -860,8 +861,10 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     }
 
     // Sync Charset view
-    if ui_state.right_pane == crate::ui_state::RightPane::Charset
-        && app_state.system_config.sync_charset_view
+    if matches!(
+        ui_state.right_pane,
+        crate::ui_state::RightPane::Charset8Col | crate::ui_state::RightPane::Charset4Col
+    ) && app_state.system_config.sync_charset_view
     {
         let origin = app_state.origin.0 as usize;
         let base_alignment = 0x400;

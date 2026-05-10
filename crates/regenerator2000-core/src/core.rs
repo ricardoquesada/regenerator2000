@@ -336,17 +336,51 @@ impl Core {
                 events.push(CoreEvent::ViewChanged);
             }
             AppAction::ToggleCharsetView => {
-                if self.view.right_pane == crate::view_state::RightPane::Charset {
-                    self.view.right_pane = crate::view_state::RightPane::None;
-                    events.push(CoreEvent::StatusMessage("Charset View Hidden".to_string()));
-                    if self.view.active_pane == crate::view_state::ActivePane::Charset {
-                        self.view.active_pane = crate::view_state::ActivePane::Disassembly;
+                use crate::view_state::RightPane;
+                match self.view.right_pane {
+                    RightPane::Charset8Col => {
+                        // 8-col → 4-col
+                        self.view.right_pane = RightPane::Charset4Col;
+                        self.view.last_charset_pane = RightPane::Charset4Col;
+                        self.view.active_pane = crate::view_state::ActivePane::Charset;
+                        self.sync_pane_cursor_to_disassembly();
+                        events.push(CoreEvent::StatusMessage(
+                            "Charset View (4 columns)".to_string(),
+                        ));
                     }
-                } else {
-                    self.view.right_pane = crate::view_state::RightPane::Charset;
-                    self.view.active_pane = crate::view_state::ActivePane::Charset;
-                    self.sync_pane_cursor_to_disassembly();
-                    events.push(CoreEvent::StatusMessage("Charset View Shown".to_string()));
+                    RightPane::Charset4Col => {
+                        // 4-col → off
+                        self.view.right_pane = RightPane::None;
+                        events.push(CoreEvent::StatusMessage("Charset View Hidden".to_string()));
+                        if self.view.active_pane == crate::view_state::ActivePane::Charset {
+                            self.view.active_pane = crate::view_state::ActivePane::Disassembly;
+                        }
+                    }
+                    RightPane::None => {
+                        // off → 8-col (normal cycle restart)
+                        self.view.right_pane = RightPane::Charset8Col;
+                        self.view.last_charset_pane = RightPane::Charset8Col;
+                        self.view.active_pane = crate::view_state::ActivePane::Charset;
+                        self.sync_pane_cursor_to_disassembly();
+                        events.push(CoreEvent::StatusMessage(
+                            "Charset View (8 columns)".to_string(),
+                        ));
+                    }
+                    _ => {
+                        // Another pane → restore last charset mode
+                        let restored = self.view.last_charset_pane;
+                        self.view.right_pane = restored;
+                        self.view.active_pane = crate::view_state::ActivePane::Charset;
+                        self.sync_pane_cursor_to_disassembly();
+                        let cols = if restored == RightPane::Charset4Col {
+                            "4"
+                        } else {
+                            "8"
+                        };
+                        events.push(CoreEvent::StatusMessage(format!(
+                            "Charset View ({cols} columns)"
+                        )));
+                    }
                 }
                 events.push(CoreEvent::ViewChanged);
             }
@@ -1175,7 +1209,8 @@ impl Core {
                         | crate::view_state::RightPane::HexDump8 => ActivePane::HexDump,
                         crate::view_state::RightPane::Sprites2Col
                         | crate::view_state::RightPane::Sprites1Col => ActivePane::Sprites,
-                        crate::view_state::RightPane::Charset => ActivePane::Charset,
+                        crate::view_state::RightPane::Charset8Col
+                        | crate::view_state::RightPane::Charset4Col => ActivePane::Charset,
                         crate::view_state::RightPane::Bitmap => ActivePane::Bitmap,
                         crate::view_state::RightPane::Blocks => ActivePane::Blocks,
                         crate::view_state::RightPane::Debugger => ActivePane::Debugger,
@@ -1286,7 +1321,8 @@ impl Core {
                     }
                 }
             }
-            crate::view_state::RightPane::Charset => {
+            crate::view_state::RightPane::Charset8Col
+            | crate::view_state::RightPane::Charset4Col => {
                 if self.state.system_config.sync_charset_view {
                     let origin = self.state.origin.0 as usize;
                     let base_alignment = 0x400;

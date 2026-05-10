@@ -37,10 +37,10 @@ impl Navigable for CharsetView {
             ui_state.charset_selection_start = None;
         }
         let max_char_index = self.len(app_state);
-        // Move Down by 8 (one visual row)
-        // Note: amount is usually 1 for 'j' or keys mapped to move_down(1).
-        if ui_state.charset_cursor_index + (amount * 8) < max_char_index {
-            ui_state.charset_cursor_index += amount * 8;
+        let grid_cols = charset_grid_cols(ui_state);
+        // Move Down by grid_cols (one visual row)
+        if ui_state.charset_cursor_index + (amount * grid_cols) < max_char_index {
+            ui_state.charset_cursor_index += amount * grid_cols;
         } else {
             ui_state.charset_cursor_index = max_char_index.saturating_sub(1);
         }
@@ -54,20 +54,26 @@ impl Navigable for CharsetView {
         } else {
             ui_state.charset_selection_start = None;
         }
-        // Move Up by 8 (one visual row)
-        ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(amount * 8);
+        let grid_cols = charset_grid_cols(ui_state);
+        // Move Up by grid_cols (one visual row)
+        ui_state.charset_cursor_index = ui_state
+            .charset_cursor_index
+            .saturating_sub(amount * grid_cols);
     }
 
     fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
         let max_char_index = self.len(app_state);
-        // Advance by 10 lines (10 rows × 8 columns = 80 characters)
+        let grid_cols = charset_grid_cols(ui_state);
+        // Advance by 10 lines (10 rows × grid_cols characters)
         ui_state.charset_cursor_index =
-            (ui_state.charset_cursor_index + 80).min(max_char_index.saturating_sub(1));
+            (ui_state.charset_cursor_index + 10 * grid_cols).min(max_char_index.saturating_sub(1));
     }
 
     fn page_up(&self, _app_state: &AppState, ui_state: &mut UIState) {
-        // Move back by 10 lines (10 rows × 8 columns = 80 characters)
-        ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(80);
+        let grid_cols = charset_grid_cols(ui_state);
+        // Move back by 10 lines (10 rows × grid_cols characters)
+        ui_state.charset_cursor_index =
+            ui_state.charset_cursor_index.saturating_sub(10 * grid_cols);
     }
 
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
@@ -92,9 +98,19 @@ impl Navigable for CharsetView {
     }
 }
 
+/// Returns the number of character columns for the current charset view mode.
+#[must_use]
+fn charset_grid_cols(ui_state: &UIState) -> usize {
+    if ui_state.right_pane == crate::ui_state::RightPane::Charset4Col {
+        4
+    } else {
+        8
+    }
+}
+
 impl CharsetView {
     /// Grid layout constants (must stay in sync with `render`).
-    const GRID_COLS: usize = 8;
+    /// Note: `GRID_COLS` is now dynamic — use [`charset_grid_cols`] instead.
     const CHAR_RENDER_WIDTH: usize = 8;
     const COL_SPACING: usize = 1;
     const ROW_SPACING: usize = 1;
@@ -109,7 +125,8 @@ impl CharsetView {
     ///
     /// Updates `ui_state.charset_scroll_row` in place and returns the value.
     fn compute_scroll_row(ui_state: &mut UIState, rows_fit: usize) -> usize {
-        let cursor_grid_row = ui_state.charset_cursor_index / Self::GRID_COLS;
+        let grid_cols = charset_grid_cols(ui_state);
+        let cursor_grid_row = ui_state.charset_cursor_index / grid_cols;
         let margin = 1_usize.min(rows_fit / 3);
 
         let mut scroll_row = ui_state.charset_scroll_row;
@@ -157,6 +174,7 @@ impl CharsetView {
         let aligned_start_addr = (origin / base_alignment) * base_alignment;
         let end_address = origin + app_state.raw_data.len();
         let total_chars = (end_address.saturating_sub(aligned_start_addr)).div_ceil(8);
+        let grid_cols = charset_grid_cols(ui_state);
 
         let visible_rows = inner_area.height as usize;
         let rows_fit = visible_rows.div_ceil(Self::ITEM_HEIGHT);
@@ -176,7 +194,7 @@ impl CharsetView {
                 break;
             }
 
-            let charset_address = aligned_start_addr + (row_idx * Self::GRID_COLS * 8);
+            let charset_address = aligned_start_addr + (row_idx * grid_cols * 8);
             // Header row (every 2048 bytes)
             if charset_address.is_multiple_of(2048) {
                 if click_rel_y == y_offset {
@@ -195,11 +213,11 @@ impl CharsetView {
                 let col_idx = click_rel_x / Self::ITEM_WIDTH;
                 // Check if the click is in the gap between columns
                 let col_offset = click_rel_x % Self::ITEM_WIDTH;
-                if col_idx >= Self::GRID_COLS || col_offset >= Self::CHAR_RENDER_WIDTH {
+                if col_idx >= grid_cols || col_offset >= Self::CHAR_RENDER_WIDTH {
                     return None; // In the spacing gap or beyond grid
                 }
 
-                let char_idx = row_idx * Self::GRID_COLS + col_idx;
+                let char_idx = row_idx * grid_cols + col_idx;
                 if char_idx < total_chars {
                     return Some(char_idx);
                 }
@@ -324,6 +342,7 @@ impl Widget for CharsetView {
 
         let end_address = origin + app_state.raw_data.len();
         let total_chars = (end_address.saturating_sub(aligned_start_addr)).div_ceil(8);
+        let grid_cols = charset_grid_cols(ui_state);
 
         // Scrolloff logic: cursor can move freely within the viewport;
         // viewport only shifts when cursor enters the margin zone.
@@ -339,7 +358,7 @@ impl Widget for CharsetView {
                 break;
             }
 
-            let charset_address = aligned_start_addr + (row_idx * Self::GRID_COLS * 8);
+            let charset_address = aligned_start_addr + (row_idx * grid_cols * 8);
             // Header every 2048 bytes (address-aligned)
             if charset_address.is_multiple_of(2048) {
                 // There can only be at most 8 charsets per VIC-II bank (16K per bank)
@@ -363,8 +382,8 @@ impl Widget for CharsetView {
                 }
             }
 
-            for col_idx in 0..Self::GRID_COLS {
-                let char_idx = row_idx * Self::GRID_COLS + col_idx;
+            for col_idx in 0..grid_cols {
+                let char_idx = row_idx * grid_cols + col_idx;
                 if char_idx >= total_chars {
                     continue;
                 }
@@ -584,10 +603,11 @@ impl Widget for CharsetView {
                     ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
                 }
                 let selection_to_keep = ui_state.charset_selection_start;
-                // Move cursor down by 8 (one visual row)
+                // Move cursor down by grid_cols (one visual row)
                 let max_char_index = self.len(app_state);
-                if ui_state.charset_cursor_index + 8 < max_char_index {
-                    ui_state.charset_cursor_index += 8;
+                let grid_cols = charset_grid_cols(ui_state);
+                if ui_state.charset_cursor_index + grid_cols < max_char_index {
+                    ui_state.charset_cursor_index += grid_cols;
                 } else {
                     ui_state.charset_cursor_index = max_char_index.saturating_sub(1);
                 }
@@ -602,8 +622,10 @@ impl Widget for CharsetView {
                     ui_state.charset_selection_start = Some(ui_state.charset_cursor_index);
                 }
                 let selection_to_keep = ui_state.charset_selection_start;
-                // Move cursor up by 8 (one visual row)
-                ui_state.charset_cursor_index = ui_state.charset_cursor_index.saturating_sub(8);
+                // Move cursor up by grid_cols (one visual row)
+                let grid_cols = charset_grid_cols(ui_state);
+                ui_state.charset_cursor_index =
+                    ui_state.charset_cursor_index.saturating_sub(grid_cols);
                 // Restore selection for shift+arrow mode
                 ui_state.charset_selection_start = selection_to_keep;
                 WidgetResult::Handled

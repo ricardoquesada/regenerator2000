@@ -215,7 +215,8 @@ impl UIState {
                 "None" => self.right_pane = RightPane::None,
                 "Sprites" | "Sprites2Col" => self.right_pane = RightPane::Sprites2Col,
                 "Sprites1Col" => self.right_pane = RightPane::Sprites1Col,
-                "Charset" => self.right_pane = RightPane::Charset,
+                "Charset" | "Charset8Col" => self.right_pane = RightPane::Charset8Col,
+                "Charset4Col" => self.right_pane = RightPane::Charset4Col,
                 "Bitmap" => self.right_pane = RightPane::Bitmap,
                 "Blocks" => self.right_pane = RightPane::Blocks,
                 _ => {}
