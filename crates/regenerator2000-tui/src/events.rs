@@ -701,7 +701,8 @@ fn handle_mouse_views(
                 crate::ui_state::RightPane::HexDump16 | crate::ui_state::RightPane::HexDump8 => {
                     ui_state.active_pane = ActivePane::HexDump;
                 }
-                crate::ui_state::RightPane::Sprites => {
+                crate::ui_state::RightPane::Sprites2Col
+                | crate::ui_state::RightPane::Sprites1Col => {
                     ui_state.active_pane = ActivePane::Sprites;
                 }
                 crate::ui_state::RightPane::Charset => {
@@ -881,8 +882,10 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     }
 
     // Sync Sprites view
-    if ui_state.right_pane == crate::ui_state::RightPane::Sprites
-        && app_state.system_config.sync_sprites_view
+    if matches!(
+        ui_state.right_pane,
+        crate::ui_state::RightPane::Sprites2Col | crate::ui_state::RightPane::Sprites1Col
+    ) && app_state.system_config.sync_sprites_view
     {
         let origin = app_state.origin.0 as usize;
         let aligned_origin = (origin / 64) * 64;

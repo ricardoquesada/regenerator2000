@@ -15,7 +15,7 @@ use crate::ui::navigable::{Navigable, handle_nav_input};
 use crate::ui::view_disassembly::DisassemblyView;
 
 /// Returns the number of bytes per hex-dump row based on the current right-pane
-/// mode: 16 for `HexDump`, 8 for `HexDump8`, and 16 as a fallback.
+/// mode: 16 for `HexDump16`, 8 for `HexDump8`, and 16 as a fallback.
 #[must_use]
 fn hex_bytes_per_row(ui_state: &UIState) -> usize {
     match ui_state.right_pane {

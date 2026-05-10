@@ -91,9 +91,10 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         RightPane::None => 0,
         RightPane::HexDump16 => 78,
         RightPane::HexDump8 => 42,
-        RightPane::Sprites => 36, // 24 chars + border + padding
-        RightPane::Charset => 76, // Grid view: 8 cols * (8+1) width + padding
-        RightPane::Bitmap => 80,  // Compact view, ratatui-image scales to fit
+        RightPane::Sprites2Col => 62, // Two sprites side-by-side + divider + border
+        RightPane::Sprites1Col => 36, // 24 chars + border + padding
+        RightPane::Charset => 76,     // Grid view: 8 cols * (8+1) width + padding
+        RightPane::Bitmap => 80,      // Compact view, ratatui-image scales to fit
         RightPane::Blocks => 42,
         RightPane::Debugger => 76,
     };
@@ -117,7 +118,9 @@ fn render_main_view(f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &
         RightPane::HexDump16 | RightPane::HexDump8 => {
             view_hexdump::HexDumpView.render(f, layout[1], app_state, ui_state);
         }
-        RightPane::Sprites => view_sprites::SpritesView.render(f, layout[1], app_state, ui_state),
+        RightPane::Sprites2Col | RightPane::Sprites1Col => {
+            view_sprites::SpritesView.render(f, layout[1], app_state, ui_state);
+        }
         RightPane::Charset => view_charset::CharsetView.render(f, layout[1], app_state, ui_state),
         RightPane::Bitmap => view_bitmap::BitmapView.render(f, layout[1], app_state, ui_state),
         RightPane::Blocks => view_blocks::BlocksView.render(f, layout[1], app_state, ui_state),

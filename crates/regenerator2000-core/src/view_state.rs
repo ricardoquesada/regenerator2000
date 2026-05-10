@@ -29,7 +29,10 @@ pub enum RightPane {
     HexDump16,
     /// 8-column hex dump (narrower).
     HexDump8,
-    Sprites,
+    /// 2-column sprite view (wider, shows sprites side-by-side).
+    Sprites2Col,
+    /// 1-column sprite view (narrower, single sprite per row).
+    Sprites1Col,
     Charset,
     Bitmap,
     Blocks,
@@ -60,6 +63,9 @@ pub struct CoreViewState {
     /// Remembers the last active hex dump column mode (`HexDump16` or
     /// `HexDump8`) so that toggling back from another pane restores it.
     pub last_hexdump_pane: RightPane,
+    /// Remembers the last active sprites column mode (`Sprites2Col` or
+    /// `Sprites1Col`) so that toggling back from another pane restores it.
+    pub last_sprites_pane: RightPane,
 
     // Disassembly cursors
     pub cursor_index: usize,
@@ -80,6 +86,7 @@ pub struct CoreViewState {
 
     // Sprites / Charset / Bitmap cursors
     pub sprites_cursor_index: usize,
+    pub sprites_scroll_index: usize,
     pub sprites_selection_start: Option<usize>,
     pub charset_cursor_index: usize,
     pub charset_selection_start: Option<usize>,
@@ -111,6 +118,7 @@ impl CoreViewState {
             active_pane: ActivePane::Disassembly,
             right_pane: RightPane::HexDump16,
             last_hexdump_pane: RightPane::HexDump16,
+            last_sprites_pane: RightPane::Sprites2Col,
 
             cursor_index: 0,
             sub_cursor_index: 0,
@@ -128,6 +136,7 @@ impl CoreViewState {
             hexdump_view_mode: HexdumpViewMode::ScreencodeShifted,
 
             sprites_cursor_index: 0,
+            sprites_scroll_index: 0,
             sprites_selection_start: None,
             charset_cursor_index: 0,
             charset_selection_start: None,

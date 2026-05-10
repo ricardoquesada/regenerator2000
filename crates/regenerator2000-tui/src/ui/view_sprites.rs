@@ -83,6 +83,149 @@ impl Navigable for SpritesView {
     }
 }
 
+/// Renders a single sprite at the given column x-offset within `inner_area`.
+///
+/// Returns the number of vertical rows consumed (header + pixel rows).
+#[allow(clippy::too_many_arguments)]
+fn render_single_sprite(
+    f: &mut Frame,
+    app_state: &AppState,
+    ui_state: &UIState,
+    inner_area: Rect,
+    y_offset: usize,
+    sprite_index: usize,
+    aligned_origin: usize,
+    origin: usize,
+    end_address: usize,
+    _total_sprites: usize,
+    x_offset: u16,
+) -> usize {
+    let visible_rows = inner_area.height as usize;
+    let sprite_addr_start = aligned_origin + sprite_index * 64;
+
+    if sprite_addr_start >= end_address {
+        return 0;
+    }
+
+    let mut rows_used = 0;
+
+    // Draw Sprite Header/Index
+    let is_selected = if let Some(sel_start) = ui_state.sprites_selection_start {
+        let (start, end) = if sel_start < ui_state.sprites_cursor_index {
+            (sel_start, ui_state.sprites_cursor_index)
+        } else {
+            (ui_state.sprites_cursor_index, sel_start)
+        };
+        sprite_index >= start && sprite_index <= end
+    } else {
+        sprite_index == ui_state.sprites_cursor_index
+    };
+    let style = if is_selected {
+        Style::default()
+            .fg(ui_state.theme.highlight_fg)
+            .bg(ui_state.theme.highlight_bg)
+    } else {
+        Style::default()
+    };
+
+    let sprite_num = (sprite_addr_start / 64) % 256;
+
+    if y_offset + rows_used < visible_rows {
+        // Use shorter header in 2-col mode to fit in narrower columns
+        let header = if x_offset > 0 || inner_area.width > 40 {
+            format!("Sprite  {sprite_num:03} / ${sprite_num:02X} @ ${sprite_addr_start:04X}")
+        } else {
+            format!("Spr {sprite_num:03}/${sprite_num:02X} @${sprite_addr_start:04X}")
+        };
+        let header_width = header
+            .len()
+            .min(inner_area.width.saturating_sub(x_offset) as usize);
+        f.render_widget(
+            Paragraph::new(header).style(style),
+            Rect::new(
+                inner_area.x + x_offset,
+                inner_area.y + (y_offset + rows_used) as u16,
+                header_width as u16,
+                1,
+            ),
+        );
+        rows_used += 1;
+    }
+
+    // Draw Sprite Data (21 lines)
+    for row in 0..21 {
+        if y_offset + rows_used >= visible_rows {
+            break;
+        }
+
+        let row_addr_start = sprite_addr_start + row * 3;
+
+        // Fetch 3 bytes for the row, handling alignment/padding
+        let mut bytes = [0u8; 3];
+        for (b_idx, b) in bytes.iter_mut().enumerate() {
+            let addr = row_addr_start + b_idx;
+            if addr >= origin && addr < end_address {
+                *b = app_state.raw_data[addr - origin];
+            }
+        }
+
+        let render_y = inner_area.y + (y_offset + rows_used) as u16;
+        let render_x = inner_area.x + x_offset + 2;
+
+        if row_addr_start < end_address {
+            if ui_state.sprite_multicolor_mode {
+                let mut spans = Vec::with_capacity(12);
+                for b in &bytes {
+                    for pair in (0..4).rev() {
+                        let bits = (b >> (pair * 2)) & 0b11;
+                        let (char_str, fg_color) = match bits {
+                            0b00 => ("..", ui_state.theme.foreground),
+                            0b01 => ("██", ui_state.theme.foreground),
+                            0b10 => ("██", ui_state.theme.sprite_multicolor_1),
+                            0b11 => ("██", ui_state.theme.sprite_multicolor_2),
+                            _ => unreachable!(),
+                        };
+                        let pixel_style = if bits == 0b00 {
+                            Style::default().fg(Color::DarkGray)
+                        } else {
+                            Style::default().fg(fg_color)
+                        };
+                        spans.push(Span::styled(char_str, pixel_style));
+                    }
+                }
+                f.render_widget(
+                    Paragraph::new(Line::from(spans)),
+                    Rect::new(render_x, render_y, 24, 1),
+                );
+            } else {
+                let mut line_str = String::with_capacity(24);
+                for b in &bytes {
+                    for bit in (0..8).rev() {
+                        if (b >> bit) & 1 == 1 {
+                            line_str.push('█');
+                        } else {
+                            line_str.push('.');
+                        }
+                    }
+                }
+                f.render_widget(
+                    Paragraph::new(line_str),
+                    Rect::new(render_x, render_y, 24, 1),
+                );
+            }
+        } else {
+            f.render_widget(
+                Paragraph::new("                        "),
+                Rect::new(render_x, render_y, 24, 1),
+            );
+        }
+
+        rows_used += 1;
+    }
+
+    rows_used
+}
+
 impl Widget for SpritesView {
     fn handle_mouse(
         &mut self,
@@ -155,145 +298,112 @@ impl Widget for SpritesView {
         let total_bytes = end_address.saturating_sub(aligned_origin);
         let total_sprites = total_bytes.div_ceil(64);
 
+        let is_2col = ui_state.right_pane == crate::ui_state::RightPane::Sprites2Col;
+        let cols = if is_2col { 2 } else { 1 };
+
         let sprite_height = 22; // 21 lines + 1 separator
         let visible_rows = inner_area.height as usize;
-        let num_sprites_fit = visible_rows.div_ceil(sprite_height); // Approximation
+        let visible_visual_rows = visible_rows / sprite_height;
+        let total_visual_rows = total_sprites.div_ceil(cols);
 
-        let start_index = if ui_state.sprites_cursor_index > num_sprites_fit / 2 {
-            ui_state
-                .sprites_cursor_index
-                .saturating_sub(num_sprites_fit / 2)
+        // --- Scrolloff Logic (same pattern as HexDump) ---
+        // Work in "visual row" units. In 2-col mode one visual row = 2 sprites.
+        let cursor_visual_row = if is_2col {
+            ui_state.sprites_cursor_index / 2
         } else {
-            0
+            ui_state.sprites_cursor_index
         };
+        let margin = 1usize.min(visible_visual_rows / 3);
+        let mut offset = ui_state.sprites_scroll_index;
 
-        let end_index = (start_index + num_sprites_fit + 1).min(total_sprites);
+        // Constraint 1: cursor must be at least `margin` from top
+        if cursor_visual_row < offset + margin {
+            offset = cursor_visual_row.saturating_sub(margin);
+        }
+
+        // Constraint 2: cursor must be at least `margin` from bottom
+        if cursor_visual_row >= offset + visible_visual_rows.saturating_sub(margin) {
+            offset = cursor_visual_row
+                .saturating_sub(visible_visual_rows.saturating_sub(margin).saturating_sub(1));
+        }
+
+        // Final bounds check
+        let max_offset = total_visual_rows.saturating_sub(visible_visual_rows);
+        offset = offset.min(max_offset);
+        ui_state.sprites_scroll_index = offset;
+        // --- Scrolloff Logic End ---
+
+        let start_index = offset * cols;
+        let end_index = (start_index + visible_visual_rows * cols + cols).min(total_sprites);
 
         let mut y_offset = 0;
-        for i in start_index..end_index {
-            if y_offset >= visible_rows {
-                break;
-            }
 
-            let sprite_addr_start = aligned_origin + i * 64;
-            let sprite_address = sprite_addr_start;
-
-            if sprite_addr_start >= end_address {
-                break;
-            }
-
-            // Draw Sprite Header/Index
-            let is_selected = if let Some(sel_start) = ui_state.sprites_selection_start {
-                let (start, end) = if sel_start < ui_state.sprites_cursor_index {
-                    (sel_start, ui_state.sprites_cursor_index)
-                } else {
-                    (ui_state.sprites_cursor_index, sel_start)
-                };
-                i >= start && i <= end
-            } else {
-                i == ui_state.sprites_cursor_index
-            };
-            let style = if is_selected {
-                Style::default()
-                    .fg(ui_state.theme.highlight_fg)
-                    .bg(ui_state.theme.highlight_bg)
-            } else {
-                Style::default()
-            };
-
-            // Sprite number calculation: (Address / 64) % 256
-            let sprite_num = (sprite_address / 64) % 256;
-
-            if y_offset < visible_rows {
-                f.render_widget(
-                    Paragraph::new(format!(
-                        "Sprite  {sprite_num:03} / ${sprite_num:02X} @ ${sprite_address:04X}"
-                    ))
-                    .style(style),
-                    Rect::new(
-                        inner_area.x,
-                        inner_area.y + y_offset as u16,
-                        inner_area.width,
-                        1,
-                    ),
-                );
-                y_offset += 1;
-            }
-
-            // Draw Sprite Data (21 lines)
-            for row in 0..21 {
+        if is_2col {
+            // 2-column mode: render sprites in pairs
+            let col_width = 28u16; // 2 indent + 24 pixels + 2 gap
+            let mut i = start_index;
+            while i < end_index {
                 if y_offset >= visible_rows {
                     break;
                 }
 
-                let row_addr_start = sprite_addr_start + row * 3;
+                // Left sprite
+                let left_height = render_single_sprite(
+                    f,
+                    app_state,
+                    ui_state,
+                    inner_area,
+                    y_offset,
+                    i,
+                    aligned_origin,
+                    origin,
+                    end_address,
+                    total_sprites,
+                    0, // x_offset for left column
+                );
 
-                // Fetch 3 bytes for the row, handling alignment/padding
-                let mut bytes = [0u8; 3];
-                for (b_idx, b) in bytes.iter_mut().enumerate() {
-                    let addr = row_addr_start + b_idx;
-                    if addr >= origin && addr < end_address {
-                        *b = app_state.raw_data[addr - origin];
-                    }
-                }
-
-                if row_addr_start < end_address {
-                    let bytes = &bytes;
-
-                    if ui_state.sprite_multicolor_mode {
-                        // Multicolor Mode: 12 pixels per row, 2 bits per pixel
-                        // Pixel width = 2 chars
-                        let mut spans = Vec::with_capacity(12);
-                        for b in bytes {
-                            for pair in (0..4).rev() {
-                                let bits = (b >> (pair * 2)) & 0b11;
-                                let (char_str, fg_color) = match bits {
-                                    0b00 => ("..", ui_state.theme.foreground), // Background (transparent-ish)
-                                    0b01 => ("██", ui_state.theme.foreground), // Shared color 1 (Foreground/Highlight?) - standard is sprite color
-                                    0b10 => ("██", ui_state.theme.sprite_multicolor_1), // MC 1
-                                    0b11 => ("██", ui_state.theme.sprite_multicolor_2), // MC 2
-                                    _ => unreachable!(),
-                                };
-
-                                // For 00 (background), we might want to be dim or just dots
-                                let style = if bits == 0b00 {
-                                    Style::default().fg(Color::DarkGray) // Dim dots
-                                } else {
-                                    Style::default().fg(fg_color)
-                                };
-                                spans.push(Span::styled(char_str, style));
-                            }
-                        }
-                        f.render_widget(
-                            Paragraph::new(Line::from(spans)),
-                            Rect::new(inner_area.x + 2, inner_area.y + y_offset as u16, 24, 1),
-                        );
-                    } else {
-                        // Single Color Mode: 24 pixels per row, 1 bit per pixel
-                        let mut line_str = String::with_capacity(24);
-                        for b in bytes {
-                            for bit in (0..8).rev() {
-                                if (b >> bit) & 1 == 1 {
-                                    line_str.push('█');
-                                } else {
-                                    line_str.push('.'); // Use dot for empty to see grid better, or space
-                                }
-                            }
-                        }
-                        f.render_widget(
-                            Paragraph::new(line_str),
-                            Rect::new(inner_area.x + 2, inner_area.y + y_offset as u16, 24, 1), // Indent
-                        );
-                    }
+                // Right sprite (if available)
+                let right_height = if i + 1 < total_sprites {
+                    render_single_sprite(
+                        f,
+                        app_state,
+                        ui_state,
+                        inner_area,
+                        y_offset,
+                        i + 1,
+                        aligned_origin,
+                        origin,
+                        end_address,
+                        total_sprites,
+                        col_width, // x_offset for right column
+                    )
                 } else {
-                    // Partial padding?
-                    f.render_widget(
-                        Paragraph::new("                        "),
-                        Rect::new(inner_area.x + 2, inner_area.y + y_offset as u16, 24, 1),
-                    );
-                }
+                    0
+                };
 
-                y_offset += 1;
+                y_offset += left_height.max(right_height);
+                i += 2;
+            }
+        } else {
+            // 1-column mode: original layout
+            for i in start_index..end_index {
+                if y_offset >= visible_rows {
+                    break;
+                }
+                let height = render_single_sprite(
+                    f,
+                    app_state,
+                    ui_state,
+                    inner_area,
+                    y_offset,
+                    i,
+                    aligned_origin,
+                    origin,
+                    end_address,
+                    total_sprites,
+                    0,
+                );
+                y_offset += height;
             }
         }
     }
@@ -304,6 +414,98 @@ impl Widget for SpritesView {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
+        let is_2col = ui_state.right_pane == crate::ui_state::RightPane::Sprites2Col;
+
+        // In 2-column mode, intercept directional keys for grid navigation:
+        // Up/Down move by 2 sprites (one visual row), Left/Right by 1 sprite.
+        if is_2col {
+            match key.code {
+                KeyCode::Down | KeyCode::Char('j') if key.modifiers.is_empty() => {
+                    self.move_down(app_state, ui_state, 2);
+                    return WidgetResult::Handled;
+                }
+                KeyCode::Up | KeyCode::Char('k') if key.modifiers.is_empty() => {
+                    self.move_up(app_state, ui_state, 2);
+                    return WidgetResult::Handled;
+                }
+                KeyCode::Left | KeyCode::Char('h') if key.modifiers.is_empty() => {
+                    if ui_state.is_visual_mode {
+                        if ui_state.sprites_selection_start.is_none() {
+                            ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
+                        }
+                    } else {
+                        ui_state.sprites_selection_start = None;
+                    }
+                    if ui_state.sprites_cursor_index > 0 {
+                        ui_state.sprites_cursor_index -= 1;
+                    }
+                    return WidgetResult::Handled;
+                }
+                KeyCode::Right | KeyCode::Char('l') if key.modifiers.is_empty() => {
+                    if ui_state.is_visual_mode {
+                        if ui_state.sprites_selection_start.is_none() {
+                            ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
+                        }
+                    } else {
+                        ui_state.sprites_selection_start = None;
+                    }
+                    let total = self.len(app_state);
+                    if total > 0 && ui_state.sprites_cursor_index + 1 < total {
+                        ui_state.sprites_cursor_index += 1;
+                    }
+                    return WidgetResult::Handled;
+                }
+                // Shift+Down: extend selection by one visual row (2 sprites)
+                KeyCode::Down if key.modifiers == KeyModifiers::SHIFT => {
+                    if ui_state.sprites_selection_start.is_none() {
+                        ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
+                    }
+                    let selection_to_keep = ui_state.sprites_selection_start;
+                    let total = self.len(app_state);
+                    if total > 0 {
+                        ui_state.sprites_cursor_index =
+                            (ui_state.sprites_cursor_index + 2).min(total.saturating_sub(1));
+                    }
+                    ui_state.sprites_selection_start = selection_to_keep;
+                    return WidgetResult::Handled;
+                }
+                // Shift+Up: extend selection by one visual row (2 sprites)
+                KeyCode::Up if key.modifiers == KeyModifiers::SHIFT => {
+                    if ui_state.sprites_selection_start.is_none() {
+                        ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
+                    }
+                    let selection_to_keep = ui_state.sprites_selection_start;
+                    ui_state.sprites_cursor_index = ui_state.sprites_cursor_index.saturating_sub(2);
+                    ui_state.sprites_selection_start = selection_to_keep;
+                    return WidgetResult::Handled;
+                }
+                // Shift+Left/Right: extend selection by 1 sprite
+                KeyCode::Left if key.modifiers == KeyModifiers::SHIFT => {
+                    if ui_state.sprites_selection_start.is_none() {
+                        ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
+                    }
+                    let selection_to_keep = ui_state.sprites_selection_start;
+                    ui_state.sprites_cursor_index = ui_state.sprites_cursor_index.saturating_sub(1);
+                    ui_state.sprites_selection_start = selection_to_keep;
+                    return WidgetResult::Handled;
+                }
+                KeyCode::Right if key.modifiers == KeyModifiers::SHIFT => {
+                    if ui_state.sprites_selection_start.is_none() {
+                        ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
+                    }
+                    let selection_to_keep = ui_state.sprites_selection_start;
+                    let total = self.len(app_state);
+                    if total > 0 {
+                        ui_state.sprites_cursor_index =
+                            (ui_state.sprites_cursor_index + 1).min(total.saturating_sub(1));
+                    }
+                    ui_state.sprites_selection_start = selection_to_keep;
+                    return WidgetResult::Handled;
+                }
+                _ => {}
+            }
+        }
+
         if let WidgetResult::Handled = handle_nav_input(self, key, app_state, ui_state) {
             return WidgetResult::Handled;
         }
@@ -334,7 +536,7 @@ impl Widget for SpritesView {
                 }
                 WidgetResult::Handled
             }
-            // Shift+Down for selection
+            // Shift+Down for selection (1-col mode only; 2-col handled above)
             KeyCode::Down if key.modifiers == KeyModifiers::SHIFT => {
                 let saved_selection = ui_state.sprites_selection_start;
                 if saved_selection.is_none() {
@@ -351,7 +553,7 @@ impl Widget for SpritesView {
                 ui_state.sprites_selection_start = selection_to_keep;
                 WidgetResult::Handled
             }
-            // Shift+Up for selection
+            // Shift+Up for selection (1-col mode only; 2-col handled above)
             KeyCode::Up if key.modifiers == KeyModifiers::SHIFT => {
                 let saved_selection = ui_state.sprites_selection_start;
                 if saved_selection.is_none() {

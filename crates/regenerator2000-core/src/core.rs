@@ -286,17 +286,52 @@ impl Core {
                 events.push(CoreEvent::ViewChanged);
             }
             AppAction::ToggleSpritesView => {
-                if self.view.right_pane == crate::view_state::RightPane::Sprites {
-                    self.view.right_pane = crate::view_state::RightPane::None;
-                    events.push(CoreEvent::StatusMessage("Sprites View Hidden".to_string()));
-                    if self.view.active_pane == crate::view_state::ActivePane::Sprites {
-                        self.view.active_pane = crate::view_state::ActivePane::Disassembly;
+                use crate::view_state::RightPane;
+                match self.view.right_pane {
+                    RightPane::Sprites2Col => {
+                        // 2-col → 1-col
+                        self.view.right_pane = RightPane::Sprites1Col;
+                        self.view.last_sprites_pane = RightPane::Sprites1Col;
+                        self.view.active_pane = crate::view_state::ActivePane::Sprites;
+                        self.sync_pane_cursor_to_disassembly();
+                        events.push(CoreEvent::StatusMessage(
+                            "Sprites View (1 column)".to_string(),
+                        ));
                     }
-                } else {
-                    self.view.right_pane = crate::view_state::RightPane::Sprites;
-                    self.view.active_pane = crate::view_state::ActivePane::Sprites;
-                    self.sync_pane_cursor_to_disassembly();
-                    events.push(CoreEvent::StatusMessage("Sprites View Shown".to_string()));
+                    RightPane::Sprites1Col => {
+                        // 1-col → off
+                        self.view.right_pane = RightPane::None;
+                        events.push(CoreEvent::StatusMessage("Sprites View Hidden".to_string()));
+                        if self.view.active_pane == crate::view_state::ActivePane::Sprites {
+                            self.view.active_pane = crate::view_state::ActivePane::Disassembly;
+                        }
+                    }
+                    RightPane::None => {
+                        // off → 2-col (normal cycle restart)
+                        self.view.right_pane = RightPane::Sprites2Col;
+                        self.view.last_sprites_pane = RightPane::Sprites2Col;
+                        self.view.active_pane = crate::view_state::ActivePane::Sprites;
+                        self.sync_pane_cursor_to_disassembly();
+                        events.push(CoreEvent::StatusMessage(
+                            "Sprites View (2 columns)".to_string(),
+                        ));
+                    }
+                    _ => {
+                        // Another pane → restore last sprites mode
+                        let restored = self.view.last_sprites_pane;
+                        self.view.right_pane = restored;
+                        self.view.active_pane = crate::view_state::ActivePane::Sprites;
+                        self.sync_pane_cursor_to_disassembly();
+                        let cols = if restored == RightPane::Sprites1Col {
+                            "1"
+                        } else {
+                            "2"
+                        };
+                        events.push(CoreEvent::StatusMessage(format!(
+                            "Sprites View ({cols} column{s})",
+                            s = if cols == "1" { "" } else { "s" }
+                        )));
+                    }
                 }
                 events.push(CoreEvent::ViewChanged);
             }
@@ -1138,7 +1173,8 @@ impl Core {
                         crate::view_state::RightPane::None => ActivePane::Disassembly,
                         crate::view_state::RightPane::HexDump16
                         | crate::view_state::RightPane::HexDump8 => ActivePane::HexDump,
-                        crate::view_state::RightPane::Sprites => ActivePane::Sprites,
+                        crate::view_state::RightPane::Sprites2Col
+                        | crate::view_state::RightPane::Sprites1Col => ActivePane::Sprites,
                         crate::view_state::RightPane::Charset => ActivePane::Charset,
                         crate::view_state::RightPane::Bitmap => ActivePane::Bitmap,
                         crate::view_state::RightPane::Blocks => ActivePane::Blocks,
@@ -1268,7 +1304,8 @@ impl Core {
                     }
                 }
             }
-            crate::view_state::RightPane::Sprites => {
+            crate::view_state::RightPane::Sprites2Col
+            | crate::view_state::RightPane::Sprites1Col => {
                 if self.state.system_config.sync_sprites_view {
                     let origin = self.state.origin.0 as usize;
                     let aligned_origin = (origin / 64) * 64;
