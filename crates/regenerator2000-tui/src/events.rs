@@ -698,7 +698,7 @@ fn handle_mouse_views(
             widget_result = DisassemblyView.handle_mouse(mouse, &mut core.state, ui_state);
         } else if is_inside(ui_state.right_pane_area, col, row) {
             match ui_state.right_pane {
-                crate::ui_state::RightPane::HexDump => {
+                crate::ui_state::RightPane::HexDump16 | crate::ui_state::RightPane::HexDump8 => {
                     ui_state.active_pane = ActivePane::HexDump;
                 }
                 crate::ui_state::RightPane::Sprites => {
@@ -833,18 +833,23 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
     }
 
     // Sync HexDump view
-    if ui_state.right_pane == crate::ui_state::RightPane::HexDump
-        && app_state.system_config.sync_hex_dump
+    if matches!(
+        ui_state.right_pane,
+        crate::ui_state::RightPane::HexDump16 | crate::ui_state::RightPane::HexDump8
+    ) && app_state.system_config.sync_hex_dump
     {
         let origin = app_state.origin.0 as usize;
-        let alignment_padding = origin % 16;
+        let bytes_per_row: usize = match ui_state.right_pane {
+            crate::ui_state::RightPane::HexDump8 => 8,
+            _ => 16,
+        };
+        let alignment_padding = origin % bytes_per_row;
         let aligned_origin = origin - alignment_padding;
         let addr = target_addr.0 as usize;
 
         if addr >= aligned_origin {
             let offset = addr - aligned_origin;
-            let row = offset / 16;
-            let bytes_per_row = 16;
+            let row = offset / bytes_per_row;
             let total_len = app_state.raw_data.len() + alignment_padding;
             let max_rows = total_len.div_ceil(bytes_per_row);
             if row < max_rows {

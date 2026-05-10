@@ -237,17 +237,34 @@ impl Core {
                 events.push(CoreEvent::StatusMessage("Go to Symbol...".to_string()));
             }
             AppAction::ToggleHexDump => {
-                if self.view.right_pane == crate::view_state::RightPane::HexDump {
-                    self.view.right_pane = crate::view_state::RightPane::None;
-                    events.push(CoreEvent::StatusMessage("Hex Dump View Hidden".to_string()));
-                    if self.view.active_pane == crate::view_state::ActivePane::HexDump {
-                        self.view.active_pane = crate::view_state::ActivePane::Disassembly;
+                use crate::view_state::RightPane;
+                match self.view.right_pane {
+                    RightPane::HexDump16 => {
+                        // 16-col → 8-col
+                        self.view.right_pane = RightPane::HexDump8;
+                        self.view.active_pane = crate::view_state::ActivePane::HexDump;
+                        self.sync_pane_cursor_to_disassembly();
+                        events.push(CoreEvent::StatusMessage(
+                            "Hex Dump View (8 columns)".to_string(),
+                        ));
                     }
-                } else {
-                    self.view.right_pane = crate::view_state::RightPane::HexDump;
-                    self.view.active_pane = crate::view_state::ActivePane::HexDump;
-                    self.sync_pane_cursor_to_disassembly();
-                    events.push(CoreEvent::StatusMessage("Hex Dump View Shown".to_string()));
+                    RightPane::HexDump8 => {
+                        // 8-col → off
+                        self.view.right_pane = RightPane::None;
+                        events.push(CoreEvent::StatusMessage("Hex Dump View Hidden".to_string()));
+                        if self.view.active_pane == crate::view_state::ActivePane::HexDump {
+                            self.view.active_pane = crate::view_state::ActivePane::Disassembly;
+                        }
+                    }
+                    _ => {
+                        // off / other → 16-col
+                        self.view.right_pane = RightPane::HexDump16;
+                        self.view.active_pane = crate::view_state::ActivePane::HexDump;
+                        self.sync_pane_cursor_to_disassembly();
+                        events.push(CoreEvent::StatusMessage(
+                            "Hex Dump View (16 columns)".to_string(),
+                        ));
+                    }
                 }
                 events.push(CoreEvent::ViewChanged);
             }
@@ -1102,7 +1119,8 @@ impl Core {
                 self.view.active_pane = match self.view.active_pane {
                     ActivePane::Disassembly => match self.view.right_pane {
                         crate::view_state::RightPane::None => ActivePane::Disassembly,
-                        crate::view_state::RightPane::HexDump => ActivePane::HexDump,
+                        crate::view_state::RightPane::HexDump16
+                        | crate::view_state::RightPane::HexDump8 => ActivePane::HexDump,
                         crate::view_state::RightPane::Sprites => ActivePane::Sprites,
                         crate::view_state::RightPane::Charset => ActivePane::Charset,
                         crate::view_state::RightPane::Bitmap => ActivePane::Bitmap,
@@ -1193,18 +1211,22 @@ impl Core {
                     self.view.blocks_selected_index = Some(idx);
                 }
             }
-            crate::view_state::RightPane::HexDump => {
+            crate::view_state::RightPane::HexDump16 | crate::view_state::RightPane::HexDump8 => {
                 if self.state.system_config.sync_hex_dump {
                     let origin = self.state.origin.0 as usize;
-                    let alignment_padding = origin % 16;
+                    let bytes_per_row: usize = match self.view.right_pane {
+                        crate::view_state::RightPane::HexDump8 => 8,
+                        _ => 16,
+                    };
+                    let alignment_padding = origin % bytes_per_row;
                     let aligned_origin = origin - alignment_padding;
                     let addr = target_addr.0 as usize;
 
                     if addr >= aligned_origin {
                         let offset = addr - aligned_origin;
-                        let row = offset / 16;
+                        let row = offset / bytes_per_row;
                         let total_len = self.state.raw_data.len() + alignment_padding;
-                        let max_rows = total_len.div_ceil(16);
+                        let max_rows = total_len.div_ceil(bytes_per_row);
                         if row < max_rows {
                             self.view.hex_cursor_index = row;
                         }

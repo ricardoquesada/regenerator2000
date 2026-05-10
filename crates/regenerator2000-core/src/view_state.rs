@@ -25,7 +25,10 @@ pub enum NavigationTarget {
 pub enum RightPane {
     None,
     #[default]
-    HexDump,
+    /// 16-column hex dump (standard width).
+    HexDump16,
+    /// 8-column hex dump (narrower).
+    HexDump8,
     Sprites,
     Charset,
     Bitmap,
@@ -103,7 +106,7 @@ impl CoreViewState {
         Self {
             navigation_history: Vec::new(),
             active_pane: ActivePane::Disassembly,
-            right_pane: RightPane::HexDump,
+            right_pane: RightPane::HexDump16,
 
             cursor_index: 0,
             sub_cursor_index: 0,

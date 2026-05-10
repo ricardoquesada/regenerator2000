@@ -235,7 +235,7 @@ impl MenuState {
                             Some(AppAction::ToggleBlocksView),
                         ),
                         MenuItem::new(
-                            "Toggle Hex Dump",
+                            "Cycle Hex Dump (16/8/Off)",
                             Some("Alt+2"),
                             Some(AppAction::ToggleHexDump),
                         ),

@@ -206,31 +206,12 @@ impl UIState {
             self.file_dialog_current_dir = resolved;
         }
 
-        // Also restore hex cursor if present
-        if let Some(hex_addr) = loaded_hex_cursor
-            && !app_state.raw_data.is_empty()
-        {
-            let origin = app_state.origin.0 as usize;
-            let alignment_padding = origin % 16;
-            let aligned_origin = origin - alignment_padding;
-            let target = hex_addr.0 as usize;
-
-            if target >= aligned_origin {
-                let offset = target - aligned_origin;
-                let row = offset / 16;
-                // Ensure row is within bounds
-                let total_len = app_state.raw_data.len() + alignment_padding;
-                let max_rows = total_len.div_ceil(16);
-                if row < max_rows {
-                    self.hex_cursor_index = row;
-                }
-            }
-        }
-
-        // Restore Right Pane and Sprites Cursor
+        // Restore Right Pane first so hex cursor restoration uses the correct
+        // bytes_per_row (8 vs 16) based on the saved pane mode.
         if let Some(pane_str) = loaded_right_pane {
             match pane_str.as_str() {
-                "HexDump" => self.right_pane = RightPane::HexDump,
+                "HexDump" | "HexDump16" => self.right_pane = RightPane::HexDump16,
+                "HexDump8" => self.right_pane = RightPane::HexDump8,
                 "None" => self.right_pane = RightPane::None,
                 "Sprites" => self.right_pane = RightPane::Sprites,
                 "Charset" => self.right_pane = RightPane::Charset,
@@ -239,6 +220,33 @@ impl UIState {
                 _ => {}
             }
         }
+
+        // Also restore hex cursor if present
+        if let Some(hex_addr) = loaded_hex_cursor
+            && !app_state.raw_data.is_empty()
+        {
+            let origin = app_state.origin.0 as usize;
+            let bytes_per_row: usize = match self.right_pane {
+                RightPane::HexDump8 => 8,
+                _ => 16,
+            };
+            let alignment_padding = origin % bytes_per_row;
+            let aligned_origin = origin - alignment_padding;
+            let target = hex_addr.0 as usize;
+
+            if target >= aligned_origin {
+                let offset = target - aligned_origin;
+                let row = offset / bytes_per_row;
+                // Ensure row is within bounds
+                let total_len = app_state.raw_data.len() + alignment_padding;
+                let max_rows = total_len.div_ceil(bytes_per_row);
+                if row < max_rows {
+                    self.hex_cursor_index = row;
+                }
+            }
+        }
+
+        // Restore Sprites Cursor
         if let Some(idx) = loaded_data.blocks_view_cursor {
             self.blocks_list_state.select(Some(idx));
             self.blocks_selected_index = Some(idx);

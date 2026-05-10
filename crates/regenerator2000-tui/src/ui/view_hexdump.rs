@@ -1,5 +1,5 @@
 use crate::state::{AppState, HexdumpViewMode};
-use crate::ui_state::{ActivePane, AppAction, UIState};
+use crate::ui_state::{ActivePane, AppAction, RightPane, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
@@ -14,6 +14,24 @@ use crate::ui::widget::{Widget, WidgetResult};
 use crate::ui::navigable::{Navigable, handle_nav_input};
 use crate::ui::view_disassembly::DisassemblyView;
 
+/// Returns the number of bytes per hex-dump row based on the current right-pane
+/// mode: 16 for `HexDump`, 8 for `HexDump8`, and 16 as a fallback.
+#[must_use]
+fn hex_bytes_per_row(ui_state: &UIState) -> usize {
+    match ui_state.right_pane {
+        RightPane::HexDump8 => 8,
+        _ => 16,
+    }
+}
+
+/// Returns the total number of rows in the hex dump for the current column mode.
+#[must_use]
+fn hex_row_count(app_state: &AppState, ui_state: &UIState) -> usize {
+    let bpr = hex_bytes_per_row(ui_state);
+    let padding = (app_state.origin.0 as usize) % bpr;
+    (app_state.raw_data.len() + padding).div_ceil(bpr)
+}
+
 /// Immediately mirror the hex cursor / selection into the disassembly view's
 /// `cursor_index` / `selection_start`.  Called eagerly from every input handler so
 /// both views are consistent within the same render frame.
@@ -22,7 +40,7 @@ fn sync_hex_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
         return;
     }
     let origin = app_state.origin.0 as usize;
-    let bytes_per_row = 16usize;
+    let bytes_per_row = hex_bytes_per_row(ui_state);
     let aligned_origin = origin - origin % bytes_per_row;
 
     let col = ui_state.hex_col_cursor.min(bytes_per_row - 1);
@@ -82,6 +100,8 @@ pub struct HexDumpView;
 
 impl Navigable for HexDumpView {
     fn len(&self, app_state: &AppState) -> usize {
+        // NOTE: This always uses 16 because the trait does not pass UIState.
+        // All internal callers in HexDumpView use `hex_row_count` instead.
         let bytes_per_row = 16;
         let padding = (app_state.origin.0 as usize) % bytes_per_row;
         (app_state.raw_data.len() + padding).div_ceil(bytes_per_row)
@@ -100,12 +120,15 @@ impl Navigable for HexDumpView {
         } else {
             ui_state.hex_selection_start = None;
         }
-        let total = self.len(app_state);
+        let total = hex_row_count(app_state, ui_state);
         if total == 0 {
             return;
         }
         ui_state.hex_cursor_index =
             (ui_state.hex_cursor_index + amount).min(total.saturating_sub(1));
+        // Clamp column cursor to valid range for current mode
+        let max_col = hex_bytes_per_row(ui_state) - 1;
+        ui_state.hex_col_cursor = ui_state.hex_col_cursor.min(max_col);
     }
 
     fn move_up(&self, _app_state: &AppState, ui_state: &mut UIState, amount: usize) {
@@ -118,6 +141,9 @@ impl Navigable for HexDumpView {
             ui_state.hex_selection_start = None;
         }
         ui_state.hex_cursor_index = ui_state.hex_cursor_index.saturating_sub(amount);
+        // Clamp column cursor to valid range for current mode
+        let max_col = hex_bytes_per_row(ui_state) - 1;
+        ui_state.hex_col_cursor = ui_state.hex_col_cursor.min(max_col);
     }
 
     fn page_down(&self, app_state: &AppState, ui_state: &mut UIState) {
@@ -129,12 +155,12 @@ impl Navigable for HexDumpView {
     }
 
     fn jump_to(&self, app_state: &AppState, ui_state: &mut UIState, index: usize) {
-        let total = self.len(app_state);
+        let total = hex_row_count(app_state, ui_state);
         ui_state.hex_cursor_index = index.min(total.saturating_sub(1));
     }
 
     fn jump_to_user_input(&self, app_state: &AppState, ui_state: &mut UIState, input: usize) {
-        let total = self.len(app_state);
+        let total = hex_row_count(app_state, ui_state);
         let target = if input == 0 {
             total.saturating_sub(1)
         } else {
@@ -194,42 +220,42 @@ impl Widget for HexDumpView {
         let offset = ui_state.hex_scroll_index;
 
         let row_index = offset + click_row;
-        let total_rows = self.len(app_state);
+        let total_rows = hex_row_count(app_state, ui_state);
 
         if row_index < total_rows {
+            let bytes_per_row = hex_bytes_per_row(ui_state);
+            let max_col = bytes_per_row - 1;
             ui_state.hex_cursor_index = row_index;
 
             // Determine which byte column was clicked.
             // Layout per row (starting at inner_area.x):
             //   [0–6]   address "$XXXX  " (7 chars)
-            //   [7–57]  hex bytes with 4-byte group separators (51 chars)
-            //             group 0 (bytes 0–3):  positions  0–11 (12 chars)
-            //             gap                :  position  12
-            //             group 1 (bytes 4–7):  positions 13–24 (12 chars)
-            //             gap                :  position  25
-            //             group 2 (bytes 8–11): positions 26–37 (12 chars)
-            //             gap                :  position  38
-            //             group 3 (bytes 12–15):positions 39–50 (12 chars)
-            //   [58–59] 2-space separator
-            //   [60–75] chars (16 chars, one per byte)
+            //   Hex bytes with 4-byte group separators:
+            //     16-col: 4 groups × 12 chars + 3 gaps = 51 chars (positions 7–57)
+            //      8-col: 2 groups × 12 chars + 1 gap  = 25 chars (positions 7–31)
+            //   Then 2-space separator, then bytes_per_row ASCII chars.
+            let num_groups = bytes_per_row / 4;
+            let hex_area_end = 7 + num_groups * 12 + num_groups.saturating_sub(1);
+            let ascii_area_start = hex_area_end + 2;
+            let ascii_area_end = ascii_area_start + bytes_per_row;
             let click_col = (mouse.column as usize).saturating_sub(inner_area.x as usize);
-            let byte_col = if (7..58).contains(&click_col) {
+            let byte_col = if click_col >= 7 && click_col < hex_area_end {
                 let hex_rel = click_col - 7;
                 // Each group occupies 13 chars (12 for bytes + 1 gap), except last
-                let group = (hex_rel.min(50)) / 13;
+                let group = hex_rel / 13;
                 let within_group = hex_rel % 13;
                 if within_group == 12 {
                     // In the gap — snap to last byte of the group
-                    group * 4 + 3
+                    (group * 4 + 3).min(max_col)
                 } else {
-                    (group * 4 + within_group / 3).min(15)
+                    (group * 4 + within_group / 3).min(max_col)
                 }
-            } else if (60..76).contains(&click_col) {
-                click_col - 60 // chars area: direct column index
+            } else if click_col >= ascii_area_start && click_col < ascii_area_end {
+                click_col - ascii_area_start // chars area: direct column index
             } else {
                 ui_state.hex_col_cursor // outside hex/ascii area → no change
             };
-            ui_state.hex_col_cursor = byte_col;
+            ui_state.hex_col_cursor = byte_col.min(max_col);
 
             // Drag, Shift+Click, or visual mode: anchor selection at current position
             if is_drag || shift_held || ui_state.is_visual_mode {
@@ -273,14 +299,17 @@ impl Widget for HexDumpView {
         let inner_area = block.inner(area);
 
         let visible_height = inner_area.height as usize;
-        // Each row is 16 bytes
-        let bytes_per_row = 16;
+        let bytes_per_row = hex_bytes_per_row(ui_state);
+        let max_col = bytes_per_row - 1;
         let origin = app_state.origin.0 as usize;
         let alignment_padding = origin % bytes_per_row;
         let aligned_origin = origin - alignment_padding;
 
         let total_len = app_state.raw_data.len() + alignment_padding;
         let total_rows = total_len.div_ceil(bytes_per_row);
+
+        // Clamp column cursor when switching from 16-col to 8-col mode
+        ui_state.hex_col_cursor = ui_state.hex_col_cursor.min(max_col);
 
         let is_hex_active = ui_state.active_pane == ActivePane::HexDump;
 
@@ -465,8 +494,8 @@ impl Widget for HexDumpView {
                         ));
                     }
 
-                    // Extra separator space after every 4th byte (at j=3, 7, 11)
-                    if j % 4 == 3 && j < 15 {
+                    // Extra separator space after every 4th byte (skip last group)
+                    if j % 4 == 3 && j + 1 < bytes_per_row {
                         spans.push(Span::styled(
                             " ",
                             Style::default().fg(ui_state.theme.hex_bytes),
@@ -507,6 +536,9 @@ impl Widget for HexDumpView {
             return WidgetResult::Handled;
         }
 
+        let bytes_per_row = hex_bytes_per_row(ui_state);
+        let max_col = bytes_per_row - 1;
+
         let result = match key.code {
             // Byte-level column navigation (Left/Right / vim h/l)
             KeyCode::Left if key.modifiers.is_empty() => {
@@ -514,13 +546,13 @@ impl Widget for HexDumpView {
                     ui_state.hex_col_cursor -= 1;
                 } else if ui_state.hex_cursor_index > 0 {
                     ui_state.hex_cursor_index -= 1;
-                    ui_state.hex_col_cursor = 15;
+                    ui_state.hex_col_cursor = max_col;
                 }
                 WidgetResult::Handled
             }
             KeyCode::Right if key.modifiers.is_empty() => {
-                let total = self.len(app_state);
-                if ui_state.hex_col_cursor < 15 {
+                let total = hex_row_count(app_state, ui_state);
+                if ui_state.hex_col_cursor < max_col {
                     ui_state.hex_col_cursor += 1;
                 } else if ui_state.hex_cursor_index + 1 < total {
                     ui_state.hex_cursor_index += 1;
@@ -533,13 +565,13 @@ impl Widget for HexDumpView {
                     ui_state.hex_col_cursor -= 1;
                 } else if ui_state.hex_cursor_index > 0 {
                     ui_state.hex_cursor_index -= 1;
-                    ui_state.hex_col_cursor = 15;
+                    ui_state.hex_col_cursor = max_col;
                 }
                 WidgetResult::Handled
             }
             KeyCode::Char('l') if key.modifiers.is_empty() => {
-                let total = self.len(app_state);
-                if ui_state.hex_col_cursor < 15 {
+                let total = hex_row_count(app_state, ui_state);
+                if ui_state.hex_col_cursor < max_col {
                     ui_state.hex_col_cursor += 1;
                 } else if ui_state.hex_cursor_index + 1 < total {
                     ui_state.hex_cursor_index += 1;
@@ -583,7 +615,7 @@ impl Widget for HexDumpView {
                     ui_state.hex_col_cursor -= 1;
                 } else if ui_state.hex_cursor_index > 0 {
                     ui_state.hex_cursor_index -= 1;
-                    ui_state.hex_col_cursor = 15;
+                    ui_state.hex_col_cursor = max_col;
                 }
                 WidgetResult::Handled
             }
@@ -592,8 +624,8 @@ impl Widget for HexDumpView {
                     ui_state.hex_selection_start = Some(ui_state.hex_cursor_index);
                     ui_state.hex_selection_start_col = ui_state.hex_col_cursor;
                 }
-                let total = self.len(app_state);
-                if ui_state.hex_col_cursor < 15 {
+                let total = hex_row_count(app_state, ui_state);
+                if ui_state.hex_col_cursor < max_col {
                     ui_state.hex_col_cursor += 1;
                 } else if ui_state.hex_cursor_index + 1 < total {
                     ui_state.hex_cursor_index += 1;
@@ -608,7 +640,7 @@ impl Widget for HexDumpView {
                     ui_state.hex_selection_start_col = ui_state.hex_col_cursor;
                 }
                 let selection_to_keep = ui_state.hex_selection_start;
-                let total = self.len(app_state);
+                let total = hex_row_count(app_state, ui_state);
                 if total > 0 {
                     ui_state.hex_cursor_index =
                         (ui_state.hex_cursor_index + 1).min(total.saturating_sub(1));
@@ -636,7 +668,6 @@ impl Widget for HexDumpView {
             KeyCode::Char('b') if key.modifiers.is_empty() => {
                 // Convert selected bytes (or current row if no selection) to a bytes block.
                 let origin = app_state.origin.0 as usize;
-                let bytes_per_row = 16;
                 let alignment_padding = origin % bytes_per_row;
                 let aligned_origin = origin - alignment_padding;
 
@@ -645,10 +676,10 @@ impl Widget for HexDumpView {
                         // Byte-level selection: use anchor and cursor byte addresses.
                         let anchor_addr = aligned_origin
                             + sel_start_row * bytes_per_row
-                            + ui_state.hex_selection_start_col.min(bytes_per_row - 1);
+                            + ui_state.hex_selection_start_col.min(max_col);
                         let cursor_addr = aligned_origin
                             + ui_state.hex_cursor_index * bytes_per_row
-                            + ui_state.hex_col_cursor.min(bytes_per_row - 1);
+                            + ui_state.hex_col_cursor.min(max_col);
                         let (s_addr, e_addr) = if anchor_addr <= cursor_addr {
                             (anchor_addr, cursor_addr)
                         } else {
@@ -664,7 +695,7 @@ impl Widget for HexDumpView {
                         // No selection: convert only the single byte under the cursor.
                         let cursor_addr = aligned_origin
                             + ui_state.hex_cursor_index * bytes_per_row
-                            + ui_state.hex_col_cursor.min(bytes_per_row - 1);
+                            + ui_state.hex_col_cursor.min(max_col);
                         let off = cursor_addr
                             .saturating_sub(origin)
                             .min(app_state.raw_data.len().saturating_sub(1));
@@ -695,11 +726,11 @@ impl Widget for HexDumpView {
             }
             KeyCode::Enter => {
                 let origin = app_state.origin.0 as usize;
-                let alignment_padding = origin % 16;
+                let alignment_padding = origin % bytes_per_row;
                 let aligned_origin = origin - alignment_padding;
-                let row_addr = aligned_origin + ui_state.hex_cursor_index * 16;
+                let row_addr = aligned_origin + ui_state.hex_cursor_index * bytes_per_row;
                 // Jump to the specific byte under the column cursor, clamped to valid data
-                let cursor_addr = row_addr + ui_state.hex_col_cursor.min(15);
+                let cursor_addr = row_addr + ui_state.hex_col_cursor.min(max_col);
                 let target_addr = cursor_addr
                     .max(origin)
                     .min(origin + app_state.raw_data.len().saturating_sub(1))

@@ -101,9 +101,13 @@ pub fn create_save_context(
         None
     } else {
         let origin = app_state.origin.0 as usize;
-        let alignment_padding = origin % 16;
+        let bytes_per_row = match view_state.right_pane {
+            crate::view_state::RightPane::HexDump8 => 8usize,
+            _ => 16usize,
+        };
+        let alignment_padding = origin % bytes_per_row;
         let aligned_origin = origin - alignment_padding;
-        let row_start_offset = view_state.hex_cursor_index * 16;
+        let row_start_offset = view_state.hex_cursor_index * bytes_per_row;
         let addr = aligned_origin + row_start_offset;
         Some(Addr(addr as u16))
     };

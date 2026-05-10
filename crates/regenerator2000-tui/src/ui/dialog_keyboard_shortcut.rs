@@ -52,7 +52,7 @@ impl ShortcutsDialog {
                 "Switch Pane (Disasm/Hex Dump/Sprites/Charset/Debugger)",
             ),
             ("Alt+1 (Ctrl+1)", "Toggle Blocks View"),
-            ("Alt+2 (Ctrl+2)", "Toggle Hex Dump View"),
+            ("Alt+2 (Ctrl+2)", "Cycle Hex Dump View (16/8/Off)"),
             ("Alt+3 (Ctrl+3)", "Toggle Sprites View"),
             ("Alt+4 (Ctrl+4)", "Toggle Charset View"),
             ("Alt+5 (Ctrl+5)", "Toggle Bitmap View"),
