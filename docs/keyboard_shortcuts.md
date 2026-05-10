@@ -28,8 +28,8 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Switch Pane (between Disasm and right pane)**                                         | ++tab++                                                       |
 | **Views**                          | **Toggle Blocks View**                                                                  | ++alt+1++ or ++ctrl+1++                                       |
 |                                    | **Cycle Hex Dump View** (16 columns → 8 columns → Off)                                 | ++alt+2++ or ++ctrl+2++                                       |
-|                                    | **Toggle Sprites View**                                                                 | ++alt+3++ or ++ctrl+3++                                       |
-|                                    | **Toggle Charset View**                                                                 | ++alt+4++ or ++ctrl+4++                                       |
+|                                    | **Cycle Sprites View** (2 columns → 1 column → Off)                                    | ++alt+3++ or ++ctrl+3++                                       |
+|                                    | **Cycle Charset View** (8 columns → 4 columns → Off)                                   | ++alt+4++ or ++ctrl+4++                                       |
 |                                    | **Toggle Bitmap View**                                                                  | ++alt+5++ or ++ctrl+5++                                       |
 |                                    | **Toggle Debugger Panel**                                                               | ++alt+6++ or ++ctrl+6++                                       |
 | **View: Disassembly** (editing)    | **Create Scope**                                                                        | ++r++                                                         |

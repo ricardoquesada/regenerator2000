@@ -240,12 +240,12 @@ impl MenuState {
                             Some(AppAction::ToggleHexDump),
                         ),
                         MenuItem::new(
-                            "Toggle Sprites View",
+                            "Cycle Sprites (2-Col/1-Col/Off)",
                             Some("Alt+3"),
                             Some(AppAction::ToggleSpritesView),
                         ),
                         MenuItem::new(
-                            "Toggle Charset View",
+                            "Cycle Charset (8-Col/4-Col/Off)",
                             Some("Alt+4"),
                             Some(AppAction::ToggleCharsetView),
                         ),
