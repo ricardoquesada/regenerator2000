@@ -242,6 +242,7 @@ impl Core {
                     RightPane::HexDump16 => {
                         // 16-col → 8-col
                         self.view.right_pane = RightPane::HexDump8;
+                        self.view.last_hexdump_pane = RightPane::HexDump8;
                         self.view.active_pane = crate::view_state::ActivePane::HexDump;
                         self.sync_pane_cursor_to_disassembly();
                         events.push(CoreEvent::StatusMessage(
@@ -256,14 +257,30 @@ impl Core {
                             self.view.active_pane = crate::view_state::ActivePane::Disassembly;
                         }
                     }
-                    _ => {
-                        // off / other → 16-col
+                    RightPane::None => {
+                        // off → 16-col (normal cycle restart)
                         self.view.right_pane = RightPane::HexDump16;
+                        self.view.last_hexdump_pane = RightPane::HexDump16;
                         self.view.active_pane = crate::view_state::ActivePane::HexDump;
                         self.sync_pane_cursor_to_disassembly();
                         events.push(CoreEvent::StatusMessage(
                             "Hex Dump View (16 columns)".to_string(),
                         ));
+                    }
+                    _ => {
+                        // Another pane (Sprites, Charset, …) → restore last hex dump mode
+                        let restored = self.view.last_hexdump_pane;
+                        self.view.right_pane = restored;
+                        self.view.active_pane = crate::view_state::ActivePane::HexDump;
+                        self.sync_pane_cursor_to_disassembly();
+                        let cols = if restored == RightPane::HexDump8 {
+                            "8"
+                        } else {
+                            "16"
+                        };
+                        events.push(CoreEvent::StatusMessage(format!(
+                            "Hex Dump View ({cols} columns)"
+                        )));
                     }
                 }
                 events.push(CoreEvent::ViewChanged);

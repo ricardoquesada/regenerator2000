@@ -57,6 +57,9 @@ pub struct CoreViewState {
     pub navigation_history: Vec<(ActivePane, NavigationTarget)>,
     pub active_pane: ActivePane,
     pub right_pane: RightPane,
+    /// Remembers the last active hex dump column mode (`HexDump16` or
+    /// `HexDump8`) so that toggling back from another pane restores it.
+    pub last_hexdump_pane: RightPane,
 
     // Disassembly cursors
     pub cursor_index: usize,
@@ -107,6 +110,7 @@ impl CoreViewState {
             navigation_history: Vec::new(),
             active_pane: ActivePane::Disassembly,
             right_pane: RightPane::HexDump16,
+            last_hexdump_pane: RightPane::HexDump16,
 
             cursor_index: 0,
             sub_cursor_index: 0,
