@@ -1,6 +1,7 @@
 use crate::state::AppState;
+use crate::ui::view_disassembly::DisassemblyView;
 use crate::ui_state::{ActivePane, AppAction, UIState};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseEvent, MouseEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
     Frame,
     layout::Rect,
@@ -12,6 +13,37 @@ use ratatui::{
 use crate::ui::widget::{Widget, WidgetResult};
 
 use crate::ui::navigable::{Navigable, handle_nav_input};
+
+/// Immediately mirror the sprite cursor / selection into the disassembly view's
+/// `cursor_index` / `selection_start`.  Called eagerly so both views are
+/// consistent within the same render frame.
+fn sync_sprites_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
+    if app_state.raw_data.is_empty() || app_state.disassembly.is_empty() {
+        return;
+    }
+    let origin = app_state.origin.0 as usize;
+    let aligned_origin = (origin / 64) * 64;
+
+    let cursor_addr = (aligned_origin + ui_state.sprites_cursor_index * 64)
+        .max(origin)
+        .min(origin + app_state.raw_data.len().saturating_sub(1));
+
+    if let Some(inst_idx) =
+        app_state.get_line_index_containing_address(crate::state::Addr(cursor_addr as u16))
+    {
+        ui_state.cursor_index = inst_idx;
+        let counts =
+            DisassemblyView::get_visual_line_counts(&app_state.disassembly[inst_idx], app_state);
+        ui_state.sub_cursor_index = counts.labels + counts.comments;
+
+        ui_state.selection_start = ui_state.sprites_selection_start.and_then(|sel_idx| {
+            let anchor_addr = (aligned_origin + sel_idx * 64)
+                .max(origin)
+                .min(origin + app_state.raw_data.len().saturating_sub(1));
+            app_state.get_line_index_containing_address(crate::state::Addr(anchor_addr as u16))
+        });
+    }
+}
 
 pub struct SpritesView;
 
@@ -223,7 +255,109 @@ fn render_single_sprite(
         rows_used += 1;
     }
 
+    // --- Selection frame (left gutter + right edge) ---
+    // Draws colored borders on both sides of the selected sprite to make it
+    // clearly stand out, matching the Charset view's selection pattern.
+    if is_selected && rows_used > 0 {
+        let visible_height = rows_used.min(visible_rows.saturating_sub(y_offset));
+        let gap_style = Style::default()
+            .bg(ui_state.theme.selection_bg)
+            .fg(ui_state.theme.selection_bg);
+        let sprite_y = inner_area.y + y_offset as u16;
+        let sprite_x = inner_area.x + x_offset;
+
+        // Left gutter — fill the 2-char indent with selection color
+        let left_lines: Vec<Line> = (0..visible_height).map(|_| Line::from("  ")).collect();
+        f.render_widget(
+            Paragraph::new(left_lines).style(gap_style),
+            Rect::new(sprite_x, sprite_y, 2, visible_height as u16),
+        );
+
+        // Right edge — 1-char column after the 24-char pixel area
+        let right_x = sprite_x + 26;
+        if right_x < inner_area.x + inner_area.width {
+            let right_lines: Vec<Line> = (0..visible_height).map(|_| Line::from(" ")).collect();
+            f.render_widget(
+                Paragraph::new(right_lines).style(gap_style),
+                Rect::new(right_x, sprite_y, 1, visible_height as u16),
+            );
+        }
+    }
+
     rows_used
+}
+
+impl SpritesView {
+    /// Sprite layout constants (must stay in sync with `render`).
+    const SPRITE_HEIGHT: usize = 22; // 1 header + 21 pixel rows
+    const COL_WIDTH: u16 = 28; // 2 indent + 24 pixels + 2 gap
+
+    /// Map a mouse position (column, row) to a sprite index, replicating the
+    /// render loop's layout (scroll offset, 1-col / 2-col geometry).
+    ///
+    /// Returns `None` if the position doesn't land on a sprite cell.
+    #[must_use]
+    fn hit_test_sprite_index(
+        &self,
+        mouse_col: u16,
+        mouse_row: u16,
+        app_state: &AppState,
+        ui_state: &UIState,
+    ) -> Option<usize> {
+        let area = ui_state.right_pane_area;
+        let inner_area = Rect {
+            x: area.x + 1,
+            y: area.y + 1,
+            width: area.width.saturating_sub(2),
+            height: area.height.saturating_sub(2),
+        };
+
+        if app_state.raw_data.is_empty() {
+            return None;
+        }
+
+        let origin = app_state.origin.0 as usize;
+        let aligned_origin = (origin / 64) * 64;
+        let end_address = origin + app_state.raw_data.len();
+        let total_bytes = end_address.saturating_sub(aligned_origin);
+        let total_sprites = total_bytes.div_ceil(64);
+
+        let is_2col = ui_state.right_pane == crate::ui_state::RightPane::Sprites2Col;
+        let cols = if is_2col { 2 } else { 1 };
+
+        let scroll_offset = ui_state.sprites_scroll_index; // in visual rows
+        let start_index = scroll_offset * cols;
+
+        let click_rel_y = (mouse_row as usize).saturating_sub(inner_area.y as usize);
+        let click_rel_x = (mouse_col as usize).saturating_sub(inner_area.x as usize);
+
+        // Determine which visual row the click lands in
+        let visual_row_in_viewport = click_rel_y / Self::SPRITE_HEIGHT;
+        let row_offset_within_sprite = click_rel_y % Self::SPRITE_HEIGHT;
+
+        // Must land within the sprite area (header + 21 pixel rows = 22 rows)
+        if row_offset_within_sprite >= Self::SPRITE_HEIGHT {
+            return None;
+        }
+
+        // Determine column for 2-col mode
+        let col_idx = if is_2col {
+            if click_rel_x >= Self::COL_WIDTH as usize {
+                1
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
+        let sprite_idx = start_index + visual_row_in_viewport * cols + col_idx;
+        if sprite_idx < total_sprites {
+            Some(sprite_idx)
+        } else {
+            None
+        }
+    }
 }
 
 impl Widget for SpritesView {
@@ -256,6 +390,28 @@ impl Widget for SpritesView {
             }
             MouseEventKind::ScrollUp => {
                 self.move_up(app_state, ui_state, 3);
+                WidgetResult::Handled
+            }
+            MouseEventKind::Down(MouseButton::Left) | MouseEventKind::Drag(MouseButton::Left) => {
+                let is_drag = matches!(mouse.kind, MouseEventKind::Drag(_));
+                let shift_held = mouse.modifiers.contains(KeyModifiers::SHIFT);
+
+                if let Some(sprite_idx) =
+                    self.hit_test_sprite_index(mouse.column, mouse.row, app_state, ui_state)
+                {
+                    // Drag, Shift+Click, or visual mode: anchor selection
+                    if is_drag || shift_held || ui_state.is_visual_mode {
+                        if ui_state.sprites_selection_start.is_none() {
+                            ui_state.sprites_selection_start = Some(ui_state.sprites_cursor_index);
+                        }
+                    } else {
+                        // Plain click: clear selection
+                        ui_state.sprites_selection_start = None;
+                    }
+
+                    ui_state.sprites_cursor_index = sprite_idx;
+                }
+                sync_sprites_to_disassembly(app_state, ui_state);
                 WidgetResult::Handled
             }
             _ => WidgetResult::Ignored,
@@ -422,10 +578,12 @@ impl Widget for SpritesView {
             match key.code {
                 KeyCode::Down | KeyCode::Char('j') if key.modifiers.is_empty() => {
                     self.move_down(app_state, ui_state, 2);
+                    sync_sprites_to_disassembly(app_state, ui_state);
                     return WidgetResult::Handled;
                 }
                 KeyCode::Up | KeyCode::Char('k') if key.modifiers.is_empty() => {
                     self.move_up(app_state, ui_state, 2);
+                    sync_sprites_to_disassembly(app_state, ui_state);
                     return WidgetResult::Handled;
                 }
                 KeyCode::Left | KeyCode::Char('h') if key.modifiers.is_empty() => {
@@ -439,6 +597,7 @@ impl Widget for SpritesView {
                     if ui_state.sprites_cursor_index > 0 {
                         ui_state.sprites_cursor_index -= 1;
                     }
+                    sync_sprites_to_disassembly(app_state, ui_state);
                     return WidgetResult::Handled;
                 }
                 KeyCode::Right | KeyCode::Char('l') if key.modifiers.is_empty() => {
@@ -453,6 +612,7 @@ impl Widget for SpritesView {
                     if total > 0 && ui_state.sprites_cursor_index + 1 < total {
                         ui_state.sprites_cursor_index += 1;
                     }
+                    sync_sprites_to_disassembly(app_state, ui_state);
                     return WidgetResult::Handled;
                 }
                 // Shift+Down: extend selection by one visual row (2 sprites)
@@ -467,6 +627,7 @@ impl Widget for SpritesView {
                             (ui_state.sprites_cursor_index + 2).min(total.saturating_sub(1));
                     }
                     ui_state.sprites_selection_start = selection_to_keep;
+                    sync_sprites_to_disassembly(app_state, ui_state);
                     return WidgetResult::Handled;
                 }
                 // Shift+Up: extend selection by one visual row (2 sprites)
@@ -477,6 +638,7 @@ impl Widget for SpritesView {
                     let selection_to_keep = ui_state.sprites_selection_start;
                     ui_state.sprites_cursor_index = ui_state.sprites_cursor_index.saturating_sub(2);
                     ui_state.sprites_selection_start = selection_to_keep;
+                    sync_sprites_to_disassembly(app_state, ui_state);
                     return WidgetResult::Handled;
                 }
                 // Shift+Left/Right: extend selection by 1 sprite
@@ -487,6 +649,7 @@ impl Widget for SpritesView {
                     let selection_to_keep = ui_state.sprites_selection_start;
                     ui_state.sprites_cursor_index = ui_state.sprites_cursor_index.saturating_sub(1);
                     ui_state.sprites_selection_start = selection_to_keep;
+                    sync_sprites_to_disassembly(app_state, ui_state);
                     return WidgetResult::Handled;
                 }
                 KeyCode::Right if key.modifiers == KeyModifiers::SHIFT => {
@@ -500,6 +663,7 @@ impl Widget for SpritesView {
                             (ui_state.sprites_cursor_index + 1).min(total.saturating_sub(1));
                     }
                     ui_state.sprites_selection_start = selection_to_keep;
+                    sync_sprites_to_disassembly(app_state, ui_state);
                     return WidgetResult::Handled;
                 }
                 _ => {}
@@ -507,10 +671,11 @@ impl Widget for SpritesView {
         }
 
         if let WidgetResult::Handled = handle_nav_input(self, key, app_state, ui_state) {
+            sync_sprites_to_disassembly(app_state, ui_state);
             return WidgetResult::Handled;
         }
 
-        match key.code {
+        let result = match key.code {
             // Escape cancels visual mode / selection
             KeyCode::Esc => {
                 if ui_state.sprites_selection_start.is_some() || ui_state.is_visual_mode {
@@ -629,6 +794,11 @@ impl Widget for SpritesView {
                 )
             }
             _ => WidgetResult::Ignored,
+        };
+
+        if matches!(result, WidgetResult::Handled) {
+            sync_sprites_to_disassembly(app_state, ui_state);
         }
+        result
     }
 }

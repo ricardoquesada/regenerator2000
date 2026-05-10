@@ -882,6 +882,37 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
                 ui_state.charset_cursor_index = idx;
             }
         }
+
+        // Mirror disassembly selection into charset selection
+        if let Some(sel_start) = ui_state.selection_start {
+            let (s_idx, e_idx) = if sel_start <= ui_state.cursor_index {
+                (sel_start, ui_state.cursor_index)
+            } else {
+                (ui_state.cursor_index, sel_start)
+            };
+            let sel_start_addr = app_state
+                .disassembly
+                .get(s_idx)
+                .map_or(target_addr.0 as usize, |l| l.address.0 as usize);
+            let sel_end_addr = app_state
+                .disassembly
+                .get(e_idx)
+                .map_or(target_addr.0 as usize, |l| {
+                    l.address.0 as usize + l.bytes.len().saturating_sub(1)
+                });
+
+            if sel_start_addr >= aligned_start_addr && sel_end_addr >= aligned_start_addr {
+                let start_char = (sel_start_addr - aligned_start_addr) / 8;
+                let end_char = (sel_end_addr - aligned_start_addr) / 8;
+                let end_addr = origin + app_state.raw_data.len();
+                let total_chars = (end_addr.saturating_sub(aligned_start_addr)).div_ceil(8);
+                let max_idx = total_chars.saturating_sub(1);
+                ui_state.charset_selection_start = Some(start_char.min(max_idx));
+                ui_state.charset_cursor_index = end_char.min(max_idx);
+            }
+        } else {
+            ui_state.charset_selection_start = None;
+        }
     }
 
     // Sync Sprites view
@@ -905,6 +936,37 @@ fn sync_views_before_render(app_state: &AppState, ui_state: &mut UIState) {
             if idx < total_sprites {
                 ui_state.sprites_cursor_index = idx;
             }
+        }
+
+        // Mirror disassembly selection into sprites selection
+        if let Some(sel_start) = ui_state.selection_start {
+            let (s_idx, e_idx) = if sel_start <= ui_state.cursor_index {
+                (sel_start, ui_state.cursor_index)
+            } else {
+                (ui_state.cursor_index, sel_start)
+            };
+            let sel_start_addr = app_state
+                .disassembly
+                .get(s_idx)
+                .map_or(target_addr.0 as usize, |l| l.address.0 as usize);
+            let sel_end_addr = app_state
+                .disassembly
+                .get(e_idx)
+                .map_or(target_addr.0 as usize, |l| {
+                    l.address.0 as usize + l.bytes.len().saturating_sub(1)
+                });
+
+            if sel_start_addr >= aligned_origin && sel_end_addr >= aligned_origin {
+                let start_sprite = (sel_start_addr - aligned_origin) / 64;
+                let end_sprite = (sel_end_addr - aligned_origin) / 64;
+                let end_addr = origin + app_state.raw_data.len();
+                let total_sprites = (end_addr.saturating_sub(aligned_origin)).div_ceil(64);
+                let max_idx = total_sprites.saturating_sub(1);
+                ui_state.sprites_selection_start = Some(start_sprite.min(max_idx));
+                ui_state.sprites_cursor_index = end_sprite.min(max_idx);
+            }
+        } else {
+            ui_state.sprites_selection_start = None;
         }
     }
 

@@ -1,4 +1,5 @@
 use crate::state::AppState;
+use crate::ui::view_disassembly::DisassemblyView;
 use crate::ui_state::{ActivePane, AppAction, UIState};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::{
@@ -12,6 +13,38 @@ use ratatui::{
 use crate::ui::widget::{Widget, WidgetResult};
 
 use crate::ui::navigable::{Navigable, handle_nav_input};
+
+/// Immediately mirror the charset cursor / selection into the disassembly
+/// view's `cursor_index` / `selection_start`.  Called eagerly so both views
+/// are consistent within the same render frame.
+fn sync_charset_to_disassembly(app_state: &AppState, ui_state: &mut UIState) {
+    if app_state.raw_data.is_empty() || app_state.disassembly.is_empty() {
+        return;
+    }
+    let origin = app_state.origin.0 as usize;
+    let base_alignment = 0x400;
+    let aligned_start_addr = (origin / base_alignment) * base_alignment;
+
+    let cursor_addr = (aligned_start_addr + ui_state.charset_cursor_index * 8)
+        .max(origin)
+        .min(origin + app_state.raw_data.len().saturating_sub(1));
+
+    if let Some(inst_idx) =
+        app_state.get_line_index_containing_address(crate::state::Addr(cursor_addr as u16))
+    {
+        ui_state.cursor_index = inst_idx;
+        let counts =
+            DisassemblyView::get_visual_line_counts(&app_state.disassembly[inst_idx], app_state);
+        ui_state.sub_cursor_index = counts.labels + counts.comments;
+
+        ui_state.selection_start = ui_state.charset_selection_start.and_then(|sel_idx| {
+            let anchor_addr = (aligned_start_addr + sel_idx * 8)
+                .max(origin)
+                .min(origin + app_state.raw_data.len().saturating_sub(1));
+            app_state.get_line_index_containing_address(crate::state::Addr(anchor_addr as u16))
+        });
+    }
+}
 
 pub struct CharsetView;
 
@@ -287,6 +320,7 @@ impl Widget for CharsetView {
 
                     ui_state.charset_cursor_index = char_idx;
                 }
+                sync_charset_to_disassembly(app_state, ui_state);
                 WidgetResult::Handled
             }
             _ => WidgetResult::Ignored,
@@ -560,6 +594,7 @@ impl Widget for CharsetView {
         ui_state: &mut UIState,
     ) -> WidgetResult {
         if let WidgetResult::Handled = handle_nav_input(self, key, app_state, ui_state) {
+            sync_charset_to_disassembly(app_state, ui_state);
             return WidgetResult::Handled;
         }
 
@@ -570,7 +605,7 @@ impl Widget for CharsetView {
         // but Navigable::len takes &self.
         // So I can call self.len(app_state).
 
-        match key.code {
+        let result = match key.code {
             // Escape cancels visual mode / selection
             KeyCode::Esc => {
                 if ui_state.charset_selection_start.is_some() || ui_state.is_visual_mode {
@@ -753,6 +788,11 @@ impl Widget for CharsetView {
                 )
             }
             _ => WidgetResult::Ignored,
+        };
+
+        if matches!(result, WidgetResult::Handled) {
+            sync_charset_to_disassembly(app_state, ui_state);
         }
+        result
     }
 }
