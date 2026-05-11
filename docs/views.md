@@ -12,7 +12,7 @@ In this view, you can:
 - **Define Block Types**: Classify memory regions as Code, Byte data, Word data, or various Text formats to make sense of the binary.
 - **Annotate**: Add comments to lines or specific instructions and rename labels to something meaningful.
 - **Analyze Flow**: Visual indicators show jump and branch targets, and unexplored code blocks are dimmed for visual clarity.
-- **Minimap Bar**: A horizontal bar at the bottom of the main view shows a high-level overview of block types across the entire address space. It uses sub-character precision and allows mouse interaction for navigation.
+- **Minimap Bar**: A horizontal bar at the top of the main view (below the menu) shows a high-level overview of block types across the entire address space. It uses sub-character precision and allows mouse interaction for navigation.
 
 ![Disassembly View](regenerator2000_disassembly_screenshot.png)
 
@@ -52,10 +52,11 @@ for the complete prefix reference.
 | **Set Hi/Lo Word Table**       | ++period++              |
 | **Create Scope**               | ++r++                   |
 | **Remove Scope**               | ++delete++              |
+| **Nudge Scope Boundary**       | ++alt+up++ / ++alt+down++ |
 | **Set Label**                  | ++l++                   |
 | **Add Side Comment**           | ++semicolon++           |
 | **Add Line Comment**           | ++colon++               |
-| **Next/Prev Immediate Format** | ++d++ / ++shift+d++     |
+| **Next/Prev Immediate Format** | ++i++ / ++shift+i++     |
 | **Pack Lo/Hi Address**         | ++open-bracket++        |
 | **Pack Hi/Lo Address**         | ++close-bracket++       |
 | **Toggle Visual Mode**         | ++shift+v++             |
@@ -67,6 +68,9 @@ for the complete prefix reference.
 | **Jump to Address**            | ++ctrl+g++ or ++alt+g++ |
 | **Jump to Operand**            | ++enter++               |
 | **Jump Back (History)**        | ++backspace++           |
+| **Search**                     | ++slash++               |
+| **Find Next**                  | ++n++                   |
+| **Find Previous**              | ++shift+n++             |
 
 ## Blocks View
 
@@ -90,7 +94,7 @@ This bird's-eye view is essential for understanding the overall structure of the
 
 ## Hexdump View
 
-The Hexdump View provides a raw hexadecimal representation of the memory, side-by-side with an text representation. It is useful for inspecting data that hasn't been formatted yet or for verifying the exact byte values in a region.
+The Hexdump View provides a raw hexadecimal representation of the memory, side-by-side with a text representation. It is useful for inspecting data that hasn't been formatted yet or for verifying the exact byte values in a region.
 
 This view supports different text decoding modes to help you spot strings in standard C64 formats. Bytes are colored using a **byte-value color palette** for improved visual pattern recognition, making it easier to spot repeating values or data structures.
 
