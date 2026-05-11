@@ -67,6 +67,8 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Jump to Operand**                                                                     | ++enter++                                                     |
 |                                    | **Remove Scope / Exclude External Address**                                             | ++delete++                                                    |
 |                                    | **Jump Back (History)**                                                                 | ++backspace++                                                 |
+|                                    | **Next Unexplored Block**                                                               | ++ctrl+n++                                                    |
+|                                    | **Prev Unexplored Block**                                                               | ++ctrl+shift+n++                                              |
 |                                    | **Previous/Next 10 Lines**                                                              | ++ctrl+u++ / ++ctrl+d++                                       |
 | **View: Hexdump**                  | **Convert to Byte**                                                                     | ++b++                                                         |
 |                                    | **Column Navigation**                                                                   | ++left++ / ++right++ / ++h++ / ++l++                          |

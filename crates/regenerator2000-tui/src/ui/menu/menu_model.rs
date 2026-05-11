@@ -168,12 +168,12 @@ impl MenuState {
                         MenuItem::separator(),
                         MenuItem::new(
                             "Next Unexplored Block",
-                            None,
+                            Some("Ctrl+N"),
                             Some(AppAction::JumpNextUnexplored),
                         ),
                         MenuItem::new(
                             "Prev Unexplored Block",
-                            None,
+                            Some("Ctrl+Shift+N"),
                             Some(AppAction::JumpPrevUnexplored),
                         ),
                     ],

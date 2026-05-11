@@ -386,6 +386,22 @@ pub fn handle_global_input(
                 event_tx,
             );
         }
+        KeyCode::Char('n') if key.modifiers == KeyModifiers::CONTROL => {
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::JumpNextUnexplored,
+                event_tx,
+            );
+        }
+        KeyCode::Char('n') if key.modifiers == (KeyModifiers::CONTROL | KeyModifiers::SHIFT) => {
+            handle_menu_action(
+                core,
+                ui_state,
+                crate::state::actions::AppAction::JumpPrevUnexplored,
+                event_tx,
+            );
+        }
         KeyCode::Tab => {
             handle_menu_action(
                 core,

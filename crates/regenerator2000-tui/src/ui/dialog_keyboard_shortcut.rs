@@ -69,6 +69,8 @@ impl ShortcutsDialog {
             ("Enter", "Jump to Operand / Jump to Disasm"),
             ("Delete", "Remove Scope"),
             ("Backspace", "Navigate Back"),
+            ("Ctrl+n", "Next Unexplored Block"),
+            ("Ctrl+Shift+n", "Prev Unexplored Block"),
             ("", ""),
             ("Search", ""),
             ("/", "Vim Search"),
