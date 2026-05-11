@@ -73,7 +73,7 @@ cargo audit                       # Dependency vulnerability scan (Linux only)
 
 ## Architecture
 
-The project follows a unidirectional data flow (Redux/Elm style). See [`AGENTS.md`](AGENTS.md) for the full architecture documentation, including the data flow diagram, key modules, and instructions for adding new features.
+The project follows a unidirectional data flow (Redux/Elm style). See the [Architecture](docs/architecture.md) documentation for the full data flow diagram, key modules, and instructions for adding new features.
 
 ## How Can I Contribute?
 
