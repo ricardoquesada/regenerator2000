@@ -44,36 +44,21 @@ cargo test --test disassembler_tests           # Run a single integration test f
 cargo test --test parser_malformed_input_tests # Run parser edge-case tests
 ```
 
-### Test Categories
-
-| Test file | Coverage |
-|-----------|----------|
-| `tests/parser_malformed_input_tests.rs` | Malformed input for D64, CRT, T64, VSF parsers |
-| `tests/formatter_64tass_tests.rs` | 64tass assembler output formatting |
-| `tests/formatter_acme_tests.rs` | ACME assembler output formatting |
-| `tests/formatter_ca65_tests.rs` | ca65 assembler output formatting |
-| `tests/formatter_kickasm_tests.rs` | KickAssembler output formatting |
-| `tests/vice_protocol_tests.rs` | VICE binary monitor protocol encode/decode |
-| `tests/theme_loading_tests.rs` | Theme loading, defaults, and fallbacks |
-| `tests/config_serialization_tests.rs` | Config JSON round-trip and backward compat |
-| `tests/exporter_tests.rs` | Full assembly export pipeline |
-| `tests/disassembler_tests.rs` | End-to-end disassembly tests |
-
 ### CI Checks
 
-CI runs on every push and PR to `main`. All of these must pass:
+CI runs on every push and PR to `main` across macOS, Linux, and Windows. All of these must pass:
 
 ```bash
 cargo fmt -- --check              # Formatting (Linux only)
-cargo clippy -- -D warnings       # Lint — warnings are errors
-cargo build --verbose             # Build
-cargo test --verbose              # Tests (macOS, Linux, Windows)
+cargo clippy -- -D warnings       # Lint — warnings are errors (all OSes)
+cargo build --verbose             # Build (all OSes)
+cargo test --verbose              # Tests (all OSes)
 cargo audit                       # Dependency vulnerability scan (Linux only)
 ```
 
 ## Architecture
 
-The project follows a unidirectional data flow (Redux/Elm style). See the [Architecture](docs/architecture.md) documentation for the full data flow diagram, key modules, and instructions for adding new features.
+See the [Architecture](docs/architecture.md) documentation for the full data flow diagram, key modules, and instructions for adding new features.
 
 ## How Can I Contribute?
 
@@ -106,6 +91,12 @@ The project follows a unidirectional data flow (Redux/Elm style). See the [Archi
 
 ### Rust Code
 
-- No `.unwrap()` or `.expect()` in production code (enforced by `clippy::unwrap_used` deny)
+- No `.unwrap()` or `.expect()` in production code (enforced by `clippy::unwrap_used` and `clippy::expect_used` deny)
+- Add `#[must_use]` to every pure function (enforced by `clippy::must_use_candidate`)
+- All `pub` items in `regenerator2000-core` must have doc comments (`///`), including `# Errors` sections for fallible functions
 - All mutations to `AppState` go through `Command::apply()` for undo/redo support
+- Prefer `Result`/`Option` with `?` propagation over manual `match`/`if let` error handling
+- Use `anyhow::Result` for application-level errors; typed `thiserror` enums for library-facing error surfaces
+- Prefer newtypes over raw primitives (e.g., `Addr(u16)` instead of raw `u16`)
+- Use `BTreeMap`/`BTreeSet` for address-keyed maps that must iterate in order
 - Follow standard `cargo fmt` formatting
