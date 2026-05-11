@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.15] - 2026-05-11
+
+### Features
+
+- **Sprites/Charset Views**: Add mouse click/drag-to-select and cross-pane selection sync.
+- **Sprites/Charset Views**: Update view toggles to cycling behaviors with multiple view modes.
+- **Sprites View**: Add 2-column sprites view mode with scrolloff and grid navigation.
+- **Charset View**: Add 4-column charset view mode with dynamic grid layout.
+- **Hexdump View**: Implement cycling hex dump views between 8 columns, 16 columns, and hidden.
+- **Navigation**: Add keyboard shortcuts for navigating unexplored blocks.
+
+### Fixes
+
+- **Labels**: Remove dead dual-label logic for external ZP/absolute addresses.
+
+### Changes
+
+- **MCP**: Rename `r2000_get_analyzed_blocks` to `r2000_get_blocks`.
+
+### Documentation
+
+- **README**: Expand supported systems list, add screenshots, and fix typo.
+- **MCP**: Update MCP analysis phases to include rolling subagent execution and refined symbol classification logic.
+- **Contributing**: Update contribution guidelines with refined coding standards and clarified CI test environments.
+- **Docs**: Update architecture documentation link in CONTRIBUTING.md.
+- **Docs**: Update skills link in index.md to point to the full repository URL.
+- **Docs**: Update project description to highlight automated AI analysis workflows and bundled skills.
+- **Keyboard Shortcuts**: Update minimap position, add scope nudging, remap immediate formatting keys, and add search shortcuts.
+
+### CI
+
+- **Audit**: Add retries to CI cargo audit job.
+
+### Examples
+
+- **C128**: Update Hero Is Back project analysis with subagents.
+
 ## [0.9.14] - 2026-05-07
 
 ### Features
