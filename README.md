@@ -6,7 +6,12 @@
 
 ![logo](docs/regenerator2000_logo.png)
 
-A 6502 disassembler with a TUI. A modern take on [Regenerator][regenerator].
+A modern, interactive 6502 disassembler for Commodore 8-bit machines. A modern take on [Regenerator][regenerator].
+
+- **🕹️ Manual Analysis** — A fast, keyboard-centric TUI for hands-on exploration: navigate code, define data, label subroutines, add comments, and iteratively refine your disassembly.
+- **🤖 Automated Analysis** — A built-in MCP Server lets AI assistants drive the disassembler programmatically. Paired with purpose-built skills, it can analyze entire programs — classifying blocks, tracing routines, and naming symbols — with minimal human intervention.
+
+Use either workflow on its own, or combine them: let the AI do a first pass, then refine the results interactively.
 
 [regenerator]: https://csdb.dk/release/?id=247992
 
@@ -76,6 +81,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
   - HTTP and stdio transport modes
   - Tools for disassembly manipulation, memory search, block operations
   - Resources for accessing binary data and views
+  - Bundled analysis skills that automate block classification, routine tracing, and symbol naming
 - **Fast**:
   - Extremely fast
 

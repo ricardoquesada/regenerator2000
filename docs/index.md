@@ -6,7 +6,12 @@
 
 # The Modern 6502 Disassembler
 
-**Regenerator 2000** is a modern, interactive disassembler for the Commodore 64 and other 6502-based systems. It combines the retro feel of Turbo Debugger with the power of modern tools like IDA Pro, all within a fast, keyboard-centric terminal interface.
+**Regenerator 2000** is a modern, interactive disassembler for the Commodore 64 and other 6502-based systems. It combines the retro feel of Turbo Debugger with the power of modern tools like IDA Pro, offering two powerful workflows:
+
+- **🕹️ Manual Analysis** — A fast, keyboard-centric terminal interface for hands-on exploration. Navigate code, define data regions, label subroutines, add comments, and iteratively refine your disassembly at your own pace.
+- **🤖 Automated Analysis** — A built-in [MCP Server](mcp.md) lets AI assistants drive the disassembler programmatically. Paired with purpose-built [skills](.agent/skills/), it can analyze entire programs — classifying blocks, tracing routines, and naming symbols — with minimal human intervention.
+
+Use either workflow on its own, or combine them: let the AI do a first pass, then refine the results interactively.
 
 ---
 
