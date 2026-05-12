@@ -491,17 +491,21 @@ fn force_rts(cpu: &mut CPU<UnpackerMemory, Nmos6502>) {
 
 /// Detects the modified memory range by comparing against a pre-emulation snapshot.
 ///
+/// `ret_addr` is the return-address boundary (typically `$0800`). Modifications
+/// below this address are depacker workspace and are excluded from the output.
+///
 /// Returns `(start_addr, end_addr)` inclusive, or `None` if nothing changed.
 #[must_use]
-fn detect_output_range(mem: &[u8], snapshot: &[u8]) -> Option<(u16, u16)> {
-    // Primary scan: $0200-$9FFF (typical program area below ROM)
-    if let Some(result) = scan_range(mem, snapshot, 0x0200, 0x9FFF) {
+fn detect_output_range(mem: &[u8], snapshot: &[u8], ret_addr: u16) -> Option<(u16, u16)> {
+    let scan_start = ret_addr as usize;
+
+    // Primary scan: ret_addr..$9FFF (typical program area below ROM)
+    if let Some(result) = scan_range(mem, snapshot, scan_start, 0x9FFF) {
         return Some(result);
     }
 
-    // Fallback scan: full memory excluding I/O
-    // $0002-$CFFF
-    if let Some((s1, e1)) = scan_range(mem, snapshot, 0x0002, 0xCFFF) {
+    // Fallback scan: ret_addr..$CFFF + $E000..$FFFF
+    if let Some((s1, e1)) = scan_range(mem, snapshot, scan_start, 0xCFFF) {
         // Also check $E000-$FFFF
         if let Some((_s2, e2)) = scan_range(mem, snapshot, 0xE000, 0xFFFF) {
             return Some((s1, e2));
@@ -624,6 +628,7 @@ pub fn unpack(
                     &snapshot,
                     entry_point,
                     dep_addr,
+                    ret_addr,
                     total_instructions,
                 );
             }
@@ -636,7 +641,14 @@ pub fn unpack(
                 }
                 // If we can't find a SYS, treat as exit
                 dep_addr = config.forced_dep_addr.unwrap_or(pc);
-                return finish_unpack(&cpu.memory.mem, &snapshot, pc, dep_addr, total_instructions);
+                return finish_unpack(
+                    &cpu.memory.mem,
+                    &snapshot,
+                    pc,
+                    dep_addr,
+                    ret_addr,
+                    total_instructions,
+                );
             }
         }
 
@@ -681,6 +693,7 @@ pub fn unpack(
                 &snapshot,
                 entry_point,
                 dep_addr,
+                ret_addr,
                 total_instructions,
             );
         }
@@ -704,6 +717,7 @@ pub fn unpack(
                     &snapshot,
                     entry_point,
                     dep_addr,
+                    ret_addr,
                     total_instructions,
                 );
             }
@@ -723,6 +737,7 @@ pub fn unpack(
                     &snapshot,
                     entry_point,
                     dep_addr,
+                    ret_addr,
                     total_instructions,
                 );
             }
@@ -739,10 +754,11 @@ fn finish_unpack(
     snapshot: &[u8],
     entry_point: u16,
     dep_addr: u16,
+    ret_addr: u16,
     instructions_executed: u64,
 ) -> Result<UnpackResult, UnpackError> {
     let (start_addr, end_addr) =
-        detect_output_range(mem, snapshot).ok_or(UnpackError::NothingWritten)?;
+        detect_output_range(mem, snapshot, ret_addr).ok_or(UnpackError::NothingWritten)?;
 
     let data = mem[start_addr as usize..=end_addr as usize].to_vec();
 
