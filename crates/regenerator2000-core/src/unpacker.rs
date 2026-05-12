@@ -646,9 +646,24 @@ pub fn unpack(
 
     // -----------------------------------------------------------------------
     // Phase 2: Run decompression
-    // Continues from where Phase 1 left off. Loop while PC < ret_addr.
-    // Exit when PC >= ret_addr (depacker finished and jumped to unpacked code).
+    // Continues from where Phase 1 left off.
+    //
+    // Exit conditions:
+    //  1. PC >= ret_addr AND mem[PC] was written during emulation — the
+    //     depacker finished and jumped to freshly unpacked code.
+    //  2. PC >= ret_addr AND PC is outside the original loaded data range —
+    //     the depacker jumped to an area that wasn't part of the original
+    //     packed binary (e.g., it decompressed to a different region).
+    //  3. ROM exit vector or BASIC RUN detection.
+    //  4. Timeout.
+    //
+    // This handles inline packers (like Exomizer) that bounce between
+    // depacker code below ret_addr (e.g., stack page) and depacker code
+    // above ret_addr (e.g., $20B0) — those jumps back above ret_addr
+    // are to the packer's own original code, not to unpacked data.
     // -----------------------------------------------------------------------
+    let load_end = load_addr.wrapping_add(data_len as u16);
+
     loop {
         if total_instructions >= config.max_instructions {
             return Err(UnpackError::Phase2Timeout);
@@ -656,8 +671,10 @@ pub fn unpack(
 
         let pc = cpu.registers.program_counter;
 
-        // Exit condition: PC jumped back above ret_addr
-        if pc >= ret_addr {
+        // Exit condition: PC is above ret_addr AND points to written memory.
+        // Written memory means the depacker put code there during emulation,
+        // so this must be the unpacked program's entry point.
+        if pc >= ret_addr && cpu.memory.written[pc as usize] {
             let entry_point = pc;
             return finish_unpack(
                 &cpu.memory.mem,
@@ -666,6 +683,30 @@ pub fn unpack(
                 dep_addr,
                 total_instructions,
             );
+        }
+
+        // Also exit if PC is above ret_addr but outside the original loaded
+        // data region. This catches cases where the depacker decompresses
+        // to memory that was empty/zero before loading.
+        if pc >= ret_addr && (pc < load_addr || pc >= load_end) {
+            // Only exit if significant decompression has happened
+            let written_above = cpu
+                .memory
+                .written
+                .iter()
+                .skip(ret_addr as usize)
+                .filter(|&&w| w)
+                .count();
+            if written_above > 256 {
+                let entry_point = pc;
+                return finish_unpack(
+                    &cpu.memory.mem,
+                    &snapshot,
+                    entry_point,
+                    dep_addr,
+                    total_instructions,
+                );
+            }
         }
 
         // ROM interception
@@ -1054,5 +1095,46 @@ mod tests {
             "Unpacked data should be >1KB, got {} bytes",
             result.data.len()
         );
+    }
+
+    #[test]
+    fn test_debug_exo_unpack() {
+        let prg_data = std::fs::read("../../tests/6502/moving_tubes_lxt_exo.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        println!(
+            "EXO: {} bytes, load=${:04X}, data={} bytes",
+            prg_data.len(),
+            load_addr,
+            raw_data.len()
+        );
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config);
+        match &result {
+            Ok(r) => {
+                println!(
+                    "SUCCESS: ${:04X}-${:04X}, entry=${:04X}, dep=${:04X}, instr={}",
+                    r.start_addr, r.end_addr, r.entry_point, r.dep_addr, r.instructions_executed
+                );
+                println!("Unpacked data length: {}", r.data.len());
+            }
+            Err(e) => {
+                println!("FAILED: {e:?}");
+            }
+        }
+        let result = result.unwrap();
+        // Exomizer should produce substantial output
+        assert!(
+            result.data.len() > 1000,
+            "Expected >1KB output, got {} bytes",
+            result.data.len()
+        );
+        // Entry point should be $2E00 (same as the Dali/LXT version)
+        assert_eq!(result.entry_point, 0x2E00, "Entry point should be $2E00");
     }
 }
