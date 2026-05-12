@@ -1,3 +1,5 @@
+EXO=~/bin/exomizer
+
 all:
 	64tass -o test_text.prg test_text.asm
 	64tass -o test_pointer.prg test_pointer.asm
@@ -10,6 +12,9 @@ all:
 	64tass -i -o test_brk.prg test_brk.asm
 	64tass -i -o test_acum.prg test_acum.asm
 	64tass -i -o test_addressing.prg test_addressing.asm
+
+crunch:
+	${EXO} sfx 0x2e00 -o moving_tubes_lxt_exo.prg -t 64 moving_tubes_lxt_2e00.prg
 
 clean:
 	rm -f test_text.prg test_pointer.prg test_petscii.prg test_labels.prg test_arrows.prg test_lohi_hilo.prg test_immediate_mode.prg test_illegal_opcodes.prg test_brk.prg test_acum.prg test_addressing.prg

@@ -17,6 +17,7 @@ directories = "6.0.0"
 regex = "1.12"
 log = "0.4.29"
 include_dir = "0.7"
+mos6502 = "0.9"
 
 # MCP Dependencies (optional)
 tokio = { version = "1.52", features = ["rt-multi-thread", "sync", "net", "macros"], optional = true }

@@ -34,6 +34,7 @@ pub mod exporter;
 pub mod navigation;
 pub mod parser;
 pub mod state;
+pub mod unpacker;
 pub mod utils;
 pub mod vice;
 pub mod view_state;

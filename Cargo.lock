@@ -1698,6 +1698,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mos6502"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1dd8384601f3b3a7e258d1f7a5c77f448e7bd26792958de10b8a56fff6c9c9df"
+dependencies = [
+ "bitflags 2.11.1",
+ "log",
+]
+
+[[package]]
 name = "moxcms"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2455,6 +2465,7 @@ dependencies = [
  "flate2",
  "include_dir",
  "log",
+ "mos6502",
  "regex",
  "reqwest",
  "rmcp",

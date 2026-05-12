@@ -303,6 +303,14 @@ impl MenuState {
                     ],
                 },
                 MenuCategory {
+                    name: "Tools".to_string(),
+                    items: vec![MenuItem::new(
+                        "Unpack Binary",
+                        None,
+                        Some(AppAction::UnpackBinary),
+                    )],
+                },
+                MenuCategory {
                     name: "Help".to_string(),
                     items: vec![
                         MenuItem::new(

@@ -47,6 +47,7 @@ pub enum AppAction {
     ChangeOrigin,
     KeyboardShortcuts,
     Undefined,
+    UnpackBinary,
     SystemSettings,
     NextImmediateFormat,
     PreviousImmediateFormat,
