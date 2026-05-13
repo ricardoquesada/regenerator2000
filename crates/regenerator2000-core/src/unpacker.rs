@@ -751,11 +751,14 @@ fn trim_trailing_clusters(mem: &[u8], snapshot: &[u8], start: usize, end: usize)
 /// * `config` — unpacker configuration
 ///
 /// # Errors
-/// Returns [`UnpackError`] if the binary cannot be unpacked.
+///
+/// Returns [`UnpackError`] if the input is empty, no entry point is found,
+/// or the emulation exceeds the instruction limit without completing.
 pub fn unpack(
     raw_data: &[u8],
     load_addr: u16,
     config: &UnpackConfig,
+    progress_callback: Option<&dyn Fn(u64)>,
 ) -> Result<UnpackResult, UnpackError> {
     if raw_data.is_empty() {
         return Err(UnpackError::EmptyData);
@@ -857,6 +860,11 @@ pub fn unpack(
 
         cpu.single_step();
         total_instructions += 1;
+        if total_instructions.is_multiple_of(10_000)
+            && let Some(cb) = progress_callback
+        {
+            cb(total_instructions);
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -984,6 +992,11 @@ pub fn unpack(
 
         cpu.single_step();
         total_instructions += 1;
+        if total_instructions.is_multiple_of(10_000)
+            && let Some(cb) = progress_callback
+        {
+            cb(total_instructions);
+        }
     }
 }
 
@@ -1298,7 +1311,7 @@ mod tests {
             ..Default::default()
         };
 
-        let result = unpack(&raw, 0x0801, &config).unwrap();
+        let result = unpack(&raw, 0x0801, &config, None).unwrap();
         assert_eq!(result.entry_point, 0x0900);
         assert_eq!(result.dep_addr, 0x0003);
         // The output range should cover $0900
@@ -1320,7 +1333,7 @@ mod tests {
         assert_eq!(load_addr, 0x0801, "Expected load address $0801");
 
         let config = UnpackConfig::default();
-        let result = unpack(raw_data, load_addr, &config).unwrap();
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
         // Expected values from unp64 cross-validation:
         assert_eq!(result.dep_addr, 0x0003, "Depacker address should be $0003");
@@ -1370,7 +1383,7 @@ mod tests {
             max_instructions: 50_000_000,
             ..Default::default()
         };
-        let result = unpack(raw_data, load_addr, &config);
+        let result = unpack(raw_data, load_addr, &config, None);
         match &result {
             Ok(r) => {
                 println!(
@@ -1404,7 +1417,7 @@ mod tests {
             max_instructions: 50_000_000,
             ..Default::default()
         };
-        let result = unpack(raw_data, load_addr, &config).unwrap();
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
         assert_eq!(result.start_addr, 0x0800);
         assert_eq!(result.end_addr, 0x31FF);
@@ -1421,7 +1434,7 @@ mod tests {
             max_instructions: 50_000_000,
             ..Default::default()
         };
-        let result = unpack(raw_data, load_addr, &config).unwrap();
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
         assert_eq!(result.start_addr, 0x0800);
         assert_eq!(result.entry_point, 0x1100);
@@ -1440,7 +1453,7 @@ mod tests {
             max_instructions: 50_000_000,
             ..Default::default()
         };
-        let result = unpack(raw_data, load_addr, &config).unwrap();
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
         println!(
             "Result: ${:04X}-${:04X}, entry=${:04X}, dep=${:04X}, instr={}",
             result.start_addr,

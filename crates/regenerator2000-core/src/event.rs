@@ -20,6 +20,14 @@ pub enum CoreEvent {
     QuitRequested,
     /// The core requests to open a URL in the external browser.
     OpenUrl(String),
+    /// The unpacker should be started on a background thread.
+    /// The TUI handles thread spawning and progress reporting.
+    UnpackStarted {
+        /// Raw binary data to unpack.
+        raw_data: Vec<u8>,
+        /// Load address of the binary.
+        load_addr: u16,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

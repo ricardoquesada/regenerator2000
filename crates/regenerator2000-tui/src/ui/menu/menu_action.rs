@@ -218,6 +218,27 @@ pub fn handle_menu_action(
                 ui_state.sync_core_to_tui();
                 ui_state.sync_status_message();
             }
+            CoreEvent::UnpackStarted {
+                raw_data,
+                load_addr,
+            } => {
+                ui_state.set_status_message("Unpacking... $00000000");
+                let tx = event_tx.clone();
+                std::thread::spawn(move || {
+                    let config = regenerator2000_core::unpacker::UnpackConfig::default();
+                    let progress_tx = tx.clone();
+                    let progress_cb = move |count: u64| {
+                        let _ = progress_tx.send(crate::events::AppEvent::UnpackProgress(count));
+                    };
+                    let result = regenerator2000_core::unpacker::unpack(
+                        &raw_data,
+                        load_addr,
+                        &config,
+                        Some(&progress_cb),
+                    );
+                    let _ = tx.send(crate::events::AppEvent::UnpackComplete(result));
+                });
+            }
         }
     }
 }

@@ -17,6 +17,15 @@ pub enum AppEvent {
     Vice(crate::vice::ViceEvent),
     Tick,
     UpdateAvailable(String),
+    /// Progress update from the background unpacker thread (instruction count).
+    UnpackProgress(u64),
+    /// The background unpacker thread finished.
+    UnpackComplete(
+        Result<
+            regenerator2000_core::unpacker::UnpackResult,
+            regenerator2000_core::unpacker::UnpackError,
+        >,
+    ),
 }
 
 /// Outcome returned by per-event-type handlers to tell the main loop what to do.
@@ -92,6 +101,14 @@ pub fn run_app<B: Backend>(
                 ui_state.new_version_available = Some(version);
                 should_render = true;
             }
+            AppEvent::UnpackProgress(count) => {
+                ui_state.set_status_message(format!("Unpacking... ${count:08X}"));
+                should_render = true;
+            }
+            AppEvent::UnpackComplete(result) => {
+                handle_unpack_complete(result, &mut core, &mut ui_state);
+                should_render = true;
+            }
             AppEvent::Crossterm(crossterm_event) => match crossterm_event {
                 Event::Key(key) => {
                     match handle_key_event(
@@ -141,6 +158,62 @@ pub fn run_app<B: Backend>(
             core.view = ui_state.core.clone();
 
             should_render = false;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unpack completion handling
+// ---------------------------------------------------------------------------
+
+/// Processes the result of a background unpack operation.
+///
+/// On success, loads the unpacked binary into the application state, updates
+/// the status bar with a summary, and opens the import context dialog.
+/// On failure, displays the error in the status bar.
+fn handle_unpack_complete(
+    result: Result<
+        regenerator2000_core::unpacker::UnpackResult,
+        regenerator2000_core::unpacker::UnpackError,
+    >,
+    core: &mut Core,
+    ui_state: &mut UIState,
+) {
+    match result {
+        Ok(result) => {
+            let msg = format!(
+                "Unpacked: ${:04X}-${:04X}, entry=${:04X}, dep=${:04X} ({} instructions)",
+                result.start_addr,
+                result.end_addr,
+                result.entry_point,
+                result.dep_addr,
+                result.instructions_executed
+            );
+            let entry = regenerator2000_core::state::Addr(result.entry_point);
+            let origin = regenerator2000_core::state::Addr(result.start_addr);
+            match core.state.load_binary(origin, result.data) {
+                Ok(_loaded_data) => {
+                    ui_state.set_status_message(msg);
+                    ui_state.core = core.view.clone();
+                    ui_state.sync_core_to_tui();
+                    // Show import context dialog for system/origin/entry setup
+                    ui_state.push_dialog(Box::new(
+                        crate::ui::dialog_import_context::ImportContextDialog::new(
+                            &core.state.settings.system.to_string(),
+                            origin,
+                            Some(entry),
+                            None,
+                            None,
+                        ),
+                    ));
+                }
+                Err(e) => {
+                    ui_state.set_status_message(format!("Failed to load unpacked data: {e}"));
+                }
+            }
+        }
+        Err(e) => {
+            ui_state.set_status_message(format!("Unpack failed: {e}"));
         }
     }
 }

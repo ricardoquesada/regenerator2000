@@ -1275,43 +1275,10 @@ impl Core {
             AppAction::UnpackBinary => {
                 let load_addr = self.state.origin.0;
                 let raw_data = self.state.raw_data.clone();
-                let config = crate::unpacker::UnpackConfig::default();
-                match crate::unpacker::unpack(&raw_data, load_addr, &config) {
-                    Ok(result) => {
-                        let msg = format!(
-                            "Unpacked: ${:04X}-${:04X}, entry=${:04X}, dep=${:04X} ({} instructions)",
-                            result.start_addr,
-                            result.end_addr,
-                            result.entry_point,
-                            result.dep_addr,
-                            result.instructions_executed
-                        );
-                        let entry = Addr(result.entry_point);
-                        let origin = Addr(result.start_addr);
-                        match self.state.load_binary(origin, result.data) {
-                            Ok(_loaded_data) => {
-                                events.push(CoreEvent::StatusMessage(msg));
-                                events.push(CoreEvent::StateChanged);
-                                events.push(CoreEvent::ViewChanged);
-                                // Show import context dialog for system/origin/entry setup
-                                events.push(CoreEvent::DialogRequested(
-                                    crate::event::DialogType::ImportContext {
-                                        origin,
-                                        entry_point: entry,
-                                    },
-                                ));
-                            }
-                            Err(e) => {
-                                events.push(CoreEvent::StatusMessage(format!(
-                                    "Failed to load unpacked data: {e}"
-                                )));
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        events.push(CoreEvent::StatusMessage(format!("Unpack failed: {e}")));
-                    }
-                }
+                events.push(CoreEvent::UnpackStarted {
+                    raw_data,
+                    load_addr,
+                });
             }
             _ => {}
         }
