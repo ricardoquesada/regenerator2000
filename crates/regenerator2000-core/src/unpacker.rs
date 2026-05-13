@@ -522,20 +522,14 @@ fn detect_output_range(
 ) -> Option<(u16, u16)> {
     let scan_start = ret_addr as usize;
 
-    // Primary scan: ret_addr..$9FFF (typical program area below ROM)
-    if let Some(result) = scan_hybrid_range(mem, snapshot, written, scan_start, 0x9FFF) {
+    // Primary scan: ret_addr..$CFFF (program area below I/O at $D000).
+    // This covers the typical RAM region including the BASIC ROM area
+    // ($A000–$BFFF) where many programs decompress data using all-RAM mode.
+    if let Some(result) = scan_hybrid_range(mem, snapshot, written, scan_start, 0xCFFF) {
         return Some(result);
     }
 
-    // Fallback scan: ret_addr..$CFFF + $E000..$FFFF
-    if let Some((s1, e1)) = scan_hybrid_range(mem, snapshot, written, scan_start, 0xCFFF) {
-        if let Some((_s2, e2)) = scan_hybrid_range(mem, snapshot, written, 0xE000, 0xFFFF) {
-            return Some((s1, e2));
-        }
-        return Some((s1, e1));
-    }
-
-    // Just $E000-$FFFF
+    // Fallback: $E000-$FFFF (Kernal ROM area, used by some packers)
     scan_hybrid_range(mem, snapshot, written, 0xE000, 0xFFFF)
 }
 
@@ -725,13 +719,13 @@ fn trim_trailing_clusters(mem: &[u8], snapshot: &[u8], start: usize, end: usize)
         }
         is_first_gap = false;
 
-        // Check 2: proportionally small tail range.
+        // Check 2: proportionally small tail range with a significant gap.
         // Track the deepest qualifying gap rather than returning at the first
         // one — the first gap might be inside the depacker workspace, while
         // the real output/workspace boundary is deeper.
         let tail_range = end - gap_end;
         let main_len = (pos + 1) - start;
-        if main_len > 0 && tail_range > 128 && tail_range * 50 < main_len {
+        if gap_len >= 4 && main_len > 0 && tail_range > 128 && tail_range * 50 < main_len {
             best_trim_pos = Some(pos);
         }
     }
@@ -1607,5 +1601,23 @@ mod tests {
         // the byte at $9D1B is a matching zero that the extension step includes.
         // Close enough for practical disassembly purposes.
         assert_eq!(result.end_addr, 0x9D1B);
+    }
+
+    #[test]
+    fn test_debug_roma_unpack() {
+        let prg_data = std::fs::read("../../tests/6502/roma.exe.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.end_addr, 0xC8C5);
+        assert_eq!(result.entry_point, 0x0820);
+        assert_eq!(result.dep_addr, 0x0100);
     }
 }
