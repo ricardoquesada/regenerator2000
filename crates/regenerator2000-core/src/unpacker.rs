@@ -489,58 +489,153 @@ fn force_rts(cpu: &mut CPU<UnpackerMemory, Nmos6502>) {
 // Output range detection
 // ---------------------------------------------------------------------------
 
-/// Detects the modified memory range using the write-tracking bitmap.
+/// Detects the modified memory range using the write-tracking bitmap and
+/// a pre-emulation snapshot.
 ///
 /// `ret_addr` is the return-address boundary (typically `$0800`). Modifications
 /// below this address are depacker workspace and are excluded from the output.
 ///
-/// The `written` bitmap tracks every byte written during emulation, even if the
-/// value written is the same as what was already there (e.g., writing zeros to
-/// zero-initialised memory). This is more accurate than a snapshot diff, which
-/// would miss such writes.
+/// Uses a hybrid approach:
+/// - **Start address**: determined by the `written` bitmap (catches all writes).
+/// - **End address**: determined by the snapshot diff, then extended forward
+///   through any bytes that were `written` but match the snapshot (trailing
+///   zero-fills). This excludes depacker tables written past the output.
 ///
 /// Returns `(start_addr, end_addr)` inclusive, or `None` if nothing was written.
 #[must_use]
-fn detect_output_range(written: &[bool], ret_addr: u16) -> Option<(u16, u16)> {
+fn detect_output_range(
+    mem: &[u8],
+    snapshot: &[u8],
+    written: &[bool],
+    ret_addr: u16,
+) -> Option<(u16, u16)> {
     let scan_start = ret_addr as usize;
 
     // Primary scan: ret_addr..$9FFF (typical program area below ROM)
-    if let Some(result) = scan_written_range(written, scan_start, 0x9FFF) {
+    if let Some(result) = scan_hybrid_range(mem, snapshot, written, scan_start, 0x9FFF) {
         return Some(result);
     }
 
     // Fallback scan: ret_addr..$CFFF + $E000..$FFFF
-    if let Some((s1, e1)) = scan_written_range(written, scan_start, 0xCFFF) {
-        if let Some((_s2, e2)) = scan_written_range(written, 0xE000, 0xFFFF) {
+    if let Some((s1, e1)) = scan_hybrid_range(mem, snapshot, written, scan_start, 0xCFFF) {
+        if let Some((_s2, e2)) = scan_hybrid_range(mem, snapshot, written, 0xE000, 0xFFFF) {
             return Some((s1, e2));
         }
         return Some((s1, e1));
     }
 
     // Just $E000-$FFFF
-    scan_written_range(written, 0xE000, 0xFFFF)
+    scan_hybrid_range(mem, snapshot, written, 0xE000, 0xFFFF)
 }
 
-/// Scans a range of the `written` bitmap for the first and last written byte.
+/// Scans a range using a hybrid of the `written` bitmap and snapshot diff.
+///
+/// - **Start**: first byte in the `written` bitmap.
+/// - **End**: last byte where `mem != snapshot`, trimmed of any small trailing
+///   diff clusters (depacker tables) separated by matching bytes, then extended
+///   through written zero-fills (`mem == snapshot`).
 #[must_use]
-fn scan_written_range(written: &[bool], start: usize, end: usize) -> Option<(u16, u16)> {
-    let mut first = None;
-    let mut last = None;
-    let upper = end.min(written.len() - 1);
+fn scan_hybrid_range(
+    mem: &[u8],
+    snapshot: &[u8],
+    written: &[bool],
+    start: usize,
+    end: usize,
+) -> Option<(u16, u16)> {
+    let upper = end
+        .min(written.len() - 1)
+        .min(mem.len() - 1)
+        .min(snapshot.len() - 1);
 
+    // Find the first written byte (start of output)
+    let mut first_written = None;
     for (addr, &was_written) in written.iter().enumerate().take(upper + 1).skip(start) {
         if was_written {
-            if first.is_none() {
-                first = Some(addr);
-            }
-            last = Some(addr);
+            first_written = Some(addr);
+            break;
+        }
+    }
+    let first = first_written?;
+
+    // Find all diff bytes and identify the end of the "main" diff block
+    // by trimming small trailing clusters separated by non-diff gaps.
+    let mut last_diff = None;
+    for addr in start..=upper {
+        if mem[addr] != snapshot[addr] {
+            last_diff = Some(addr);
         }
     }
 
-    match (first, last) {
-        (Some(f), Some(l)) => Some((f as u16, l as u16)),
-        _ => None,
+    let diff_end = match last_diff {
+        Some(d) => d,
+        None => {
+            // No diff found — use last written byte
+            let mut last = first;
+            for (addr, &was_written) in written.iter().enumerate().take(upper + 1).skip(first) {
+                if was_written {
+                    last = addr;
+                }
+            }
+            return Some((first as u16, last as u16));
+        }
+    };
+
+    // Walk backward from diff_end to detect and trim small trailing clusters.
+    // If there's a stretch of 4+ same-as-snapshot bytes followed by a small
+    // diff cluster (< 64 diff bytes), the cluster is depacker workspace — trim it.
+    let trimmed_end = trim_trailing_clusters(mem, snapshot, first, diff_end);
+
+    // Extend past the trimmed end through written bytes that match the snapshot
+    // (trailing zero-fills). Stop at the first non-matching or unwritten byte.
+    let mut extended_end = trimmed_end;
+    for addr in (trimmed_end + 1)..=upper {
+        if written[addr] && mem[addr] == snapshot[addr] {
+            extended_end = addr;
+        } else {
+            break;
+        }
     }
+
+    Some((first as u16, extended_end as u16))
+}
+
+/// Walks backward from `end` looking for a gap of same-as-snapshot bytes
+/// followed by a small diff cluster. If found, returns the position just
+/// before the gap. Otherwise returns `end` unchanged.
+#[must_use]
+fn trim_trailing_clusters(mem: &[u8], snapshot: &[u8], start: usize, end: usize) -> usize {
+    // Walk backward to find last same-as-snapshot byte before end
+    let mut pos = end;
+    let mut tail_diffs = 0;
+
+    // Count trailing diff bytes
+    while pos > start && mem[pos] != snapshot[pos] {
+        tail_diffs += 1;
+        pos -= 1;
+    }
+
+    // If the entire block is diffs, no trimming
+    if pos <= start {
+        return end;
+    }
+
+    // Now pos points to a byte where mem == snapshot.
+    // Count how many consecutive same-as-snapshot bytes precede the tail cluster.
+    let gap_end = pos;
+    let mut gap_len = 0;
+    while pos > start && mem[pos] == snapshot[pos] {
+        gap_len += 1;
+        pos -= 1;
+    }
+
+    // If there's a significant gap (>= 4 bytes) and the tail cluster is small (< 64),
+    // trim the tail.
+    if gap_len >= 4 && tail_diffs < 64 {
+        // Return the position just before the gap
+        return gap_end - gap_len;
+    }
+
+    end
 }
 
 // ---------------------------------------------------------------------------
@@ -576,6 +671,9 @@ pub fn unpack(
 
     // Initialize zero-page and system area
     init_zero_page(&mut memory, load_addr, data_len as u16);
+
+    // Take snapshot before emulation (used for output range end detection)
+    let snapshot = memory.mem.clone();
 
     // Find entry point
     let entry = if let Some(forced) = config.forced_entry {
@@ -627,6 +725,7 @@ pub fn unpack(
                 let entry_point = pc;
                 return finish_unpack(
                     &cpu.memory.mem,
+                    &snapshot,
                     &cpu.memory.written,
                     entry_point,
                     dep_addr,
@@ -645,6 +744,7 @@ pub fn unpack(
                 dep_addr = config.forced_dep_addr.unwrap_or(pc);
                 return finish_unpack(
                     &cpu.memory.mem,
+                    &snapshot,
                     &cpu.memory.written,
                     pc,
                     dep_addr,
@@ -692,6 +792,7 @@ pub fn unpack(
             let entry_point = pc;
             return finish_unpack(
                 &cpu.memory.mem,
+                &snapshot,
                 &cpu.memory.written,
                 entry_point,
                 dep_addr,
@@ -716,6 +817,7 @@ pub fn unpack(
                 let entry_point = pc;
                 return finish_unpack(
                     &cpu.memory.mem,
+                    &snapshot,
                     &cpu.memory.written,
                     entry_point,
                     dep_addr,
@@ -736,6 +838,7 @@ pub fn unpack(
                 let entry_point = pc;
                 return finish_unpack(
                     &cpu.memory.mem,
+                    &snapshot,
                     &cpu.memory.written,
                     entry_point,
                     dep_addr,
@@ -753,6 +856,7 @@ pub fn unpack(
 /// Extracts the unpacked result from memory after emulation completes.
 fn finish_unpack(
     mem: &[u8],
+    snapshot: &[u8],
     written: &[bool],
     entry_point: u16,
     dep_addr: u16,
@@ -760,7 +864,7 @@ fn finish_unpack(
     instructions_executed: u64,
 ) -> Result<UnpackResult, UnpackError> {
     let (start_addr, end_addr) =
-        detect_output_range(written, ret_addr).ok_or(UnpackError::NothingWritten)?;
+        detect_output_range(mem, snapshot, written, ret_addr).ok_or(UnpackError::NothingWritten)?;
 
     let data = mem[start_addr as usize..=end_addr as usize].to_vec();
 
@@ -1154,5 +1258,22 @@ mod tests {
         );
         // Entry point should be $2E00 (same as the Dali/LXT version)
         assert_eq!(result.entry_point, 0x2E00, "Entry point should be $2E00");
+    }
+
+    #[test]
+    fn test_debug_pucrunch_unpack() {
+        let prg_data = std::fs::read("../../tests/6502/moving_tubes_lxt_pucrunch.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config).unwrap();
+
+        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.end_addr, 0x31FF);
+        assert_eq!(result.entry_point, 0x2E00);
     }
 }
