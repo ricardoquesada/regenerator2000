@@ -81,4 +81,9 @@ pub enum DialogType {
         lo_first: bool,
         address: Addr,
     },
+    /// Import context dialog for newly loaded/unpacked binaries.
+    ImportContext {
+        origin: Addr,
+        entry_point: Addr,
+    },
 }

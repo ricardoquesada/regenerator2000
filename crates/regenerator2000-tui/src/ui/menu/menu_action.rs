@@ -190,6 +190,20 @@ pub fn handle_menu_action(
                         ),
                     ));
                 }
+                DialogType::ImportContext {
+                    origin,
+                    entry_point,
+                } => {
+                    ui_state.push_dialog(Box::new(
+                        crate::ui::dialog_import_context::ImportContextDialog::new(
+                            &core.state.settings.system.to_string(),
+                            origin,
+                            Some(entry_point),
+                            None, // inherit system from current state
+                            None, // no entropy warning
+                        ),
+                    ));
+                }
                 DialogType::Origin => {
                     ui_state.active_dialog = Some(Box::new(
                         crate::ui::dialog_origin::OriginDialog::new(core.state.origin),

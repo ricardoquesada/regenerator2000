@@ -1290,16 +1290,16 @@ impl Core {
                         let origin = Addr(result.start_addr);
                         match self.state.load_binary(origin, result.data) {
                             Ok(_loaded_data) => {
-                                // Navigate cursor to entry point
-                                if let Some(idx) = self.state.get_line_index_for_address(entry) {
-                                    self.view.cursor_index = idx;
-                                    self.view.scroll_index = idx;
-                                    self.view.sub_cursor_index = 0;
-                                    self.view.scroll_sub_index = 0;
-                                }
                                 events.push(CoreEvent::StatusMessage(msg));
                                 events.push(CoreEvent::StateChanged);
                                 events.push(CoreEvent::ViewChanged);
+                                // Show import context dialog for system/origin/entry setup
+                                events.push(CoreEvent::DialogRequested(
+                                    crate::event::DialogType::ImportContext {
+                                        origin,
+                                        entry_point: entry,
+                                    },
+                                ));
                             }
                             Err(e) => {
                                 events.push(CoreEvent::StatusMessage(format!(
