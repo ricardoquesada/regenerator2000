@@ -47,6 +47,8 @@ impl MenuState {
                             Some(AppAction::ExportViceLabels),
                         ),
                         MenuItem::separator(),
+                        MenuItem::new("Unpack Binary", None, Some(AppAction::UnpackBinary)),
+                        MenuItem::separator(),
                         MenuItem::new("Settings", Some("Alt+P"), Some(AppAction::SystemSettings)),
                         MenuItem::separator(),
                         MenuItem::new("Exit", Some("Ctrl+Q"), Some(AppAction::Exit)),
@@ -301,14 +303,6 @@ impl MenuState {
                             Some(AppAction::ViceMemoryDumpDialog),
                         ),
                     ],
-                },
-                MenuCategory {
-                    name: "Tools".to_string(),
-                    items: vec![MenuItem::new(
-                        "Unpack Binary",
-                        None,
-                        Some(AppAction::UnpackBinary),
-                    )],
                 },
                 MenuCategory {
                     name: "Help".to_string(),
