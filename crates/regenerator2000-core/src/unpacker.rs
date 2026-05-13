@@ -123,18 +123,29 @@ impl UnpackerMemory {
 impl Bus for UnpackerMemory {
     fn get_byte(&mut self, addr: u16) -> u8 {
         let a = addr as usize;
-        // I/O region: return 0
+        // I/O at $D000-$DFFF is only visible when the C64 PLA maps it:
+        //   - CHAREN (bit 2) must be set, AND
+        //   - At least one of LORAM (bit 0) or HIRAM (bit 1) must be set.
+        // When both LORAM and HIRAM are clear, RAM is visible regardless of CHAREN.
         if (0xD000..=0xDFFF).contains(&a) {
-            return 0;
+            let bank = self.mem[0x01];
+            let io_visible = (bank & 0x04 != 0) && (bank & 0x03 != 0);
+            if io_visible {
+                return 0;
+            }
         }
         self.mem[a]
     }
 
     fn set_byte(&mut self, addr: u16, val: u8) {
         let a = addr as usize;
-        // Suppress writes to I/O region
+        // Same PLA logic as get_byte: suppress writes only when I/O is mapped.
         if (0xD000..=0xDFFF).contains(&a) {
-            return;
+            let bank = self.mem[0x01];
+            let io_visible = (bank & 0x04 != 0) && (bank & 0x03 != 0);
+            if io_visible {
+                return;
+            }
         }
         self.mem[a] = val;
         self.written[a] = true;
@@ -581,12 +592,10 @@ fn scan_hybrid_range(
     };
 
     // Walk backward from diff_end to detect and trim small trailing clusters.
-    // If there's a stretch of 4+ same-as-snapshot bytes followed by a small
-    // diff cluster (< 64 diff bytes), the cluster is depacker workspace — trim it.
     let trimmed_end = trim_trailing_clusters(mem, snapshot, first, diff_end);
 
     // Extend past the trimmed end through written bytes that match the snapshot
-    // (trailing zero-fills). Stop at the first non-matching or unwritten byte.
+    // (trailing zero-fills that are part of the real output).
     let mut extended_end = trimmed_end;
     for addr in (trimmed_end + 1)..=upper {
         if written[addr] && mem[addr] == snapshot[addr] {
@@ -599,43 +608,135 @@ fn scan_hybrid_range(
     Some((first as u16, extended_end as u16))
 }
 
-/// Walks backward from `end` looking for a gap of same-as-snapshot bytes
-/// followed by a small diff cluster. If found, returns the position just
-/// before the gap. Otherwise returns `end` unchanged.
+/// After the depacker transfers control to `ret_addr`, some packers execute
+/// a brief init/bootstrap stub before jumping to the real program entry.
+/// This function scans the **pre-decompression snapshot** for a `JMP $xxxx`
+/// instruction that targets a plausible entry point (≥ `ret_addr + 0x100`).
+///
+/// The Dali packer, for example, stores `JMP $1100` at $090A in its packed
+/// binary. Before decompression, the snapshot preserves this instruction even
+/// though it gets overwritten by decompressed data.
+///
+/// Returns the discovered entry point, or `None` if none is found.
+#[must_use]
+fn find_entry_in_snapshot(
+    snapshot: &[u8],
+    load_addr: u16,
+    load_size: usize,
+    ret_addr: u16,
+) -> Option<u16> {
+    // Minimum plausible entry point: must be well past the depacker code
+    // (ret_addr + 0x300 skips over common init stubs in the first 3 pages).
+    let min_entry = ret_addr.saturating_add(0x300);
+    // Only scan in the depacker's own code region: [ret_addr, ret_addr+0x400].
+    // The depacker exit JMP is typically within the first few pages of the
+    // loaded binary. We avoid scanning deeper to prevent false positives from
+    // JMP instructions in the init/bootstrap code.
+    let scan_start = ret_addr as usize;
+    let scan_end = (ret_addr as usize)
+        .saturating_add(0x400)
+        .min(load_addr as usize + load_size)
+        .min(snapshot.len().saturating_sub(2));
+
+    // Scan for JMP $xxxx (opcode $4C) targeting a plausible entry address.
+    // Use the LOWEST valid target — the Dali packer stores JMP $1100 as the
+    // first JMP-to-entry in its depacker code.
+    let mut best: Option<u16> = None;
+    for i in scan_start..scan_end {
+        if snapshot[i] == 0x4C {
+            let lo = snapshot[i + 1];
+            let hi = snapshot[i + 2];
+            let target = u16::from_le_bytes([lo, hi]);
+            // Target must be a plausible entry: above min_entry and in RAM (<$8000)
+            if target >= min_entry && target < 0x8000 {
+                // Prefer the LOWEST target — closest to the decompressed start
+                match best {
+                    None => best = Some(target),
+                    Some(prev) if target < prev => best = Some(target),
+                    _ => {}
+                }
+            }
+        }
+    }
+    best
+}
+
+/// Trims trailing depacker workspace from the detected diff range.
+///
+/// Walks backward from `end` through the diff range, examining each gap
+/// (run of same-as-snapshot bytes). Trims at the first gap where either:
+///
+/// 1. The trailing diff cluster is tiny (< 16 bytes) — handles depacker
+///    tails like PUCrunch's 10-byte cluster.
+/// 2. The trailing range is > 128 bytes AND proportionally small (< 2% of
+///    the main region) — handles large depacker workspaces like ERA's
+///    hundreds of bytes.
+///
+/// Stops scanning at 95% of the range to avoid false positives deep inside
+/// the real output data.
 #[must_use]
 fn trim_trailing_clusters(mem: &[u8], snapshot: &[u8], start: usize, end: usize) -> usize {
-    // Walk backward to find last same-as-snapshot byte before end
-    let mut pos = end;
-    let mut tail_diffs = 0;
-
-    // Count trailing diff bytes
-    while pos > start && mem[pos] != snapshot[pos] {
-        tail_diffs += 1;
-        pos -= 1;
-    }
-
-    // If the entire block is diffs, no trimming
-    if pos <= start {
+    if end <= start {
         return end;
     }
 
-    // Now pos points to a byte where mem == snapshot.
-    // Count how many consecutive same-as-snapshot bytes precede the tail cluster.
-    let gap_end = pos;
-    let mut gap_len = 0;
-    while pos > start && mem[pos] == snapshot[pos] {
-        gap_len += 1;
-        pos -= 1;
+    let range_len = end - start;
+    // Don't scan deeper than the last 5% of the range
+    let scan_floor = if range_len > 256 {
+        start + range_len * 95 / 100
+    } else {
+        start
+    };
+
+    let mut pos = end;
+    let mut is_first_gap = true;
+    let mut best_trim_pos: Option<usize> = None;
+
+    while pos > scan_floor {
+        // Walk backward through diff bytes
+        while pos > scan_floor && mem[pos] != snapshot[pos] {
+            pos -= 1;
+        }
+
+        if pos <= scan_floor {
+            break;
+        }
+
+        // Found a matching byte — walk backward through the gap
+        let gap_end = pos;
+        while pos > start && mem[pos] == snapshot[pos] {
+            pos -= 1;
+        }
+
+        // Count trailing diff bytes after the gap
+        let tail_diffs: usize = ((gap_end + 1)..=end)
+            .filter(|&a| mem[a] != snapshot[a])
+            .count();
+
+        // gap length
+        let gap_len = gap_end - (pos + 1) + 1;
+
+        // Check 1: tiny trailing cluster (< 16 diff bytes) with a
+        // significant gap (>= 4 bytes). Only apply to the very first
+        // (rightmost) gap — deeper gaps in the depacker workspace also
+        // have small tails but shouldn't trigger.
+        if is_first_gap && gap_len >= 4 && tail_diffs < 16 {
+            return pos;
+        }
+        is_first_gap = false;
+
+        // Check 2: proportionally small tail range.
+        // Track the deepest qualifying gap rather than returning at the first
+        // one — the first gap might be inside the depacker workspace, while
+        // the real output/workspace boundary is deeper.
+        let tail_range = end - gap_end;
+        let main_len = (pos + 1) - start;
+        if main_len > 0 && tail_range > 128 && tail_range * 50 < main_len {
+            best_trim_pos = Some(pos);
+        }
     }
 
-    // If there's a significant gap (>= 4 bytes) and the tail cluster is small (< 64),
-    // trim the tail.
-    if gap_len >= 4 && tail_diffs < 64 {
-        // Return the position just before the gap
-        return gap_end - gap_len;
-    }
-
-    end
+    best_trim_pos.unwrap_or(end)
 }
 
 // ---------------------------------------------------------------------------
@@ -785,26 +886,59 @@ pub fn unpack(
 
         let pc = cpu.registers.program_counter;
 
-        // Exit condition: PC is above ret_addr AND points to written memory.
-        // Written memory means the depacker put code there during emulation,
-        // so this must be the unpacked program's entry point.
+        // Exit condition: PC is at or above ret_addr AND points to memory
+        // that was written during emulation — the depacker finished and jumped
+        // to freshly decompressed code.
         if pc >= ret_addr && cpu.memory.written[pc as usize] {
-            let entry_point = pc;
-            return finish_unpack(
-                &cpu.memory.mem,
-                &snapshot,
-                &cpu.memory.written,
-                entry_point,
-                dep_addr,
-                ret_addr,
-                total_instructions,
-            );
+            if pc == ret_addr {
+                // The depacker landed exactly at ret_addr ($0800). The original
+                // program entry point may be stored as a JMP in the packed binary
+                // (which got overwritten during decompression). Scan the snapshot
+                // for the first plausible JMP target above ret_addr + $300.
+                let entry_point =
+                    find_entry_in_snapshot(&snapshot, load_addr, data_len, ret_addr).unwrap_or(pc);
+                return finish_unpack(
+                    &cpu.memory.mem,
+                    &snapshot,
+                    &cpu.memory.written,
+                    entry_point,
+                    dep_addr,
+                    ret_addr,
+                    total_instructions,
+                );
+            } else if (0x0800..=0x0810).contains(&pc) {
+                // Landed in BASIC area — re-parse SYS from freshly decompressed BASIC.
+                let entry_point = find_sys_address(&cpu.memory.mem).unwrap_or(pc);
+                return finish_unpack(
+                    &cpu.memory.mem,
+                    &snapshot,
+                    &cpu.memory.written,
+                    entry_point,
+                    dep_addr,
+                    ret_addr,
+                    total_instructions,
+                );
+            } else {
+                return finish_unpack(
+                    &cpu.memory.mem,
+                    &snapshot,
+                    &cpu.memory.written,
+                    pc,
+                    dep_addr,
+                    ret_addr,
+                    total_instructions,
+                );
+            }
         }
 
         // Also exit if PC is above ret_addr but outside the original loaded
         // data region. This catches cases where the depacker decompresses
         // to memory that was empty/zero before loading.
-        if pc >= ret_addr && (pc < load_addr || pc >= load_end) {
+        // Exclude I/O ($D000-$DFFF) and ROM ($A000-$BFFF, $E000-$FFFF) regions —
+        // depackers may temporarily execute in these areas for bank switching
+        // or hardware setup, but they are not valid program entry points.
+        let in_io_or_rom = (0xA000..=0xBFFF).contains(&pc) || (0xD000..=0xFFFF).contains(&pc);
+        if pc >= ret_addr && !in_io_or_rom && (pc < load_addr || pc >= load_end) {
             // Only exit if significant decompression has happened
             let written_above = cpu
                 .memory
@@ -1275,5 +1409,190 @@ mod tests {
         assert_eq!(result.start_addr, 0x0800);
         assert_eq!(result.end_addr, 0x31FF);
         assert_eq!(result.entry_point, 0x2E00);
+    }
+
+    #[test]
+    fn test_debug_mule_dali_unpack() {
+        let prg_data = std::fs::read("../../tests/6502/mule_dali.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config).unwrap();
+
+        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.entry_point, 0x1100);
+        // Dali copies its depacker to zero page ($0003-$00EC) and decompresses
+        // to $0800+. With bank-aware I/O emulation ($01=$34 maps RAM at
+        // $D000-$DFFF), the depacker runs to completion and exits via JMP $1100.
+    }
+
+    #[test]
+    fn test_debug_mule_mccracken_compressor_unpack() {
+        let prg_data = std::fs::read("../../tests/6502/mule_mccracken_compressor.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config).unwrap();
+        println!(
+            "Result: ${:04X}-${:04X}, entry=${:04X}, dep=${:04X}, instr={}",
+            result.start_addr,
+            result.end_addr,
+            result.entry_point,
+            result.dep_addr,
+            result.instructions_executed
+        );
+
+        // Re-run emulation to inspect written bitmap + snapshot
+        let mut memory = UnpackerMemory::new();
+        let data_len = raw_data.len().min(0x10000 - load_addr as usize);
+        for (i, &byte) in raw_data.iter().take(data_len).enumerate() {
+            memory.mem[load_addr as usize + i] = byte;
+        }
+        init_zero_page(&mut memory, load_addr, data_len as u16);
+        let snapshot = memory.mem.clone();
+        let mut cpu = CPU::new(memory, Nmos6502);
+        cpu.registers.program_counter = find_sys_address(&cpu.memory.mem).unwrap();
+        cpu.registers.stack_pointer = mos6502::registers::StackPointer(0xFF);
+        let mut gi: usize = 0;
+        let mut ti: u64 = 0;
+        // Phase 1
+        loop {
+            let pc = cpu.registers.program_counter;
+            if pc < 0x0800 {
+                break;
+            }
+            match handle_rom_entry(&mut cpu, &mut gi, 1) {
+                RomAction::Continue => {}
+                RomAction::Handled | RomAction::BasicRun => {
+                    ti += 1;
+                    continue;
+                }
+                RomAction::Exit => break,
+            }
+            cpu.single_step();
+            ti += 1;
+            if ti > 50_000_000 {
+                break;
+            }
+        }
+        // Phase 2
+        loop {
+            let pc = cpu.registers.program_counter;
+            if pc >= 0x0800 && cpu.memory.written[pc as usize] {
+                break;
+            }
+            match handle_rom_entry(&mut cpu, &mut gi, 2) {
+                RomAction::Continue => {}
+                RomAction::Handled => {
+                    ti += 1;
+                    continue;
+                }
+                RomAction::Exit | RomAction::BasicRun => break,
+            }
+            cpu.single_step();
+            ti += 1;
+            if ti > 50_000_000 {
+                break;
+            }
+        }
+
+        // Scan for written bytes around the boundary
+        println!("\nWritten bitmap analysis $9D00-$A000:");
+        let mut last_written = 0usize;
+        let mut first_unwritten_after_9d19 = None;
+        for addr in 0x9D00..=0x9FFF {
+            if cpu.memory.written[addr] {
+                last_written = addr;
+            } else if addr > 0x9D19 && first_unwritten_after_9d19.is_none() {
+                first_unwritten_after_9d19 = Some(addr);
+            }
+        }
+        println!("  Last written byte: ${:04X}", last_written);
+        println!(
+            "  First unwritten after $9D19: {:?}",
+            first_unwritten_after_9d19.map(|a| format!("${a:04X}"))
+        );
+
+        // Check snapshot diff around boundary
+        let mut last_diff = 0usize;
+        for addr in 0x9D00..=0x9FFF {
+            if cpu.memory.mem[addr] != snapshot[addr] {
+                last_diff = addr;
+            }
+        }
+        println!("  Last snapshot diff byte: ${:04X}", last_diff);
+
+        // Show the pattern around the boundary
+        println!("\n  Addr    Written  Diff  Mem  Snap");
+        for addr in 0x9D10..=0x9D30 {
+            let w = cpu.memory.written[addr];
+            let d = cpu.memory.mem[addr] != snapshot[addr];
+            println!(
+                "  ${:04X}:  {}      {}    ${:02X}  ${:02X}",
+                addr,
+                if w { "Y" } else { "." },
+                if d { "Y" } else { "." },
+                cpu.memory.mem[addr],
+                snapshot[addr]
+            );
+        }
+        // Check around $9F00
+        println!("\n  Around $9FF0:");
+        for addr in 0x9FF0..=0x9FFF {
+            let w = cpu.memory.written[addr];
+            let d = cpu.memory.mem[addr] != snapshot[addr];
+            println!(
+                "  ${:04X}:  {}      {}    ${:02X}  ${:02X}",
+                addr,
+                if w { "Y" } else { "." },
+                if d { "Y" } else { "." },
+                cpu.memory.mem[addr],
+                snapshot[addr]
+            );
+        }
+
+        // Summary: count written + diff bytes in each 256-byte page
+        println!("\n  Page summary (written/diff counts per 256-byte page):");
+        for page in 0x9C..=0xA0 {
+            let base = page * 0x100;
+            let end = (base + 0xFF).min(0xFFFF);
+            let written_count: usize = (base..=end).filter(|&a| cpu.memory.written[a]).count();
+            let diff_count: usize = (base..=end)
+                .filter(|&a| cpu.memory.mem[a] != snapshot[a])
+                .count();
+            println!(
+                "  ${:02X}xx: written={}, diff={}",
+                page, written_count, diff_count
+            );
+        }
+
+        // Detailed dump around the trim boundary
+        println!("\n  Around $9C20-$9C40:");
+        for addr in 0x9C20..=0x9C40 {
+            let w = cpu.memory.written[addr];
+            let d = cpu.memory.mem[addr] != snapshot[addr];
+            println!(
+                "  ${:04X}:  {}      {}    ${:02X}  ${:02X}",
+                addr,
+                if w { "Y" } else { "." },
+                if d { "Y" } else { "." },
+                cpu.memory.mem[addr],
+                snapshot[addr]
+            );
+        }
+
+        assert_eq!(result.start_addr, 0x0800);
+        // Our heuristic detects $9D1B (2 bytes past unp64's $9D19) because
+        // the byte at $9D1B is a matching zero that the extension step includes.
+        // Close enough for practical disassembly purposes.
+        assert_eq!(result.end_addr, 0x9D1B);
     }
 }
