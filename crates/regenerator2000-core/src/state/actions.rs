@@ -167,7 +167,7 @@ impl AppAction {
 
         matches!(
             self,
-            AppAction::Exit | AppAction::Open | AppAction::OpenRecent
+            AppAction::Exit | AppAction::Open | AppAction::OpenRecent | AppAction::UnpackBinary
         )
     }
 
