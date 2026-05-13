@@ -201,6 +201,7 @@ impl AppAction {
                 | AppAction::ApplyOrigin(_)
                 | AppAction::Open
                 | AppAction::OpenRecent
+                | AppAction::UnpackBinary
         )
     }
 }
