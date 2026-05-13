@@ -489,42 +489,47 @@ fn force_rts(cpu: &mut CPU<UnpackerMemory, Nmos6502>) {
 // Output range detection
 // ---------------------------------------------------------------------------
 
-/// Detects the modified memory range by comparing against a pre-emulation snapshot.
+/// Detects the modified memory range using the write-tracking bitmap.
 ///
 /// `ret_addr` is the return-address boundary (typically `$0800`). Modifications
 /// below this address are depacker workspace and are excluded from the output.
 ///
-/// Returns `(start_addr, end_addr)` inclusive, or `None` if nothing changed.
+/// The `written` bitmap tracks every byte written during emulation, even if the
+/// value written is the same as what was already there (e.g., writing zeros to
+/// zero-initialised memory). This is more accurate than a snapshot diff, which
+/// would miss such writes.
+///
+/// Returns `(start_addr, end_addr)` inclusive, or `None` if nothing was written.
 #[must_use]
-fn detect_output_range(mem: &[u8], snapshot: &[u8], ret_addr: u16) -> Option<(u16, u16)> {
+fn detect_output_range(written: &[bool], ret_addr: u16) -> Option<(u16, u16)> {
     let scan_start = ret_addr as usize;
 
     // Primary scan: ret_addr..$9FFF (typical program area below ROM)
-    if let Some(result) = scan_range(mem, snapshot, scan_start, 0x9FFF) {
+    if let Some(result) = scan_written_range(written, scan_start, 0x9FFF) {
         return Some(result);
     }
 
     // Fallback scan: ret_addr..$CFFF + $E000..$FFFF
-    if let Some((s1, e1)) = scan_range(mem, snapshot, scan_start, 0xCFFF) {
-        // Also check $E000-$FFFF
-        if let Some((_s2, e2)) = scan_range(mem, snapshot, 0xE000, 0xFFFF) {
+    if let Some((s1, e1)) = scan_written_range(written, scan_start, 0xCFFF) {
+        if let Some((_s2, e2)) = scan_written_range(written, 0xE000, 0xFFFF) {
             return Some((s1, e2));
         }
         return Some((s1, e1));
     }
 
     // Just $E000-$FFFF
-    scan_range(mem, snapshot, 0xE000, 0xFFFF)
+    scan_written_range(written, 0xE000, 0xFFFF)
 }
 
-/// Scans a memory range for differences against a snapshot.
+/// Scans a range of the `written` bitmap for the first and last written byte.
 #[must_use]
-fn scan_range(mem: &[u8], snapshot: &[u8], start: usize, end: usize) -> Option<(u16, u16)> {
+fn scan_written_range(written: &[bool], start: usize, end: usize) -> Option<(u16, u16)> {
     let mut first = None;
     let mut last = None;
+    let upper = end.min(written.len() - 1);
 
-    for addr in start..=end {
-        if addr < mem.len() && addr < snapshot.len() && mem[addr] != snapshot[addr] {
+    for (addr, &was_written) in written.iter().enumerate().take(upper + 1).skip(start) {
+        if was_written {
             if first.is_none() {
                 first = Some(addr);
             }
@@ -571,9 +576,6 @@ pub fn unpack(
 
     // Initialize zero-page and system area
     init_zero_page(&mut memory, load_addr, data_len as u16);
-
-    // Take snapshot before emulation
-    let snapshot = memory.mem.clone();
 
     // Find entry point
     let entry = if let Some(forced) = config.forced_entry {
@@ -625,7 +627,7 @@ pub fn unpack(
                 let entry_point = pc;
                 return finish_unpack(
                     &cpu.memory.mem,
-                    &snapshot,
+                    &cpu.memory.written,
                     entry_point,
                     dep_addr,
                     ret_addr,
@@ -643,7 +645,7 @@ pub fn unpack(
                 dep_addr = config.forced_dep_addr.unwrap_or(pc);
                 return finish_unpack(
                     &cpu.memory.mem,
-                    &snapshot,
+                    &cpu.memory.written,
                     pc,
                     dep_addr,
                     ret_addr,
@@ -690,7 +692,7 @@ pub fn unpack(
             let entry_point = pc;
             return finish_unpack(
                 &cpu.memory.mem,
-                &snapshot,
+                &cpu.memory.written,
                 entry_point,
                 dep_addr,
                 ret_addr,
@@ -714,7 +716,7 @@ pub fn unpack(
                 let entry_point = pc;
                 return finish_unpack(
                     &cpu.memory.mem,
-                    &snapshot,
+                    &cpu.memory.written,
                     entry_point,
                     dep_addr,
                     ret_addr,
@@ -734,7 +736,7 @@ pub fn unpack(
                 let entry_point = pc;
                 return finish_unpack(
                     &cpu.memory.mem,
-                    &snapshot,
+                    &cpu.memory.written,
                     entry_point,
                     dep_addr,
                     ret_addr,
@@ -751,14 +753,14 @@ pub fn unpack(
 /// Extracts the unpacked result from memory after emulation completes.
 fn finish_unpack(
     mem: &[u8],
-    snapshot: &[u8],
+    written: &[bool],
     entry_point: u16,
     dep_addr: u16,
     ret_addr: u16,
     instructions_executed: u64,
 ) -> Result<UnpackResult, UnpackError> {
     let (start_addr, end_addr) =
-        detect_output_range(mem, snapshot, ret_addr).ok_or(UnpackError::NothingWritten)?;
+        detect_output_range(written, ret_addr).ok_or(UnpackError::NothingWritten)?;
 
     let data = mem[start_addr as usize..=end_addr as usize].to_vec();
 
