@@ -363,15 +363,24 @@ fn handle_rom_entry(
         return RomAction::Continue;
     }
 
-    // If user code was written here (depacker at $FF00+, etc.), let it run
-    if cpu.memory.written[pc as usize] {
-        return RomAction::Continue;
-    }
-
     // Check bank register to see if ROM is mapped
     let bank = cpu.memory.mem[0x01] & 0x07;
     let basic_mapped = bank & 0x01 != 0; // Bit 0: BASIC ROM at $A000
     let kernal_mapped = bank & 0x02 != 0; // Bit 1: Kernal ROM at $E000
+
+    // If user code was written here (depacker at $FF00+, etc.) AND the ROM
+    // at this address is not currently mapped, let it run as RAM code.
+    // When ROM IS mapped, the CPU reads from ROM regardless of RAM writes,
+    // so we must still intercept. This matters when depackers decompress
+    // to the full $0800-$FF3F range — RAM underneath ROM gets written, but
+    // the CPU still executes ROM when it enters BASIC RUN or Kernal calls.
+    if cpu.memory.written[pc as usize] {
+        let rom_mapped_here =
+            ((0xA000..=0xBFFF).contains(&pc) && basic_mapped) || (pc >= 0xE000 && kernal_mapped);
+        if !rom_mapped_here {
+            return RomAction::Continue;
+        }
+    }
 
     // BASIC ROM region $A000-$BFFF
     if (0xA000..=0xBFFF).contains(&pc) {
@@ -916,7 +925,14 @@ pub fn unpack(
         // Exit condition: PC is at or above ret_addr AND points to memory
         // that was written during emulation — the depacker finished and jumped
         // to freshly decompressed code.
-        if pc >= ret_addr && cpu.memory.written[pc as usize] {
+        //
+        // Skip this check when PC is in a ROM/IO region ($A000-$BFFF,
+        // $D000-$FFFF). Even though the RAM *underneath* these areas may have
+        // been written by the depacker, the CPU is executing from ROM, not
+        // from the decompressed data. Letting execution continue ensures the
+        // ROM interception handler fires and properly detects BasicRun/Exit.
+        let in_rom_or_io = (0xA000..=0xBFFF).contains(&pc) || (0xD000..=0xFFFF).contains(&pc);
+        if pc >= ret_addr && !in_rom_or_io && cpu.memory.written[pc as usize] {
             if pc == ret_addr {
                 // The depacker landed exactly at ret_addr ($0800). The original
                 // program entry point may be stored as a JMP in the packed binary
@@ -964,8 +980,7 @@ pub fn unpack(
         // Exclude I/O ($D000-$DFFF) and ROM ($A000-$BFFF, $E000-$FFFF) regions —
         // depackers may temporarily execute in these areas for bank switching
         // or hardware setup, but they are not valid program entry points.
-        let in_io_or_rom = (0xA000..=0xBFFF).contains(&pc) || (0xD000..=0xFFFF).contains(&pc);
-        if pc >= ret_addr && !in_io_or_rom && (pc < load_addr || pc >= load_end) {
+        if pc >= ret_addr && !in_rom_or_io && (pc < load_addr || pc >= load_end) {
             // Only exit if significant decompression has happened
             let written_above = cpu
                 .memory
@@ -996,7 +1011,14 @@ pub fn unpack(
                 continue;
             }
             RomAction::Exit | RomAction::BasicRun => {
-                let entry_point = pc;
+                // When exit/run fires from BASIC ROM, the PC is a ROM address
+                // (e.g., $A659 inside CLR). The real entry point is the SYS
+                // address in the freshly decompressed BASIC program.
+                let entry_point = if (0xA000..=0xBFFF).contains(&pc) {
+                    find_sys_address(&cpu.memory.mem).unwrap_or(pc)
+                } else {
+                    pc
+                };
                 return finish_unpack(
                     &cpu.memory.mem,
                     &snapshot,
@@ -1536,5 +1558,27 @@ mod tests {
         assert_eq!(result.end_addr, 0xFEFF);
         assert_eq!(result.entry_point, 0x0810);
         assert_eq!(result.dep_addr, 0x0100);
+    }
+
+    #[test]
+    fn test_debug_hw20131031_exo_unpack() {
+        // This Exomizer variant finishes by triggering BASIC RUN ($A7AE→$A659).
+        // The entry point must come from the freshly decompressed SYS line,
+        // not the BASIC ROM address.
+        let prg_data = std::fs::read("../../tests/6502/hw20131031.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.end_addr, 0xFF3F);
+        // Entry point is $3000 from the decompressed BASIC SYS line,
+        // NOT $A659 (the BASIC ROM CLR routine where exit was detected).
+        assert_eq!(result.entry_point, 0x3000);
     }
 }
