@@ -165,8 +165,10 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## Acknowledgements
 
 - [Regenerator][regenerator]: The original 6502 disassembler for Windows.
+- [unp64][unp64]: The C64 binary unpacker by iAN CooG, which the unpacker module is based on.
 - [64tass][64tass], [ACME][ACME], [Kick Assembler][Kick Assembler], [ca65][ca65] : Supported assemblers.
 
+[unp64]: https://csdb.dk/release/?id=260619
 [64tass]: https://tass64.sourceforge.net/
 [ACME]: https://sourceforge.net/projects/acme-crossass/
 [Kick Assembler]: http://www.theweb.dk/KickAssembler/
