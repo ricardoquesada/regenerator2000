@@ -1508,7 +1508,7 @@ mod tests {
 
     #[test]
     fn test_debug_roma_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/roma.exe.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_roma.exe.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
@@ -1526,7 +1526,7 @@ mod tests {
 
     #[test]
     fn test_debug_scoop_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/thats_the_way_scoop.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_thats_the_way_scoop.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
@@ -1544,7 +1544,7 @@ mod tests {
 
     #[test]
     fn test_debug_f600_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/f600.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_f600.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
@@ -1565,7 +1565,7 @@ mod tests {
         // This Exomizer variant finishes by triggering BASIC RUN ($A7AE→$A659).
         // The entry point must come from the freshly decompressed SYS line,
         // not the BASIC ROM address.
-        let prg_data = std::fs::read("../../tests/6502/hw20131031.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_hw20131031.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
