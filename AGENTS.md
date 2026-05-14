@@ -202,6 +202,10 @@ cargo clippy -- -D warnings      # Lint (warnings are errors)
 
 Use present tense, imperative mood (e.g., `Add support for D71 disk images`). Limit first line to 72 chars.
 
+### No Automatic Commits
+
+**Never** create a git commit automatically after completing a task. Only commit when the user explicitly asks for it (e.g., "commit this", "create a commit"). Staged changes (`git add`) are acceptable as part of normal workflow, but the final `git commit` requires an explicit user instruction.
+
 ### Testing
 
 - **Unit Tests**: Located in `src` files (e.g., `cpu.rs`).
