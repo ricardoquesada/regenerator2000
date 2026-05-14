@@ -1,7 +1,7 @@
 //! 6502 emulation-based binary unpacker for compressed C64 programs.
 //!
-//! Many C64 programs are distributed packed with tools like Dali/LXT, Exomizer,
-//! PUCrunch, ByteBoiler, etc. This module emulates the 6502 CPU to run the
+//! Many C64 programs are distributed packed with tools like Dali, Exomizer,
+//! PUCrunch, etc. This module emulates the 6502 CPU to run the
 //! packer's own decompression stub, then extracts the unpacked binary.
 //!
 //! The algorithm is based on the **unp64** utility and uses a two-phase approach:
