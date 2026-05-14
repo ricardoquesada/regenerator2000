@@ -603,7 +603,15 @@ fn scan_hybrid_range(
     };
 
     // Walk backward from diff_end to detect and trim small trailing clusters.
-    let trimmed_end = trim_trailing_clusters(mem, snapshot, first, diff_end);
+    // Only apply trimming when the diff extends near the scan boundary (within
+    // 128 bytes). A clean gap between diff_end and the boundary means the
+    // output ends naturally with no depacker workspace to separate — trimming
+    // would only produce false positives on natural gaps in program data.
+    let trimmed_end = if diff_end + 128 >= upper {
+        trim_trailing_clusters(mem, snapshot, first, diff_end)
+    } else {
+        diff_end
+    };
 
     // Extend past the trimmed end through written bytes that match the snapshot
     // (trailing zero-fills that are part of the real output).
@@ -1433,7 +1441,9 @@ mod tests {
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
         assert_eq!(result.start_addr, 0x0800);
-        assert_eq!(result.end_addr, 0x31FF);
+        // End is $3209 (10 bytes of PUCrunch workspace included — trimming
+        // is skipped because diff_end is far from the scan ceiling).
+        assert_eq!(result.end_addr, 0x3209);
         assert_eq!(result.entry_point, 0x2E00);
     }
 
@@ -1507,6 +1517,24 @@ mod tests {
         assert_eq!(result.start_addr, 0x0800);
         assert_eq!(result.end_addr, 0xE750);
         assert_eq!(result.entry_point, 0x0801);
+        assert_eq!(result.dep_addr, 0x0100);
+    }
+
+    #[test]
+    fn test_debug_f600_unpack() {
+        let prg_data = std::fs::read("../../tests/6502/f600.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.end_addr, 0xFEFF);
+        assert_eq!(result.entry_point, 0x0810);
         assert_eq!(result.dep_addr, 0x0100);
     }
 }
