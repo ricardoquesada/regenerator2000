@@ -27,7 +27,7 @@ impl WarningDialog {
             ui_state.active_dialog = Some(Box::new(Self::new(
                 "High Entropy Detected",
                 format!(
-                    "The loaded file has high entropy ({entropy_val:.2}).\nIt is likely compressed.\n\nYou might want to uncompress it with tools like Unp64, and reload the uncompressed file."
+                    "The loaded file has high entropy ({entropy_val:.2}).\nIt is likely compressed or packed.\n\nYou can unpack it from Menu -> File -> Unpack Binary,\nor use external tools like unp64, and reload the unpacked file."
                 ),
             )));
         }
@@ -41,7 +41,7 @@ impl Widget for WarningDialog {
 
         let block = crate::ui::widget::create_dialog_block(&title, theme);
 
-        let area = crate::utils::centered_rect_adaptive(50, 40, 20, 6, area);
+        let area = crate::utils::centered_rect_adaptive(50, 40, 20, 11, area);
         ui_state.active_dialog_area = area;
 
         f.render_widget(Clear, area);

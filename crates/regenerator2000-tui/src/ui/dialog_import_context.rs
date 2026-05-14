@@ -53,8 +53,10 @@ impl Widget for ImportContextDialog {
         let theme = &ui_state.theme;
         let block = crate::ui::widget::create_dialog_block(" Import Context Setup ", theme);
 
-        // Dialog fits content: 10 lines + 2 borders
-        let area = crate::utils::centered_rect_adaptive(50, 45, 0, 12, area);
+        // Dialog fits content: 10 lines + 2 borders (+3 for entropy warning)
+        let has_entropy = self.entropy.is_some();
+        let min_height = if has_entropy { 15 } else { 12 };
+        let area = crate::utils::centered_rect_adaptive(50, 45, 0, min_height, area);
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
@@ -73,7 +75,7 @@ impl Widget for ImportContextDialog {
                 Constraint::Length(1), // Checkbox
                 Constraint::Length(1), // Spacer
                 Constraint::Length(1), // Buttons
-                Constraint::Length(1), // Warning
+                Constraint::Min(1),    // Warning (multi-line when entropy is high)
             ])
             .split(inner);
 
@@ -182,13 +184,25 @@ impl Widget for ImportContextDialog {
 
         // --- High Entropy Warning ---
         if let Some(ent) = self.entropy {
+            use ratatui::text::Text;
             use ratatui::widgets::Paragraph;
-            let warn_text = Line::from(vec![Span::styled(
-                format!("⚠️ High Entropy ({ent:.2}). Possibly packed or compressed."),
-                Style::default()
-                    .fg(ratatui::style::Color::Yellow)
-                    .add_modifier(Modifier::BOLD),
-            )]);
+            let warn_style = Style::default()
+                .fg(ratatui::style::Color::Yellow)
+                .add_modifier(Modifier::BOLD);
+            let warn_text = Text::from(vec![
+                Line::from(Span::styled(
+                    format!("⚠️ High Entropy ({ent:.2}). Possibly packed or compressed."),
+                    warn_style,
+                )),
+                Line::from(Span::styled(
+                    "Unpack from Main Menu -> File -> Unpack Binary,",
+                    warn_style,
+                )),
+                Line::from(Span::styled(
+                    "or use external tools like unp64.",
+                    warn_style,
+                )),
+            ]);
             f.render_widget(
                 Paragraph::new(warn_text).alignment(ratatui::layout::Alignment::Center),
                 layout[9],
