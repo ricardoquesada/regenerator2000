@@ -1367,7 +1367,7 @@ mod tests {
 
     #[test]
     fn test_unpack_lxt_compressed() {
-        let prg_data = std::fs::read("../../tests/6502/moving_tubes_lxt_dali.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_moving_tubes_lxt.dali.prg").unwrap();
 
         // Parse PRG: first 2 bytes are load address (little-endian)
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
@@ -1411,7 +1411,7 @@ mod tests {
 
     #[test]
     fn test_debug_exo_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/moving_tubes_lxt_exo.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_moving_tubes_lxt.exo3.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
@@ -1452,7 +1452,7 @@ mod tests {
 
     #[test]
     fn test_debug_pucrunch_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/moving_tubes_lxt_pucrunch.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_moving_tubes_lxt.pucrunch.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
@@ -1471,7 +1471,7 @@ mod tests {
 
     #[test]
     fn test_debug_mule_dali_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/mule_dali.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_mule.dali.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
@@ -1490,7 +1490,7 @@ mod tests {
 
     #[test]
     fn test_debug_mule_mccracken_compressor_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/mule_mccracken_compressor.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_mule.mccracken_compressor.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
@@ -1508,7 +1508,7 @@ mod tests {
 
     #[test]
     fn test_debug_roma_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/c64_roma.exe.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_roma.exo3.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
@@ -1526,7 +1526,8 @@ mod tests {
 
     #[test]
     fn test_debug_scoop_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/c64_thats_the_way_scoop.prg").unwrap();
+        let prg_data =
+            std::fs::read("../../tests/6502/c64_thats_the_way_scoop.time_cruncher.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
@@ -1544,7 +1545,7 @@ mod tests {
 
     #[test]
     fn test_debug_f600_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/c64_f600.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_f600.exo.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
@@ -1565,7 +1566,7 @@ mod tests {
         // This Exomizer variant finishes by triggering BASIC RUN ($A7AE→$A659).
         // The entry point must come from the freshly decompressed SYS line,
         // not the BASIC ROM address.
-        let prg_data = std::fs::read("../../tests/6502/c64_hw20131031.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_hw20131031.exo.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
