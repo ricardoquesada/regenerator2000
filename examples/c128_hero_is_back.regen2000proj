@@ -17,6 +17,18 @@
     },
     {
       "start": 28,
+      "end": 69,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 70,
+      "end": 73,
+      "type_": "PetsciiText",
+      "collapsed": false
+    },
+    {
+      "start": 74,
       "end": 75,
       "type_": "DataByte",
       "collapsed": false
@@ -510,7 +522,7 @@
     {
       "start": 28694,
       "end": 28727,
-      "type_": "DataByte",
+      "type_": "LoHiAddress",
       "collapsed": false
     }
   ],
@@ -2412,10 +2424,10 @@
         "kind": "User"
       }
     ],
-    "24043": [
+    "24044": [
       {
-        "name": "draw_cursor_char",
-        "label_type": "Return",
+        "name": "draw_input_cursor",
+        "label_type": "Subroutine",
         "kind": "User"
       }
     ],
@@ -2587,6 +2599,34 @@
         "kind": "User"
       }
     ],
+    "25271": [
+      {
+        "name": "draw_hud",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "25417": [
+      {
+        "name": "draw_dynamite_stock",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "25439": [
+      {
+        "name": "clear_last_dynamite_icon",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "25455": [
+      {
+        "name": "draw_level_number",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
     "25479": [
       {
         "name": "advance_level",
@@ -2671,6 +2711,13 @@
         "kind": "User"
       }
     ],
+    "26287": [
+      {
+        "name": "init_title_sprites",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
     "26348": [
       {
         "name": "animate_title_sprite_curtain",
@@ -2724,6 +2771,13 @@
       {
         "name": "show_main_menu",
         "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
+    "27102": [
+      {
+        "name": "draw_title_artwork",
+        "label_type": "Subroutine",
         "kind": "User"
       }
     ],
@@ -3963,6 +4017,41 @@
       {
         "name": "reset_dynamic_tiles",
         "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "34380": [
+      {
+        "name": "draw_all_dynamic_tiles",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "34398": [
+      {
+        "name": "draw_dynamic_tile_2x5",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "34544": [
+      {
+        "name": "draw_dtile_type_1",
+        "label_type": "Branch",
+        "kind": "User"
+      }
+    ],
+    "34897": [
+      {
+        "name": "draw_dtile_anim_frame2",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "34986": [
+      {
+        "name": "draw_dtile_type_1_anim2",
+        "label_type": "Branch",
         "kind": "User"
       }
     ],
@@ -5733,13 +5822,13 @@
     "24026": "Read back for range check",
     "24029": "Wrap: 41 ($29) → 0",
     "24038": "Reset blink counter",
-    "24044": "Default: space (blank cursor)",
+    "24044": "Default to space (blink off)",
     "24046": "Load blink counter",
-    "24049": "Blink phase >= 20? Show blank",
-    "24053": "Cursor char = $1E (arrow left)",
-    "24055": "Load selector index",
-    "24058": "Index 0 = show cursor only",
-    "24060": "Get char from selection table",
+    "24049": "If >= 20, blink is off, draw space",
+    "24053": "Otherwise, set char to cursor ($1E)",
+    "24055": "Load joystick selector index",
+    "24058": "If 0, draw cursor char",
+    "24060": "Else get selected letter",
     "24063": "Save char to draw",
     "24064": "Screen base low = $00",
     "24068": "Screen base high = $04 ($0400)",
@@ -5918,9 +6007,44 @@
     "25222": "Set phase 3 delay timer ($5A frames)",
     "25228": "Phase 3: decrement delay timer",
     "25233": "Timer done -> advance to next level",
+    "25271": "Source = $60E0",
+    "25279": "Destination = $06D1",
+    "25287": "Draw text in White (1)",
+    "25292": "Draw player score",
+    "25295": "Draw player lives",
+    "25298": "Set Color RAM for row 20 to White",
     "25302": "Set HUD color row 20 = white",
+    "25308": "Draw dynamite stock",
+    "25311": "Source = $60E7",
+    "25319": "Destination = $0774",
+    "25327": "Draw text in Yellow (7)",
+    "25335": "Update score display",
+    "25340": "Set Color RAM for row 22 to White",
     "25342": "Set HUD color row 22 = white",
+    "25348": "Draw dynamite icons (row 1)",
+    "25369": "Draw fuel bar (row 2)",
+    "25390": "Draw copyright year and logo",
+    "25411": "Set color of logo/year to Cyan (3)",
     "25413": "Set single color cell row 24 col 1 = cyan",
+    "25417": "Load number of dynamites",
+    "25420": "Multiply by 2 (2 bytes per icon width)",
+    "25422": "Adjust for 0-based index",
+    "25424": "Top half character ($62)",
+    "25429": "Bottom half character ($63)",
+    "25434": "Move left to next icon slot",
+    "25436": "Loop until all icons drawn",
+    "25439": "Load current dynamite count",
+    "25446": "Space character ($20)",
+    "25448": "Clear top half of icon",
+    "25451": "Clear bottom half of icon",
+    "25455": "Set destination = $077C (after \\\"LEVEL \\\" text)",
+    "25463": "Default to 1 digit",
+    "25465": "Load current level (0-based)",
+    "25469": "Add 1 for display",
+    "25471": "Is it >= 10?",
+    "25473": "If < 10, skip to draw",
+    "25475": "Set to 2 digits",
+    "25476": "Jump to binary-to-decimal draw routine",
     "25479": "load difficulty mode",
     "25482": "mode 0 → check dynamite bonuses",
     "25484": "mode == 4?",
@@ -6005,6 +6129,20 @@
     "25899": "Load high byte of raster bg-clear handler",
     "25901": "Chain to next raster IRQ (bg-clear handler)",
     "26223": "game_state = 2 (high score entry)",
+    "26290": "Enable sprites 0-6 (%01111111)",
+    "26295": "Loop for 7 sprites (X=6 down to 0)",
+    "26297": "Load X position from table",
+    "26300": "Double X for VIC-II register offset",
+    "26304": "Store X position",
+    "26307": "Restore original X index",
+    "26310": "Base sprite pointer is $E8",
+    "26313": "Store sprite pointer",
+    "26316": "Load color from table",
+    "26319": "Store sprite color",
+    "26322": "Next sprite",
+    "26325": "Bitmask %00000011 (Sprites 0 and 1)",
+    "26327": "Expand Sprites 0 & 1 Horizontally",
+    "26330": "Expand Sprites 0 & 1 Vertically",
     "26348": "check frames remaining in animation",
     "26351": "counter == 0 → animation done",
     "26353": "animation finished → go to score screen",
@@ -6064,6 +6202,20 @@
     "27093": "A=$28 = raster line for menu IRQ",
     "27097": "X/Y=$6B84 = menu raster IRQ handler",
     "27099": "Install raster IRQ and return",
+    "27102": "Source 1 (Characters) = $680E",
+    "27110": "Source 2 (Colors) = $68B6",
+    "27118": "Destination 1 (Screen) = $0430",
+    "27126": "Destination 2 (Color) = $D830",
+    "27134": "X = 8 rows (7 down to 0)",
+    "27136": "Y = 24 columns (23 down to 0)",
+    "27138": "Copy character byte",
+    "27142": "Copy color byte",
+    "27146": "Inner loop (columns)",
+    "27149": "Add 24 to Source 1 pointer",
+    "27162": "Add 24 to Source 2 pointer",
+    "27175": "Add 40 to Dest 1 (next line)",
+    "27188": "Add 40 to Dest 2 (next line)",
+    "27201": "Outer loop (rows)",
     "27256": "Check current menu selection",
     "27276": "Cycle input_mode (0→1→2→3→0)",
     "27313": "Load selected level index",
@@ -7069,12 +7221,32 @@
     "34359": "Store pixel X (row*8+$14)",
     "34364": "Init timer lo = $12",
     "34369": "Init timer hi = $02",
+    "34380": "Load total number of dynamic tiles",
+    "34383": "If zero, exit",
+    "34385": "Adjust count to 0-based index for X",
+    "34386": "Check if tile is active (id != 0)",
+    "34389": "If not active, skip drawing",
+    "34394": "Decrement index",
+    "34395": "Loop until all tiles processed (X < 0)",
+    "34398": "Get screen row for tile",
+    "34405": "zp_ptr_src = screen RAM address",
+    "34414": "Add $D4 to high byte for Color RAM",
+    "34419": "Get screen col for tile",
+    "34426": "If type != 0, draw alternate tile",
+    "34428": "Row 1",
+    "34544": "Row 1, alternate tile",
     "34670": "Tile active? (update loop)",
     "34675": "Get screen row for rendering",
     "34709": "Get screen column for rendering",
     "34846": "Check timer lo (hit countdown)",
     "34854": "Decrement timer lo",
     "34860": "Timer expired? Destroy tile",
+    "34897": "Get screen row for tile",
+    "34904": "zp_ptr_src = screen RAM address",
+    "34911": "Get screen col for tile",
+    "34918": "If type != 0, draw alternate tile frame 2",
+    "34920": "Row 1, characters $38/$39",
+    "34986": "Row 1, alternate tile frame 2",
     "35054": "Load current state (0=idle, 1=init, 2=delay)",
     "35057": "State 0 → nothing to do",
     "35060": "State 1? → initialize voice",
@@ -7515,7 +7687,7 @@
     "23816": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScans the keyboard matrix via CIA1 to detect a key press.\nLoops through all 8 rows of the keyboard matrix, outputting row-select\nmasks to CIA1 Port A ($DC00) and reading column results from Port B ($DC01).\nIf a key is detected (any column bit low), identifies the exact column and\nlooks up the keycode from a decode table at ($FB/$FC).\n\nInputs:  None (uses hardcoded pointer $5C01 and row mask table f_5C41)\nOutputs: A = keycode from decode table (0 = no key pressed), Z flag set if no key\nSide Effects: Temporarily sets CIA1 DDRA ($DC02) to output then back to input\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "23892": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles joystick input for text entry. Reads joystick and processes:\n- Left: delete last entered character (backspace)\n- Fire: confirm currently selected character, store in buffer, advance cursor\n- Up: cycle character selection backward through allowed characters\n- Down: cycle character selection forward through allowed characters\nUses f_5C49 as a character lookup table (space, A-Z, 0-9, punctuation).\nSets a_5BD3 = $FF when input is complete (max length reached after fire).\n\nInputs:  joystick_state, joystick_prev_state, a_5BD1 (max length),\n         a_5BD2 (current position), a_5BD7 (char selection index)\nOutputs: a_5BD2 (updated position), a_5BD3 (done flag), a_5BD7 (updated\n         char index), a_5BD8 (blink counter reset), f_5BD9 (input buffer)\nSide Effects: Writes selected character to screen via s_5DFF\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "23921": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles joystick fire, up, and down inputs for character selection.\nFire confirms the selected character and stores it in the buffer.\nUp/Down cycle through the character set (A-Z, 0-9, punctuation).\nFalls through from s_5D54 when buffer is not full.\n\nInputs:  joystick_state, joystick_prev_state, a_5BD7 (selector index)\nOutputs: f_5BD9 (char buffer), a_5BD2 (char count), a_5BD3 (done flag)\nSide Effects: Draws selected character to screen memory\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "24043": "Draw cursor/selection character on screen at current position",
+    "24044": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the blinking cursor for the high score name entry.\nIf the blink counter is >= 20, it draws a space (blink off).\nOtherwise, it draws the currently selected joystick character, or the default \ncursor character ($1E) if no character is selected (index 0).\nFalls through to `draw_char_at_cursor` to write to screen RAM.\n\nInputs:  input_blink_counter, input_selector_idx\nOutputs: None\nSide Effects: Writes one character to Screen RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "24063": "Draws the character in A at screen position (row=a_5BD6, col=a_5BD5).\nComputes screen address: $0400 + row*40 + col, then stores the character.",
     "24128": "Credits screen: role labels (\"PROGRAMMING, GRAPHICS, SOUND\" / \"TESTING\" / \"EMAIL\")",
     "24179": "Credits screen: programmer/tester name \"LUCA CARMINATI\"",
@@ -7540,6 +7712,10 @@
     "24831": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes a new cave/level for gameplay. Blanks the screen, resets the\nscore and lives display, loads and decompresses cave map data from banked\nRAM, sets up sprites, clears the screen, configures the raster IRQ for\nthe gameplay handler, and re-enables the display.\nj_611D is a re-entry point used when restarting the same cave (e.g. after\nlosing a life) — it skips the score/lives reset.\n\nInputs:  a_60D8 = cave/level index to initialize\nOutputs: None\nSide Effects: Screen blanked then re-enabled, sprites configured, cave map\n              decompressed, raster IRQ set to gameplay handler at $6492,\n              MMU set to $3E (RAM+I/O)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "24985": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTrampoline to title screen.\nReached when RUN/STOP is pressed and no game is in progress (a_60DA == 0),\nskipping the high-score save performed by s_6EDD.\n\nInputs:  None\nOutputs: None (does not return)\nSide Effects: Transfers control to j_695E which blanks the screen and\n              shows the title/menu.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "25060": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles the outcome after each game frame: checks for hero death or level\ncomplete, then runs a multi-phase bonus scoring sequence on level completion.\n  Phase 0: Check game status ($7AFA). If hero died ($05), lose a life and\n           restart/game-over. If level complete ($03), begin bonus sequence.\n  Phase 1: Award energy bonus — decrement remaining energy ($821B), add $0040\n           to score per unit, then stop SFX when energy is depleted.\n  Phase 2: Award lives bonus — count down remaining lives ($7B06), erase life\n           icons from the status bar, add $0050 to score per life.\n  Phase 3: Delay timer — wait for $60DE to count down, then advance to next level.\n\nInputs:  a_60DC (phase counter), a_7AFA (game status), a_821B (energy),\n         a_7B06 (remaining lives), a_50F7 (life count)\nOutputs: Score updated, a_60DC advanced through phases\nSide Effects: Screen status bar updated, SID voice 1 stopped, may restart level\n              or trigger game over\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "25271": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the static HUD (Heads-Up Display) layout onto the screen.\nSets up the text, icons (dynamite, fuel bar, year/logo), and their colors.\nCalls subroutines to draw dynamic HUD elements like score, lives, and dynamite counts.\n\nInputs:  None\nOutputs: None\nSide Effects: Extensively modifies Screen RAM and Color RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "25417": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the player's current stock of dynamite onto the HUD.\nThe icons are constructed using two characters ($62 top, $63 bottom).\nLoops from `hero_dynamite_count * 2 - 2` down to 0, writing to screen RAM.\n\nInputs:  hero_dynamite_count\nOutputs: None\nSide Effects: Modifies Screen RAM (dynamite icon area)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "25439": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases the right-most dynamite icon on the HUD by overwriting both its top\nand bottom halves with spaces ($20). Called when the player uses a dynamite.\n\nInputs:  hero_dynamite_count (before decrement)\nOutputs: None\nSide Effects: Modifies Screen RAM to clear one icon\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "25455": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the current level number onto the HUD.\nThe level is stored 0-based internally, so it adds 1 before displaying.\nDetermines if the level is 1 or 2 digits and passes this count in X to \nthe binary-to-decimal rendering routine at $6413.\n\nInputs:  current_level\nOutputs: None\nSide Effects: Modifies Screen RAM via the draw routine at $6413\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "25479": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances to the next level after completing the current one.\nChecks difficulty mode (a_60D8) to determine the final level threshold:\n  mode 4 → ends at level 7, mode 8 → level 11, mode 12 → level 15, default → level 19.\nIf the threshold is reached, jumps to the game-over/completion screen (j_695E).\nIn mode 0, awards an extra dynamite (a_52C5) at levels 3, 7, 11, and 15 if\nthe player has not yet reached the corresponding bonus count.\nAt level 19 in mode 0, wraps the level counter and jumps to bonus scoring (j_6037).\nOtherwise increments the level counter and continues to level initialization (j_611D).\n\nInputs:  a_60D8 (difficulty mode), a_60D9 (current level), a_52C5 (dynamite bonus count)\nOutputs: a_60D9 (updated level), a_60DA (extra-dynamite flag), a_52C5 (updated bonus count)\nSide Effects: May transition to completion screen, bonus screen, or next level init\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "25722": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCollects sprite data for all game objects (hero, creatures, projectile,\nbomb, and hazard sprites) by calling each object's sprite setup routine,\nthen jumps to the sprite sort-and-render multiplexer at j_540A.\n\nEach sub-call populates zero-page arrays ($33-$36 visibility flags,\n$46-$49 Y positions, $59-$5C Y hi-bytes, $6F-$70 sprite frames,\n$7E-$83 sprite colors, $91 sprite width) used by the multiplexer.\n\nInputs:  None (reads game state from each object module)\nOutputs: None (sprite data written to zero-page arrays)\nSide Effects: VIC-II sprite registers programmed via j_540A\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "25746": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nGameplay raster IRQ handler (triggered at raster line 5). Configures the\nVIC-II display for the game viewport: sets background/multicolor colors\n(with explosion flash override), selects character memory at $3800 and\nscreen at $0400, enables ECM mode. Then updates all sprite data, finds\na free sprite slot for the score overlay, conditionally ticks SFX, and\njumps into the sprite multiplexer chain.\n\nInputs:  explosion_state, explosion_color, a_3FA2 (multicolor), a_60DF (sfx mute flag)\nOutputs: a_60DB (set to $FF), a_60DD (free sprite slot index)\nSide Effects: VIC-II registers ($D011, $D018, $D021, $D023) programmed;\n              sprites updated; sound effects ticked\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -7550,6 +7726,7 @@
     "26076": "Homage screen prompt: \"PRESS FIRE TO CONTINUE\"",
     "26207": "X positions for 7 title screen sprites (indices 0-6).",
     "26214": "Color values for 7 title screen sprites (indices 0-6).",
+    "26287": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the 7 hardware sprites used for the title screen curtain animation.\nSets their X positions, colors, and sprite data pointers (starting at $E8).\nAlso expands sprites 0 and 1 by 2x both horizontally and vertically.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies VIC-II sprite registers ($D000-$D02D) and screen pointers\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "26348": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAnimates the title screen sprite curtain effect. Each frame, moves the\ntop sprite group (0-2) downward and the bottom sprite group (4-6) upward,\ncreating a \"curtain opening\" reveal. Runs until the animation counter\nreaches zero, then transitions to the score/gameplay screen.\n\nInputs:  title_anim_counter ($664E) — frames remaining\n         title_sprite_y_pos ($664D) — current Y offset\nOutputs: title_anim_counter decremented, title_sprite_y_pos increased\nSide Effects: Updates VIC-II sprite Y position registers ($D001-$D00D)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "26376": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets the Y positions of all 7 title sprites based on title_sprite_y_pos.\nSprites 0-2 use the position directly (top group), sprite 3 is offset\n+$15 below them, and sprites 4-6 use $1C minus the position (bottom\ngroup moving upward as the curtain opens).\n\nInputs:  title_sprite_y_pos ($664D)\nOutputs: None\nSide Effects: Writes VIC-II registers $D001, $D003, $D005, $D007,\n              $D009, $D00B, $D00D\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "26410": "Current selected menu option on the title screen.\n0=START, 1=DYNAMITE, 2=BEST HEROES, 3=PLAY LEVELS, 4=CREDITS.",
@@ -7558,6 +7735,7 @@
     "26613": "Level selection display strings, 5 bytes each (null-terminated).\nE.g. \"05-08\", \"09-12\", etc. Indexed by menu_level_select_index.",
     "26633": "HUD: copyright year \"2025\" + H.E.R.O. logo tile indices for bottom screen rows",
     "26974": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets up and displays the main menu screen.\nClears the screen, draws the menu layout with title artwork, renders\nmenu option text (START, BEST HEROES, PLAY LEVELS, CREDITS), loads\nthe current dynamite/control description, highlights the selected\nmenu item, enables menu sprites, and installs the menu raster IRQ.\n\nInputs:  None\nOutputs: None\nSide Effects: Blanks and redraws screen, sets a_20D3 to #$03 (menu state),\n              enables 6 sprites ($D015=$3F), installs raster IRQ at $6B84\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "27102": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the main menu's title artwork (logo) onto the screen.\nCopies a 24x8 block of character data and color data from ROM to \nScreen RAM ($0430) and Color RAM ($D830).\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies Screen RAM and Color RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27524": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTitle screen raster IRQ handler — sprite setup.\nPositions 5 sprites to form the title/logo graphic:\n  Sprites 0-3 in a row at Y=$3B (X=$59,$89,$B9,$EA)\n  Sprite 4 centered at Y=$5B (X=$8F)\nAssigns sprite pointers $F5-$F9 and sets all 5 to white ($01).\nComputes next raster line from menu_cursor_index (each option is 16px\napart, base $86) and chains to irq_menu_cursor_top.\n\nInputs:  menu_cursor_index = currently highlighted menu option (0-based)\nOutputs: None\nSide Effects: VIC-II sprite registers $D000-$D00B, sprite pointers,\n              sprite colors, next IRQ chained to irq_menu_cursor_top\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27622": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMenu cursor highlight — top bar raster IRQ.\nNOP sled for stable raster timing, then sets $D021 to light blue ($0E)\nfor one character row, waits, then resets $D021 to blue ($06).\nThis creates a highlighted horizontal bar on the selected menu option.\nComputes the raster line for the bottom bar from menu_cursor_index\n(top + 8 lines = $94 base) and chains to irq_menu_cursor_bottom.\n\nInputs:  menu_cursor_index = currently highlighted menu option (0-based)\nOutputs: None\nSide Effects: $D021 (background color) flashed to light blue then blue\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27690": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMenu cursor highlight — bottom bar raster IRQ.\nSame pattern as irq_menu_cursor_top: NOP sled for stable raster, then\nsets $D021 to light blue ($0E) for one character row, waits, then resets\n$D021 to black ($00) (the default menu screen background).\nChains to irq_setup_status_bar_sprites at raster line $DC.\n\nInputs:  None (entered via IRQ vector)\nOutputs: None\nSide Effects: $D021 flashed to light blue then reset to black ($00)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -7709,6 +7887,9 @@
     "34273": "Dynamic tile hit countdown timer, high byte. Init=$02. Forms 16-bit timer with dtile_timer_lo ($0212=530 frames). 3-byte array.",
     "34277": "Dynamic tile color attribute for color RAM. $0F=white (normal), $00=invisible/cleared.",
     "34278": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets the dynamic tile count to zero, clearing all tile 5/tile 6 objects.\nCalled during room initialization to prepare the dynamic tile subsystem\nfor the new room. The count (a_85E4) is used as an index into parallel\narrays (f_85C9–f_85E1) that track active dynamic tile state.\n\nInputs:  None\nOutputs: None\nSide Effects: Clears dynamic_tile_count (a_85E4) to 0\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "34380": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates over all dynamic tiles (from `dynamic_tile_count` down to 0).\nFor each active tile (where `dtile_id` != 0), it calls `draw_dynamic_tile_2x5`\nto draw it onto the screen.\n\nInputs:  `dynamic_tile_count` (global)\nOutputs: None\nSide Effects: Modifies screen and color RAM by drawing the active dynamic tiles.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "34398": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws a 2x5 meta-tile on screen for a dynamic tile. Uses `dtile_type` to select\nthe character set and color (either dynamic `dtile_color` or fixed red).\n\nInputs:  X = dynamic tile index\nOutputs: None\nSide Effects: Modifies screen and color RAM (10 bytes each)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "34897": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the second animation frame for a dynamic tile onto the screen.\nUnlike the initial draw, this routine only updates Screen RAM (characters) \nand skips Color RAM updates to save cycles.\n\nInputs:  X = dynamic tile index\nOutputs: None\nSide Effects: Modifies screen RAM (10 bytes)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "35054": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTicks the hit/destroy noise sound effect on SID Voice 3.\nUses a 3-state machine driven by sfx_hit_state:\n  State 0: Idle — returns immediately.\n  State 1: Init — sets delay counter to $FE, silences Voice 3, advances to state 2.\n  State 2: Delay — increments counter until it reaches 0, then triggers a noise\n            burst (freq=$0300, ADSR=$10/$F9, waveform=noise+gate) for 3 frames\n            before gating off and resetting to idle.\nTriggered by entity destruction, explosion activation, and life bonus scoring.\n\nInputs:  sfx_hit_state ($88EC), sfx_hit_delay ($88ED)\nOutputs: sfx_hit_state, sfx_hit_delay\nSide Effects: Writes to SID Voice 3 registers ($D40E-$D414)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "35138": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTicks the explosion/blast noise sound effect on SID Voice 3.\nUses a 3-state machine driven by sfx_explosion_state:\n  State 0: Idle — returns immediately.\n  State 1: Init — sets delay counter to $FE, silences Voice 3, advances to state 2.\n  State 2: Delay — increments counter until it reaches 0, then triggers a noise\n            burst (freq=$3000, ADSR=$61/$10, waveform=noise+gate) and resets to idle.\nTriggered by init_hero_explosion when the hero's dynamite detonates.\n\nInputs:  sfx_explosion_state ($8940), sfx_explosion_delay ($8941)\nOutputs: sfx_explosion_state, sfx_explosion_delay\nSide Effects: Writes to SID Voice 3 registers ($D40E-$D414)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "35218": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTick SFX: Fire sound effect (SID Voice 2).\nPlays a rising-pitch pulse wave sweep to produce a \"fire/shoot\" sound.\n\nPhase 0: Idle, returns immediately.\nPhase 1: Init — clears Voice 2 registers, starts 2-tick delay.\nPhase 2: Plays the effect — sweeps through 8 frequency values with\n         increasing pulse width. After one sweep, loops or silences.\nPhase 3: Final — silences Voice 2 and resets to idle.\n\nInputs:  sfx_fire_phase ($8988) = effect state (0=idle, 1=trigger, 2=playing, 3=stop)\nOutputs: SID Voice 2 registers ($D407–$D40D)\nSide Effects: Modifies SID Voice 2 output (frequency, pulse width, ADSR, gate)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -7719,7 +7900,6 @@
     "35704": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTicks SFX channel 7 state machine on SID Voice 1. Three-phase sound effect:\nPhase 1: Silence Voice 1 and start a 2-frame delay.\nPhase 2 (timer=0): Configure pulse waveform at freq $0A00, gate on.\nPhase 2 (timer=1): Gate off, mark channel inactive.\n\nInputs:  sfx7_enable — non-zero to activate, 0 = idle\nOutputs: sfx7_enable — cleared to 0 when effect finishes\nSide Effects: Writes SID Voice 1 registers ($D400–$D406)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "35793": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTick SFX channel 8 — delayed noise burst (Voice 3).\nState machine: 0=idle, 1=init (silence Voice 3, start delay),\n2=wait for delay then trigger noise waveform, then reset to idle.\nUsed for explosion-like sound effects.\n\nInputs:  sfx_ch8_state (channel state: 0=off, 1=init, 2=running)\nOutputs: sfx_ch8_state, sfx_ch8_delay (updated each tick)\nSide Effects: Programs SID Voice 3 registers ($D40E-$D414)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "35863": "Screen row-to-address lookup table, low bytes. Maps row index (0-16) to screen RAM offset. Each row is 40 ($28) chars wide.",
-    "35880": "Screen row-to-address lookup table, high bytes. Maps row index (0-16) to screen RAM page ($04-$06).",
     "54534": "C128 RAM Configuration Register (VIC bank/shared RAM config)",
     "55296": "Color RAM base ($D800-$DBE7, 1000 bytes, 40x25)",
     "55336": "Color RAM row 1 (offset +$28)",
@@ -7760,6 +7940,18 @@
     "exclude_well_known_labels": true
   },
   "immediate_value_formats": {
+    "7255": {
+      "LowByte": 8192
+    },
+    "7260": {
+      "HighByte": 8192
+    },
+    "7356": {
+      "LowByte": 4864
+    },
+    "7360": {
+      "HighByte": 4864
+    },
     "8596": {
       "LowByte": 59953
     },
@@ -7874,6 +8066,30 @@
     "24929": {
       "HighByte": 25746
     },
+    "25271": {
+      "LowByte": 24800
+    },
+    "25275": {
+      "HighByte": 24800
+    },
+    "25279": {
+      "LowByte": 1745
+    },
+    "25283": {
+      "HighByte": 1745
+    },
+    "25311": {
+      "LowByte": 24807
+    },
+    "25315": {
+      "HighByte": 24807
+    },
+    "25319": {
+      "LowByte": 1908
+    },
+    "25323": {
+      "HighByte": 1908
+    },
     "25348": {
       "LowByte": 24816
     },
@@ -7909,6 +8125,12 @@
     },
     "25402": {
       "HighByte": 2019
+    },
+    "25455": {
+      "LowByte": 1916
+    },
+    "25459": {
+      "HighByte": 1916
     },
     "25824": {
       "LowByte": 25831
@@ -7951,6 +8173,72 @@
     },
     "26156": {
       "HighByte": 1753
+    },
+    "26991": {
+      "LowByte": 26412
+    },
+    "26995": {
+      "HighByte": 26412
+    },
+    "26999": {
+      "LowByte": 1336
+    },
+    "27003": {
+      "HighByte": 1336
+    },
+    "27012": {
+      "LowByte": 26416
+    },
+    "27016": {
+      "HighByte": 26416
+    },
+    "27020": {
+      "LowByte": 1475
+    },
+    "27024": {
+      "HighByte": 1475
+    },
+    "27058": {
+      "LowByte": 26633
+    },
+    "27062": {
+      "HighByte": 26633
+    },
+    "27066": {
+      "LowByte": 1965
+    },
+    "27070": {
+      "HighByte": 1965
+    },
+    "27102": {
+      "LowByte": 26638
+    },
+    "27106": {
+      "HighByte": 26638
+    },
+    "27110": {
+      "LowByte": 26806
+    },
+    "27114": {
+      "HighByte": 26806
+    },
+    "27118": {
+      "LowByte": 1072
+    },
+    "27122": {
+      "HighByte": 1072
+    },
+    "27126": {
+      "LowByte": 55344
+    },
+    "27130": {
+      "HighByte": 55344
+    },
+    "27205": {
+      "LowByte": 55736
+    },
+    "27209": {
+      "HighByte": 55736
     },
     "27615": {
       "LowByte": 27622
@@ -8026,14 +8314,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 2,
+  "cursor_address": 27205,
   "hex_dump_cursor_address": 14496,
-  "sprites_cursor_address": 14464,
-  "charset_cursor_address": 13240,
+  "sprites_cursor_address": 14528,
+  "charset_cursor_address": 27200,
   "right_pane_visible": "Charset8Col",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 8192,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
