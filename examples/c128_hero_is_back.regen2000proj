@@ -5,6 +5,30 @@
   "blocks": [
     {
       "start": 0,
+      "end": 1,
+      "type_": "Address",
+      "collapsed": false
+    },
+    {
+      "start": 2,
+      "end": 3,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 4,
+      "end": 8,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 9,
+      "end": 10,
+      "type_": "DataWord",
+      "collapsed": false
+    },
+    {
+      "start": 11,
       "end": 11,
       "type_": "DataByte",
       "collapsed": false
@@ -1467,7 +1491,7 @@
     ],
     "7181": [
       {
-        "name": "main_loop",
+        "name": "start",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2921,13 +2945,6 @@
         "kind": "User"
       }
     ],
-    "25060": [
-      {
-        "name": "handle_level_outcome",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
     "25271": [
       {
         "name": "draw_hud",
@@ -4279,13 +4296,6 @@
         "kind": "User"
       }
     ],
-    "32755": [
-      {
-        "name": "update_hero_descent",
-        "label_type": "UserDefined",
-        "kind": "User"
-      }
-    ],
     "32787": [
       {
         "name": "snap_hero_x_to_tile",
@@ -5282,6 +5292,8 @@
     ]
   },
   "user_side_comments": {
+    "7169": "10 SYS 7181",
+    "7178": "End of BASIC",
     "7181": "frame setup (MMU bank, disable CIAs, etc.)",
     "7184": "target raster line = $FB (251)",
     "7186": "wait until raster beam reaches line $FB",
@@ -9533,14 +9545,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 7194,
-  "hex_dump_cursor_address": 7192,
-  "sprites_cursor_address": 27264,
+  "cursor_address": 7181,
+  "hex_dump_cursor_address": 7176,
+  "sprites_cursor_address": 27328,
   "charset_cursor_address": 27200,
   "right_pane_visible": "HexDump8",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],

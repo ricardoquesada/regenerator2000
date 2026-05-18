@@ -85,6 +85,48 @@ Source:
 
 ---
 
+## Kikstart - Commodore Plus/4
+
+![screenshot](examples/plus4_kikstart_screenshot.png)
+
+A disassembly of the Commodore Plus/4 motorcycle obstacle course game [Kikstart][kikstart_info].
+
+!!! example "Disassembly"
+
+    * 🔗 [plus4_kikstart_8192.html](examples/plus4_kikstart_8192.html)
+
+Main takeaways:
+
+- WIP
+
+Source:
+
+- [Kikstart on Plus/4 World][kikstart_info]
+
+[kikstart_info]: http://plus4world.powweb.com/software/Kikstart
+
+## H.E.R.O is Back! - Commodore 128
+
+![screenshot](examples/c128_hero_is_back_screenshot.png)
+
+A disassembly of the Commodore 128 game [H.E.R.O is Back][hero_is_back_info], by LC Games.
+
+!!! example "Disassembly"
+
+    * 🔗 [c128_hero_is_back.html](examples/c128_hero_is_back.html)
+
+Main takeaways:
+
+- WIP
+
+Source:
+
+- [H.E.R.O Is Back Webapage][hero_is_back_info]
+
+[hero_is_back_info]: https://lowcarb.itch.io/hero-is-back-c64
+
+---
+
 ## Burnin' Rubber - Commodore 64
 
 ![screenshot](examples/c64_burnin_rubber_screenshot.png)
@@ -121,25 +163,3 @@ Source:
 [monitor]: https://www.c64-wiki.com/wiki/Machine_Code_Monitor
 [c64_burnin_rubber_monitor_cmd]: examples/c64_burnin_rubber.html#L2BE0
 [chardef_scan]: https://github.com/ricardoquesada/c64-c128-erasoft/blob/master/scans/chardef.pdf
-
----
-
-## Kikstart - Commodore Plus/4
-
-![screenshot](examples/plus4_kikstart_screenshot.png)
-
-A disassembly of the Commodore Plus/4 motorcycle obstacle course game [Kikstart][kikstart_info].
-
-!!! example "Disassembly"
-
-    * 🔗 [plus4_kikstart_8192.html](examples/plus4_kikstart_8192.html)
-
-Main takeaways:
-
-- WIP
-
-Source:
-
-- [Kikstart on Plus/4 World][kikstart_info]
-
-[kikstart_info]: http://plus4world.powweb.com/software/Kikstart

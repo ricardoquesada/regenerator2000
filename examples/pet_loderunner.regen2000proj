@@ -805,7 +805,7 @@
     ],
     "1536": [
       {
-        "name": "entry_point",
+        "name": "start",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -4242,14 +4242,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 0,
-  "hex_dump_cursor_address": 26368,
-  "sprites_cursor_address": 3200,
+  "cursor_address": 1536,
+  "hex_dump_cursor_address": 1536,
+  "sprites_cursor_address": 3264,
   "charset_cursor_address": 1024,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "HexDump16",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],

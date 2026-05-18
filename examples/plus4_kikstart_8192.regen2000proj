@@ -1803,7 +1803,7 @@
     ],
     "8192": [
       {
-        "name": "main_init",
+        "name": "start",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -3278,14 +3278,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8693,
-  "hex_dump_cursor_address": 8688,
+  "cursor_address": 8192,
+  "hex_dump_cursor_address": 8192,
   "sprites_cursor_address": 4352,
   "charset_cursor_address": 6728,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "HexDump16",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 32768,
+  "bitmap_cursor_address": 40960,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "PETSCIIShifted",
   "splitters": [],
