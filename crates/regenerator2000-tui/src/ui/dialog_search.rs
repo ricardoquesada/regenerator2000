@@ -9,6 +9,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::Paragraph,
 };
+use ratatui_textarea::{CursorMove, TextArea};
 
 use crate::ui::widget::{Widget, WidgetResult};
 
@@ -20,7 +21,7 @@ pub use crate::state::search::SearchFilters;
 use crate::state::search;
 
 pub struct SearchDialog {
-    pub input: String,
+    pub textarea: TextArea<'static>,
     pub editing_filters: bool,
     pub selected_filter: usize,
     pub filters: SearchFilters,
@@ -32,8 +33,13 @@ pub struct SearchDialog {
 impl SearchDialog {
     #[must_use]
     pub fn new(initial_query: String, filters: SearchFilters) -> Self {
+        let mut textarea = TextArea::default();
+        if !initial_query.is_empty() {
+            textarea.insert_str(&initial_query);
+            textarea.move_cursor(CursorMove::End);
+        }
         Self {
-            input: initial_query,
+            textarea,
             editing_filters: false,
             selected_filter: 0,
             filters,
@@ -41,11 +47,18 @@ impl SearchDialog {
         }
     }
 
+    /// Return the current search input text.
+    #[must_use]
+    fn input_text(&self) -> String {
+        self.textarea.lines().join("")
+    }
+
     /// Validate the current input as a regex and update [`Self::regex_error`].
     /// Clears the error when regex mode is off or the pattern is valid.
     fn validate_regex(&mut self) {
-        if self.filters.use_regex && !self.input.is_empty() {
-            match search::compile_regex(&self.input) {
+        let input = self.input_text();
+        if self.filters.use_regex && !input.is_empty() {
+            match search::compile_regex(&input) {
                 Ok(_) => self.regex_error = None,
                 Err(e) => self.regex_error = Some(e.to_string()),
             }
@@ -108,17 +121,21 @@ impl Widget for SearchDialog {
         let error_area = layout[3];
         let help_area = layout[4];
 
-        // Search input with a bordered sub-block and background
+        // Search input using TextArea with a bordered sub-block
         let is_input_focused = !self.editing_filters;
         let input_border_style = if is_input_focused {
             Style::default().fg(theme.highlight_fg)
         } else {
             Style::default().fg(theme.dialog_border)
         };
-        let input_block = ratatui::widgets::Block::default()
-            .borders(ratatui::widgets::Borders::ALL)
-            .border_style(input_border_style)
-            .style(Style::default().bg(theme.highlight_bg));
+
+        let mut textarea = self.textarea.clone();
+        textarea.set_block(
+            ratatui::widgets::Block::default()
+                .borders(ratatui::widgets::Borders::ALL)
+                .border_style(input_border_style)
+                .style(Style::default().bg(theme.highlight_bg)),
+        );
 
         let input_style = if is_input_focused {
             Style::default()
@@ -128,15 +145,16 @@ impl Widget for SearchDialog {
         } else {
             Style::default().fg(theme.dialog_fg).bg(theme.highlight_bg)
         };
-        let input = Paragraph::new(self.input.clone())
-            .block(input_block)
-            .style(input_style);
-        f.render_widget(input, input_area);
+        textarea.set_style(input_style);
 
-        // Show blinking cursor at end of input when focused
         if is_input_focused {
-            f.set_cursor_position((input_area.x + 1 + self.input.len() as u16, input_area.y + 1));
+            textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
+        } else {
+            textarea.set_cursor_style(Style::default().fg(theme.dialog_fg));
         }
+        textarea.set_cursor_line_style(Style::default());
+
+        f.render_widget(&textarea, input_area);
 
         // Filters section label with separator
         let label_style = Style::default()
@@ -249,7 +267,7 @@ impl Widget for SearchDialog {
                 WidgetResult::Close
             }
             KeyCode::Enter => {
-                ui_state.last_search_query = self.input.clone();
+                ui_state.last_search_query = self.input_text();
                 ui_state.search_filters = self.filters.clone();
                 perform_search(app_state, ui_state, true);
                 WidgetResult::Close
@@ -281,17 +299,13 @@ impl Widget for SearchDialog {
                 }
                 WidgetResult::Handled
             }
-            KeyCode::Backspace => {
-                self.input.pop();
+            // Delegate all other keys to the TextArea (handles cursor movement,
+            // home/end, backspace, delete, character input, etc.)
+            _ => {
+                self.textarea.input(key);
                 self.validate_regex();
                 WidgetResult::Handled
             }
-            KeyCode::Char(c) => {
-                self.input.push(c);
-                self.validate_regex();
-                WidgetResult::Handled
-            }
-            _ => WidgetResult::Handled,
         }
     }
 }
