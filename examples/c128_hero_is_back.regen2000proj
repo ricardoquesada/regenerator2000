@@ -299,48 +299,48 @@
     },
     {
       "start": 21262,
-      "end": 21613,
+      "end": 21652,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 21614,
+      "start": 21653,
       "end": 22027,
       "type_": "DataByte",
       "collapsed": false
     },
     {
       "start": 22028,
-      "end": 23425,
+      "end": 23488,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 23426,
+      "start": 23489,
       "end": 23492,
       "type_": "DataByte",
       "collapsed": false
     },
     {
       "start": 23493,
-      "end": 23547,
+      "end": 23589,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 23548,
+      "start": 23590,
       "end": 23611,
       "type_": "DataByte",
       "collapsed": false
     },
     {
       "start": 23612,
-      "end": 23838,
+      "end": 23923,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 23839,
+      "start": 23924,
       "end": 24085,
       "type_": "DataByte",
       "collapsed": false
@@ -359,24 +359,24 @@
     },
     {
       "start": 24183,
-      "end": 24269,
+      "end": 24312,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 24270,
+      "start": 24313,
       "end": 24345,
       "type_": "DataByte",
       "collapsed": false
     },
     {
       "start": 24346,
-      "end": 26022,
+      "end": 26137,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 26023,
+      "start": 26138,
       "end": 26182,
       "type_": "DataByte",
       "collapsed": false
@@ -395,12 +395,12 @@
     },
     {
       "start": 26287,
-      "end": 26486,
+      "end": 26528,
       "type_": "Code",
       "collapsed": false
     },
     {
-      "start": 26487,
+      "start": 26529,
       "end": 26745,
       "type_": "DataByte",
       "collapsed": false
@@ -709,6 +709,34 @@
         "kind": "User"
       }
     ],
+    "52": [
+      {
+        "name": "zp_mux_y_bomb",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "53": [
+      {
+        "name": "zp_mux_y_fire",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "54": [
+      {
+        "name": "zp_mux_y_explode",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "55": [
+      {
+        "name": "zp_mux_y_entities",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
     "69": [
       {
         "name": "zp_screen_dirty",
@@ -723,6 +751,41 @@
         "kind": "User"
       }
     ],
+    "71": [
+      {
+        "name": "zp_mux_x_lo_bomb",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "72": [
+      {
+        "name": "zp_mux_x_lo_fire",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "73": [
+      {
+        "name": "zp_mux_x_lo_explode",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "74": [
+      {
+        "name": "zp_mux_x_lo_entities",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "88": [
+      {
+        "name": "zp_mux_x_lo_hazard",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "89": [
       {
         "name": "zp_spr_x_hi",
@@ -730,10 +793,80 @@
         "kind": "User"
       }
     ],
+    "90": [
+      {
+        "name": "zp_mux_x_hi_bomb",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "91": [
+      {
+        "name": "zp_mux_x_hi_fire",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "92": [
+      {
+        "name": "zp_mux_x_hi_explode",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "93": [
+      {
+        "name": "zp_mux_x_hi_entities",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "107": [
+      {
+        "name": "zp_mux_x_hi_hazard",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "108": [
       {
         "name": "zp_spr_frame",
         "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "109": [
+      {
+        "name": "zp_mux_frame_bomb",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "110": [
+      {
+        "name": "zp_mux_frame_fire",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "111": [
+      {
+        "name": "zp_mux_frame_explode",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "112": [
+      {
+        "name": "zp_mux_frame_entities",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "126": [
+      {
+        "name": "zp_mux_frame_hazard",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -765,6 +898,13 @@
         "kind": "User"
       }
     ],
+    "131": [
+      {
+        "name": "zp_mux_color_entities",
+        "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
     "145": [
       {
         "name": "zp_spr_color_extra",
@@ -776,6 +916,13 @@
       {
         "name": "zp_spr_expand_x",
         "label_type": "ZeroPageField",
+        "kind": "User"
+      }
+    ],
+    "148": [
+      {
+        "name": "zp_mux_flip_fire",
+        "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -898,10 +1045,38 @@
         "kind": "User"
       }
     ],
+    "1064": [
+      {
+        "name": "SCR_ROW_1",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1072": [
+      {
+        "name": "scr_game_area",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
     "1079": [
       {
         "name": "SCR_HISCORE_TITLE",
         "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "1104": [
+      {
+        "name": "SCR_ROW_2",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1144": [
+      {
+        "name": "SCR_ROW_3",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -912,10 +1087,31 @@
         "kind": "User"
       }
     ],
+    "1184": [
+      {
+        "name": "SCR_ROW_4",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "1194": [
       {
         "name": "SCREEN_RAM_AA",
         "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1224": [
+      {
+        "name": "SCR_ROW_5",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1264": [
+      {
+        "name": "SCR_ROW_6",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -933,10 +1129,31 @@
         "kind": "User"
       }
     ],
+    "1304": [
+      {
+        "name": "SCR_ROW_7",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "1310": [
       {
         "name": "SCR_CREDITS_ROLES",
         "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "1336": [
+      {
+        "name": "scr_menu_text",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "1344": [
+      {
+        "name": "SCR_ROW_8",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -951,6 +1168,41 @@
       {
         "name": "SCREEN_RAM_154",
         "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1384": [
+      {
+        "name": "SCR_ROW_9",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1424": [
+      {
+        "name": "SCR_ROW_10",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1464": [
+      {
+        "name": "SCR_ROW_11",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1475": [
+      {
+        "name": "scr_title_text",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "1504": [
+      {
+        "name": "SCR_ROW_12",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -989,6 +1241,13 @@
         "kind": "User"
       }
     ],
+    "1544": [
+      {
+        "name": "SCR_ROW_13",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "1549": [
       {
         "name": "scr_hud_row",
@@ -1003,6 +1262,20 @@
         "kind": "User"
       }
     ],
+    "1584": [
+      {
+        "name": "SCR_ROW_14",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1624": [
+      {
+        "name": "SCR_ROW_15",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "1664": [
       {
         "name": "scr_water_row",
@@ -1014,6 +1287,13 @@
       {
         "name": "scr_lives_display",
         "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1745": [
+      {
+        "name": "scr_hud_top",
+        "label_type": "Pointer",
         "kind": "User"
       }
     ],
@@ -1070,6 +1350,27 @@
       {
         "name": "scr_power_bot",
         "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1908": [
+      {
+        "name": "scr_hud_bottom",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "1916": [
+      {
+        "name": "scr_level_num",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "1965": [
+      {
+        "name": "scr_credits_text",
+        "label_type": "Pointer",
         "kind": "User"
       }
     ],
@@ -1154,6 +1455,13 @@
       {
         "name": "game_flags",
         "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "4864": [
+      {
+        "name": "cave_data_buffer",
+        "label_type": "Pointer",
         "kind": "User"
       }
     ],
@@ -1406,6 +1714,13 @@
       {
         "name": "check_player_enemy_collision",
         "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "8192": [
+      {
+        "name": "cave_data_load_addr",
+        "label_type": "Pointer",
         "kind": "User"
       }
     ],
@@ -2564,6 +2879,20 @@
         "kind": "User"
       }
     ],
+    "24800": [
+      {
+        "name": "hud_tiles_fuel_bar",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "24807": [
+      {
+        "name": "hud_tiles_status_icons",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
     "24816": [
       {
         "name": "hud_tiles_row1",
@@ -2746,6 +3075,20 @@
         "kind": "User"
       }
     ],
+    "26412": [
+      {
+        "name": "menu_title_icon_tiles",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "26416": [
+      {
+        "name": "menu_option_strings",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
     "26493": [
       {
         "name": "dynamite_desc_strings",
@@ -2767,6 +3110,20 @@
         "kind": "User"
       }
     ],
+    "26638": [
+      {
+        "name": "title_logo_chars",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "26806": [
+      {
+        "name": "title_logo_colors",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
     "26974": [
       {
         "name": "show_main_menu",
@@ -2777,6 +3134,27 @@
     "27102": [
       {
         "name": "draw_title_artwork",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "27205": [
+      {
+        "name": "fill_color_row",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "27480": [
+      {
+        "name": "update_dynamite_desc",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "27502": [
+      {
+        "name": "update_level_select_text",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -2851,10 +3229,24 @@
         "kind": "User"
       }
     ],
+    "28008": [
+      {
+        "name": "draw_high_score_table",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
     "28257": [
       {
         "name": "enter_high_score_name",
         "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
+    "28381": [
+      {
+        "name": "show_saving_and_save_scores",
+        "label_type": "Subroutine",
         "kind": "User"
       }
     ],
@@ -2987,6 +3379,13 @@
     "28734": [
       {
         "name": "init_hero_explosion",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "28783": [
+      {
+        "name": "setup_explosion_sprite",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -3236,9 +3635,37 @@
         "kind": "User"
       }
     ],
+    "29605": [
+      {
+        "name": "update_all_tiles",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "29618": [
+      {
+        "name": "update_tile_entity",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "29679": [
+      {
+        "name": "update_tile_bounce",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
     "29721": [
       {
         "name": "update_tile_gravity",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "29885": [
+      {
+        "name": "chase_hero_horizontal",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -3253,6 +3680,27 @@
     "30397": [
       {
         "name": "get_laser_hitbox_params",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "30552": [
+      {
+        "name": "process_hit_entities",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "30575": [
+      {
+        "name": "clear_map_tile",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "30595": [
+      {
+        "name": "setup_entity_sprites",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -3285,10 +3733,24 @@
         "kind": "User"
       }
     ],
+    "30662": [
+      {
+        "name": "reset_hazard",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
     "30668": [
       {
         "name": "setup_hazard_position",
         "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
+    "30717": [
+      {
+        "name": "setup_hazard_sprite",
+        "label_type": "Subroutine",
         "kind": "User"
       }
     ],
@@ -3320,6 +3782,34 @@
         "kind": "User"
       }
     ],
+    "30763": [
+      {
+        "name": "fire_offset_x_lo",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "30764": [
+      {
+        "name": "fire_offset_x_hi",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "30775": [
+      {
+        "name": "fire_sprite_frames",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "30781": [
+      {
+        "name": "init_dynamite_state",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
     "30795": [
       {
         "name": "update_dynamite_collision",
@@ -3337,6 +3827,20 @@
     "30970": [
       {
         "name": "handle_fire_pressed",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "30994": [
+      {
+        "name": "deactivate_fire",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "31008": [
+      {
+        "name": "setup_fire_sprite",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -3365,6 +3869,13 @@
     "31255": [
       {
         "name": "reset_water_animation",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "31264": [
+      {
+        "name": "update_water_animation",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -3415,6 +3926,13 @@
       {
         "name": "init_tile14_params",
         "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
+    "31439": [
+      {
+        "name": "setup_tile14_sprite",
+        "label_type": "Subroutine",
         "kind": "User"
       }
     ],
@@ -3593,9 +4111,72 @@
         "kind": "User"
       }
     ],
+    "31511": [
+      {
+        "name": "hero_hover_frames",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
     "31515": [
       {
         "name": "init_hero_entity",
+        "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
+    "31592": [
+      {
+        "name": "init_hero_state",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "31643": [
+      {
+        "name": "update_hero_state_machine",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "31651": [
+      {
+        "name": "state1_falling",
+        "label_type": "Branch",
+        "kind": "User"
+      }
+    ],
+    "31658": [
+      {
+        "name": "state2_hover_landing",
+        "label_type": "Branch",
+        "kind": "User"
+      }
+    ],
+    "31680": [
+      {
+        "name": "state3_anim_only",
+        "label_type": "Branch",
+        "kind": "User"
+      }
+    ],
+    "31687": [
+      {
+        "name": "state4_death_sequence",
+        "label_type": "Branch",
+        "kind": "User"
+      }
+    ],
+    "31714": [
+      {
+        "name": "state_unknown_return",
+        "label_type": "Branch",
+        "kind": "User"
+      }
+    ],
+    "31725": [
+      {
+        "name": "state0_normal_movement",
         "label_type": "Jump",
         "kind": "User"
       }
@@ -3705,6 +4286,20 @@
         "kind": "User"
       }
     ],
+    "32787": [
+      {
+        "name": "snap_hero_x_to_tile",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "32810": [
+      {
+        "name": "check_hero_fire_input",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
     "32911": [
       {
         "name": "check_fire_pressed",
@@ -3733,6 +4328,20 @@
         "kind": "User"
       }
     ],
+    "32953": [
+      {
+        "name": "advance_walk_anim",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "32979": [
+      {
+        "name": "advance_hero_anim_frame",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
     "33011": [
       {
         "name": "handle_falling_movement",
@@ -3743,6 +4352,13 @@
     "33090": [
       {
         "name": "select_hero_sprite_ptr",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "33192": [
+      {
+        "name": "setup_bomb_sprite",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -3793,6 +4409,34 @@
       {
         "name": "energy_drain_rate_tbl_hi",
         "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33352": [
+      {
+        "name": "init_energy",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "33383": [
+      {
+        "name": "update_energy_drain",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "33422": [
+      {
+        "name": "update_energy_bar_display",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "33440": [
+      {
+        "name": "fill_energy_bar",
+        "label_type": "Subroutine",
         "kind": "User"
       }
     ],
@@ -3848,6 +4492,13 @@
     "33530": [
       {
         "name": "update_tile13_scroll",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "33656": [
+      {
+        "name": "setup_tile13_sprite",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -3933,6 +4584,27 @@
       {
         "name": "init_tile15_anim",
         "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
+    "33992": [
+      {
+        "name": "update_raft_animation",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "34036": [
+      {
+        "name": "draw_raft_tiles",
+        "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "34230": [
+      {
+        "name": "deactivate_raft",
+        "label_type": "Subroutine",
         "kind": "User"
       }
     ],
@@ -4356,6 +5028,13 @@
         "kind": "User"
       }
     ],
+    "55344": [
+      {
+        "name": "COLOR_RAM_TITLE",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
     "55466": [
       {
         "name": "COLOR_RAM_R4C10",
@@ -4577,6 +5256,13 @@
       {
         "name": "color_buf_last_row",
         "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "59953": [
+      {
+        "name": "KERNAL_IRQ_DEFAULT",
+        "label_type": "Pointer",
         "kind": "User"
       }
     ],
@@ -4861,8 +5547,9 @@
     "8183": "X delta low >= right bound? Skip",
     "8187": "laser kills enemy!",
     "8190": "High byte = $FF → player is left of enemy",
+    "8192": "High byte ≠ $FF → delta out of range, skip",
     "8194": "X delta low < left bound? Skip",
-    "8198": "laser kills enemy (neg delta)!",
+    "8198": "Laser kills enemy (negative X delta in range)!",
     "8201": "next enemy",
     "8202": "Loop until all checked",
     "8205": "enemy_count",
@@ -6216,6 +6903,13 @@
     "27175": "Add 40 to Dest 1 (next line)",
     "27188": "Add 40 to Dest 2 (next line)",
     "27201": "Outer loop (rows)",
+    "27205": "Point to COLOR_RAM_ROW11 as base",
+    "27213": "Row offset = 0? Skip advance loop",
+    "27220": "Add 80 ($50) per row (C128 80-col layout)",
+    "27230": "Next row offset",
+    "27233": "A = color value (from X)",
+    "27234": "Fill 40 columns ($00-$27)",
+    "27236": "Store color into Color RAM",
     "27256": "Check current menu selection",
     "27276": "Cycle input_mode (0→1→2→3→0)",
     "27313": "Load selected level index",
@@ -6230,9 +6924,20 @@
     "27451": "Move menu cursor down",
     "27454": "Re-read cursor after increment",
     "27476": "Wrap cursor from 5 to START (0)",
-    "27489": "Read dynamite desc (30 bytes per entry)",
-    "27502": "Load level index for display update",
-    "27511": "Read level select string (5 bytes per entry)",
+    "27480": "Load current dynamite mode (0-3)",
+    "27483": "Offset = input_mode * 30",
+    "27486": "X = index into string table",
+    "27487": "Y = screen write offset",
+    "27489": "Read screencode from string table",
+    "27492": "Write to screen RAM HUD row",
+    "27497": "30 chars ($1E) per description",
+    "27502": "Load selected level group (0-3)",
+    "27505": "Offset = index * 5 (5 chars per entry)",
+    "27508": "X = byte offset into string table",
+    "27509": "Y = screen write position",
+    "27511": "Read level range char from table",
+    "27514": "Write to screen RAM (lives/level area)",
+    "27519": "5 chars per level string",
     "27524": "Sprite 0 X = $59",
     "27529": "Sprite 1 X = $89",
     "27534": "Sprite 2 X = $B9",
@@ -6276,34 +6981,41 @@
     "27966": "Store player ranking in high_score_screen_flag",
     "27971": "game_state = 4 (best heroes)",
     "27999": "Check if showing table only (bit 7) or name entry",
+    "28008": "Source: \"BEST HEROES\" title string",
+    "28016": "Dest: screen row for title",
+    "28024": "Color = green",
+    "28029": "Source: \"RANK  SCORE  LVL  NAME\"",
     "28045": "Color = cyan",
     "28047": "Draw high score header text",
-    "28050": "Entry index = 0",
-    "28054": "Point $FB/$FC at score buffer ($527F)",
+    "28050": "Entry counter = 0 (10 entries total)",
+    "28054": "Init score buffer pointer ($FB/$FC)",
     "28057": "Save score buffer ptr to zpa_02/03",
-    "28065": "Screen dest = $04D0",
+    "28065": "Screen row dest starts at $04D0",
     "28073": "Copy screen ptr to $FB/$FC",
-    "28081": "Index * 4 = offset into rank table",
+    "28081": "Rank index * 4 for rank_label_strings",
     "28088": "Copy rank label chars to screen",
     "28099": "Restore score buffer ptr",
     "28107": "Screen ptr + 7 → score column dest",
-    "28120": "6 BCD digits",
+    "28120": "Print 6-digit BCD score",
     "28122": "Print BCD score at screen + 7",
-    "28128": "Score buffer + 3 → level byte ptr",
+    "28128": "Score entry + 3 = level byte",
     "28138": "Screen ptr + 15 → level column dest",
     "28153": "Read level byte from score entry",
-    "28155": "Is slot empty ($FF)?",
-    "28159": "Write \"---\" for empty slot",
-    "28174": "Level + 1 (display is 1-based)",
+    "28155": "$FF = empty slot",
+    "28159": "Display \"---\" for empty entry",
+    "28174": "Level is 0-based, display as 1-based",
     "28177": "3 digits for level",
     "28179": "Print level number at screen + 15",
     "28182": "Score buffer + 4 → name ptr",
+    "28185": "Score entry + 4 = 3-char name",
     "28195": "Screen ptr + 21 → name column dest",
     "28210": "Copy 3-char player name to screen",
     "28219": "Next entry (index++)",
-    "28223": "All 10 entries done?",
+    "28223": "Done all 10 entries?",
     "28227": "Score buffer ptr += 7 (entry size)",
+    "28230": "Next score entry (+7 bytes each)",
     "28240": "Screen ptr += $50 (next row, 80 cols)",
+    "28243": "Next screen row (+$50, 80 cols)",
     "28253": "Loop back for next entry",
     "28257": "X = screen column for name input",
     "28259": "Load player's ranking position",
@@ -6323,6 +7035,15 @@
     "28300": "Copy up to 3 chars",
     "28304": "Display final table and save to disk",
     "28307": "Return to title/game screen",
+    "28381": "Turn off display to avoid glitches",
+    "28384": "Wipe screen RAM",
+    "28387": "src = \"SAVING DATA...\" text",
+    "28395": "dst = screen position $05ED",
+    "28403": "color 1 = white",
+    "28405": "Render \"SAVING DATA...\" on screen",
+    "28408": "Remove all sprites from display",
+    "28411": "Re-enable VIC-II display (set DEN bit)",
+    "28414": "Tail call: save scores and return",
     "28431": "idle state: no flash active",
     "28433": "clear flash state machine",
     "28436": "7 = yellow (default color)",
@@ -6429,6 +7150,21 @@
     "28774": "Apply blast color to screen",
     "28777": "Signal hero explosion active",
     "28779": "Enable blast processing",
+    "28783": "Is explosion active?",
+    "28786": "Yes -> set up sprite coords",
+    "28788": "$FF = offscreen Y (hide sprite)",
+    "28790": "Store Y pos = offscreen",
+    "28793": "Explosion world X (lo)",
+    "28797": "Add $0C pixel offset to center sprite",
+    "28799": "Store screen X lo for multiplexer",
+    "28801": "Explosion world X (hi)",
+    "28804": "Propagate carry to hi byte",
+    "28806": "Store screen X hi for multiplexer",
+    "28808": "Explosion world Y",
+    "28812": "Add $25 pixel offset to center sprite",
+    "28814": "Store screen Y for multiplexer",
+    "28816": "Current animation frame index",
+    "28819": "Store sprite frame for multiplexer",
     "29197": "A = 0",
     "29199": "clear animated tile count",
     "29221": "store tile type in slot",
@@ -6498,6 +7234,39 @@
     "29587": "y_pos = row_px + 3",
     "29593": "frame base = a_7205 (tile $B4-$B8 cycling)",
     "29599": "speed = 14",
+    "29605": "X = number of tile entities",
+    "29608": "no tiles? skip",
+    "29610": "adjust to 0-based index",
+    "29611": "update tile X",
+    "29614": "next tile",
+    "29615": "loop until all processed",
+    "29618": "status==0? tile is active",
+    "29621": "status==2? already dying, skip",
+    "29623": "status==2? → dead, skip",
+    "29627": "count down entity timer",
+    "29630": "timer not expired yet",
+    "29632": "mark as dying (status=2)",
+    "29638": "get tile type for dispatch",
+    "29641": "type==0?",
+    "29643": "type 0: simple 2-frame animation",
+    "29646": "type==1? bounce animation",
+    "29650": "type 1: bounce movement + animate",
+    "29656": "type==2? gravity physics",
+    "29660": "type 2: gravity physics + animate",
+    "29666": "type==3?",
+    "29670": "type 3: 8-frame animation only",
+    "29673": "default: hero proximity + render",
+    "29679": "tick frame delay counter",
+    "29685": "trigger every 4 frames",
+    "29687": "not yet → skip bounce update",
+    "29689": "reset timer to 0",
+    "29694": "advance to next phase in bounce table",
+    "29700": "16 entries in table → wrap",
+    "29704": "wrap phase back to 0",
+    "29709": "Y = phase index",
+    "29710": "base Y position",
+    "29714": "add signed bounce offset",
+    "29717": "store final Y position",
     "29721": "pos_x_lo += vel_x_lo",
     "29724": "clear carry for 24-bit add",
     "29725": "pos_lo += vel_lo",
@@ -6535,6 +7304,24 @@
     "29867": "vel_y_lo += $0B (accelerate Y)",
     "29871": "h_vel_lo += $0B",
     "29876": "vel_y_hi += carry",
+    "29885": "Skip if hero is inactive/dead",
+    "29891": "Compare hero X vs entity X (hi byte)",
+    "29897": "Entity is to the right of hero -> move left",
+    "29899": "Entity is to the left of hero -> move right",
+    "29901": "Hi bytes equal, compare lo bytes",
+    "29911": "Positions equal, nothing to do",
+    "29912": "--- Move entity LEFT toward hero ---",
+    "29916": "Check tile 9 pixels to the left",
+    "29933": "Tile >= $1A? Blocked, skip movement",
+    "29941": "Subtract half-pixel (fractional step left)",
+    "29949": "Propagate borrow to lo byte",
+    "29957": "Propagate borrow to hi byte",
+    "29963": "--- Move entity RIGHT toward hero ---",
+    "29967": "Check tile 6 pixels to the right",
+    "29984": "Tile >= $1A? Blocked, skip movement",
+    "29992": "Add half-pixel (fractional step right)",
+    "30000": "Propagate carry to lo byte",
+    "30008": "Propagate carry to hi byte",
     "30235": "A = enemy type",
     "30238": "type != 0? check next",
     "30240": "--- Type 0: standard hitbox ---",
@@ -6630,6 +7417,44 @@
     "30542": "",
     "30543": "facing left: X right = $00, X left = $C7",
     "30547": "",
+    "30552": "count of active entities",
+    "30555": "no entities? done",
+    "30557": "start from last entity",
+    "30558": "was this entity hit?",
+    "30561": "no → skip",
+    "30563": "$02 = destroyed",
+    "30568": "remove from level map",
+    "30571": "next entity",
+    "30572": "loop until all checked",
+    "30575": "get current room",
+    "30578": "lo byte of map pointer",
+    "30583": "hi byte of map pointer",
+    "30588": "copy entity index to Y",
+    "30590": "clear entity from map",
+    "30592": "clear tile at map[entity_index]",
+    "30595": "Load entity count as loop index",
+    "30598": "No entities? bail out",
+    "30601": "Adjust to 0-based index (count-1..0)",
+    "30602": "Check entity alive/dead status",
+    "30605": "Status == 2 means dead/inactive",
+    "30609": "$FF = off-screen Y (hide sprite)",
+    "30611": "Mark sprite Y as off-screen",
+    "30616": "Skip sprite setup if render locked",
+    "30621": "Get entity world X position (lo)",
+    "30625": "Add horizontal sprite offset (+12 px)",
+    "30627": "Store screen X lo for multiplexer",
+    "30629": "Get entity world X position (hi)",
+    "30632": "Propagate carry to hi byte",
+    "30634": "Store screen X hi for multiplexer",
+    "30636": "Get entity world Y position",
+    "30640": "Add vertical sprite offset (+37 px)",
+    "30642": "Store screen Y for multiplexer",
+    "30644": "Copy current animation frame",
+    "30649": "Copy animation speed/delay",
+    "30654": "Next entity (count down)",
+    "30655": "Loop until all entities processed",
+    "30662": "A = 0 (inactive)",
+    "30664": "clear hazard collision box",
     "30668": "save tile row",
     "30670": "save tile column",
     "30672": "mark hazard as active",
@@ -6645,7 +7470,27 @@
     "30709": "store pixel Y",
     "30712": "restore tile row in X",
     "30714": "restore tile column in Y",
+    "30717": "Hazard active?",
+    "30720": "No → skip",
+    "30722": "Renderer busy?",
+    "30725": "Yes → skip to avoid conflict",
+    "30727": "Hazard X lo",
+    "30731": "Add X offset (+12 pixels)",
+    "30733": "→ sprite X lo",
+    "30735": "Hazard X hi",
+    "30738": "Propagate carry",
+    "30740": "→ sprite X hi",
+    "30742": "Hazard Y",
+    "30746": "Add Y offset (+37 pixels)",
+    "30748": "→ sprite Y position",
+    "30750": "Sprite frame $BA = hazard shape",
+    "30752": "→ sprite frame",
+    "30754": "$0B = dark grey",
+    "30756": "→ sprite color",
+    "30781": "Deactivate any in-flight projectile",
+    "30786": "Timer = 10 frames before detonation",
     "30788": "init dynamite timer to 10 frames",
+    "30790": "$FF = dynamite armed and ready to throw",
     "30792": "arm dynamite ($FF = active)",
     "30795": "Dynamite active?",
     "30798": "No → skip",
@@ -6705,9 +7550,60 @@
     "30975": "mark fire as active ($FF)",
     "30980": "reset animation frame counters",
     "30988": "trigger fire sound effect",
+    "30994": "Is fire currently active?",
+    "30997": "No -> nothing to deactivate",
+    "30999": "Clear fire_active flag",
+    "31004": "Stop fire SFX (tail call)",
+    "31008": "Is fire/dynamite active?",
+    "31011": "No → return $FF (no sprite)",
+    "31013": "Get hero's Y screen position",
+    "31016": "Below ground boundary ($87)?",
+    "31018": "No → calculate sprite position",
+    "31020": "$FF = no sprite to display",
+    "31025": "Get hit type (0=punch, 1/2=dynamite)",
+    "31028": "Which direction is hero facing?",
+    "31031": "1 = facing right, skip offset",
+    "31036": "Add 3 for left-facing offset group",
+    "31038": "×2 for word-sized table entries",
+    "31040": "Hero sprite X low byte",
+    "31043": "Add X offset from table",
+    "31046": "Store fire sprite X low",
+    "31048": "Hero sprite X high byte",
+    "31050": "Add X offset high from table",
+    "31053": "Store fire sprite X high",
+    "31055": "Hero sprite Y position",
+    "31058": "Offset sprite 8px up from hero",
+    "31060": "Store fire sprite Y position",
+    "31062": "Current animation frame index",
+    "31065": "Check hit strength",
+    "31068": "2 = direct hit → use alt frames",
+    "31072": "Add 3 for direct-hit frame set",
+    "31075": "Use frame index into sprite table",
+    "31076": "Look up sprite pointer from table",
+    "31079": "Store sprite frame pointer",
+    "31081": "$FF = default to flipped (punch)",
+    "31083": "hit_strength != 0 → dynamite",
+    "31086": "Dynamite: no flip needed",
+    "31090": "Store horizontal flip flag",
     "31255": "A = 0",
     "31257": "reset animation frame index (0-7)",
     "31260": "reset tick divider (0-4)",
+    "31264": "skip if no screen update needed",
+    "31269": "advance tick counter",
+    "31275": "only update every 5 frames",
+    "31279": "reset tick to 0",
+    "31284": "advance to next anim frame",
+    "31290": "wrap frame at 8 (0-7)",
+    "31299": "frame * 5 * 4 = offset into patterns",
+    "31305": "Y = tile index in water row",
+    "31310": "$80 = masked/transparent tile, skip",
+    "31314": "copy pattern to screen row",
+    "31322": "20 tiles per half-row (left-to-right)",
+    "31326": "back up X by 1 for mirror effect",
+    "31330": "$80 = masked/transparent, skip",
+    "31334": "copy mirrored pattern to screen",
+    "31340": "reverse X for mirror effect",
+    "31342": "40 tiles total (second half right-to-left)",
     "31352": "disable tile-14",
     "31358": "save tile column",
     "31360": "save tile row",
@@ -6725,6 +7621,23 @@
     "31428": "adjust X by -5 for centering",
     "31434": "restore tile column to X",
     "31436": "restore tile row to Y",
+    "31439": "tile14 active?",
+    "31442": "skip if tile14 inactive",
+    "31444": "renderer busy?",
+    "31447": "skip if render in progress",
+    "31449": "tile14 screen Y lo",
+    "31453": "add 12px vertical offset",
+    "31455": "-> sprite Y pos lo",
+    "31457": "tile14 screen Y hi",
+    "31460": "propagate carry",
+    "31462": "-> sprite Y pos hi",
+    "31464": "tile14 screen X",
+    "31468": "add 37px horizontal offset",
+    "31470": "-> sprite X pos",
+    "31472": "tile14 sprite frame",
+    "31475": "-> sprite frame ptr",
+    "31477": "color = 8 (orange)",
+    "31479": "-> sprite color",
     "31515": "save tile column",
     "31517": "save tile row",
     "31519": "clear high byte for Y*8 calculation",
@@ -6749,6 +7662,51 @@
     "31575": "init remaining hero entity fields",
     "31578": "restore tile column",
     "31580": "restore tile row",
+    "31592": "state = 1 (active/falling)",
+    "31597": "Y = $F0 (240), near top of screen",
+    "31602": "mark hero as airborne",
+    "31607": "acceleration counter = $23 (35)",
+    "31612": "$FF = reset walk animation frame",
+    "31617": "$FF = reset death substep",
+    "31620": "clear collision, walk subframe, hover, fire-tap",
+    "31637": "animation delay = 6 frames",
+    "31643": "dispatch on hero_state",
+    "31646": "state == 0? -> normal movement",
+    "31648": "state 0: jump to normal movement path",
+    "31651": "state == 1?",
+    "31653": "not state 1 -> check next",
+    "31655": "state 1: tail-call falling handler",
+    "31658": "state == 2?",
+    "31660": "not state 2 -> check next",
+    "31662": "state 2: tick hover animation",
+    "31665": "read joystick direction bits",
+    "31668": "mask lower nibble (directions)",
+    "31670": "$0F = no direction pressed?",
+    "31672": "all released -> stay in hover, return",
+    "31674": "direction pressed -> back to state 0",
+    "31676": "hero_state = 0 (normal)",
+    "31680": "state == 3?",
+    "31682": "not state 3 -> check next",
+    "31684": "state 3: tail-call animation tick",
+    "31687": "state == 4?",
+    "31689": "not state 4 -> return (unknown state)",
+    "31691": "negative substep? -> skip nudge",
+    "31693": "advance death substep counter",
+    "31699": "substep == 5? (time to nudge)",
+    "31701": "not yet -> skip nudge",
+    "31706": "reset substep to 0",
+    "31711": "nudge hero sprite down 1 pixel",
+    "31714": "count down death timer",
+    "31717": "timer not zero -> keep dying",
+    "31719": "timer expired -> transition to state 5",
+    "31721": "hero_state = 5 (death complete)",
+    "31725": "state 0: process horizontal scrolling",
+    "31728": "re-check: death started mid-routine?",
+    "31731": "state == 4 -> abort, hero just died",
+    "31736": "process vertical movement/gravity",
+    "31739": "re-check again after vertical update",
+    "31742": "state == 4 -> abort, hero just died",
+    "31747": "check tile14 collision, then fall through to fire/animation",
     "31750": "load game state",
     "31753": "state == 3 (dead)?",
     "31755": "not dead → continue",
@@ -7039,7 +7997,48 @@
     "32777": "Add BCD score",
     "32780": "Stop fire SFX if active",
     "32783": "Silence SID voice 1 (tail call)",
-    "32815": "Check input_mode for joystick/keyboard selection",
+    "32790": "prepare for addition",
+    "32791": "add half a tile width (4 pixels)",
+    "32793": "mask to 8-pixel boundary (round to nearest tile)",
+    "32795": "store snapped X low byte",
+    "32798": "also set as movement target",
+    "32804": "propagate carry to high byte",
+    "32806": "store updated X high byte",
+    "32810": "is a screen transition active?",
+    "32813": "yes → skip to joystick port 1 check",
+    "32815": "0=joy1, 1=double-tap, 2=keyboard, other=joy2",
+    "32818": "mode != 0 → branch to mode dispatch",
+    "32820": "--- Mode 0 / transition: joystick port 1 fire ---",
+    "32823": "bit 1 = fire button",
+    "32825": "fire held → not pressed (need release first)",
+    "32830": "bit 1 of prev state",
+    "32832": "was also released → no edge → not pressed",
+    "32834": "falling edge: was up, now down → fire!",
+    "32837": "--- Mode 1: double-tap fire detection ---",
+    "32839": "mode != 1 → check keyboard/joy2",
+    "32841": "tap_state: 0=idle, 1=first tap, 2=second tap",
+    "32844": "idle → skip timer countdown",
+    "32846": "count down 25-frame window",
+    "32849": "timer not expired → keep waiting",
+    "32851": "timer expired → reset tap state to idle",
+    "32856": "check current joystick fire button",
+    "32859": "bit 1 = fire button",
+    "32861": "fire held this frame → check if release needed",
+    "32866": "check if fire was held last frame",
+    "32868": "no falling edge → not pressed",
+    "32870": "check current tap state",
+    "32873": "not idle → check for 2nd tap",
+    "32875": "1st tap detected → advance state",
+    "32878": "start 25-frame ($19) timer window",
+    "32883": "1st tap registered, don't fire yet",
+    "32886": "is this the 2nd tap (state == 2)?",
+    "32888": "not 2nd tap → ignore",
+    "32890": "2nd tap confirmed → reset state",
+    "32895": "double-tap complete → fire!",
+    "32898": "fire held: if 1st tap, advance to state 2",
+    "32903": "not in 1st-tap state → no action",
+    "32905": "advance 1→2 (awaiting 2nd tap release)",
+    "32908": "still waiting, don't fire yet",
     "32911": "keyboard mode?",
     "32913": "not keyboard -> check joystick",
     "32915": "read current keyboard row 7",
@@ -7056,6 +8055,23 @@
     "32944": "new fire press detected!",
     "32947": "return: fire NOT pressed",
     "32950": "return: fire WAS pressed",
+    "32953": "sub-frame tick--",
+    "32956": "still counting down? skip",
+    "32958": "reset sub-frame to 3 (4 ticks/frame)",
+    "32963": "next animation frame",
+    "32969": "reached frame 5?",
+    "32971": "no -> keep current frame",
+    "32973": "wrap frame back to 0",
+    "32979": "tick++",
+    "32982": "load current tick",
+    "32985": "reached delay threshold?",
+    "32988": "no -> return early",
+    "32990": "reset tick to 0",
+    "32995": "advance to next frame",
+    "32998": "load current frame",
+    "33001": "frame >= 4? (max frames)",
+    "33003": "no -> return",
+    "33005": "wrap frame back to 0",
     "33011": "descent counter++",
     "33014": "load updated descent pos",
     "33017": "Y >= $F0? out of bounds",
@@ -7114,13 +8130,64 @@
     "33150": "Clear carry for addition",
     "33151": "Add 7 for alt direction variant",
     "33153": "Store final sprite pointer",
-    "33352": "Init energy to 128 ($80)",
-    "33354": "Store starting energy level",
+    "33192": "Check if rendering is active",
+    "33195": "If not rendering, proceed to position",
+    "33197": "Hide sprite: Y = $FF (offscreen)",
+    "33201": "Also hide collision Y",
+    "33204": "Base X = hero_x_lo",
+    "33208": "Offset +12 pixels right",
+    "33219": "Check hero state",
+    "33222": "State >= 4? (crouching/special)",
+    "33224": "Yes: skip X offset adjustment",
+    "33226": "Check scroll direction",
+    "33229": "Facing right? (dir == 1)",
+    "33231": "Yes: use base X without nudge",
+    "33233": "Facing left: nudge X back 6px",
+    "33236": "X - 6 for left-facing offset",
+    "33257": "Base Y = hero Y pos",
+    "33261": "Offset +37 pixels down (near feet)",
+    "33266": "Collision Y = sprite Y - 3",
+    "33270": "Is hero invulnerable?",
+    "33273": "Yes: use invulnerability frame",
+    "33275": "Normal: load hero sprite pointer",
+    "33280": "Index into hover animation table",
+    "33283": "Get hover frame from f_7B17 table",
+    "33286": "Re-check hero state",
+    "33289": "State >= 4?",
+    "33291": "No: use hover frame",
+    "33293": "Override: crouching frame = $9B",
+    "33295": "Store secondary sprite frame",
+    "33298": "Invulnerable: frame = $9C (flash)",
+    "33302": "Invulnerable secondary frame = $89",
+    "33352": "Energy starts at max (128)",
+    "33354": "Store initial energy",
+    "33357": "Zero the fractional drain accumulator",
+    "33365": "current_level * 2 = word table index",
     "33369": "Look up drain rate for current level",
-    "33393": "Accumulate drain lo-byte",
+    "33370": "Load drain rate lo for this level",
+    "33376": "Load drain rate hi for this level",
+    "33383": "skip if hero is dead",
+    "33386": "",
+    "33388": "skip if hero is invulnerable",
+    "33393": "add drain speed to 16-bit fractional counter",
+    "33396": "carry = overflow, drain 1 energy unit",
+    "33398": "no overflow yet, skip drain",
     "33403": "Accumulate drain hi-byte",
     "33414": "Drain overflow: decrement energy",
-    "33422": "Energy depleted → hero dies",
+    "33419": "energy depleted: trigger hero death",
+    "33422": "A = energy level (0-128)",
+    "33425": "energy / 4 (step 1)",
+    "33426": "energy / 4 (step 2)",
+    "33427": "X = column index in bar (0-32)",
+    "33428": "reload energy for sub-cell phase",
+    "33431": "A = phase within cell (0-3)",
+    "33434": "$5A = base tile for energy bar",
+    "33436": "draw tile at bar column X",
+    "33440": "loop counter: 31 down to 0 (32 bytes)",
+    "33442": "tile $5E = full energy bar character",
+    "33444": "fill energy bar row with full tile",
+    "33447": "next column",
+    "33448": "loop until all 32 bytes filled",
     "33456": "disable tile 13 scroll",
     "33458": "clear active flag",
     "33462": "save tile row",
@@ -7175,6 +8242,23 @@
     "33648": "no wall: keep scrolling right",
     "33650": "wall hit: reverse to scroll left",
     "33652": "set direction = left",
+    "33656": "tile 13 active?",
+    "33659": "no → skip",
+    "33661": "renderer busy?",
+    "33664": "yes → skip to avoid conflict",
+    "33666": "tile 13 X position lo",
+    "33670": "add 12-pixel X offset",
+    "33672": "→ sprite X lo",
+    "33674": "tile 13 X position hi",
+    "33677": "propagate carry",
+    "33679": "→ sprite X hi",
+    "33681": "tile 13 Y position",
+    "33685": "add 37-pixel Y offset",
+    "33687": "→ sprite Y",
+    "33689": "sprite frame $BB = tile 13 shape",
+    "33691": "→ sprite frame",
+    "33693": "$07 = yellow",
+    "33695": "→ sprite color",
     "33915": "A = 0 (inactive)",
     "33917": "clear raft active flag",
     "33921": "save tile column",
@@ -7206,11 +8290,54 @@
     "33984": "Reset tick counter",
     "33987": "restore tile column",
     "33989": "restore tile row",
+    "33992": "Skip if raft is inactive",
+    "33995": "Active: continue to animation update",
+    "33997": "Raft inactive: bail out",
     "33998": "Increment animation tick",
+    "34004": "Every 8 ticks, advance frame",
+    "34006": "Not yet: return without frame change",
+    "34008": "Reset tick counter to 0",
     "34013": "Advance to next sequence index",
+    "34017": "Wrap sequence index at 8 entries",
+    "34021": "Wrap to first entry",
     "34023": "Wrap index back to 0",
-    "34026": "Load next frame from bounce table",
+    "34026": "Look up frame from bounce pattern",
     "34029": "Update current animation frame",
+    "34032": "Tail-call: redraw raft tiles on screen",
+    "34036": "skip if raft not active",
+    "34042": "Y = column index for screen row table",
+    "34045": "get screen row base addr lo-byte",
+    "34049": "add tile row offset",
+    "34057": "offset to color RAM ($D400)",
+    "34061": "6 rows to fill",
+    "34063": "8 columns per row",
+    "34065": "color = red ($02)",
+    "34067": "fill color RAM cell",
+    "34075": "advance to next screen row (+40 cols)",
+    "34088": "--- part 2: draw raft tiles to screen ---",
+    "34095": "add tile row offset to screen base",
+    "34107": "get current animation frame",
+    "34110": "frame * 4 (4 bytes per tile row)",
+    "34113": "lo-byte of raft tile data ($83B3)",
+    "34119": "hi-byte of raft tile data ($83xx)",
+    "34123": "6 rows of tile data",
+    "34125": "4 columns per tile row",
+    "34127": "read tile data byte",
+    "34129": "write to screen RAM",
+    "34137": "next screen row (+40)",
+    "34150": "next tile data row (+40)",
+    "34163": "--- part 3: draw to secondary screen area ---",
+    "34166": "rewind src ptr by $C4 (back 5 rows-4)",
+    "34179": "rewind dst ptr by $B4 (back 4 rows+20)",
+    "34189": "6 rows again",
+    "34191": "4 columns per row",
+    "34193": "copy from secondary tile data",
+    "34195": "write to secondary screen area",
+    "34230": "check if raft is currently active",
+    "34233": "not active → nothing to do",
+    "34237": "deactivate the raft",
+    "34242": "reset animation to frame 0",
+    "34245": "redraw raft area to remove it from screen",
     "34278": "clear accumulator",
     "34280": "reset dynamic tile count to 0",
     "34316": "Load tile ID from map data",
@@ -7460,16 +8587,37 @@
     "38": "Sprite sort order slot 6 -> VIC-II hardware sprite 6",
     "39": "Sprite sort order slot 7 -> VIC-II hardware sprite 7",
     "51": "Sprite Y position table [19 slots: $00..$12]. $FF = offscreen.",
+    "52": "Sprite mux Y position: bomb/dynamite sprite (slot 0 of mux_y array $34-$46)",
+    "53": "Sprite mux Y position: fire/punch sprite (slot 1 of mux_y array)",
+    "54": "Sprite mux Y position: explosion sprite (slot 2 of mux_y array)",
+    "55": "Sprite mux Y position array base for entities (indexed by X). $FF = offscreen/hidden",
     "69": "Screen dirty flag. $FF = all rows need redraw, $00 = clean.",
     "70": "Sprite X position low byte table [19 slots]. Written to $D000/$D002/etc.",
+    "71": "Sprite mux X lo byte: bomb/dynamite sprite (slot 0 of mux_x_lo array $47-$59)",
+    "72": "Sprite mux X lo byte: fire/punch sprite (slot 1 of mux_x_lo array)",
+    "73": "Sprite mux X lo byte: explosion sprite (slot 2 of mux_x_lo array)",
+    "74": "Sprite mux X lo byte array base for entities (indexed by X)",
+    "88": "Sprite mux X lo byte: hazard/tile sprite (slot 17 of mux_x_lo array)",
     "89": "Sprite X position high bit table [19 slots]. Non-zero sets corresponding bit in $D010.",
+    "90": "Sprite mux X hi byte: bomb/dynamite sprite (slot 0 of mux_x_hi array $5A-$6C)",
+    "91": "Sprite mux X hi byte: fire/punch sprite (slot 1 of mux_x_hi array)",
+    "92": "Sprite mux X hi byte: explosion sprite (slot 2 of mux_x_hi array)",
+    "93": "Sprite mux X hi byte array base for entities (indexed by X)",
+    "107": "Sprite mux X hi byte: hazard/tile sprite (slot 17 of mux_x_hi array)",
     "108": "Sprite pointer/frame table [19 slots]. Written to $07F8-$07FF.",
+    "109": "Sprite mux frame pointer: bomb/dynamite sprite (slot 0 of mux_frame array $6D-$7F)",
+    "110": "Sprite mux frame pointer: fire/punch sprite (slot 1 of mux_frame array)",
+    "111": "Sprite mux frame pointer: explosion sprite (slot 2 of mux_frame array)",
+    "112": "Sprite mux frame pointer array base for entities (indexed by X)",
+    "126": "Sprite mux frame pointer: hazard/tile sprite (slot 17 of mux_frame array)",
     "127": "Sprite individual color table [19 slots]. Written to $D027-$D02E.",
     "128": "Player 2 sprite color (slot 1 in spr_color table).",
     "129": "Dynamite fuse timer. Init to $0A (10 frames) in s_783D.",
     "130": "Current screen/background color. Default = 7 (yellow). Changed during explosion flash.",
+    "131": "Sprite mux color/anim-speed array base for entities (indexed by X)",
     "145": "Extra sprite color variable. Reset alongside player colors in reset_sprite_colors.",
     "146": "Sprite horizontal expand flag table [19 slots]. Non-zero sets bit in $D01D.",
+    "148": "Sprite mux horizontal flip flag for fire/punch sprite ($FF=flipped/punch, $00=normal/dynamite)",
     "165": "Sprite-to-background priority table [19 slots]. Non-zero sets bit in $D01B.",
     "167": "Dynamite active flag. $FF = ready/armed, $00 = inactive. Init in s_783D.",
     "186": "KERNAL current device number ($BA). Defaults to 8 (disk drive).",
@@ -7487,23 +8635,42 @@
     "788": "C128 IRQ vector lo byte — points to custom raster IRQ handler",
     "789": "C128 IRQ vector hi byte — points to custom raster IRQ handler",
     "1024": "VIC-II screen RAM base ($0400-$07E7), 40x25 character matrix",
+    "1064": "Screen RAM row 1 start ($0400 + 40)",
+    "1072": "Screen RAM row 1, col 8 — game area draw destination (8 rows x 24 cols copied here)",
     "1079": "Screen position row 1, col 15 — \"BEST HEROES\" title on high score screen",
+    "1104": "Screen RAM row 2 start ($0400 + 80)",
+    "1144": "Screen RAM row 3 start ($0400 + 120)",
     "1152": "Screen position row 3, col 8 — \"RANK  SCORE  LVL  NAME\" column headers",
+    "1184": "Screen RAM row 4 start ($0400 + 160)",
     "1194": "Screen RAM + 170 — second 170-byte block for level tile rendering",
+    "1224": "Screen RAM row 5 start ($0400 + 200)",
+    "1264": "Screen RAM row 6 start ($0400 + 240)",
     "1268": "Screen position row 6, col 4 — \"THIS GAME IS A HOMAGE TO H.E.R.O.\" about text",
     "1274": "Screen RAM + 250 — third block for screen clear/tile rendering (row 6+)",
+    "1304": "Screen RAM row 7 start ($0400 + 280)",
     "1310": "Screen position row 7, col 6 — \"PROGRAMMING, GRAPHICS, SOUND / TESTING\" role labels",
+    "1336": "Screen RAM row 7, col 32 — menu option text destination",
+    "1344": "Screen RAM row 8 start ($0400 + 320)",
     "1350": "Screen position row 8, col 6 — programmer name \"LUCA CARMINATI\"",
     "1364": "Screen RAM + 340 — fourth block for level tile rendering",
+    "1384": "Screen RAM row 9 start ($0400 + 360)",
+    "1424": "Screen RAM row 10 start ($0400 + 400)",
+    "1464": "Screen RAM row 11 start ($0400 + 440)",
+    "1475": "Screen RAM row 11, col 11 — title/description text destination (white)",
+    "1504": "Screen RAM row 12 start ($0400 + 480)",
     "1510": "Screen position row 12, col 6 — tester name \"LUCA CARMINATI\"",
     "1514": "Screen position row 12, col 10 — \"RESETTING RANKING...\" status message",
     "1517": "Screen position row 12, col 13 — \"SAVING DATA...\" status message",
     "1524": "Screen RAM + 500 — fifth block for screen clear/tile rendering (row 12+)",
     "1534": "Screen RAM + 510 — sixth block for level tile rendering",
+    "1544": "Screen RAM row 13 start ($0400 + 520)",
     "1549": "HUD status row buffer (30 bytes, row 13 col 5) — score/lives display row",
     "1550": "Screen position row 13, col 6 — testers \"STEFANO/PAOLO CARMINATI\" + email",
+    "1584": "Screen RAM row 14 start ($0400 + 560)",
+    "1624": "Screen RAM row 15 start ($0400 + 600)",
     "1664": "Water animation row buffer (40 bytes, row 16) — animated lava/water tiles",
     "1727": "Lives display buffer (5 bytes, row 17 col 23) — remaining lives icons",
+    "1745": "Screen RAM row 18, col 1 — HUD top row (energy bar, lives)",
     "1751": "Lava/tile13 animation row (32 bytes, row 18 col 7) — scrolling lava tiles",
     "1753": "Screen position row 18, col 9 — \"PRESS FIRE TO CONTINUE\" prompt",
     "1774": "Screen RAM + 750 — used in screen clear (row 18+)",
@@ -7512,6 +8679,9 @@
     "1809": "Power indicator top row chars (row 19 col 25)",
     "1829": "Dynamo/power bar bottom row chars (row 20 col 5)",
     "1849": "Power indicator bottom row chars (row 20 col 25)",
+    "1908": "Screen RAM row 22, col 4 — HUD bottom row (level, score text in yellow)",
+    "1916": "Screen RAM row 22, col 12 — level number display position (after \"LEVEL \" text)",
+    "1965": "Screen RAM row 23, col 21 — credits/year+logo text destination (cyan)",
     "1985": "Screen position row 24, col 1 — HUD dynamite/lives icon tiles",
     "2000": "Screen position row 24, col 16 — HUD fuel bar icon tiles",
     "2019": "Screen position row 24, col 35 — \"2025\" year + H.E.R.O. logo tiles",
@@ -7524,6 +8694,7 @@
     "2046": "VIC-II sprite 6 data pointer",
     "2047": "VIC-II sprite 7 data pointer",
     "2564": "Game configuration/state flags — bit 0 cleared during init",
+    "4864": "Destination buffer for decompressed cave/level tile data",
     "7181": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain game loop. Runs initialization per frame, waits for the raster beam\nto reach line $FB (bottom of visible screen), then dispatches the current\ngame state handler. Loops forever.\n\nInputs:  None\nOutputs: None\nSide Effects: Drives the entire game; calls frame setup, raster sync,\n              and game-state dispatch each iteration.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "7197": "Table of 20 word-sized entries (lo/hi interleaved). Each pair holds the RAM bank 1 start address where CAVEnn was loaded. Indexed by cave_index * 2.",
     "7198": "High byte counterpart of cave_addr_table (same table, offset +1).",
@@ -7558,6 +8729,7 @@
     "7969": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCheck hero collision with enemies (normal hitbox).\nIterates the enemy table (f_7096) from index a_71E0-1 down to 0.\nSkips dead enemies (f_7096,x != 0). Calls s_761B to set hitbox\ndimensions based on enemy type. If hero is within bounding box,\ntriggers enemy-hit-hero via j_8185.\n\nInputs:  a_71E0 (enemy count), enemy tables (f_7096, f_70C3, etc.)\nOutputs: None\nSide Effects: May trigger enemy hit via j_8185\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8037": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCheck hero collision with raft/vehicle (a_83A2).\nCompares hero position against raft position (a_83A3-a_83A5).\nUses raft width (a_83A8) to calculate dynamic horizontal hitbox.\nIf within range, triggers raft collision via j_8185.\n\nInputs:  a_83A2 (raft active flag), raft pos (a_83A3-a_83A5),\n         a_83A8 (raft width), hero pos (a_7AFB-a_7AFD)\nOutputs: None\nSide Effects: May trigger raft collision via j_8185\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8125": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCheck hero collision with enemies (laser-active hitbox).\nSimilar to check_enemy_collision_normal but uses s_76BD to calculate\nhitbox params based on enemy type and laser state.\nSkips enemies of type 4 and dead enemies. If hero is within bounding\nbox, triggers laser-hit-enemy via j_75F5.\n\nInputs:  a_7827 (laser active), a_71E0 (enemy count),\n         enemy tables, hero position\nOutputs: None\nSide Effects: May trigger enemy death via j_75F5\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "8192": "Also used as cave_data_load_addr: initial RAM destination ($2000) for loading\ncave files from disk. After each file loads, this pointer advances past the\nloaded data. See $1C57-$1C5E.",
     "8205": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCheck dynamite explosion vs enemies.\nWhen game state is 4 (dynamite placed), iterate all enemies and check\nif they are within the blast radius. Uses wider bounding box for\ntype-4 enemies ($18/$E9) vs normal ($14/$ED). Marks hit enemies in\nf_71D1,x table.\n\nInputs:  a_71E0 (enemy count), enemy tables, hero position\nOutputs: f_71D1,x (enemy hit flags)\nSide Effects: May mark enemies as hit by dynamite\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8298": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLoads a file from disk into memory at the address stored in $FB/$FC.\nThe caller must pre-load A=filename length, X/Y=filename address before calling.\nUses secondary address 0 (load to specified address, not file header address).\n\nInputs:  A = filename length, X = filename addr lo, Y = filename addr hi,\n         $FB/$FC = destination address (lo/hi)\nOutputs: X/Y = end-of-load address (lo/hi), A = error code (0=ok)\nSide Effects: Performs disk I/O; loads file data into RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "8315": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSaves a memory region to a storage device (disk).\nCaller must pre-set the filename in A/X/Y before calling.\nUses ZP $FB-$FC as start address and ZP $FD-$FE as end address+1.\n\nInputs:  A = filename length, X/Y = pointer to filename string,\n         $FB-$FC = start address of memory region,\n         $FD-$FE = end address+1 of memory region\nOutputs: Carry set on error, A = KERNAL error code\nSide Effects: Saves memory block to disk via KERNAL SAVE\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -7707,6 +8879,8 @@
     "24797": "Index (0-7) of the first free VIC-II sprite slot found during sprite sorting. Used to assign sprite pointers.",
     "24798": "Multi-purpose: hero Y start position during init ($78/$F0), frame counter during bonus phase 2, delay timer during bonus phase 3, death anim countdown.",
     "24799": "SFX mute toggle. 0 = sound on, $FF = muted. Toggled by F7 key (EOR #$FF). When set, SID volume is zeroed and SFX updates are skipped.",
+    "24800": "HUD tile indices for fuel bar icons (7 bytes, null-terminated)",
+    "24807": "HUD tile indices for status icons row (8 bytes, null-terminated)",
     "24816": "HUD tile indices for top status row (dynamite/lives icons)",
     "24822": "HUD tile indices for bottom status row (fuel bar icons)",
     "24831": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes a new cave/level for gameplay. Blanks the screen, resets the\nscore and lives display, loads and decompresses cave map data from banked\nRAM, sets up sprites, clears the screen, configures the raster IRQ for\nthe gameplay handler, and re-enables the display.\nj_611D is a re-entry point used when restarting the same cave (e.g. after\nlosing a life) — it skips the score/lives reset.\n\nInputs:  a_60D8 = cave/level index to initialize\nOutputs: None\nSide Effects: Screen blanked then re-enabled, sprites configured, cave map\n              decompressed, raster IRQ set to gameplay handler at $6492,\n              MMU set to $3E (RAM+I/O)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -7731,11 +8905,18 @@
     "26376": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets the Y positions of all 7 title sprites based on title_sprite_y_pos.\nSprites 0-2 use the position directly (top group), sprite 3 is offset\n+$15 below them, and sprites 4-6 use $1C minus the position (bottom\ngroup moving upward as the curtain opens).\n\nInputs:  title_sprite_y_pos ($664D)\nOutputs: None\nSide Effects: Writes VIC-II registers $D001, $D003, $D005, $D007,\n              $D009, $D00B, $D00D\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "26410": "Current selected menu option on the title screen.\n0=START, 1=DYNAMITE, 2=BEST HEROES, 3=PLAY LEVELS, 4=CREDITS.",
     "26411": "Selected level index in the PLAY LEVELS menu option.\nIncremented/decremented with joystick up/down when menu_cursor_index=3.\nUsed to index into level_select_strings.",
+    "26412": "Title screen icon tile indices (3 bytes + null terminator)",
+    "26416": "Menu option text strings: START, BEST HEROES, etc. (screen codes, $FF-terminated)",
     "26493": "Control/dynamite description strings for the menu, 30 bytes each.\n4 entries indexed by a_60D7 via multiply_a_by_30.\nDisplayed on the title screen below the menu options.",
     "26613": "Level selection display strings, 5 bytes each (null-terminated).\nE.g. \"05-08\", \"09-12\", etc. Indexed by menu_level_select_index.",
     "26633": "HUD: copyright year \"2025\" + H.E.R.O. logo tile indices for bottom screen rows",
+    "26638": "Title logo character data (24 columns x 8 rows)",
+    "26806": "Title logo color data (24 columns x 8 rows, matches title_logo_chars)",
     "26974": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets up and displays the main menu screen.\nClears the screen, draws the menu layout with title artwork, renders\nmenu option text (START, BEST HEROES, PLAY LEVELS, CREDITS), loads\nthe current dynamite/control description, highlights the selected\nmenu item, enables menu sprites, and installs the menu raster IRQ.\n\nInputs:  None\nOutputs: None\nSide Effects: Blanks and redraws screen, sets a_20D3 to #$03 (menu state),\n              enables 6 sprites ($D015=$3F), installs raster IRQ at $6B84\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27102": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the main menu's title artwork (logo) onto the screen.\nCopies a 24x8 block of character data and color data from ROM to \nScreen RAM ($0430) and Color RAM ($D830).\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies Screen RAM and Color RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "27205": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFills one 40-column row of Color RAM with a given color value.\nUsed to highlight/unhighlight menu items by painting a full row.\nThe base address is COLOR_RAM_ROW11; Y selects the row offset\n(each row is 80 bytes in the C128 80-col layout), and X holds\nthe color value to fill.\n\nInputs:  X = color value to store, Y = row offset from COLOR_RAM_ROW11\nOutputs: None\nSide Effects: Overwrites 40 bytes of Color RAM at the target row\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "27480": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the on-screen dynamite control description text based on input_mode.\nLooks up input_mode (0-3), multiplies by 30 to index into the\ndynamite_desc_strings table (4 entries × 30 screencodes each), and copies\nthe 30-character string to scr_hud_row on screen RAM.\n\nStrings:\n  0 = \"   DYNAMITE: JOYSTICK DOWN    \"\n  1 = \"DYNAMITE: DOUBLE JOYSTICK DOWN\"\n  2 = \"     DYNAMITE: SPACE BAR      \"\n  3 = \"  DYNAMITE: 2ND FIRE BUTTON   \"\n\nInputs:  input_mode (0-3) — selected dynamite activation method\nOutputs: None\nSide Effects: Writes 30 bytes to screen RAM at scr_hud_row ($060D)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "27502": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the level-select display on the menu screen.\nReads menu_level_select_index (0-3), multiplies by 5 to index into\nlevel_select_strings (4 entries × 5 screencodes each), and copies the\n5-char level range string to scr_lives_display on screen RAM.\n\nStrings:\n  0 = \"05-08\"    1 = \"09-12\"    2 = \"13-16\"    3 = \"17-20\"\n\nInputs:  menu_level_select_index ($672B) — selected starting level group\nOutputs: None\nSide Effects: Writes 5 bytes to screen RAM at scr_lives_display ($06BF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27524": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTitle screen raster IRQ handler — sprite setup.\nPositions 5 sprites to form the title/logo graphic:\n  Sprites 0-3 in a row at Y=$3B (X=$59,$89,$B9,$EA)\n  Sprite 4 centered at Y=$5B (X=$8F)\nAssigns sprite pointers $F5-$F9 and sets all 5 to white ($01).\nComputes next raster line from menu_cursor_index (each option is 16px\napart, base $86) and chains to irq_menu_cursor_top.\n\nInputs:  menu_cursor_index = currently highlighted menu option (0-based)\nOutputs: None\nSide Effects: VIC-II sprite registers $D000-$D00B, sprite pointers,\n              sprite colors, next IRQ chained to irq_menu_cursor_top\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27622": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMenu cursor highlight — top bar raster IRQ.\nNOP sled for stable raster timing, then sets $D021 to light blue ($0E)\nfor one character row, waits, then resets $D021 to blue ($06).\nThis creates a highlighted horizontal bar on the selected menu option.\nComputes the raster line for the bottom bar from menu_cursor_index\n(top + 8 lines = $94 base) and chains to irq_menu_cursor_bottom.\n\nInputs:  menu_cursor_index = currently highlighted menu option (0-based)\nOutputs: None\nSide Effects: $D021 (background color) flashed to light blue then blue\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27690": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMenu cursor highlight — bottom bar raster IRQ.\nSame pattern as irq_menu_cursor_top: NOP sled for stable raster, then\nsets $D021 to light blue ($0E) for one character row, waits, then resets\n$D021 to black ($00) (the default menu screen background).\nChains to irq_setup_status_bar_sprites at raster line $DC.\n\nInputs:  None (entered via IRQ vector)\nOutputs: None\nSide Effects: $D021 flashed to light blue then reset to black ($00)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -7746,8 +8927,10 @@
     "27890": "Rank label strings for the high score table, 4 chars each.\n10 entries: \" 1ST\", \" 2ND\", \" 3RD\", \" 4TH\" ... \" 9TH\", \"10TH\".\nFollowed by status messages (\"SAVING DATA...\", \"RESETTING RANKING...\").",
     "27930": "Disk I/O status message: \"SAVING DATA...\"",
     "27945": "High score reset status message: \"RESETTING RANKING...\"",
+    "28008": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the complete high score table on the screen.\nFirst prints the title \"BEST HEROES\" (green, at SCR_HISCORE_TITLE) and the\ncolumn header \"RANK    SCORE  LVL  NAME\" (cyan, at SCR_HISCORE_HEADER).\nThen loops through 10 score entries (7 bytes each in the score buffer),\nrendering each row:\n  - Rank label from rank_label_strings (\" 1ST\", \" 2ND\", etc.)\n  - 6-digit BCD score at column +7\n  - Level number at column +15 (or \"---\" if slot empty, $FF)\n  - 3-char player name at column +21\nRows advance by $50 (80 bytes, C128 80-col screen layout).\n\nInputs:  Score buffer pointed to by set_score_buffer_ptr\nOutputs: None\nSide Effects: Writes to screen RAM from $04D0 downward, 10 rows\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28044": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays the top-10 high score table on screen. For each entry, it\nprints the rank number (1–10), the BCD score (6 digits), the level\n(or \"---\" if the slot is empty/$FF), and the 3-character player name.\nIterates through 10 entries in the score buffer at $527F, writing each\nrow to screen memory starting at $04D0, advancing by $50 (80 cols) per row.\n\nInputs:  None (reads from score buffer at $527F)\nOutputs: None (writes directly to screen memory)\nSide Effects: Draws the complete high score table on screen, clobbers\n              ZP pointers $02/$03, $04/$05, $06, $FB/$FC, $FD/$FE.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28257": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPrompts the player to enter their 3-character initials for the high score\ntable, copies the entered name into the score buffer at the correct rank\nposition, then displays the updated table and saves it to disk.\n\nInputs:  a_6CCC = player's ranking position (0-9)\nOutputs: Score buffer updated with player's initials\nSide Effects: Screen redrawn with high score table, scores saved to disk\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "28381": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays \"SAVING DATA...\" message on a blank screen, resets sprites, re-enables\nthe display, then saves high scores to disk via save_high_scores_to_disk.\nCalled when exiting gameplay (RUN/STOP or high-score entry complete) while a\ngame was in progress.\n\nInputs:  None\nOutputs: None\nSide Effects: Blanks/clears screen, displays save message, resets sprites,\n              re-enables VIC-II display, writes high scores to disk\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28431": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets the screen color flash subsystem to its idle state.\nClears the state variable (a_6F01) so no flash animation runs,\nand restores the default screen color (yellow = 7) via zpa_82.\n\nInputs:  None\nOutputs: a_6F01 = 0, zpa_82 = 7\nSide Effects: Stops any active color flash animation\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28441": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nExplosion animation state machine. Called every frame from the main game loop.\nDispatches on explosion_state ($6F01):\n  State 0: Inactive — do nothing.\n  State 1: Countdown delay, then init explosion (state 2) + check hero proximity.\n  State 2: Animate explosion — cycle colors from table, advance sprite frames\n           ($A1–$A4). After 6 color ticks, deactivate and check entity collisions.\n  State 3: Fade-out — decrement timer, then deactivate.\n\nInputs:  explosion_state ($6F01), explosion_timer ($6F08)\nOutputs: explosion_state, explosion_frame, explosion_color, explosion_anim_tick\nSide Effects: May trigger entity destroy (j_875A) or hero death (j_8185)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28519": "",
@@ -7758,6 +8941,7 @@
     "28639": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks if the hero is within the explosion blast radius. If a_7AFA is nonzero\n(hero invulnerable/dead), skips the check. Compares explosion position against\nhero position; if within ±30 pixels on X and same Y row, calls j_8185 (hero death).\n\nInputs:  explosion_x_lo/hi, explosion_y, a_7AFB/7AFC/7AFD (hero position)\nOutputs: None\nSide Effects: May trigger hero death via j_8185\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28687": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTriggered when an enemy collision occurs. Starts the explosion fade-out\n(state 3) if currently inactive, or continues the existing state 3.\n\nInputs:  explosion_state, entity position in X register\nOutputs: explosion_state=3, explosion position set from entity tables\nSide Effects: Sets explosion_timer to $1E (30 frames)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28734": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes explosion at the hero's position. Sets state to 1 (countdown\ndelay), copies hero coordinates, and sets screen color to yellow.\nCalled when hero is hit by an enemy.\n\nInputs:  a_7AFB/7AFC/7AFD (hero position)\nOutputs: explosion_state=1, explosion position from hero, explosion_timer=$1E\nSide Effects: Sets screen color to $0B (dark grey), a_8940=1\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "28783": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPrepares explosion sprite parameters for the multiplexer.\nIf no explosion is active, hides the sprite by setting Y to $FF.\nOtherwise, converts explosion world position to screen coordinates\n(X += $0C, Y += $25), copies the animation frame, and stores all\nvalues into the zero-page sprite parameter slots.\n\nInputs:  explosion_state, explosion_x_lo/hi, explosion_y, explosion_frame\nOutputs: zpa_36 (Y pos), zpa_49 (X lo), zpa_5C (X hi), zpa_6F (frame)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28822": "Entity status array (15 slots, indexed by X).\nValues: 0 = active/alive, 2 = inactive/dead.\nUsed by both the animated-tile subsystem and the\nenemy collision routines to skip dead entities.",
     "28837": "Entity type array (15 slots, indexed by X).\nValues: 0-4 select tile behavior, hitbox, animation.\nUsed to dispatch per-type update, collision, and init logic.",
     "28852": "Entity X position fractional byte (15 slots, indexed by X).\nSub-pixel precision for smooth 24-bit movement.\nCombined with entity_x_lo/entity_x_hi for full position.",
@@ -7793,26 +8977,43 @@
     "29189": "8-frame palindrome animation for type 4 tiles ($B4-$B8-$B5).",
     "29197": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets the animated tile subsystem by clearing the tile count to zero.\nCalled during level initialization to prepare for new tile spawning.\n\nInputs:  None\nOutputs: a_71E0 = 0 (animated tile count cleared)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "29221": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes an animated tile slot based on tile type.\nLooks up the level map to check if the tile cell is occupied, then\nconfigures position, animation frames, and speed based on the tile type\n(0-4). Difficulty scaling halves animation delay on level >= 10.\n\nInputs:  A = tile type (0-4), X = tile slot index\nOutputs: Tile slot arrays populated (position, frame, speed, status)\nSide Effects: Writes to a_71E1-a_71E4 (global animation counters)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "29605": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates over all tile entities (tile_count-1 down to 0) and updates each one.\nFor each tile, checks entity_status: if non-zero and not 2, decrements the timer\nand marks the tile as dying (status=2) when the timer expires. Active tiles\n(status=0) are dispatched by entity_type to the appropriate update handler:\n  Type 0 → j_753E, Type 1 → bounce animation (s_73EF) + j_7563,\n  Type 2 → gravity physics (update_tile_gravity) + j_7588,\n  Type 3 → j_75AC, Default → s_74BD + j_75D1.\n\nInputs:  tile_count (number of tile entities to process)\nOutputs: None (updates entity arrays in-place)\nSide Effects: Modifies entity_status, entity_timer, positions, and velocities\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "29618": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates a single tile entity: handles death timer countdown, dispatches\ntype-specific movement (bounce, gravity, follow hero), and advances animation.\n\nInputs:  X = entity index into entity arrays\nOutputs: Updated entity_status, entity_timer, entity_frame, position arrays\nSide Effects: Entity position, animation frame, and status modified in-place\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "29679": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAnimates a tile's vertical bounce by stepping through a 16-entry\noffset table (tile_bounce_offsets). Every 4 frames, the move_phase\nindex advances. The phase wraps at 16, producing a smooth\noscillation: +1..+4..+1, 0, -1..-4..-1, 0 pixels relative to\nentity_y_limit (the base Y position). Called as movement type 1\nin the entity movement dispatcher.\n\nInputs:  X = entity slot index\nOutputs: entity_y[x] = entity_y_limit[x] + tile_bounce_offsets[phase]\nSide Effects: entity_timer[x] and entity_move_phase[x] updated\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "29721": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates an animated tile's position using gravity/acceleration physics.\nAdds X velocity to X position, then adjusts velocity toward a target X limit.\nAdds Y velocity to Y position, then adjusts velocity toward a target Y limit.\nThe tile accelerates toward its target position and decelerates past it,\nproducing a gravity/spring effect. Called during tile animation phase 2.\n\nInputs:  X = tile index into entity arrays\nOutputs: Updated position (f_70B4/f_70C3/f_70D2,x) and Y pos (f_70E1/f_70F0,x)\nSide Effects: Velocity arrays (f_714A/f_7159/f_7168,x and f_7177/f_7186,x) modified\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "29885": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChases the hero horizontally. Compares the entity's X position (indexed by X\nregister) against the hero's X position, then moves the entity left or right\nby a half-pixel ($80 fractional) per call. Before moving, it checks the\ndestination map tile — if the tile is >= $1A (solid/blocking), movement is\nskipped, preventing the entity from walking through walls.\n\nInputs:  X = entity index\nOutputs: entity_x_frac/lo/hi[X] updated\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "30235": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nLooks up the enemy type from f_70A5[X] and sets the collision hitbox\nbounding-box parameters in zpa_02..zpa_05.\n  zpa_02 = Y upper bound (positive threshold)\n  zpa_03 = Y lower bound (negative threshold, signed)\n  zpa_04 = X upper bound (positive threshold)\n  zpa_05 = X lower bound (negative threshold, signed)\nThe enemy type selects a preset hitbox size; for types 2–4 the\nsub-type in f_70FF[X] further refines the horizontal bounds.\n\nInputs:  X = enemy slot index, f_70A5[X] = enemy type,\n         f_70FF[X] = enemy sub-type (used by types 2–4)\nOutputs: zpa_02..zpa_05 = hitbox bounding-box thresholds\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "30397": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nReturns the laser collision hitbox parameters for the current enemy.\nBranches on the enemy state (f_70A5,x) and sub-type (f_70FF,x) to select\nY-range bounds (zpa_02/zpa_03) and X-range bounds (zpa_04/zpa_05).\nThe direction flag a_7B01 and a_7828 adjust X bounds for facing.\n\nInputs:  X = enemy slot index\nOutputs: zpa_02 = Y upper bound, zpa_03 = Y lower bound,\n         zpa_04 = X right bound, zpa_05 = X left bound\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "30552": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMarks all hit entities as destroyed and clears them from the level map.\nLoops through entities 0..tile_count-1, checks entity_hit_flag for each.\nIf hit, sets entity_status to $02 (destroyed) and zeroes the entity's\nslot in the current room's level map via clear_entity_from_map.\n\nInputs:  None (reads tile_count, entity_hit_flag)\nOutputs: None\nSide Effects: Sets entity_status=$02 for hit entities, clears map slots\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "30575": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nClears an entity's slot from the current room's level map.\nLooks up the level map pointer for the current room, then writes $00\nat offset X (entity index) to remove the entity from the map.\n\nInputs:  X = entity index\nOutputs: Y = entity index (copied from X)\nSide Effects: Zeroes one byte in the level map\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "30595": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIterates through all active entities (enemies/creatures) and populates\nthe zero-page sprite arrays used by the sprite sort-and-render multiplexer.\nFor each entity: if status == 2 (dead), marks sprite Y as $FF (off-screen);\nif rendering is locked, skips entirely; otherwise computes screen-space\ncoordinates from entity world position with fixed offsets (+12 X, +37 Y)\nand copies the animation frame and speed into the sprite arrays.\n\nInputs:  tile_count (number of entities), entity tables (status, x, y, frame, anim_speed)\nOutputs: zpf_37,x (Y pos), zpf_4A,x (X lo), zpf_5D,x (X hi), zpf_70,x (frame), zpf_83,x (anim speed)\nSide Effects: None (only writes to zero-page sprite arrays)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "30658": "Hazard active flag ($FF=active, $00=inactive). Set by setup_hazard_position, cleared by s_77C6.",
     "30659": "Hazard pixel X position, low byte (column*8+4).",
     "30660": "Hazard pixel X position, high byte.",
     "30661": "Hazard pixel Y position (row*8+7).",
+    "30662": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDeactivates the hazard collision box by clearing the hazard_active flag.\nCalled during subsystem reset to ensure no stale hazard state persists\nbetween screens or game states.\n\nInputs:  None\nOutputs: None\nSide Effects: Sets hazard_active ($77C2) to $00\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "30668": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts tile-grid coordinates (X=row, Y=column) to pixel coordinates\nand activates the hazard collision box at that position.\nPixel X (16-bit) = column * 8 + 4  → stored in a_77C3/a_77C4\nPixel Y           = row * 8 + 7    → stored in a_77C5\nSets a_77C2 = $FF to mark the hazard as active.\nCalled as tile 12 handler from dispatch_complex_tile.\n\nInputs:  X = tile row, Y = tile column\nOutputs: X, Y preserved (restored before RTS)\nSide Effects: Sets a_77C2 (active flag), a_77C3/C4 (pixel X), a_77C5 (pixel Y)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "30717": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets up the hazard sprite for the multiplexer. Reads the hazard object's\nposition (hazard_x_lo/hi, hazard_y) and writes adjusted screen coordinates,\nsprite frame ($BA), and color (dark grey/$0B) into the zero-page sprite\narrays. Skipped if hazard is inactive or rendering is in progress.\n\nInputs:  hazard_active, hazard_x_lo, hazard_x_hi, hazard_y\nOutputs: zpa_58 (X lo), zpa_6B (X hi), zp_screen_dirty (Y), zpa_7E (frame),\n         zp_spr_color_extra (color)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "30759": "Fire/dynamite active flag ($FF=active, $00=inactive). Set by handle_fire_pressed, cleared by s_783D/s_7912.",
     "30760": "Hit strength result: 0=miss, 1=partial/ceiling, 2=direct hit. Written by check_dynamite_enemy_collision.",
     "30761": "Fire animation frame counter (0-2). Advances every 2 sub-frames, wraps at 3.",
     "30762": "Fire animation sub-frame counter (0-1). Increments each update, resets at 2 to advance fire_anim_frame.",
+    "30763": "Fire/dynamite sprite X offset table (low bytes), indexed by direction*2",
+    "30764": "Fire/dynamite sprite X offset table (high bytes), indexed by direction*2",
+    "30775": "Sprite pointer table for fire/dynamite animation (6 frames: 3 normal + 3 direct-hit)",
+    "30781": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the dynamite/projectile system for a new level. Clears any\nin-flight projectile, resets the countdown timer, and arms the dynamite\nso the player can throw it.\n\nInputs:  None\nOutputs: fire_active = 0, zp_dynamite_timer = 10, zp_dynamite_active = $FF\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "30795": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks if the active dynamite/projectile collides with any enemy or hits\nthe ceiling boundary. If a collision is found, sets the hit strength in\na_7828 (1=partial, 2=direct) and decrements the enemy's HP/timer.\nAlso advances the dynamite animation frame counter each call.\n\nInputs:  a_7827 = dynamite active flag (0 = inactive)\nOutputs: a_7828 = collision result (0=miss, 1=partial, 2=direct hit)\nSide Effects: Enemy HP decremented on hit via j_881E, animation frame\n              counters a_7829/a_782A advanced\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "30970": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles the fire button being pressed. If fire was already registered\n(a_7827 != 0), exits immediately to avoid re-triggering. Otherwise, sets\nthe fire-active flag, resets the fire animation frame counters (a_7829\nand a_782A), and triggers the fire sound effect via a_8988.\n\nInputs:  a_7827 (fire-active flag)\nOutputs: a_7827 = $FF, a_7829 = 0, a_782A = 0, a_8988 = 1\nSide Effects: Triggers fire sound effect (SID voice 2)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "30994": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDeactivates the fire weapon. If fire_active is set, clears it and\nstops the fire sound effect by jumping to the SFX shutdown routine.\nIf fire is already inactive, returns immediately.\n\nInputs:  fire_active ($7827)\nOutputs: fire_active cleared to 0\nSide Effects: Stops fire SFX on SID Voice 2 (via j_8A02)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "31008": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets up the dynamite/fire explosion sprite. Calculates the sprite's screen\nposition and animation frame based on the hero's position, facing direction,\nand hit strength. Returns early (with $FF = no sprite) if fire is inactive\nor the hero is below the ground boundary.\n\nInputs:  fire_active, hero_y_pos, hero_scroll_dir, hit_strength,\n         fire_anim_frame, zp_spr_x_lo/hi, zp_spr_y_pos\nOutputs: zpa_48 = sprite X low, zpa_5B = sprite X high, zpa_35 = sprite Y,\n         zpa_6E = sprite frame pointer, zpa_94 = horizontal flip flag\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "31093": "Water animation frame index (0-7). Advances every 5 ticks, indexes into water_anim_patterns.",
     "31094": "Water animation tick divider (0-4). Increments each update, resets at 5 to advance water_anim_frame.",
     "31095": "Water animation pattern table: 8 frames x 20 columns of tile indices ($B0-$B3).",
     "31255": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets the water/wave animation subsystem.\nClears both the frame counter and the tick divider so the animation\nrestarts from frame 0 on the next screen update.\n\nInputs:  None\nOutputs: None\nSide Effects: a_7975 (frame index) and a_7976 (tick divider) set to 0\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "31264": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAnimates the water surface tiles on screen. Runs every 5 frames, cycling\nthrough 8 animation frames. Each frame selects 20 tile patterns from\nwater_anim_patterns and writes them to scr_water_row. The first 20 tiles\nare written left-to-right; the second 20 are written with a reversed\npattern index, creating a mirrored/reflected water effect. Cells marked\n$80 are treated as transparent and skipped.\n\nInputs:  screen_changed_flag (must be non-zero to proceed)\nOutputs: scr_water_row updated with current animation frame tiles\nSide Effects: Modifies water_anim_tick, water_anim_frame\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "31352": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisables tile-14 (special interactive tile) by clearing its active flag.\nCalled during room reset to ensure no stale tile-14 state persists.\n\nInputs:  None\nOutputs: tile14_active_flag = $00\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "31358": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes tile-14 screen parameters from its tile-map coordinates.\nConverts tile column (X) and row (Y) to pixel screen positions for\ncollision detection. Stores a render parameter ($BC or $BE) based on\nwhether the tile falls in the upper or lower screen region.\n\nInputs:  X = tile column, Y = tile row\nOutputs: tile14_active_flag = $FF, tile14_screen_y_lo/hi, tile14_screen_x,\n         tile14_render_param. X and Y preserved via zpa_1E/zpa_1F.\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "31439": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets up sprite rendering parameters for a tile-14 hazard/obstacle entity.\nChecks if the tile is active and rendering is free, then copies the tile's\nscreen position (with pixel offsets) and render parameters into the sprite\nmultiplexer's ZP slot for the next frame.\n\nInputs:  None (reads tile14_* state variables)\nOutputs: None\nSide Effects: Populates sprite multiplexer ZP slot (Y, X, frame, color)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "31482": "Hero state: 0=normal, 1=falling, 2=landed/hover, 3=hit, 4=dying, 5=dead",
     "31483": "Hero X position, low byte (16-bit horizontal map coordinate)",
     "31484": "Hero X position, high byte (16-bit horizontal map coordinate)",
@@ -7838,7 +9039,10 @@
     "31504": "Fire button double-tap timeout counter (init=$19, decrements to 0)",
     "31505": "Hero invulnerability flag (non-zero=skip all collision checks)",
     "31506": "Sprite pointer lookup table for hero walking animation frames",
+    "31511": "Hero hover animation sprite frames (4 entries: $99, $9A, $9B, $9A - oscillating sequence)",
     "31515": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the hero entity from a tile-16 spawn point on the level map.\nConverts the tile grid position (X=column, Y=row) into pixel coordinates,\nsets the movement step size based on vertical position, clears state flags,\nand calls the shared entity state initializer.\n\nInputs:  X = tile column, Y = tile row\nOutputs: X = tile column (preserved), Y = tile row (preserved)\nSide Effects: Populates the hero entity state block ($7AFA-$7B11)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "31592": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes hero entity fields to default values for a new life or respawn.\nSets the hero to state 1 (active/falling), positions Y near top of screen,\nmarks as airborne, and clears all animation, collision, and input counters.\n\nInputs:  None\nOutputs: hero_state, hero_y_pos, hero_airborne_flag, hero_accel_counter,\n         hero_walk_frame, hero_death_substep, hero_entity_collision,\n         hero_walk_subframe, hero_hover_frame, hero_hover_tick,\n         hero_fire_tap_state, hero_anim_delay\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "31643": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHero state-machine dispatcher. Reads hero_state and branches to the\nappropriate handler:\n  State 0: Normal movement - horizontal scroll, vertical update,\n           tile collision check, then fire/animation processing.\n  State 1: Falling - delegates to handle_falling_movement.\n  State 2: Hover/landing - ticks animation, returns to state 0\n           when joystick is released (no direction pressed).\n  State 3: Animation-only - tail-calls the animation tick routine.\n  State 4: Death sequence - increments death substep, nudges hero\n           sprite downward every 5 frames, decrements death timer,\n           transitions to state 5 when timer reaches zero.\n  Other:   Returns immediately (no-op).\n\nCalled once per frame from the main game loop.\n\nInputs:  hero_state, joystick_state, hero_death_substep, hero_death_timer\nOutputs: hero_state (may transition), hero_y_pos (death nudge),\n         hero_death_substep, hero_death_timer\nSide Effects: Delegates to movement, collision, fire, and animation routines\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "31750": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nProcesses the hero's fire/dynamite action and updates animation speed.\n\nFirst checks if the hero is dead (a_7AFA == 3). If so, returns immediately.\nReads the joystick fire button: if pressed, calls s_78FA to process the fire\naction; if not pressed, calls s_7912 to reset pending fire state.\nThen calls s_802A to detect a valid fire-button press/release event.\nIf fire is confirmed, checks multiple guard conditions (a_7B03, a_7B04,\na_7B05, a_7A73 must all be zero, and explosion_state must be 0 or 3)\nbefore allowing dynamite usage.\nIf all guards pass and dynamite count (a_7B06) > 0, clears the dynamite\nsprite from the HUD, decrements the count, and starts the hero explosion.\nFinally, computes the hero animation frame delay: $0E (fast) when undamaged,\nor a slower speed proportional to damage, and advances the animation counter.\n\nInputs:  a_7AFA (game state), joystick_state (fire button),\n         a_7B03-a_7B05 (action flags), explosion_state, a_7B06 (dynamite count)\nOutputs: a_7B0C (animation frame delay), a_8AF0 (animation active flag)\nSide Effects: May trigger hero explosion, clears HUD dynamite sprite,\n              advances animation frame counter via s_80D3\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "31811": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles hero taking damage: if lives remain, clears hero tiles, decrements\nthe lives counter, and triggers the explosion animation. Then computes\nthe animation frame delay based on remaining damage timer, and manages\nthe death sound effect state. Falls through from collision guard checks.\n\nInputs:  A (zero flag from a_7B06 lives check), a_7B03/a_7B04 (damage timers)\nOutputs: a_7B06 (decremented), a_7B0C (animation delay), a_8AF0 (sound state)\nSide Effects: Clears hero screen tiles, starts explosion animation, triggers death SFX\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "31876": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles horizontal scrolling based on joystick left/right input.\nIf vertical movement is active (a_7B05 != 0), only updates the scroll\ndirection flag without actually scrolling. Otherwise, reads joystick,\nsets a target position snapped to an 8-pixel grid, moves 2 pixels per\nframe toward the target, checks map tiles for collisions, and handles\nwrap-around at screen edges.\n\nInputs:  joystick_state (bit 2 = left, bit 3 = right)\nOutputs: a_7AFB/a_7AFC (16-bit horizontal position),\n         a_7AFE (target position), a_7B00 (direction),\n         a_7B01 (scroll direction)\nSide Effects: Calls s_80B9 (animation tick), s_7D5F (tile collision\n              check), j_7DE1/j_7E03 (edge wrap-around)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -7851,9 +9055,14 @@
     "32610": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks whether the hero collides with the secondary entity ($82AB-$82AE).\nCompares X and Y pixel distances between the hero and the entity;\nif within range, snaps the hero X to the entity position, clears movement\nstate, and sets the collision flag. Otherwise, restores hero Y from the\nsaved position if the collision flag was previously active.\n\nInputs:  Hero position ($7AFB/$7AFC = Y lo/hi, $7AFD = X), entity position\n         ($82AB = active flag, $82AC/$82AD = Y lo/hi, $82AE = X)\nOutputs: A = 0 if no collision / entity inactive; A != 0 if collision.\n         Hero X ($7AFD), movement state ($7B00, $7B03, $7B05) modified on hit.\nSide Effects: On collision, hero snaps to entity X - 2 and movement is halted.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "32701": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks collision between the player and tile-14 (destructible wall/object).\nCompares player X position (a_7AFD) against tile-14 X (tile14_screen_x) and\nplayer Y position (a_7AFB/a_7AFC) against tile-14 Y (tile14_screen_y_lo/hi).\nOn hit: sets player state to 3 (hit), awards 1000 points, increments tile-14\nrender counter, stops fire SFX, and silences SID voice 1.\n\nInputs:  tile14_active_flag, tile14_screen_x, tile14_screen_y_lo/hi,\n         a_7AFB/a_7AFC (player Y 16-bit), a_7AFD (player X)\nOutputs: a_7AFA = #$03 on collision (hit state)\nSide Effects: Awards 1000 BCD points, stops SFX, silences SID voice 1\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "32755": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances the hero downward by incrementing the Y-position (a_7AFD).\nChecks vertical bounds ($F0 max, $15 min) and whether the hero has\npassed the floor limit (a_7AFF). If within bounds, probes the map\ntiles 8 pixels above and 7 pixels below the hero's feet at the\ncurrent X offset (X-15). If both tiles are non-solid (< $0D),\ntransitions hero movement state to 2 (drifting/hovering).\nOtherwise falls through to the animation frame update.\n\nInputs:  a_7AFB/a_7AFC = hero Y pos (lo/hi), a_7AFD = hero Y descent counter, a_7AFF = floor limit\nOutputs: a_7AFA = hero movement state (set to 2 if path is clear)\nSide Effects: Calls get_map_tile (overwrites $FB/$FC), advances animation via s_80D3\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "32787": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSnaps the hero's X position to the nearest 8-pixel tile boundary.\nAdds 4 (half a tile) and masks with $F8 to round to the nearest\naligned position. Also updates the X movement target.\n\nInputs:  hero_x_lo, hero_x_hi\nOutputs: hero_x_lo, hero_x_hi, hero_x_target\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "32810": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDispatches fire-button detection across input modes.\nChecks whether the fire button was newly pressed this frame.\n- If transition_active != 0: checks joystick port 1 fire (bit 1 falling edge).\n- If input_mode == 0: same joystick port 1 check.\n- If input_mode == 1: double-tap fire detection on joystick port 1,\n  using a 25-frame ($19) timer and a 3-state tap state machine.\n- If input_mode == 2: keyboard row 7, key $EF (\"2\" key).\n- Otherwise: joystick port 2 fire (bit 5 falling edge).\n\nInputs:  None (reads transition_active, input_mode, joystick_state, joystick_prev_state)\nOutputs: A = $FF if fire just pressed, $00 otherwise\nSide Effects: Modifies hero_fire_tap_state and hero_fire_tap_timer (in double-tap mode)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "32911": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nChecks if the fire button was newly pressed this frame.\nBranched to from the input dispatcher when input mode is not joystick port 1.\nIf A=2, checks keyboard row 7 for the fire key ($EF = \"2\" key).\nOtherwise, checks joystick port 2 fire button (bit 5 falling edge).\nReturns A=$FF if fire was just pressed, A=$00 otherwise.\n\nInputs:  A = input mode (2 = keyboard, other = joystick port 2)\nOutputs: A = $FF (fire pressed) or $00 (not pressed)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "32953": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances the hero walk animation by one sub-frame tick.\nDecrements the sub-frame counter; when it wraps below zero, resets it\nto 3 and increments the frame index. Frame index wraps from 4 back to 0,\ngiving a 5-frame walk cycle (0–4) with 4 sub-frame ticks per frame.\n\nInputs:  hero_walk_subframe (sub-frame counter), hero_walk_frame (frame index)\nOutputs: hero_walk_subframe (decremented/reset), hero_walk_frame (advanced/wrapped)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "32979": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances the hero hover animation timer. Increments the tick counter\nand, when it reaches the animation delay threshold, resets the tick\nand advances to the next frame (cycling 0-3).\n\nInputs:  hero_hover_tick ($7B0B), hero_anim_delay ($7B09), hero_hover_frame ($7B0A)\nOutputs: hero_hover_tick (incremented/reset), hero_hover_frame (incremented/reset)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "33011": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances the hero downward by incrementing the vertical descent\ncounter (a_7AFD). Checks vertical bounds ($F0 max, $15 min) and\nwhether the hero has passed the floor limit (a_7AFF).\nIf within bounds, probes the map tiles 8 pixels above and 7 pixels\nbelow the hero at the adjusted X offset (X-15) using get_map_tile.\nIf both tiles are non-solid (tile ID < $0D), transitions the hero\nmovement state (a_7AFA) to 2 (hovering). Otherwise exits to the\nanimation frame update (s_80D3).\n\nInputs:  a_7AFB/a_7AFC = hero Y pos (lo/hi), a_7AFD = descent counter, a_7AFF = floor limit\nOutputs: a_7AFA = hero movement state (set to 2 if path clear)\nSide Effects: Calls get_map_tile (overwrites $FB/$FC), advances animation via s_80D3\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "33090": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSelects the hero's sprite pointer based on current state, direction,\nand animation frame. Computes a VIC-II sprite pointer index and\nstores it in a_7B07.\n\n  a_7AFA >= 4  -> death/special sprite ($98)\n  a_7B03 != 0  -> airborne/attack set: frame*7 + $88\n  a_7B00 == 0  -> ground facing-left set: frame*7 + $82\n  a_7B00 != 0  -> ground facing-right: lookup f_7B12[a_7B08],\n                  +7 if a_7B00 > 1 (multi-dir variant)\n\nInputs:  a_7AFA (entity state), a_7B00 (direction), a_7B01 (frame),\n         a_7B03 (airborne flag), a_7B08 (table index)\nOutputs: a_7B07 (sprite pointer)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "33192": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPositions the bomb/dynamite sprite relative to the hero's current location.\nIf rendering is in progress, hides the sprite by setting Y to $FF.\nOtherwise, copies the hero's X/Y position (with offsets) into the bomb's\nsprite slot ZP variables, selects the sprite frame based on hero state\nand hover animation, and handles the invulnerability override frame.\n\nInputs:  hero_x_lo/hi, hero_y_pos, hero_state, hero_scroll_dir,\n         hero_sprite_ptr, hero_hover_frame, hero_invulnerable,\n         rendering_in_progress\nOutputs: zp_spr_x_lo/hi, zp_spr_y_pos, zp_spr_frame,\n         zpa_47, zpa_5A, zpa_34, zpa_6D\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "33307": "Current energy (0-128). Decremented by energy drain; used as SID freq for SFX",
     "33308": "Energy drain 16-bit fractional accumulator, lo-byte",
     "33309": "Energy drain fractional accumulator, hi-byte. Carry triggers energy_level decrement",
@@ -7861,9 +9070,14 @@
     "33311": "Energy drain speed per frame, hi-byte",
     "33312": "16-bit drain rate table indexed by level (higher = faster drain)",
     "33313": "Hi-bytes of energy drain rate table",
+    "33352": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes energy for the current level. Sets energy_level to the\nmaximum value ($80 = 128) and configures the per-level drain speed\nfrom a lookup table indexed by current_level.\n\nInputs:  current_level (used to index the drain rate table)\nOutputs: energy_level = $80, energy_drain_frac_lo/hi = 0,\n         energy_drain_speed_lo/hi = table value for current level\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "33383": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDrains the hero's energy over time using a 16-bit fractional accumulator.\nWhen the accumulator overflows, energy_level is decremented. If energy\nreaches zero, triggers hero death via j_8185. After each drain tick,\nupdates the on-screen energy bar by writing tile characters to scr_lava_row.\nSkipped entirely if hero is dead (hero_state != 0) or invulnerable.\n\nInputs:  energy_drain_speed_lo/hi (drain rate), energy_level\nOutputs: energy_drain_frac_lo/hi (updated), energy_level (decremented on overflow)\nSide Effects: Updates energy bar display on screen; may trigger hero death\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "33422": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the on-screen energy bar by writing the appropriate tile character\nat the correct column of the HUD lava row. The energy value (0-128) is\ndivided by 4 to find the character column, and the 2-bit remainder selects\none of 4 tile phases ($5A-$5D) to show a smooth depletion animation.\n\nInputs:  energy_level (current energy, 0-128)\nOutputs: scr_lava_row updated at column (energy_level / 4)\nSide Effects: Modifies one character cell on the HUD row\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "33440": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFills the entire energy bar row on screen with the \"full\" tile character ($5E).\nUsed during HUD initialization to display a full energy bar.\n\nInputs:  None\nOutputs: scr_lava_row[0..31] = $5E\nSide Effects: Updates the on-screen energy bar display row\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "33456": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisables tile 13 scrolling by clearing the active flag.\nCalled during room initialization to reset the scroll subsystem.\n\nInputs:  None\nOutputs: tile13_active_flag = 0\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "33462": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes tile 13 horizontal scroll parameters.\nConverts tile grid position (X=row, Y=column) into a pixel-based scroll\ntarget and determines initial scroll direction based on viewport position.\n\nInputs:  X = tile row, Y = tile column\nOutputs: tile13_scroll_pos_lo/hi = target pixel position,\n         tile13_column = pixel column offset,\n         tile13_scroll_dir = $01 (left) or $02 (right)\nSide Effects: Sets tile13_active_flag to $FF (enabled)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "33530": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPer-frame update for tile 13 scrolling.\nScrolls the viewport 2 pixels per frame toward the tile 13 target position.\nChecks map tile boundaries and reverses direction if blocked by a wall\n(tile ID >= $1A). Updates the shared scroll position at a_7AFB/a_7AFC.\n\nInputs:  tile13_active_flag, tile13_scroll_dir, a_7B05\nOutputs: tile13_scroll_pos_lo/hi updated, a_7AFB/a_7AFC updated\nSide Effects: May reverse scroll direction if a wall tile is encountered\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "33656": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets up the sprite parameters for tile 13 (scrolling tile entity).\nChecks if tile 13 is active and rendering is not locked, then writes\nthe sprite X/Y position, frame pointer, and color into the shared\nZP sprite slots for the multiplexer to pick up.\n\nInputs:  tile13_active_flag, tile13_scroll_pos_lo/hi, tile13_column\nOutputs: zpa_58/zpa_6B (sprite X lo/hi), zp_screen_dirty (sprite Y),\n         zpa_7E (sprite frame), zp_spr_color_extra (sprite color)\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "33698": "Raft/tile-15 active flag ($00=inactive, $FF=active)",
     "33699": "Raft pixel Y position, lo-byte (row*8 + 8)",
     "33700": "Raft pixel Y position, hi-byte",
@@ -7876,6 +9090,9 @@
     "33707": "Ping-pong animation sequence: {0,1,2,3,4,3,2,1}",
     "33915": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDeactivates the raft/vehicle by clearing its active flag.\nCalled during level reset to ensure the raft starts inactive.\n\nInputs:  None\nOutputs: None\nSide Effects: Clears a_83A2 (raft active flag)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "33921": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes animation state for tile type 15. Computes pixel coordinates\nfrom the tile's column (X) and row (Y) positions, sets the initial\nanimation frame from a ping-pong sequence table, and enables the\nanimation flag so the per-frame updater (s_84C8) will animate it.\n\nInputs:  X = tile column, Y = tile row\nOutputs: X = tile column (preserved), Y = tile row (preserved)\nSide Effects: Writes animation state vars at $83A2-$83AA\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "33992": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAdvances the raft's animation frame at a fixed rate. Every 8 ticks,\nthe sequence index advances through an 8-entry bounce table to select\nthe next animation frame, then tail-calls j_8528 to redraw the raft tiles.\nIf the raft is inactive (raft_active == 0), returns immediately.\n\nInputs:  raft_active, raft_anim_tick, raft_anim_seq_idx, raft_anim_bounce_tbl\nOutputs: raft_anim_tick, raft_anim_seq_idx, raft_anim_frame\nSide Effects: Redraws raft tiles on screen via j_8528\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "34036": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the raft (tile 15) onto screen RAM and color RAM using the current\nanimation frame. First clears the raft's 4x6 tile area in color RAM to\nred ($02), then copies the current animation frame's tile data from the\nraft tile table ($83B3+) to screen RAM, and finally copies corresponding\nattribute data to a secondary screen region.\n\nInputs:  raft_active, raft_tile_col, raft_tile_row, raft_anim_frame\nOutputs: None (screen updated in place)\nSide Effects: Writes 4x6 tile region to screen RAM and color RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "34230": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDeactivates the raft entity and redraws its screen area to remove it visually.\nChecks `raft_active`; if already inactive, returns immediately. Otherwise,\nclears the active flag and animation frame, then calls the raft tile redraw\nroutine to restore the background tiles where the raft was displayed.\nCalled during hero death/respawn to clean up the raft state.\n\nInputs:  None (reads raft_active global)\nOutputs: None\nSide Effects: Clears raft_active and raft_anim_frame; redraws raft screen area\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "34249": "Dynamic tile ID / active flag (0=inactive). 3-byte array indexed by dynamic_tile_count.",
     "34252": "Dynamic tile type variant (0=normal 2x5 tile, nonzero=alternate rendering). 3-byte array.",
     "34255": "Dynamic tile pixel Y position, low byte. Computed as (column * 8) + 8. 3-byte array.",
@@ -7903,6 +9120,7 @@
     "54534": "C128 RAM Configuration Register (VIC bank/shared RAM config)",
     "55296": "Color RAM base ($D800-$DBE7, 1000 bytes, 40x25)",
     "55336": "Color RAM row 1 (offset +$28)",
+    "55344": "Color RAM destination for title artwork (row 1, col 16 = $D800 + $30)",
     "55466": "Color RAM row 4, col 10 (offset +$AA = 170)",
     "55496": "Color RAM row 5 (offset +$C8 = 200)",
     "55536": "Color RAM row 6 (offset +$F0 = 240)",
@@ -7917,6 +9135,7 @@
     "56101": "Color RAM row 20, col 5 (offset +$325 = 805)",
     "56200": "Color RAM row 22, col 24 (offset +$388 = 904)",
     "56257": "Color RAM row 24, col 1 (offset +$3C1 = 961)",
+    "59953": "C128 KERNAL default IRQ handler entry point",
     "65280": "C128 MMU Configuration Register — controls bank layout"
   },
   "settings": {
@@ -8314,14 +9533,14 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 27205,
-  "hex_dump_cursor_address": 14496,
-  "sprites_cursor_address": 14528,
+  "cursor_address": 7194,
+  "hex_dump_cursor_address": 7192,
+  "sprites_cursor_address": 27264,
   "charset_cursor_address": 27200,
-  "right_pane_visible": "Charset8Col",
+  "right_pane_visible": "HexDump8",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 8192,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
