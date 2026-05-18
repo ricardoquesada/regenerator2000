@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.16] - 2026-05-18
+
+### Features
+
+- **Unpacker**: Add 6502 emulation-based binary unpacker with live progress in status bar. The unpacker works in two phases. Phase 1 unpacks the code and data to memory using the CPU's execution. Phase 2 unpacks the code and data to memory using the CPU's execution. Based on logic from unp64.
+- **UI**: Replace String input with TextArea in search dialog for advanced text manipulation.
+- **UI**: Expand entropy warnings and adjust dialog dimensions for better multi-line readability.
+
+### Changes
+
+- **UI**: Move 'Unpack Binary' from Tools to File menu.
+
+### Documentation
+
+- **Docs**: Add guideline prohibiting automatic git commits.
+- **Credits**: Add credit for unp64 by iAN CooG in AUTHORS and README.
+
+### Tests
+
+- **Unpacker**: Add Frogger and additional unpacker test files.
+- **Tests**: Rename existing test assets for consistency.
+
+### Examples
+
+- **C128**: Add C128 Hero Is Back example project with labels and comments.
+
 ## [0.9.15] - 2026-05-11
 
 ### Features

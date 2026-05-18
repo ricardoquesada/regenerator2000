@@ -2436,7 +2436,7 @@ dependencies = [
 
 [[package]]
 name = "regenerator2000"
-version = "0.9.15"
+version = "0.9.16"
 dependencies = [
  "anyhow",
  "base64",
@@ -2456,7 +2456,7 @@ dependencies = [
 
 [[package]]
 name = "regenerator2000-core"
-version = "0.9.15"
+version = "0.9.16"
 dependencies = [
  "anyhow",
  "axum",
@@ -2477,7 +2477,7 @@ dependencies = [
 
 [[package]]
 name = "regenerator2000-tui"
-version = "0.9.15"
+version = "0.9.16"
 dependencies = [
  "anyhow",
  "crossterm",
