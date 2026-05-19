@@ -277,3 +277,82 @@ fn test_assembler_enum_formatting() {
     let acme_block = acme.format_enum_definition(&enum_def);
     assert_eq!(acme_block, "Colors_BLACK = $00\nColors_WHITE = $01");
 }
+
+#[test]
+fn test_disassembly_enum_operand_formatting() {
+    use regenerator2000_core::state::{Assembler, BlockType};
+
+    let mut app_state = AppState::new();
+    app_state.origin = Addr(0x1000);
+    app_state.raw_data = vec![0xA9, 0x00]; // LDA #$00
+    app_state.block_types = vec![BlockType::Code; 2];
+
+    // Create enum def in AppState
+    let mut variants = BTreeMap::new();
+    variants.insert(0, "BLACK".to_string());
+    let enum_def = EnumDefinition {
+        name: "Colors".to_string(),
+        variants,
+    };
+    app_state.enums.insert("Colors".to_string(), enum_def);
+
+    // Apply enum to address $1000
+    app_state
+        .enum_usages
+        .insert(Addr(0x1000), "Colors".to_string());
+
+    // --- 1. 64tass ---
+    app_state.settings.assembler = Assembler::Tass64;
+    app_state.disassemble();
+    assert_eq!(app_state.disassembly[0].mnemonic, "lda");
+    assert_eq!(app_state.disassembly[0].operand, "#Colors.BLACK");
+
+    // --- 2. ca65 ---
+    app_state.settings.assembler = Assembler::Ca65;
+    app_state.disassemble();
+    assert_eq!(app_state.disassembly[0].mnemonic, "lda");
+    assert_eq!(app_state.disassembly[0].operand, "#Colors::BLACK");
+}
+
+#[test]
+fn test_disassembly_data_enum_formatting() {
+    use regenerator2000_core::state::{Assembler, BlockType};
+
+    let mut app_state = AppState::new();
+    app_state.origin = Addr(0x1000);
+    app_state.raw_data = vec![0x00, 0x00, 0x01]; // .byte $00, $00 (word low), $01 (word high)
+    app_state.block_types = vec![
+        BlockType::DataByte,
+        BlockType::DataWord,
+        BlockType::DataWord,
+    ];
+
+    let mut variants = BTreeMap::new();
+    variants.insert(0, "BLACK".to_string());
+    variants.insert(256, "WHITE_WORD".to_string()); // $0100 = 256
+    let enum_def = EnumDefinition {
+        name: "Colors".to_string(),
+        variants,
+    };
+    app_state.enums.insert("Colors".to_string(), enum_def);
+
+    // Apply enum to data byte at $1000 and word at $1001
+    app_state
+        .enum_usages
+        .insert(Addr(0x1000), "Colors".to_string());
+    app_state
+        .enum_usages
+        .insert(Addr(0x1001), "Colors".to_string());
+
+    // --- Test ca65 ---
+    app_state.settings.assembler = Assembler::Ca65;
+    app_state.disassemble();
+
+    // ca65 byte
+    assert_eq!(app_state.disassembly[0].mnemonic, ".byte");
+    assert_eq!(app_state.disassembly[0].operand, "Colors::BLACK");
+
+    // ca65 word
+    assert_eq!(app_state.disassembly[1].mnemonic, ".word");
+    assert_eq!(app_state.disassembly[1].operand, "Colors::WHITE_WORD");
+}
