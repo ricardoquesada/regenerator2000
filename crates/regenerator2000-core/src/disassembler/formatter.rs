@@ -20,6 +20,12 @@ pub struct FormatContext<'a> {
     pub current_scope_name: Option<&'a str>,
     pub scope_separator: &'a str,
     pub local_prefix: Option<&'a str>,
+
+    // Enums maps
+    pub enums: &'a BTreeMap<String, crate::state::EnumDefinition>,
+    pub enum_usages: &'a BTreeMap<Addr, String>,
+    pub user_global_enums: &'a BTreeMap<String, crate::state::EnumDefinition>,
+    pub builtin_enums: &'a BTreeMap<String, crate::state::EnumDefinition>,
 }
 
 impl<'a> FormatContext<'a> {
@@ -36,6 +42,19 @@ impl<'a> FormatContext<'a> {
             self.local_prefix,
         )
     }
+
+    /// Resolve a numeric value at this address using the applied enum (if any).
+    #[must_use]
+    pub fn resolve_enum_value(&self, value: u16) -> Option<(String, String)> {
+        let enum_name = self.enum_usages.get(&self.address)?;
+        let enum_def = self
+            .enums
+            .get(enum_name)
+            .or_else(|| self.user_global_enums.get(enum_name))
+            .or_else(|| self.builtin_enums.get(enum_name))?;
+        let variant = enum_def.variants.get(&value)?;
+        Some((enum_name.clone(), variant.clone()))
+    }
 }
 
 pub trait Formatter {
@@ -50,6 +69,12 @@ pub trait Formatter {
     fn format_byte(&self, byte: u8) -> String;
     fn format_address(&self, address: Addr) -> String;
     fn format_operand(&self, ctx: &FormatContext) -> String;
+
+    /// Formats the target-specific syntax for a full enum definition block.
+    fn format_enum_definition(&self, enum_def: &crate::state::EnumDefinition) -> String;
+
+    /// Formats how a scoped enum variant is referenced in operand/data contexts.
+    fn format_enum_reference(&self, enum_name: &str, variant_name: &str) -> String;
 
     fn format_mnemonic(&self, mnemonic: &str) -> String;
     fn format_label(&self, name: &str) -> String;

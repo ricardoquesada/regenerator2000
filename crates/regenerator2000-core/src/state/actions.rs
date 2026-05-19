@@ -105,6 +105,10 @@ pub enum AppAction {
         name: String,
         is_local: bool,
     },
+    ApplyEnumUsage {
+        address: super::Addr,
+        enum_name: Option<String>,
+    },
     ApplyComment {
         address: super::Addr,
         text: String,
@@ -188,6 +192,7 @@ impl AppAction {
                 | AppAction::NavigateToAddress(_)
                 | AppAction::ApplyLabel { .. }
                 | AppAction::ApplyComment { .. }
+                | AppAction::ApplyEnumUsage { .. }
                 | AppAction::Search
                 | AppAction::ImportViceLabels
                 | AppAction::ExportViceLabels

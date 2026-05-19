@@ -17,13 +17,19 @@ impl AppState {
             collapsed_blocks: &self.collapsed_blocks,
             splitters: &self.splitters,
             scopes: &self.scopes,
+            enums: &self.enums,
+            enum_usages: &self.enum_usages,
+            user_global_enums: &self.user_global_enums,
+            builtin_enums: &self.builtin_enums,
         };
         let mut lines = self.disassembler.disassemble_ctx(&ctx);
 
         // Add external label definitions at the top if enabled
         if self.settings.all_labels {
+            let enum_lines = self.get_enum_definition_lines();
             let external_lines = self.get_external_label_definitions(true);
-            // Prepend external lines
+            // Prepend enums, then external lines (so external lines appear first)
+            lines.splice(0..0, enum_lines);
             lines.splice(0..0, external_lines);
         }
 

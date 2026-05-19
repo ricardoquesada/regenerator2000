@@ -54,41 +54,45 @@ impl Formatter for KickAsmFormatter {
             AddressingMode::Accumulator => String::new(), // KickAssembler often implies 'a', but accepts 'a' too? Let's check. 64tass and acme vary. I'll stick to implicit (empty) unless proven otherwise.
             AddressingMode::Immediate => {
                 let val = operands[0];
-                match immediate_value_formats.get(&address) {
-                    Some(crate::state::ImmediateFormat::InvertedHex) => {
-                        format!("#~${:02x}", !val)
+                if let Some((enum_name, variant_name)) = ctx.resolve_enum_value(val as u16) {
+                    format!("#{}", self.format_enum_reference(&enum_name, &variant_name))
+                } else {
+                    match immediate_value_formats.get(&address) {
+                        Some(crate::state::ImmediateFormat::InvertedHex) => {
+                            format!("#~${:02x}", !val)
+                        }
+                        Some(crate::state::ImmediateFormat::Decimal) => format!("#{val}"),
+                        Some(crate::state::ImmediateFormat::NegativeDecimal) => {
+                            format!("#{}", val as i8)
+                        }
+                        Some(crate::state::ImmediateFormat::Binary) => format!("#%{val:08b}"),
+                        Some(crate::state::ImmediateFormat::InvertedBinary) => {
+                            format!("#~%{:08b}", !val)
+                        }
+                        Some(crate::state::ImmediateFormat::LowByte(target)) => {
+                            let name = get_label(*target, LabelType::AbsoluteAddress)
+                                .unwrap_or_else(|| {
+                                    if *target <= 0xFF {
+                                        format!("${target:02x}")
+                                    } else {
+                                        format!("${target:04x}")
+                                    }
+                                });
+                            format!("#<{name}")
+                        }
+                        Some(crate::state::ImmediateFormat::HighByte(target)) => {
+                            let name = get_label(*target, LabelType::AbsoluteAddress)
+                                .unwrap_or_else(|| {
+                                    if *target <= 0xFF {
+                                        format!("${target:02x}")
+                                    } else {
+                                        format!("${target:04x}")
+                                    }
+                                });
+                            format!("#>{name}")
+                        }
+                        _ => format!("#${val:02x}"),
                     }
-                    Some(crate::state::ImmediateFormat::Decimal) => format!("#{val}"),
-                    Some(crate::state::ImmediateFormat::NegativeDecimal) => {
-                        format!("#{}", val as i8)
-                    }
-                    Some(crate::state::ImmediateFormat::Binary) => format!("#%{val:08b}"),
-                    Some(crate::state::ImmediateFormat::InvertedBinary) => {
-                        format!("#~%{:08b}", !val)
-                    }
-                    Some(crate::state::ImmediateFormat::LowByte(target)) => {
-                        let name =
-                            get_label(*target, LabelType::AbsoluteAddress).unwrap_or_else(|| {
-                                if *target <= 0xFF {
-                                    format!("${target:02x}")
-                                } else {
-                                    format!("${target:04x}")
-                                }
-                            });
-                        format!("#<{name}")
-                    }
-                    Some(crate::state::ImmediateFormat::HighByte(target)) => {
-                        let name =
-                            get_label(*target, LabelType::AbsoluteAddress).unwrap_or_else(|| {
-                                if *target <= 0xFF {
-                                    format!("${target:02x}")
-                                } else {
-                                    format!("${target:04x}")
-                                }
-                            });
-                        format!("#>{name}")
-                    }
-                    _ => format!("#${val:02x}"),
                 }
             }
             AddressingMode::ZeroPage => {
@@ -418,6 +422,26 @@ impl Formatter for KickAsmFormatter {
 
     fn format_scope_end(&self) -> Option<String> {
         Some("}".to_string())
+    }
+
+    fn format_enum_reference(&self, enum_name: &str, variant_name: &str) -> String {
+        format!("{enum_name}.{variant_name}")
+    }
+
+    fn format_enum_definition(&self, enum_def: &crate::state::EnumDefinition) -> String {
+        let mut s = format!(".enum {} {{\n", enum_def.name);
+        let mut parts = Vec::new();
+        for (&val, variant) in &enum_def.variants {
+            let val_str = if val <= 0xFF {
+                format!("${:02x}", val)
+            } else {
+                format!("${:04x}", val)
+            };
+            parts.push(format!("    {} = {}", variant, val_str));
+        }
+        s.push_str(&parts.join(",\n"));
+        s.push_str("\n}");
+        s
     }
 }
 

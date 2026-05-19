@@ -25,6 +25,8 @@ impl AppState {
         self.user_line_comments.clear();
         self.immediate_value_formats.clear();
         self.bookmarks.clear();
+        self.enums.clear();
+        self.enum_usages.clear();
         self.collapsed_blocks.clear(); // clear collapsed blocks
         self.splitters.clear(); // clear splitters
         self.user_excluded_addresses.clear();
@@ -184,6 +186,8 @@ impl AppState {
         self.user_line_comments.clear();
         self.immediate_value_formats.clear();
         self.bookmarks.clear();
+        self.enums.clear();
+        self.enum_usages.clear();
         self.collapsed_blocks.clear();
         self.splitters.clear();
         self.user_excluded_addresses.clear();
@@ -282,6 +286,8 @@ impl AppState {
         self.user_line_comments = project.user_line_comments;
         self.immediate_value_formats = project.immediate_value_formats;
         self.bookmarks = project.bookmarks;
+        self.enums = project.enums;
+        self.enum_usages = project.enum_usages;
         self.settings = project.settings;
 
         // Migration for legacy system names
@@ -553,6 +559,8 @@ impl AppState {
                 splitters: ctx.splitters,
                 blocks_view_cursor: ctx.blocks_view_cursor,
                 scopes: self.scopes.clone(),
+                enums: self.enums.clone(),
+                enum_usages: self.enum_usages.clone(),
                 user_excluded_addresses: self.user_excluded_addresses.clone(),
             };
             let data = serde_json::to_string_pretty(&project)?;

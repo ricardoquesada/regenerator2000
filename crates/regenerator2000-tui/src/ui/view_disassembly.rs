@@ -1753,6 +1753,9 @@ impl Widget for DisassemblyView {
                 WidgetResult::Action(AppAction::LineComment)
             }
             KeyCode::Char('e') if key.modifiers.is_empty() => {
+                action_apply_enum(app_state, ui_state)
+            }
+            KeyCode::Char('E') if key.modifiers == KeyModifiers::SHIFT => {
                 WidgetResult::Action(AppAction::SetExternalFile)
             }
             KeyCode::Enter if key.modifiers.is_empty() => {
@@ -1878,6 +1881,51 @@ pub fn action_set_label(app_state: &AppState, ui_state: &mut UIState) -> WidgetR
         )));
         ui_state.set_status_message("Enter Label");
         WidgetResult::Handled
+    } else {
+        WidgetResult::Ignored
+    }
+}
+
+pub fn action_apply_enum(app_state: &AppState, ui_state: &mut UIState) -> WidgetResult {
+    use crate::cpu::AddressingMode;
+    if !app_state.raw_data.is_empty()
+        && let Some(line) = app_state.disassembly.get(ui_state.cursor_index)
+    {
+        // Extract numeric value of immediate operand or raw byte/word
+        let offset = line.address.0 as isize - app_state.origin.0 as isize;
+        if offset >= 0 && (offset as usize) < app_state.block_types.len() {
+            let current_type = app_state.block_types[offset as usize];
+            let value = match current_type {
+                regenerator2000_core::state::BlockType::DataWord => {
+                    if offset + 1 < app_state.raw_data.len() as isize {
+                        let low = app_state.raw_data[offset as usize];
+                        let high = app_state.raw_data[offset as usize + 1];
+                        u16::from(high) << 8 | u16::from(low)
+                    } else {
+                        u16::from(app_state.raw_data[offset as usize])
+                    }
+                }
+                _ => {
+                    if let Some(opcode) = &line.opcode {
+                        if opcode.mode == AddressingMode::Immediate && line.bytes.len() >= 2 {
+                            u16::from(line.bytes[1])
+                        } else {
+                            u16::from(app_state.raw_data[offset as usize])
+                        }
+                    } else {
+                        u16::from(app_state.raw_data[offset as usize])
+                    }
+                }
+            };
+
+            ui_state.active_dialog = Some(Box::new(
+                crate::ui::dialog_apply_enum::ApplyEnumDialog::new(line.address, value, app_state),
+            ));
+            ui_state.set_status_message("Apply Enum");
+            WidgetResult::Handled
+        } else {
+            WidgetResult::Ignored
+        }
     } else {
         WidgetResult::Ignored
     }

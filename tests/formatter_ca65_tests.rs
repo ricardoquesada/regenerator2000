@@ -28,6 +28,10 @@ fn test_format_instructions() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -48,6 +52,10 @@ fn test_format_instructions() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -106,6 +114,10 @@ fn test_forced_absolute() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -128,6 +140,10 @@ fn test_forced_absolute() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx_false),
@@ -149,6 +165,10 @@ fn test_forced_absolute() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx_zp),

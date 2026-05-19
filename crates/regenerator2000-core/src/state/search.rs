@@ -449,6 +449,10 @@ pub fn search_collapsed_content(
         collapsed_blocks: &[],
         splitters: &app_state.splitters,
         scopes: &app_state.scopes,
+        enums: &app_state.enums,
+        enum_usages: &app_state.enum_usages,
+        user_global_enums: &app_state.user_global_enums,
+        builtin_enums: &app_state.builtin_enums,
     };
     let expanded_lines = app_state.disassembler.disassemble_ctx(&ctx);
 

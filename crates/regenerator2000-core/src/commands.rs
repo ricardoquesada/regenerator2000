@@ -1,4 +1,4 @@
-use crate::state::{Addr, AppState, BlockType, ImmediateFormat, Label};
+use crate::state::{Addr, AppState, BlockType, EnumDefinition, ImmediateFormat, Label};
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
@@ -74,6 +74,16 @@ pub enum Command {
         add: bool,
         old_labels: BTreeMap<Addr, Vec<crate::state::Label>>,
         old_cross_refs: BTreeMap<Addr, Vec<Addr>>,
+    },
+    SetEnumUsage {
+        address: Addr,
+        new_enum: Option<String>,
+        old_enum: Option<String>,
+    },
+    SetEnumDefinition {
+        name: String,
+        new_definition: Option<EnumDefinition>,
+        old_definition: Option<EnumDefinition>,
     },
     Batch(Vec<Command>),
 }
@@ -224,6 +234,36 @@ impl Command {
                 old_end: _,
             } => {
                 state.scopes.remove(address);
+            }
+            Command::SetEnumUsage {
+                address,
+                new_enum,
+                old_enum: _,
+            } => {
+                if let Some(enum_name) = new_enum {
+                    state.enum_usages.insert(*address, enum_name.clone());
+                    // Embed pre-defined global/built-in enum into local project enums if not present
+                    if !state.enums.contains_key(enum_name) {
+                        if let Some(def) = state.user_global_enums.get(enum_name) {
+                            state.enums.insert(enum_name.clone(), def.clone());
+                        } else if let Some(def) = state.builtin_enums.get(enum_name) {
+                            state.enums.insert(enum_name.clone(), def.clone());
+                        }
+                    }
+                } else {
+                    state.enum_usages.remove(address);
+                }
+            }
+            Command::SetEnumDefinition {
+                name,
+                new_definition,
+                old_definition: _,
+            } => {
+                if let Some(def) = new_definition {
+                    state.enums.insert(name.clone(), def.clone());
+                } else {
+                    state.enums.remove(name);
+                }
             }
             Command::Batch(commands) => {
                 for command in commands {
@@ -380,6 +420,28 @@ impl Command {
             }
             Command::RemoveScope { address, old_end } => {
                 state.scopes.insert(*address, *old_end);
+            }
+            Command::SetEnumUsage {
+                address,
+                new_enum: _,
+                old_enum,
+            } => {
+                if let Some(enum_name) = old_enum {
+                    state.enum_usages.insert(*address, enum_name.clone());
+                } else {
+                    state.enum_usages.remove(address);
+                }
+            }
+            Command::SetEnumDefinition {
+                name,
+                new_definition: _,
+                old_definition,
+            } => {
+                if let Some(def) = old_definition {
+                    state.enums.insert(name.clone(), def.clone());
+                } else {
+                    state.enums.remove(name);
+                }
             }
             Command::Batch(commands) => {
                 for command in commands.iter().rev() {

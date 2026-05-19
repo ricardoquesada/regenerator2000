@@ -32,6 +32,10 @@ fn test_format_instructions() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -52,6 +56,10 @@ fn test_format_instructions() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -72,6 +80,10 @@ fn test_format_instructions() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -92,6 +104,10 @@ fn test_format_instructions() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     let (mnemonic, operand) = formatter.format_instruction(&ctx);
     assert_eq!(mnemonic, "asl");
@@ -165,6 +181,10 @@ fn test_forced_absolute_plus2() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -187,6 +207,10 @@ fn test_forced_absolute_plus2() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx_false),
@@ -207,6 +231,10 @@ fn test_forced_absolute_plus2() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx_x),
@@ -227,6 +255,10 @@ fn test_forced_absolute_plus2() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx_normal),
@@ -259,6 +291,10 @@ fn test_addressing_modes() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -279,6 +315,10 @@ fn test_addressing_modes() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -299,6 +339,10 @@ fn test_addressing_modes() {
         current_scope_name: None,
         scope_separator: ".",
         local_prefix: None,
+        enums: &BTreeMap::new(),
+        enum_usages: &BTreeMap::new(),
+        user_global_enums: &BTreeMap::new(),
+        builtin_enums: &BTreeMap::new(),
     };
     assert_eq!(
         formatter.format_instruction(&ctx),
@@ -479,6 +523,10 @@ fn test_lax_immediate_mnemonic() {
             current_scope_name: None,
             scope_separator: ".",
             local_prefix: None,
+            enums: &BTreeMap::new(),
+            enum_usages: &BTreeMap::new(),
+            user_global_enums: &BTreeMap::new(),
+            builtin_enums: &BTreeMap::new(),
         };
         let (mnemonic, _) = formatter.format_instruction(&ctx);
         assert_eq!(mnemonic, "lxa", "ACME should use 'lxa' for opcode $AB");

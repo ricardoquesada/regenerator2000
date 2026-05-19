@@ -463,3 +463,74 @@ pub enum CommentKind {
     Side,
     Line,
 }
+
+// =============================================================================
+// Enum Support Types
+// =============================================================================
+
+/// A runtime representation of a value-to-name enum mapping.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EnumDefinition {
+    pub name: String,
+    pub variants: std::collections::BTreeMap<u16, String>,
+}
+
+impl EnumDefinition {
+    /// Parse numeric key values (which are represented as string keys in TOML)
+    /// and construct a BTreeMap<u16, String> map. Supports:
+    /// - Decimal strings (e.g., "10", "255")
+    /// - Hex strings with "0x" or "$" prefix (e.g., "0x0a", "$0A")
+    /// - Binary strings with "0b" or "%" prefix (e.g., "0b0101", "%0101")
+    #[must_use]
+    pub fn parse_variants(
+        raw: std::collections::BTreeMap<String, String>,
+    ) -> std::collections::BTreeMap<u16, String> {
+        let mut parsed = std::collections::BTreeMap::new();
+        for (k, v) in raw {
+            let k_trimmed = k.trim();
+            let parsed_val = if let Some(hex) = k_trimmed
+                .strip_prefix("0x")
+                .or_else(|| k_trimmed.strip_prefix("0X"))
+            {
+                u16::from_str_radix(hex, 16)
+            } else if let Some(hex) = k_trimmed.strip_prefix('$') {
+                u16::from_str_radix(hex, 16)
+            } else if let Some(bin) = k_trimmed
+                .strip_prefix("0b")
+                .or_else(|| k_trimmed.strip_prefix("0B"))
+            {
+                u16::from_str_radix(bin, 2)
+            } else if let Some(bin) = k_trimmed.strip_prefix('%') {
+                u16::from_str_radix(bin, 2)
+            } else {
+                k_trimmed.parse::<u16>()
+            };
+
+            match parsed_val {
+                Ok(val) => {
+                    parsed.insert(val, v);
+                }
+                Err(_) => {
+                    log::warn!("Invalid numeric key in enum variants: {}", k_trimmed);
+                }
+            }
+        }
+        parsed
+    }
+}
+
+/// TOML-serializable helper representation of an enum file.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RawEnumDefinition {
+    pub name: String,
+    pub variants: std::collections::BTreeMap<String, String>,
+}
+
+impl From<RawEnumDefinition> for EnumDefinition {
+    fn from(raw: RawEnumDefinition) -> Self {
+        Self {
+            name: raw.name,
+            variants: EnumDefinition::parse_variants(raw.variants),
+        }
+    }
+}

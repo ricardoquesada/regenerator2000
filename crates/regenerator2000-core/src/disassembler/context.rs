@@ -1,4 +1,4 @@
-use crate::state::{Addr, BlockType, DocumentSettings, Label};
+use crate::state::{Addr, BlockType, DocumentSettings, EnumDefinition, Label};
 use std::collections::{BTreeMap, BTreeSet};
 
 use super::formatter::Formatter;
@@ -18,6 +18,12 @@ pub struct DisassemblyContext<'a> {
     pub collapsed_blocks: &'a [(usize, usize)],
     pub splitters: &'a BTreeSet<Addr>,
     pub scopes: &'a BTreeMap<Addr, Addr>,
+
+    // Enums references
+    pub enums: &'a BTreeMap<String, EnumDefinition>,
+    pub enum_usages: &'a BTreeMap<Addr, String>,
+    pub user_global_enums: &'a BTreeMap<String, EnumDefinition>,
+    pub builtin_enums: &'a BTreeMap<String, EnumDefinition>,
 }
 
 /// Per-iteration values computed in the disassembly loop and passed to each handler.
@@ -50,6 +56,10 @@ impl<'a> DisassemblyContext<'a> {
         collapsed_blocks: &'a [(usize, usize)],
         splitters: &'a BTreeSet<Addr>,
         scopes: &'a BTreeMap<Addr, Addr>,
+        enums: &'a BTreeMap<String, EnumDefinition>,
+        enum_usages: &'a BTreeMap<Addr, String>,
+        user_global_enums: &'a BTreeMap<String, EnumDefinition>,
+        builtin_enums: &'a BTreeMap<String, EnumDefinition>,
     ) -> Self {
         Self {
             data,
@@ -65,7 +75,23 @@ impl<'a> DisassemblyContext<'a> {
             collapsed_blocks,
             splitters,
             scopes,
+            enums,
+            enum_usages,
+            user_global_enums,
+            builtin_enums,
         }
+    }
+
+    #[must_use]
+    pub fn resolve_enum_value(&self, address: Addr, value: u16) -> Option<(String, String)> {
+        let enum_name = self.enum_usages.get(&address)?;
+        let enum_def = self
+            .enums
+            .get(enum_name)
+            .or_else(|| self.user_global_enums.get(enum_name))
+            .or_else(|| self.builtin_enums.get(enum_name))?;
+        let variant = enum_def.variants.get(&value)?;
+        Some((enum_name.clone(), variant.clone()))
     }
 
     #[must_use]

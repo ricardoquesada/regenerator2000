@@ -320,6 +320,8 @@ impl Disassembler {
         splitters: &BTreeSet<Addr>,
         scopes: &BTreeMap<Addr, Addr>,
     ) -> Vec<DisassemblyLine> {
+        let empty_enums = BTreeMap::new();
+        let empty_usages = BTreeMap::new();
         let ctx = DisassemblyContext {
             data,
             block_types,
@@ -334,6 +336,10 @@ impl Disassembler {
             collapsed_blocks,
             splitters,
             scopes,
+            enums: &empty_enums,
+            enum_usages: &empty_usages,
+            user_global_enums: &empty_enums,
+            builtin_enums: &empty_enums,
         };
         self.disassemble_ctx(&ctx)
     }
@@ -873,6 +879,10 @@ impl Disassembler {
                         current_scope_name: current_scope_name.as_deref(),
                         scope_separator: formatter.scope_resolution_separator(),
                         local_prefix: formatter.local_label_prefix(),
+                        enums: ctx.enums,
+                        enum_usages: ctx.enum_usages,
+                        user_global_enums: ctx.user_global_enums,
+                        builtin_enums: ctx.builtin_enums,
                     };
                     let (mnemonic, operand_str) = formatter.format_instruction(&ctx);
 
@@ -1087,7 +1097,14 @@ impl Disassembler {
 
             let b = data[current_pc];
             bytes.push(b);
-            operands.push(formatter.format_byte(b));
+            let formatted_val = if let Some((enum_name, variant_name)) =
+                ctx.resolve_enum_value(current_address, b as u16)
+            {
+                formatter.format_enum_reference(&enum_name, &variant_name)
+            } else {
+                formatter.format_byte(b)
+            };
+            operands.push(formatted_val);
             count += 1;
         }
 
@@ -1179,7 +1196,14 @@ impl Disassembler {
 
             bytes.push(low);
             bytes.push(high);
-            operands.push(formatter.format_address(Addr(val)));
+            let formatted_val = if let Some((enum_name, variant_name)) =
+                ctx.resolve_enum_value(current_address, val)
+            {
+                formatter.format_enum_reference(&enum_name, &variant_name)
+            } else {
+                formatter.format_address(Addr(val))
+            };
+            operands.push(formatted_val);
             count += 1;
         }
 

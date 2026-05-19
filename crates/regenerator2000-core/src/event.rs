@@ -94,4 +94,8 @@ pub enum DialogType {
         origin: Addr,
         entry_point: Addr,
     },
+    ApplyEnum {
+        address: Addr,
+        value: u16,
+    },
 }

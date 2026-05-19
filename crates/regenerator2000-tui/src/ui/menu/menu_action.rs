@@ -209,6 +209,15 @@ pub fn handle_menu_action(
                         crate::ui::dialog_origin::OriginDialog::new(core.state.origin),
                     ));
                 }
+                DialogType::ApplyEnum { address, value } => {
+                    ui_state.active_dialog = Some(Box::new(
+                        crate::ui::dialog_apply_enum::ApplyEnumDialog::new(
+                            address,
+                            value,
+                            &core.state,
+                        ),
+                    ));
+                }
             },
             CoreEvent::DialogDismissalRequested => {
                 ui_state.active_dialog = None;

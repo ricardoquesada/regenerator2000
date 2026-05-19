@@ -50,6 +50,8 @@ mod tests {
             bookmarks: BTreeMap::new(),
             scopes: BTreeMap::new(),
             user_excluded_addresses: std::collections::BTreeSet::new(),
+            enums: BTreeMap::new(),
+            enum_usages: BTreeMap::new(),
         };
 
         let json = serde_json::to_string(&project).unwrap();
@@ -125,6 +127,8 @@ mod tests {
             bookmarks: BTreeMap::new(),
             scopes: BTreeMap::new(),
             user_excluded_addresses: [Addr(0xE500), Addr(0xFFD2)].into_iter().collect(),
+            enums: BTreeMap::new(),
+            enum_usages: BTreeMap::new(),
         };
 
         let json = serde_json::to_string(&project).unwrap();

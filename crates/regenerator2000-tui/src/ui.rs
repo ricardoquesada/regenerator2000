@@ -2,6 +2,7 @@ use crate::state::AppState;
 use crate::ui_state::{RightPane, UIState};
 
 pub mod dialog_about;
+pub mod dialog_apply_enum;
 pub mod dialog_bookmarks;
 pub mod dialog_breakpoint_address;
 pub mod dialog_comment;

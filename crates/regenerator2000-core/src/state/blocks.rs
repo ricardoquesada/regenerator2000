@@ -2,6 +2,7 @@ use super::app_state::{AppState, BlockItem};
 use super::project::Block;
 use super::types::{Addr, BlockType, LabelType};
 use crate::disassembler::DisassemblyLine;
+use std::collections::BTreeSet;
 
 impl AppState {
     #[must_use]
@@ -527,6 +528,97 @@ impl AppState {
         }
 
         // Trailing blank line.
+        lines.push(DisassemblyLine {
+            address: Addr::ZERO,
+            bytes: vec![],
+            mnemonic: String::new(),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        });
+
+        lines
+    }
+
+    /// Returns the list of disassembly lines defining all enums used in the project.
+    #[must_use]
+    pub fn get_enum_definition_lines(&self) -> Vec<DisassemblyLine> {
+        let mut lines = Vec::new();
+
+        // Find unique used enums
+        let mut used_enum_names: BTreeSet<String> = BTreeSet::new();
+        for name in self.enum_usages.values() {
+            used_enum_names.insert(name.clone());
+        }
+
+        if used_enum_names.is_empty() {
+            return lines;
+        }
+
+        let formatter = self.get_formatter();
+        let cp = formatter.comment_prefix();
+
+        // Header: "ENUMS"
+        lines.push(DisassemblyLine {
+            address: Addr::ZERO,
+            bytes: vec![],
+            mnemonic: format!("{cp} ENUMS"),
+            operand: String::new(),
+            comment: String::new(),
+            line_comment: None,
+            label: None,
+            opcode: None,
+            show_bytes: true,
+            target_address: None,
+            external_label_address: None,
+            is_collapsed: false,
+        });
+
+        for enum_name in used_enum_names {
+            if let Some(enum_def) = self.get_enum(&enum_name) {
+                // Separator line before each enum definition
+                lines.push(DisassemblyLine {
+                    address: Addr::ZERO,
+                    bytes: vec![],
+                    mnemonic: format!("{cp}   Enum: {}", enum_def.name),
+                    operand: String::new(),
+                    comment: String::new(),
+                    line_comment: None,
+                    label: None,
+                    opcode: None,
+                    show_bytes: true,
+                    target_address: None,
+                    external_label_address: None,
+                    is_collapsed: false,
+                });
+
+                let enum_block = formatter.format_enum_definition(enum_def);
+                for block_line in enum_block.lines() {
+                    lines.push(DisassemblyLine {
+                        address: Addr::ZERO,
+                        bytes: vec![],
+                        mnemonic: block_line.to_string(),
+                        operand: String::new(),
+                        comment: String::new(),
+                        line_comment: None,
+                        label: None,
+                        opcode: None,
+                        show_bytes: true,
+                        target_address: None,
+                        external_label_address: None,
+                        is_collapsed: false,
+                    });
+                }
+            }
+        }
+
+        // Trailing blank line
         lines.push(DisassemblyLine {
             address: Addr::ZERO,
             bytes: vec![],

@@ -42,6 +42,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
 
     let mut origin_printed = false;
 
+    let enum_lines = state.get_enum_definition_lines();
     let external_lines = state.get_external_label_definitions(true);
 
     // Regenerate disassembly without collapsed blocks for export
@@ -59,14 +60,20 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         collapsed_blocks: &[], // Ignore collapsed_blocks
         splitters: &state.splitters,
         scopes: &state.scopes,
+        enums: &state.enums,
+        enum_usages: &state.enum_usages,
+        user_global_enums: &state.user_global_enums,
+        builtin_enums: &state.builtin_enums,
     };
     let full_disassembly = state.disassembler.disassemble_ctx(&ctx);
 
     let all_lines: Vec<&crate::disassembler::DisassemblyLine> = external_lines
         .iter()
+        .chain(enum_lines.iter())
         .chain(full_disassembly.iter())
         .collect();
 
+    let definition_lines_count = external_lines.len() + enum_lines.len();
     let mut i = 0;
     while i < all_lines.len() {
         let line = all_lines[i];
@@ -173,7 +180,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             }
             // Actually, we should check origin_printed before outputting .binary?
             // Yes.
-            if !origin_printed {
+            if i >= definition_lines_count && !origin_printed {
                 output.push_str(&format!(
                     "{}\n",
                     formatter.format_header_origin(state.origin)
@@ -216,7 +223,7 @@ pub fn export_asm(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
 
         // If we reach here, it's a code/data/label line.
         // Ensure origin is printed before the first code line.
-        if !origin_printed {
+        if i >= definition_lines_count && !origin_printed {
             output.push_str(&format!(
                 "{}\n",
                 formatter.format_header_origin(state.origin)

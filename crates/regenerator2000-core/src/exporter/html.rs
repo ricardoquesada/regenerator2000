@@ -182,8 +182,13 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
         collapsed_blocks: &[], // Always uncollapse for export
         splitters: &state.splitters,
         scopes: &state.scopes,
+        enums: &state.enums,
+        enum_usages: &state.enum_usages,
+        user_global_enums: &state.user_global_enums,
+        builtin_enums: &state.builtin_enums,
     };
     let full_disassembly = state.disassembler.disassemble_ctx(&ctx);
+    let enum_lines = state.get_enum_definition_lines();
     let external_lines = state.get_external_label_definitions(true);
 
     let mut label_name_to_addr = std::collections::HashMap::new();
@@ -195,6 +200,7 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
 
     let all_lines: Vec<&crate::disassembler::DisassemblyLine> = external_lines
         .iter()
+        .chain(enum_lines.iter())
         .chain(full_disassembly.iter())
         .collect();
 

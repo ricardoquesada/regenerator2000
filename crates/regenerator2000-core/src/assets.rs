@@ -1,4 +1,4 @@
-use crate::state::{Label, LabelKind, LabelType};
+use crate::state::{EnumDefinition, Label, LabelKind, LabelType, RawEnumDefinition};
 use anyhow::{Context, Result};
 use directories::ProjectDirs;
 use include_dir::{Dir, include_dir};
@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
 static SYSTEMS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/assets/systems");
+static ENUMS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/assets/enums");
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LabelOption {
@@ -360,6 +361,104 @@ pub fn load_excludes(system: &str) -> Vec<u16> {
     }
 
     excludes
+}
+
+// =============================================================================
+// Enum Assets Loading & Dumping
+// =============================================================================
+
+/// Returns the path to the user's config directory for custom global enums.
+#[must_use]
+pub fn user_config_enums_dir() -> Option<PathBuf> {
+    ProjectDirs::from("", "", "regenerator2000").map(|d| d.config_dir().to_path_buf())
+}
+
+/// Load all built-in enums from the embedded `assets/enums/` directory.
+#[must_use]
+pub fn load_builtin_enums() -> BTreeMap<String, EnumDefinition> {
+    let mut enums = BTreeMap::new();
+    for file in ENUMS_DIR.files() {
+        let Some(filename) = file.path().file_name().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        if !filename.starts_with("enum-") || !filename.ends_with(".toml") {
+            continue;
+        }
+        let Some(content) = file.contents_utf8() else {
+            continue;
+        };
+        match toml::from_str::<RawEnumDefinition>(content) {
+            Ok(raw) => {
+                let def = EnumDefinition::from(raw);
+                enums.insert(def.name.clone(), def);
+            }
+            Err(e) => {
+                log::warn!("Failed to parse built-in enum {filename}: {e}");
+            }
+        }
+    }
+    enums
+}
+
+/// Load all custom global enums from the user's preferences directory.
+#[must_use]
+pub fn load_global_enums(dir: &Path) -> BTreeMap<String, EnumDefinition> {
+    let mut enums = BTreeMap::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return enums;
+    };
+
+    for entry in entries.filter_map(Result::ok) {
+        let path = entry.path();
+        let Some(filename) = path.file_name().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        if !filename.starts_with("enum-") || !filename.ends_with(".toml") {
+            continue;
+        }
+        match std::fs::read_to_string(&path) {
+            Ok(content) => match toml::from_str::<RawEnumDefinition>(&content) {
+                Ok(raw) => {
+                    let def = EnumDefinition::from(raw);
+                    log::info!("Loaded global enum: {} from {path:?}", def.name);
+                    enums.insert(def.name.clone(), def);
+                }
+                Err(e) => {
+                    log::warn!("Failed to parse enum file {path:?}: {e}");
+                }
+            },
+            Err(e) => {
+                log::warn!("Failed to read enum file {path:?}: {e}");
+            }
+        }
+    }
+
+    enums
+}
+
+/// Dump all embedded `enum-*.toml` files into `dest_dir`.
+///
+/// # Errors
+/// Returns an error if the directory cannot be created or if writing any file fails.
+pub fn dump_enum_files(dest_dir: &Path) -> Result<()> {
+    std::fs::create_dir_all(dest_dir)
+        .with_context(|| format!("Failed to create directory {dest_dir:?}"))?;
+
+    for file in ENUMS_DIR.files() {
+        let Some(filename) = file.path().file_name() else {
+            continue;
+        };
+        let filename_str = filename.to_string_lossy();
+        if !filename_str.starts_with("enum-") || !filename_str.ends_with(".toml") {
+            continue;
+        }
+        let dest_path = dest_dir.join(filename);
+        std::fs::write(&dest_path, file.contents())
+            .with_context(|| format!("Failed to write {dest_path:?}"))?;
+        println!("Wrote {dest_path:?}");
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]

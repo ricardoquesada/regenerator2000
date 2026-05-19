@@ -1200,6 +1200,9 @@ impl Core {
             } => {
                 self.handle_apply_comment(address, text, kind, &mut events);
             }
+            AppAction::ApplyEnumUsage { address, enum_name } => {
+                self.handle_apply_enum_usage(address, enum_name.as_deref(), &mut events);
+            }
             AppAction::CyclePane => {
                 use crate::view_state::ActivePane;
                 self.view.active_pane = match self.view.active_pane {
@@ -2280,6 +2283,36 @@ impl Core {
         }
 
         // Trigger re-disassembly as it might have changed labels in the view
+        self.state.disassemble();
+        events.push(CoreEvent::StateChanged);
+        events.push(CoreEvent::ViewChanged);
+        events.push(CoreEvent::DialogDismissalRequested);
+    }
+
+    fn handle_apply_enum_usage(
+        &mut self,
+        address: Addr,
+        enum_name: Option<&str>,
+        events: &mut Vec<CoreEvent>,
+    ) {
+        let old_enum = self.state.enum_usages.get(&address).cloned();
+        let new_enum = enum_name.map(String::from);
+
+        let command = crate::commands::Command::SetEnumUsage {
+            address,
+            new_enum: new_enum.clone(),
+            old_enum,
+        };
+
+        command.apply(&mut self.state);
+        self.state.push_command(command);
+
+        events.push(CoreEvent::StatusMessage(if new_enum.is_none() {
+            "Enum removed".to_string()
+        } else {
+            format!("Enum '{}' applied", new_enum.unwrap_or_default())
+        }));
+
         self.state.disassemble();
         events.push(CoreEvent::StateChanged);
         events.push(CoreEvent::ViewChanged);

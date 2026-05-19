@@ -1,6 +1,6 @@
 use super::project::Label;
 use super::settings::DocumentSettings;
-use super::types::{Addr, BlockType, CachedArrow, ImmediateFormat, LabelKind};
+use super::types::{Addr, BlockType, CachedArrow, EnumDefinition, ImmediateFormat, LabelKind};
 use crate::config::SystemConfig;
 use crate::disassembler::{Disassembler, DisassemblyLine};
 use std::collections::{BTreeMap, BTreeSet};
@@ -44,6 +44,12 @@ pub struct AppState {
     pub cross_refs: BTreeMap<Addr, Vec<Addr>>,
     pub bookmarks: BTreeMap<Addr, String>,
     pub scopes: BTreeMap<Addr, Addr>, // start -> end
+
+    // Enums State
+    pub enums: BTreeMap<String, EnumDefinition>,
+    pub enum_usages: BTreeMap<Addr, String>,
+    pub user_global_enums: BTreeMap<String, EnumDefinition>,
+    pub builtin_enums: BTreeMap<String, EnumDefinition>,
 
     pub system_config: SystemConfig,
 
@@ -105,6 +111,10 @@ impl AppState {
             cross_refs: BTreeMap::new(),
             bookmarks: BTreeMap::new(),
             scopes: BTreeMap::new(),
+            enums: BTreeMap::new(),
+            enum_usages: BTreeMap::new(),
+            user_global_enums: BTreeMap::new(),
+            builtin_enums: BTreeMap::new(),
             system_config: default_config,
             undo_stack: crate::commands::UndoStack::new(),
             last_saved_pointer: 0,
@@ -330,6 +340,27 @@ impl AppState {
             new_label: Some(new_label_vec),
             old_label,
         })
+    }
+
+    /// Resolve a numeric value at a specific address using the applied enum (if any).
+    /// Checks project-specific enums first, then user global enums, then built-in enums.
+    #[must_use]
+    pub fn resolve_enum_value(&self, address: Addr, value: u16) -> Option<String> {
+        let enum_name = self.enum_usages.get(&address)?;
+        self.enums
+            .get(enum_name)
+            .or_else(|| self.user_global_enums.get(enum_name))
+            .or_else(|| self.builtin_enums.get(enum_name))
+            .and_then(|enum_def| enum_def.variants.get(&value).cloned())
+    }
+
+    /// Retrieve an EnumDefinition by name, checking local, global, and built-in pools.
+    #[must_use]
+    pub fn get_enum(&self, name: &str) -> Option<&EnumDefinition> {
+        self.enums
+            .get(name)
+            .or_else(|| self.user_global_enums.get(name))
+            .or_else(|| self.builtin_enums.get(name))
     }
 }
 

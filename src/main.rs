@@ -82,6 +82,10 @@ struct Cli {
     /// Dump built-in theme files (theme-*.toml) to the specified directory and exit
     #[arg(long = "dump-theme-files", value_name = "PATH")]
     dump_theme_files: Option<String>,
+
+    /// Dump built-in enum files (enum-*.toml) to the specified directory and exit
+    #[arg(long = "dump-enum-files", value_name = "PATH")]
+    dump_enum_files: Option<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -727,6 +731,16 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    // Handle --dump-enum-files early: write files and exit
+    if let Some(dest) = cli.dump_enum_files {
+        let dest_path = PathBuf::from(&dest);
+        if let Err(e) = regenerator2000_core::assets::dump_enum_files(&dest_path) {
+            eprintln!("Error: {e}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
+
     let mcp_server_stdio = cli.mcp_server_stdio;
     let headless = cli.headless || cli.verify || cli.mcp_server_stdio;
     let mcp_server = cli.mcp_server || cli.mcp_server_stdio;
@@ -739,6 +753,12 @@ fn main() -> Result<()> {
     // Create Core and load the real system config from disk
     let mut core = regenerator2000_core::Core::new();
     core.state.system_config = regenerator2000_core::config::SystemConfig::load();
+
+    // Load built-in and global enums
+    core.state.builtin_enums = regenerator2000_core::assets::load_builtin_enums();
+    if let Some(dir) = regenerator2000_core::assets::user_config_enums_dir() {
+        core.state.user_global_enums = regenerator2000_core::assets::load_global_enums(&dir);
+    }
 
     // 1. Load file / project based on detected file type
     let mut initial_load_result = None;

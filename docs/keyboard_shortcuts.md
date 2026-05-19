@@ -48,7 +48,8 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Set Hi/Lo Word Table**                                                                | ++period++                                                    |
 |                                    | **Set Lo/Hi Address Table**                                                             | ++less-than++                                                 |
 |                                    | **Set Hi/Lo Address Table**                                                             | ++greater-than++                                              |
-|                                    | **Convert to External File**                                                            | ++e++                                                         |
+|                                    | **Apply Enum**                                                                          | ++e++                                                         |
+|                                    | **Convert to External File**                                                            | ++shift+e++                                                   |
 |                                    | **Convert to Undefined**                                                                | ++question-mark++                                             |
 |                                    | **Set Label**                                                                           | ++l++                                                         |
 |                                    | **Toggle Bookmark**                                                                     | ++ctrl+b++                                                    |
