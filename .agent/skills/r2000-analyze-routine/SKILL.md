@@ -57,6 +57,9 @@ Use this skill when the user asks to "analyze this routine" or "what does this f
     - Is it written only once (init)? → likely a constant or config variable.
     - Is it written _and_ read by multiple routines? → shared state / global variable.
     - Is it in Zero Page (`$00–$FF`) and used with `($addr),Y`? → indirect pointer.
+  - **ENUM USAGE DETECTION**: Check if any accessed addresses or immediate values represent logical sets of states, flags, or values.
+    - Verify if an existing Project, Global, or System enum (e.g., `vic_registers`, `color_codes`) matches these values. If so, call `r2000_apply_enum_usage` to format the operands at the accessing instruction's address.
+    - If no matching enum exists but the values represent a clean logical set (e.g., state machine constants, joystick direction bits), define a new project enum using `r2000_create_project_enum` (with a detailed `description` summarizing its purpose) and then apply it using `r2000_apply_enum_usage` to all relevant instructions.
 
 ## 6. Synthesize
 
@@ -90,6 +93,8 @@ To document the routine, use:
 - `r2000_set_label_name` — to give the routine a descriptive name.
 - `r2000_set_comment` with `"type": "line"` — to add the multi-line comment block above the entry point.
 - `r2000_set_comment` with `"type": "side"` — to annotate key instructions within the routine body with short inline notes (e.g., explaining what a register holds, why a branch is taken, or what a memory address represents). **Crucial for making the code readable for others.**
+- `r2000_create_project_enum` — to define new project enums if needed.
+- `r2000_apply_enum_usage` — to apply enums to relevant instruction operands in the routine.
 
 ---
 

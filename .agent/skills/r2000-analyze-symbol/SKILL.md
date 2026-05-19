@@ -44,12 +44,15 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 - If so, it's a **Pointer**. Rename to something like `ptr_screen`, `ptr_data`, or `vec_irq`.
   - Suggest generating a comment explaining what it points _to_.
 
-### Is it a Flag (Boolean)?
+### Is it a Flag (Boolean) or Bitmask?
 
 - Is it only ever set to `0` or `1` (or `$00`/`$FF`)?
 - Is it checked with `BIT`, `LDA`/`BEQ`/`BNE`?
 - If so, it's likely a **Flag**.
   - Rename to `is_active`, `has_collided`, `enable_music`, etc.
+- **ENUM/BITMASK SUPPORT**: If the values represent a bitmask where individual bits hold separate semantic meaning (e.g., bit 0 = ACTIVE, bit 1 = COLLIDED, bit 2 = VISIBLE):
+  - Define a new project enum mapping bit values (e.g., `$01 = ACTIVE`, `$02 = COLLIDED`, `$04 = VISIBLE`) using `r2000_create_project_enum`.
+  - Apply this enum to all relevant instructions using `r2000_apply_enum_usage` to make bitmask tests readable.
 
 ### Is it a Counter/Index?
 
@@ -64,6 +67,10 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 - Is it used in a jump table dispatch (e.g., `ASL` / `TAX` / `JMP (table,X)`)?
 - If so, it's a **State Machine Variable**.
   - Rename to `game_state`, `current_mode`.
+  - **ENUM SUPPORT**: State machines are excellent candidates for enums.
+    - Look for an existing enum matching these states.
+    - If not present, define a new project-specific enum mapping these states (e.g., `0 = INIT`, `1 = TITLE`, `2 = GAMEPLAY`, `3 = GAME_OVER`) using `r2000_create_project_enum` (including a helpful `description`).
+    - Apply it using `r2000_apply_enum_usage` to all instructions reading or writing to this state variable.
 
 ## 4. Synthesize & Action
 
@@ -88,6 +95,7 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 2.  **Document**:
     - Use `r2000_set_comment` with `"type": "line"` at the definition (if it's a variable in memory) to explain its range, purpose, or bitfield layout.
     - Use `r2000_set_comment` with `"type": "side"` at key usages to clarify _why_ it's being read or written (e.g., "Reset life counter", "Check for fire button").
+    - Define and apply enums where appropriate (using `r2000_create_project_enum` and `r2000_apply_enum_usage`) to formalize state values, mode types, or bitmask flags.
 
 ---
 

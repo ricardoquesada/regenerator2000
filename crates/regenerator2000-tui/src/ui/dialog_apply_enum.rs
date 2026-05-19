@@ -29,6 +29,7 @@ pub struct ApplyEnumDialog {
     value: u16,
     list_state: ListState,
     filtered_items: Vec<EnumListItem>,
+    sub_dialog: Option<Box<dyn Widget>>,
 }
 
 impl ApplyEnumDialog {
@@ -52,6 +53,7 @@ impl ApplyEnumDialog {
             value,
             list_state,
             filtered_items: Vec::new(),
+            sub_dialog: None,
         };
         dialog.recalculate_filtered_items(app_state);
         dialog
@@ -124,10 +126,14 @@ impl ApplyEnumDialog {
             self.list_state.select(Some(0));
         }
     }
-}
 
-impl Widget for ApplyEnumDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
+    fn render_background(
+        &self,
+        f: &mut Frame,
+        area: Rect,
+        _app_state: &AppState,
+        ui_state: &mut UIState,
+    ) {
         let theme = &ui_state.theme;
         let title = format!(
             " Apply Enum at ${:04X} (val: ${:02X}/{}) ",
@@ -240,6 +246,17 @@ impl Widget for ApplyEnumDialog {
         let mut list_state_mut = self.list_state;
         f.render_stateful_widget(list, list_area, &mut list_state_mut);
     }
+}
+
+impl Widget for ApplyEnumDialog {
+    fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
+        if let Some(sub) = &self.sub_dialog {
+            self.render_background(f, area, app_state, ui_state);
+            sub.render(f, area, app_state, ui_state);
+            return;
+        }
+        self.render_background(f, area, app_state, ui_state);
+    }
 
     fn handle_input(
         &mut self,
@@ -247,7 +264,30 @@ impl Widget for ApplyEnumDialog {
         app_state: &mut AppState,
         ui_state: &mut UIState,
     ) -> WidgetResult {
+        if let Some(sub) = &mut self.sub_dialog {
+            let res = sub.handle_input(key, app_state, ui_state);
+            match res {
+                WidgetResult::Close => {
+                    self.sub_dialog = None;
+                    self.recalculate_filtered_items(app_state);
+                    return WidgetResult::Handled;
+                }
+                WidgetResult::Action(action) => {
+                    self.sub_dialog = None;
+                    return WidgetResult::Action(action);
+                }
+                WidgetResult::Handled => return WidgetResult::Handled,
+                WidgetResult::Ignored => return WidgetResult::Ignored,
+            }
+        }
+
         match key.code {
+            KeyCode::Char('n') if key.modifiers == KeyModifiers::CONTROL => {
+                self.sub_dialog = Some(Box::new(crate::ui::dialog_edit_enum::EditEnumDialog::new(
+                    None, false,
+                )));
+                WidgetResult::Handled
+            }
             KeyCode::Esc => {
                 ui_state.set_status_message("Ready");
                 WidgetResult::Close

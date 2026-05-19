@@ -472,6 +472,7 @@ pub enum CommentKind {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EnumDefinition {
     pub name: String,
+    pub description: Option<String>,
     pub variants: std::collections::BTreeMap<u16, String>,
 }
 
@@ -523,6 +524,7 @@ impl EnumDefinition {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RawEnumDefinition {
     pub name: String,
+    pub description: Option<String>,
     pub variants: std::collections::BTreeMap<String, String>,
 }
 
@@ -530,7 +532,22 @@ impl From<RawEnumDefinition> for EnumDefinition {
     fn from(raw: RawEnumDefinition) -> Self {
         Self {
             name: raw.name,
+            description: raw.description,
             variants: EnumDefinition::parse_variants(raw.variants),
+        }
+    }
+}
+
+impl From<EnumDefinition> for RawEnumDefinition {
+    fn from(def: EnumDefinition) -> Self {
+        let mut variants = std::collections::BTreeMap::new();
+        for (k, v) in def.variants {
+            variants.insert(format!("0x{k:02X}"), v);
+        }
+        Self {
+            name: def.name,
+            description: def.description,
+            variants,
         }
     }
 }

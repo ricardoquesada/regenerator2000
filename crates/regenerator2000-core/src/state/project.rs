@@ -357,4 +357,43 @@ mod serialization_tests {
             "Pointer outside ZP should use 4 digits"
         );
     }
+
+    #[test]
+    fn test_enum_definition_conversions_and_serialization() {
+        use super::super::types::RawEnumDefinition;
+
+        let mut raw_variants = BTreeMap::new();
+        raw_variants.insert("1".to_string(), "ON".to_string());
+        raw_variants.insert("0x10".to_string(), "START".to_string());
+        raw_variants.insert("$20".to_string(), "STOP".to_string());
+
+        let raw = RawEnumDefinition {
+            name: "status".to_string(),
+            description: Some("System status flags".to_string()),
+            variants: raw_variants,
+        };
+
+        let def = EnumDefinition::from(raw);
+        assert_eq!(def.name, "status");
+        assert_eq!(def.description, Some("System status flags".to_string()));
+        assert_eq!(def.variants.get(&1), Some(&"ON".to_string()));
+        assert_eq!(def.variants.get(&0x10), Some(&"START".to_string()));
+        assert_eq!(def.variants.get(&0x20), Some(&"STOP".to_string()));
+
+        // Convert back
+        let raw_back = RawEnumDefinition::from(def);
+        assert_eq!(raw_back.name, "status");
+        assert_eq!(
+            raw_back.description,
+            Some("System status flags".to_string())
+        );
+        assert_eq!(raw_back.variants.get("0x01"), Some(&"ON".to_string()));
+        assert_eq!(raw_back.variants.get("0x10"), Some(&"START".to_string()));
+        assert_eq!(raw_back.variants.get("0x20"), Some(&"STOP".to_string()));
+
+        // Serialize Raw to TOML
+        let toml_str = toml::to_string_pretty(&raw_back).unwrap();
+        assert!(toml_str.contains("description = \"System status flags\""));
+        assert!(toml_str.contains("0x10 = \"START\""));
+    }
 }

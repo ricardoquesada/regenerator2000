@@ -12,12 +12,14 @@ fn test_enum_definition_parsing() {
 
     let raw_def = regenerator2000_core::state::RawEnumDefinition {
         name: "Colors".to_string(),
+        description: None,
         variants,
     };
 
     let parsed_variants = EnumDefinition::parse_variants(raw_def.variants);
     let parsed = EnumDefinition {
         name: raw_def.name,
+        description: None,
         variants: parsed_variants,
     };
     assert_eq!(parsed.name, "Colors");
@@ -37,6 +39,7 @@ fn test_enum_resolution_and_precedence() {
     builtin_variants.insert(1, "BUILTIN_WHITE".to_string());
     let builtin_enum = EnumDefinition {
         name: "Colors".to_string(),
+        description: None,
         variants: builtin_variants,
     };
     app_state
@@ -64,6 +67,7 @@ fn test_enum_resolution_and_precedence() {
     global_variants.insert(2, "GLOBAL_RED".to_string());
     let global_enum = EnumDefinition {
         name: "Colors".to_string(),
+        description: None,
         variants: global_variants,
     };
     app_state
@@ -87,6 +91,7 @@ fn test_enum_resolution_and_precedence() {
     project_variants.insert(3, "PROJECT_CYAN".to_string());
     let project_enum = EnumDefinition {
         name: "Colors".to_string(),
+        description: None,
         variants: project_variants,
     };
     app_state.enums.insert("Colors".to_string(), project_enum);
@@ -112,6 +117,7 @@ fn test_enum_embedding_on_command_apply() {
     builtin_variants.insert(0, "BLACK".to_string());
     let builtin_enum = EnumDefinition {
         name: "VIC_Colors".to_string(),
+        description: None,
         variants: builtin_variants,
     };
     app_state
@@ -157,6 +163,7 @@ fn test_enum_project_roundtrip_serialization() {
     variants.insert(0, "BLACK".to_string());
     let enum_def = EnumDefinition {
         name: "Colors".to_string(),
+        description: None,
         variants,
     };
 
@@ -232,6 +239,7 @@ fn test_assembler_enum_formatting() {
     variants.insert(1, "WHITE".to_string());
     let enum_def = EnumDefinition {
         name: "Colors".to_string(),
+        description: None,
         variants,
     };
 
@@ -292,6 +300,7 @@ fn test_disassembly_enum_operand_formatting() {
     variants.insert(0, "BLACK".to_string());
     let enum_def = EnumDefinition {
         name: "Colors".to_string(),
+        description: None,
         variants,
     };
     app_state.enums.insert("Colors".to_string(), enum_def);
@@ -332,6 +341,7 @@ fn test_disassembly_data_enum_formatting() {
     variants.insert(256, "WHITE_WORD".to_string()); // $0100 = 256
     let enum_def = EnumDefinition {
         name: "Colors".to_string(),
+        description: None,
         variants,
     };
     app_state.enums.insert("Colors".to_string(), enum_def);

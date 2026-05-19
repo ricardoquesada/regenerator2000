@@ -98,4 +98,5 @@ pub enum DialogType {
         address: Addr,
         value: u16,
     },
+    ManageEnums,
 }

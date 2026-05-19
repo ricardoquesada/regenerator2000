@@ -128,6 +128,17 @@ pub enum AppAction {
     /// Wraps an action that has been explicitly confirmed by the user.
     /// Core will bypass destructive checks for this action.
     Confirmed(Box<AppAction>),
+    ManageEnums,
+    ApplyEnumDefinition {
+        name: String,
+        definition: Option<super::types::EnumDefinition>,
+        rename_from: Option<String>,
+    },
+    ApplyGlobalEnumDefinition {
+        name: String,
+        definition: Option<super::types::EnumDefinition>,
+        rename_from: Option<String>,
+    },
 }
 
 impl AppAction {
@@ -207,6 +218,8 @@ impl AppAction {
                 | AppAction::Open
                 | AppAction::OpenRecent
                 | AppAction::UnpackBinary
+                | AppAction::ApplyEnumDefinition { .. }
+                | AppAction::ApplyGlobalEnumDefinition { .. }
         )
     }
 }

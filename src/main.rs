@@ -706,11 +706,6 @@ fn main() -> Result<()> {
     let assembler_override = cli.assembler;
     let verify = cli.verify;
 
-    if cli.headless && cli.mcp_server {
-        eprintln!("Error: The --headless and --mcp-server options are mutually exclusive.");
-        std::process::exit(1);
-    }
-
     // Handle --dump-system-config-files early: write files and exit
     if let Some(dest) = cli.dump_system_config_files {
         let dest_path = PathBuf::from(&dest);

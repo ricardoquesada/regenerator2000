@@ -126,6 +126,7 @@ impl MenuState {
                             Some("Ctrl+Shift+B"),
                             Some(AppAction::ListBookmarks),
                         ),
+                        MenuItem::new("Manage Enums...", None, Some(AppAction::ManageEnums)),
                         MenuItem::separator(),
                         MenuItem::new(
                             "Toggle Splitter",

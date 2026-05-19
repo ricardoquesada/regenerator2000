@@ -218,6 +218,11 @@ pub fn handle_menu_action(
                         ),
                     ));
                 }
+                DialogType::ManageEnums => {
+                    ui_state.active_dialog = Some(Box::new(
+                        crate::ui::dialog_manage_enums::ManageEnumsDialog::new(&core.state),
+                    ));
+                }
             },
             CoreEvent::DialogDismissalRequested => {
                 ui_state.active_dialog = None;

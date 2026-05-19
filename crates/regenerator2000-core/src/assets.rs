@@ -461,6 +461,41 @@ pub fn dump_enum_files(dest_dir: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Save a global user enum as TOML to the designated preferences directory.
+///
+/// # Errors
+/// Returns an error if the config directory cannot be retrieved or if writing fails.
+pub fn save_global_enum(name: &str, def: &EnumDefinition) -> Result<()> {
+    let dir =
+        user_config_enums_dir().context("Failed to resolve user config directory for enums")?;
+    std::fs::create_dir_all(&dir).with_context(|| format!("Failed to create directory {dir:?}"))?;
+
+    let path = dir.join(format!("enum-{name}.toml"));
+    let raw = RawEnumDefinition::from(def.clone());
+    let toml_content =
+        toml::to_string_pretty(&raw).context("Failed to serialize RawEnumDefinition to TOML")?;
+
+    std::fs::write(&path, toml_content)
+        .with_context(|| format!("Failed to write global enum to {path:?}"))?;
+
+    Ok(())
+}
+
+/// Delete a global user enum file from the preferences directory.
+///
+/// # Errors
+/// Returns an error if the file cannot be deleted.
+pub fn delete_global_enum(name: &str) -> Result<()> {
+    let dir =
+        user_config_enums_dir().context("Failed to resolve user config directory for enums")?;
+    let path = dir.join(format!("enum-{name}.toml"));
+    if path.exists() {
+        std::fs::remove_file(&path)
+            .with_context(|| format!("Failed to delete global enum at {path:?}"))?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

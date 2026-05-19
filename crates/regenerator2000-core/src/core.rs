@@ -1203,6 +1203,100 @@ impl Core {
             AppAction::ApplyEnumUsage { address, enum_name } => {
                 self.handle_apply_enum_usage(address, enum_name.as_deref(), &mut events);
             }
+            AppAction::ManageEnums => {
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::ManageEnums,
+                ));
+                events.push(CoreEvent::StatusMessage("Manage Enums".to_string()));
+            }
+            AppAction::ApplyEnumDefinition {
+                name,
+                definition,
+                rename_from,
+            } => {
+                let command = if let Some(old_name) = &rename_from
+                    && old_name != &name
+                {
+                    let old_definition = self.state.enums.get(old_name).cloned();
+                    let cmd_remove = crate::commands::Command::SetEnumDefinition {
+                        name: old_name.clone(),
+                        new_definition: None,
+                        old_definition,
+                    };
+                    let cmd_add = crate::commands::Command::SetEnumDefinition {
+                        name: name.clone(),
+                        new_definition: definition.clone(),
+                        old_definition: None,
+                    };
+                    crate::commands::Command::Batch(vec![cmd_remove, cmd_add])
+                } else {
+                    let old_definition = self.state.enums.get(&name).cloned();
+                    crate::commands::Command::SetEnumDefinition {
+                        name: name.clone(),
+                        new_definition: definition.clone(),
+                        old_definition,
+                    }
+                };
+                command.apply(&mut self.state);
+                self.state.push_command(command);
+                self.state.disassemble();
+                events.push(CoreEvent::StatusMessage(if definition.is_none() {
+                    format!("Deleted project enum '{name}'")
+                } else {
+                    format!("Saved project enum '{name}'")
+                }));
+                events.push(CoreEvent::StateChanged);
+                events.push(CoreEvent::ViewChanged);
+                events.push(CoreEvent::DialogDismissalRequested);
+            }
+            AppAction::ApplyGlobalEnumDefinition {
+                name,
+                definition,
+                rename_from,
+            } => {
+                if let Some(old_name) = &rename_from
+                    && old_name != &name
+                {
+                    let _ = crate::assets::delete_global_enum(old_name);
+                    self.state.user_global_enums.remove(old_name);
+                }
+
+                if let Some(def) = &definition {
+                    match crate::assets::save_global_enum(&name, def) {
+                        Ok(_) => {
+                            self.state
+                                .user_global_enums
+                                .insert(name.clone(), def.clone());
+                            events.push(CoreEvent::StatusMessage(format!(
+                                "Saved global enum '{name}'"
+                            )));
+                        }
+                        Err(e) => {
+                            events.push(CoreEvent::StatusMessage(format!(
+                                "Failed to save global enum '{name}': {e}"
+                            )));
+                        }
+                    }
+                } else {
+                    match crate::assets::delete_global_enum(&name) {
+                        Ok(_) => {
+                            self.state.user_global_enums.remove(&name);
+                            events.push(CoreEvent::StatusMessage(format!(
+                                "Deleted global enum '{name}'"
+                            )));
+                        }
+                        Err(e) => {
+                            events.push(CoreEvent::StatusMessage(format!(
+                                "Failed to delete global enum '{name}': {e}"
+                            )));
+                        }
+                    }
+                }
+                self.state.disassemble();
+                events.push(CoreEvent::StateChanged);
+                events.push(CoreEvent::ViewChanged);
+                events.push(CoreEvent::DialogDismissalRequested);
+            }
             AppAction::CyclePane => {
                 use crate::view_state::ActivePane;
                 self.view.active_pane = match self.view.active_pane {

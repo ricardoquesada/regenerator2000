@@ -342,6 +342,31 @@ impl AppState {
         })
     }
 
+    /// Validates a proposed name for a new enum.
+    /// Ensures the name is non-empty, alphanumeric/underscores, and does not clash
+    /// with existing local, global, or built-in system enums.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(String)` containing the validation failure message if the name
+    /// is empty, contains invalid characters, or clashes with an existing enum.
+    pub fn validate_new_enum_name(&self, name: &str) -> Result<(), String> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err("Enum name cannot be empty".to_string());
+        }
+        if !name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            return Err("Enum name must be alphanumeric or underscores only".to_string());
+        }
+        if self.enums.contains_key(name)
+            || self.user_global_enums.contains_key(name)
+            || self.builtin_enums.contains_key(name)
+        {
+            return Err(format!("Enum '{name}' already exists"));
+        }
+        Ok(())
+    }
+
     /// Resolve a numeric value at a specific address using the applied enum (if any).
     /// Checks project-specific enums first, then user global enums, then built-in enums.
     #[must_use]

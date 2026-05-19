@@ -276,6 +276,10 @@ EXPECTED_TOOLS = {
     "r2000_save_project",
     "r2000_batch_execute",
     "r2000_add_scope",
+    "r2000_create_project_enum",
+    "r2000_update_project_enum",
+    "r2000_delete_project_enum",
+    "r2000_apply_enum_usage",
 }
 
 REMOVED_TOOLS = {
@@ -1141,6 +1145,30 @@ def test_malformed_calls(client):
     )
 
     # -----------------------------------------------------------------------
+    # Enums validation checks
+    # -----------------------------------------------------------------------
+    # Create: missing 'variants'
+    check(
+        call("r2000_create_project_enum", {"name": "invalid_mcp_enum"}),
+        "r2000_create_project_enum: missing 'variants'"
+    )
+    # Create: invalid name format (spaces)
+    check(
+        call("r2000_create_project_enum", {"name": "invalid name here", "variants": {}}),
+        "r2000_create_project_enum: invalid name format"
+    )
+    # Delete: missing 'name'
+    check(
+        call("r2000_delete_project_enum", {}),
+        "r2000_delete_project_enum: missing 'name'"
+    )
+    # Apply: missing 'address'
+    check(
+        call("r2000_apply_enum_usage", {"name": "my_test_enum"}),
+        "r2000_apply_enum_usage: missing 'address'"
+    )
+
+    # -----------------------------------------------------------------------
     # tools/call with missing 'name'
     # -----------------------------------------------------------------------
     res = client.rpc("tools/call", {"arguments": {}})
@@ -1150,6 +1178,133 @@ def test_malformed_calls(client):
         print("PASS: All malformed calls correctly returned errors.")
     else:
         print("FAIL: Some malformed calls did not return the expected error.")
+
+
+def test_project_enums_crud(client):
+    print("\nTesting project enums CRUD...")
+
+    # 1. Create project enum
+    print("- Creating enum 'my_test_enum'")
+    variants = {
+        "1": "STATE_INIT",
+        "0x10": "STATE_RUN",
+        "$20": "STATE_EXIT"
+    }
+    res = client.rpc("tools/call", {
+        "name": "r2000_create_project_enum",
+        "arguments": {
+            "name": "my_test_enum",
+            "description": "Test enum for verification",
+            "variants": variants
+        }
+    })
+
+    if res and "result" in res:
+        content = res["result"].get("content", [])
+        text = content[0].get("text", "") if content else ""
+        print(f"  Tool output: {text}")
+        if "created successfully" in text:
+            print("  PASS: Create enum")
+        else:
+            print("  FAIL: Create enum confirmation missing")
+    else:
+        print(f"  FAIL: Create enum request failed: {res}")
+        return
+
+    # 1b. Apply enum usage
+    print("- Applying enum 'my_test_enum' to $1000")
+    res = client.rpc("tools/call", {
+        "name": "r2000_apply_enum_usage",
+        "arguments": {
+            "address": 0x1000,
+            "name": "my_test_enum"
+        }
+    })
+
+    if res and "result" in res:
+        content = res["result"].get("content", [])
+        text = content[0].get("text", "") if content else ""
+        print(f"  Tool output: {text}")
+        if "applied successfully" in text:
+            print("  PASS: Apply enum usage")
+        else:
+            print("  FAIL: Apply enum usage confirmation missing")
+    else:
+        print(f"  FAIL: Apply enum usage request failed: {res}")
+        return
+
+    # 1c. Clear enum usage
+    print("- Clearing enum usage at $1000")
+    res = client.rpc("tools/call", {
+        "name": "r2000_apply_enum_usage",
+        "arguments": {
+            "address": 0x1000
+        }
+    })
+
+    if res and "result" in res:
+        content = res["result"].get("content", [])
+        text = content[0].get("text", "") if content else ""
+        print(f"  Tool output: {text}")
+        if "cleared successfully" in text:
+            print("  PASS: Clear enum usage")
+        else:
+            print("  FAIL: Clear enum usage confirmation missing")
+    else:
+        print(f"  FAIL: Clear enum usage request failed: {res}")
+        return
+
+    # 2. Update project enum (rename and add variants)
+    print("- Updating enum 'my_test_enum' to 'my_new_enum'")
+    new_variants = {
+        "1": "STATE_INIT",
+        "0x10": "STATE_RUN",
+        "$20": "STATE_EXIT",
+        "0xFF": "STATE_RESET"
+    }
+    res = client.rpc("tools/call", {
+        "name": "r2000_update_project_enum",
+        "arguments": {
+            "name": "my_test_enum",
+            "new_name": "my_new_enum",
+            "description": "Updated description",
+            "variants": new_variants
+        }
+    })
+
+    if res and "result" in res:
+        content = res["result"].get("content", [])
+        text = content[0].get("text", "") if content else ""
+        print(f"  Tool output: {text}")
+        if "updated successfully" in text:
+            print("  PASS: Update enum")
+        else:
+            print("  FAIL: Update enum confirmation missing")
+    else:
+        print(f"  FAIL: Update enum request failed: {res}")
+        return
+
+    # 3. Delete project enum
+    print("- Deleting enum 'my_new_enum'")
+    res = client.rpc("tools/call", {
+        "name": "r2000_delete_project_enum",
+        "arguments": {
+            "name": "my_new_enum",
+            "force": True
+        }
+    })
+
+    if res and "result" in res:
+        content = res["result"].get("content", [])
+        text = content[0].get("text", "") if content else ""
+        print(f"  Tool output: {text}")
+        if "deleted successfully" in text:
+            print("  PASS: Delete enum")
+        else:
+            print("  FAIL: Delete enum confirmation missing")
+    else:
+        print(f"  FAIL: Delete enum request failed: {res}")
+        return
 
 
 if __name__ == "__main__":
@@ -1173,3 +1328,4 @@ if __name__ == "__main__":
     test_undo_redo(client)
     test_batch_execute(client)
     test_malformed_calls(client)
+    test_project_enums_crud(client)

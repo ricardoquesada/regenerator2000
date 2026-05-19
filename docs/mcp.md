@@ -263,7 +263,7 @@ Analyzes a specific memory address or label to determine its purpose (variable, 
 
 ## Available Tools
 
-The server currently exposes **22** tools.
+The server currently exposes **26** tools.
 
 ### `r2000_add_scope`
 
@@ -276,6 +276,17 @@ Adds a scope covering the specified memory range. Useful for a piece of code tha
 | `end_address` | `integer` | End address of the scope (inclusive), decimal. | Yes |
 | `start_address` | `integer` | Start address of the scope (inclusive), decimal. | Yes |
 
+### `r2000_apply_enum_usage`
+
+Applies an enum definition to format the immediate operand or constant reference at a specific address. If name is omitted or empty, clears the enum usage.
+
+**Arguments:**
+
+| Name | Type | Description | Required |
+| :--- | :--- | :--- | :---: |
+| `address` | `integer` | The target instruction address (decimal). | Yes |
+| `name` | `string` | The unique name of the enum to apply (e.g., 'vic_registers'). Omit or send empty to clear. | No |
+
 ### `r2000_batch_execute`
 
 Executes multiple tool calls sequentially in a single request. Use only when you have 5+ independent operations to perform at once (e.g. marking many regions, renaming many labels). Do not use for operations that depend on each other's results.
@@ -285,6 +296,29 @@ Executes multiple tool calls sequentially in a single request. Use only when you
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
 | `calls` | `array` | List of tool calls to execute sequentially. | Yes |
+
+### `r2000_create_project_enum`
+
+Creates a new project-specific enum definition embedded in the project file.
+
+**Arguments:**
+
+| Name | Type | Description | Required |
+| :--- | :--- | :--- | :---: |
+| `description` | `string` | Optional summary explaining the enum's purpose. | No |
+| `name` | `string` | Unique alphanumeric identifier. | Yes |
+| `variants` | `object` | Variant mapping where keys are numeric strings (decimal, hex 0x/$, bin 0b/%) and values are variant names. | Yes |
+
+### `r2000_delete_project_enum`
+
+Deletes a project-specific enum from the project.
+
+**Arguments:**
+
+| Name | Type | Description | Required |
+| :--- | :--- | :--- | :---: |
+| `force` | `boolean` | If false, fails if the enum has active usages in the disassembly. Set to true to override. | No |
+| `name` | `string` | The name of the enum to delete. | Yes |
 
 ### `r2000_get_address_details`
 
@@ -296,6 +330,12 @@ Returns detailed information about a specific memory address: instruction semant
 | :--- | :--- | :--- | :---: |
 | `address` | `integer` | The memory address to inspect (decimal). | Yes |
 
+### `r2000_get_binary_info`
+
+Returns the origin address, size in bytes, target platform (e.g. 'Commodore 64'), filename, user-provided description, and whether the binary may contain undocumented opcodes (a hint, not guaranteed).
+
+_No arguments._
+
 ### `r2000_get_blocks`
 
 Returns all memory blocks with their address range and type (Code, Byte, Word, Address, PETSCII, Screencode, Lo/Hi Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined). Respects splitters.
@@ -305,12 +345,6 @@ Returns all memory blocks with their address range and type (Code, Byte, Word, A
 | Name | Type | Description | Required |
 | :--- | :--- | :--- | :---: |
 | `block_type` | `string` | Optional filter to return only blocks of a specific type. Case-insensitive. | No |
-
-### `r2000_get_binary_info`
-
-Returns the origin address, size in bytes, target system (e.g. 'Commodore 64'), filename, user-provided description, and whether the binary may contain undocumented opcodes (a hint, not guaranteed).
-
-_No arguments._
 
 ### `r2000_get_comments`
 
@@ -398,6 +432,21 @@ Saves the current project state to the existing .regen2000proj file. Only works 
 
 _No arguments._
 
+### `r2000_search_disassembly`
+
+Search the disassembly text for a query string or regular expression. Returns a list of matching addresses with context (label, mnemonic, operand, comment). Searches labels, comments, and instructions by default; individual fields can be disabled.
+
+**Arguments:**
+
+| Name | Type | Description | Required |
+| :--- | :--- | :--- | :---: |
+| `max_results` | `integer` | Maximum number of matching addresses to return. Defaults to 50. | No |
+| `query` | `string` | The search query. Interpreted as a plain case-insensitive substring by default, or as a regex when 'use_regex' is true. | Yes |
+| `search_comments` | `boolean` | Include side and line comments in the search. Defaults to true. | No |
+| `search_instructions` | `boolean` | Include mnemonic and operand text in the search. Defaults to true. | No |
+| `search_labels` | `boolean` | Include label names in the search. Defaults to true. | No |
+| `use_regex` | `boolean` | When true the query is compiled as a case-insensitive regular expression ((?i) is prepended automatically). Defaults to false. | No |
+
 ### `r2000_search_memory`
 
 Search for a sequence of bytes or a text string in the memory. Returns a list of addresses where the sequence is found.
@@ -408,21 +457,6 @@ Search for a sequence of bytes or a text string in the memory. Returns a list of
 | :--- | :--- | :--- | :---: |
 | `encoding` | `string` | Encoding for the query. 'text' searches both PETSCII and Screencode. 'hex' for raw byte patterns. Defaults to 'hex' if query looks like hex bytes, otherwise 'text'. | No |
 | `query` | `string` | The search query. For hex: space-separated bytes, e.g. 'A9 00'. For text: plain string. | Yes |
-
-### `r2000_search_disassembly`
-
-Search the disassembly text for a query string or regular expression. Returns a list of matching addresses with context (label, mnemonic, operand, comment). Searches labels, comments, and instructions by default; individual fields can be disabled.
-
-**Arguments:**
-
-| Name | Type | Description | Required |
-| :--- | :--- | :--- | :---: |
-| `query` | `string` | The search query. Interpreted as a plain case-insensitive substring by default, or as a regex when `use_regex` is `true`. | Yes |
-| `use_regex` | `boolean` | When `true` the query is compiled as a case-insensitive regular expression (`(?i)` is prepended automatically). Defaults to `false`. | No |
-| `search_labels` | `boolean` | Include label names in the search. Defaults to `true`. | No |
-| `search_comments` | `boolean` | Include side and line comments in the search. Defaults to `true`. | No |
-| `search_instructions` | `boolean` | Include mnemonic and operand text in the search. Defaults to `true`. | No |
-| `max_results` | `integer` | Maximum number of matching addresses to return. Defaults to `50`. | No |
 
 ### `r2000_set_comment`
 
@@ -485,3 +519,16 @@ Toggles a Splitter at a specific address. Splitters prevent the auto-merger from
 Undoes the latest operation.
 
 _No arguments._
+
+### `r2000_update_project_enum`
+
+Updates or renames an existing project-specific enum.
+
+**Arguments:**
+
+| Name | Type | Description | Required |
+| :--- | :--- | :--- | :---: |
+| `description` | `string` | Optional updated summary explaining the enum's purpose. | No |
+| `name` | `string` | Existing name of the enum to update. | Yes |
+| `new_name` | `string` | Optional new name if renaming the enum. | No |
+| `variants` | `object` | Optional complete updated variants mapping. | No |

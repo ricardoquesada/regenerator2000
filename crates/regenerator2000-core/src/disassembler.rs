@@ -1896,6 +1896,10 @@ mod tests {
             LazyLock::new(BTreeMap::new);
         static EMPTY_SPLITTERS: LazyLock<BTreeSet<crate::state::Addr>> =
             LazyLock::new(BTreeSet::new);
+        static EMPTY_ENUMS: LazyLock<BTreeMap<String, crate::state::EnumDefinition>> =
+            LazyLock::new(BTreeMap::new);
+        static EMPTY_ENUM_USAGES: LazyLock<BTreeMap<crate::state::Addr, String>> =
+            LazyLock::new(BTreeMap::new);
 
         let mut settings = crate::state::DocumentSettings::default();
         settings.fill_run_threshold = threshold;
@@ -1917,6 +1921,10 @@ mod tests {
             collapsed_blocks: &[],
             splitters: &EMPTY_SPLITTERS,
             scopes: &EMPTY_SCOPES,
+            enums: &EMPTY_ENUMS,
+            enum_usages: &EMPTY_ENUM_USAGES,
+            user_global_enums: &EMPTY_ENUMS,
+            builtin_enums: &EMPTY_ENUMS,
         }
     }
 

@@ -1,6 +1,6 @@
 use crate::mcp::types::{McpError, McpRequest, McpResponse};
 use crate::state::AppState;
-use crate::state::types::{Addr, BlockType, ImmediateFormat};
+use crate::state::types::{Addr, BlockType, EnumDefinition, ImmediateFormat};
 use base64::prelude::*;
 use serde_json::{Value, json};
 
@@ -370,6 +370,63 @@ fn list_tools() -> Result<Value, McpError> {
                         }
                     },
                     "required": ["calls"]
+                }
+            },
+            {
+                "name": "r2000_create_project_enum",
+                "description": "Creates a new project-specific enum definition embedded in the project file.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string", "description": "Unique alphanumeric identifier." },
+                        "description": { "type": "string", "description": "Optional summary explaining the enum's purpose." },
+                        "variants": {
+                            "type": "object",
+                            "description": "Variant mapping where keys are numeric strings (decimal, hex 0x/$, bin 0b/%) and values are variant names."
+                        }
+                    },
+                    "required": ["name", "variants"]
+                }
+            },
+            {
+                "name": "r2000_update_project_enum",
+                "description": "Updates or renames an existing project-specific enum.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string", "description": "Existing name of the enum to update." },
+                        "new_name": { "type": "string", "description": "Optional new name if renaming the enum." },
+                        "description": { "type": "string", "description": "Optional updated summary explaining the enum's purpose." },
+                        "variants": {
+                            "type": "object",
+                            "description": "Optional complete updated variants mapping."
+                        }
+                    },
+                    "required": ["name"]
+                }
+            },
+            {
+                "name": "r2000_delete_project_enum",
+                "description": "Deletes a project-specific enum from the project.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string", "description": "The name of the enum to delete." },
+                        "force": { "type": "boolean", "description": "If false, fails if the enum has active usages in the disassembly. Set to true to override." }
+                    },
+                    "required": ["name"]
+                }
+            },
+            {
+                "name": "r2000_apply_enum_usage",
+                "description": "Applies an enum definition to format the immediate operand or constant reference at a specific address. If name is omitted or empty, clears the enum usage.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "address": { "type": "integer", "description": "The target instruction address (decimal)." },
+                        "name": { "type": "string", "description": "The unique name of the enum to apply (e.g., 'vic_registers'). Omit or send empty to clear." }
+                    },
+                    "required": ["address"]
                 }
             }
         ]
@@ -946,6 +1003,107 @@ fn handle_tool_call_internal(
                 }]
             }))
         }
+        "r2000_create_project_enum" => {
+            let enum_name = args
+                .get("name")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| McpError {
+                    code: -32602,
+                    message: "Missing 'name'".to_string(),
+                    data: None,
+                })?;
+
+            let description = args.get("description").and_then(|v| v.as_str());
+
+            let variants = args.get("variants").ok_or_else(|| McpError {
+                code: -32602,
+                message: "Missing 'variants'".to_string(),
+                data: None,
+            })?;
+
+            create_project_enum_impl(app_state, enum_name, description, variants)?;
+
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": format!("Project enum '{enum_name}' created successfully.")
+                }]
+            }))
+        }
+
+        "r2000_update_project_enum" => {
+            let enum_name = args
+                .get("name")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| McpError {
+                    code: -32602,
+                    message: "Missing 'name'".to_string(),
+                    data: None,
+                })?;
+
+            let new_name = args.get("new_name").and_then(|v| v.as_str());
+            let description = args.get("description").and_then(|v| v.as_str());
+            let variants = args.get("variants");
+
+            update_project_enum_impl(app_state, enum_name, new_name, description, variants)?;
+
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": format!("Project enum '{enum_name}' updated successfully.")
+                }]
+            }))
+        }
+
+        "r2000_delete_project_enum" => {
+            let enum_name = args
+                .get("name")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| McpError {
+                    code: -32602,
+                    message: "Missing 'name'".to_string(),
+                    data: None,
+                })?;
+
+            let force = args.get("force").and_then(|v| v.as_bool()).unwrap_or(false);
+
+            delete_project_enum_impl(app_state, enum_name, force)?;
+
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": format!("Project enum '{enum_name}' deleted successfully.")
+                }]
+            }))
+        }
+        "r2000_apply_enum_usage" => {
+            let address = get_address(&args, "address")?;
+            let name = args.get("name").and_then(|v| v.as_str());
+
+            let name_opt = name.filter(|s| !s.trim().is_empty()).map(String::from);
+
+            let command = crate::commands::Command::SetEnumUsage {
+                address,
+                new_enum: name_opt.clone(),
+                old_enum: app_state.enum_usages.get(&address).cloned(),
+            };
+
+            command.apply(app_state);
+            app_state.push_command(command);
+            app_state.disassemble();
+
+            Ok(json!({
+                "content": [{
+                    "type": "text",
+                    "text": if let Some(n) = name_opt {
+                        format!("Enum '{n}' applied successfully at ${address:04X}.")
+                    } else {
+                        format!("Enum usage cleared successfully at ${address:04X}.")
+                    }
+                }]
+            }))
+        }
+
         "r2000_save_project" => {
             if app_state.project_path.is_none() {
                 return Err(McpError {
@@ -1675,6 +1833,181 @@ fn get_address_details_impl(app_state: &AppState, address: Addr) -> Result<Value
     }
 
     Ok(details)
+}
+
+fn create_project_enum_impl(
+    app_state: &mut AppState,
+    name: &str,
+    description: Option<&str>,
+    variants_val: &Value,
+) -> Result<(), McpError> {
+    // Validate Name
+    if let Err(err_msg) = app_state.validate_new_enum_name(name) {
+        return Err(McpError {
+            code: -32602,
+            message: format!("Invalid enum name: {err_msg}"),
+            data: None,
+        });
+    }
+
+    // Extract Variants
+    let raw_map: std::collections::BTreeMap<String, String> =
+        serde_json::from_value(variants_val.clone()).map_err(|e| McpError {
+            code: -32602,
+            message: format!("Invalid variants parameter. Expected map from string to string: {e}"),
+            data: None,
+        })?;
+
+    let parsed_variants = EnumDefinition::parse_variants(raw_map);
+
+    let definition = EnumDefinition {
+        name: name.to_string(),
+        description: description.map(String::from),
+        variants: parsed_variants,
+    };
+
+    let command = crate::commands::Command::SetEnumDefinition {
+        name: name.to_string(),
+        new_definition: Some(definition),
+        old_definition: None,
+    };
+
+    command.apply(app_state);
+    app_state.push_command(command);
+    app_state.disassemble();
+
+    Ok(())
+}
+
+fn update_project_enum_impl(
+    app_state: &mut AppState,
+    name: &str,
+    new_name: Option<&str>,
+    description: Option<&str>,
+    variants_val: Option<&Value>,
+) -> Result<(), McpError> {
+    let old_definition = app_state.enums.get(name).cloned().ok_or_else(|| McpError {
+        code: -32602,
+        message: format!("Enum '{name}' not found in project-specific enums"),
+        data: None,
+    })?;
+
+    // Validate new name if renaming
+    if let Some(n) = new_name
+        && n != name
+        && let Err(err_msg) = app_state.validate_new_enum_name(n)
+    {
+        return Err(McpError {
+            code: -32602,
+            message: format!("Invalid new enum name: {err_msg}"),
+            data: None,
+        });
+    }
+
+    // Parse variants if supplied, otherwise inherit old
+    let variants = if let Some(v_val) = variants_val {
+        let raw_map: std::collections::BTreeMap<String, String> =
+            serde_json::from_value(v_val.clone()).map_err(|e| McpError {
+                code: -32602,
+                message: format!("Invalid variants parameter: {e}"),
+                data: None,
+            })?;
+        EnumDefinition::parse_variants(raw_map)
+    } else {
+        old_definition.variants.clone()
+    };
+
+    // Parse description if supplied, otherwise inherit old
+    let desc = if let Some(d) = description {
+        if d.trim().is_empty() {
+            None
+        } else {
+            Some(d.to_string())
+        }
+    } else {
+        old_definition.description.clone()
+    };
+
+    let updated_def = EnumDefinition {
+        name: new_name.unwrap_or(name).to_string(),
+        description: desc,
+        variants,
+    };
+
+    let cmd = if let Some(n) = new_name
+        && n != name
+    {
+        // Rename is: remove old, add new in a Batch command
+        let cmd_remove = crate::commands::Command::SetEnumDefinition {
+            name: name.to_string(),
+            new_definition: None,
+            old_definition: Some(old_definition.clone()),
+        };
+        let cmd_add = crate::commands::Command::SetEnumDefinition {
+            name: n.to_string(),
+            new_definition: Some(updated_def),
+            old_definition: None,
+        };
+        crate::commands::Command::Batch(vec![cmd_remove, cmd_add])
+    } else {
+        crate::commands::Command::SetEnumDefinition {
+            name: name.to_string(),
+            new_definition: Some(updated_def),
+            old_definition: Some(old_definition),
+        }
+    };
+
+    cmd.apply(app_state);
+    app_state.push_command(cmd);
+    app_state.disassemble();
+
+    Ok(())
+}
+
+fn delete_project_enum_impl(
+    app_state: &mut AppState,
+    name: &str,
+    force: bool,
+) -> Result<(), McpError> {
+    let old_definition = app_state.enums.get(name).cloned().ok_or_else(|| McpError {
+        code: -32602,
+        message: format!("Enum '{name}' not found in project enums"),
+        data: None,
+    })?;
+
+    // Usage check if force is false
+    if !force {
+        let usages: Vec<Addr> = app_state
+            .enum_usages
+            .iter()
+            .filter(|(_, enum_ref)| enum_ref.as_str() == name)
+            .map(|(addr, _)| *addr)
+            .collect();
+
+        if !usages.is_empty() {
+            let addresses: Vec<String> = usages.iter().map(|a| format!("${a:04X}")).collect();
+            return Err(McpError {
+                code: -32602,
+                message: format!(
+                    "Cannot delete enum '{name}' because it is currently in use at addresses: {}. Set 'force' to true to override.",
+                    addresses.join(", ")
+                ),
+                data: None,
+            });
+        }
+    }
+
+    let command = crate::commands::Command::SetEnumDefinition {
+        name: name.to_string(),
+        new_definition: None,
+        old_definition: Some(old_definition),
+    };
+
+    command.apply(app_state);
+    app_state.push_command(command);
+    app_state.disassemble();
+
+    Ok(())
 }
 
 #[cfg(test)]
