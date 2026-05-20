@@ -234,7 +234,7 @@
     {
       "start": 17209,
       "end": 17461,
-      "type_": "DataByte",
+      "type_": "ScreencodeText",
       "collapsed": false
     },
     {
@@ -269,6 +269,18 @@
     },
     {
       "start": 19020,
+      "end": 19021,
+      "type_": "DataByte",
+      "collapsed": false
+    },
+    {
+      "start": 19022,
+      "end": 19037,
+      "type_": "ScreencodeText",
+      "collapsed": false
+    },
+    {
+      "start": 19038,
       "end": 19051,
       "type_": "DataByte",
       "collapsed": false
@@ -1071,350 +1083,350 @@
     ],
     "1064": [
       {
-        "name": "SCR_ROW_1",
+        "name": "SCREEN_RAM_R1C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1072": [
       {
-        "name": "scr_game_area",
+        "name": "SCREEN_RAM_R1C8",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1079": [
       {
-        "name": "SCR_HISCORE_TITLE",
+        "name": "SCREEN_RAM_R1C15",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1104": [
       {
-        "name": "SCR_ROW_2",
+        "name": "SCREEN_RAM_R2C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1144": [
       {
-        "name": "SCR_ROW_3",
+        "name": "SCREEN_RAM_R3C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1152": [
       {
-        "name": "SCR_HISCORE_HEADER",
+        "name": "SCREEN_RAM_R3C8",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1184": [
       {
-        "name": "SCR_ROW_4",
+        "name": "SCREEN_RAM_R4C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1194": [
       {
-        "name": "SCREEN_RAM_AA",
+        "name": "SCREEN_RAM_R4C10",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1224": [
       {
-        "name": "SCR_ROW_5",
+        "name": "SCREEN_RAM_R5C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1264": [
       {
-        "name": "SCR_ROW_6",
+        "name": "SCREEN_RAM_R6C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1268": [
       {
-        "name": "SCR_ABOUT_TEXT",
+        "name": "SCREEN_RAM_R6C4",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1274": [
       {
-        "name": "SCREEN_RAM_FA",
+        "name": "SCREEN_RAM_R6C10",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1304": [
       {
-        "name": "SCR_ROW_7",
+        "name": "SCREEN_RAM_R7C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1310": [
       {
-        "name": "SCR_CREDITS_ROLES",
+        "name": "SCREEN_RAM_R7C6",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1336": [
       {
-        "name": "scr_menu_text",
+        "name": "SCREEN_RAM_R7C32",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1344": [
       {
-        "name": "SCR_ROW_8",
+        "name": "SCREEN_RAM_R8C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1350": [
       {
-        "name": "SCR_CREDITS_PROGRAMMER",
+        "name": "SCREEN_RAM_R8C6",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1364": [
       {
-        "name": "SCREEN_RAM_154",
+        "name": "SCREEN_RAM_R8C20",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1384": [
       {
-        "name": "SCR_ROW_9",
+        "name": "SCREEN_RAM_R9C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1424": [
       {
-        "name": "SCR_ROW_10",
+        "name": "SCREEN_RAM_R10C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1464": [
       {
-        "name": "SCR_ROW_11",
+        "name": "SCREEN_RAM_R11C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1475": [
       {
-        "name": "scr_title_text",
+        "name": "SCREEN_RAM_R11C11",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1504": [
       {
-        "name": "SCR_ROW_12",
+        "name": "SCREEN_RAM_R12C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1510": [
       {
-        "name": "SCR_CREDITS_TESTER",
+        "name": "SCREEN_RAM_R12C6",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1514": [
       {
-        "name": "SCR_RESET_RANKING_MSG",
+        "name": "SCREEN_RAM_R12C10",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1517": [
       {
-        "name": "SCR_SAVING_DATA_MSG",
+        "name": "SCREEN_RAM_R12C13",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1524": [
       {
-        "name": "SCREEN_RAM_1F4",
+        "name": "SCREEN_RAM_R12C20",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1534": [
       {
-        "name": "SCREEN_RAM_1FE",
+        "name": "SCREEN_RAM_R12C30",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1544": [
       {
-        "name": "SCR_ROW_13",
+        "name": "SCREEN_RAM_R13C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1549": [
       {
-        "name": "scr_hud_row",
+        "name": "SCREEN_RAM_R13C5",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1550": [
       {
-        "name": "SCR_CREDITS_TESTERS_EMAIL",
+        "name": "SCREEN_RAM_R13C6",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1584": [
       {
-        "name": "SCR_ROW_14",
+        "name": "SCREEN_RAM_R14C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1624": [
       {
-        "name": "SCR_ROW_15",
+        "name": "SCREEN_RAM_R15C0",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "1664": [
       {
-        "name": "scr_water_row",
+        "name": "SCREEN_RAM_R16C0",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1727": [
       {
-        "name": "scr_lives_display",
+        "name": "SCREEN_RAM_R17C23",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1745": [
       {
-        "name": "scr_hud_top",
+        "name": "SCREEN_RAM_R18C1",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1751": [
       {
-        "name": "scr_lava_row",
+        "name": "SCREEN_RAM_R18C7",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1753": [
       {
-        "name": "SCR_PRESS_FIRE_PROMPT",
+        "name": "SCREEN_RAM_R18C9",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1774": [
       {
-        "name": "SCREEN_RAM_2EE",
+        "name": "SCREEN_RAM_R18C30",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1788": [
       {
-        "name": "scr_dynamo_top_l",
+        "name": "SCREEN_RAM_R19C4",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1789": [
       {
-        "name": "scr_dynamo_top_r",
+        "name": "SCREEN_RAM_R19C5",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1809": [
       {
-        "name": "scr_power_top",
+        "name": "SCREEN_RAM_R19C25",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1829": [
       {
-        "name": "scr_dynamo_bot",
+        "name": "SCREEN_RAM_R20C5",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1849": [
       {
-        "name": "scr_power_bot",
+        "name": "SCREEN_RAM_R20C25",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "1908": [
       {
-        "name": "scr_hud_bottom",
+        "name": "SCREEN_RAM_R22C4",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1916": [
       {
-        "name": "scr_level_num",
+        "name": "SCREEN_RAM_R22C12",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1965": [
       {
-        "name": "scr_credits_text",
+        "name": "SCREEN_RAM_R23C21",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "1985": [
       {
-        "name": "SCR_HUD_DYNAMITE_ICONS",
+        "name": "SCREEN_RAM_R24C1",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "2000": [
       {
-        "name": "SCR_HUD_FUEL_BAR",
+        "name": "SCREEN_RAM_R24C16",
         "label_type": "Pointer",
         "kind": "User"
       }
     ],
     "2019": [
       {
-        "name": "SCR_HUD_YEAR_LOGO",
+        "name": "SCREEN_RAM_R24C35",
         "label_type": "Pointer",
         "kind": "User"
       }
@@ -1927,6 +1939,13 @@
       {
         "name": "clear_screen",
         "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "13927": [
+      {
+        "name": "enable_screen",
+        "label_type": "Jump",
         "kind": "User"
       }
     ],
@@ -2805,6 +2824,13 @@
         "kind": "User"
       }
     ],
+    "24360": [
+      {
+        "name": "wait_for_credits_fire_click",
+        "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
     "24378": [
       {
         "name": "game_complete_text",
@@ -2938,10 +2964,31 @@
         "kind": "User"
       }
     ],
+    "24962": [
+      {
+        "name": "game_engine_loop",
+        "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
     "24985": [
       {
         "name": "jump_to_title_screen",
         "label_type": "Branch",
+        "kind": "User"
+      }
+    ],
+    "25121": [
+      {
+        "name": "update_level_complete_bonus",
+        "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
+    "25237": [
+      {
+        "name": "update_game_over_or_demo",
+        "label_type": "Jump",
         "kind": "User"
       }
     ],
@@ -3029,6 +3076,20 @@
         "kind": "User"
       }
     ],
+    "26099": [
+      {
+        "name": "init_intro_screen",
+        "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
+    "26171": [
+      {
+        "name": "wait_for_intro_fire_click",
+        "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
     "26189": [
       {
         "name": "title_sprite_y_pos",
@@ -3040,6 +3101,13 @@
       {
         "name": "title_anim_counter",
         "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "26191": [
+      {
+        "name": "txt_loading_data",
+        "label_type": "Pointer",
         "kind": "User"
       }
     ],
@@ -3057,10 +3125,24 @@
         "kind": "User"
       }
     ],
+    "26221": [
+      {
+        "name": "load_assets_and_init_title",
+        "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
     "26287": [
       {
         "name": "init_title_sprites",
         "label_type": "Subroutine",
+        "kind": "User"
+      }
+    ],
+    "26334": [
+      {
+        "name": "update_title_curtain_animation",
+        "label_type": "Jump",
         "kind": "User"
       }
     ],
@@ -3162,6 +3244,13 @@
         "kind": "User"
       }
     ],
+    "27242": [
+      {
+        "name": "update_main_menu_selection",
+        "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
     "27480": [
       {
         "name": "update_dynamite_desc",
@@ -3246,6 +3335,13 @@
         "kind": "User"
       }
     ],
+    "27966": [
+      {
+        "name": "init_high_score_screen",
+        "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
     "28008": [
       {
         "name": "draw_high_score_table",
@@ -3256,6 +3352,13 @@
     "28257": [
       {
         "name": "enter_high_score_name",
+        "label_type": "Jump",
+        "kind": "User"
+      }
+    ],
+    "28310": [
+      {
+        "name": "update_high_score_screen",
         "label_type": "Jump",
         "kind": "User"
       }
@@ -5033,14 +5136,14 @@
     ],
     "55336": [
       {
-        "name": "COLOR_RAM_ROW1",
+        "name": "COLOR_RAM_R1C0",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "55344": [
       {
-        "name": "COLOR_RAM_TITLE",
+        "name": "COLOR_RAM_R1C8",
         "label_type": "Pointer",
         "kind": "User"
       }
@@ -5054,14 +5157,14 @@
     ],
     "55496": [
       {
-        "name": "COLOR_RAM_ROW5",
+        "name": "COLOR_RAM_R5C0",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "55536": [
       {
-        "name": "COLOR_RAM_ROW6",
+        "name": "COLOR_RAM_R6C0",
         "label_type": "Field",
         "kind": "User"
       }
@@ -5082,7 +5185,7 @@
     ],
     "55736": [
       {
-        "name": "COLOR_RAM_ROW11",
+        "name": "COLOR_RAM_R11C0",
         "label_type": "Field",
         "kind": "User"
       }
@@ -5103,14 +5206,14 @@
     ],
     "55816": [
       {
-        "name": "COLOR_RAM_ROW13",
+        "name": "COLOR_RAM_R13C0",
         "label_type": "Field",
         "kind": "User"
       }
     ],
     "55976": [
       {
-        "name": "COLOR_RAM_ROW17",
+        "name": "COLOR_RAM_R17C0",
         "label_type": "Field",
         "kind": "User"
       }
@@ -6586,6 +6689,23 @@
     "24351": "Draw \"STEFANO/PAOLO CARMINATI\" + email",
     "24354": "Clear all sprite positions and enable bits",
     "24357": "Re-enable screen display",
+    "24360": "Read current joystick state",
+    "24363": "Isolate fire button bit (bit 4)",
+    "24365": "Active-low: fire released -> abort tick (RTS)",
+    "24367": "Read previous frame joystick state",
+    "24370": "Isolate previous fire button bit",
+    "24372": "Zero = already pressed last frame (hold check), abort",
+    "24374": "New fire click! Return back to main menu",
+    "24377": "Return from screen wait tick",
+    "24378": "Great job",
+    "24407": "with your help, roderick",
+    "24434": "has saved all the miners",
+    "24461": "trapped in the mount",
+    "24488": "leone mines.",
+    "24518": "you get 10000 extra points",
+    "24545": "for each life left",
+    "24575": "your final score is",
+    "24604": "000000",
     "24631": "game phase = 6 (game complete)",
     "24633": "game_state = 6 (game complete)",
     "24639": "color index 1 (white)",
@@ -6670,28 +6790,53 @@
     "24931": "install gameplay raster IRQ",
     "24934": "enable VIC-II display and return",
     "24947": "Set game_active = 1 (gameplay begins)",
-    "24985": "Skip high-score save, go straight to title screen",
-    "24988": "Check if gameplay is active for key handling",
-    "24999": "Toggle sfx_muted on/off (F7 key)",
+    "24962": "Read keyboard matrix row 0",
+    "24965": "Check if keys changed",
+    "24970": "RUN/STOP key pressed?",
+    "24974": "Silence SID voices before quitting",
+    "24977": "Check if a game is actively running",
+    "24985": "Go straight back to title screen menu",
+    "24988": "Check if gameplay is active (vs menu/demo)",
+    "24993": "F7 key pressed (toggle audio)?",
+    "24999": "Toggle audio mute flag",
+    "25014": "Check if gameplay is active",
+    "25017": "Demo/Game-Over mode active -> JMP to animation",
+    "25025": "Gameplay active: clear IRQ sync flag",
     "25027": "Clear frame_sync_flag (wait for next IRQ)",
-    "25030": "Busy-wait until IRQ sets frame_sync_flag",
-    "25062": "Update sprite animations",
-    "25065": "Update sprite positions",
-    "25068": "Check hero-enemy collisions",
-    "25071": "Update game objects",
-    "25074": "Check bonus_phase for level-complete sequence",
+    "25030": "Busy-wait for raster IRQ to set frame_sync_flag",
+    "25038": "Update player scores and level stats",
+    "25041": "Animate water characters",
+    "25044": "Tick player character physics & inputs",
+    "25047": "Check player-placed dynamite collisions",
+    "25050": "Process active explosion animations",
+    "25053": "Tick global animated level elements",
+    "25056": "Scroll specific level backgrounds",
+    "25059": "Animate interactive raft structures",
+    "25062": "Drain player energy meter over time",
+    "25065": "Check if player touched enemies/hazards",
+    "25068": "Assign updated player sprite pointers",
+    "25071": "Is the level complete bonus sequence active?",
+    "25074": "Phase 0: evaluate player/game status",
+    "25076": "Phase != 0: process bonus sequence",
     "25077": "Phase 0: check game status",
-    "25079": "Phase != 0: jump to bonus sequence",
-    "25082": "Get game status result",
+    "25079": "Get hero current status flag",
+    "25082": "Did the hero die?",
     "25085": "Status $05 = hero died?",
-    "25089": "Decrement lives counter",
+    "25086": "Decrease remaining lives",
+    "25089": "No lives left -> trigger Game Over",
+    "25091": "Check remaining energy",
     "25092": "No lives left -> game over",
     "25094": "Check remaining energy after death",
+    "25096": "Energy depleted: restart cave layout directly",
     "25097": "Energy > 0: restart with score bonus",
-    "25099": "No energy: restart level directly",
+    "25099": "Restart cave with score compensation",
+    "25102": "Trigger Game Over sequence",
+    "25105": "Is the cave successfully completed?",
     "25107": "Restart level from scratch",
+    "25109": "Set bonus phase to 1 (begin energy conversion)",
     "25110": "Status $03 = level complete?",
     "25112": "Begin death/bonus phase 1",
+    "25114": "Trigger level-complete sound chime",
     "25117": "Set SFX trigger flag",
     "25121": "Phase 1: check current phase",
     "25126": "Phase != 1: skip to phase 2 check",
@@ -6840,6 +6985,24 @@
     "25897": "Load low byte of raster bg-clear handler",
     "25899": "Load high byte of raster bg-clear handler",
     "25901": "Chain to next raster IRQ (bg-clear handler)",
+    "26104": "Blank screen during setup",
+    "26107": "Load black color index",
+    "26109": "Set border color to black",
+    "26112": "Set background color to black",
+    "26115": "VIC memory value for default charsets",
+    "26117": "Set VIC-II screen and character pointers",
+    "26120": "Wipe screen RAM clean",
+    "26139": "Use white color for homage text",
+    "26160": "Use green color for fire prompt",
+    "26165": "Disable all hardware sprites",
+    "26168": "Enable VIC-II display and return",
+    "26171": "Read current joystick state",
+    "26174": "Isolate fire button bit (bit 4)",
+    "26176": "Active-low: nonzero = released, abort tick",
+    "26178": "Read previous frame joystick state",
+    "26181": "Isolate previous fire button bit",
+    "26183": "Zero = already pressed last frame (hold check), abort",
+    "26185": "New fire click! Advance to loading sequence",
     "26214": "blue",
     "26215": "light blue",
     "26216": "blue",
@@ -6847,7 +7010,21 @@
     "26218": "orange",
     "26219": "orange",
     "26220": "orange",
-    "26223": "game_state = 2 (high score entry)",
+    "26223": "game_state = GameState.CURTAIN_ANIMATION",
+    "26226": "Blank display for loading message",
+    "26232": "Source pointer to 'LOADING DATA...' text",
+    "26240": "Destination pointer to screen RAM ($05ED)",
+    "26248": "White color for loading text",
+    "26253": "Enable display to show message",
+    "26256": "Load high scores from disk",
+    "26259": "Load level/cave data from disk",
+    "26262": "Clear drive error status channel",
+    "26265": "Blank display to hide asset setup",
+    "26268": "Wipe screen RAM",
+    "26273": "Reset animation curtain Y offset to 0",
+    "26278": "Reset animation countdown (240 frames)",
+    "26281": "Build & scale title screen sprites",
+    "26284": "Enable VIC display to start animation",
     "26290": "Enable sprites 0-6 (%01111111)",
     "26295": "Loop for 7 sprites (X=6 down to 0)",
     "26297": "Load X position from table",
@@ -6862,14 +7039,24 @@
     "26325": "Bitmask %00000011 (Sprites 0 and 1)",
     "26327": "Expand Sprites 0 & 1 Horizontally",
     "26330": "Expand Sprites 0 & 1 Vertically",
-    "26348": "check frames remaining in animation",
-    "26351": "counter == 0 → animation done",
-    "26353": "animation finished → go to score screen",
-    "26356": "update all sprite Y positions",
-    "26359": "one fewer frame remaining",
-    "26362": "current Y offset",
-    "26365": "reached max Y ($78 = 120)?",
+    "26334": "Read current joystick state",
+    "26337": "Isolate fire button bit (bit 4)",
+    "26339": "Active-low: fire released -> tick animation",
+    "26341": "Read previous frame joystick state",
+    "26344": "Isolate previous fire button bit",
+    "26346": "Zero = already pressed (hold), continue anim. Nonzero = new click -> skip!",
+    "26348": "Load remaining animation frames",
+    "26351": "Counter > 0: continue animation tick",
+    "26353": "Skip or finish animation: transition to main menu",
+    "26356": "Update VIC-II sprite registers with new Y offsets",
+    "26359": "Decrement animation frame counter",
+    "26362": "Load current Y offset",
+    "26365": "Reached max curtain offset (120 pixels)?",
+    "26367": "Yes: stop scrolling curtain",
     "26369": "move sprites 2 pixels per frame",
+    "26370": "No: move curtain 2 pixels per frame",
+    "26372": "Store updated Y offset",
+    "26375": "Return from frame update tick",
     "26376": "load current Y offset",
     "26379": "sprite 0 Y = Y offset (top group)",
     "26382": "sprite 1 Y = Y offset (top group)",
@@ -6942,21 +7129,82 @@
     "27233": "A = color value (from X)",
     "27234": "Fill 40 columns ($00-$27)",
     "27236": "Store color into Color RAM",
-    "27256": "Check current menu selection",
-    "27276": "Cycle input_mode (0→1→2→3→0)",
-    "27313": "Load selected level index",
-    "27332": "Check menu selection for PLAY LEVELS",
-    "27353": "Check if level at minimum",
-    "27358": "Decrement selected level",
-    "27379": "Load current level selection",
+    "27242": "Read current joystick state",
+    "27245": "Isolate fire button bit (bit 4)",
+    "27247": "Active-low: fire released -> check movement",
+    "27249": "Read previous frame joystick state",
+    "27254": "Zero = already pressed last frame (hold check), abort",
+    "27256": "Load selected menu option cursor index",
+    "27259": "Option > 0 -> check next selections",
+    "27261": "Stop menu audio playback",
+    "27264": "Clear starting level difficulty",
+    "27269": "Start gameplay from level 1",
+    "27272": "Option == 1 (DYNAMITE)?",
+    "27276": "Cycle dynamite input control mode",
+    "27282": "Cycled past max mode 3?",
+    "27288": "Wrap input mode back to 0",
+    "27291": "Update HUD text for selected control scheme",
+    "27294": "Option == 2 (BEST HEROES)?",
+    "27300": "Set scoreboard entry flag",
+    "27303": "Display high scores board",
+    "27306": "Option == 3 (PLAY LEVELS)?",
+    "27313": "Load selected starting level group index",
+    "27317": "Shift group index to starting level index",
+    "27320": "Set starting level difficulty",
+    "27323": "Start gameplay from selected level",
+    "27326": "Stop music, go to credits layout",
+    "27332": "Check if cursor is on PLAY LEVELS",
+    "27339": "Read joystick state",
+    "27342": "Isolate Left direction bit (bit 2)",
+    "27344": "Left released -> check Right direction",
+    "27351": "Left held -> check Right direction",
+    "27353": "Check if starting level is at minimum",
+    "27358": "Decrement selected starting level group",
+    "27361": "Refresh level range string on screen",
+    "27365": "Isolate Right direction bit (bit 3)",
+    "27370": "Right released -> check Up/Down movement",
+    "27377": "Right held -> check Up/Down movement",
+    "27379": "Check if level select reached max unlocked",
     "27387": "Check if at max level",
-    "27408": "Move menu cursor up",
-    "27411": "Re-read cursor after decrement",
-    "27433": "Wrap cursor from -1 to CREDITS (4)",
-    "27451": "Move menu cursor down",
-    "27454": "Re-read cursor after increment",
-    "27476": "Wrap cursor from 5 to START (0)",
-    "27480": "Load current dynamite mode (0-3)",
+    "27391": "Increment selected starting level group",
+    "27394": "Refresh level range string on screen",
+    "27398": "Isolate Up direction bit (bit 0)",
+    "27403": "Up released -> check Down direction",
+    "27408": "Move cursor up (decrement cursor)",
+    "27410": "Up held -> check Down direction",
+    "27411": "Read cursor index",
+    "27412": "",
+    "27414": "Did we move onto Level Select?",
+    "27415": "",
+    "27418": "Check if Level Select is unlocked",
+    "27421": "If unlocked: skip skip-logic",
+    "27422": "",
+    "27423": "Level Select locked: skip it (move up again)",
+    "27427": "Did cursor wrap past 0?",
+    "27431": "Wrap cursor around to CREDITS (4)",
+    "27433": "Store updated cursor index",
+    "27437": "Read current joystick state",
+    "27440": "Isolate Down direction bit (bit 1)",
+    "27441": "",
+    "27442": "Down released -> abort frame tick",
+    "27444": "Read previous frame joystick state",
+    "27446": "",
+    "27447": "Isolate previous Down direction bit",
+    "27449": "Zero = already pressed last frame (hold check), abort",
+    "27451": "Move cursor down (increment cursor)",
+    "27453": "",
+    "27454": "Read cursor index",
+    "27455": "",
+    "27457": "Did we move onto Level Select?",
+    "27458": "",
+    "27461": "Check if Level Select is unlocked",
+    "27464": "If unlocked: skip skip-logic",
+    "27465": "",
+    "27466": "Level Select locked: skip it (move down again)",
+    "27470": "Did cursor wrap past CREDITS (4)?",
+    "27474": "Wrap cursor around to START (0)",
+    "27476": "Store updated cursor index",
+    "27480": "",
     "27483": "Offset = input_mode * 30",
     "27486": "X = index into string table",
     "27487": "Y = screen write offset",
@@ -7010,9 +7258,20 @@
     "27835": "Blue for pair 4-5",
     "27843": "Next raster IRQ at line $28",
     "27849": "Exit via IRQ epilogue",
-    "27966": "Store player ranking in high_score_screen_flag",
-    "27971": "game_state = 4 (best heroes)",
-    "27999": "Check if showing table only (bit 7) or name entry",
+    "27966": "Store ranking slot index / view flag",
+    "27971": "Store game state",
+    "27974": "Blank VIC-II display to hide redraw",
+    "27977": "Set standard C128 scroll and 25-row mode",
+    "27980": "Disable dynamic tile zero-suppression",
+    "27985": "Clear screen using character color index 1 (white)",
+    "27987": "Wipe screen RAM",
+    "27990": "Draw entire high score table layout",
+    "27993": "Clear all hardware sprites from view",
+    "27996": "Re-enable VIC-II display",
+    "27999": "Reload ranking slot index flag",
+    "28002": "Active-high/negative flag ($FF) -> view-only, exit (RTS)",
+    "28004": "New high-score entry! Go to text input loop",
+    "28007": "Return from high score setup",
     "28008": "Source: \"BEST HEROES\" title string",
     "28016": "Dest: screen row for title",
     "28024": "Color = green",
@@ -7067,6 +7326,28 @@
     "28300": "Copy up to 3 chars",
     "28304": "Display final table and save to disk",
     "28307": "Return to title/game screen",
+    "28310": "Read current joystick state",
+    "28313": "Isolate fire button bit (bit 4)",
+    "28315": "Active-low: fire released -> check keyboard input",
+    "28317": "Read previous frame joystick state",
+    "28322": "Zero = already pressed last frame (hold check), abort",
+    "28324": "New fire click! Return back to main menu",
+    "28327": "Read current keyboard row 0 state",
+    "28330": "Check if keyboard state changed",
+    "28333": "No key change: exit screen tick",
+    "28335": "Check if RUN/STOP key is pressed",
+    "28337": "Not RUN/STOP: exit screen tick",
+    "28339": "Blank VIC-II display to hide layout draw",
+    "28342": "Wipe screen RAM clean",
+    "28345": "Source pointer = 'RESETTING RANKING...' text",
+    "28353": "Destination pointer = screen RAM row 15",
+    "28361": "Draw message text in White",
+    "28366": "Re-enable VIC-II display",
+    "28369": "Reset high score data table to defaults",
+    "28372": "Write default scoreboard to floppy disk",
+    "28375": "Load default ranking code ($FF)",
+    "28377": "Reload high score table screen",
+    "28380": "Return from scoreboard screen update",
     "28381": "Turn off display to avoid glitches",
     "28384": "Wipe screen RAM",
     "28387": "src = \"SAVING DATA...\" text",
@@ -8903,6 +9184,7 @@
     "24179": "Credits screen: programmer/tester name \"LUCA CARMINATI\"",
     "24194": "Credits screen: additional names \"STEFANO CARMINATI\" / \"PAOLO CARMINATI\"",
     "24259": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays the credits/about screen showing programmer, tester, and contact\ninformation for the Carminati family. Blanks the screen, clears it, then\ndraws four text blocks with color: the role labels (cyan) and name strings\n(white). Resets all sprites and re-enables the display via j_3667.\n\nInputs:  None\nOutputs: None\nSide Effects: Screen blanked and cleared, credits text drawn, sprites reset, display re-enabled\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "24360": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPolls the joystick port on the credits/game-complete screens to check for a new\nfire button click.\nEnsures the click is a fresh transition (active-low logic: currently pressed (0)\nand previously released ($10)) to filter out button-holding.\nWhen a new click is registered, transitions back to show_main_menu.\n\nInputs:  joystick_state ($3E80), joystick_prev_state ($3E81)\nOutputs: None\nSide Effects: Jumps to show_main_menu if new fire click is detected\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "24378": "Congratulations typewriter text: \"GREAT JOB!\" ... \"YOUR FINAL SCORE IS\" ... \"000000\"",
     "24631": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays the game completion screen when all miners have been rescued.\nAdds 10000 bonus points (BCD) per remaining life to the player's score,\nshows a congratulatory typewriter-scrolled message, and prints the final\nscore. The text congratulates the player for saving all miners in the\nmount Leone mines.\n\nInputs:  a_50F7 (remaining lives count), score at $50F4-$50F6 (BCD)\nOutputs: Updated score at $50F4-$50F6, screen display\nSide Effects: Blanks and redraws screen, sets color RAM, resets sprites,\n              starts typewriter text animation, re-enables display\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "24644": "",
@@ -8922,8 +9204,10 @@
     "24816": "HUD tile indices for top status row (dynamite/lives icons)",
     "24822": "HUD tile indices for bottom status row (fuel bar icons)",
     "24831": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes a new cave/level for gameplay. Blanks the screen, resets the\nscore and lives display, loads and decompresses cave map data from banked\nRAM, sets up sprites, clears the screen, configures the raster IRQ for\nthe gameplay handler, and re-enables the display.\nj_611D is a re-entry point used when restarting the same cave (e.g. after\nlosing a life) — it skips the score/lives reset.\n\nInputs:  a_60D8 = cave/level index to initialize\nOutputs: None\nSide Effects: Screen blanked then re-enabled, sprites configured, cave map\n              decompressed, raster IRQ set to gameplay handler at $6492,\n              MMU set to $3E (RAM+I/O)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "24962": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nThe primary game engine loop, executed once per frame. Coordinates keyboard\nchecks (RUN/STOP to exit, F7 to toggle audio mute), busy-waits on the\nframe_sync_flag set by the raster IRQ for vertical sync, and updates all gameplay\nsystems (physics, hero movement, collisions, energy drain, scrolling, animations).\nManages transitions on hero death (lives decrement, level restart or game over\ntransition) and triggers the step-by-step level complete bonus sequence when the\nhero successfully completes the cave.\n\nInputs:  None\nOutputs: None\nSide Effects: Performs BCD score additions, updates SID registers for SFX, reads\n              keyboard row 0, processes transitions to restarts/gameover screens\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "24985": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTrampoline to title screen.\nReached when RUN/STOP is pressed and no game is in progress (a_60DA == 0),\nskipping the high-score save performed by s_6EDD.\n\nInputs:  None\nOutputs: None (does not return)\nSide Effects: Transfers control to j_695E which blanks the screen and\n              shows the title/menu.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "25060": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles the outcome after each game frame: checks for hero death or level\ncomplete, then runs a multi-phase bonus scoring sequence on level completion.\n  Phase 0: Check game status ($7AFA). If hero died ($05), lose a life and\n           restart/game-over. If level complete ($03), begin bonus sequence.\n  Phase 1: Award energy bonus — decrement remaining energy ($821B), add $0040\n           to score per unit, then stop SFX when energy is depleted.\n  Phase 2: Award lives bonus — count down remaining lives ($7B06), erase life\n           icons from the status bar, add $0050 to score per life.\n  Phase 3: Delay timer — wait for $60DE to count down, then advance to next level.\n\nInputs:  a_60DC (phase counter), a_7AFA (game status), a_821B (energy),\n         a_7B06 (remaining lives), a_50F7 (life count)\nOutputs: Score updated, a_60DC advanced through phases\nSide Effects: Screen status bar updated, SID voice 1 stopped, may restart level\n              or trigger game over\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "25121": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nProcesses the three-phase level completion bonus sequence.\nPhase 1 drains the remaining player energy, adding BCD score points per tick and\nplaying a sound chime.\nPhase 2 drains the remaining dynamite stock, adding larger BCD score bonuses per\nunit.\nPhase 3 introduces a short delay timer before transitioning to the next cave layout\nvia advance_level.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies energy_level, hero_dynamite_count, and adds BCD bonuses\n              to score. Modifies SID voice registers\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "25271": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the static HUD (Heads-Up Display) layout onto the screen.\nSets up the text, icons (dynamite, fuel bar, year/logo), and their colors.\nCalls subroutines to draw dynamic HUD elements like score, lives, and dynamite counts.\n\nInputs:  None\nOutputs: None\nSide Effects: Extensively modifies Screen RAM and Color RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "25417": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the player's current stock of dynamite onto the HUD.\nThe icons are constructed using two characters ($62 top, $63 bottom).\nLoops from `hero_dynamite_count * 2 - 2` down to 0, writing to screen RAM.\n\nInputs:  hero_dynamite_count\nOutputs: None\nSide Effects: Modifies Screen RAM (dynamite icon area)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "25439": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nErases the right-most dynamite icon on the HUD by overwriting both its top\nand bottom halves with spaces ($20). Called when the player uses a dynamite.\n\nInputs:  hero_dynamite_count (before decrement)\nOutputs: None\nSide Effects: Modifies Screen RAM to clear one icon\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -8936,9 +9220,13 @@
     "25904": "Raster IRQ handler: waits with NOPs for stable raster, then clears\nbackground color 0 to black, disables multicolor mode in $D016,\nand chains to the gameplay raster IRQ.",
     "25938": "Homage screen: \"THIS GAME IS A HOMAGE TO H.E.R.O. FROM JOHN VAN RYZIN...\"",
     "26076": "Homage screen prompt: \"PRESS FIRE TO CONTINUE\"",
+    "26099": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes and displays the intro/about screen. Sets the game state to INTRO,\nblanks the screen, sets border and background to black, configures VIC-II\nmemory registers, clears the screen, draws the homage text (white) and the\n\"press fire\" prompt (green), resets all sprites, and re-enables the VIC-II display.\n\nInputs:  None\nOutputs: None\nSide Effects: Screen blanked then re-enabled, border/bg set to black, sprites\n              disabled, screen RAM written with intro text\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "26171": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPolls the joystick port to check for a new fire button click on the intro screen.\nEnsures the button is newly pressed (active-low logic: currently pressed (0)\nand previously released ($10)) to prevent click-holding.\nIf a new click is detected, transitions to load_assets_and_init_title.\n\nInputs:  joystick_state ($3E80), joystick_prev_state ($3E81)\nOutputs: None\nSide Effects: Jumps to load_assets_and_init_title if new click occurs\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "26207": "X positions for 7 title screen sprites (indices 0-6).",
     "26214": "Color values for 7 title screen sprites (indices 0-6).",
+    "26221": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays the \"LOADING DATA...\" message, then loads high scores and cave data\nfrom disk. Once assets are loaded, resets the title screen sprite animation Y\nposition and frame counter, initializes the title screen sprites via\ninit_title_sprites, and re-enables the display to begin the curtain animation.\n\nInputs:  None\nOutputs: None\nSide Effects: Displays loading text, loads disk data, initializes title sprites\n              (VIC-II registers), resets animation variables, screen enabled\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "26287": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the 7 hardware sprites used for the title screen curtain animation.\nSets their X positions, colors, and sprite data pointers (starting at $E8).\nAlso expands sprites 0 and 1 by 2x both horizontally and vertically.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies VIC-II sprite registers ($D000-$D02D) and screen pointers\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "26334": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTicks the title screen curtain opening animation once per frame.\nChecks the joystick port to allow skipping the animation with a fire button click\n(instantly transitioning to show_main_menu).\nIf not skipped, decrements the frame counter title_anim_counter and increases the\nvertical offset title_sprite_y_pos by 2 pixels per frame (capping at 120 pixels).\nTriggers set_title_sprite_y_positions to write positions into VIC-II registers.\nOnce the animation counter expires, automatically transitions to the main menu.\n\nInputs:  joystick_state ($3E80), joystick_prev_state ($3E81),\n         title_anim_counter ($664E), title_sprite_y_pos ($664D)\nOutputs: title_anim_counter, title_sprite_y_pos\nSide Effects: Jumps to show_main_menu on skip or completion, modifies VIC-II\n              sprite registers via set_title_sprite_y_positions\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "26348": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nAnimates the title screen sprite curtain effect. Each frame, moves the\ntop sprite group (0-2) downward and the bottom sprite group (4-6) upward,\ncreating a \"curtain opening\" reveal. Runs until the animation counter\nreaches zero, then transitions to the score/gameplay screen.\n\nInputs:  title_anim_counter ($664E) — frames remaining\n         title_sprite_y_pos ($664D) — current Y offset\nOutputs: title_anim_counter decremented, title_sprite_y_pos increased\nSide Effects: Updates VIC-II sprite Y position registers ($D001-$D00D)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "26376": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets the Y positions of all 7 title sprites based on title_sprite_y_pos.\nSprites 0-2 use the position directly (top group), sprite 3 is offset\n+$15 below them, and sprites 4-6 use $1C minus the position (bottom\ngroup moving upward as the curtain opens).\n\nInputs:  title_sprite_y_pos ($664D)\nOutputs: None\nSide Effects: Writes VIC-II registers $D001, $D003, $D005, $D007,\n              $D009, $D00B, $D00D\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "26410": "Current selected menu option on the title screen.\n0=START, 1=DYNAMITE, 2=BEST HEROES, 3=PLAY LEVELS, 4=CREDITS.",
@@ -8953,6 +9241,7 @@
     "26974": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSets up and displays the main menu screen.\nClears the screen, draws the menu layout with title artwork, renders\nmenu option text (START, BEST HEROES, PLAY LEVELS, CREDITS), loads\nthe current dynamite/control description, highlights the selected\nmenu item, enables menu sprites, and installs the menu raster IRQ.\n\nInputs:  None\nOutputs: None\nSide Effects: Blanks and redraws screen, sets a_20D3 to #$03 (menu state),\n              enables 6 sprites ($D015=$3F), installs raster IRQ at $6B84\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27102": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the main menu's title artwork (logo) onto the screen.\nCopies a 24x8 block of character data and color data from ROM to \nScreen RAM ($0430) and Color RAM ($D830).\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies Screen RAM and Color RAM\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27205": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nFills one 40-column row of Color RAM with a given color value.\nUsed to highlight/unhighlight menu items by painting a full row.\nThe base address is COLOR_RAM_ROW11; Y selects the row offset\n(each row is 80 bytes in the C128 80-col layout), and X holds\nthe color value to fill.\n\nInputs:  X = color value to store, Y = row offset from COLOR_RAM_ROW11\nOutputs: None\nSide Effects: Overwrites 40 bytes of Color RAM at the target row\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "27242": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTicks the main menu input processing once per frame.\nDetects newly clicked fire button presses to activate menu choices:\n  Option 0 (START)         -> starts default game\n  Option 1 (DYNAMITE)      -> cycles control methods (input_mode)\n  Option 2 (BEST HEROES)   -> shows high score ranking screen\n  Option 3 (PLAY LEVELS)   -> launches game from selected starting level\n  Option 4 (CREDITS)       -> shows credits screen\n\nIf fire is not pressed, processes directional joystick inputs:\n  Left/Right  -> shifts starting level group (Option 3 focused) up to max_unlocked_level\n  Up/Down     -> scrolls cursor, wrapping 0-4 and skipping Option 3 if locked\n\nInputs:  joystick_state ($3E80), joystick_prev_state ($3E81),\n         menu_cursor_index ($672A), menu_level_select_index ($672B)\nOutputs: menu_cursor_index, menu_level_select_index, difficulty_mode, input_mode\nSide Effects: Stops audio, transitions to gameplay init, high scores, or credits\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27480": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the on-screen dynamite control description text based on input_mode.\nLooks up input_mode (0-3), multiplies by 30 to index into the\ndynamite_desc_strings table (4 entries × 30 screencodes each), and copies\nthe 30-character string to scr_hud_row on screen RAM.\n\nStrings:\n  0 = \"   DYNAMITE: JOYSTICK DOWN    \"\n  1 = \"DYNAMITE: DOUBLE JOYSTICK DOWN\"\n  2 = \"     DYNAMITE: SPACE BAR      \"\n  3 = \"  DYNAMITE: 2ND FIRE BUTTON   \"\n\nInputs:  input_mode (0-3) — selected dynamite activation method\nOutputs: None\nSide Effects: Writes 30 bytes to screen RAM at scr_hud_row ($060D)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27502": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the level-select display on the menu screen.\nReads menu_level_select_index (0-3), multiplies by 5 to index into\nlevel_select_strings (4 entries × 5 screencodes each), and copies the\n5-char level range string to scr_lives_display on screen RAM.\n\nStrings:\n  0 = \"05-08\"    1 = \"09-12\"    2 = \"13-16\"    3 = \"17-20\"\n\nInputs:  menu_level_select_index ($672B) — selected starting level group\nOutputs: None\nSide Effects: Writes 5 bytes to screen RAM at scr_lives_display ($06BF)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "27524": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTitle screen raster IRQ handler — sprite setup.\nPositions 5 sprites to form the title/logo graphic:\n  Sprites 0-3 in a row at Y=$3B (X=$59,$89,$B9,$EA)\n  Sprite 4 centered at Y=$5B (X=$8F)\nAssigns sprite pointers $F5-$F9 and sets all 5 to white ($01).\nComputes next raster line from menu_cursor_index (each option is 16px\napart, base $86) and chains to irq_menu_cursor_top.\n\nInputs:  menu_cursor_index = currently highlighted menu option (0-based)\nOutputs: None\nSide Effects: VIC-II sprite registers $D000-$D00B, sprite pointers,\n              sprite colors, next IRQ chained to irq_menu_cursor_top\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -8965,9 +9254,11 @@
     "27890": "Rank label strings for the high score table, 4 chars each.\n10 entries: \" 1ST\", \" 2ND\", \" 3RD\", \" 4TH\" ... \" 9TH\", \"10TH\".\nFollowed by status messages (\"SAVING DATA...\", \"RESETTING RANKING...\").",
     "27930": "Disk I/O status message: \"SAVING DATA...\"",
     "27945": "High score reset status message: \"RESETTING RANKING...\"",
+    "27966": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitializes the High Scores / Scoreboard screen layout.\nSaves the player's ranking slot index in high_score_screen_flag, transitions\ngame_state to GameState.GAME_OVER, blanks the display, configures VIC rows, clears\nthe screen RAM, draws the scoreboard tables via draw_high_score_table, and resets\nactive sprites.\nFinally, checks high_score_screen_flag; if negative ($FF), returns immediately\n(view-only mode). Otherwise, transitions to enter_high_score_name to let the\nplayer enter their initials.\n\nInputs:  A = player ranking slot index (0-9), or $FF for view-only\nOutputs: None\nSide Effects: Sets game_state to GameState.GAME_OVER, configures VIC registers,\n              clears screen, draws high score table, resets sprites, enables screen\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28008": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the complete high score table on the screen.\nFirst prints the title \"BEST HEROES\" (green, at SCR_HISCORE_TITLE) and the\ncolumn header \"RANK    SCORE  LVL  NAME\" (cyan, at SCR_HISCORE_HEADER).\nThen loops through 10 score entries (7 bytes each in the score buffer),\nrendering each row:\n  - Rank label from rank_label_strings (\" 1ST\", \" 2ND\", etc.)\n  - 6-digit BCD score at column +7\n  - Level number at column +15 (or \"---\" if slot empty, $FF)\n  - 3-char player name at column +21\nRows advance by $50 (80 bytes, C128 80-col screen layout).\n\nInputs:  Score buffer pointed to by set_score_buffer_ptr\nOutputs: None\nSide Effects: Writes to screen RAM from $04D0 downward, 10 rows\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28044": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays the top-10 high score table on screen. For each entry, it\nprints the rank number (1–10), the BCD score (6 digits), the level\n(or \"---\" if the slot is empty/$FF), and the 3-character player name.\nIterates through 10 entries in the score buffer at $527F, writing each\nrow to screen memory starting at $04D0, advancing by $50 (80 cols) per row.\n\nInputs:  None (reads from score buffer at $527F)\nOutputs: None (writes directly to screen memory)\nSide Effects: Draws the complete high score table on screen, clobbers\n              ZP pointers $02/$03, $04/$05, $06, $FB/$FC, $FD/$FE.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28257": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPrompts the player to enter their 3-character initials for the high score\ntable, copies the entered name into the score buffer at the correct rank\nposition, then displays the updated table and saves it to disk.\n\nInputs:  a_6CCC = player's ranking position (0-9)\nOutputs: Score buffer updated with player's initials\nSide Effects: Screen redrawn with high score table, scores saved to disk\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "28310": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nTicks the high score / scoreboard screen once per frame.\nPolls the joystick fire button; a new click instantly transitions back to the\nmain menu.\nIf fire is not pressed, polls keyboard row 0 for the RUN/STOP key. A new RUN/STOP\nclick triggers a scoreboard factory reset:\n  1. Displays \"RESETTING RANKING...\" message\n  2. Restores default score list via init_default_high_scores\n  3. Flushes default high scores to the floppy disk via save_high_scores_to_disk\n  4. Reloads the high score table screen\n\nInputs:  joystick_state ($3E80), joystick_prev_state ($3E81),\n         kb_row0_cur ($3F0C), kb_row0_prev ($3F0D)\nOutputs: None\nSide Effects: Clears screen, overwrites high score floppy file, reloads\n              scoreboard view, or exits back to main menu\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28381": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDisplays \"SAVING DATA...\" message on a blank screen, resets sprites, re-enables\nthe display, then saves high scores to disk via save_high_scores_to_disk.\nCalled when exiting gameplay (RUN/STOP or high-score entry complete) while a\ngame was in progress.\n\nInputs:  None\nOutputs: None\nSide Effects: Blanks/clears screen, displays save message, resets sprites,\n              re-enables VIC-II display, writes high scores to disk\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28431": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nResets the screen color flash subsystem to its idle state.\nClears the state variable (a_6F01) so no flash animation runs,\nand restores the default screen color (yellow = 7) via zpa_82.\n\nInputs:  None\nOutputs: a_6F01 = 0, zpa_82 = 7\nSide Effects: Stops any active color flash animation\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "28441": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nExplosion animation state machine. Called every frame from the main game loop.\nDispatches on explosion_state ($6F01):\n  State 0: Inactive — do nothing.\n  State 1: Countdown delay, then init explosion (state 2) + check hero proximity.\n  State 2: Animate explosion — cycle colors from table, advance sprite frames\n           ($A1–$A4). After 6 color ticks, deactivate and check entity collisions.\n  State 3: Fade-out — decrement timer, then deactivate.\n\nInputs:  explosion_state ($6F01), explosion_timer ($6F08)\nOutputs: explosion_state, explosion_frame, explosion_color, explosion_anim_tick\nSide Effects: May trigger entity destroy (j_875A) or hero death (j_8185)\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -9431,6 +9722,18 @@
     "26156": {
       "HighByte": 1753
     },
+    "26232": {
+      "LowByte": 26191
+    },
+    "26236": {
+      "HighByte": 26191
+    },
+    "26240": {
+      "LowByte": 1517
+    },
+    "26244": {
+      "HighByte": 1517
+    },
     "26991": {
       "LowByte": 26412
     },
@@ -9572,22 +9875,47 @@
     "28425": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 127,
-  "hex_dump_cursor_address": 34896,
-  "sprites_cursor_address": 27456,
+  "cursor_address": 65493,
+  "hex_dump_cursor_address": 35896,
+  "sprites_cursor_address": 27520,
   "charset_cursor_address": 27200,
   "right_pane_visible": "HexDump8",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 40960,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
   "blocks_view_cursor": 12,
   "scopes": {},
   "enums": {
+    "GameState": {
+      "name": "GameState",
+      "description": "Game states for the C128 H.E.R.O. is Back clone.",
+      "variants": {
+        "0": "GAMEPLAY",
+        "1": "INTRO",
+        "2": "CURTAIN_ANIMATION",
+        "3": "MAIN_MENU",
+        "4": "GAME_OVER",
+        "5": "CREDITS",
+        "6": "GAME_COMPLETE"
+      }
+    },
+    "MenuOptions": {
+      "name": "MenuOptions",
+      "description": "Menu cursor options for the title screen selection.",
+      "variants": {
+        "0": "START",
+        "1": "DYNAMITE",
+        "2": "BEST_HEROES",
+        "3": "PLAY_LEVELS",
+        "4": "CREDITS"
+      }
+    },
     "VIC_Colors": {
       "name": "VIC_Colors",
+      "description": null,
       "variants": {
         "0": "BLACK",
         "1": "WHITE",
@@ -9609,6 +9937,16 @@
     }
   },
   "enum_usages": {
+    "7504": "GameState",
+    "7536": "GameState",
+    "7575": "GameState",
+    "7614": "GameState",
+    "8464": "GameState",
+    "8471": "GameState",
+    "8478": "GameState",
+    "8485": "GameState",
+    "8492": "GameState",
+    "8499": "GameState",
     "18681": "VIC_Colors",
     "18682": "VIC_Colors",
     "18683": "VIC_Colors",
@@ -9634,13 +9972,16 @@
     "20064": "VIC_Colors",
     "20577": "VIC_Colors",
     "20644": "VIC_Colors",
+    "24259": "GameState",
     "24286": "VIC_Colors",
     "24307": "VIC_Colors",
     "24328": "VIC_Colors",
     "24349": "VIC_Colors",
+    "24631": "GameState",
     "24646": "VIC_Colors",
     "24656": "VIC_Colors",
     "24666": "VIC_Colors",
+    "24831": "GameState",
     "24890": "VIC_Colors",
     "25287": "VIC_Colors",
     "25300": "VIC_Colors",
@@ -9653,6 +9994,7 @@
     "25843": "VIC_Colors",
     "25890": "VIC_Colors",
     "25916": "VIC_Colors",
+    "26099": "GameState",
     "26107": "VIC_Colors",
     "26139": "VIC_Colors",
     "26160": "VIC_Colors",
@@ -9663,10 +10005,20 @@
     "26218": "VIC_Colors",
     "26219": "VIC_Colors",
     "26220": "VIC_Colors",
+    "26221": "GameState",
     "26248": "VIC_Colors",
+    "26974": "GameState",
     "27007": "VIC_Colors",
     "27028": "VIC_Colors",
     "27074": "VIC_Colors",
+    "27272": "MenuOptions",
+    "27294": "MenuOptions",
+    "27306": "MenuOptions",
+    "27335": "MenuOptions",
+    "27414": "MenuOptions",
+    "27431": "MenuOptions",
+    "27457": "MenuOptions",
+    "27474": "MenuOptions",
     "27589": "VIC_Colors",
     "27634": "VIC_Colors",
     "27669": "VIC_Colors",
@@ -9675,6 +10027,7 @@
     "27819": "VIC_Colors",
     "27827": "VIC_Colors",
     "27835": "VIC_Colors",
+    "27969": "GameState",
     "28024": "VIC_Colors",
     "28045": "VIC_Colors",
     "28361": "VIC_Colors",
