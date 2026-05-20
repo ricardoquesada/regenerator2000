@@ -112,39 +112,35 @@ fn test_enum_resolution_and_precedence() {
 fn test_enum_embedding_on_command_apply() {
     let mut app_state = AppState::new();
 
-    // Add an enum "VIC_Colors" to Builtin Pool
+    // Add an enum "VicIIColors" to Builtin Pool
     let mut builtin_variants = BTreeMap::new();
     builtin_variants.insert(0, "BLACK".to_string());
     let builtin_enum = EnumDefinition {
-        name: "VIC_Colors".to_string(),
+        name: "VicIIColors".to_string(),
         description: None,
         variants: builtin_variants,
     };
     app_state
         .builtin_enums
-        .insert("VIC_Colors".to_string(), builtin_enum);
+        .insert("VicIIColors".to_string(), builtin_enum);
 
-    // Verify "VIC_Colors" is NOT in project enums initially
-    assert!(!app_state.enums.contains_key("VIC_Colors"));
+    // Verify "VicIIColors" is NOT in project enums initially
+    assert!(!app_state.enums.contains_key("VicIIColors"));
 
-    // Dispatch Command to use "VIC_Colors"
+    // Dispatch Command to use "VicIIColors"
     let cmd = regenerator2000_core::commands::Command::SetEnumUsage {
         address: Addr(0x1000),
-        new_enum: Some("VIC_Colors".to_string()),
+        new_enum: Some("VicIIColors".to_string()),
         old_enum: None,
     };
     cmd.apply(&mut app_state);
 
-    // Verify "VIC_Colors" has been EMBEDDED (cloned) into project enums!
-    assert!(app_state.enums.contains_key("VIC_Colors"));
+    // Verify "VicIIColors" is STILL NOT in project enums (cloned) automatically!
+    assert!(!app_state.enums.contains_key("VicIIColors"));
+
+    // But verify that we can STILL resolve the enum value successfully!
     assert_eq!(
-        app_state
-            .enums
-            .get("VIC_Colors")
-            .unwrap()
-            .variants
-            .get(&0)
-            .unwrap(),
+        app_state.resolve_enum_value(Addr(0x1000), 0).unwrap(),
         "BLACK"
     );
 }

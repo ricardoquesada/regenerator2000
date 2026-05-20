@@ -242,14 +242,6 @@ impl Command {
             } => {
                 if let Some(enum_name) = new_enum {
                     state.enum_usages.insert(*address, enum_name.clone());
-                    // Embed pre-defined global/built-in enum into local project enums if not present
-                    if !state.enums.contains_key(enum_name) {
-                        if let Some(def) = state.user_global_enums.get(enum_name) {
-                            state.enums.insert(enum_name.clone(), def.clone());
-                        } else if let Some(def) = state.builtin_enums.get(enum_name) {
-                            state.enums.insert(enum_name.clone(), def.clone());
-                        }
-                    }
                 } else {
                     state.enum_usages.remove(address);
                 }

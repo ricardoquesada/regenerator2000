@@ -35,18 +35,6 @@
     },
     {
       "start": 884,
-      "end": 934,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 935,
-      "end": 935,
-      "type_": "Undefined",
-      "collapsed": false
-    },
-    {
-      "start": 936,
       "end": 1023,
       "type_": "DataByte",
       "collapsed": false
@@ -192,7 +180,7 @@
     {
       "start": 3095,
       "end": 3154,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -341,14 +329,8 @@
     },
     {
       "start": 5270,
-      "end": 7045,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 7046,
       "end": 7110,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -359,24 +341,6 @@
     },
     {
       "start": 7127,
-      "end": 7130,
-      "type_": "Address",
-      "collapsed": false
-    },
-    {
-      "start": 7131,
-      "end": 7134,
-      "type_": "Undefined",
-      "collapsed": false
-    },
-    {
-      "start": 7135,
-      "end": 7138,
-      "type_": "DataWord",
-      "collapsed": false
-    },
-    {
-      "start": 7139,
       "end": 7145,
       "type_": "DataByte",
       "collapsed": false
@@ -389,12 +353,6 @@
     },
     {
       "start": 7160,
-      "end": 7163,
-      "type_": "DataWord",
-      "collapsed": false
-    },
-    {
-      "start": 7164,
       "end": 7170,
       "type_": "DataByte",
       "collapsed": false
@@ -407,18 +365,6 @@
     },
     {
       "start": 7183,
-      "end": 7183,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 7184,
-      "end": 7270,
-      "type_": "Undefined",
-      "collapsed": false
-    },
-    {
-      "start": 7271,
       "end": 7273,
       "type_": "DataByte",
       "collapsed": false
@@ -444,7 +390,7 @@
     {
       "start": 7309,
       "end": 7312,
-      "type_": "Address",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -456,7 +402,7 @@
     {
       "start": 7347,
       "end": 7350,
-      "type_": "Address",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -468,7 +414,7 @@
     {
       "start": 7381,
       "end": 7384,
-      "type_": "Address",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -480,7 +426,7 @@
     {
       "start": 7418,
       "end": 7421,
-      "type_": "Address",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -492,7 +438,7 @@
     {
       "start": 7455,
       "end": 7458,
-      "type_": "Address",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -504,7 +450,7 @@
     {
       "start": 7486,
       "end": 7489,
-      "type_": "Address",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -516,7 +462,7 @@
     {
       "start": 7506,
       "end": 7509,
-      "type_": "Address",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -528,7 +474,7 @@
     {
       "start": 7548,
       "end": 7551,
-      "type_": "Address",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -540,7 +486,7 @@
     {
       "start": 7591,
       "end": 7692,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -552,7 +498,7 @@
     {
       "start": 7730,
       "end": 7733,
-      "type_": "DataWord",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -564,7 +510,7 @@
     {
       "start": 7768,
       "end": 7771,
-      "type_": "Address",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -576,7 +522,7 @@
     {
       "start": 7800,
       "end": 7803,
-      "type_": "Address",
+      "type_": "DataByte",
       "collapsed": false
     },
     {
@@ -588,7 +534,7 @@
     {
       "start": 7827,
       "end": 8191,
-      "type_": "Undefined",
+      "type_": "DataByte",
       "collapsed": false
     }
   ],
@@ -1043,7 +989,7 @@
     ],
     "165": [
       {
-        "name": "zp_ptr_bmp_col",
+        "name": "zp_ptr_bmp_col_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -1057,7 +1003,7 @@
     ],
     "167": [
       {
-        "name": "zp_ptr_bmp_spill",
+        "name": "zp_ptr_bmp_spill_lo",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -1181,6 +1127,328 @@
         "kind": "User"
       }
     ],
+    "648": [
+      {
+        "name": "KERNAL_SCREEN_HI",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "650": [
+      {
+        "name": "KERNAL_KEY_REPEAT",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "653": [
+      {
+        "name": "KERNAL_MODIFIER_KEYS",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "657": [
+      {
+        "name": "KERNAL_SHIFT_CBM_LOCK",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "788": [
+      {
+        "name": "KERNAL_IRQ_VECTOR_LO",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "789": [
+      {
+        "name": "KERNAL_IRQ_VECTOR_HI",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "828": [
+      {
+        "name": "entity_types",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "847": [
+      {
+        "name": "entity_headings",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "866": [
+      {
+        "name": "entity_x_coords",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "885": [
+      {
+        "name": "entity_y_coords",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "904": [
+      {
+        "name": "entity_old_x",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "917": [
+      {
+        "name": "entity_old_y",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "930": [
+      {
+        "name": "entity_velocity_indices",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "949": [
+      {
+        "name": "entity_anim_timers",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "968": [
+      {
+        "name": "entity_vx",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "4096": [
+      {
+        "name": "BITMAP_COL0",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "4256": [
+      {
+        "name": "BITMAP_COL1",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "4416": [
+      {
+        "name": "BITMAP_COL2",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "4576": [
+      {
+        "name": "BITMAP_COL3",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "4736": [
+      {
+        "name": "BITMAP_COL4",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "4896": [
+      {
+        "name": "BITMAP_COL5",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "5056": [
+      {
+        "name": "BITMAP_COL6",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "5216": [
+      {
+        "name": "BITMAP_COL7",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "5376": [
+      {
+        "name": "BITMAP_COL8",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "5536": [
+      {
+        "name": "BITMAP_COL9",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "5696": [
+      {
+        "name": "BITMAP_COL10",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "5856": [
+      {
+        "name": "BITMAP_COL11",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "6016": [
+      {
+        "name": "BITMAP_COL12",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "6176": [
+      {
+        "name": "BITMAP_COL13",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "6336": [
+      {
+        "name": "BITMAP_COL14",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "6496": [
+      {
+        "name": "BITMAP_COL15",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "6656": [
+      {
+        "name": "BITMAP_COL16",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "6816": [
+      {
+        "name": "BITMAP_COL17",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "6976": [
+      {
+        "name": "BITMAP_COL18",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7136": [
+      {
+        "name": "BITMAP_COL19",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7424": [
+      {
+        "name": "entity_vy",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7443": [
+      {
+        "name": "entity_sprite_frames",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7462": [
+      {
+        "name": "entity_y_center_deltas",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7475": [
+      {
+        "name": "ai_pursuit_vx",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7488": [
+      {
+        "name": "ai_pursuit_vy",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7501": [
+      {
+        "name": "bullet_vx",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7509": [
+      {
+        "name": "bullet_vy",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7517": [
+      {
+        "name": "bullet_lifetimes",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7525": [
+      {
+        "name": "bullet_x_coords",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7533": [
+      {
+        "name": "bullet_y_coords",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "7541": [
+      {
+        "name": "bullet_owners",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
     "7549": [
       {
         "name": "input_dispatch",
@@ -1198,6 +1466,76 @@
     "7551": [
       {
         "name": "input_dispatch_hi",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7552": [
+      {
+        "name": "enemy_speed_masks",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7699": [
+      {
+        "name": "PLAYFIELD_SCREEN_START",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "38400": [
+      {
+        "name": "COLOR_RAM",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "38403": [
+      {
+        "name": "COLOR_RAM_R0C3",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "38419": [
+      {
+        "name": "COLOR_RAM_R0C19",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "38443": [
+      {
+        "name": "COLOR_RAM_R1C21",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "38460": [
+      {
+        "name": "COLOR_RAM_R2C16",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "38463": [
+      {
+        "name": "COLOR_RAM_R2C19",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "38500": [
+      {
+        "name": "COLOR_RAM_R4C12",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "38503": [
+      {
+        "name": "COLOR_RAM_R4C15",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
@@ -1234,6 +1572,13 @@
       {
         "name": "init_new_game",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "41405": [
+      {
+        "name": "init_new_game_rts",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -1437,6 +1782,13 @@
       {
         "name": "update_player_physics",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "42093": [
+      {
+        "name": "patch_input_dispatch_hi",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -1745,6 +2097,34 @@
       {
         "name": "border_segment_params",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "44056": [
+      {
+        "name": "border_segment_y_start",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "44057": [
+      {
+        "name": "border_segment_len",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "44058": [
+      {
+        "name": "border_segment_dx",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "44059": [
+      {
+        "name": "border_segment_dy",
+        "label_type": "Field",
         "kind": "User"
       }
     ],
@@ -2151,6 +2531,97 @@
       {
         "name": "gfx_story_slide_1",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "48552": [
+      {
+        "name": "attract_story_slide_2",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "48650": [
+      {
+        "name": "attract_story_slide_3",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "48788": [
+      {
+        "name": "wave_transition_graphic",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "48801": [
+      {
+        "name": "phase_bonus_congrats_text",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "48851": [
+      {
+        "name": "snd_bass_freq_tbl",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "48853": [
+      {
+        "name": "snd_bass_dur_tbl",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "48855": [
+      {
+        "name": "snd_alto_freq_tbl",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "48919": [
+      {
+        "name": "snd_alto_dur_tbl",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "48920": [
+      {
+        "name": "snd_alto_dur_tbl_offset1",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "49000": [
+      {
+        "name": "snd_soprano_freq_tbl",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "49037": [
+      {
+        "name": "snd_soprano_dur_tbl",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "49073": [
+      {
+        "name": "snd_noise_freq_tbl",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "49098": [
+      {
+        "name": "snd_noise_dur_tbl",
+        "label_type": "Field",
         "kind": "User"
       }
     ]
@@ -2927,9 +3398,9 @@
     "addresses_per_line": 5,
     "bytes_per_line": 8,
     "enabled_features": {
-      "KERNAL": true,
-      "Lower Page": false,
       "BASIC": false,
+      "Lower Page": false,
+      "KERNAL": true,
       "SYSTEM": false
     },
     "description": "Omega Race VIC20 video game. Original cartridge version",
@@ -3030,8 +3501,8 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 248,
-  "hex_dump_cursor_address": 49136,
+  "cursor_address": 45729,
+  "hex_dump_cursor_address": 45728,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
   "right_pane_visible": "HexDump16",
@@ -3044,6 +3515,12 @@
   "blocks_view_cursor": 53,
   "scopes": {},
   "enums": {},
-  "enum_usages": {},
+  "enum_usages": {
+    "41333": "VicColors",
+    "45517": "VicColors",
+    "45522": "VicColors",
+    "46124": "VicColors",
+    "46129": "VicColors"
+  },
   "user_excluded_addresses": []
 }
