@@ -1355,7 +1355,15 @@ impl Widget for DisassemblyView {
                         .add_modifier(Modifier::BOLD),
                 ));
             } else {
-                let is_unindented_scope = line.mnemonic == "{" || line.mnemonic == "}";
+                let cp = formatter.comment_prefix();
+                let is_enum = line.bytes.is_empty()
+                    && line.address == crate::state::Addr::ZERO
+                    && line.external_label_address.is_none()
+                    && !line.mnemonic.is_empty()
+                    && !line.mnemonic.starts_with(cp);
+
+                let is_unindented_scope =
+                    (line.mnemonic == "{" || line.mnemonic == "}") && !is_enum;
                 // If the label is too long for the column, or if it's an unindented scope and has a label, put it on its own line
                 let label_on_own_line = label_text.len() >= LABEL_COLUMN_WIDTH
                     || (is_unindented_scope && !label_text.is_empty());
@@ -1410,6 +1418,8 @@ impl Widget for DisassemblyView {
                         base_style
                             .fg(ui_state.theme.label_def)
                             .add_modifier(Modifier::BOLD)
+                    } else if is_enum {
+                        base_style.fg(ui_state.theme.label_def)
                     } else {
                         base_style.fg(ui_state.theme.comment)
                     };

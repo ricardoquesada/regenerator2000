@@ -391,8 +391,13 @@ pub fn export_html(state: &AppState, path: &PathBuf) -> std::io::Result<()> {
             }
             operand_str = new_op;
         }
-        // 6. Instruction part
-        let is_assignment = line.mnemonic.contains('=');
+        let is_enum = line.bytes.is_empty()
+            && line.address == crate::state::Addr::ZERO
+            && line.external_label_address.is_none()
+            && !line.mnemonic.is_empty()
+            && !line.mnemonic.starts_with(formatter.comment_prefix());
+
+        let is_assignment = line.mnemonic.contains('=') || is_enum;
 
         // 7. Comment part
         let mut comment_str = line.comment.clone();
@@ -611,6 +616,7 @@ mod tests {
     /// - Use the `bh` (block-header) class (which has `margin-left: 0; padding: 0`)
     /// - NOT contain an `il` (inline-label) span (which would push content to the
     ///   mnemonic column)
+    ///
     /// This ensures line comments start at the same column as labels.
     #[test]
     fn test_line_comment_aligns_with_label_column() {
