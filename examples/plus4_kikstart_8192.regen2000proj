@@ -1194,7 +1194,7 @@
     ],
     "61": [
       {
-        "name": "zp_raster_colour",
+        "name": "zp_raster_color",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -1320,7 +1320,7 @@
     ],
     "254": [
       {
-        "name": "zp_blit_colour_ptr",
+        "name": "zp_blit_color_ptr",
         "label_type": "ZeroPageAbsoluteAddress",
         "kind": "User"
       }
@@ -1388,115 +1388,458 @@
         "kind": "User"
       }
     ],
+    "2048": [
+      {
+        "name": "COLOR_RAM_R0C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2088": [
+      {
+        "name": "COLOR_RAM_R1C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2296": [
+      {
+        "name": "COLOR_RAM_R6C8",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2304": [
+      {
+        "name": "COLOR_RAM_R6C16",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
     "2361": [
       {
-        "name": "COLOR_RAM_SPEED_LBL",
+        "name": "COLOR_RAM_R7C33",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "2362": [
       {
-        "name": "COLOR_RAM_SPEED_DIGIT",
+        "name": "COLOR_RAM_R7C34",
         "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2376": [
+      {
+        "name": "COLOR_RAM_R8C8",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2382": [
+      {
+        "name": "COLOR_RAM_R8C14",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2456": [
+      {
+        "name": "COLOR_RAM_R10C8",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2544": [
+      {
+        "name": "COLOR_RAM_R12C16",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2560": [
+      {
+        "name": "COLOR_RAM_R12C32",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2688": [
+      {
+        "name": "COLOR_RAM_R16C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2728": [
+      {
+        "name": "COLOR_RAM_R17C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2768": [
+      {
+        "name": "COLOR_RAM_R18C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2808": [
+      {
+        "name": "COLOR_RAM_R19C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2816": [
+      {
+        "name": "COLOR_RAM_R19C8",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2848": [
+      {
+        "name": "COLOR_RAM_R20C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2888": [
+      {
+        "name": "COLOR_RAM_R21C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2967": [
+      {
+        "name": "COLOR_RAM_R22C39",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2968": [
+      {
+        "name": "COLOR_RAM_R23C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2969": [
+      {
+        "name": "COLOR_RAM_R23C1",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "2991": [
+      {
+        "name": "COLOR_RAM_R23C23",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3008": [
+      {
+        "name": "COLOR_RAM_R24C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3072": [
+      {
+        "name": "SCREEN_RAM_R0C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3079": [
+      {
+        "name": "SCREEN_RAM_R0C7",
+        "label_type": "Field",
         "kind": "User"
       }
     ],
     "3080": [
       {
-        "name": "p1_timer_tens",
+        "name": "SCREEN_RAM_R0C8",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "3082": [
       {
-        "name": "p1_timer_units",
+        "name": "SCREEN_RAM_R0C10",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "3083": [
       {
-        "name": "p1_timer_frac",
+        "name": "SCREEN_RAM_R0C11",
         "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3091": [
+      {
+        "name": "SCREEN_RAM_R0C19",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3104": [
+      {
+        "name": "SCREEN_RAM_R0C32",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3112": [
+      {
+        "name": "SCREEN_RAM_R1C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3119": [
+      {
+        "name": "SCREEN_RAM_R1C7",
+        "label_type": "Field",
         "kind": "User"
       }
     ],
     "3120": [
       {
-        "name": "p2_timer_tens",
+        "name": "SCREEN_RAM_R1C8",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "3121": [
       {
-        "name": "p2_timer_sep",
+        "name": "SCREEN_RAM_R1C9",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "3123": [
       {
-        "name": "p2_timer_frac",
+        "name": "SCREEN_RAM_R1C11",
         "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3131": [
+      {
+        "name": "SCREEN_RAM_R1C19",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3144": [
+      {
+        "name": "SCREEN_RAM_R1C32",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3152": [
+      {
+        "name": "SCREEN_RAM_R2C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3320": [
+      {
+        "name": "SCREEN_RAM_R6C8",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3328": [
+      {
+        "name": "SCREEN_RAM_R6C16",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3341": [
+      {
+        "name": "SCREEN_RAM_R6C29",
+        "label_type": "Field",
         "kind": "User"
       }
     ],
     "3342": [
       {
-        "name": "score_time_tens",
+        "name": "SCREEN_RAM_R6C30",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "3343": [
       {
-        "name": "score_time_units",
+        "name": "SCREEN_RAM_R6C31",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "3385": [
       {
-        "name": "score_course_label",
+        "name": "SCREEN_RAM_R7C33",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "3386": [
       {
-        "name": "score_course_digit",
+        "name": "SCREEN_RAM_R7C34",
         "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3400": [
+      {
+        "name": "SCREEN_RAM_R8C8",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3406": [
+      {
+        "name": "SCREEN_RAM_R8C14",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3408": [
+      {
+        "name": "SCREEN_RAM_R8C16",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3421": [
+      {
+        "name": "SCREEN_RAM_R8C29",
+        "label_type": "Field",
         "kind": "User"
       }
     ],
     "3422": [
       {
-        "name": "score_bikes_tens",
+        "name": "SCREEN_RAM_R8C30",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "3423": [
       {
-        "name": "score_bikes_units",
+        "name": "SCREEN_RAM_R8C31",
         "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3480": [
+      {
+        "name": "SCREEN_RAM_R10C8",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3568": [
+      {
+        "name": "SCREEN_RAM_R12C16",
+        "label_type": "Field",
         "kind": "User"
       }
     ],
     "3574": [
       {
-        "name": "level_select_tens",
+        "name": "SCREEN_RAM_R12C22",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "3575": [
       {
-        "name": "level_select_units",
+        "name": "SCREEN_RAM_R12C23",
         "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3584": [
+      {
+        "name": "SCREEN_RAM_R12C32",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3712": [
+      {
+        "name": "SCREEN_RAM_R16C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3752": [
+      {
+        "name": "SCREEN_RAM_R17C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3792": [
+      {
+        "name": "SCREEN_RAM_R18C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3832": [
+      {
+        "name": "SCREEN_RAM_R19C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3840": [
+      {
+        "name": "SCREEN_RAM_R19C8",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3872": [
+      {
+        "name": "SCREEN_RAM_R20C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3912": [
+      {
+        "name": "SCREEN_RAM_R21C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3992": [
+      {
+        "name": "SCREEN_RAM_R23C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "4032": [
+      {
+        "name": "SCREEN_RAM_R24C0",
+        "label_type": "Field",
         "kind": "User"
       }
     ],
@@ -1831,7 +2174,7 @@
     ],
     "8640": [
       {
-        "name": "select_raster_colour",
+        "name": "select_raster_color",
         "label_type": "Subroutine",
         "kind": "User"
       }
@@ -3264,12 +3607,14 @@
     "exclude_well_known_labels": true
   },
   "immediate_value_formats": {
+    "4096": "Binary",
     "8286": {
       "LowByte": 8472
     },
     "8291": {
       "HighByte": 8472
     },
+    "9773": "Decimal",
     "11834": {
       "LowByte": 12032
     },
@@ -3278,68 +3623,71 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8192,
-  "hex_dump_cursor_address": 8192,
-  "sprites_cursor_address": 4352,
-  "charset_cursor_address": 6728,
+  "cursor_address": 39,
+  "hex_dump_cursor_address": 11344,
+  "sprites_cursor_address": 4096,
+  "charset_cursor_address": 4096,
   "right_pane_visible": "HexDump16",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 40960,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
-  "hexdump_view_mode": "PETSCIIShifted",
+  "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
-  "blocks_view_cursor": 14,
+  "blocks_view_cursor": null,
   "scopes": {},
-  "user_excluded_addresses": [
-    2048,
-    2088,
-    2296,
-    2304,
-    2376,
-    2382,
-    2456,
-    2544,
-    2560,
-    2688,
-    2728,
-    2768,
-    2808,
-    2816,
-    2848,
-    2888,
-    2967,
-    2968,
-    2969,
-    2991,
-    3008,
-    3072,
-    3079,
-    3091,
-    3104,
-    3112,
-    3119,
-    3131,
-    3144,
-    3152,
-    3320,
-    3328,
-    3341,
-    3400,
-    3406,
-    3408,
-    3421,
-    3480,
-    3568,
-    3584,
-    3712,
-    3752,
-    3792,
-    3832,
-    3840,
-    3872,
-    3912,
-    3992,
-    4032
-  ]
+  "enums": {
+    "GameMode": {
+      "name": "GameMode",
+      "description": "Main game state machine dispatcher modes in Kikstart.",
+      "variants": {
+        "0": "NORMAL_RIDE",
+        "1": "CRASH_DEBRIS",
+        "2": "ACTIVE_RIDE",
+        "3": "STARTING_GATE",
+        "4": "TRACK_SCROLL",
+        "5": "DEBRIS_WAIT",
+        "6": "RESULTS_SCREEN",
+        "7": "VELOCITY_INTEGRATE",
+        "8": "NEXT_LAP_INIT"
+      }
+    }
+  },
+  "enum_usages": {
+    "8642": "GameMode",
+    "8646": "GameMode",
+    "8650": "GameMode",
+    "8966": "GameMode",
+    "8970": "GameMode",
+    "8974": "GameMode",
+    "8978": "GameMode",
+    "9234": "GameMode",
+    "9238": "GameMode",
+    "9242": "GameMode",
+    "9246": "GameMode",
+    "9250": "GameMode",
+    "9682": "GameMode",
+    "9686": "GameMode",
+    "9690": "GameMode",
+    "9694": "GameMode",
+    "9698": "GameMode",
+    "9702": "GameMode",
+    "9706": "GameMode",
+    "9710": "GameMode",
+    "9714": "GameMode",
+    "9850": "GameMode",
+    "9866": "GameMode",
+    "9876": "GameMode",
+    "9884": "GameMode",
+    "9915": "GameMode",
+    "9952": "GameMode",
+    "9970": "GameMode",
+    "9980": "GameMode",
+    "10766": "GameMode",
+    "10990": "GameMode",
+    "11049": "GameMode",
+    "11342": "GameMode",
+    "11346": "GameMode"
+  },
+  "user_excluded_addresses": []
 }

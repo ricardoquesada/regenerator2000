@@ -803,6 +803,55 @@
         "kind": "User"
       }
     ],
+    "1024": [
+      {
+        "name": "basic_start",
+        "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "1060": [
+      {
+        "name": "basic_line_20",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1088": [
+      {
+        "name": "basic_line_30",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1119": [
+      {
+        "name": "basic_line_40",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1141": [
+      {
+        "name": "basic_line_50",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1153": [
+      {
+        "name": "basic_line_60",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1164": [
+      {
+        "name": "basic_end",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "1536": [
       {
         "name": "start",
@@ -894,10 +943,38 @@
         "kind": "User"
       }
     ],
+    "2188": [
+      {
+        "name": "smc_blit_screen_r0_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2189": [
+      {
+        "name": "smc_blit_screen_r0_hi",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "2343": [
       {
         "name": "blit_sidebar",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2349": [
+      {
+        "name": "smc_blit_sidebar_r0_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2350": [
+      {
+        "name": "smc_blit_sidebar_r0_hi",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -940,6 +1017,76 @@
       {
         "name": "transition_from_empty_to_full",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "2833": [
+      {
+        "name": "smc_draw_border_addr_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2834": [
+      {
+        "name": "smc_draw_border_addr_hi",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2924": [
+      {
+        "name": "smc_wipe_br_addr_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2925": [
+      {
+        "name": "smc_wipe_br_addr_hi",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2973": [
+      {
+        "name": "smc_wipe_tl_addr_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "2974": [
+      {
+        "name": "smc_wipe_tl_addr_hi",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3022": [
+      {
+        "name": "smc_wipe_bl_addr_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3023": [
+      {
+        "name": "smc_wipe_bl_addr_hi",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3071": [
+      {
+        "name": "smc_wipe_tr_addr_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3072": [
+      {
+        "name": "smc_wipe_tr_addr_hi",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -2506,7 +2653,7 @@
     ],
     "13319": [
       {
-        "name": "draw_intro_level_number",
+        "name": "draw_intro_hi_score",
         "label_type": "UserDefined",
         "kind": "User"
       }
@@ -2790,9 +2937,815 @@
         "label_type": "UserDefined",
         "kind": "User"
       }
+    ],
+    "26369": [
+      {
+        "name": "playfield_row_0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "26411": [
+      {
+        "name": "playfield_row_0_offset_2b",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "26624": [
+      {
+        "name": "playfield_row_1_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "26625": [
+      {
+        "name": "playfield_row_1",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "26667": [
+      {
+        "name": "playfield_row_1_offset_2b",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "26880": [
+      {
+        "name": "playfield_row_2_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "26881": [
+      {
+        "name": "playfield_row_2",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "26915": [
+      {
+        "name": "playfield_row_2_col_34",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "27136": [
+      {
+        "name": "playfield_row_3_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "27137": [
+      {
+        "name": "playfield_row_3",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "27161": [
+      {
+        "name": "playfield_intro_hi_score_thousands",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "27162": [
+      {
+        "name": "playfield_intro_hi_score_hundreds",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "27163": [
+      {
+        "name": "playfield_intro_hi_score_tens",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "27164": [
+      {
+        "name": "playfield_intro_hi_score_ones",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "27173": [
+      {
+        "name": "hud_level_tens",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "27174": [
+      {
+        "name": "hud_level_units",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "27392": [
+      {
+        "name": "playfield_row_4_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "27393": [
+      {
+        "name": "playfield_row_4",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "27648": [
+      {
+        "name": "playfield_row_5_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "27649": [
+      {
+        "name": "playfield_row_5",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "27657": [
+      {
+        "name": "playfield_row_5_offset_09_banner",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "27904": [
+      {
+        "name": "playfield_row_6_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "27905": [
+      {
+        "name": "playfield_row_6",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "27920": [
+      {
+        "name": "playfield_row_6_col_16",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "27939": [
+      {
+        "name": "playfield_row_6_col_34",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "28160": [
+      {
+        "name": "playfield_row_7_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "28161": [
+      {
+        "name": "playfield_row_7",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "28196": [
+      {
+        "name": "hud_gold_count_tens",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "28197": [
+      {
+        "name": "hud_gold_count_units",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "28198": [
+      {
+        "name": "hud_gold_slash",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "28199": [
+      {
+        "name": "hud_gold_total_tens",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "28200": [
+      {
+        "name": "hud_gold_total_units",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "28416": [
+      {
+        "name": "playfield_row_8_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "28417": [
+      {
+        "name": "playfield_row_8",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "28672": [
+      {
+        "name": "playfield_row_9_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "28673": [
+      {
+        "name": "playfield_row_9",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "28928": [
+      {
+        "name": "playfield_row_10_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "28929": [
+      {
+        "name": "playfield_row_10",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "28963": [
+      {
+        "name": "playfield_row_10_col_34",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "29184": [
+      {
+        "name": "playfield_row_11_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "29185": [
+      {
+        "name": "playfield_row_11",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "29221": [
+      {
+        "name": "hud_timer_tens",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "29222": [
+      {
+        "name": "playfield_row_11_col_37",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "29440": [
+      {
+        "name": "playfield_row_12_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "29441": [
+      {
+        "name": "playfield_row_12",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "29696": [
+      {
+        "name": "playfield_row_13_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "29697": [
+      {
+        "name": "playfield_row_13",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "29952": [
+      {
+        "name": "playfield_row_14_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "29953": [
+      {
+        "name": "playfield_row_14",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "29961": [
+      {
+        "name": "playfield_row_14_col_8",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "29984": [
+      {
+        "name": "playfield_row_14_col_31",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "29987": [
+      {
+        "name": "playfield_row_14_col_34",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "30208": [
+      {
+        "name": "playfield_row_15_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "30209": [
+      {
+        "name": "playfield_row_15",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "30464": [
+      {
+        "name": "playfield_row_16_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "30465": [
+      {
+        "name": "playfield_row_16",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "30499": [
+      {
+        "name": "playfield_row_16_col_34",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "30720": [
+      {
+        "name": "playfield_row_17_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "30721": [
+      {
+        "name": "playfield_row_17",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "30756": [
+      {
+        "name": "hud_penalty_ten_thousands",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "30757": [
+      {
+        "name": "hud_penalty_thousands",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "30758": [
+      {
+        "name": "hud_penalty_hundreds",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "30759": [
+      {
+        "name": "hud_penalty_tens",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "30976": [
+      {
+        "name": "playfield_row_18_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "30977": [
+      {
+        "name": "playfield_row_18",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "31232": [
+      {
+        "name": "playfield_row_19_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "31233": [
+      {
+        "name": "playfield_row_19",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "31267": [
+      {
+        "name": "playfield_row_19_col_34",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "31488": [
+      {
+        "name": "playfield_row_20_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "31489": [
+      {
+        "name": "playfield_row_20",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "31524": [
+      {
+        "name": "hud_score_ten_thousands",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "31525": [
+      {
+        "name": "hud_score_thousands",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "31526": [
+      {
+        "name": "hud_score_hundreds",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "31527": [
+      {
+        "name": "playfield_row_20_col_39",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "31744": [
+      {
+        "name": "playfield_row_21_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "31745": [
+      {
+        "name": "playfield_row_21",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "32000": [
+      {
+        "name": "playfield_row_22_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "32001": [
+      {
+        "name": "playfield_row_22",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "32256": [
+      {
+        "name": "playfield_row_23_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "32257": [
+      {
+        "name": "playfield_row_23",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "32288": [
+      {
+        "name": "playfield_row_23_col_32",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "32512": [
+      {
+        "name": "playfield_row_24_page_base",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "32513": [
+      {
+        "name": "playfield_row_24",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "32768": [
+      {
+        "name": "SCREEN_RAM_R0C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "32808": [
+      {
+        "name": "SCREEN_RAM_R1C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "32848": [
+      {
+        "name": "SCREEN_RAM_R2C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "32888": [
+      {
+        "name": "SCREEN_RAM_R3C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "32928": [
+      {
+        "name": "SCREEN_RAM_R4C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "32968": [
+      {
+        "name": "SCREEN_RAM_R5C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33008": [
+      {
+        "name": "SCREEN_RAM_R6C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33024": [
+      {
+        "name": "SCREEN_RAM_R6C16",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33048": [
+      {
+        "name": "SCREEN_RAM_R7C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33088": [
+      {
+        "name": "SCREEN_RAM_R8C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33128": [
+      {
+        "name": "SCREEN_RAM_R9C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33168": [
+      {
+        "name": "SCREEN_RAM_R10C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33208": [
+      {
+        "name": "SCREEN_RAM_R11C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33247": [
+      {
+        "name": "SCREEN_RAM_R11C39",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "33248": [
+      {
+        "name": "SCREEN_RAM_R12C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33280": [
+      {
+        "name": "SCREEN_RAM_R12C32",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33288": [
+      {
+        "name": "SCREEN_RAM_R13C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33328": [
+      {
+        "name": "SCREEN_RAM_R14C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33368": [
+      {
+        "name": "SCREEN_RAM_R15C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33408": [
+      {
+        "name": "SCREEN_RAM_R16C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33448": [
+      {
+        "name": "SCREEN_RAM_R17C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33488": [
+      {
+        "name": "SCREEN_RAM_R18C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33528": [
+      {
+        "name": "SCREEN_RAM_R19C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33536": [
+      {
+        "name": "SCREEN_RAM_R19C8",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33568": [
+      {
+        "name": "SCREEN_RAM_R20C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33608": [
+      {
+        "name": "SCREEN_RAM_R21C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33648": [
+      {
+        "name": "SCREEN_RAM_R22C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33688": [
+      {
+        "name": "SCREEN_RAM_R23C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33728": [
+      {
+        "name": "SCREEN_RAM_R24C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "33792": [
+      {
+        "name": "SCREEN_RAM_R25C24",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "34048": [
+      {
+        "name": "SCREEN_RAM_R32C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "34304": [
+      {
+        "name": "SCREEN_RAM_R38C16",
+        "label_type": "Field",
+        "kind": "User"
+      }
     ]
   },
   "user_side_comments": {
+    "1024": "10 REM LODE RUNNER ON COMMODORE PET",
     "1025": "10 REM LODE RUNNER ON COMMODORE PET",
     "1060": "20 REM JIM.ORLANDO@GMAIL.COM",
     "1088": "30 REM TESTED ON 3032,4032,8032",
@@ -2870,10 +3823,14 @@
     "2182": "X = column index (0–$1F), copied across all 25 rows each pass",
     "2184": "back-buffer row 0 ($6701 + X)",
     "2187": "Screen RAM row 0 ($8000 + X)",
+    "2188": "SMC operand: smc_blit_screen_r0_lo",
+    "2189": "SMC operand: smc_blit_screen_r0_hi",
     "2334": "advance to next column",
     "2335": "all 32 play-area columns done?",
     "2337": "yes — return",
     "2339": "no — next column",
+    "2349": "SMC operand: smc_blit_sidebar_r0_lo",
+    "2350": "SMC operand: smc_blit_sidebar_r0_hi",
     "2504": "save A",
     "2505": "save X",
     "2507": "save Y",
@@ -2937,7 +3894,6 @@
     "2712": "second $FF = all rings erased, animation complete",
     "2714": "yes: done",
     "2716": "no: continue next frame",
-    "2743": "Self-modifying screen RAM target address (low byte). See a0AB6.",
     "2744": "Phase 1: draw static border frame (25 rows × 33 cols) to screen RAM",
     "2750": "screen RAM pointer lo = 0",
     "2753": "screen RAM pointer hi = $80 → base $8000",
@@ -2959,6 +3915,8 @@
     "2825": "right-edge fill ($65)",
     "2830": "interior cell: empty ($20)",
     "2832": "write char directly to screen RAM",
+    "2833": "SMC operand: smc_draw_border_addr_lo",
+    "2834": "SMC operand: smc_draw_border_addr_hi",
     "2836": "all 33 cols done?",
     "2842": "advance screen pointer by screen_width (carry-propagated)",
     "2857": "all 25 rows done?",
@@ -2976,6 +3934,8 @@
     "2917": "right col = $11 + col_offset",
     "2921": "read level tile from offscreen buffer",
     "2923": "write tile directly to screen RAM at patched row + col",
+    "2924": "SMC operand: smc_wipe_br_addr_lo",
+    "2925": "SMC operand: smc_wipe_br_addr_hi",
     "2926": "--- top-left: page=$73-row_off, col=$11-col_off; SMC subtracts screen_width ---",
     "2929": "offscreen buffer page = $73 - row_offset (top half)",
     "2934": "SMC base screen RAM hi byte → patch STA at $0B9C",
@@ -2985,6 +3945,8 @@
     "2966": "left col = $11 - col_offset",
     "2970": "read level tile from offscreen buffer",
     "2972": "write tile directly to screen RAM at patched row + col",
+    "2973": "SMC operand: smc_wipe_tl_addr_lo",
+    "2974": "SMC operand: smc_wipe_tl_addr_hi",
     "2975": "--- bottom-left: page=$73+row_off, col=$11-col_off; SMC adds screen_width ---",
     "2978": "offscreen buffer page = $73 + row_offset (bottom half)",
     "2983": "SMC base screen RAM hi byte → patch STA at $0BCD",
@@ -2994,6 +3956,8 @@
     "3015": "left col = $11 - col_offset",
     "3019": "read level tile from offscreen buffer",
     "3021": "write tile directly to screen RAM at patched row + col",
+    "3022": "SMC operand: smc_wipe_bl_addr_lo",
+    "3023": "SMC operand: smc_wipe_bl_addr_hi",
     "3024": "--- top-right: page=$73-row_off, col=$11+col_off; SMC subtracts screen_width ---",
     "3027": "offscreen buffer page = $73 - row_offset (top half)",
     "3032": "SMC base screen RAM hi byte → patch STA at $0BFE",
@@ -3003,6 +3967,8 @@
     "3064": "right col = $11 + col_offset",
     "3068": "read level tile from offscreen buffer",
     "3070": "write tile directly to screen RAM at patched row + col",
+    "3071": "SMC operand: smc_wipe_tr_addr_lo",
+    "3072": "SMC operand: smc_wipe_tr_addr_hi",
     "3073": "expand: next (outer) reveal step",
     "3077": "$FF sentinel: delay one frame",
     "3080": "skip past the $FF sentinel",
@@ -3083,6 +4049,7 @@
     "5260": "restore Y (level data index) and return",
     "5727": "40 columns",
     "5732": "80 columns",
+    "5875": "Set columns digit to '8' for 80-column mode",
     "6796": "--- PHASE 1: zero the entire movement grid ---",
     "6798": "grid pointer low = $2B",
     "6800": "grid pointer high = $67 (first row)",
@@ -3430,6 +4397,12 @@
     "9260": "strip=$20: no idle animation",
     "9267": "strip=$30: reset frame to 0",
     "9279": "any other strip → switch to $60 (dead/captured)",
+    "10580": "Write 'LEVEL' static text to sidebar (row 2, column 34)",
+    "10596": "Write 'GOLD' static text to sidebar (row 6, column 34)",
+    "10612": "Write 'TIME' static text to sidebar (row 10, column 34)",
+    "10628": "Write 'POINTS' static text to sidebar (row 14, column 34)",
+    "10644": "Write '-LEVEL' static text to sidebar (row 16, column 34)",
+    "10660": "Write '-TOTAL' static text to sidebar (row 19, column 34)",
     "10668": "--- section 1: level number ---",
     "10673": "level == 10? use two-digit path",
     "10675": "levels 1-9: low nibble + $30 -> PETSCII digit",
@@ -3438,22 +4411,28 @@
     "10696": "--- section 2: gold progress \"count/total\" --- total >= 10? two-digit path",
     "10703": "total < 10: count digit at a6E25",
     "10712": "total digit at a6E27",
+    "10723": "HUD gold progress: total tens digit (offset $27 from Row 7 base $6E00)",
     "10729": "total >= 10: tens='1' at a6E27, units=total-10 at a6E28",
-    "10746": "count >= 10? tens='1' at a6E24, units at a6E25",
-    "10776": "'/' separator at a6E26",
+    "10731": "HUD gold progress: total tens digit (offset $27 from Row 7 base $6E00)",
+    "10743": "HUD gold progress: total units digit (offset $28 from Row 7 base $6E00)",
+    "10746": "count >= 10? tens='1' at hud_gold_count_tens, units at hud_gold_count_units",
+    "10776": "Write '/' separator to hud_gold_sep",
+    "10778": "HUD gold progress: '/' separator (offset $26 from Row 7 base $6E00)",
     "10781": "--- section 3: game timer (2-digit BCD) --- clamp: $51 displayed as $50",
     "10790": "low nibble -> units digit at a7226",
+    "10795": "Store converted units digit to HUD timer",
     "10798": "high nibble (>>4) -> tens digit at a7225",
+    "10808": "Store converted tens digit to HUD timer",
     "10811": "--- Section 4: death-penalty score (score_penalty_high/low_bcd → a7824-27) ---",
     "10814": "4x LSR = extract high nibble (tens-thousands digit)",
     "10819": "+$30 = convert BCD nibble to PETSCII digit",
-    "10821": "ten-thousands digit → sidebar penalty display",
+    "10821": "HUD penalty: ten-thousands digit",
     "10827": "mask low nibble (thousands digit)",
-    "10832": "thousands digit → sidebar penalty display",
+    "10832": "HUD penalty: thousands digit",
     "10835": "low byte of penalty (hundreds + tens digits)",
-    "10845": "hundreds digit → sidebar penalty display",
+    "10845": "HUD penalty: hundreds digit",
     "10851": "tens digit → sidebar penalty display",
-    "10856": "units digit → sidebar penalty display",
+    "10856": "HUD penalty: tens digit (lowest active digit, units is static '0')",
     "10859": "leading-zero suppression: scan left to right",
     "10861": "check penalty digit[x]",
     "10864": "is it PETSCII '0'?",
@@ -3475,6 +4454,7 @@
     "10931": "is it PETSCII '0'?",
     "10933": "non-zero digit: stop suppressing",
     "10935": "replace leading '0' with space",
+    "10937": "Replace leading zero with a space",
     "10941": "stop before last digit (always show at least the units digit)",
     "10985": "$FF = disarmed sentinel for all bonus fields",
     "10987": "play_bonus_audio_tick bails on bit-7 set",
@@ -3767,9 +4747,13 @@
     "13185": "advance to next row page",
     "13189": "stop before page $7E (bottom bars)",
     "13193": "--- Phase 3: corner pieces ---",
-    "13195": "$4F: top-right corner at page $75, col 9",
+    "13195": "$4F: top-right corner at page $75, col 8",
     "13198": "$50: top-left divider corner",
-    "13200": "at page $75, col 32",
+    "13200": "at page $75, col 31",
+    "13331": "High score character digit 1 (high BCD nibble of hi_score_high_bcd)",
+    "13342": "High score character digit 2 (low BCD nibble of hi_score_high_bcd)",
+    "13357": "High score character digit 3 (high BCD nibble of hi_score_low_bcd)",
+    "13368": "High score character digit 4 (low BCD nibble of hi_score_low_bcd)",
     "13880": "pre-select CONTINUE (first row, page $72)",
     "13885": "key-release lockout: pause key is still held on entry",
     "13890": "game_state_flag = 4 (pause/menu state)",
@@ -3856,7 +4840,66 @@
     "14289": "no → unrecognized row, do nothing",
     "14291": "flash the selected row before acting",
     "14294": "return to title screen",
-    "14298": "unrecognized row (should not occur)"
+    "14298": "unrecognized row (should not occur)",
+    "26369": "Playfield Row 0 buffer",
+    "26624": "Playfield Row 1 page base",
+    "26625": "Playfield Row 1 buffer",
+    "26880": "Playfield Row 2 page base",
+    "26881": "Playfield Row 2 buffer",
+    "27136": "Playfield Row 3 page base",
+    "27137": "Playfield Row 3 buffer",
+    "27161": "High Score thousands digit (Title Screen)",
+    "27162": "High Score hundreds digit (Title Screen)",
+    "27163": "High Score tens digit (Title Screen)",
+    "27164": "High Score ones digit (Title Screen)",
+    "27392": "Playfield Row 4 page base",
+    "27393": "Playfield Row 4 buffer",
+    "27648": "Playfield Row 5 page base",
+    "27649": "Playfield Row 5 buffer",
+    "27904": "Playfield Row 6 page base",
+    "27905": "Playfield Row 6 buffer",
+    "28160": "Playfield Row 7 page base",
+    "28161": "Playfield Row 7 buffer",
+    "28196": "HUD gold progress: count tens digit (offset $24 from Row 7 base $6E00)",
+    "28197": "HUD gold progress: count units digit (offset $25 from Row 7 base $6E00)",
+    "28198": "Gold HUD display separator '/' (ASCII $2F)",
+    "28199": "HUD gold progress: total tens digit or units if total < 10 (offset $27 from Row 7 base $6E00)",
+    "28200": "HUD gold progress: total units digit when total >= 10 (offset $28 from Row 7 base $6E00)",
+    "28416": "Playfield Row 8 page base",
+    "28417": "Playfield Row 8 buffer",
+    "28672": "Playfield Row 9 page base",
+    "28673": "Playfield Row 9 buffer",
+    "28928": "Playfield Row 10 page base",
+    "28929": "Playfield Row 10 buffer",
+    "29184": "Playfield Row 11 page base",
+    "29185": "Playfield Row 11 buffer",
+    "29440": "Playfield Row 12 page base",
+    "29441": "Playfield Row 12 buffer",
+    "29696": "Playfield Row 13 page base",
+    "29697": "Playfield Row 13 buffer",
+    "29952": "Playfield Row 14 page base",
+    "29953": "Playfield Row 14 buffer",
+    "30208": "Playfield Row 15 page base",
+    "30209": "Playfield Row 15 buffer",
+    "30464": "Playfield Row 16 page base",
+    "30465": "Playfield Row 16 buffer",
+    "30720": "Playfield Row 17 page base",
+    "30721": "Playfield Row 17 buffer",
+    "30976": "Playfield Row 18 page base",
+    "30977": "Playfield Row 18 buffer",
+    "31232": "Playfield Row 19 page base",
+    "31233": "Playfield Row 19 buffer",
+    "31488": "Playfield Row 20 page base",
+    "31489": "Playfield Row 20 buffer",
+    "31744": "Playfield Row 21 page base",
+    "31745": "Playfield Row 21 buffer",
+    "32000": "Playfield Row 22 page base",
+    "32001": "Playfield Row 22 buffer",
+    "32256": "Playfield Row 23 page base",
+    "32257": "Playfield Row 23 buffer",
+    "32288": "Playfield Row 23, column 32 (bottom-right corner of the border)",
+    "32512": "Playfield Row 24 page base",
+    "32513": "Playfield Row 24 buffer"
   },
   "user_line_comments": {
     "82": "ZP indirect pointer lo — screen RAM current row. Used as (ptr_screen_lo),Y to read/write character data. Hi byte (ptr_screen_hi=$53) = draw_page. Init=$00.",
@@ -4014,6 +5057,7 @@
     "10509": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nScans the hardware keyboard matrix for the player \"Pause\" key.\nWrites the row mask (key_row_pause) to Port A of PIA 1, reads the active \ncolumns from Port B, and masks it against key_col_pause. \n\nIf pressed, it jumps into the pause handler to temporarily freeze gameplay.\n\nInputs:  PIA 1 ports, key_row_pause ($2E), key_col_pause ($37)\nOutputs: Pauses the game if pressed.\nSide Effects: Polls keyboard hardware.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "10571": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the static UI text labels in the sidebar on the right side of the screen.\nIterates through several hardcoded strings (LEVEL, GOLD, TIME, POINTS, etc.) and\ncopies them to the playfield buffer at offset $23 (column 35) on various rows.\n\nInputs:  Hardcoded strings (txt_level, txt_gold, txt_timer, txt_points, etc.).\nOutputs: Populates the sidebar area in the playfield buffer with static labels.\nSide Effects: Modifies X register.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "10668": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates all numeric displays in the sidebar. Converts BCD/binary values to\nPETSCII and writes them directly to PET screen memory.\n\nSection 1 — Level number -> a6A25/26:\n  level < 10: single digit at a6A26\n  level == 10: '1' at a6A25, '0' at a6A26\n\nSection 2 — Gold progress \"count/total\" -> a6E24..28:\n  total < 10:  \" count/total \" (single-digit each, '/' at a6E26)\n  total >= 10: count at a6E24/25, '/' at a6E26, total tens at a6E27, units at a6E28\n\nSection 3 — Game timer -> a7225/26:\n  BCD value; clamped: if $51 display as $50.\n  tens digit at a7225, units digit at a7226.\n\nSection 4 — Death-penalty score -> a7824..27:\n  4-digit BCD (score_penalty_high/low_bcd); up to 3 leading '0's replaced with ' '.\n\nSection 5 — Current score -> a7B24..27:\n  4-digit BCD (score_high/low_bcd); up to 3 leading '0's replaced with ' '.\n\nInputs:  ui_level_num, gold_count, gold_total, game_timer_bcd,\n         score_penalty_high/low_bcd, score_high/low_bcd\nOutputs: Screen memory at a6A25/26, a6E24-28, a7225/26, a7824-27, a7B24-27\nSide Effects: None\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "10746": "Format collected gold count as BCD display (tens/units) and write to HUD Row 7 (columns 35-36)",
     "10946": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nUpdates the game timer. Decrements frame counter (50 to 0).\nOn rollover, decrements game_timer_bcd in Decimal Mode (once per second).\n\nInputs:  game_timer_bcd ($2949), timer_frame_counter ($294A)\nOutputs: Updated timer values.\nSide Effects: Toggles Decimal flag (sed/cld).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "10975": "Current level number (1-10). Incremented by advance_level on completion;\nwraps 11->1. When ui_level_num reaches level_select_num it wraps back instead.",
     "10976": "Player-selected starting level. advance_level compares ui_level_num to this;\nif equal, decrements (cycles back) instead of advancing. Init $03.",
@@ -4058,7 +5102,7 @@
     "13250": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the third line of the intro/title screen text into the playfield buffer.\nSets the high byte of the buffer pointer to $6A (Row 3) and starts at column 13.\nCopies characters from $3078 until a #$FF terminator is reached.\n\nInputs:  String at $3078.\nOutputs: Populates row 3 of the intro playfield buffer.\nSide Effects: Modifies $59 (pointer high byte), X (string index), Y (data index).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13273": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the fourth line of the intro/title screen text into the playfield buffer.\nSets the high byte of the buffer pointer to $6D (Row 6) and starts at column 10.\nCopies characters from $3084 until a #$FF terminator is reached.\n\nInputs:  String at $3084.\nOutputs: Populates row 6 of the intro playfield buffer.\nSide Effects: Modifies $59 (pointer high byte), X (string index), Y (data index).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13296": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDraws the fifth line of the intro/title screen text into the playfield buffer.\nSets the high byte of the buffer pointer to $6E (Row 7) and starts at column 12.\nCopies characters from $3096 until a #$FF terminator is reached.\n\nInputs:  String at $3096.\nOutputs: Populates row 7 of the intro playfield buffer.\nSide Effects: Modifies $59 (pointer high byte), X (string index), Y (data index).\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
-    "13319": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts the BCD level number at $2943 into two numeric PETSCII characters.\nWrites the resulting characters to the playfield buffer at $6A19 and $6A1A (Row 3, Columns 25-26).\nUsed to display the currently selected level on the intro/title screen.\n\nInputs:  BCD Level Number at $2943.\nOutputs: Writes numerical characters to $6A19 and $6A1A.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "13319": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConverts the BCD high score at $2943 and $2944 into four numeric PETSCII characters.\nWrites the resulting characters to the playfield buffer at $6A19 to $6A1C (Row 3, Columns 25-28).\nUsed to display the high score on the intro/title screen.\n\nInputs:  BCD high score at $2943-$2944.\nOutputs: Writes numerical characters to $6A19 to $6A1C.\nSide Effects: None.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13628": "Pause/game-menu banner render buffer (251 bytes). Parallel to banner_game_paused_table ($343F).\nBoth tables are scanned together using the same X index by menu_draw_banner ($3786):\n  - banner_game_paused_table drives control: $FF=newline, $FE=end-of-table.\n  - For every other position, THIS table supplies the character written to the screen buffer.\n\nThe routine at $364C pre-populates this table from level/config data before drawing.\n$FF bytes here align with the $FF newline sentinels in the structure table (never rendered).\nDefault fill is $01; dynamic slots are overwritten with actual screen chars at runtime.\n\nThe banner displays the pause overlay:\n  top/bottom borders (u/c.../i, j/f.../k chars), sides (b/h),\n  and menu rows: CONTINUE / RESTART LEVEL / END GAME.",
     "13880": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nOpens the Pause Menu overlay. Called directly from the gameplay IRQ when\nthe PAUSE key is detected.\n\nTwo-pass operation over txt_game_paused_table (layout: $FF=newline, $FE=end):\n\n  Pass 1 (j3652): walk the layout table; for each non-control position,\n    read the current offscreen buffer char and save it to banner_data_table.\n    This snapshots the game background so menu_draw_banner can restore it\n    on every subsequent tick.\n\n  Pass 2 (j367B): walk the same layout table again; for each non-control\n    position, write the layout table char directly into the offscreen buffer.\n    This paints the full GAME PAUSED box (borders + CONTINUE / RESTART\n    LEVEL / END GAME rows) into the buffer in one sweep.\n\nAfter both passes: installs pause_menu_irq into the IRQ vector (ZP $90/$91)\nso the next interrupt tick transfers control to the menu handler.\n\nInputs:  None\nOutputs: banner_data_table (background snapshot); offscreen buffer (menu text);\n         ZP $90/$91 (IRQ vector → pause_menu_irq); game_state_flag=4\nSide Effects: a343C=$72 (CONTINUE pre-selected); a343E=1 (debounce lockout,\n              pause key still held); ZP $79/$7A clobbered\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "13982": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIRQ handler for the Pause Menu. Runs every interrupt tick while the menu\nis active. Three distinct code paths depending on state:\n\n  1. KEY-RELEASE LOCKOUT (a343E=1): a move was just made; wait until all\n     keys are released before accepting input again (debounce). Once clear,\n     reset a343E and fall through to re-highlight + blit.\n\n  2. CONFIRM (DIG1 or DIG2 pressed): blink the selected row twice, redraw\n     the banner base layer, then call menu_dispatch_selection to act.\n\n  3. NAVIGATE (no DIG key; LEFT or RIGHT held): compute direction delta\n     into a343D (-1/0/+1), advance a343C by 2*a343D (rows are 2 pages\n     apart: $72/$74/$76), clamp if result would leave valid range ($70 or\n     $78), set a343E=1 to debounce.\n\nAll paths converge at b3722: re-apply highlight to selected row, blit\noffscreen buffer to screen, then RTI (registers restored from IRQ stack).\n\nInputs:  a343C (selected row page), a343E (key-release lockout flag),\n         hardware keyboard matrix via PIA1 ($E810/$E812)\nOutputs: a343C updated on navigation; screen updated every tick\nSide Effects: Calls menu_dispatch_selection which may change game_state_flag\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -4070,7 +5114,28 @@
     "22800": "Compressed level map data — 10 levels stored in reverse order (level 10 first).\nLoaded by unpack_level_data ($11E8) via pointer (a75:a74), where:\n  a75 = $63 - ui_level_num  (set at $0709; level 1 -> $62, level 10 -> $59)\n  a74 = $10                 (fixed low-byte; each level starts at $xx10)\n\nLevel start addresses:\n  level_data_10  $5910  (a75=$59)\n  level_data_09  $5A10  (a75=$5A)\n  level_data_08  $5B10  (a75=$5B)\n  level_data_07  $5C10  (a75=$5C)\n  level_data_06  $5D10  (a75=$5D)\n  level_data_05  $5E10  (a75=$5E)\n  level_data_04  $5F10  (a75=$5F)\n  level_data_03  $6010  (a75=$60)\n  level_data_02  $6110  (a75=$61)\n  level_data_01  $6210  (a75=$62)\n\nEach level block (256 bytes max) contains:\n  1. MAP ROWS: nibble-packed, 2 tiles per byte, 16 bytes per row (= 32 tiles wide).\n     Rows continue until playfield page register a57 reaches $80 (starts at $67).\n     Bit 7 of each row's last byte controls page advance: 0 -> +2, 1 -> +1.\n     Tile IDs (4-bit nibbles):\n       $0 = empty/space\n       $1 = ladder\n       $2 = border wall (left/right edge)\n       $3 = rope (horizontal bar)\n       $8 = solid brick (non-diggable)\n       $A = diggable brick\n  2. METADATA (8 bytes, read sequentially after map rows):\n       draw_offset       player start screen column\n       draw_page         player start screen page (row)\n       bonus_walk_page   bonus-phase walk start page\n       bonus_walk_offset bonus-phase walk start column\n       exit_offset       level exit column\n       exit_page         level exit page\n       guard_spawn_offset guard respawn column (after freed from hole)\n       guard_spawn_page  guard respawn page\n  3. ENTITY LIST (variable length, 2 bytes each, $FF terminated):\n       Gold:  byte < $41 -> column = byte - $20, next byte = page\n       Guard: byte >= $41 -> column = byte - $40, next byte = page\n       $FF = end of entity list\n  4. PADDING: zero bytes to align next level to $xx10 boundary.",
     "25344": "Wipe animation path — ROW offset table.\nParallel to wipe_path_col_table ($6400); both indexed by the same X register.\nConsumed by transition_from_full_to_empty ($09DD) and\ntransition_from_empty_to_full ($0B33) to animate a concentric rectangular wipe\nthat progressively erases / restores the playfield.\n\nEach byte is a row offset from the playfield centre row ($73):\n  page = $73 + row_off  (bottom half)\n  page = $73 - row_off  (top half)\n\nX starts at $FC (outermost ring) and decrements toward 0 (centre).\nThe path encodes every column of each concentric ring so the full\n25-row × 32-col playfield is covered step by step.\n\nSentinels:\n  $FF = end-of-frame: blit buffer to screen RAM and insert a frame delay\n  $FF,$FF pair at end = animation complete",
     "25600": "Wipe animation path — COLUMN offset table.\nParallel to wipe_path_row_table ($6300); same X index, same sentinels.\nConsumed by transition_from_full_to_empty ($09DD) and\ntransition_from_empty_to_full ($0B33).\n\nEach byte is a column offset from the playfield centre column ($11):\n  col = $11 + col_off  (right half)\n  col = $11 - col_off  (left half)\n\nFor every non-sentinel entry in wipe_path_row_table, the matching byte\nhere gives the column offset for the same wipe step, so together the\ntwo tables define (row_off, col_off) pairs that trace each concentric\nrectangular ring of the playfield from the outside inward.\n\nSentinels:\n  $FF = end-of-frame (mirrors wipe_path_row_table sentinel positions)\n  $FF,$FF pair at end = animation complete",
-    "26368": "Playfield tile buffer — one 256-byte page per screen row.\nEach row occupies a dedicated memory page for multiplication-free Y-coordinate access:\n  $6700 = row 0,  $6800 = row 1, ..., $7F00 = row 24  (25 rows total)\nWithin each page, column indices 0-$2A (42 wide) hold the tile chars.\nFilled by unpack_level_data ($11E8) via page pointer a57 (starting at $67).\nCleared to $20 (space) by clear_gameplay_grid ($079D) and clear_sub_grid ($07F0).\nBorder chars ($65/$63) written at columns 1 and $21 by the blit routines."
+    "26368": "Playfield tile buffer — one 256-byte page per screen row.\nEach row occupies a dedicated memory page for multiplication-free Y-coordinate access:\n  $6700 = row 0,  $6800 = row 1, ..., $7F00 = row 24  (25 rows total)\nWithin each page, column indices 0-$2A (42 wide) hold the tile chars.\nFilled by unpack_level_data ($11E8) via page pointer a57 (starting at $67).\nCleared to $20 (space) by clear_gameplay_grid ($079D) and clear_sub_grid ($07F0).\nBorder chars ($65/$63) written at columns 1 and $21 by the blit routines.",
+    "26411": "Start of the movement/pathfinding property grid for playfield Row 0 (page offset $2B). Each byte contains bitmask flags for movement properties: bit $01 = walk left, bit $02 = walk right, bit $04 = climb up, bit $08 = climb down/rope below, bit $10 = fall through, bit $20 = rope, bit $C0 = solid wall.",
+    "26667": "Row 1 of the 42-column pathfinding/movement property grid. Stored at offset $2B of the Row 1 page ($6800), in parallel to the visual tiles.",
+    "27173": "Level display tens digit in the sidebar buffer (Row 3, Column 36). Only written when level is 10.",
+    "27174": "Level display units digit in the sidebar buffer (Row 3, Column 37).",
+    "27657": "Offscreen playfield buffer Row 5, column 8 (offset $09 from page base $6C00). This is the starting address where the pause menu banner is drawn in the back-buffer.",
+    "27920": "Columns digit ('4' or '8' for 40/80 columns, Title Screen)",
+    "29221": "HUD timer: tens digit (offset $25 from Row 11 base $7200)",
+    "29222": "HUD timer: units digit (offset $26 from Row 11 base $7200)",
+    "29961": "Playfield Row 14, Column 8 (offset $09 from page base $7500). Top-right corner character ($4F) of the left pillar structure.",
+    "29984": "Playfield Row 14, Column 31 (offset $20 from page base $7500). Top-left divider corner character ($50) of the right pillar structure.",
+    "29987": "Sidebar static text: 'POINTS' label location (Row 14, column 34)",
+    "30499": "Sidebar static text: '-LEVEL' label location (Row 16, column 34)",
+    "30756": "Sidebar penalty score ten-thousands digit (Row 17, Column 35 of playfield buffer).",
+    "30757": "Sidebar penalty score thousands digit (Row 17, Column 36 of playfield buffer).",
+    "30758": "Sidebar penalty score hundreds digit (Row 17, Column 37 of playfield buffer). Part of the 4-digit BCD formatted penalty score.",
+    "30759": "Sidebar penalty score tens digit (Row 17, Column 38 of playfield buffer).",
+    "31267": "Sidebar static text: '-TOTAL' label location (Row 19, column 34)",
+    "31524": "HUD Score Display Buffer - Ten-Thousands Digit (Row 20, Column 35)",
+    "31525": "HUD Score Display Buffer - Thousands Digit (Row 20, Column 36)",
+    "31526": "HUD Score Display Buffer - Hundreds Digit (Row 20, Column 37)",
+    "31527": "Playfield Row 20, Column 39: Sidebar score display units digit (extracted from score_low_bcd low nibble, which contains the BCD tens digit. The actual score units digit is always 0)."
   },
   "settings": {
     "all_labels": true,
@@ -4086,8 +5151,8 @@
     "addresses_per_line": 5,
     "bytes_per_line": 8,
     "enabled_features": {
-      "SYSTEM": false,
-      "KERNAL": true
+      "KERNAL": true,
+      "SYSTEM": false
     },
     "description": "",
     "auto_analyze": true,
@@ -4242,18 +5307,20 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 1536,
-  "hex_dump_cursor_address": 1536,
-  "sprites_cursor_address": 3264,
+  "cursor_address": 2514,
+  "hex_dump_cursor_address": 2512,
+  "sprites_cursor_address": 3328,
   "charset_cursor_address": 1024,
   "right_pane_visible": "HexDump16",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 24576,
+  "bitmap_cursor_address": 32768,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
   "blocks_view_cursor": 14,
   "scopes": {},
+  "enums": {},
+  "enum_usages": {},
   "user_excluded_addresses": []
 }
