@@ -71,6 +71,8 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 - **⏪ Undo/Redo**: Experiment without fear.
 - **🏷️ Labels & Comments**: Rename subroutines and variables for readability.
 - **📂 Scopes**: Organize code with namespaces.
+- **🔢 Enums**: Define and apply three-tiered value-to-name mappings (System, Global, Project-specific) to replace magic numbers in disassembly and data with semantic names.
+- **📦 Binary Unpacker**: Cycle-accurate, background 6502 emulated sandbox to automatically unpack compressed C64 programs.
 - **🎨 Custom Themes**: Personalize your experience with TOML-based theme files.
 - **🐛 VICE Debugger Integration**: Connect to a running VICE emulator for live debugging — step through code, inspect registers, set breakpoints and watchpoints.
 - **🤖 MCP Integration**: Collaborate with AI assistants for deeper analysis.
@@ -109,6 +111,8 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 - **[Installation & Usage](install.md)**: Setup guide.
 - **[Views](views.md)**: Detailed breakdown of each view.
 - **[Analysis](analysis.md)**: How the auto-analyzer works and label prefix reference.
+- **[Enums](enums.md)**: Replace magic numbers with semantic named constants.
+- **[Binary Unpacker](unpacker.md)**: Automatically decompress C64 programs.
 - **[Keyboard Shortcuts](keyboard_shortcuts.md)**: Master the controls.
 - **[Debugger (VICE)](debugger.md)**: Connect to VICE for live debugging.
 - **[MCP Integration](mcp.md)**: meaningful AI collaboration.

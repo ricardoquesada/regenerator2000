@@ -50,6 +50,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
   - RAW / BIN: Raw binaries files
   - DIS65: 6502bench project files
   - REGEN2000PROJ: Regenerator 2000 project files
+- **Binary Unpacker**: Emulate a cycle-accurate 6502 background sandbox to automatically decompress packed C64 programs.
 - **Export** to .asm or HTML. Supported assemblers:
   - **64tass**
   - **ACME**
@@ -59,6 +60,7 @@ Regenerator 2000 brings modern conveniences to 6502 disassembly:
 - **Analysis**: Auto-analysis to identify code and data regions.
 - **Editing**:
   - **Labels**: Add, edit, and remove local and global labels.
+  - **Enums**: Define and apply three-tiered value-to-name mappings (System, Global, Project-specific) to replace magic numbers in disassembly and data with semantic names.
   - **Comments**: Add side comments and line comments.
   - **Origin**: Change the load address/origin of the binary.
   - **Data Types**: Convert regions to Code, Byte, Word, Address, Lo/Hi Address, Hi/Lo Address,

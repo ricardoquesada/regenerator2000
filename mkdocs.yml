@@ -58,6 +58,8 @@ nav:
       - Views: views.md
       - Blocks: blocks.md
       - Analysis: analysis.md
+      - Enums: enums.md
+      - Binary Unpacker: unpacker.md
   - User Reference:
       - Keyboard Shortcuts: keyboard_shortcuts.md
       - Debugger (VICE): debugger.md
