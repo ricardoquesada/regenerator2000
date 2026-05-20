@@ -149,6 +149,153 @@
     }
   ],
   "labels": {
+    "1024": [
+      {
+        "name": "SCREEN_RAM",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1064": [
+      {
+        "name": "SCREEN_RAM_R1C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1104": [
+      {
+        "name": "SCREEN_RAM_R2C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1143": [
+      {
+        "name": "SCREEN_RAM_R2C39",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1303": [
+      {
+        "name": "SCREEN_RAM_R6C39",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1464": [
+      {
+        "name": "SCREEN_RAM_R11C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1504": [
+      {
+        "name": "SCREEN_RAM_R12C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1544": [
+      {
+        "name": "SCREEN_RAM_R13C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1567": [
+      {
+        "name": "SCREEN_RAM_R13C23",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1568": [
+      {
+        "name": "SCREEN_RAM_R13C24",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1583": [
+      {
+        "name": "SCREEN_RAM_R13C39",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1584": [
+      {
+        "name": "SCREEN_RAM_R14C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1624": [
+      {
+        "name": "SCREEN_RAM_R15C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1703": [
+      {
+        "name": "SCREEN_RAM_R16C39",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1743": [
+      {
+        "name": "SCREEN_RAM_R17C39",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1783": [
+      {
+        "name": "SCREEN_RAM_R18C39",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1823": [
+      {
+        "name": "SCREEN_RAM_R19C39",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "1824": [
+      {
+        "name": "SCREEN_RAM_R20C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1864": [
+      {
+        "name": "SCREEN_RAM_R21C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1904": [
+      {
+        "name": "SCREEN_RAM_R22C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "1944": [
+      {
+        "name": "SCREEN_RAM_R23C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
     "2048": [
       {
         "name": "charset_data",
@@ -1758,6 +1905,41 @@
         "label_type": "UserDefined",
         "kind": "User"
       }
+    ],
+    "55776": [
+      {
+        "name": "COLOR_RAM_R12C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "55856": [
+      {
+        "name": "COLOR_RAM_R14C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "55896": [
+      {
+        "name": "COLOR_RAM_R15C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "56096": [
+      {
+        "name": "COLOR_RAM_R20C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "56136": [
+      {
+        "name": "COLOR_RAM_R21C0",
+        "label_type": "Field",
+        "kind": "User"
+      }
     ]
   },
   "user_side_comments": {
@@ -2250,13 +2432,13 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 8785,
-  "hex_dump_cursor_address": 8784,
-  "sprites_cursor_address": 8384,
-  "charset_cursor_address": 10240,
+  "cursor_address": 1823,
+  "hex_dump_cursor_address": 12784,
+  "sprites_cursor_address": 2048,
+  "charset_cursor_address": 2048,
   "right_pane_visible": "HexDump16",
   "sprite_multicolor_mode": false,
-  "charset_multicolor_mode": true,
+  "charset_multicolor_mode": false,
   "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
@@ -2264,7 +2446,7 @@
     4064,
     5871
   ],
-  "blocks_view_cursor": 0,
+  "blocks_view_cursor": null,
   "scopes": {},
   "enums": {
     "VIC_Colors": {
