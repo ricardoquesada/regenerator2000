@@ -1129,42 +1129,42 @@
     ],
     "648": [
       {
-        "name": "KERNAL_SCREEN_HI",
+        "name": "SCREEN_MEMORY_PAGE",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "650": [
       {
-        "name": "KERNAL_KEY_REPEAT",
+        "name": "KEY_REPEAT",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "653": [
       {
-        "name": "KERNAL_MODIFIER_KEYS",
+        "name": "MODIFIER_KEYS",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "657": [
       {
-        "name": "KERNAL_SHIFT_CBM_LOCK",
+        "name": "SHIFT_CBM_LOCK",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "788": [
       {
-        "name": "KERNAL_IRQ_VECTOR_LO",
+        "name": "IRQ_VECTOR_LO",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
     "789": [
       {
-        "name": "KERNAL_IRQ_VECTOR_HI",
+        "name": "IRQ_VECTOR_HI",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
@@ -1535,7 +1535,7 @@
     ],
     "7699": [
       {
-        "name": "PLAYFIELD_SCREEN_START",
+        "name": "SCREEN_RAM_R0C19",
         "label_type": "Pointer",
         "kind": "User"
       }
@@ -2680,6 +2680,27 @@
         "label_type": "Field",
         "kind": "User"
       }
+    ],
+    "58276": [
+      {
+        "name": "KERNAL_INITBAS",
+        "label_type": "Predefined",
+        "kind": "User"
+      }
+    ],
+    "58459": [
+      {
+        "name": "KERNAL_INITBASVEC",
+        "label_type": "ExternalJump",
+        "kind": "User"
+      }
+    ],
+    "58648": [
+      {
+        "name": "KERNAL_INITHW",
+        "label_type": "Predefined",
+        "kind": "User"
+      }
     ]
   },
   "user_side_comments": {
@@ -3565,8 +3586,8 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 7699,
-  "hex_dump_cursor_address": 49136,
+  "cursor_address": 46034,
+  "hex_dump_cursor_address": 46032,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
   "right_pane_visible": "HexDump16",
