@@ -1190,6 +1190,13 @@
         "kind": "User"
       }
     ],
+    "867": [
+      {
+        "name": "entity_x_coord_1",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "885": [
       {
         "name": "entity_y_coords",
@@ -1393,6 +1400,13 @@
         "kind": "User"
       }
     ],
+    "7463": [
+      {
+        "name": "entity_y_center_delta_1",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "7475": [
       {
         "name": "ai_pursuit_vx",
@@ -1473,6 +1487,48 @@
     "7552": [
       {
         "name": "enemy_speed_masks",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7553": [
+      {
+        "name": "enemy_speed_mask_type1",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7554": [
+      {
+        "name": "enemy_speed_mask_type2",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7555": [
+      {
+        "name": "enemy_speed_mask_type3",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7556": [
+      {
+        "name": "enemy_speed_mask_type4",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7557": [
+      {
+        "name": "enemy_speed_mask_type5",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "7558": [
+      {
+        "name": "enemy_speed_mask_type6",
         "label_type": "AbsoluteAddress",
         "kind": "User"
       }
@@ -3279,7 +3335,15 @@
     "78": "Game phase: 0=play, 1=death-countdown, $C8=level-advance (negative sentinel)",
     "97": "Boundary width selector for check_boundary_collisions.\n$80 = wide zones (player ship pixel via check_boundary_collisions/$AB7C, $AF7E)\n$00 = narrow zones (sprites/enemies via draw_sprite_with_collision_check/$AB05,\n      erase_sprite_with_boundary_check/$AB47)\nTested via BIT instruction: N=1 selects wider outer-wall and inner-box thresholds.",
     "98": "Flag: show scoring table in attract mode (0 = skip, 1 = show)",
+    "867": "X coordinate for Entity Slot 1 (initially occupied by Enemy 3). Part of the entity_x_coords array ($0362). Conditionally initialized to $14 at $A313 if zp_enemy_rot_dir is 0.",
+    "7463": "Y-center coordinate delta/offset for Entity Slot 1 (initially occupied by Enemy 3). Part of the entity_y_center_deltas array ($1D26). Explicitly initialized to $14 at $A305.",
     "7549": "Self-modifying JMP instruction ($4C lo hi). Patched at game-start to either\nJMP read_joystick (F1/F3 or joystick button) or JMP read_paddle_input (F2/F4).\nCalled every frame from update_player_physics to route input handling.",
+    "7553": "Speed mask/frame gate for Enemy Type 1 (Droid Ship). Loaded from wave_config_tbl_1 based on difficulty phase.",
+    "7554": "Speed mask/frame gate for Enemy Type 2 (Command Ship). Loaded from wave_config_tbl_2 based on difficulty phase.",
+    "7555": "Speed mask/frame gate for Enemy Type 3 (Death Ship). Loaded from wave_config_tbl_3 based on difficulty phase.",
+    "7556": "Speed mask/frame gate for Enemy Type 4 (Photon Droid). Loaded from wave_config_tbl_4 based on difficulty phase.",
+    "7557": "Speed mask/frame gate for Entity Type 5. Always initialized to $FF (inactive/never moves).",
+    "7558": "Speed mask/frame gate for Entity Type 6. Always initialized to $FF (inactive/never moves).",
     "40969": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCartridge cold-start entry point and main game loop for Omega Race.\nPointed to by the cold-start vector at $A000.\n\nPhase 1 ($A009-$A025): One-time hardware and game initialization.\n  - Clears decimal mode, restores KERNAL I/O vectors, resets the stack\n    pointer to $1FF, then calls sA175 to set up the IRQ handler and\n    load all game resources.\n\nPhase 2 ($A029-$A0CB): Main game loop.\n  - Outer loop (jA029): drives a full game cycle.\n  - Inner loop (bA037): per-frame update gated on the IRQ frame counter\n    (a22 >= 2) to synchronize with the raster interrupt.\n  - Branches on game-state flags (a4E, a4D, a1F, a3D) to handle active\n    play, level countdown, player death, and level transitions.\n  - Updates the 3-byte high score (a23/a24/a25) if the current score\n    beats (aF7/aF8/aF9) before starting the next level.\n\nInputs:  None (entry from KERNAL reset vector)\nOutputs: None\nSide Effects: Resets hardware state; runs all per-frame game subsystems;\n              manages level transitions and high-score updates.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "41086": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nInitiates the level transition delay.\n\nInputs:  None\nOutputs: None\nSide Effects: Called when the wave is cleared. Sets up a 200-frame countdown \n              timer (a4D) and sets the level-advance flag (a4E to $C8). \n              Disables and re-enables IRQs during variable assignment.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "41166": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nCustom IRQ handler. Increments a frame synchronization counter and processes\nbackground music and sound effects across 4 channels.\n\nInputs:  None\nOutputs: None\nSide Effects: Increments irq_tick_counter (a22); updates VIC sound registers\n              ($900A-$900D); acknowledges VIA 2 timer interrupt.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
@@ -3398,10 +3462,10 @@
     "addresses_per_line": 5,
     "bytes_per_line": 8,
     "enabled_features": {
-      "BASIC": false,
+      "SYSTEM": false,
       "Lower Page": false,
       "KERNAL": true,
-      "SYSTEM": false
+      "BASIC": false
     },
     "description": "Omega Race VIC20 video game. Original cartridge version",
     "auto_analyze": true,
@@ -3501,8 +3565,8 @@
     "48231": "InvertedHex"
   },
   "bookmarks": {},
-  "cursor_address": 45729,
-  "hex_dump_cursor_address": 45728,
+  "cursor_address": 7699,
+  "hex_dump_cursor_address": 49136,
   "sprites_cursor_address": 40960,
   "charset_cursor_address": 46224,
   "right_pane_visible": "HexDump16",
