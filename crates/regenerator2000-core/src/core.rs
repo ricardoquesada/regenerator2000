@@ -1254,19 +1254,20 @@ impl Core {
                 definition,
                 rename_from,
             } => {
+                let old_name_ref = rename_from.as_ref().unwrap_or(&name);
+                let old_def = self.state.user_global_enums.get(old_name_ref).cloned();
+
                 if let Some(old_name) = &rename_from
                     && old_name != &name
                 {
-                    let _ = crate::assets::delete_global_enum(old_name);
+                    let _ = crate::assets::delete_global_enum(old_name, old_def.as_ref());
                     self.state.user_global_enums.remove(old_name);
                 }
 
-                if let Some(def) = &definition {
-                    match crate::assets::save_global_enum(&name, def) {
+                if let Some(mut def) = definition {
+                    match crate::assets::save_global_enum(&mut def) {
                         Ok(_) => {
-                            self.state
-                                .user_global_enums
-                                .insert(name.clone(), def.clone());
+                            self.state.user_global_enums.insert(name.clone(), def);
                             events.push(CoreEvent::StatusMessage(format!(
                                 "Saved global enum '{name}'"
                             )));
@@ -1278,7 +1279,7 @@ impl Core {
                         }
                     }
                 } else {
-                    match crate::assets::delete_global_enum(&name) {
+                    match crate::assets::delete_global_enum(&name, old_def.as_ref()) {
                         Ok(_) => {
                             self.state.user_global_enums.remove(&name);
                             events.push(CoreEvent::StatusMessage(format!(

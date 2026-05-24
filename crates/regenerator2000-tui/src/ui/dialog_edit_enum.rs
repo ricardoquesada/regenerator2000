@@ -246,6 +246,10 @@ impl EditEnumDialog {
             name: name.clone(),
             description: self.get_description(),
             variants: variants_map,
+            source_file: self
+                .original_def
+                .as_ref()
+                .and_then(|d| d.source_file.clone()),
         };
 
         // Dispatch appropriate save action

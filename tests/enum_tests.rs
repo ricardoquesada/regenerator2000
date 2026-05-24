@@ -21,6 +21,7 @@ fn test_enum_definition_parsing() {
         name: raw_def.name,
         description: None,
         variants: parsed_variants,
+        source_file: None,
     };
     assert_eq!(parsed.name, "Colors");
     assert_eq!(parsed.variants.get(&0).unwrap(), "BLACK");
@@ -41,6 +42,7 @@ fn test_enum_resolution_and_precedence() {
         name: "Colors".to_string(),
         description: None,
         variants: builtin_variants,
+        source_file: None,
     };
     app_state
         .builtin_enums
@@ -69,6 +71,7 @@ fn test_enum_resolution_and_precedence() {
         name: "Colors".to_string(),
         description: None,
         variants: global_variants,
+        source_file: None,
     };
     app_state
         .user_global_enums
@@ -93,6 +96,7 @@ fn test_enum_resolution_and_precedence() {
         name: "Colors".to_string(),
         description: None,
         variants: project_variants,
+        source_file: None,
     };
     app_state.enums.insert("Colors".to_string(), project_enum);
 
@@ -119,6 +123,7 @@ fn test_enum_embedding_on_command_apply() {
         name: "VicIIColors".to_string(),
         description: None,
         variants: builtin_variants,
+        source_file: None,
     };
     app_state
         .builtin_enums
@@ -161,6 +166,7 @@ fn test_enum_project_roundtrip_serialization() {
         name: "Colors".to_string(),
         description: None,
         variants,
+        source_file: None,
     };
 
     let mut enums = BTreeMap::new();
@@ -237,6 +243,7 @@ fn test_assembler_enum_formatting() {
         name: "Colors".to_string(),
         description: None,
         variants,
+        source_file: None,
     };
 
     // --- 1. 64tass ---
@@ -298,6 +305,7 @@ fn test_disassembly_enum_operand_formatting() {
         name: "Colors".to_string(),
         description: None,
         variants,
+        source_file: None,
     };
     app_state.enums.insert("Colors".to_string(), enum_def);
 
@@ -339,6 +347,7 @@ fn test_disassembly_data_enum_formatting() {
         name: "Colors".to_string(),
         description: None,
         variants,
+        source_file: None,
     };
     app_state.enums.insert("Colors".to_string(), enum_def);
 

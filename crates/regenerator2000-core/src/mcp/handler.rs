@@ -1864,6 +1864,7 @@ fn create_project_enum_impl(
         name: name.to_string(),
         description: description.map(String::from),
         variants: parsed_variants,
+        source_file: None,
     };
 
     let command = crate::commands::Command::SetEnumDefinition {
@@ -1932,6 +1933,7 @@ fn update_project_enum_impl(
         name: new_name.unwrap_or(name).to_string(),
         description: desc,
         variants,
+        source_file: old_definition.source_file.clone(),
     };
 
     let cmd = if let Some(n) = new_name

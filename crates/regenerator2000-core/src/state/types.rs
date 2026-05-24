@@ -474,6 +474,8 @@ pub struct EnumDefinition {
     pub name: String,
     pub description: Option<String>,
     pub variants: std::collections::BTreeMap<u16, String>,
+    #[serde(skip)]
+    pub source_file: Option<String>,
 }
 
 impl EnumDefinition {
@@ -534,6 +536,7 @@ impl From<RawEnumDefinition> for EnumDefinition {
             name: raw.name,
             description: raw.description,
             variants: EnumDefinition::parse_variants(raw.variants),
+            source_file: None,
         }
     }
 }

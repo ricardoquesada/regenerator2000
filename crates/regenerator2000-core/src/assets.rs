@@ -389,7 +389,8 @@ pub fn load_builtin_enums() -> BTreeMap<String, EnumDefinition> {
         };
         match toml::from_str::<RawEnumDefinition>(content) {
             Ok(raw) => {
-                let def = EnumDefinition::from(raw);
+                let mut def = EnumDefinition::from(raw);
+                def.source_file = Some(filename.to_string());
                 enums.insert(def.name.clone(), def);
             }
             Err(e) => {
@@ -419,7 +420,8 @@ pub fn load_global_enums(dir: &Path) -> BTreeMap<String, EnumDefinition> {
         match std::fs::read_to_string(&path) {
             Ok(content) => match toml::from_str::<RawEnumDefinition>(&content) {
                 Ok(raw) => {
-                    let def = EnumDefinition::from(raw);
+                    let mut def = EnumDefinition::from(raw);
+                    def.source_file = Some(filename.to_string());
                     log::info!("Loaded global enum: {} from {path:?}", def.name);
                     enums.insert(def.name.clone(), def);
                 }
@@ -465,12 +467,34 @@ pub fn dump_enum_files(dest_dir: &Path) -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if the config directory cannot be retrieved or if writing fails.
-pub fn save_global_enum(name: &str, def: &EnumDefinition) -> Result<()> {
+pub fn save_global_enum(def: &mut EnumDefinition) -> Result<()> {
     let dir =
         user_config_enums_dir().context("Failed to resolve user config directory for enums")?;
     std::fs::create_dir_all(&dir).with_context(|| format!("Failed to create directory {dir:?}"))?;
 
-    let path = dir.join(format!("enum-{name}.toml"));
+    let filename = if let Some(sf) = &def.source_file {
+        sf.clone()
+    } else {
+        let mut snake = String::new();
+        for (i, ch) in def.name.char_indices() {
+            if ch.is_uppercase() {
+                if i > 0 && !def.name.as_bytes()[i - 1].is_ascii_uppercase() {
+                    snake.push('_');
+                }
+                snake.push(ch.to_ascii_lowercase());
+            } else if ch == ' ' || ch == '-' {
+                snake.push('_');
+            } else {
+                snake.push(ch);
+            }
+        }
+        let safe_name = snake.replace("__", "_").trim_matches('_').to_string();
+        let fname = format!("enum-{safe_name}.toml");
+        def.source_file = Some(fname.clone());
+        fname
+    };
+
+    let path = dir.join(&filename);
     let raw = RawEnumDefinition::from(def.clone());
     let toml_content =
         toml::to_string_pretty(&raw).context("Failed to serialize RawEnumDefinition to TOML")?;
@@ -485,10 +509,15 @@ pub fn save_global_enum(name: &str, def: &EnumDefinition) -> Result<()> {
 ///
 /// # Errors
 /// Returns an error if the file cannot be deleted.
-pub fn delete_global_enum(name: &str) -> Result<()> {
+pub fn delete_global_enum(name: &str, state_def: Option<&EnumDefinition>) -> Result<()> {
     let dir =
         user_config_enums_dir().context("Failed to resolve user config directory for enums")?;
-    let path = dir.join(format!("enum-{name}.toml"));
+    let filename = if let Some(def) = state_def.and_then(|d| d.source_file.as_ref()) {
+        def.clone()
+    } else {
+        format!("enum-{name}.toml")
+    };
+    let path = dir.join(filename);
     if path.exists() {
         std::fs::remove_file(&path)
             .with_context(|| format!("Failed to delete global enum at {path:?}"))?;
