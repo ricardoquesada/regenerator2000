@@ -154,12 +154,12 @@ This view can be cycled through three layouts: **wide (2-sprites)**, **narrow (1
 
 ### Keyboard Shortcuts
 
-| Action                                    | Shortcut  |
-| :---------------------------------------- | :-------- |
-| **Cycle view** (8-chars, 4-chars, hidden) | ++alt+3++ |
-| **Convert to Byte**                       | ++b++     |
-| **Toggle Multicolor**                     | ++m++     |
-| **Jump to Disassembly**                   | ++enter++ |
+| Action                                       | Shortcut  |
+| :------------------------------------------- | :-------- |
+| **Cycle view** (2-sprites, 1-sprite, hidden) | ++alt+3++ |
+| **Convert to Byte**                          | ++b++     |
+| **Toggle Multicolor**                        | ++m++     |
+| **Jump to Disassembly**                      | ++enter++ |
 
 ## Charset View
 
@@ -183,12 +183,12 @@ This view can be cycled through three layouts: **wide (8-chars)**, **narrow (4-c
 
 ### Keyboard Shortcuts
 
-| Action                                       | Shortcut  |
-| :------------------------------------------- | :-------- |
-| **Cycle view** (2-sprites, 1-sprite, hidden) | ++alt+4++ |
-| **Convert to Byte**                          | ++b++     |
-| **Toggle Multicolor**                        | ++m++     |
-| **Jump to Disassembly**                      | ++enter++ |
+| Action                                    | Shortcut  |
+| :---------------------------------------- | :-------- |
+| **Cycle view** (8-chars, 4-chars, hidden) | ++alt+4++ |
+| **Convert to Byte**                       | ++b++     |
+| **Toggle Multicolor**                     | ++m++     |
+| **Jump to Disassembly**                   | ++enter++ |
 
 ## Bitmap View
 
