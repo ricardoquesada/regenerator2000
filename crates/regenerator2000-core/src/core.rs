@@ -115,37 +115,31 @@ impl Core {
                 events.push(CoreEvent::StatusMessage("Document Settings".to_string()));
             }
             AppAction::Analyze => {
-                let cursor_line = self.state.disassembly.get(self.view.cursor_index);
-                let current_addr = cursor_line.map(|l| l.address);
-                let saved_cursor_index = self.view.cursor_index;
-
-                let (cmd, msg) = self.state.perform_analysis();
-                self.state.push_command(cmd);
-
-                if let Some(addr) = current_addr {
-                    if let Some(idx) = self.state.get_line_index_containing_address(addr) {
-                        self.view.cursor_index = idx;
-                    } else if let Some(idx) = self.state.get_line_index_for_address(addr) {
-                        self.view.cursor_index = idx;
-                    } else {
-                        // Header/separator row with Addr::ZERO: clamp to valid range.
-                        let max_idx = self.state.disassembly.len().saturating_sub(1);
-                        self.view.cursor_index = saved_cursor_index.min(max_idx);
-                    }
-                }
+                let mut msg = String::new();
+                self.preserve_cursor(|core| {
+                    let (cmd, m) = core.state.perform_analysis();
+                    core.state.push_command(cmd);
+                    msg = m;
+                });
 
                 events.push(CoreEvent::StatusMessage(msg));
                 events.push(CoreEvent::StateChanged);
                 events.push(CoreEvent::ViewChanged);
             }
             AppAction::Undo => {
-                let msg = self.state.undo_last_command();
+                let mut msg = String::new();
+                self.preserve_cursor(|core| {
+                    msg = core.state.undo_last_command();
+                });
                 events.push(CoreEvent::StatusMessage(msg));
                 events.push(CoreEvent::StateChanged);
                 events.push(CoreEvent::ViewChanged);
             }
             AppAction::Redo => {
-                let msg = self.state.redo_last_command();
+                let mut msg = String::new();
+                self.preserve_cursor(|core| {
+                    msg = core.state.redo_last_command();
+                });
                 events.push(CoreEvent::StatusMessage(msg));
                 events.push(CoreEvent::StateChanged);
                 events.push(CoreEvent::ViewChanged);
@@ -1214,32 +1208,34 @@ impl Core {
                 definition,
                 rename_from,
             } => {
-                let command = if let Some(old_name) = &rename_from
-                    && old_name != &name
-                {
-                    let old_definition = self.state.enums.get(old_name).cloned();
-                    let cmd_remove = crate::commands::Command::SetEnumDefinition {
-                        name: old_name.clone(),
-                        new_definition: None,
-                        old_definition,
+                self.preserve_cursor(|core| {
+                    let command = if let Some(old_name) = &rename_from
+                        && old_name != &name
+                    {
+                        let old_definition = core.state.enums.get(old_name).cloned();
+                        let cmd_remove = crate::commands::Command::SetEnumDefinition {
+                            name: old_name.clone(),
+                            new_definition: None,
+                            old_definition,
+                        };
+                        let cmd_add = crate::commands::Command::SetEnumDefinition {
+                            name: name.clone(),
+                            new_definition: definition.clone(),
+                            old_definition: None,
+                        };
+                        crate::commands::Command::Batch(vec![cmd_remove, cmd_add])
+                    } else {
+                        let old_definition = core.state.enums.get(&name).cloned();
+                        crate::commands::Command::SetEnumDefinition {
+                            name: name.clone(),
+                            new_definition: definition.clone(),
+                            old_definition,
+                        }
                     };
-                    let cmd_add = crate::commands::Command::SetEnumDefinition {
-                        name: name.clone(),
-                        new_definition: definition.clone(),
-                        old_definition: None,
-                    };
-                    crate::commands::Command::Batch(vec![cmd_remove, cmd_add])
-                } else {
-                    let old_definition = self.state.enums.get(&name).cloned();
-                    crate::commands::Command::SetEnumDefinition {
-                        name: name.clone(),
-                        new_definition: definition.clone(),
-                        old_definition,
-                    }
-                };
-                command.apply(&mut self.state);
-                self.state.push_command(command);
-                self.state.disassemble();
+                    command.apply(&mut core.state);
+                    core.state.push_command(command);
+                    core.state.disassemble();
+                });
                 events.push(CoreEvent::StatusMessage(if definition.is_none() {
                     format!("Deleted project enum '{name}'")
                 } else {
@@ -1254,46 +1250,42 @@ impl Core {
                 definition,
                 rename_from,
             } => {
-                let old_name_ref = rename_from.as_ref().unwrap_or(&name);
-                let old_def = self.state.user_global_enums.get(old_name_ref).cloned();
+                let mut status_msg = String::new();
+                self.preserve_cursor(|core| {
+                    let old_name_ref = rename_from.as_ref().unwrap_or(&name);
+                    let old_def = core.state.user_global_enums.get(old_name_ref).cloned();
 
-                if let Some(old_name) = &rename_from
-                    && old_name != &name
-                {
-                    let _ = crate::assets::delete_global_enum(old_name, old_def.as_ref());
-                    self.state.user_global_enums.remove(old_name);
-                }
+                    if let Some(old_name) = &rename_from
+                        && old_name != &name
+                    {
+                        let _ = crate::assets::delete_global_enum(old_name, old_def.as_ref());
+                        core.state.user_global_enums.remove(old_name);
+                    }
 
-                if let Some(mut def) = definition {
-                    match crate::assets::save_global_enum(&mut def) {
-                        Ok(_) => {
-                            self.state.user_global_enums.insert(name.clone(), def);
-                            events.push(CoreEvent::StatusMessage(format!(
-                                "Saved global enum '{name}'"
-                            )));
+                    if let Some(mut def) = definition.clone() {
+                        match crate::assets::save_global_enum(&mut def) {
+                            Ok(_) => {
+                                core.state.user_global_enums.insert(name.clone(), def);
+                                status_msg = format!("Saved global enum '{name}'");
+                            }
+                            Err(e) => {
+                                status_msg = format!("Failed to save global enum '{name}': {e}");
+                            }
                         }
-                        Err(e) => {
-                            events.push(CoreEvent::StatusMessage(format!(
-                                "Failed to save global enum '{name}': {e}"
-                            )));
+                    } else {
+                        match crate::assets::delete_global_enum(&name, old_def.as_ref()) {
+                            Ok(_) => {
+                                core.state.user_global_enums.remove(&name);
+                                status_msg = format!("Deleted global enum '{name}'");
+                            }
+                            Err(e) => {
+                                status_msg = format!("Failed to delete global enum '{name}': {e}");
+                            }
                         }
                     }
-                } else {
-                    match crate::assets::delete_global_enum(&name, old_def.as_ref()) {
-                        Ok(_) => {
-                            self.state.user_global_enums.remove(&name);
-                            events.push(CoreEvent::StatusMessage(format!(
-                                "Deleted global enum '{name}'"
-                            )));
-                        }
-                        Err(e) => {
-                            events.push(CoreEvent::StatusMessage(format!(
-                                "Failed to delete global enum '{name}': {e}"
-                            )));
-                        }
-                    }
-                }
-                self.state.disassemble();
+                    core.state.disassemble();
+                });
+                events.push(CoreEvent::StatusMessage(status_msg));
                 events.push(CoreEvent::StateChanged);
                 events.push(CoreEvent::ViewChanged);
                 events.push(CoreEvent::DialogDismissalRequested);
@@ -2393,14 +2385,17 @@ impl Core {
         let old_enum = self.state.enum_usages.get(&address).cloned();
         let new_enum = enum_name.map(String::from);
 
-        let command = crate::commands::Command::SetEnumUsage {
-            address,
-            new_enum: new_enum.clone(),
-            old_enum,
-        };
+        self.preserve_cursor(|core| {
+            let command = crate::commands::Command::SetEnumUsage {
+                address,
+                new_enum: new_enum.clone(),
+                old_enum,
+            };
 
-        command.apply(&mut self.state);
-        self.state.push_command(command);
+            command.apply(&mut core.state);
+            core.state.push_command(command);
+            core.state.disassemble();
+        });
 
         events.push(CoreEvent::StatusMessage(if new_enum.is_none() {
             "Enum removed".to_string()
@@ -2408,7 +2403,6 @@ impl Core {
             format!("Enum '{}' applied", new_enum.unwrap_or_default())
         }));
 
-        self.state.disassemble();
         events.push(CoreEvent::StateChanged);
         events.push(CoreEvent::ViewChanged);
         events.push(CoreEvent::DialogDismissalRequested);
@@ -2658,6 +2652,29 @@ impl Core {
             }
         } else {
             events.push(CoreEvent::StatusMessage("No Lo/Hi pairs found".to_string()));
+        }
+    }
+
+    /// Helper to preserve the cursor's logical position (address) across state changes.
+    fn preserve_cursor<F>(&mut self, f: F)
+    where
+        F: FnOnce(&mut Self),
+    {
+        let cursor_line = self.state.disassembly.get(self.view.cursor_index);
+        let current_addr = cursor_line.map(|l| l.address);
+        let saved_cursor_index = self.view.cursor_index;
+
+        f(self);
+
+        if let Some(addr) = current_addr {
+            if let Some(idx) = self.state.get_line_index_containing_address(addr) {
+                self.view.cursor_index = idx;
+            } else if let Some(idx) = self.state.get_line_index_for_address(addr) {
+                self.view.cursor_index = idx;
+            } else {
+                let max_idx = self.state.disassembly.len().saturating_sub(1);
+                self.view.cursor_index = saved_cursor_index.min(max_idx);
+            }
         }
     }
 }
@@ -3072,10 +3089,109 @@ mod tests {
 
         core.apply_action(AppAction::Analyze);
 
-        // Cursor should still be at index 0 (the header), not somewhere random
         assert_eq!(
             core.view.cursor_index, 0,
             "Cursor should remain at header line after Analyze"
+        );
+    }
+
+    #[test]
+    fn test_preserve_cursor_various_actions() {
+        use crate::state::types::{BlockType, EnumDefinition};
+        use crate::view_state::ActivePane;
+
+        let mut core = Core::new();
+        // Load a small binary: 10 bytes
+        core.state
+            .load_binary(
+                Addr(0x1000),
+                vec![0xA9, 0x01, 0x8D, 0x20, 0xD0, 0xA9, 0x00, 0x8D, 0x21, 0xD0],
+            )
+            .unwrap();
+        core.state.block_types = vec![BlockType::Code; 10];
+        core.state.settings.all_labels = false;
+        core.state.disassemble();
+
+        // Find the index of line with address 0x1002 (STA $D020)
+        let addr_1002 = Addr(0x1002);
+        let idx = core.state.get_line_index_for_address(addr_1002).unwrap();
+        core.view.cursor_index = idx;
+        core.view.active_pane = ActivePane::Disassembly;
+
+        // 1. Analyze
+        core.apply_action(AppAction::Analyze);
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].address, addr_1002,
+            "Cursor should remain at 0x1002 after Analyze"
+        );
+
+        // 2. Add Enum Definition
+        let enum_def = EnumDefinition {
+            name: "MyEnum".to_string(),
+            description: None,
+            source_file: None,
+            variants: std::collections::BTreeMap::from([(1, "ONE".to_string())]),
+        };
+        core.apply_action(AppAction::ApplyEnumDefinition {
+            name: "MyEnum".to_string(),
+            definition: Some(enum_def),
+            rename_from: None,
+        });
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].address, addr_1002,
+            "Cursor should remain at 0x1002 after adding enum definition"
+        );
+
+        // 3. Apply Enum Usage
+        core.apply_action(AppAction::ApplyEnumUsage {
+            address: addr_1002,
+            enum_name: Some("MyEnum".to_string()),
+        });
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].address, addr_1002,
+            "Cursor should remain at 0x1002 after applying enum usage"
+        );
+
+        // 4. Remove Enum Definition
+        core.apply_action(AppAction::ApplyEnumDefinition {
+            name: "MyEnum".to_string(),
+            definition: None,
+            rename_from: None,
+        });
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].address, addr_1002,
+            "Cursor should remain at 0x1002 after removing enum definition"
+        );
+
+        // 5. Change Document Settings (all_labels = true) and Analyze
+        core.state.settings.all_labels = true;
+        // Need an external label to see effect
+        use crate::state::project::Label;
+        use crate::state::types::{LabelKind, LabelType};
+        core.state.labels.insert(
+            Addr(0xD020),
+            vec![Label {
+                name: "VIC_BORDER".to_string(),
+                kind: LabelKind::User,
+                label_type: LabelType::Field,
+            }],
+        );
+        core.apply_action(AppAction::Analyze);
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].address, addr_1002,
+            "Cursor should remain at 0x1002 after Analyze with all_labels=true"
+        );
+
+        // 6. Undo/Redo
+        core.apply_action(AppAction::Undo);
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].address, addr_1002,
+            "Cursor should remain at 0x1002 after Undo"
+        );
+        core.apply_action(AppAction::Redo);
+        assert_eq!(
+            core.state.disassembly[core.view.cursor_index].address, addr_1002,
+            "Cursor should remain at 0x1002 after Redo"
         );
     }
 }
