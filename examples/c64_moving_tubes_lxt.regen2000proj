@@ -107,18 +107,6 @@
     },
     {
       "start": 7124,
-      "end": 7159,
-      "type_": "DataByte",
-      "collapsed": false
-    },
-    {
-      "start": 7160,
-      "end": 7161,
-      "type_": "Undefined",
-      "collapsed": false
-    },
-    {
-      "start": 7162,
       "end": 9727,
       "type_": "DataByte",
       "collapsed": false
@@ -149,6 +137,83 @@
     }
   ],
   "labels": {
+    "1": [
+      {
+        "name": "CPU_PORT",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "198": [
+      {
+        "name": "KEY_BUF_COUNT",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "251": [
+      {
+        "name": "music_ptr_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "252": [
+      {
+        "name": "music_ptr_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "646": [
+      {
+        "name": "CHAR_COLOR",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "788": [
+      {
+        "name": "IRQ_VECTOR_LO",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "789": [
+      {
+        "name": "IRQ_VECTOR_HI",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "792": [
+      {
+        "name": "NMI_VECTOR_LO",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "832": [
+      {
+        "name": "exit_stub_buffer",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "836": [
+      {
+        "name": "exit_stub_source_hi",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "839": [
+      {
+        "name": "exit_stub_dest_hi",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "1024": [
       {
         "name": "SCREEN_RAM",
@@ -303,10 +368,38 @@
         "kind": "User"
       }
     ],
+    "2049": [
+      {
+        "name": "BASIC_START",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3271": [
+      {
+        "name": "logo_rows_0_3",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "3431": [
+      {
+        "name": "logo_rows_4_7",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
     "3592": [
       {
         "name": "update_scroller_and_tubes",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3593": [
+      {
+        "name": "top_tube_sine_phase",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -317,10 +410,24 @@
         "kind": "User"
       }
     ],
+    "3625": [
+      {
+        "name": "mid_tube_sine_phase",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "3637": [
       {
         "name": "fill_mid_tube_loop",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3657": [
+      {
+        "name": "bot_tube_sine_phase",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -345,10 +452,38 @@
         "kind": "User"
       }
     ],
+    "3738": [
+      {
+        "name": "scroller_char_width_ctr",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3745": [
+      {
+        "name": "scroller_font_idx",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "3749": [
       {
         "name": "fetch_next_char",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "3750": [
+      {
+        "name": "scroller_text_ptr_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "3751": [
+      {
+        "name": "scroller_text_ptr_hi",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -856,6 +991,27 @@
         "kind": "User"
       }
     ],
+    "5673": [
+      {
+        "name": "sid_freq_table_hi",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "5674": [
+      {
+        "name": "sid_freq_table_hi_plus_1",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "5675": [
+      {
+        "name": "sid_freq_table_hi_plus_2",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
     "5864": [
       {
         "name": "temp_interval",
@@ -986,6 +1142,20 @@
       {
         "name": "voice_speed_ctr",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "5911": [
+      {
+        "name": "sid_unused_1717",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "5912": [
+      {
+        "name": "sid_unused_1718",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -1203,6 +1373,34 @@
       {
         "name": "speed_lookup",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "6011": [
+      {
+        "name": "song_pattern_ptr_table",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "6012": [
+      {
+        "name": "song_pattern_ptr_table_hi",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "6013": [
+      {
+        "name": "song_loop_ptr_table_lo",
+        "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "6014": [
+      {
+        "name": "song_loop_ptr_table_hi",
+        "label_type": "Field",
         "kind": "User"
       }
     ],
@@ -1682,10 +1880,31 @@
         "kind": "User"
       }
     ],
+    "8750": [
+      {
+        "name": "patch_irq_fb_scroll",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "8797": [
       {
         "name": "raster_irq_top_tube",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8815": [
+      {
+        "name": "logo_shimmer_index",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "8818": [
+      {
+        "name": "logo_shimmer_enable_gate",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -1696,6 +1915,27 @@
         "kind": "User"
       }
     ],
+    "8873": [
+      {
+        "name": "logo_bg0_color_upper",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "8875": [
+      {
+        "name": "logo_bg1_color_upper",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "8877": [
+      {
+        "name": "logo_bg2_color_upper",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "8901": [
       {
         "name": "raster_irq_lower_logo",
@@ -1703,10 +1943,38 @@
         "kind": "User"
       }
     ],
+    "8904": [
+      {
+        "name": "logo_bg0_color_lower",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "8906": [
+      {
+        "name": "logo_bg1_color_lower",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "8908": [
+      {
+        "name": "logo_bg2_color_lower",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "8927": [
       {
         "name": "raster_irq_mid_tube",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "8948": [
+      {
+        "name": "patch_irq_96_scroll",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -1756,6 +2024,13 @@
       {
         "name": "raster_irq_bottom_tube",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "9107": [
+      {
+        "name": "patch_irq_e6_scroll",
+        "label_type": "AbsoluteAddress",
         "kind": "User"
       }
     ],
@@ -1885,6 +2160,13 @@
         "kind": "User"
       }
     ],
+    "11941": [
+      {
+        "name": "frame_sync_tick_ctr",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "11958": [
       {
         "name": "handle_exit",
@@ -1903,6 +2185,13 @@
       {
         "name": "padding_zeros",
         "label_type": "UserDefined",
+        "kind": "User"
+      }
+    ],
+    "12800": [
+      {
+        "name": "exit_backup_basic_area",
+        "label_type": "Field",
         "kind": "User"
       }
     ],
@@ -1938,6 +2227,20 @@
       {
         "name": "COLOR_RAM_R21C0",
         "label_type": "Field",
+        "kind": "User"
+      }
+    ],
+    "59953": [
+      {
+        "name": "KERNAL_IRQ_HANDLER",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "65217": [
+      {
+        "name": "KERNAL_NMI_HANDLER",
+        "label_type": "Pointer",
         "kind": "User"
       }
     ]
@@ -2196,8 +2499,8 @@
     "11793": "clear screen RAM via KERNAL routine",
     "11796": "disable NMI (Restore key) to prevent unwanted resets",
     "11801": "loop 1: 161 bytes; copy charset screen codes and color data, zero scroller rows",
-    "11803": "copy tube/logo screen codes (f0CC7) to screen rows at $0477 and $0517",
-    "11809": "copy color values (f0D67) to screen rows at $0517 offset",
+    "11803": "logo: rows 0-3",
+    "11809": "logo: rows 4-7",
     "11815": "zero scroller text rows ($062F, $06CF) — blank before scroller starts",
     "11826": "loop 2: 40 bytes; fill screen/color rows for tube tiles and scroller band",
     "11828": "screen $0450/$05B8: zero = tube tile char 0 (filled by update_scroller_and_tubes)",
@@ -2247,6 +2550,7 @@
     "4080": "Charset character 254 bitmap (last-2 char of $0800 charset, 8 bytes).\nSparse pixel \"star\" pattern; rotated 1 bit/frame by rotate_scroller_star_0\nto animate all on-screen star rows above/below the scroller text.",
     "4088": "Charset character 255 bitmap (last char of $0800 charset, 8 bytes).\nSame initial pattern as scroller_star_char_0; rotated 2 bits/frame by\nrotate_scroller_star_1_x2 for a slightly faster animation on the second star row.",
     "4096": "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\nSID Music Player - Architecture Overview\n\n                     +---------------------+\n                     | Entry: LDX #$02     |\n                     | (voice 2, 1, 0)     |\n                     +---------------------+\n                               |\n                     +---------------------+\n                     | Save $FB/$FC        |\n                     +---------------------+\n                               |\n                     +---------------------+\n                     | Voice active?       |\n                     | voice_active,x != 0 |\n                     +-----+---------------+\n                      Yes  |           No \\\n                           |              +---> next_voice\n                     +-----v---------------+      (DEX, loop\n                     | Speed counter       |       or RTS)\n                     | voice_speed_ctr != 0|\n                     +-----+--------+------+\n                      == 0 |        | != 0\n                           |        +---> Sustain: dec ctr,\n                           |              check release tick\n                     +-----v---------------+\n                     | Fetch next command   |\n                     | from pattern data    |\n                     +-----+---------------+\n                           |\n             +-------------+-------------+\n             |             |             |\n        +----v----+   +----v----+   +----v--------+\n        | Note    |   | Rest    |   | Control     |\n        | $01-$7D |   | $00     |   | $80+        |\n        | gate on |   | gate off|   +------+------+\n        +----+----+   +----+----+          |\n             |             |     +---------+---------+\n             |             |     |         |         |\n             +------+------+ +--v---+ +---v---+ +---v------+\n                    |         |Speed | |Instr. | |Effects   |\n                    |         |$80   | |$A0    | |$C0+      |\n                    |         +------+ +-------+ +---+------+\n                    |                                 |\n                    |              +------+------+----+----+\n                    |              |      |      |         |\n                    |          +---v--+ +-v---+ +v------+ +v-------+\n                    |          |Vibr. | |Porta| |Release| |Arpeggio|\n                    |          +------+ +-----+ +-------+ +--------+\n                    |\n              +-----v--------------+\n              | Calc frequency     |\n              | from freq table    |\n              | + apply effects    |\n              +-----+--------------+\n                    |\n              +-----v--------------+\n              | Write SID regs     |\n              | $D400-$D418        |\n              | Freq, PW, Filter,  |\n              | Control, ADSR      |\n              +-----+--------------+\n                    |\n              +-----v--------------+\n              | next_voice: DEX    |\n              | loop or RTS        |\n              +--------------------+\n-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=",
+    "4099": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSID Music Player - Play Tick Wrapper\nCalled once per frame (from the raster IRQ) to advance the music player.\nSimply jumps to the main player routine.\nInputs:       None\nOutputs:      None\nSide Effects: Advances music sequencing, updates SID registers via sid_player_main\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "4316": "SID Music Player - Main Entry\nProcesses all 3 voices (X=2,1,0) per call.\nHandles sequencing, effects, and SID register output.",
     "4324": "--- Voice Processing Loop ---",
     "4332": "--- Tempo / Speed Counter ---",
@@ -2302,6 +2606,8 @@
     "9216": "screen",
     "10240": "charset",
     "11776": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nMain entry point, initialization, and execution loop of the demo.\nSets up VIC-II, clears screen, initializes tables, hooks raster IRQ,\nand runs the main loop with scroller and effect updates.\n\nInputs:  None\nOutputs: None\nSide Effects: Modifies VIC-II, SID, Screen RAM, Color RAM, and hooks IRQ.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "11930": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nConfigures the next raster interrupt in the VIC-II IRQ chain.\nSets the target scanline in $D012 and updates the KERNAL IRQ vector ($0314/$0315).\nInputs:       A = target raster scanline\n              X = low byte of next IRQ handler address\n              Y = high byte of next IRQ handler address\nOutputs:      None\nSide Effects: Programs VIC-II $D012 and KERNAL IRQ shadow vector $0314-$0315\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "11940": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nSynchronizes execution with the raster frame tick and polls joystick exit.\n\nUses a self-modifying loop:\n  1. Busy-waits until the immediate operand of the LDA at $2EA5 (which is\n     incremented at 50Hz by the bottom-tube raster IRQ) becomes non-zero.\n  2. Decrements that operand at $2EA5 back down to consume the tick.\n  3. Checks CIA1 Port B ($DC01) for the Port 2 Joystick fire button.\n  4. If fire is pressed, discards the JSR return address and jumps to handle_exit.\n  5. Otherwise, returns to continue execution.\n\nInputs:       Self-modified tick count at $2EA5\nOutputs:      None\nSide Effects: Resets tick count, may abort main loop and branch to handle_exit\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "11958": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nDemo exit and full system cleanup handler.\nTriggered by joystick fire button (port 2) detected in wait_frame_or_exit.\nDoes NOT return — ends with a warm RESET back to BASIC.\n\nSequence:\n  1. Discard JSR return address (2x PLA) to escape the main loop\n  2. Silence SID (zero all 29 registers), blank screen\n  3. Restore KERNAL IRQ vector, VIC-II defaults, CIA/IRQ via IOINIT\n  4. Display credits row: \"CODE:DIDI  LOGO:AGD  4X4:DMD  MUSIC:DEEK\"\n  5. Relocate cleanup_reloc_0340 stub to $0340 (tape buffer), jump there;\n     stub restores BASIC ROM from $3200 -> $0801, then JMPs to RESET\n\nThe cleanup stub is relocated because it overwrites $0801+ (BASIC program\nRAM) and cannot safely run in place from its original location.\n\nInputs:       None\nOutputs:      Does not return\nSide Effects: SID silenced; VIC-II reset to defaults; IRQ vector restored;\n              credits written to screen row 23; BASIC ROM restored;\n              warm RESET via JMP $FCE2\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
   },
   "settings": {
@@ -2432,21 +2738,21 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 1823,
+  "cursor_address": 0,
   "hex_dump_cursor_address": 12784,
   "sprites_cursor_address": 2048,
   "charset_cursor_address": 2048,
   "right_pane_visible": "HexDump16",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 16384,
+  "bitmap_cursor_address": 24576,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
     4064,
     5871
   ],
-  "blocks_view_cursor": null,
+  "blocks_view_cursor": 12,
   "scopes": {},
   "enums": {
     "VicIIColors": {
@@ -2540,7 +2846,10 @@
     "9205": "VicIIColors",
     "9206": "VicIIColors",
     "9207": "VicIIColors",
-    "11785": "VicIIColors"
+    "11785": "VicIIColors",
+    "11844": "VicIIColors",
+    "11860": "VicIIColors",
+    "12001": "VicIIColors"
   },
   "user_excluded_addresses": []
 }
