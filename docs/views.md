@@ -96,14 +96,26 @@ This bird's-eye view is essential for understanding the overall structure of the
 
 The Hexdump View provides a raw hexadecimal representation of the memory, side-by-side with a text representation. It is useful for inspecting data that hasn't been formatted yet or for verifying the exact byte values in a region.
 
-This view supports different text decoding modes to help you spot strings in standard C64 formats. Bytes are colored using a **byte-value color palette** for improved visual pattern recognition, making it easier to spot repeating values or data structures.
+This view supports three layout columns: **wide (16-byte)**, **narrow (8-byte)**, and **disabled** (hidden). You can cycle through these modes using the **Cycle view** shortcut (++alt+2++ or ++ctrl+2++).
 
-![Hexdump View](regenerator2000_hexdump_screenshot.png)
+This view supports different text decoding modes to help you spot strings in standard C64 formats. Bytes are colored using a **byte-value color palette** (based on [Color-code your bytes](https://simonomi.dev/blog/color-code-your-bytes/)) for improved visual pattern recognition, making it easier to spot repeating values or data structures.
+
+<figure>
+  <img src="../regenerator2000_hexdump_screenshot.png" alt="Hexdump 16-byte View">
+  <figcaption>16-byte hexdump</figcaption>
+</figure>
+
+<figure>
+  <img src="../regenerator2000_hexdump_narrow_screenshot.png" alt="Hexdump 8-byte View">
+  <figcaption>8-byte hexdump</figcaption>
+</figure>
+
+
 
 The Hex Dump view consists of:
 
 - **a**: The address
-- **b**: 16 bytes of hex dump
+- **b**: 16 bytes or 8 bytes of hex dump
 - **c**: The text representation, that can be any of: "Screencode shifted", "Screencode unshifted", "PETSCII shifted", "PETSCII unshifted".
 
 ![Hexdump Only](regenerator2000_hexdump_only.png)
@@ -111,50 +123,72 @@ The Hex Dump view consists of:
 
 ### Keyboard Shortcuts
 
-| Action                                  | Shortcut    |
-| :-------------------------------------- | :---------- |
-| **Toggle view**                         | ++alt+2++   |
-| **Convert to Byte**                     | ++b++       |
-| **Next Text Mode** (Screencode/PETSCII) | ++m++       |
-| **Previous Text Mode**                  | ++shift+m++ |
-| **Jump to Disassembly**                 | ++enter++   |
+| Action                                   | Shortcut    |
+| :--------------------------------------- | :---------- |
+| **Cycle view** (16-byte, 8-byte, hidden) | ++alt+2++   |
+| **Convert to Byte**                      | ++b++       |
+| **Next Text Mode** (Screencode/PETSCII)  | ++m++       |
+| **Previous Text Mode**                   | ++shift+m++ |
+| **Jump to Disassembly**                  | ++enter++   |
 
 ## Sprites View
 
 The Sprites View helps you find and analyze sprite data (hardware sprites).
 
+This view can be cycled through three layouts: **wide (2-sprites)**, **narrow (1-sprite)**, and **disabled** (hidden). You can cycle through these modes using the **Cycle view** shortcut (++alt+3++ or ++ctrl+3++).
+
 - **64-byte Chunks**: Displays memory formatted as C64 sprites (24x21 pixels).
 - **Multicolor Support**: Toggle multicolor mode to correctly view game characters and objects.
 - **Identification**: Helps identifying player characters, enemies, and other game objects hidden in the binary.
 
-![Sprites View](regenerator2000_sprites_screenshot.png)
+<figure>
+  <img src="../regenerator2000_sprites_screenshot.png" alt="Sprites 2-sprites View">
+  <figcaption>2-sprites view</figcaption>
+</figure>
+
+<figure>
+  <img src="../regenerator2000_sprites_narrow_screenshot.png" alt="Sprites 1-sprite View">
+  <figcaption>1-sprite view</figcaption>
+</figure>
+
 
 ### Keyboard Shortcuts
 
-| Action                  | Shortcut  |
-| :---------------------- | :-------- |
-| **Toggle view**         | ++alt+3++ |
-| **Convert to Byte**     | ++b++     |
-| **Toggle Multicolor**   | ++m++     |
-| **Jump to Disassembly** | ++enter++ |
+| Action                                    | Shortcut  |
+| :---------------------------------------- | :-------- |
+| **Cycle view** (8-chars, 4-chars, hidden) | ++alt+3++ |
+| **Convert to Byte**                       | ++b++     |
+| **Toggle Multicolor**                     | ++m++     |
+| **Jump to Disassembly**                   | ++enter++ |
 
 ## Charset View
 
 The Charset View allows you to inspect memory as if it were a C64 character set (font). This is crucial for verifying if a memory region contains custom fonts.
 
+This view can be cycled through three layouts: **wide (8-chars)**, **narrow (4-chars)**, and **disabled** (hidden). You can cycle through these modes using the **Cycle view** shortcut (++alt+4++ or ++ctrl+4++).
+
 - **Standard & Multicolor**: Toggle between standard hi-res characters and multicolor mode to see if the data makes sense as graphics.
 - **Pattern Recognition**: Useful for spotting graphical data masquerading as code or raw bytes.
 
-![Charset View](regenerator2000_charset_screenshot.png)
+<figure>
+  <img src="../regenerator2000_charset_screenshot.png" alt="Charset 8-chars View">
+  <figcaption>8-chars view</figcaption>
+</figure>
+
+<figure>
+  <img src="../regenerator2000_charset_narrow_screenshot.png" alt="Charset 4-chars View">
+  <figcaption>4-chars view</figcaption>
+</figure>
+
 
 ### Keyboard Shortcuts
 
-| Action                  | Shortcut  |
-| :---------------------- | :-------- |
-| **Toggle view**         | ++alt+4++ |
-| **Convert to Byte**     | ++b++     |
-| **Toggle Multicolor**   | ++m++     |
-| **Jump to Disassembly** | ++enter++ |
+| Action                                       | Shortcut  |
+| :------------------------------------------- | :-------- |
+| **Cycle view** (2-sprites, 1-sprite, hidden) | ++alt+4++ |
+| **Convert to Byte**                          | ++b++     |
+| **Toggle Multicolor**                        | ++m++     |
+| **Jump to Disassembly**                      | ++enter++ |
 
 ## Bitmap View
 
