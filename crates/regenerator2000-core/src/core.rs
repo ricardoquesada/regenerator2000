@@ -431,6 +431,30 @@ impl Core {
                     }
                 }
             }
+            AppAction::SetBytesBlockByOffset { start, end } => {
+                let range = start..(end + 1);
+                let old_types = self.state.block_types[range.clone()].to_vec();
+                let cmd1 = crate::commands::Command::SetBlockType {
+                    range,
+                    new_type: crate::state::BlockType::DataByte,
+                    old_types,
+                };
+                cmd1.apply(&mut self.state);
+                self.state.disassemble();
+
+                let (cmd2, _) = self.state.perform_analysis();
+                self.state
+                    .push_command(crate::commands::Command::Batch(vec![cmd1, cmd2]));
+
+                let origin = self.state.origin.0 as usize;
+                events.push(CoreEvent::StatusMessage(format!(
+                    "Converted to bytes from ${:04X} to ${:04X}",
+                    origin + start,
+                    origin + end
+                )));
+                events.push(CoreEvent::StateChanged);
+                events.push(CoreEvent::ViewChanged);
+            }
             AppAction::Code => self.apply_block_type(crate::state::BlockType::Code, &mut events),
             AppAction::DisassembleAddress => {
                 let addr = if let Some(line) = self.state.disassembly.get(self.view.cursor_index) {
@@ -3193,5 +3217,23 @@ mod tests {
             core.state.disassembly[core.view.cursor_index].address, addr_1002,
             "Cursor should remain at 0x1002 after Redo"
         );
+    }
+
+    #[test]
+    fn test_set_bytes_block_by_offset() {
+        let mut core = Core::new();
+        core.state.origin = Addr(0x1000);
+        core.state.raw_data = vec![0xEA; 5];
+        core.state.block_types = vec![crate::state::BlockType::Code; 5];
+        core.state.disassemble();
+
+        // Convert offset 1 through 3 to bytes
+        core.apply_action(AppAction::SetBytesBlockByOffset { start: 1, end: 3 });
+
+        assert_eq!(core.state.block_types[0], crate::state::BlockType::Code);
+        assert_eq!(core.state.block_types[1], crate::state::BlockType::DataByte);
+        assert_eq!(core.state.block_types[2], crate::state::BlockType::DataByte);
+        assert_eq!(core.state.block_types[3], crate::state::BlockType::DataByte);
+        assert_eq!(core.state.block_types[4], crate::state::BlockType::Code);
     }
 }
