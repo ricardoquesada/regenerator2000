@@ -13,6 +13,8 @@ A modern, interactive 6502 disassembler for Commodore 8-bit machines. A modern t
 
 Use either workflow on its own, or combine them: let the AI do a first pass, then refine the results interactively.
 
+Check out the [Examples](https://regenerator2000.readthedocs.io/en/latest/examples/) to see what can be accomplished, featuring pre-disassembled games across different Commodore platforms!
+
 [regenerator]: https://csdb.dk/release/?id=247992
 
 ## Features
@@ -157,6 +159,7 @@ All the keyboard shortcuts are documented here: [keyboard_shortcuts](https://reg
 ## Support and Documentation
 
 - [Documentation](http://regenerator2000.readthedocs.io/)
+- [Examples](https://regenerator2000.readthedocs.io/en/latest/examples/): Disassembled Commodore games and software showcase, demonstrating what can be achieved with Regenerator 2000 on various supported platforms.
 - [Support in Discord][discord] (join the `#regenerator2000` channel, under **"Misc Projects"**)
 
 [discord]: https://discord.gg/r5aMn6Cw5q
