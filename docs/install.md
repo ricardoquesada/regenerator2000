@@ -58,6 +58,7 @@ regenerator2000 [OPTIONS] [FILE]
 - `--vice <HOST:PORT>`: Auto-connect to the VICE binary monitor at startup (e.g. `--vice localhost:6502`). See [Debugger](debugger.md) for details.
 - `--dump-system-config-files <PATH>`: Dump all built-in system config files (`system-*.toml`) to the specified directory and exit. The files can then be edited and placed back in the [app config directory](#system-config-files) to override or extend system definitions.
 - `--dump-theme-files <PATH>`: Dump all built-in theme files (`theme-*.toml`) to the specified directory and exit. The files can be edited and placed in the [config directory](#config-directory-location) to create custom themes. See [Custom Themes](#custom-themes) for details.
+- `--dump-enum-files <PATH>`: Dump all built-in enum files (`enum-*.toml`) to the specified directory and exit. The files can be edited and placed in the [config directory](#config-directory-location) to create custom enums. See [Custom Enums](enums.md) for details.
 
 ### Recommended Terminals
 

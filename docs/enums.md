@@ -86,6 +86,53 @@ You can create, edit, clone, or delete custom enums:
 
 ---
 
+## Custom Global Enums
+
+You can create your own global enums or override built-in system enums by placing a `enum-*.toml` file in the application config directory.
+
+### Config Directory Location
+
+| Platform    | Config Directory                                              |
+| :---------- | :------------------------------------------------------------ |
+| **macOS**   | `~/Library/Application Support/regenerator2000/`              |
+| **Linux**   | `~/.config/regenerator2000/`                                  |
+| **Windows** | `C:\Users\<User>\AppData\Roaming\regenerator2000\config\`     |
+
+### Dumping Built-in Enums
+
+The easiest way to start defining your own global enums is to dump the built-in system enums to use as a starting template:
+
+1. **Dump** all built-in enums to the config directory:
+
+    ```bash
+    # macOS
+    regenerator2000 --dump-enum-files ~/Library/Application\ Support/regenerator2000/
+
+    # Linux
+    regenerator2000 --dump-enum-files ~/.config/regenerator2000/
+
+    # Windows (PowerShell)
+    regenerator2000.exe --dump-enum-files $env:APPDATA\regenerator2000\config\
+    ```
+
+    This writes every `enum-*.toml` file to the destination folder and exits.
+
+2. **Edit** or create a new enum file (e.g. `enum-CustomColors.toml`):
+
+    ```toml
+    name = "CustomColors"
+    description = "My custom system color definitions"
+
+    [variants]
+    BLACK = 0
+    WHITE = 1
+    RED = 2
+    ```
+
+3. **Launch** Regenerator 2000 — your custom enum is loaded automatically and will be available under the **Global** tab in the **Manage Enums** and **Apply Enum** dialogs!
+
+---
+
 ## Assembler Syntax Support
 
 Different 6502 cross-assemblers have their own conventions for representing scoped namespaces and enums. Regenerator 2000 translates your enums automatically during export to match the syntax of your selected target assembler:
