@@ -28,6 +28,7 @@ flowchart TD
         DisasmEngine[Disassembly Engine]
         ViceClient[VICE Client]
         MCPServer[MCP Server<br/>HTTP/Stdio]
+        Unpacker[Binary Unpacker]
     end
 
     subgraph External [External Interface]
@@ -48,6 +49,9 @@ flowchart TD
 
     Core -->|Dispatch| CommandSys
     Core -->|Direct Mutate| CoreViewState
+    Core -->|UnpackStarted Event| EventLoop
+    EventLoop -->|Spawns background| Unpacker
+    Unpacker -.->|Loads unpacked PRG| AppState
 
     CommandSys -->|Apply/Undo| AppState
 
@@ -85,7 +89,7 @@ The core engine state, organized across multiple modules:
 - **[`disassembly.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/disassembly.rs)**: Disassembly orchestration and line-index lookups.
 - **[`file_io.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/file_io.rs)**: Loading and importing of various formats into `AppState`.
 - **[`navigation.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/navigation.rs)**: Pure navigation helpers (jumping to addresses, creating save contexts) that operate on `AppState` + `CoreViewState`.
-- **[`project.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/project.rs)**: The `ProjectState` struct — the persistent part of the state saved to `.regen2000proj` files (includes labels, comments, blocks, and scopes).
+- **[`project.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/project.rs)**: The `ProjectState` struct — the persistent part of the state saved to `.regen2000proj` files (includes labels, comments, blocks, scopes, and enums).
 - **[`settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/settings.rs)**: Document-level settings (assembler, system, display preferences, fill run threshold).
 - **[`search.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/search.rs)**: Centralized search logic (hex, text, PETSCII).
 - **[`types.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/state/types.rs)**: Core type definitions used across the workspace (`Addr`, `System`, `BlockType`, `Assembler`, `LabelType`, etc.).
@@ -152,7 +156,14 @@ Handles generation of complete, compilable source code and browsable HTML disass
 - **[`html.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/html.rs)**: Exports disassembly as a self-contained, syntax-highlighted HTML file with clickable cross-reference hyperlinks, light/dark theme toggle, and assembler-specific build instructions in the header. `ExternalFile` regions are written to separate linked HTML files.
 - **[`verify.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/exporter/verify.rs)**: Export→assemble→diff roundtrip verification. Exports ASM, invokes the real assembler binary, and byte-compares the output against the original binary to confirm disassembly correctness. Supports all four assemblers.
 
-### 8. UI Architecture
+### 8. Binary Unpacker ([`regenerator2000-core/src/unpacker.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/unpacker.rs))
+
+Provides a accurate 6502 emulation sandbox to automatically decompress packed Commodore 64 programs.
+- **Two-Phase Emulation**: Simulates the packer's decryption stub (Phase 1) and runs the main decompression routine (Phase 2), tracking memory writes to extract clean, decompressed program data.
+- **Advanced Sandboxing**: Intercepts Kernal and BASIC ROM vectors (such as `GETIN`, `CHROUT`, `CLRSCR`) to bypass I/O calls, prevent infinite loops, and handle sophisticated decompression stubs natively.
+- **Background Execution**: Runs asynchronously on a separate thread with real-time instruction counters sent to the TUI status bar for responsiveness during heavy unpacking jobs.
+
+### 9. UI Architecture
 
 The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstraction.
 
@@ -196,6 +207,7 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
 
 - **Dialogs** ([`regenerator2000-tui/src/ui/dialog_*.rs`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-tui/src/ui)):
   - **[`dialog_about.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_about.rs)**: About/help dialog.
+  - **[`dialog_apply_enum.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_apply_enum.rs)**: Apply a custom enum definition to a data block or instruction operand.
   - **[`dialog_bookmarks.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_bookmarks.rs)**: Bookmark manager for navigating saved addresses.
   - **[`dialog_breakpoint_address.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_breakpoint_address.rs)**: Set breakpoint address for VICE debugging.
   - **[`dialog_comment.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_comment.rs)**: Add/edit comments.
@@ -204,6 +216,7 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   - **[`dialog_crt_picker.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_crt_picker.rs)**: CRT cartridge chip/bank picker for selecting which chip to load from multi-chip cartridges.
   - **[`dialog_d64_picker.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_d64_picker.rs)**: D64 disk image file picker for loading programs from disk images.
   - **[`dialog_document_settings.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_document_settings.rs)**: Project-level settings editor.
+  - **[`dialog_edit_enum.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_edit_enum.rs)**: Create, update, or delete key-value mappings within a custom enum definition.
   - **[`dialog_export_as.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_export_as.rs)**: Export source code dialog (ASM or HTML).
   - **[`dialog_export_labels.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_export_labels.rs)**: Export labels to VICE format.
   - **[`dialog_find_references.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_find_references.rs)**: Find cross-references to an address.
@@ -213,6 +226,7 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   - **[`dialog_jump_to_line.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_jump_to_line.rs)**: Jump to a specific line number.
   - **[`dialog_keyboard_shortcut.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_keyboard_shortcut.rs)**: Keyboard shortcuts reference.
   - **[`dialog_label.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_label.rs)**: Add/edit labels.
+  - **[`dialog_manage_enums.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_manage_enums.rs)**: Manage the project's custom enum definitions (create, rename, delete).
   - **[`dialog_memory_dump_address.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_memory_dump_address.rs)**: Set memory dump address for the VICE debugger panel.
   - **[`dialog_open.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_open.rs)**: Open file browser.
   - **[`dialog_open_recent.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/dialog_open_recent.rs)**: Open recent projects list.
@@ -232,7 +246,7 @@ The UI is built on `crossterm` and `ratatui` with a custom `Widget` trait abstra
   - **Layout Areas**: Cached rectangles for mouse interaction detection.
   - **TUI Widgets**: `status_bar`, `menu`, and list states for various side-panels.
 
-### 9. Theme System ([`regenerator2000-tui/src/theme.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme.rs) & [`theme_file.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme_file.rs))
+### 10. Theme System ([`regenerator2000-tui/src/theme.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme.rs) & [`theme_file.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme_file.rs))
 
 Provides customizable color schemes for the UI.
 
@@ -240,7 +254,7 @@ Provides customizable color schemes for the UI.
 - **[`theme_file.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/theme_file.rs)**: Parses TOML-based theme definition files (`theme-*.toml`). Built-in themes are embedded as assets; users can override or create custom themes by placing TOML files in the config directory.
 - Supports multiple built-in themes (Dracula, Nord, Catppuccin, Gruvbox, etc.).
 
-### 10. Configuration ([`regenerator2000-core/src/config.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/config.rs))
+### 11. Configuration ([`regenerator2000-core/src/config.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/config.rs))
 
 Manages application-level configuration that persists across sessions.
 
@@ -253,13 +267,13 @@ Manages application-level configuration that persists across sessions.
   - Update checking preference
 - Stored as `config.toml` in the OS-specific config directory (migrated from JSON in v0.9.13). Stored separately from project state to maintain user preferences across different projects.
 
-### 11. Assets ([`regenerator2000-core/src/assets.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/assets.rs))
+### 12. Assets ([`regenerator2000-core/src/assets.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/assets.rs))
 
 Manages embedded system definition files (`system-*.toml`) and theme files (`theme-*.toml`).
 System files provide labels, comments, and exclude-address lists for each supported machine.
 Theme files define color palettes for the TUI. Both support user overrides from the config directory.
 
-### 12. MCP Server ([`regenerator2000-core/src/mcp/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/mcp))
+### 13. MCP Server ([`regenerator2000-core/src/mcp/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/mcp))
 
 Implements the Model Context Protocol (MCP) server for programmatic access to Regenerator 2000.
 
@@ -276,7 +290,7 @@ The MCP server exposes tools and resources allowing AI agents to:
 
 This enables collaborative human-AI workflows where both can work on the same project simultaneously (HTTP mode) or fully automated analysis sessions (stdio mode).
 
-### 13. VICE Integration ([`regenerator2000-core/src/vice/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/vice))
+### 14. VICE Integration ([`regenerator2000-core/src/vice/`](https://github.com/ricardoquesada/regenerator2000/tree/main/crates/regenerator2000-core/src/vice))
 
 Provides live debugging integration with the VICE emulator.
 
@@ -285,7 +299,7 @@ Provides live debugging integration with the VICE emulator.
 - **[`state.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/vice/state.rs)**: `ViceState` tracking the debugger connection status, CPU registers, breakpoints, and run/stop state.
 - **[`c64_hardware.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/vice/c64_hardware.rs)**: `Vic2State` and `CiaState` structs for reading and displaying C64 hardware register values during debugging.
 
-### 14. Utilities ([`regenerator2000-tui/src/utils.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/utils.rs) & [`regenerator2000-core/src/utils.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/utils.rs))
+### 15. Utilities ([`regenerator2000-tui/src/utils.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-tui/src/ui/../utils.rs) & [`regenerator2000-core/src/utils.rs`](https://github.com/ricardoquesada/regenerator2000/blob/main/crates/regenerator2000-core/src/utils.rs))
 
 Contains shared helper functions and utilities used across the application, split between TUI and core logic.
 

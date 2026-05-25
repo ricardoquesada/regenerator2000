@@ -2,7 +2,7 @@
 
 Regenerator 2000 supports target-specific custom **Enums**, allowing you to replace raw numeric values (immediate operands, data bytes, and data words) with semantic named constants across all your disassemblies.
 
-Enums make disassembled code significantly more readable by mapping magic numbers (like color indices, hardware control registers, or state constants) to clear text identifiers.
+Enums make disassembled code significantly more readable by mapping magic numbers (like color indices, or state constants) to clear text identifiers.
 
 ---
 
@@ -22,14 +22,14 @@ Regenerator 2000 uses a flexible three-tiered model for managing enum definition
   ┌─────────────────────────────────────────────────────────┐
   │ 2. Global Custom Enums                                  │
   │    - Persistent across projects                         │
-  │    - Stored in ~/.config/regenerator2000/enums/         │
+  │    - Stored in config folder                            │
   │    - Saved as TOML files                                │
   └───────────┬─────────────────────────────────────────────┘
               │ (precedes)
               ▼
   ┌─────────────────────────────────────────────────────────┐
   │ 3. Built-in System Enums                                │
-  │    - Curated for target machine (e.g. VIC-II, TED)      │
+  │    - Curated for target machine (e.g. VIC-II, PETSCII)  │
   │    - Read-only, embedded in the application             │
   └─────────────────────────────────────────────────────────┘
 ```
@@ -44,13 +44,11 @@ Regenerator 2000 uses a flexible three-tiered model for managing enum definition
 * **Scope**: User-wide, shared across all projects on your machine.
 * **Purpose**: Reuse your own custom enum definitions (e.g., standard math constants, common loader codes) across multiple different projects.
 * **Precedence**: Medium priority. Overrides built-in system enums, but is overridden by local project enums.
-* **Storage**: Stored as individual `.toml` files inside the user's global config directory:
-  * **Linux/macOS**: `~/.config/regenerator2000/enums/` (or your OS equivalent)
-  * **Windows**: `%APPDATA%\regenerator2000\enums\`
+* **Storage**: Stored as individual `.toml` files inside the user's global config directory.
 
 ### 3. Built-in System Enums
 * **Scope**: Read-only system definitions.
-* **Purpose**: Standard constants defined by the target hardware. For example, when the target system is a Commodore 64, the built-in `VIC_Colors` enum is automatically available.
+* **Purpose**: Standard constants defined by the target hardware. For example, when the target system is a Commodore 64, the built-in `VicIIColors` enum is automatically available.
 * **Precedence**: Lowest priority. Used as a fallback when no local or global custom enum overrides it.
 
 ---
@@ -74,7 +72,7 @@ To replace a raw numeric value with an enum variant:
 3. Select the desired enum from the list of available definitions.
 4. Select the matching variant from that enum to apply it.
 
-The disassembler will immediately update the rendering to display the enum variant name (e.g. `lda #Colors.BLACK`).
+The disassembler will immediately update the rendering to display the enum variant name (e.g. `lda #VicIIColors.BLACK`).
 
 ### Managing Enums
 You can create, edit, clone, or delete custom enums:

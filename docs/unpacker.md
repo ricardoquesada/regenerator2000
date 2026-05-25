@@ -10,7 +10,7 @@ Instead of requiring you to exit the program and run command-line utilities like
 
 ## How It Works: The Two-Phase Emulation
 
-The unpacker runs a cycle-accurate MOS 6502 emulation sandbox with custom system memory mappings. It uses a robust two-phase execution heuristic based on the classic **unp64** algorithm:
+The unpacker runs a cycle-accurate MOS 6502 emulation sandbox with custom system memory mappings. It uses a robust two-phase execution heuristic based on the classic [**unp64**](https://csdb.dk/release/?id=260619&show=summary) algorithm:
 
 ```
   ┌────────────────────────────────────────────────────────┐
@@ -70,7 +70,7 @@ To ensure high compatibility with packers that utilize sophisticated hardware co
 ## Using the Unpacker in the TUI
 
 ### 1. Automatic Entropy Detection
-When you load a binary file into Regenerator 2000, it calculates the **Shannon Entropy** of the data. Compressed or encrypted binaries have extremely high entropy (close to 8.0).
+When you load a binary file into Regenerator 2000, it calculates the **Shannon Entropy** of the data. Compressed or encrypted binaries have extremely high entropy (>= 7.5).
 
 If a newly imported file matches this signature, Regenerator 2000 will display a helpful warning dialog:
 
