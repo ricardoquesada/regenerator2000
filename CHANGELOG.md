@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.17] - 2026-05-24
+
+### Features
+
+- **Enums**: Implement three-tier enum management and CRUD operations.
+- **Enums**: Track enum definition source files to persist naming and location during updates.
+- **Enums**: Three pre-built enums: VIC colors, VIC-II Colors, PETSCII shifted characters.
+- **Labels**: Add labels for entity coordinate and enemy speed mask memory addresses.
+
+### Fixes
+
+- **Project**: Reorder project feature flags and update cursor addresses.
+
+### Changes
+
+- **Symbols**: Rename Screen and Color RAM symbols to coordinates.
+
+### Refactor / Internal
+
+- **Tests**: Add direct disassembly and data formatting tests to enum_tests.
+
+### Documentation
+
+- **Docs**: Document Enums and Binary Unpacker features.
+- **Docs**: Remove enum requirements specification document.
+
+### Examples
+
+- **VIC-20**: Better names in example and added PetsciiShifted data types to Omega Race example.
+- **Examples**: Update exported games and added more labels/comments/enums.
+- **C64**: Moving tubes uses enums.
+- **C128**: Updated C128 example.
+
 ## [0.9.16] - 2026-05-18
 
 ### Features
