@@ -4077,9 +4077,12 @@
     "5610": "Hero sprite frame #0",
     "5612": "Set hero sprite pointer",
     "5615": "Clear expand flags",
-    "5756": "One byte per season (0=Summer, 1=Autumn, 2=Winter, 3=Spring); value is C64 color code",
+    "5756": "One byte per season (0=Summer, 1=Autumn, 2=Winter, 3=Spring)",
+    "5757": "grey",
+    "5758": "light grey",
+    "5759": "brown",
     "5793": "Zero crashed_cars count; jump to 2-player state switch (end of season)",
-    "5812": "A = crashed_cars_tens digit (returned by advance_distance_counter); convert to screencode",
+    "5812": "A = crashed_cars_tens digit (returned by advance_distance_counter)",
     "5816": "hud_crashed_tens: screen col 32 ($0420)",
     "5817": "hud_crashed_ones: screen col 33 ($0421)",
     "5826": "hud_lives_tens: screen col 38 ($0426)",
@@ -5222,6 +5225,7 @@
     "15409": {
       "HighByte": 1024
     },
+    "17590": "Hex",
     "17975": {
       "HighByte": 55296
     },
@@ -5265,14 +5269,14 @@
   "bookmarks": {
     "4864": ""
   },
-  "cursor_address": 57495,
+  "cursor_address": 17590,
   "hex_dump_cursor_address": 6096,
   "sprites_cursor_address": 13120,
   "charset_cursor_address": 22784,
   "right_pane_visible": "Blocks",
   "sprite_multicolor_mode": true,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 0,
+  "bitmap_cursor_address": 16384,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [
@@ -5280,9 +5284,40 @@
     17975,
     22049
   ],
-  "blocks_view_cursor": 110,
+  "blocks_view_cursor": 88,
   "scopes": {},
   "enums": {},
-  "enum_usages": {},
+  "enum_usages": {
+    "4209": "VicIIColors",
+    "4214": "VicIIColors",
+    "4222": "VicIIColors",
+    "4236": "VicIIColors",
+    "4247": "VicIIColors",
+    "4428": "VicIIColors",
+    "5142": "VicIIColors",
+    "5163": "VicIIColors",
+    "5205": "VicIIColors",
+    "5233": "VicIIColors",
+    "5275": "VicIIColors",
+    "5296": "VicIIColors",
+    "5320": "VicIIColors",
+    "5457": "VicIIColors",
+    "5482": "VicIIColors",
+    "5756": "VicIIColors",
+    "5757": "VicIIColors",
+    "5758": "VicIIColors",
+    "5759": "VicIIColors",
+    "6339": "VicIIColors",
+    "6357": "VicIIColors",
+    "7034": "VicIIColors",
+    "7057": "VicIIColors",
+    "7684": "VicIIColors",
+    "7735": "VicIIColors",
+    "17595": "VicIIColors",
+    "17665": "VicIIColors",
+    "17944": "VicIIColors",
+    "20544": "VicIIColors",
+    "21357": "VicIIColors"
+  },
   "user_excluded_addresses": []
 }
