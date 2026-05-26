@@ -55,19 +55,23 @@ nav:
   - Getting Started:
       - Installation & Usage: install.md
       - Tutorial: tutorial.md
-      - Views: views.md
-      - Blocks: blocks.md
-      - Analysis: analysis.md
-      - Enums: enums.md
-      - Binary Unpacker: unpacker.md
   - User Reference:
-      - Keyboard Shortcuts: keyboard_shortcuts.md
-      - Debugger (VICE): debugger.md
-      - Settings: settings.md
-      - Themes: themes.md
-      - Systems: systems.md
-      - Assemblers: assemblers.md
-      - MCP Integration: mcp.md
+      - Core Features:
+          - Views: views.md
+          - Block Types: blocks.md
+          - Analysis & Labels: analysis.md
+          - Custom Enums: enums.md
+          - Binary Unpacker: unpacker.md
+      - Targets & Emulation:
+          - Target Systems: systems.md
+          - Target Assemblers: assemblers.md
+          - Live Debugger (VICE): debugger.md
+      - Customization & Config:
+          - Settings: settings.md
+          - Themes: themes.md
+          - Keyboard Shortcuts: keyboard_shortcuts.md
+      - AI Agent Integration:
+          - MCP Integration: mcp.md
       - FAQ: faq.md
   - Examples: examples.md
   - Development & Internals:
