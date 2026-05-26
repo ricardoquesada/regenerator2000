@@ -11,12 +11,6 @@
     },
     {
       "start": 16,
-      "end": 23,
-      "type_": "Code",
-      "collapsed": false
-    },
-    {
-      "start": 24,
       "end": 25,
       "type_": "DataByte",
       "collapsed": false
@@ -29,6 +23,139 @@
     }
   ],
   "labels": {
+    "97": [
+      {
+        "name": "ptr_src_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "98": [
+      {
+        "name": "ptr_src_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "99": [
+      {
+        "name": "ptr_dst_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "100": [
+      {
+        "name": "ptr_dst_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "144": [
+      {
+        "name": "status_word",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "145": [
+      {
+        "name": "stop_key_flag",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "157": [
+      {
+        "name": "msg_flag",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "178": [
+      {
+        "name": "ptr_tape_buffer_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "179": [
+      {
+        "name": "ptr_tape_buffer_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "183": [
+      {
+        "name": "filename_len",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "195": [
+      {
+        "name": "ptr_load_addr_lo",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "196": [
+      {
+        "name": "ptr_load_addr_hi",
+        "label_type": "ZeroPageAbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "657": [
+      {
+        "name": "keyboard_switch_disable",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "788": [
+      {
+        "name": "irq_vector_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "789": [
+      {
+        "name": "irq_vector_hi",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "806": [
+      {
+        "name": "chrout_vector_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "807": [
+      {
+        "name": "chrout_vector_hi",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "808": [
+      {
+        "name": "stop_vector_lo",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "809": [
+      {
+        "name": "stop_vector_hi",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
     "828": [
       {
         "name": "decrypt_key1_sbc",
@@ -112,22 +239,174 @@
         "label_type": "UserDefined",
         "kind": "User"
       }
+    ],
+    "1023": [
+      {
+        "name": "loader_trigger_flag",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "6144": [
+      {
+        "name": "game_entry_point",
+        "label_type": "ExternalJump",
+        "kind": "User"
+      }
+    ],
+    "20224": [
+      {
+        "name": "pass2_src_start",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "22272": [
+      {
+        "name": "pass2_dst_start",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "32772": [
+      {
+        "name": "cartridge_magic_byte",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
+    ],
+    "36608": [
+      {
+        "name": "pass1_src_start",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "48896": [
+      {
+        "name": "pass1_dst_start",
+        "label_type": "Pointer",
+        "kind": "User"
+      }
+    ],
+    "62629": [
+      {
+        "name": "KERNAL_TAPE_READ_BLOCK",
+        "label_type": "ExternalJump",
+        "kind": "User"
+      }
+    ],
+    "63543": [
+      {
+        "name": "KERNAL_TAPE_DEFAULT",
+        "label_type": "AbsoluteAddress",
+        "kind": "User"
+      }
     ]
   },
-  "user_side_comments": {},
+  "user_side_comments": {
+    "830": "Call KERNAL tape block read routine",
+    "833": "Load KERNAL I/O status byte",
+    "835": "Mask out bit 6 (verify/EOF/timeout)",
+    "837": "Branch if any other error bit is set",
+    "839": "Return on successful read",
+    "843": "Invalidate C64 cartridge magic byte (\"CBM80\" at $8004)",
+    "846": "Perform system hard reset via KERNAL vector",
+    "849": "Restore KERNAL CHROUT vector (high byte)",
+    "851": "Store in vector high byte",
+    "854": "Restore KERNAL CHROUT vector (low byte)",
+    "856": "Store in vector low byte",
+    "859": "Set logical file number to 1",
+    "861": "Set device number to 1 (cassette)",
+    "862": "Set secondary address to 0 (load)",
+    "864": "Call KERNAL SETLFS",
+    "867": "Set filename length to 0 (load next block)",
+    "869": "Set MSGFLG to 0 (suppress loading messages)",
+    "871": "Set loading address low byte ($00)",
+    "873": "Set loading address high byte ($08)",
+    "875": "Set KERNAL tape load address to $0800",
+    "877": "Clear accumulator",
+    "878": "Trigger tape read block",
+    "881": "Disable interrupts during decryption",
+    "882": "Set Pass 1 destination high byte ($BF)",
+    "884": "Store in destination pointer high byte",
+    "886": "Set Pass 1 source high byte ($8F)",
+    "888": "Store in source pointer high byte",
+    "890": "Initialize index Y",
+    "892": "Clear source pointer low byte",
+    "894": "Clear destination pointer low byte",
+    "896": "Load encrypted byte from source",
+    "898": "Prepare carry for subtraction",
+    "899": "Subtract key 1 constant ($58)",
+    "902": "EOR with key 1 constant ($53)",
+    "905": "Store decrypted byte in destination",
+    "907": "Increment index Y",
+    "908": "Loop for 256 bytes per page",
+    "910": "Decrement destination page",
+    "912": "Decrement source page",
+    "914": "Load current destination page",
+    "916": "Check if Pass 1 is complete ($7F)",
+    "918": "Loop if not done",
+    "920": "Set Pass 2 destination high byte ($57)",
+    "922": "Store in destination pointer high byte",
+    "924": "Set Pass 2 source high byte ($4F)",
+    "926": "Store in source pointer high byte",
+    "928": "Load encrypted byte from source",
+    "930": "Prepare carry for subtraction",
+    "931": "Subtract key 2 constant ($52)",
+    "934": "EOR with key 2 constant ($4F)",
+    "937": "Store decrypted byte in destination",
+    "939": "Increment index Y",
+    "940": "Loop for 256 bytes per page",
+    "942": "Decrement destination page",
+    "944": "Decrement source page",
+    "946": "Load current destination page",
+    "948": "Check if Pass 2 is complete ($0F)",
+    "950": "Loop if not done",
+    "952": "Set game IRQ handler low byte ($53)",
+    "954": "Store in hardware IRQ vector high byte ($0315)",
+    "957": "Set game IRQ handler high byte ($98)",
+    "959": "Store in hardware IRQ vector low byte ($0314)",
+    "962": "Re-enable interrupts",
+    "963": "Jump to game startup routine",
+    "970": "No-op entry point",
+    "971": "Load new tape buffer address low byte ($00)",
+    "973": "Set tape buffer low byte ($B2)",
+    "975": "Load new tape buffer address high byte ($90)",
+    "977": "Set tape buffer high byte ($B3 to point to $9000)",
+    "979": "Disable C64 Shift/C= key switches ($80)",
+    "981": "Store in KERNAL keyboard switch flag ($0291)",
+    "984": "Set low byte of custom STOP vector ($E5)",
+    "986": "Store in ISTOP vector low byte ($0328)",
+    "989": "Set high byte of custom STOP vector ($03)",
+    "991": "Store in ISTOP vector high byte ($0329)",
+    "994": "Jump to loader routine",
+    "997": "Force STOP key pressed state ($FF)",
+    "999": "Store in STOP flag ($91)",
+    "1001": "Forward to KERNAL STOP handler",
+    "1004": "Load loader trigger flag",
+    "1007": "If set, trigger loader initialization",
+    "1009": "Otherwise, forward to KERNAL CHROUT",
+    "1012": "Load KERNAL I/O status byte",
+    "1014": "Mask out bit 6",
+    "1016": "Branch to error handler on read error",
+    "1018": "No errors! Start game at $1800",
+    "1021": "Jump to error handler"
+  },
   "user_line_comments": {
-    "830": "Calls $F4A5 (Setup Tape Read).",
+    "830": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nPerforms the tape load operation by calling the Kernal tape read block routine\n($F4A5). After reading, it checks the Kernal I/O status word ($90). If any\nerror status bits (excluding bit 6) are set, it branches to the error handler.\n\nInputs:  ptr_load_addr_lo/ptr_load_addr_hi ($C3/$C4) - Tape load address\nOutputs: None\nSide Effects: Reads tape block into memory. If read fails, triggers error_reset.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "843": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nHandles tape loading/verification errors.\nDecrements the cartridge magic byte ($8004) to invalidate any cartridge\nautostart, then triggers a standard Kernal system reset to safely reboot the C64.\n\nInputs:  None\nOutputs: None (does not return)\nSide Effects: Cartridge magic byte at $8004 is decremented; system reboots.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "849": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nRestores the CHROUT vector, loads the game from tape, then decrypts and\nrelocates it in two passes:\n  Pass 1: $5000-$8FFF → $8000-$BFFF  (64 pages, key: SBC $58 / EOR $53)\n  Pass 2: $0800-$4FFF → $1000-$57FF  (72 pages, key: SBC $52 / EOR $4F)\nAfter decryption, sets the IRQ vector to $9853 and jumps to start_game.\nDoes not return (no RTS).\n\nInputs:       None\nOutputs:      None (no RTS — jumps to start_game)\nSide Effects: Tape loaded into $0800-$8FFF; game decrypted into $1000-$BFFF;\n              IRQ vector ($0314/$0315) set to $9853; interrupts re-enabled.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
     "881": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\ndecrypt 1",
     "896": "First decryption loop: decrypts $5000-$8FFF → $8000-$BFFF (64 pages, downwards)",
     "920": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\ndecrypt 2",
     "928": "Second decryption loop: decrypts $0800-$4FFF → $1000-$57FF (72 pages, downwards)",
     "970": "Initialize loader:\nDisable screen display and normal function keys.\nMap $0328 (STOP vector) to custom handler.",
-    "1004": "Intercepts CHROUT. If flag $03FF is set, starts the loader. Otherwise normal CHROUT.",
-    "1012": "Check for kernel status errors, if none, start the loaded program."
+    "1004": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nIntercepts the standard KERNAL CHROUT character output routine. If the trigger\nflag at $03FF is non-zero, it routes execution to initialize and run the tape loader.\nOtherwise, it forwards the call to the original KERNAL CHROUT routine.\n\nInputs:  loader_trigger_flag ($03FF) - Trigger flag\nOutputs: None\nSide Effects: Starts the loader if trigger is set; otherwise prints character.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-",
+    "1012": "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-\nVerifies that the loading and decryption completed without any Kernal status\nerrors. If no errors are present, it jumps to the decrypted game's entry point\nat $1800. Otherwise, it jumps to the error reset handler.\n\nInputs:  status_word ($90) - Kernal I/O status word\nOutputs: None (does not return)\nSide Effects: Jumps to game entry point at $1800 on success, or reboots on error.\n=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
   },
   "settings": {
-    "all_labels": false,
+    "all_labels": true,
     "preserve_long_bytes": true,
     "brk_single_byte": true,
     "patch_brk": false,
@@ -167,18 +446,20 @@
     }
   },
   "bookmarks": {},
-  "cursor_address": 806,
-  "hex_dump_cursor_address": 800,
-  "sprites_cursor_address": 1088,
+  "cursor_address": 997,
+  "hex_dump_cursor_address": 992,
+  "sprites_cursor_address": 1152,
   "charset_cursor_address": 0,
-  "right_pane_visible": "HexDump",
+  "right_pane_visible": "HexDump16",
   "sprite_multicolor_mode": false,
   "charset_multicolor_mode": false,
-  "bitmap_cursor_address": 40960,
+  "bitmap_cursor_address": 49152,
   "bitmap_multicolor_mode": false,
   "hexdump_view_mode": "ScreencodeShifted",
   "splitters": [],
   "blocks_view_cursor": 0,
   "scopes": {},
+  "enums": {},
+  "enum_usages": {},
   "user_excluded_addresses": []
 }
