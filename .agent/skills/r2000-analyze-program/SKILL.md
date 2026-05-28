@@ -17,14 +17,25 @@ This skill **orchestrates** the following existing skills in order:
 
 ---
 
-## Phase 0 — Gather Context
+## Phase 0 — Gather Context & Entropy Unpack Check
 
-Before starting, collect the information needed by all subsequent phases:
+Before starting or launching any subagents, you must gather context and check if the binary is packed/compressed.
 
-1. **Binary info**: Call `r2000_get_binary_info` → get `system`, `filename`, `description`, `may_contain_undocumented_opcodes`.
-2. **Existing blocks**: Call `r2000_get_blocks` → get the current block classification map.
-3. **All symbols**: Call `r2000_get_symbols` → get all labels (user + system), including external labels.
-4. **Existing line comments**: Call `r2000_get_comments` with `type = "line"` → used to detect routines that already have documentation header blocks.
+1. **Get Binary Info**: Call `r2000_get_binary_info`.
+   - Read the returned `"entropy"` value.
+   - Also read the description of the `r2000_get_binary_info` tool (e.g. from `tools/list`) to find the entropy threshold preference (e.g., `7.5`).
+   - If the binary's `entropy` is greater than or equal to the threshold (values above the threshold suggest the binary might be compressed):
+     - **ASK the user** (using regular text in chat) if they would like to unpack the binary before proceeding with the analysis.
+     - **If the user accepts**:
+       - Call the `r2000_unpack_binary` tool.
+       - Note: `r2000_unpack_binary` is a destructive action (clears existing comments/labels/blocks) and may take up to 10 seconds or more.
+       - **If `r2000_unpack_binary` returns an error**: The binary was not unpacked. Log the failure and continue the analysis on the current binary.
+       - **If it succeeds**: The binary has been unpacked and a new unpacked binary has been loaded in its place. **You must restart this phase (Phase 0) from scratch**, calling `r2000_get_binary_info` again to fetch the new unpacked binary's info and continue.
+     - **If the user declines**: Continue the analysis on the current binary.
+2. **Collect other context data**:
+   - **Existing blocks**: Call `r2000_get_blocks` → get the current block classification map.
+   - **All symbols**: Call `r2000_get_symbols` → get all labels (user + system), including external labels.
+   - **Existing line comments**: Call `r2000_get_comments` with `type = "line"` → used to detect routines that already have documentation header blocks.
 
 Store all of this data — you will reference it in every subsequent phase to skip already-analyzed items.
 
