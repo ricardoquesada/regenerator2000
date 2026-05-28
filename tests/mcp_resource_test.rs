@@ -67,4 +67,50 @@ mod tests {
         // Check data
         assert_eq!(&decoded[2..], &data[..]);
     }
+
+    #[test]
+    fn test_get_binary_info() {
+        let mut app_state = AppState::default();
+        let origin = regenerator2000_core::state::Addr(0x1000);
+        let data = vec![0xEA; 100]; // 100 NOPs -> very low entropy
+        app_state.load_binary(origin, data.clone()).unwrap();
+
+        let mut ui_state = UIState::new(Theme::default());
+
+        let (tx, _rx) = oneshot::channel(); // Dummy channel
+        let req = McpRequest {
+            method: "tools/call".to_string(),
+            params: json!({
+                "name": "r2000_get_binary_info",
+                "arguments": {}
+            }),
+            response_sender: tx,
+        };
+
+        let response = handle_request(&req, &mut app_state, &mut ui_state);
+
+        assert!(response.result.is_some(), "Response should have a result");
+        assert!(response.error.is_none());
+
+        let result = response.result.unwrap();
+        let content_arr = result
+            .get("content")
+            .expect("Should have content")
+            .as_array()
+            .expect("Content should be an array");
+        assert_eq!(content_arr.len(), 1);
+
+        let text_val = content_arr[0]
+            .get("text")
+            .expect("Should have text field")
+            .as_str()
+            .expect("text should be string");
+
+        let info: serde_json::Value = serde_json::from_str(text_val).unwrap();
+        assert_eq!(info.get("origin").unwrap(), 0x1000);
+        assert_eq!(info.get("size").unwrap(), 100);
+        assert!(info.get("entropy").is_some());
+        let entropy_val = info.get("entropy").unwrap().as_f64().unwrap();
+        assert_eq!(entropy_val, 0.0); // 100 identical NOPs has exactly 0 entropy
+    }
 }

@@ -332,7 +332,7 @@ Returns detailed information about a specific memory address: instruction semant
 
 ### `r2000_get_binary_info`
 
-Returns the origin address, size in bytes, target platform (e.g. 'Commodore 64'), filename, user-provided description, and whether the binary may contain undocumented opcodes (a hint, not guaranteed).
+Returns the origin address, size in bytes, target platform (e.g. 'Commodore 64'), filename, user-provided description, entropy of the binary (values higher than 7.5 suggest the binary might be compressed), and whether the binary may contain undocumented opcodes (a hint, not guaranteed).
 
 _No arguments._
 

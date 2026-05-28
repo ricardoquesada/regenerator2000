@@ -26,7 +26,7 @@ pub fn handle_request(
             }
         })),
         "notifications/initialized" => Ok(json!(true)),
-        "tools/list" => list_tools(),
+        "tools/list" => list_tools(&app_state.system_config),
         "resources/list" => list_resources(),
         // Tools
         "tools/call" => handle_tool_call(&req.params, app_state, view_state),
@@ -52,7 +52,7 @@ pub fn handle_request(
     }
 }
 
-fn list_tools() -> Result<Value, McpError> {
+fn list_tools(system_config: &crate::config::SystemConfig) -> Result<Value, McpError> {
     Ok(json!({
         "tools": [
             {
@@ -180,7 +180,7 @@ fn list_tools() -> Result<Value, McpError> {
             },
             {
                 "name": "r2000_get_binary_info",
-                "description": "Returns the origin address, size in bytes, target platform (e.g. 'Commodore 64'), filename, user-provided description, and whether the binary may contain undocumented opcodes (a hint, not guaranteed).",
+                "description": format!("Returns the origin address, size in bytes, target platform (e.g. 'Commodore 64'), filename, user-provided description, entropy of the binary (values higher than {} suggest the binary might be compressed), and whether the binary may contain undocumented opcodes (a hint, not guaranteed).", system_config.entropy_threshold),
                 "inputSchema": { "type": "object", "properties": {} }
             },
             {
@@ -789,9 +789,11 @@ fn handle_tool_call_internal(
                         "origin": origin,
                         "size": size,
                         "system": system,
+                        "platform": system,
                         "filename": filename,
                         "description": app_state.settings.description,
-                        "may_contain_undocumented_opcodes": app_state.settings.use_illegal_opcodes
+                        "may_contain_undocumented_opcodes": app_state.settings.use_illegal_opcodes,
+                        "entropy": app_state.entropy()
                     })).unwrap_or_default()
                 }]
             }))

@@ -32,6 +32,7 @@ pub struct AppState {
     pub cached_arrows: Vec<CachedArrow>,
     pub disassembler: Disassembler,
     pub origin: Addr,
+    pub entropy: Option<f32>,
 
     // Data Conversion State
     pub block_types: Vec<BlockType>,
@@ -101,6 +102,7 @@ impl AppState {
             cached_arrows: Vec::new(),
             disassembler: Disassembler::new(),
             origin: Addr::ZERO,
+            entropy: None,
             block_types: Vec::new(),
             labels: BTreeMap::new(),
             settings: DocumentSettings::default(),
@@ -247,6 +249,13 @@ impl AppState {
     #[must_use]
     pub fn is_dirty(&self) -> bool {
         self.undo_stack.get_pointer() != self.last_saved_pointer
+    }
+
+    /// Returns the cached entropy value of the binary, or calculates it from raw data if not cached.
+    #[must_use]
+    pub fn entropy(&self) -> f32 {
+        self.entropy
+            .unwrap_or_else(|| crate::utils::calculate_entropy(&self.raw_data))
     }
 
     #[must_use]

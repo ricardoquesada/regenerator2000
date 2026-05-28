@@ -121,6 +121,7 @@ impl AppState {
             ));
         }
 
+        self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
         let initial_block_type = if self.system_config.default_is_unexplored {
             BlockType::Undefined
         } else {
@@ -168,6 +169,7 @@ impl AppState {
     ) -> anyhow::Result<LoadedProjectData> {
         self.origin = origin;
         self.raw_data = data;
+        self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
         let initial_block_type = if self.system_config.default_is_unexplored {
             BlockType::Undefined
         } else {
@@ -274,6 +276,7 @@ impl AppState {
 
         // Decode raw data
         self.raw_data = decode_raw_data_from_base64(&project.raw_data)?;
+        self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
 
         // Expand address types and collapsed blocks
         let (block_types, collapsed_ranges) = expand_blocks(&project.blocks, self.raw_data.len());
@@ -367,6 +370,7 @@ impl AppState {
         }
 
         self.raw_data = binary_data;
+        self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
 
         if let Some(first_map) = project.address_map.first() {
             self.origin = Addr(first_map.addr);
