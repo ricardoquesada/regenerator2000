@@ -280,6 +280,7 @@ EXPECTED_TOOLS = {
     "r2000_update_project_enum",
     "r2000_delete_project_enum",
     "r2000_apply_enum_usage",
+    "r2000_unpack_binary",
 }
 
 REMOVED_TOOLS = {
@@ -1307,6 +1308,19 @@ def test_project_enums_crud(client):
         return
 
 
+def test_unpack_binary(client):
+    print("\nTesting r2000_unpack_binary...")
+    res = client.rpc("tools/call", {
+        "name": "r2000_unpack_binary",
+        "arguments": {}
+    })
+    # Since the default project binary is not compressed, unpack should fail and return a clear error
+    if res and "error" in res:
+        print(f"  PASS: unpack failed as expected with error: {res['error']['message']}")
+    else:
+        print(f"  FAIL: expected unpack to fail and return an error, got: {res}")
+
+
 if __name__ == "__main__":
     client = MCPClient()
     client.start()
@@ -1329,3 +1343,4 @@ if __name__ == "__main__":
     test_batch_execute(client)
     test_malformed_calls(client)
     test_project_enums_crud(client)
+    test_unpack_binary(client)

@@ -428,6 +428,11 @@ fn list_tools(system_config: &crate::config::SystemConfig) -> Result<Value, McpE
                     },
                     "required": ["address"]
                 }
+            },
+            {
+                "name": "r2000_unpack_binary",
+                "description": "Unpacks the currently loaded binary. WARNING: This is a DESTRUCTIVE action! All existing comments, labels, and blocks will be completely deleted, as the project starts from scratch with the new unpacked binary. Unpacking may take up to 10 seconds or more.",
+                "inputSchema": { "type": "object", "properties": {} }
             }
         ]
     }))
@@ -797,6 +802,44 @@ fn handle_tool_call_internal(
                     })).unwrap_or_default()
                 }]
             }))
+        }
+
+        "r2000_unpack_binary" => {
+            let load_addr = app_state.origin.0;
+            let raw_data = app_state.raw_data.clone();
+            let config = crate::unpacker::UnpackConfig::default();
+
+            match crate::unpacker::unpack(&raw_data, load_addr, &config, None) {
+                Ok(result) => {
+                    let origin = Addr(result.start_addr);
+                    app_state
+                        .load_binary(origin, result.data)
+                        .map_err(|e| McpError {
+                            code: -32603,
+                            message: format!("Failed to load unpacked binary: {e}"),
+                            data: None,
+                        })?;
+
+                    Ok(json!({
+                        "content": [{
+                            "type": "text",
+                            "text": format!(
+                                "Unpacked successfully: ${:04X}-${:04X}, entry=${:04X}, dep=${:04X} ({} instructions executed)",
+                                result.start_addr,
+                                result.end_addr,
+                                result.entry_point,
+                                result.dep_addr,
+                                result.instructions_executed
+                            )
+                        }]
+                    }))
+                }
+                Err(e) => Err(McpError {
+                    code: -32603,
+                    message: format!("Unpack failed: {e}"),
+                    data: None,
+                }),
+            }
         }
 
         "r2000_get_blocks" => {
