@@ -270,7 +270,7 @@ EXPECTED_TOOLS = {
     "r2000_search_memory",
     "r2000_search_disassembly",
     "r2000_get_cross_references",
-    "r2000_set_operand_format",
+    "r2000_set_immediate_format",
     "r2000_get_symbols",
     "r2000_get_comments",
     "r2000_save_project",
@@ -632,10 +632,10 @@ def test_misc_tools(client):
     else:
         print(f"  FAIL: {res}")
 
-    # Set Operand Format
-    print("- r2000_set_operand_format")
+    # Set Immediate Format
+    print("- r2000_set_immediate_format")
     res = client.rpc("tools/call", {
-        "name": "r2000_set_operand_format",
+        "name": "r2000_set_immediate_format",
         "arguments": {"address": 0x1000, "format": "binary"}
     })
     print("  PASS" if res and "result" in res else f"  FAIL: {res}")
@@ -1030,19 +1030,23 @@ def test_malformed_calls(client):
     )
 
     # -----------------------------------------------------------------------
-    # r2000_set_operand_format
+    # r2000_set_immediate_format
     # -----------------------------------------------------------------------
     check(
-        call("r2000_set_operand_format", {"address": 0x1000}),
-        "r2000_set_operand_format: missing 'format'"
+        call("r2000_set_immediate_format", {"address": 0x1000}),
+        "r2000_set_immediate_format: missing 'format'"
     )
     check(
-        call("r2000_set_operand_format", {"address": 0x1000, "format": "octal"}),
-        "r2000_set_operand_format: invalid 'format' value 'octal'"
+        call("r2000_set_immediate_format", {"address": 0x1000, "format": "octal"}),
+        "r2000_set_immediate_format: invalid 'format' value 'octal'"
     )
     check(
-        call("r2000_set_operand_format", {"format": "hex"}),
-        "r2000_set_operand_format: missing 'address'"
+        call("r2000_set_immediate_format", {"format": "hex"}),
+        "r2000_set_immediate_format: missing 'address'"
+    )
+    check(
+        call("r2000_set_immediate_format", {"address": 0x1000, "format": "low_byte"}),
+        "r2000_set_immediate_format: missing 'target_address'"
     )
 
     # -----------------------------------------------------------------------

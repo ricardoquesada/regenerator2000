@@ -288,17 +288,18 @@ fn list_tools(system_config: &crate::config::SystemConfig) -> Result<Value, McpE
                 }
             },
             {
-                "name": "r2000_set_operand_format",
-                "description": "Sets the display format for immediate values (operands) at a specific address. Useful for visualizing bitmasks.",
+                "name": "r2000_set_immediate_format",
+                "description": "Sets the display format for immediate values (operands) at a specific address. Supports hexadecimal, decimal, binary, and Low/High byte references to a 16-bit address.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "address": { "type": "integer", "description": "The address of the instruction (decimal)." },
                         "format": {
                             "type": "string",
-                            "enum": ["hex", "decimal", "binary"],
-                            "description": "hex=$00, decimal=0, binary=%00000000."
-                        }
+                            "enum": ["hex", "decimal", "binary", "low_byte", "high_byte"],
+                            "description": "hex=$00, decimal=0, binary=%00000000, low_byte=#<p_ADDRESS, high_byte=#>p_ADDRESS."
+                        },
+                        "target_address": { "type": "integer", "description": "The 16-bit target address decimal (e.g. 60000 for $EA31). Required when format is 'low_byte' or 'high_byte'." }
                     },
                     "required": ["address", "format"]
                 }
@@ -794,7 +795,6 @@ fn handle_tool_call_internal(
                         "origin": origin,
                         "size": size,
                         "system": system,
-                        "platform": system,
                         "filename": filename,
                         "description": app_state.settings.description,
                         "may_contain_undocumented_opcodes": app_state.settings.use_illegal_opcodes,
@@ -1036,7 +1036,7 @@ fn handle_tool_call_internal(
             }))
         }
 
-        "r2000_set_operand_format" => {
+        "r2000_set_immediate_format" => {
             let address = get_address(&args, "address")?;
             let format_str =
                 args.get("format")
@@ -1047,12 +1047,18 @@ fn handle_tool_call_internal(
                         data: None,
                     })?;
 
-            set_operand_format_impl(app_state, address, format_str)?;
+            let target_addr_opt = if format_str == "low_byte" || format_str == "high_byte" {
+                Some(get_address(&args, "target_address")?)
+            } else {
+                None
+            };
+
+            set_immediate_format_impl(app_state, address, format_str, target_addr_opt)?;
 
             Ok(json!({
                 "content": [{
                     "type": "text",
-                    "text": format!("Operand format at ${:04X} set to {}", address, format_str)
+                    "text": format!("Immediate format at ${:04X} set to {}", address, format_str)
                 }]
             }))
         }
@@ -1560,15 +1566,32 @@ fn get_cross_references_impl(app_state: &AppState, address: Addr) -> Vec<Addr> {
     }
 }
 
-fn set_operand_format_impl(
+fn set_immediate_format_impl(
     app_state: &mut AppState,
     address: Addr,
     format_str: &str,
+    target_address: Option<Addr>,
 ) -> Result<(), McpError> {
     let format = match format_str.to_lowercase().as_str() {
         "hex" => ImmediateFormat::Hex,
         "decimal" | "dec" => ImmediateFormat::Decimal,
         "binary" | "bin" => ImmediateFormat::Binary,
+        "low_byte" | "low" | "lo" => {
+            let target = target_address.ok_or_else(|| McpError {
+                code: -32602,
+                message: "Missing 'target_address' parameter for low_byte format".to_string(),
+                data: None,
+            })?;
+            ImmediateFormat::LowByte(target)
+        }
+        "high_byte" | "high" | "hi" => {
+            let target = target_address.ok_or_else(|| McpError {
+                code: -32602,
+                message: "Missing 'target_address' parameter for high_byte format".to_string(),
+                data: None,
+            })?;
+            ImmediateFormat::HighByte(target)
+        }
         _ => {
             return Err(McpError {
                 code: -32602,
@@ -1585,7 +1608,9 @@ fn set_operand_format_impl(
     };
 
     command.apply(app_state);
-    app_state.push_command(command);
+
+    let (analysis_cmd, _) = app_state.perform_analysis();
+    app_state.push_command(crate::commands::Command::Batch(vec![command, analysis_cmd]));
     app_state.disassemble();
 
     Ok(())
@@ -2291,5 +2316,86 @@ mod tests {
         let result =
             handle_tool_call_internal("r2000_set_data_type", args, &mut app_state, &mut view_state);
         assert!(result.is_err(), "Expected Err when data_type is missing");
+    }
+
+    #[test]
+    fn test_set_immediate_format() {
+        let mut app_state = make_app_state(0x1000, 256);
+        let mut view_state = make_view_state();
+
+        // 1. Success cases for basic formats
+        let args_hex = json!({
+            "address": 0x1005,
+            "format": "hex"
+        });
+        let result_hex = handle_tool_call_internal(
+            "r2000_set_immediate_format",
+            args_hex,
+            &mut app_state,
+            &mut view_state,
+        );
+        assert!(
+            result_hex.is_ok(),
+            "Expected Ok for format=hex, got: {:?}",
+            result_hex
+        );
+        assert_eq!(
+            app_state.immediate_value_formats.get(&Addr(0x1005)),
+            Some(&ImmediateFormat::Hex)
+        );
+
+        let args_dec = json!({
+            "address": 0x1006,
+            "format": "decimal"
+        });
+        let result_dec = handle_tool_call_internal(
+            "r2000_set_immediate_format",
+            args_dec,
+            &mut app_state,
+            &mut view_state,
+        );
+        assert!(result_dec.is_ok());
+        assert_eq!(
+            app_state.immediate_value_formats.get(&Addr(0x1006)),
+            Some(&ImmediateFormat::Decimal)
+        );
+
+        // 2. Error cases for low_byte/high_byte missing target_address
+        let args_lo_err = json!({
+            "address": 0x1007,
+            "format": "low_byte"
+        });
+        let result_lo_err = handle_tool_call_internal(
+            "r2000_set_immediate_format",
+            args_lo_err,
+            &mut app_state,
+            &mut view_state,
+        );
+        assert!(
+            result_lo_err.is_err(),
+            "Expected Err when target_address is missing for low_byte"
+        );
+
+        // 3. Success cases for low_byte/high_byte with target_address
+        let args_lo_ok = json!({
+            "address": 0x1007,
+            "format": "low_byte",
+            "target_address": 0xEA31
+        });
+        let result_lo_ok = handle_tool_call_internal(
+            "r2000_set_immediate_format",
+            args_lo_ok,
+            &mut app_state,
+            &mut view_state,
+        );
+        assert!(
+            result_lo_ok.is_ok(),
+            "Expected Ok for low_byte with target_address, got: {:?}",
+            result_lo_ok
+        );
+        assert_eq!(
+            app_state.immediate_value_formats.get(&Addr(0x1007)),
+            Some(&ImmediateFormat::LowByte(Addr(0xEA31)))
+        );
     }
 }
