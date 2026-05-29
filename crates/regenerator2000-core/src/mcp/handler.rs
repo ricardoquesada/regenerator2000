@@ -820,6 +820,30 @@ fn handle_tool_call_internal(
                             data: None,
                         })?;
 
+                    let entry_addr = Addr(result.entry_point);
+                    let ranges = crate::analyzer::flow_analyze(app_state, entry_addr);
+                    for range in ranges {
+                        for i in range.start..range.end {
+                            if i < app_state.block_types.len() {
+                                app_state.block_types[i] = BlockType::Code;
+                            }
+                        }
+                    }
+
+                    if let Ok(cmd) =
+                        app_state.create_set_user_label_command(entry_addr, "start", false)
+                    {
+                        cmd.apply(app_state);
+                        app_state.push_command(cmd);
+                    }
+
+                    if app_state.settings.auto_analyze {
+                        let (command, _msg) = app_state.perform_analysis();
+                        app_state.push_command(command);
+                    } else {
+                        app_state.disassemble();
+                    }
+
                     Ok(json!({
                         "content": [{
                             "type": "text",

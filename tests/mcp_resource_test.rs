@@ -4,7 +4,7 @@ mod tests {
     use base64::prelude::*;
     use regenerator2000_core::mcp::handler::handle_request;
     use regenerator2000_core::mcp::types::McpRequest;
-    use regenerator2000_core::state::AppState;
+    use regenerator2000_core::state::{Addr, AppState};
     use regenerator2000_tui::theme::Theme;
     use regenerator2000_tui::ui_state::UIState;
     use serde_json::json;
@@ -112,5 +112,50 @@ mod tests {
         assert!(info.get("entropy").is_some());
         let entropy_val = info.get("entropy").unwrap().as_f64().unwrap();
         assert_eq!(entropy_val, 0.0); // 100 identical NOPs has exactly 0 entropy
+    }
+
+    #[test]
+    fn test_unpack_binary_disassembles_and_labels_entry_point() {
+        let mut app_state = AppState::default();
+        let prg_data = std::fs::read("tests/6502/c64_moving_tubes_lxt.dali.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = prg_data[2..].to_vec();
+        app_state.load_binary(Addr(load_addr), raw_data).unwrap();
+
+        let mut ui_state = UIState::new(Theme::default());
+        let (tx, _rx) = oneshot::channel();
+        let req = McpRequest {
+            method: "tools/call".to_string(),
+            params: json!({
+                "name": "r2000_unpack_binary",
+                "arguments": {}
+            }),
+            response_sender: tx,
+        };
+
+        let response = handle_request(&req, &mut app_state, &mut ui_state);
+        assert!(response.result.is_some(), "Response should have a result");
+        assert!(
+            response.error.is_none(),
+            "Response should not have an error"
+        );
+
+        // The unpacked entry point is 0x2E00 (defined in test_unpack_lxt_compressed)
+        let entry_addr = Addr(0x2E00);
+
+        // Verify the entry point is labeled as "start"
+        let label = app_state.labels.get(&entry_addr);
+        assert!(label.is_some(), "Entry point should have a label");
+        let label_name = &label.unwrap()[0].name;
+        assert_eq!(label_name, "start", "Entry point label should be 'start'");
+
+        // The block type at entry_point should be Code
+        let entry_offset = (entry_addr.0 - app_state.origin.0) as usize;
+        let block_type = app_state.block_types[entry_offset];
+        assert_eq!(
+            block_type,
+            regenerator2000_core::state::BlockType::Code,
+            "Block at entry point should be Code"
+        );
     }
 }
