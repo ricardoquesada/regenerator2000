@@ -60,6 +60,11 @@ Use this skill when the user asks to "analyze this routine" or "what does this f
   - **ENUM USAGE DETECTION**: Check if any accessed addresses or immediate values represent logical sets of states, flags, or values.
     - Verify if an existing Project, Global, or System enum (e.g., `vic_registers`, `color_codes`) matches these values. If so, call `r2000_apply_enum_usage` to format the operands at the accessing instruction's address.
     - If no matching enum exists but the values represent a clean logical set (e.g., state machine constants, joystick direction bits), define a new project enum using `r2000_create_project_enum` (with a detailed `description` summarizing its purpose) and then apply it using `r2000_apply_enum_usage` to all relevant instructions.
+  - **IMMEDIATE POINTER DETECTION**: Check if the routine loads immediate values representing the low and high bytes of a 16-bit address (e.g., to setup an interrupt vector, store a pointer in Zero Page, or pass an address argument).
+    - Typically, this looks like `LDA #<target` (low byte) followed by `STA ptr`, and `LDA #>target` (high byte) followed by `STA ptr+1`.
+    - If you find immediate loads corresponding to the low/high byte of a 16-bit target address (which could be a subroutine entry point, a data block, screen RAM, or another label):
+      - Call `r2000_set_immediate_format` on the low-byte instruction address with `"format": "low_byte"` and `"target_address": <decimal_target>`.
+      - Call `r2000_set_immediate_format` on the high-byte instruction address with `"format": "high_byte"` and `"target_address": <decimal_target>`.
 
 ## 6. Synthesize
 
@@ -95,6 +100,7 @@ To document the routine, use:
 - `r2000_set_comment` with `"type": "side"` — to annotate key instructions within the routine body with short inline notes (e.g., explaining what a register holds, why a branch is taken, or what a memory address represents). **Crucial for making the code readable for others.**
 - `r2000_create_project_enum` — to define new project enums if needed.
 - `r2000_apply_enum_usage` — to apply enums to relevant instruction operands in the routine.
+- `r2000_set_immediate_format` — to format immediate low/high byte loads (`low_byte`/`high_byte`) of a target 16-bit address to make pointers and vector setups highly readable.
 
 ---
 

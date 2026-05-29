@@ -43,6 +43,9 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 - Is it used for **Indexed Indirect** addressing `($xx,X)`?
 - If so, it's a **Pointer**. Rename to something like `ptr_screen`, `ptr_data`, or `vec_irq`.
   - Suggest generating a comment explaining what it points _to_.
+  - **IMMEDIATE POINTER FORMATTING**: Look at the write cross-references for this pointer. If it is initialized or updated using immediate loads of the low and high bytes of a 16-bit target address:
+    - Call `r2000_set_immediate_format` on the low-byte instruction address with `"format": "low_byte"` and `"target_address": <decimal_target>`.
+    - Call `r2000_set_immediate_format` on the high-byte instruction address with `"format": "high_byte"` and `"target_address": <decimal_target>`.
 
 ### Is it a Flag (Boolean) or Bitmask?
 
@@ -77,15 +80,15 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 1.  **Rename**: Use `r2000_set_label_name` to give it a meaningful, descriptive name based on your analysis.
     Use the following naming conventions consistently:
 
-    | Symbol Kind         | Convention       | Example                              |
-    | ------------------- | ---------------- | ------------------------------------ |
-    | Zero Page variable  | `zp_` prefix     | `zp_player_lives`, `zp_delay_timer`  |
-    | Zero Page pointer   | `zp_ptr_` prefix | `zp_ptr_screen`, `zp_ptr_dest`       |
-    | RAM variable        | `snake_case`     | `score_hi`, `current_level`          |
-    | Pointer / vector    | `ptr_` prefix    | `ptr_screen`, `vec_irq`              |
-    | Hardware register   | `UPPER_SNAKE`    | `VIC_SPR0_X`, `SID_FreqLo1`          |
-    | Constant / address  | `UPPER_SNAKE`    | `SCREEN_RAM`, `CHR_ROM_BASE`         |
-    | Routine entry point | `snake_case`     | `init_screen`, `draw_sprite`         |
+    | Symbol Kind         | Convention       | Example                             |
+    | ------------------- | ---------------- | ----------------------------------- |
+    | Zero Page variable  | `zp_` prefix     | `zp_player_lives`, `zp_delay_timer` |
+    | Zero Page pointer   | `zp_ptr_` prefix | `zp_ptr_screen`, `zp_ptr_dest`      |
+    | RAM variable        | `snake_case`     | `score_hi`, `current_level`         |
+    | Pointer / vector    | `ptr_` prefix    | `ptr_screen`, `vec_irq`             |
+    | Hardware register   | `UPPER_SNAKE`    | `VIC_SPR0_X`, `SID_FreqLo1`         |
+    | Constant / address  | `UPPER_SNAKE`    | `SCREEN_RAM`, `CHR_ROM_BASE`        |
+    | Routine entry point | `snake_case`     | `init_screen`, `draw_sprite`        |
 
     > **Zero Page rule**: If the symbol's address is ≤ `$FF`, it **must** be prefixed with `zp_`.
     > This applies to all categories above — a Zero Page pointer becomes `zp_ptr_`, a Zero Page flag
@@ -96,6 +99,7 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
     - Use `r2000_set_comment` with `"type": "line"` at the definition (if it's a variable in memory) to explain its range, purpose, or bitfield layout.
     - Use `r2000_set_comment` with `"type": "side"` at key usages to clarify _why_ it's being read or written (e.g., "Reset life counter", "Check for fire button").
     - Define and apply enums where appropriate (using `r2000_create_project_enum` and `r2000_apply_enum_usage`) to formalize state values, mode types, or bitmask flags.
+    - Use `r2000_set_immediate_format` to format immediate low/high byte writes initializing the pointer to the target 16-bit address (using `"format": "low_byte"` / `"high_byte"` and `"target_address"`).
 
 ---
 

@@ -68,10 +68,10 @@ To build the candidate list:
    - Labels whose name starts with `s_` (auto-generated subroutine labels), OR
    - Labels in a `Code` block that are the target of at least one `JSR` cross-reference, OR
    - **Pointer-to-code labels** — any `p_XXXX` label that is inside a `Code` block. These are addresses referenced as pointers (via immediate lo/hi byte loads like `LDX #<addr` / `LDY #>addr`, or stored in address tables) and point to executable code. They are almost always one of:
-      - **Chained raster IRQ handlers**: In C64/C128 demos, multiple raster interrupts are "chained" — each handler sets the *next* handler's address into the IRQ vector (`$0314`/`$0315`) via a helper routine. The pointer labels are created from the `LDX #<p_XXXX` / `LDY #>p_XXXX` immediate loads, not from direct vector writes. This is the most common case.
-      - **NMI/IRQ handlers** loaded directly into hardware vectors (`$FFFA`–`$FFFF`) or shadow vectors (`$0314`/`$0315`, `$0318`/`$0319`).
-      - **Jump table targets** or **callback pointers** stored via indirect addressing.
-      - Since all of these are code entry points that deserve analysis, treat **every `p_XXXX` label in a Code block** as a routine candidate. This avoids the need for fragile pattern-matching against specific vector addresses or instruction sequences.
+     - **Chained raster IRQ handlers**: In C64/C128 demos, multiple raster interrupts are "chained" — each handler sets the _next_ handler's address into the IRQ vector (`$0314`/`$0315`) via a helper routine. The pointer labels are created from the `LDX #<p_XXXX` / `LDY #>p_XXXX` immediate loads, not from direct vector writes. This is the most common case.
+     - **NMI/IRQ handlers** loaded directly into hardware vectors (`$FFFA`–`$FFFF`) or shadow vectors (`$0314`/`$0315`, `$0318`/`$0319`).
+     - **Jump table targets** or **callback pointers** stored via indirect addressing.
+     - Since all of these are code entry points that deserve analysis, treat **every `p_XXXX` label in a Code block** as a routine candidate. This avoids the need for fragile pattern-matching against specific vector addresses or instruction sequences.
    - **Entry point label** — a label named exactly `start`. This is the program's entry point and is critical for understanding the overall program flow.
 2. For each candidate, check if it already has a line comment (from the refreshed `r2000_get_comments` data). If yes → **skip it** (already documented).
 3. The remaining list = **unanalyzed routines**.
@@ -88,7 +88,7 @@ To build the candidate list:
   >
   > Binary info: system = {system}, filename = {filename}, description = {description}, may_contain_undocumented_opcodes = {hint}.
   >
-  > **Apply all changes automatically** — rename the label, add the header comment block, and add side comments to key instructions. Do NOT ask for user confirmation.
+  > **Apply all changes automatically** — rename the label, add the header comment block, add side comments to key instructions, and apply low/high byte formatting (`r2000_set_immediate_format`) to any immediate pointer loads. Do NOT ask for user confirmation.
   >
   > When done, report: the new label name, a one-line summary of what the routine does, and any uncertain areas.
 
@@ -141,7 +141,7 @@ To build the candidate list:
   >
   > Binary info: system = {system}, filename = {filename}, description = {description}, may_contain_undocumented_opcodes = {hint}.
   >
-  > **Apply all changes automatically** — rename the label and add comments (line and/or side). Do NOT ask for user confirmation.
+  > **Apply all changes automatically** — rename the label, add comments (line and/or side), and apply low/high byte formatting (`r2000_set_immediate_format`) to any instructions initializing the symbol. Do NOT ask for user confirmation.
   >
   > When done, report: the old label, the new label name, the classification (flag, counter, pointer, state variable, etc.), and any uncertain areas.
 
