@@ -157,5 +157,12 @@ mod tests {
             regenerator2000_core::state::BlockType::Code,
             "Block at entry point should be Code"
         );
+
+        // Verify the disassembly cursor was moved to the entry point
+        let cursor_line = &app_state.disassembly[ui_state.cursor_index];
+        assert_eq!(
+            cursor_line.address, entry_addr,
+            "Cursor address should match entry_addr"
+        );
     }
 }

@@ -844,6 +844,10 @@ fn handle_tool_call_internal(
                         app_state.disassemble();
                     }
 
+                    crate::navigation::perform_jump_to_address_no_history(
+                        app_state, view_state, entry_addr,
+                    );
+
                     Ok(json!({
                         "content": [{
                             "type": "text",
