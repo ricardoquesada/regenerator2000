@@ -187,12 +187,22 @@ After all symbol subagents complete:
 - List any routines or symbols that subagents flagged as uncertain or could not fully determine.
 - These are candidates for manual review by the user.
 
+### Errors, Resource Quotas & Fallbacks
+
+- **CRITICAL**: Log any subagents that encountered errors, timeouts, or API capacity limits (e.g. `RESOURCE_EXHAUSTED` / Code 429) during analysis.
+- Include a structured table detailing:
+  - The target address.
+  - The symbol/routine entry point name.
+  - The planned subagent analysis role.
+  - The specific error code/message encountered (e.g. `RESOURCE_EXHAUSTED (code 429)`).
+  - The fallback handling mechanism used (e.g. "Resolved directly and sequentially by the parent orchestrator").
+
 ---
 
 ## Error Handling
 
-- If a subagent fails or times out, **log the failure** but continue with the remaining subagents. Do not abort the entire analysis.
-- After all phases complete, include any failures in the summary report under a "Errors" section.
+- If a subagent fails, times out, or hits a rate limit (e.g. `RESOURCE_EXHAUSTED` / Code 429), **log the failure**, cleanly terminate the background task if necessary, and fallback to direct sequential analysis of the failed target.
+- **CRITICAL**: Do NOT discard or ignore these failures. You **MUST** document all such failed subagent targets, their addresses, error codes/messages, and their fallback resolutions in the final summary report under the dedicated "Errors, Resource Quotas & Fallbacks" section.
 - If `r2000_save_project` fails, warn the user immediately.
 
 ---
