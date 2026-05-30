@@ -191,7 +191,7 @@ fn handle_unpack_complete(
             );
             let entry = regenerator2000_core::state::Addr(result.entry_point);
             let origin = regenerator2000_core::state::Addr(result.start_addr);
-            match core.state.load_binary(origin, result.data) {
+            match core.state.load_unpacked_binary(origin, result.data) {
                 Ok(_loaded_data) => {
                     ui_state.set_status_message(msg);
                     ui_state.core = core.view.clone();

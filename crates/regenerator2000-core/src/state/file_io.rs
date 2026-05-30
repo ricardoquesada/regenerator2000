@@ -226,6 +226,59 @@ impl AppState {
         })
     }
 
+    /// Loads unpacked binary data directly into the application state while preserving
+    /// existing document properties (such as settings, project paths, and enums).
+    ///
+    /// # Errors
+    /// Returns an error if the internal project structures cannot be initialized.
+    pub fn load_unpacked_binary(
+        &mut self,
+        origin: Addr,
+        data: Vec<u8>,
+    ) -> anyhow::Result<LoadedProjectData> {
+        let settings = self.settings.clone();
+        let file_path = self.file_path.clone();
+        let project_path = self.project_path.clone();
+        let export_asm_path = self.export_asm_path.clone();
+        let export_html_path = self.export_html_path.clone();
+        let enums = self.enums.clone();
+        let user_excluded_addresses = self.user_excluded_addresses.clone();
+
+        let last_import_labels_path = self.last_import_labels_path.clone();
+        let last_export_labels_filename = self.last_export_labels_filename.clone();
+        let last_save_as_filename = self.last_save_as_filename.clone();
+        let last_export_asm_filename = self.last_export_asm_filename.clone();
+        let last_export_html_filename = self.last_export_html_filename.clone();
+
+        let mut loaded_data = self.load_binary(origin, data)?;
+
+        self.settings = settings;
+        self.file_path = file_path;
+        self.project_path = project_path;
+        self.export_asm_path = export_asm_path;
+        self.export_html_path = export_html_path;
+        self.enums = enums;
+        self.user_excluded_addresses = user_excluded_addresses;
+
+        self.last_import_labels_path = last_import_labels_path;
+        self.last_export_labels_filename = last_export_labels_filename;
+        self.last_save_as_filename = last_save_as_filename;
+        self.last_export_asm_filename = last_export_asm_filename;
+        self.last_export_html_filename = last_export_html_filename;
+
+        self.load_system_assets();
+        self.disassemble();
+        self.load_system_assets();
+        self.disassemble();
+
+        if self.settings.auto_analyze {
+            self.perform_analysis();
+        }
+
+        loaded_data.suggested_system = Some(self.settings.system.clone());
+        Ok(loaded_data)
+    }
+
     pub(super) fn check_entropy(&self) -> Option<f32> {
         let entropy = crate::utils::calculate_entropy(&self.raw_data);
         if entropy > self.system_config.entropy_threshold {
@@ -939,6 +992,39 @@ mod config_tests {
         // Cleanup
         let _ = std::fs::remove_file(file_path);
         let _ = std::fs::remove_file(project_path);
+    }
+
+    #[test]
+    fn test_load_unpacked_binary_preserves_document_properties() {
+        use crate::state::{Addr, Assembler, System};
+
+        let mut app_state = AppState::new();
+        app_state.settings.system = System::from("Commodore 128".to_string());
+        app_state.settings.assembler = Assembler::Acme;
+        app_state.settings.use_illegal_opcodes = true;
+        app_state.file_path = Some(std::path::PathBuf::from("/path/to/packed.prg"));
+        app_state.project_path = Some(std::path::PathBuf::from("/path/to/project.regen2000proj"));
+
+        let origin = Addr(0x2000);
+        let data = vec![0xA9, 0x00, 0x60];
+
+        let res = app_state.load_unpacked_binary(origin, data);
+        assert!(res.is_ok());
+
+        assert_eq!(
+            app_state.settings.system,
+            System::from("Commodore 128".to_string())
+        );
+        assert_eq!(app_state.settings.assembler, Assembler::Acme);
+        assert!(app_state.settings.use_illegal_opcodes);
+        assert_eq!(
+            app_state.file_path,
+            Some(std::path::PathBuf::from("/path/to/packed.prg"))
+        );
+        assert_eq!(
+            app_state.project_path,
+            Some(std::path::PathBuf::from("/path/to/project.regen2000proj"))
+        );
     }
 }
 

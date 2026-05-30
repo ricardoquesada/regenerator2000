@@ -79,7 +79,7 @@ To build the candidate list:
 
 ### 2.2 Launch Parallel Subagents
 
-- Use a **rolling window** of up to **10 concurrent subagents**.
+- Use a **rolling window** of up to **5 concurrent subagents** (to avoid hitting rate limit quota errors like `RESOURCE_EXHAUSTED`).
 - For each subagent, provide this prompt:
 
   > Read the skill file at `.agent/skills/r2000-analyze-routine/SKILL.md` and follow its workflow.
@@ -93,10 +93,11 @@ To build the candidate list:
   > When done, report: the new label name, a one-line summary of what the routine does, and any uncertain areas.
 
 - **Rolling window strategy**:
-  1. Launch the first 10 subagents (or fewer if the queue is smaller) to fill all slots.
+  1. Launch the first 5 subagents (or fewer if the queue is smaller) to fill all slots.
   2. When **any** subagent completes, immediately launch the **next** routine from the queue into the freed slot — do NOT wait for the entire batch to finish.
   3. Continue until all routines in the queue have been launched and all subagents have completed.
-  4. This keeps utilization high — if one subagent is slow, the other 9 slots stay busy.
+  4. This keeps utilization high — if one subagent is slow, the other 4 slots stay busy.
+  5. **Error Fallback**: If any subagent encounters a quota or model capacity error (e.g., `RESOURCE_EXHAUSTED` / Code 429), immediately catch the failure, log it, and queue the routine to be processed sequentially or directly by the parent orchestrator after a brief delay.
 
 ### 2.3 Post-Phase Refresh
 
@@ -132,7 +133,7 @@ To build the candidate list:
 
 ### 3.2 Launch Parallel Subagents
 
-- Same **rolling window** strategy as Phase 2: up to **10 concurrent subagents**.
+- Same **rolling window** strategy as Phase 2: up to **5 concurrent subagents** (to avoid hitting rate limit quota errors like `RESOURCE_EXHAUSTED`).
 - For each subagent, provide this prompt:
 
   > Read the skill file at `.agent/skills/r2000-analyze-symbol/SKILL.md` and follow its workflow.
@@ -146,6 +147,7 @@ To build the candidate list:
   > When done, report: the old label, the new label name, the classification (flag, counter, pointer, state variable, etc.), and any uncertain areas.
 
 - As each subagent completes, immediately launch the next symbol from the queue into the freed slot.
+- **Error Fallback**: If any subagent encounters a quota or model capacity error (e.g., `RESOURCE_EXHAUSTED` / Code 429), immediately catch the failure, log it, and queue the symbol to be processed sequentially or directly by the parent orchestrator after a brief delay.
 
 ### 3.3 Post-Phase Refresh
 

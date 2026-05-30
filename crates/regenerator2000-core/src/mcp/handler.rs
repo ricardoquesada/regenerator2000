@@ -813,7 +813,7 @@ fn handle_tool_call_internal(
                 Ok(result) => {
                     let origin = Addr(result.start_addr);
                     app_state
-                        .load_binary(origin, result.data)
+                        .load_unpacked_binary(origin, result.data)
                         .map_err(|e| McpError {
                             code: -32603,
                             message: format!("Failed to load unpacked binary: {e}"),
