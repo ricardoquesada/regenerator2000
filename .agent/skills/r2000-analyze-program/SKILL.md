@@ -25,32 +25,22 @@ Before starting or launching any subagents, you must gather context and check if
    - Read the returned `"entropy"` value.
    - Also read the description of the `r2000_get_binary_info` tool (e.g. from `tools/list`) to find the entropy threshold preference (e.g., `7.5`).
    - If the binary's `entropy` is greater than or equal to the threshold (values above the threshold suggest the binary might be compressed):
-     - **ASK the user** (using regular text in chat) if they would like to unpack the binary before proceeding with the analysis.
+     - **Ask the user** (using regular text in chat) if they would like to unpack the binary before proceeding with the analysis.
      - **If the user accepts**:
        - Call the `r2000_unpack_binary` tool.
        - Note: `r2000_unpack_binary` is a destructive action (clears existing comments/labels/blocks) and may take up to 10 seconds or more.
        - **If `r2000_unpack_binary` returns an error**: The binary was not unpacked. Log the failure and continue the analysis on the current binary.
        - **If it succeeds**: The binary has been unpacked and a new unpacked binary has been loaded in its place. **You must restart this phase (Phase 0) from scratch**, calling `r2000_get_binary_info` again to fetch the new unpacked binary's info and continue.
      - **If the user declines**: Continue the analysis on the current binary.
-2. **Collect other context data**:
-   - **Existing blocks**: Call `r2000_get_blocks` → get the current block classification map.
-   - **All symbols**: Call `r2000_get_symbols` → get all labels (user + system), including external labels.
-   - **Existing line comments**: Call `r2000_get_comments` with `type = "line"` → used to detect routines that already have documentation header blocks.
-
-Store all of this data — you will reference it in every subsequent phase to skip already-analyzed items.
 
 ---
 
 ## Phase 1 — Classify Blocks (`r2000-analyze-blocks`)
 
-> **This phase always runs first.** Block classification is a prerequisite for all subsequent analysis.
+Block classification is a prerequisite for all subsequent analysis.
 
 1. Read the skill file at `.agent/skills/r2000-analyze-blocks/SKILL.md`.
 2. Execute the `r2000-analyze-blocks` workflow **directly** (not via a subagent — this is a single long-running pass over the entire binary that you perform yourself).
-3. After completion, **refresh the state** for later phases:
-   - Call `r2000_get_blocks` again.
-   - Call `r2000_get_symbols` again (new labels may have been created during block analysis).
-   - Call `r2000_get_comments` with `type = "line"` again.
 
 ---
 
@@ -64,7 +54,9 @@ A subroutine is considered **already analyzed** if its entry point has **any lin
 
 To build the candidate list:
 
-1. From the refreshed `r2000_get_symbols` data, filter labels that represent subroutine entry points:
+1. Call `r2000_get_symbols` to get all labels (user + system), including external labels, and save the symbols since they will be used later.
+2. Call `r2000_get_comments` to get all the comments, and save the comments since they will be used later.
+3. Filter labels that represent subroutine entry points:
    - Labels whose name starts with `s_` (auto-generated subroutine labels), OR
    - Labels in a `Code` block that are the target of at least one `JSR` cross-reference, OR
    - **Pointer-to-code labels** — any `p_XXXX` label that is inside a `Code` block. These are addresses referenced as pointers (via immediate lo/hi byte loads like `LDX #<addr` / `LDY #>addr`, or stored in address tables) and point to executable code. They are almost always one of:
@@ -73,12 +65,13 @@ To build the candidate list:
      - **Jump table targets** or **callback pointers** stored via indirect addressing.
      - Since all of these are code entry points that deserve analysis, treat **every `p_XXXX` label in a Code block** as a routine candidate. This avoids the need for fragile pattern-matching against specific vector addresses or instruction sequences.
    - **Entry point label** — a label named exactly `start`. This is the program's entry point and is critical for understanding the overall program flow.
-2. For each candidate, check if it already has a line comment (from the refreshed `r2000_get_comments` data). If yes → **skip it** (already documented).
-3. The remaining list = **unanalyzed routines**.
-4. **Ordering**: If `start` is in the unanalyzed list, it must be placed **first** — it is the program entry point and should be analyzed before all other routines. This ensures that the entry-point context is available when analyzing subsequent routines.
+4. For each candidate, check if it already has a line comment (from the refreshed `r2000_get_comments` data). If yes → **skip it** (already documented).
+5. The remaining list = **unanalyzed routines**.
+6. **Ordering**: If `start` is in the unanalyzed list, it must be placed **first** — it is the program entry point and should be analyzed before all other routines. This ensures that the entry-point context is available when analyzing subsequent routines.
 
 ### 2.2 Launch Parallel Subagents
 
+- **CRITICAL**: Always launch each subagent with an explicit target address (e.g., `$XXXX` or decimal `NNNNN`). **NEVER** use the "current cursor address" or rely on the active cursor location in the editor, as the cursor will change dynamically when running parallel subagents.
 - Use a **rolling window** of up to **7 concurrent subagents** (to avoid hitting rate limit quota errors like `RESOURCE_EXHAUSTED`).
 - For each subagent, provide this prompt:
 
@@ -96,43 +89,43 @@ To build the candidate list:
   1. Launch the first 7 subagents (or fewer if the queue is smaller) to fill all slots.
   2. When **any** subagent completes, immediately launch the **next** routine from the queue into the freed slot — do NOT wait for the entire batch to finish.
   3. Continue until all routines in the queue have been launched and all subagents have completed.
-  4. This keeps utilization high — if one subagent is slow, the other 4 slots stay busy.
+  4. This keeps utilization high — if one subagent is slow, the other 6 slots stay busy.
   5. **Error Fallback**: If any subagent encounters a quota or model capacity error (e.g., `RESOURCE_EXHAUSTED` / Code 429), immediately catch the failure, log it, and queue the routine to be processed sequentially or directly by the parent orchestrator after a brief delay.
 
 ### 2.3 Post-Phase Refresh
 
 After all routine subagents complete:
 
-- Call `r2000_get_symbols` again (labels were renamed by subagents).
 - Call `r2000_save_project` to persist changes so far.
 
 ---
 
 ## Phase 3 — Analyze Symbols (parallel subagents)
 
-**Goal**: For every data symbol (internal + external) that hasn't been analyzed yet, launch a subagent.
+**Goal**: For every data symbol and external jump symbol (internal + external) that hasn't been analyzed yet, launch a subagent.
 
 ### 3.1 Identify Unanalyzed Symbols
 
 A symbol is considered **already analyzed** if:
 
-- It has a **user-defined** name (i.e., NOT an auto-generated prefix name like `a_XXXX`, `f_XXXX`, `p_XXXX`, `zpa_XX`, `zpf_XX`, `zpp_XX`), OR
+- It has a **user-defined** name (i.e., NOT an auto-generated prefix name like `a_XXXX`, `f_XXXX`, `p_XXXX`, `zpa_XX`, `zpf_XX`, `zpp_XX`, `e_XXXX`), OR
 - It is a well-known system address (hardware register, KERNAL entry point, OS variable).
 
 To build the candidate list:
 
-1. From the refreshed `r2000_get_symbols` data, collect all labels whose name matches auto-generated patterns:
+1. Call `r2000_get_symbols` again (labels were renamed by subagents).
+2. From the refreshed `r2000_get_symbols` data, collect all labels whose name matches auto-generated patterns:
    - `zpp_XX`, `zpf_XX` and `zpa_XX` — auto-generated pointers, fields and absolute addresses in the zero page.
-   - `p_XXXX`, `f_XXXX` and `a_XXXX` — auto-generated pointers, fields and absolute addresses outside the zero page.
-2. Do **NOT** include:
+   - `p_XXXX`, `f_XXXX`, `a_XXXX` and `e_XXXX` — auto-generated pointers, fields, absolute addresses, and external ROM jump vectors outside the zero page.
+3. Do **NOT** include:
    - `s_XXXX` labels — those were handled in Phase 2.
    - `b_XXXX` labels — those are branch labels, not data symbols.
-   - `e_XXXX` labels — those are external JMP/JSR targets, not data symbols.
    - `p_XXXX` labels that are inside a `Code` block — those were handled as routine candidates in Phase 2.
-3. The remaining list = **unanalyzed symbols**.
+4. The remaining list = **unanalyzed symbols**.
 
 ### 3.2 Launch Parallel Subagents
 
+- **CRITICAL**: Always launch each subagent with an explicit target address (e.g., `$XXXX` or decimal `NNNNN`). **NEVER** use the "current cursor address" or rely on the active cursor location in the editor, as the cursor will change dynamically when running parallel subagents.
 - Same **rolling window** strategy as Phase 2: up to **7 concurrent subagents** (to avoid hitting rate limit quota errors like `RESOURCE_EXHAUSTED`).
 - For each subagent, provide this prompt:
 
@@ -215,6 +208,6 @@ The agent:
 1. Reads this skill file.
 2. Gathers context (Phase 0).
 3. Classifies blocks (Phase 1) — this may take several minutes for large binaries.
-4. Identifies 15 unanalyzed subroutines → launches 10 subagents, and as each one finishes immediately launches the next from the remaining 5 (Phase 2).
-5. Identifies 8 unanalyzed symbols → launches 8 subagents (Phase 3).
+4. Identifies 8 unanalyzed subroutines → launches 7 subagents, and as each one finishes immediately launches the next from the remaining 0 (Phase 2).
+5. Identifies 70 unanalyzed symbols → launches 7 subagents, and as each one finishes immediately launches the next from the remaining 63 (Phase 3).
 6. Saves and produces the summary report (Phase 4).

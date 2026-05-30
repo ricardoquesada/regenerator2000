@@ -35,6 +35,11 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 - Check the address against the **target system's memory map**. Use your knowledge of the target system's hardware registers based on the `system` value from `r2000_get_binary_info`.
 - If it matches a known hardware register, rename it to the standard hardware name (e.g., the chip name + register, or the system's conventional name for that register).
 
+### Is it an External ROM or System Routine?
+
+- Check if the symbol's name starts with `e_` or points to known system memory vectors (such as C64 KERNAL ROM space between `$E000` and `$FFFF`, or standard system shadow vectors).
+- If it matches a well-known system or KERNAL subroutine, rename it to its standard conventional KERNAL/OS API name (e.g. `$E544` -> `KERNAL_CLRCHN` or `SCREENCLEAR`, `$FFD2` -> `KERNAL_CHROUT`, `$EA31` -> `SYSTEM_IRQ_HANDLER`).
+
 ### Is it a Pointer (16-bit)?
 
 - Is it used in Zero Page (address < $100)?
@@ -89,6 +94,7 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
     | Hardware register   | `UPPER_SNAKE`    | `VIC_SPR0_X`, `SID_FreqLo1`         |
     | Constant / address  | `UPPER_SNAKE`    | `SCREEN_RAM`, `CHR_ROM_BASE`        |
     | Routine entry point | `snake_case`     | `init_screen`, `draw_sprite`        |
+    | External ROM call   | `KERNAL_` / `OS_`| `KERNAL_CHROUT`, `KERNAL_CLRCHN`    |
 
     > **Zero Page rule**: If the symbol's address is ≤ `$FF`, it **must** be prefixed with `zp_`.
     > This applies to all categories above — a Zero Page pointer becomes `zp_ptr_`, a Zero Page flag
