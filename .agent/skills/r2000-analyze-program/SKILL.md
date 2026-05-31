@@ -127,6 +127,7 @@ To build the candidate list:
 
 - **CRITICAL**: Always launch each subagent with an explicit target address (e.g., `$XXXX` or decimal `NNNNN`). **NEVER** use the "current cursor address" or rely on the active cursor location in the editor, as the cursor will change dynamically when running parallel subagents.
 - Same **rolling window** strategy as Phase 2: up to **7 concurrent subagents** (to avoid hitting rate limit quota errors like `RESOURCE_EXHAUSTED`).
+- **Complete Queue Coverage**: Unlike the routine phase, the symbol queue can be large. You **MUST** run the rolling window continuously until the *entire* remaining symbol queue is processed. Do not skip any unanalyzed custom symbols.
 - For each subagent, provide this prompt:
 
   > Read the skill file at `.agent/skills/r2000-analyze-symbol/SKILL.md` and follow its workflow.
@@ -182,20 +183,24 @@ After all symbol subagents complete:
   | `$0400` | `a_0400`  | `score_display` | Screencode buffer     |
   | ...     | ...       | ...             | ...                   |
 
-### Uncertain Items
+### Uncertain, Skipped, or Unanalyzed Items
 
-- List any routines or symbols that subagents flagged as uncertain or could not fully determine.
-- These are candidates for manual review by the user.
+- **CRITICAL**: The final report **MUST** document and list all symbols and routines that were left unanalyzed or skipped during the process. This includes any symbols/routines that:
+  - Were skipped due to queue size constraints or orchestrator prioritization.
+  - Were bypassed to prevent API quota/capacity exhaustions.
+  - Were flagged as uncertain or undetermined by subagents.
+- You **MUST NEVER** report "no uncertain areas" or "0 errors/exhaustions" if there are any remaining unanalyzed auto-generated symbols (e.g. `f_XXXX`, `a_XXXX`) or unanalyzed subroutines in the queue. They must be explicitly listed as **Unanalyzed / Skipped Candidates** for manual human review.
 
 ### Errors, Resource Quotas & Fallbacks
 
 - **CRITICAL**: Log any subagents that encountered errors, timeouts, or API capacity limits (e.g. `RESOURCE_EXHAUSTED` / Code 429) during analysis.
+- If the rolling queue was truncated or execution had to yield due to safe-guards (such as skipping a large queue of secondary data symbols), document this as a safety fallback.
 - Include a structured table detailing:
   - The target address.
   - The symbol/routine entry point name.
   - The planned subagent analysis role.
-  - The specific error code/message encountered (e.g. `RESOURCE_EXHAUSTED (code 429)`).
-  - The fallback handling mechanism used (e.g. "Resolved directly and sequentially by the parent orchestrator").
+  - The specific error code/message encountered (e.g. `RESOURCE_EXHAUSTED (code 429)` or `Orchestration safe-guard skip`).
+  - The fallback handling mechanism used (e.g. "Resolved directly and sequentially by the parent orchestrator" or "Bypassed for manual human review due to queue limit").
 
 ---
 

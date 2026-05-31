@@ -35,6 +35,11 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 - Check the address against the **target system's memory map**. Use your knowledge of the target system's hardware registers based on the `system` value from `r2000_get_binary_info`.
 - If it matches a known hardware register, rename it to the standard hardware name (e.g., the chip name + register, or the system's conventional name for that register).
 
+### Is it part of a Well-Known Global Block (e.g. Screen RAM or Color RAM)?
+
+- Check if the address falls within the target system's standard base video, screen, or color RAM blocks as defined by the system's active memory map.
+- If yes, do **NOT** skip it! Rename it systematically based on the base symbol and its offset (e.g. `<BASE_RAM>_ROWXX_COLYY`). This ensures that contiguous graphics and memory structures are cleanly documented rather than left as auto-generated offsets.
+
 ### Is it an External ROM or System Routine?
 
 - Check if the symbol's name starts with `e_` or points to known system memory vectors (such as C64 KERNAL ROM space between `$E000` and `$FFFF`, or standard system shadow vectors).
@@ -85,16 +90,16 @@ Use this skill when the user asks to "analyze this label", "what is this variabl
 1.  **Rename**: Use `r2000_set_label_name` to give it a meaningful, descriptive name based on your analysis.
     Use the following naming conventions consistently:
 
-    | Symbol Kind         | Convention       | Example                             |
-    | ------------------- | ---------------- | ----------------------------------- |
-    | Zero Page variable  | `zp_` prefix     | `zp_player_lives`, `zp_delay_timer` |
-    | Zero Page pointer   | `zp_ptr_` prefix | `zp_ptr_screen`, `zp_ptr_dest`      |
-    | RAM variable        | `snake_case`     | `score_hi`, `current_level`         |
-    | Pointer / vector    | `ptr_` prefix    | `ptr_screen`, `vec_irq`             |
-    | Hardware register   | `UPPER_SNAKE`    | `VIC_SPR0_X`, `SID_FreqLo1`         |
-    | Constant / address  | `UPPER_SNAKE`    | `SCREEN_RAM`, `CHR_ROM_BASE`        |
-    | Routine entry point | `snake_case`     | `init_screen`, `draw_sprite`        |
-    | External ROM call   | `KERNAL_` / `OS_`| `KERNAL_CHROUT`, `KERNAL_CLRCHN`    |
+    | Symbol Kind         | Convention        | Example                             |
+    | ------------------- | ----------------- | ----------------------------------- |
+    | Zero Page variable  | `zp_` prefix      | `zp_player_lives`, `zp_delay_timer` |
+    | Zero Page pointer   | `zp_ptr_` prefix  | `zp_ptr_screen`, `zp_ptr_dest`      |
+    | RAM variable        | `snake_case`      | `score_hi`, `current_level`         |
+    | Pointer / vector    | `ptr_` prefix     | `ptr_screen`, `vec_irq`             |
+    | Hardware register   | `UPPER_SNAKE`     | `VIC_SPR0_X`, `SID_FreqLo1`         |
+    | Constant / address  | `UPPER_SNAKE`     | `SCREEN_RAM`, `CHR_ROM_BASE`        |
+    | Routine entry point | `snake_case`      | `init_screen`, `draw_sprite`        |
+    | External ROM call   | `KERNAL_` / `OS_` | `KERNAL_CHROUT`, `KERNAL_CLRCHN`    |
 
     > **Zero Page rule**: If the symbol's address is ≤ `$FF`, it **must** be prefixed with `zp_`.
     > This applies to all categories above — a Zero Page pointer becomes `zp_ptr_`, a Zero Page flag
