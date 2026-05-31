@@ -151,4 +151,71 @@ mod tests {
             "Re-setting the same label at the same address should succeed"
         );
     }
+
+    #[test]
+    fn test_disassemble_tool() {
+        let mut app_state = AppState::default();
+        let origin = regenerator2000_core::state::Addr(0x1000);
+        // JMP $1005 (4C 05 10), then NOPs
+        let data = vec![0x4C, 0x05, 0x10, 0xEA, 0xEA, 0xEA, 0x60];
+        app_state.load_binary(origin, data).unwrap();
+        app_state.block_types = vec![regenerator2000_core::state::BlockType::Undefined; 7];
+
+        let mut ui_state = UIState::new(Theme::default());
+
+        let (tx, _) = oneshot::channel();
+        let req = McpRequest {
+            method: "tools/call".to_string(),
+            params: json!({
+                "name": "r2000_disassemble",
+                "arguments": { "address": 0x1000 }
+            }),
+            response_sender: tx,
+        };
+
+        let response = handle_request(&req, &mut app_state, &mut ui_state);
+        assert!(
+            response.result.is_some(),
+            "Disassemble tool call failed: {:?}",
+            response.error
+        );
+
+        // Verify side effects: Code block type was set at 0x1000..0x1003 and 0x1005..0x1007
+        // (addresses $1000, $1001, $1002 are Code, $1003 is Undefined, $1005, $1006 are Code)
+        assert_eq!(
+            app_state.block_types[0],
+            regenerator2000_core::state::BlockType::Code
+        );
+        assert_eq!(
+            app_state.block_types[1],
+            regenerator2000_core::state::BlockType::Code
+        );
+        assert_eq!(
+            app_state.block_types[2],
+            regenerator2000_core::state::BlockType::Code
+        );
+        assert_eq!(
+            app_state.block_types[3],
+            regenerator2000_core::state::BlockType::Undefined
+        );
+        assert_eq!(
+            app_state.block_types[4],
+            regenerator2000_core::state::BlockType::Undefined
+        );
+        assert_eq!(
+            app_state.block_types[5],
+            regenerator2000_core::state::BlockType::Code
+        );
+        assert_eq!(
+            app_state.block_types[6],
+            regenerator2000_core::state::BlockType::Code
+        );
+
+        // Auto-generated labels should have been placed at $1005 (jump target)
+        assert!(
+            app_state
+                .labels
+                .contains_key(&regenerator2000_core::state::Addr(0x1005))
+        );
+    }
 }

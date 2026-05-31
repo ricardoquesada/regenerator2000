@@ -238,6 +238,9 @@ impl AppState {
     #[must_use]
     pub fn is_external(&self, addr: Addr) -> bool {
         let len = self.raw_data.len();
+        if len == 0 {
+            return true;
+        }
         let end = self.origin.wrapping_add(len as u16);
         if self.origin < end {
             addr < self.origin || addr >= end

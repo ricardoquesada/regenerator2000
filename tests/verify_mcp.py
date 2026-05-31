@@ -281,6 +281,7 @@ EXPECTED_TOOLS = {
     "r2000_delete_project_enum",
     "r2000_apply_enum_usage",
     "r2000_unpack_binary",
+    "r2000_disassemble",
 }
 
 REMOVED_TOOLS = {

@@ -434,6 +434,17 @@ fn list_tools(system_config: &crate::config::SystemConfig) -> Result<Value, McpE
                 "name": "r2000_unpack_binary",
                 "description": "Unpacks the currently loaded binary. WARNING: This is a DESTRUCTIVE action! All existing comments, labels, and blocks will be completely deleted, as the project starts from scratch with the new unpacked binary. Unpacking may take up to 10 seconds or more.",
                 "inputSchema": { "type": "object", "properties": {} }
+            },
+            {
+                "name": "r2000_disassemble",
+                "description": "Performs a control flow disassembly starting at a specific memory address, tracing execution paths and automatically converting identified regions to Code blocks.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "address": { "type": "integer", "description": "The target start address for the disassembly flow analysis (decimal)." }
+                    },
+                    "required": ["address"]
+                }
             }
         ]
     }))
@@ -867,6 +878,51 @@ fn handle_tool_call_internal(
                     message: format!("Unpack failed: {e}"),
                     data: None,
                 }),
+            }
+        }
+
+        "r2000_disassemble" => {
+            let address = get_address(&args, "address")?;
+            if app_state.is_external(address) {
+                return Err(McpError {
+                    code: -32602,
+                    message: format!(
+                        "Address ${address:04X} is out of bounds (Origin: ${:04X})",
+                        app_state.origin.0
+                    ),
+                    data: None,
+                });
+            }
+            let ranges = crate::analyzer::flow_analyze(app_state, address);
+            let mut commands = Vec::new();
+            for range in ranges {
+                let old_types = app_state.block_types[range.start..range.end].to_vec();
+                commands.push(crate::commands::Command::SetBlockType {
+                    range: range.clone(),
+                    new_type: crate::state::BlockType::Code,
+                    old_types,
+                });
+            }
+            if !commands.is_empty() {
+                let batch = crate::commands::Command::Batch(commands);
+                batch.apply(app_state);
+                let (analysis_cmd, msg) = app_state.perform_analysis();
+                let final_cmd = crate::commands::Command::Batch(vec![batch, analysis_cmd]);
+                app_state.push_command(final_cmd);
+                app_state.disassemble();
+                Ok(json!({
+                    "content": [{
+                        "type": "text",
+                        "text": format!("Disassembled successfully starting at ${:04X}. {}", address.0, msg)
+                    }]
+                }))
+            } else {
+                Ok(json!({
+                    "content": [{
+                        "type": "text",
+                        "text": format!("No new code found starting at ${:04X}", address.0)
+                    }]
+                }))
             }
         }
 
