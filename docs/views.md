@@ -111,15 +111,13 @@ using a **byte-value color palette** (based
 on [Color-code your bytes](https://simonomi.dev/blog/color-code-your-bytes/)) for improved visual pattern recognition,
 making it easier to spot repeating values or data structures.
 
-<figure>
-  <img src="../regenerator2000_hexdump_screenshot.png" alt="Hexdump 16-byte View">
-  <figcaption>16-byte hexdump</figcaption>
-</figure>
+=== "16-byte hexdump"
 
-<figure>
-  <img src="../regenerator2000_hexdump_narrow_screenshot.png" alt="Hexdump 8-byte View">
-  <figcaption>8-byte hexdump</figcaption>
-</figure>
+    ![Hexdump 16-byte View](../regenerator2000_hexdump_screenshot.png)
+
+=== "8-byte hexdump"
+
+    ![Hexdump 8-byte View](../regenerator2000_hexdump_narrow_screenshot.png)
 
 
 
@@ -153,15 +151,13 @@ You can cycle through these modes using the **Cycle view** shortcut (++alt+3++ o
 - **Multicolor Support**: Toggle multicolor mode to correctly view game characters and objects.
 - **Identification**: Helps identifying player characters, enemies, and other game objects hidden in the binary.
 
-<figure>
-  <img src="../regenerator2000_sprites_screenshot.png" alt="Sprites 2-sprites View">
-  <figcaption>2-sprites view</figcaption>
-</figure>
+=== "2-sprites view"
 
-<figure>
-  <img src="../regenerator2000_sprites_narrow_screenshot.png" alt="Sprites 1-sprite View">
-  <figcaption>1-sprite view</figcaption>
-</figure>
+    ![Sprites 2-sprites View](../regenerator2000_sprites_screenshot.png)
+
+=== "1-sprite view"
+
+    ![Sprites 1-sprite View](../regenerator2000_sprites_narrow_screenshot.png)
 
 ### Keyboard Shortcuts
 
@@ -184,15 +180,13 @@ can cycle through these modes using the **Cycle view** shortcut (++alt+4++ or ++
   sense as graphics.
 - **Pattern Recognition**: Useful for spotting graphical data masquerading as code or raw bytes.
 
-<figure>
-  <img src="../regenerator2000_charset_screenshot.png" alt="Charset 8-chars View">
-  <figcaption>8-chars view</figcaption>
-</figure>
+=== "8-chars view"
 
-<figure>
-  <img src="../regenerator2000_charset_narrow_screenshot.png" alt="Charset 4-chars View">
-  <figcaption>4-chars view</figcaption>
-</figure>
+    ![Charset 8-chars View](../regenerator2000_charset_screenshot.png)
+
+=== "4-chars view"
+
+    ![Charset 4-chars View](../regenerator2000_charset_narrow_screenshot.png)
 
 ### Keyboard Shortcuts
 
