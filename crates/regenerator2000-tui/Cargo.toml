@@ -10,11 +10,11 @@ description = "Terminal User Interface (TUI) for Regenerator 2000 using ratatui.
 regenerator2000-core = { version = "0.9.18", path = "../regenerator2000-core", features = ["mcp"] }
 ratatui = "0.30.0"
 crossterm = "0.29"
-ratatui-image = { version = "10.0", default-features = false, features = ["crossterm"] }
+ratatui-image = { version = "11.0", default-features = false, features = ["crossterm"] }
 image = { version = "0.25", default-features = false }
 ratatui-textarea = "0.9.1"
 opener = "0.8"
-toml = "0.8"
+toml = "1.1"
 serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0"
 directories = "6"

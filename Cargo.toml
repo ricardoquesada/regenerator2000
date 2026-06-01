@@ -57,10 +57,10 @@ tokio = { version = "1.52", features = ["rt-multi-thread", "sync", "net", "macro
 
 [build-dependencies]
 anyhow = "1.0"
-vergen-gitcl = "9.1.0"
+vergen-gitcl = "9.1"
 
 [dev-dependencies]
-toml = "0.8"
+toml = "1.1"
 
 [lints]
 workspace = true

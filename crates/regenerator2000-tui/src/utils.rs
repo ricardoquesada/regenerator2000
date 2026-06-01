@@ -58,7 +58,7 @@ pub fn create_picker() -> Option<Picker> {
     // Force Kitty protocol for Ghostty if autodetection fails/blurs.
     // ratatui-image 0.9 Picker::new(font_size) might be available.
     #[allow(deprecated)]
-    let picker = Picker::from_fontsize(font_size);
+    let picker = Picker::from_fontsize(font_size.into());
 
     // Attempt to force Kitty for Ghostty
     if std::env::var("TERM_PROGRAM").unwrap_or_default() == "ghostty" {
