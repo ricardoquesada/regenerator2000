@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.18] - 2026-05-31
+
+### Features
+
+- **MCP**: Add `r2000_disassemble` tool for disassembling a range of addresses.
+- **MCP**: Add `r2000_unpack_binary` tool to unpack compressed binaries and update cursor after unpacking.
+- **MCP**: Add `r2000_set_immediate_format` tool with low/high byte format support.
+- **MCP**: Add binary entropy tracking to `r2000_get_binary_info`.
+- **Hexdump**: Implement `SetBytesBlockByOffset` action for byte-level block editing.
+- **CLI**: Add `--dump-enum-files` command and documentation for custom global enums.
+- **Unpacker**: Preserve document properties and settings on binary unpack.
+- **Analysis**: Enable automatic code block labeling and analysis during binary unpacking via MCP.
+
+### Changes
+
+- **MCP**: Update program analysis skill with pre-analysis entropy and unpacking steps.
+
+### Documentation
+
+- **README**: Add quick-start guide for AI agents and links to example documentation and showcase gallery.
+- **Docs**: Re-organize documentation structure.
+- **Views**: Fix sprite and character view cycle descriptions in keyboard shortcut tables.
+- **Hexdump**: Add link to original hexdump color source in `views.md`.
+
+### Agent / Skills
+
+- **Skills**: Improve `r2000-analyze-blocks`, `r2000-analyze-symbol`, and `r2000-analyze-routine` skill workflows.
+- **Skills**: Update program analysis skill with rolling subagent limit and pre-analysis steps.
+- **Config**: Add `.mcp.json` configuration file for Regenerator MCP integration with Claude CLI.
+
+### Examples
+
+- **C64**: Add VIC-II Colors enum to Burnin' Rubber and Moving Tubes.
+- **VIC-20**: Add PetsciiShifted enum usage to Omega Race.
+- **C64**: Add more labels, enums, and comments to Moving Tubes.
+
 ## [0.9.17] - 2026-05-24
 
 ### Features
