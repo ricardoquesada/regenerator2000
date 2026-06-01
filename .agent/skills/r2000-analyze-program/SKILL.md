@@ -126,8 +126,9 @@ To build the candidate list:
 ### 3.2 Launch Parallel Subagents
 
 - **CRITICAL**: Always launch each subagent with an explicit target address (e.g., `$XXXX` or decimal `NNNNN`). **NEVER** use the "current cursor address" or rely on the active cursor location in the editor, as the cursor will change dynamically when running parallel subagents.
-- Same **rolling window** strategy as Phase 2: up to **7 concurrent subagents** (to avoid hitting rate limit quota errors like `RESOURCE_EXHAUSTED`).
-- **Complete Queue Coverage**: Unlike the routine phase, the symbol queue can be large. You **MUST** run the rolling window continuously until the *entire* remaining symbol queue is processed. Do not skip any unanalyzed custom symbols.
+- Up to **7 concurrent subagents** (to avoid hitting rate limit quota errors like `RESOURCE_EXHAUSTED`).
+- **Complete Queue Coverage**: Unlike the routine phase, the symbol queue can be large. You **MUST** run the rolling window continuously until the _entire_ remaining symbol queue is processed. Do not skip any unanalyzed custom symbols.
+- **NO PREMATURE HALTING**: The orchestrator **MUST NOT** truncate the candidate queue, skip custom symbols, or exit the rolling window phase early. Even if the custom symbol queue is very large (e.g., 50+ symbols), you must feed the queue continuously into the rolling window (replacing active slots immediately as subagents finish) until the entire list of unanalyzed custom symbols is fully processed. Halting early or classifying unanalyzed custom symbols as "skipped for review" is considered a workflow failure.
 - For each subagent, provide this prompt:
 
   > Read the skill file at `.agent/skills/r2000-analyze-symbol/SKILL.md` and follow its workflow.
@@ -140,8 +141,12 @@ To build the candidate list:
   >
   > When done, report: the old label, the new label name, the classification (flag, counter, pointer, state variable, etc.), and any uncertain areas.
 
-- As each subagent completes, immediately launch the next symbol from the queue into the freed slot.
-- **Error Fallback**: If any subagent encounters a quota or model capacity error (e.g., `RESOURCE_EXHAUSTED` / Code 429), immediately catch the failure, log it, and queue the symbol to be processed sequentially or directly by the parent orchestrator after a brief delay.
+- **Rolling window strategy**:
+  1. Launch the first 7 subagents (or fewer if the queue is smaller) to fill all slots.
+  2. When **any** subagent completes, immediately launch the **next** symbol from the queue into the freed slot — do NOT wait for the entire batch to finish.
+  3. Continue until all symbols in the queue have been launched and all subagents have completed.
+  4. This keeps utilization high — if one subagent is slow, the other 6 slots stay busy.
+  5. **Error Fallback**: If any subagent encounters a quota or model capacity error (e.g., `RESOURCE_EXHAUSTED` / Code 429), immediately catch the failure, log it, and queue the symbol to be processed sequentially or directly by the parent orchestrator after a brief delay.
 
 ### 3.3 Post-Phase Refresh
 
