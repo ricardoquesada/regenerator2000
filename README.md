@@ -124,6 +124,10 @@ cd regenerator2000
 cargo install --path .
 ```
 
+### Quick Start with AI Agents
+
+To quickly start analyzing binaries using an AI agent (such as Antigravity or Claude Code), you can use the [regenerator2000-template](https://github.com/ricardoquesada/regenerator2000-template) repository. It comes pre-configured with all the required skills and agent permissions so you can start analyzing and reverse-engineering binaries immediately.
+
 ## Usage
 
 Start the application with an optional file to load:
