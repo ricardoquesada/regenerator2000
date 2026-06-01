@@ -1,7 +1,7 @@
 # MCP Integration
 
-Regenerator 2000 supports the **Model Context Protocol (MCP)**, allowing AI agents like **Antigravity**, **Claude Code
-**, and **Gemini CLI** to interact directly with your analysis project.
+Regenerator 2000 supports the **Model Context Protocol (MCP)**, allowing AI agents like **Antigravity**,
+**Claude Code**, and others to interact directly with your analysis project.
 
 Through the MCP server, an AI assistant can:
 
@@ -19,18 +19,18 @@ Through the MCP server, an AI assistant can:
 Regenerator 2000 supports two MCP transport modes:
 
 1. **HTTP Mode (Streamable/SSE)**:
-    - Runs the MCP server over HTTP using Server-Sent Events (SSE).
-    - Allows concurrent TUI usage (User + AI working together).
-    - **Flag**: `--mcp-server` (starts TUI + Server on port 3000)
-    - **Flag**: `--mcp-server --headless` (starts Headless Server on port 3000)
-    - **Endpoint**: `http://127.0.0.1:3000/mcp`
-    - Recommended option!
+   - Runs the MCP server over HTTP using Server-Sent Events (SSE).
+   - Allows concurrent TUI usage (User + AI working together).
+   - **Flag**: `--mcp-server` (starts TUI + Server on port 3000)
+   - **Flag**: `--mcp-server --headless` (starts Headless Server on port 3000)
+   - **Endpoint**: `http://127.0.0.1:3000/mcp`
+   - Recommended option!
 
 2. **Stdio Mode (Headless)**:
-    - Starts a headless instance of Regenerator 2000.
-    - Ideal for local assistants (e.g., Claude Desktop, Claude Code) that spawn the server as a subprocess.
-    - **Flag**: `--mcp-server-stdio`, implies `--headless`.
-    - Experimental mode, mostly used for testing.
+   - Starts a headless instance of Regenerator 2000.
+   - Ideal for local assistants (e.g., Claude Desktop, Claude Code) that spawn the server as a subprocess.
+   - **Flag**: `--mcp-server-stdio`, implies `--headless`.
+   - Experimental mode, mostly used for testing.
 
 ## Configuration
 
@@ -52,7 +52,7 @@ The server will listen on `http://127.0.0.1:3000/mcp` by default.
 
 !!! tip
 
-    Ensure the `regenerator2000` application is running with `--mcp-server` **before** you start Claude Code, Gemini or Antigravity as they will attempt to connect on startup.
+    Ensure the `regenerator2000` application is running with `--mcp-server` **before** you start Claude Code or Antigravity as they will attempt to connect on startup.
 
 #### Claude Code
 
@@ -75,31 +75,16 @@ Or, alternatively, add the following to your `claude.json`:
 }
 ```
 
-#### Gemini CLI
+#### Antigravity CLI
 
-To use Gemini CLI with the running server, simply provide the URL to the connect command or configuration:
+To use Antigravity CLI with the running server, simply provide the URL to the connect command or configuration:
 
 ```bash
 # Example connection command
-gemini mcp add regenerator2000 http://127.0.0.1:3000/mcp --scope user -t http
+agy mcp add regenerator2000 http://127.0.0.1:3000/mcp --scope user -t http
 ```
 
-Or, alternatively, add the following to `~/.gemini/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "regenerator2000": {
-      "url": "http://localhost:3000/mcp",
-      "type": "http"
-    }
-  }
-}
-```
-
-#### Antigravity
-
-To use Antigravity with the running server, add the following to `~/.gemini/antigravity/mcp_config.json`:
+Or, alternatively, add the following to `~/.gemini/antigravity/mcp_config.json`:
 
 ```json
 {
@@ -188,6 +173,16 @@ your_project/
         └── r2000-analyze-blocks/   (or whichever skill you copied)
             └── SKILL.md
 ```
+
+!!! note "Claude Code users"
+
+    Claude Code looks for skills in `.claude/` rather than `.agent/`. A symlink is the easiest fix:
+
+    ```shell
+    ln -s .agent .claude
+    ```
+
+    This lets both Antigravity and Claude Code discover the same skills without duplicating files.
 
 ### Recommended Workflow
 
@@ -298,7 +293,7 @@ scope specification. Nested scopes are not supported.
 **Arguments:**
 
 | Name            | Type      | Description                                      | Required |
-|:----------------|:----------|:-------------------------------------------------|:--------:|
+| :-------------- | :-------- | :----------------------------------------------- | :------: |
 | `end_address`   | `integer` | End address of the scope (inclusive), decimal.   |   Yes    |
 | `start_address` | `integer` | Start address of the scope (inclusive), decimal. |   Yes    |
 
@@ -310,7 +305,7 @@ omitted or empty, clears the enum usage.
 **Arguments:**
 
 | Name      | Type      | Description                                                                                | Required |
-|:----------|:----------|:-------------------------------------------------------------------------------------------|:--------:|
+| :-------- | :-------- | :----------------------------------------------------------------------------------------- | :------: |
 | `address` | `integer` | The target instruction address (decimal).                                                  |   Yes    |
 | `name`    | `string`  | The unique name of the enum to apply (e.g., 'vic_registers'). Omit or send empty to clear. |    No    |
 
@@ -323,7 +318,7 @@ results.
 **Arguments:**
 
 | Name    | Type    | Description                                 | Required |
-|:--------|:--------|:--------------------------------------------|:--------:|
+| :------ | :------ | :------------------------------------------ | :------: |
 | `calls` | `array` | List of tool calls to execute sequentially. |   Yes    |
 
 ### `r2000_create_project_enum`
@@ -333,7 +328,7 @@ Creates a new project-specific enum definition embedded in the project file.
 **Arguments:**
 
 | Name          | Type     | Description                                                                                                | Required |
-|:--------------|:---------|:-----------------------------------------------------------------------------------------------------------|:--------:|
+| :------------ | :------- | :--------------------------------------------------------------------------------------------------------- | :------: |
 | `description` | `string` | Optional summary explaining the enum's purpose.                                                            |    No    |
 | `name`        | `string` | Unique alphanumeric identifier.                                                                            |   Yes    |
 | `variants`    | `object` | Variant mapping where keys are numeric strings (decimal, hex 0x/$, bin 0b/%) and values are variant names. |   Yes    |
@@ -345,7 +340,7 @@ Deletes a project-specific enum from the project.
 **Arguments:**
 
 | Name    | Type      | Description                                                                                | Required |
-|:--------|:----------|:-------------------------------------------------------------------------------------------|:--------:|
+| :------ | :-------- | :----------------------------------------------------------------------------------------- | :------: |
 | `force` | `boolean` | If false, fails if the enum has active usages in the disassembly. Set to true to override. |    No    |
 | `name`  | `string`  | The name of the enum to delete.                                                            |   Yes    |
 
@@ -357,7 +352,7 @@ converting identified regions to Code blocks.
 **Arguments:**
 
 | Name      | Type      | Description                                                           | Required |
-|:----------|:----------|:----------------------------------------------------------------------|:--------:|
+| :-------- | :-------- | :-------------------------------------------------------------------- | :------: |
 | `address` | `integer` | The target start address for the disassembly flow analysis (decimal). |   Yes    |
 
 ### `r2000_get_address_details`
@@ -368,7 +363,7 @@ and block type.
 **Arguments:**
 
 | Name      | Type      | Description                              | Required |
-|:----------|:----------|:-----------------------------------------|:--------:|
+| :-------- | :-------- | :--------------------------------------- | :------: |
 | `address` | `integer` | The memory address to inspect (decimal). |   Yes    |
 
 ### `r2000_get_binary_info`
@@ -387,7 +382,7 @@ Address, Hi/Lo Address, Lo/Hi Word, Hi/Lo Word, External File, Undefined). Respe
 **Arguments:**
 
 | Name         | Type     | Description                                                                 | Required |
-|:-------------|:---------|:----------------------------------------------------------------------------|:--------:|
+| :----------- | :------- | :-------------------------------------------------------------------------- | :------: |
 | `block_type` | `string` | Optional filter to return only blocks of a specific type. Case-insensitive. |    No    |
 
 ### `r2000_get_comments`
@@ -400,7 +395,7 @@ comment type. Filters are combined (AND logic).
 **Arguments:**
 
 | Name            | Type      | Description                                                                                                             | Required |
-|:----------------|:----------|:------------------------------------------------------------------------------------------------------------------------|:--------:|
+| :-------------- | :-------- | :---------------------------------------------------------------------------------------------------------------------- | :------: |
 | `addresses`     | `array`   | Optional list of specific addresses (decimal) to retrieve comments from. Only comments at these addresses are returned. |    No    |
 | `end_address`   | `integer` | Optional upper bound (inclusive) of the address range to filter by (decimal).                                           |    No    |
 | `start_address` | `integer` | Optional lower bound (inclusive) of the address range to filter by (decimal).                                           |    No    |
@@ -413,7 +408,7 @@ Get a list of addresses that reference the given address (e.g. JSRs, JMPs, loads
 **Arguments:**
 
 | Name      | Type      | Description                                         | Required |
-|:----------|:----------|:----------------------------------------------------|:--------:|
+| :-------- | :-------- | :-------------------------------------------------- | :------: |
 | `address` | `integer` | The target address to find references to (decimal). |   Yes    |
 
 ### `r2000_get_disassembly_cursor`
@@ -431,7 +426,7 @@ limits to an address range, 'kind' filters by label kind. Filters are combined (
 **Arguments:**
 
 | Name            | Type      | Description                                                                                                                                                                                               | Required |
-|:----------------|:----------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------:|
+| :-------------- | :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------: |
 | `end_address`   | `integer` | Optional upper bound (inclusive) of the address range to filter by (decimal).                                                                                                                             |    No    |
 | `kind`          | `string`  | Optional filter to return only labels of a given kind. 'user' = user-defined labels, 'system' = predefined system labels (e.g. KERNAL, hardware registers), 'auto' = auto-generated labels (e.g. s_C000). |    No    |
 | `names`         | `array`   | Optional list of label names to look up. Only symbols whose name matches one of these strings are returned. Case-sensitive.                                                                               |    No    |
@@ -445,7 +440,7 @@ history.
 **Arguments:**
 
 | Name      | Type      | Description                              | Required |
-|:----------|:----------|:-----------------------------------------|:--------:|
+| :-------- | :-------- | :--------------------------------------- | :------: |
 | `address` | `integer` | The target address to jump to (decimal). |   Yes    |
 
 ### `r2000_read_region`
@@ -455,7 +450,7 @@ Get disassembly or hexdump text for a specific memory range.
 **Arguments:**
 
 | Name            | Type      | Description                            | Required |
-|:----------------|:----------|:---------------------------------------|:--------:|
+| :-------------- | :-------- | :------------------------------------- | :------: |
 | `end_address`   | `integer` | End address (inclusive), decimal.      |   Yes    |
 | `start_address` | `integer` | Start address (inclusive), decimal.    |   Yes    |
 | `view`          | `string`  | The view to return. Default: 'disasm'. |    No    |
@@ -468,7 +463,7 @@ instruction/row under the cursor.
 **Arguments:**
 
 | Name   | Type     | Description                            | Required |
-|:-------|:---------|:---------------------------------------|:--------:|
+| :----- | :------- | :------------------------------------- | :------: |
 | `view` | `string` | The view to return. Default: 'disasm'. |    No    |
 
 ### `r2000_redo`
@@ -493,7 +488,7 @@ can be disabled.
 **Arguments:**
 
 | Name                  | Type      | Description                                                                                                                    | Required |
-|:----------------------|:----------|:-------------------------------------------------------------------------------------------------------------------------------|:--------:|
+| :-------------------- | :-------- | :----------------------------------------------------------------------------------------------------------------------------- | :------: |
 | `max_results`         | `integer` | Maximum number of matching addresses to return. Defaults to 50.                                                                |    No    |
 | `query`               | `string`  | The search query. Interpreted as a plain case-insensitive substring by default, or as a regex when 'use_regex' is true.        |   Yes    |
 | `search_comments`     | `boolean` | Include side and line comments in the search. Defaults to true.                                                                |    No    |
@@ -508,7 +503,7 @@ Search for a sequence of bytes or a text string in the memory. Returns a list of
 **Arguments:**
 
 | Name       | Type     | Description                                                                                                                                                          | Required |
-|:-----------|:---------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------:|
+| :--------- | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------: |
 | `encoding` | `string` | Encoding for the query. 'text' searches both PETSCII and Screencode. 'hex' for raw byte patterns. Defaults to 'hex' if query looks like hex bytes, otherwise 'text'. |    No    |
 | `query`    | `string` | The search query. For hex: space-separated bytes, e.g. 'A9 00'. For text: plain string.                                                                              |   Yes    |
 
@@ -520,7 +515,7 @@ multi-line). 'side' comments appear inline on the same line as the instruction.
 **Arguments:**
 
 | Name      | Type      | Description                                                                                        | Required |
-|:----------|:----------|:---------------------------------------------------------------------------------------------------|:--------:|
+| :-------- | :-------- | :------------------------------------------------------------------------------------------------- | :------: |
 | `address` | `integer` | The memory address for the comment (decimal, e.g. 4096 for $1000).                                 |   Yes    |
 | `comment` | `string`  | The comment text. Do not include the ';' prefix.                                                   |   Yes    |
 | `type`    | `string`  | 'line' = comment on its own line before the instruction. 'side' = inline comment on the same line. |   Yes    |
@@ -532,7 +527,7 @@ Sets the data type for a memory region. Use this to mark regions as code, bytes,
 **Arguments:**
 
 | Name            | Type      | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Required |
-|:----------------|:----------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:--------:|
+| :-------------- | :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------: |
 | `data_type`     | `string`  | code=MOS 6502 instructions; byte=raw 8-bit data (sprites, charset, tables, unknowns); word=16-bit LE values; address=16-bit LE pointers (creates X-Refs, use for jump tables/vectors); petscii=PETSCII text; screencode=Screen code text (data written to $0400); lo_hi_address=split address table, low bytes first then high bytes (even count required); hi_lo_address=split address table, high bytes first (even count required); lo_hi_word=split word table, low bytes first (e.g. SID freq tables); hi_lo_word=split word table, high bytes first; external_file=large binary blob (SID, bitmap, charset) to export as-is; undefined=reset region to unknown state. |   Yes    |
 | `end_address`   | `integer` | End of the memory region (inclusive), decimal.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |   Yes    |
 | `start_address` | `integer` | Start of the memory region (inclusive), decimal.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |   Yes    |
@@ -545,7 +540,7 @@ and Low/High byte references to a 16-bit address.
 **Arguments:**
 
 | Name             | Type      | Description                                                                                                  | Required |
-|:-----------------|:----------|:-------------------------------------------------------------------------------------------------------------|:--------:|
+| :--------------- | :-------- | :----------------------------------------------------------------------------------------------------------- | :------: |
 | `address`        | `integer` | The address of the instruction (decimal).                                                                    |   Yes    |
 | `format`         | `string`  | hex=$00, decimal=0, binary=%00000000, low_byte=#<p_ADDRESS, high_byte=#>p_ADDRESS.                           |   Yes    |
 | `target_address` | `integer` | The 16-bit target address decimal (e.g. 60000 for $EA31). Required when format is 'low_byte' or 'high_byte'. |    No    |
@@ -558,7 +553,7 @@ to make the disassembly more readable.
 **Arguments:**
 
 | Name      | Type      | Description                                                                      | Required |
-|:----------|:----------|:---------------------------------------------------------------------------------|:--------:|
+| :-------- | :-------- | :------------------------------------------------------------------------------- | :------: |
 | `address` | `integer` | The memory address where the label should be set (decimal, e.g. 4096 for $1000). |   Yes    |
 | `name`    | `string`  | The label name (e.g. 'init_screen', 'loop_start').                               |   Yes    |
 
@@ -570,7 +565,7 @@ type. Crucial for separating adjacent Lo/Hi table halves.
 **Arguments:**
 
 | Name      | Type      | Description                                                        | Required |
-|:----------|:----------|:-------------------------------------------------------------------|:--------:|
+| :-------- | :-------- | :----------------------------------------------------------------- | :------: |
 | `address` | `integer` | The memory address where the splitter should be toggled (decimal). |   Yes    |
 
 ### `r2000_undo`
@@ -594,7 +589,7 @@ Updates or renames an existing project-specific enum.
 **Arguments:**
 
 | Name          | Type     | Description                                             | Required |
-|:--------------|:---------|:--------------------------------------------------------|:--------:|
+| :------------ | :------- | :------------------------------------------------------ | :------: |
 | `description` | `string` | Optional updated summary explaining the enum's purpose. |    No    |
 | `name`        | `string` | Existing name of the enum to update.                    |   Yes    |
 | `new_name`    | `string` | Optional new name if renaming the enum.                 |    No    |
