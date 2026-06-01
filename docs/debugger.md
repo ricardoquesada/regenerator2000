@@ -40,21 +40,26 @@ regenerator2000 --vice localhost:6502 my_program.prg
 The default VICE binary monitor port is **6502**. If you changed it with `-binarymonitoraddress`, pass the
 matching address to `--vice`.
 
-Once connected, the Debugger panel shows connection status and, when the emulator is stopped, live disassembly around the PC, registers, and breakpoints.
+Once connected, the Debugger panel shows connection status and, when the emulator is stopped, live disassembly around
+the PC, registers, and breakpoints.
 
 ![Debugger View](regenerator2000_debugger_screenshot.png)
 
 ## What the Debugger Panel Shows
 
-- **Connection status**: Whether Regenerator 2000 is connected to VICE and whether the emulator is running or stopped. When paused, the specific stop reason (e.g., which watchpoint was hit) is displayed next to the "PAUSED" status indicator.
-- **Live disassembly**: When stopped, a small window of disassembly around the current PC, with the current instruction highlighted.
+- **Connection status**: Whether Regenerator 2000 is connected to VICE and whether the emulator is running or stopped.
+  When paused, the specific stop reason (e.g., which watchpoint was hit) is displayed next to the "PAUSED" status
+  indicator.
+- **Live disassembly**: When stopped, a small window of disassembly around the current PC, with the current instruction
+  highlighted.
 - **Registers**: CPU registers (A, X, Y, SP, and P) are shown.
 - **Hardware Registers**: Platform-specific registers are displayed to monitor hardware state:
     - **C64/C128**: VIC-II registers, CIA 1 & 2 registers, and the 6510/8502 I/O port ($00/$01).
     - **VIC-20**: VIC-I registers ($9000–$900F).
     - **Plus/4**: TED chip registers ($FF00–$FF3F).
     - **All platforms**: 6502 Hardware Vectors (NMI at $FFFA, RESET at $FFFC, IRQ at $FFFE).
-- **Change Highlighting**: Changed register values, memory bytes, and hardware vectors are highlighted in a distinct color after each execution step to quickly identify what changed.
+- **Change Highlighting**: Changed register values, memory bytes, and hardware vectors are highlighted in a distinct
+  color after each execution step to quickly identify what changed.
 - **Breakpoints**: List of breakpoints set in VICE.
 - **Watchpoints**: List of watchpoints set in VICE.
 
@@ -62,10 +67,10 @@ Once connected, the Debugger panel shows connection status and, when the emulato
 
     The debugger panel uses a multi-column layout on wider terminals to show more information at once (e.g., Stack and Hardware Registers side-by-side). Screenshots below might show an older single-column layout.
 
-
 ![Debugger Only](regenerator2000_debugger_screenshot_only.png)
 
-The main **Disassembly** view also reflects the debugger when connected: the current PC is highlighted, and breakpoints are indicated.
+The main **Disassembly** view also reflects the debugger when connected: the current PC is highlighted, and breakpoints
+are indicated.
 You can toggle a breakpoint at the cursor with ++f2++, or toggle a breakpoint at any address with ++shift+f2++.
 And do the same with watchpoints with ++f6++.
 
@@ -87,10 +92,11 @@ current stack pointer value and up to 5 entries from the top of the stack.
 
 ## Keyboard Shortcuts
 
-All debugger actions are available from the **Debugger** menu and have keyboard shortcuts. For the full list, see [Keyboard Shortcuts](keyboard_shortcuts.md). Summary:
+All debugger actions are available from the **Debugger** menu and have keyboard shortcuts. For the full list,
+see [Keyboard Shortcuts](keyboard_shortcuts.md). Summary:
 
 | Action               | Shortcut     |
-| -------------------- | ------------ |
+|----------------------|--------------|
 | Toggle Breakpoint    | ++f2++       |
 | Toggle Breakpoint... | ++shift+f2++ |
 | Run to Cursor        | ++f4++       |

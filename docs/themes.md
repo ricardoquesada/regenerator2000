@@ -82,11 +82,11 @@ application config directory.
 
 ### Config directory location
 
-| Platform    | Config directory                                              |
-| :---------- | :------------------------------------------------------------ |
-| **macOS**   | `~/Library/Application Support/regenerator2000/`             |
-| **Linux**   | `~/.config/regenerator2000/`                                  |
-| **Windows** | `C:\Users\<User>\AppData\Roaming\regenerator2000\config\`     |
+| Platform    | Config directory                                          |
+|:------------|:----------------------------------------------------------|
+| **macOS**   | `~/Library/Application Support/regenerator2000/`          |
+| **Linux**   | `~/.config/regenerator2000/`                              |
+| **Windows** | `C:\Users\<User>\AppData\Roaming\regenerator2000\config\` |
 
 ### Getting started
 
@@ -105,7 +105,7 @@ The easiest way to create a custom theme is to start from the built-in files:
     regenerator2000.exe --dump-theme-files $env:APPDATA\regenerator2000\config\
     ```
 
-    This writes every `theme-*.toml` to the destination folder and exits.
+   This writes every `theme-*.toml` to the destination folder and exits.
 
 2. **Edit** an existing file or create a new one (e.g. `theme-green_screen.toml`):
 
@@ -138,12 +138,12 @@ The easiest way to create a custom theme is to start from the built-in files:
 
 Every `theme-*.toml` file has the following top-level keys:
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `name` | string | **Required.** Display name shown in the theme selector. Must be unique. |
-| `base` | string | Optional. Name of a built-in theme to inherit from. Defaults to `"Solarized Dark"`. |
-| _color fields_ | string | Optional. Hex color (`"#RRGGBB"`). See below for the full list. |
-| `hex_color_palette` | array of strings | Optional. 18-entry array of hex colors for the Hex Dump palette. |
+| Field               | Type             | Description                                                                         |
+|:--------------------|:-----------------|:------------------------------------------------------------------------------------|
+| `name`              | string           | **Required.** Display name shown in the theme selector. Must be unique.             |
+| `base`              | string           | Optional. Name of a built-in theme to inherit from. Defaults to `"Solarized Dark"`. |
+| _color fields_      | string           | Optional. Hex color (`"#RRGGBB"`). See below for the full list.                     |
+| `hex_color_palette` | array of strings | Optional. 18-entry array of hex colors for the Hex Dump palette.                    |
 
 ### Color fields
 

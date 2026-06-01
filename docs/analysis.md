@@ -27,18 +27,18 @@ to determine which addresses are referenced and _how_ they are referenced.
 For every byte in a **Code** block, the analyzer decodes the 6502 instruction and classifies the operand address
 based on the **addressing mode**:
 
-| Addressing Mode | Example Instruction | Label Type Generated |
-| :------------------ | :------------------------- | :---------------------------------------- |
-| Absolute            | `JSR $C000`                | **Subroutine** (`s_`)                     |
-| Absolute            | `JMP $C000`                | **Jump** (`j_`)                           |
-| Absolute            | `LDA $C000`                | **Absolute Address** (`a_`)               |
-| Absolute,X / Y      | `LDA $C000,X`              | **Field** (`f_`)                          |
-| Indirect            | `JMP ($0300)`              | **Pointer** (`p_`)                        |
-| Zero Page           | `LDA $A0`                  | **ZP Absolute Address** (`zpa_`)          |
-| Zero Page,X / Y     | `LDA $A0,X`                | **ZP Field** (`zpf_`)                     |
-| (Indirect,X)        | `LDA ($FB,X)`              | **ZP Pointer** (`zpp_`)                   |
-| (Indirect),Y        | `LDA ($FB),Y`              | **ZP Pointer** (`zpp_`)                   |
-| Relative            | `BNE $C010`                | **Branch** (`b_`)                         |
+| Addressing Mode | Example Instruction | Label Type Generated             |
+|:----------------|:--------------------|:---------------------------------|
+| Absolute        | `JSR $C000`         | **Subroutine** (`s_`)            |
+| Absolute        | `JMP $C000`         | **Jump** (`j_`)                  |
+| Absolute        | `LDA $C000`         | **Absolute Address** (`a_`)      |
+| Absolute,X / Y  | `LDA $C000,X`       | **Field** (`f_`)                 |
+| Indirect        | `JMP ($0300)`       | **Pointer** (`p_`)               |
+| Zero Page       | `LDA $A0`           | **ZP Absolute Address** (`zpa_`) |
+| Zero Page,X / Y | `LDA $A0,X`         | **ZP Field** (`zpf_`)            |
+| (Indirect,X)    | `LDA ($FB,X)`       | **ZP Pointer** (`zpp_`)          |
+| (Indirect),Y    | `LDA ($FB),Y`       | **ZP Pointer** (`zpp_`)          |
+| Relative        | `BNE $C010`         | **Branch** (`b_`)                |
 
 !!! note
 
@@ -68,7 +68,9 @@ The analyzer also scans **data blocks** that encode addresses:
 
 #### Fill Run Detection
 
-When a **Byte** block contains a contiguous run of identical bytes that exceeds the **Fill run threshold** (set in [Document Settings](settings.md)), the disassembler automatically groups them. These runs are represented using assembler-specific fill directives (like `.fill` or `.res`) during export, keeping the output clean.
+When a **Byte** block contains a contiguous run of identical bytes that exceeds the **Fill run threshold** (set
+in [Document Settings](settings.md)), the disassembler automatically groups them. These runs are represented using
+assembler-specific fill directives (like `.fill` or `.res`) during export, keeping the output clean.
 
 ### Step 3: Label Generation
 
@@ -104,30 +106,30 @@ tells you at a glance whether an address is a subroutine entry point, a data tab
 
 These labels are generated from control-flow instructions (jumps, calls, branches):
 
-| Prefix | Full Name     | Generated When                                   | Example              |
-| :----- | :------------ | :----------------------------------------------- | :------------------- |
-| `s_`   | Subroutine    | Target of a `JSR` instruction                    | `s_C000`             |
-| `j_`   | Jump          | Target of a `JMP` instruction                    | `j_C100`             |
-| `b_`   | Branch        | Target of a branch instruction (`BNE`, `BEQ`, …) | `b_C010`             |
+| Prefix | Full Name     | Generated When                                                           | Example  |
+|:-------|:--------------|:-------------------------------------------------------------------------|:---------|
+| `s_`   | Subroutine    | Target of a `JSR` instruction                                            | `s_C000` |
+| `j_`   | Jump          | Target of a `JMP` instruction                                            | `j_C100` |
+| `b_`   | Branch        | Target of a branch instruction (`BNE`, `BEQ`, …)                         | `b_C010` |
 | `r_`   | Return        | Target of a branch/`JMP`/`JSR` whose first instruction is `RTS` or `RTI` | `r_AACC` |
-| `e_`   | External Jump | `JSR`/`JMP`/branch target outside the binary     | `e_FFD2`             |
+| `e_`   | External Jump | `JSR`/`JMP`/branch target outside the binary                             | `e_FFD2` |
 
 ### Data-Access Labels
 
 These labels are generated from data-access instructions (loads, stores, indexed access):
 
-| Prefix | Full Name             | Generated When                                        | Example    |
-| :----- | :-------------------- | :---------------------------------------------------- | :--------- |
-| `a_`   | Absolute Address      | `LDA $XXXX`, `STA $XXXX`, etc. (absolute mode)       | `a_D020`   |
-| `f_`   | Field                 | `LDA $XXXX,X`, `STA $XXXX,Y` (absolute indexed mode) | `f_0400`   |
-| `p_`   | Pointer               | `JMP ($XXXX)` (indirect mode)                         | `p_0300`   |
-| `zpa_` | ZP Absolute Address   | `LDA $XX`, `STA $XX` (zero page mode)                 | `zpa_A0`   |
-| `zpf_` | ZP Field              | `LDA $XX,X`, `STA $XX,Y` (zero page indexed mode)     | `zpf_30`   |
-| `zpp_` | ZP Pointer            | `LDA ($XX),Y`, `LDA ($XX,X)` (indirect ZP modes)      | `zpp_FB`   |
+| Prefix | Full Name           | Generated When                                       | Example  |
+|:-------|:--------------------|:-----------------------------------------------------|:---------|
+| `a_`   | Absolute Address    | `LDA $XXXX`, `STA $XXXX`, etc. (absolute mode)       | `a_D020` |
+| `f_`   | Field               | `LDA $XXXX,X`, `STA $XXXX,Y` (absolute indexed mode) | `f_0400` |
+| `p_`   | Pointer             | `JMP ($XXXX)` (indirect mode)                        | `p_0300` |
+| `zpa_` | ZP Absolute Address | `LDA $XX`, `STA $XX` (zero page mode)                | `zpa_A0` |
+| `zpf_` | ZP Field            | `LDA $XX,X`, `STA $XX,Y` (zero page indexed mode)    | `zpf_30` |
+| `zpp_` | ZP Pointer          | `LDA ($XX),Y`, `LDA ($XX,X)` (indirect ZP modes)     | `zpp_FB` |
 
 ### User-Defined Labels
 
-| `L_`   | User-Defined      | Default prefix when you create a label manually    |
+| `L_`   | User-Defined | Default prefix when you create a label manually |
 | `scope_` | LocalUserDefined | Prefix for labels within a scope (e.g. .proc, .block) |
 
 !!! tip
@@ -141,11 +143,11 @@ These labels are generated from data-access instructions (loads, stores, indexed
 
 Label names include the target address in hexadecimal. The number of hex digits depends on the address range:
 
-| Address Range     | Digits | Example                           |
-| :---------------- | :----- | :-------------------------------- |
-| Zero page ($00–$FF) with a ZP type | 2      | `zpa_A0`, `zpf_30`, `zpp_FB`    |
+| Address Range                             | Digits | Example                      |
+|:------------------------------------------|:-------|:-----------------------------|
+| Zero page ($00–$FF) with a ZP type        | 2      | `zpa_A0`, `zpf_30`, `zpp_FB` |
 | Zero page ($00–$FF) with an absolute type | 4      | `a_00A0`, `f_0030`, `p_00FB` |
-| Above zero page ($0100+)   | 4      | `s_C000`, `j_1005`, `a_D020`    |
+| Above zero page ($0100+)                  | 4      | `s_C000`, `j_1005`, `a_D020` |
 
 ---
 
@@ -189,12 +191,12 @@ These labels have `LabelKind::System` and are preserved across analysis runs jus
 
 For example, on the C64:
 
-| Address   | System Label | Description              |
-| :-------- | :----------- | :----------------------- |
-| `$D020`   | `BORDER`     | Border color register    |
-| `$D021`   | `BGCOL0`     | Background color 0       |
-| `$FFD2`   | `CHROUT`     | KERNAL: Output character |
-| `$FFE4`   | `GETIN`      | KERNAL: Get input        |
+| Address | System Label | Description              |
+|:--------|:-------------|:-------------------------|
+| `$D020` | `BORDER`     | Border color register    |
+| `$D021` | `BGCOL0`     | Background color 0       |
+| `$FFD2` | `CHROUT`     | KERNAL: Output character |
+| `$FFE4` | `GETIN`      | KERNAL: Get input        |
 
 System labels take precedence over auto-generated labels. If the analyzer detects a `JSR $FFD2`, it will
 display `JSR CHROUT` rather than `JSR s_FFD2`.

@@ -1,6 +1,7 @@
 # Disassembly Examples
 
-Welcome to the Regenerator 2000 examples documentation. These HTML disassemblies are generated directly by Regenerator 2000 and showcase the auto-analysis, layout parity, and modern styling capabilities of our HTML exporter.
+Welcome to the Regenerator 2000 examples documentation. These HTML disassemblies are generated directly by Regenerator
+2000 and showcase the auto-analysis, layout parity, and modern styling capabilities of our HTML exporter.
 
 Below are the main examples available in this project:
 
@@ -34,6 +35,7 @@ Source:
   Unpacked with [Unp64][unp64]).
 
 [moving_tubes]: https://csdb.dk/release/?id=259330
+
 [unp64]: https://csdb.dk/release/?id=260619
 
 ---
@@ -81,6 +83,7 @@ Source:
 - [Omega Race on VIC-20 Cartridges][vic20_omega_race_cart]
 
 [vic20_omega_race_info]: https://en.wikipedia.org/wiki/Omega_Race
+
 [vic20_omega_race_cart]: https://archive.org/download/Commodore_VIC20_TOSEC_2012_04_23/Commodore_VIC20_TOSEC_2012_04_23.zip/Commodore%20VIC20%20%5BTOSEC%5D%2FCommodore%20VIC20%20-%20Games%20-%20%5BCRT%5D%20%28TOSEC-v2011-12-15_CM%29%2FOmega%20Race%20%281982%29%28Commodore%29%5BA000%5D.zip
 
 ---
@@ -140,14 +143,21 @@ A disassembly of the Commodore 64 ["Burnin' Rubber"][burnin_rubber_info] game.
 Main takeaways:
 
 - The code was written in a [monitor][monitor], not with an assembler. Evidence:
-    - Dead code / Dead tables: Although not uncommon to have some dead code / tables in a program, it is a lot more common when using a [monitor].
-    - There is a `.T0400,07FF,2C00` [monitor] command [in the code][c64_burnin_rubber_monitor_cmd]. Which means "Transfer the bytes from $0400-$07FF to $2C00". Funny thing, that command is at `$2C00`, which makes sense. The programmer might have typed it at the top-left of the screen.
+    - Dead code / Dead tables: Although not uncommon to have some dead code / tables in a program, it is a lot more
+      common when using a [monitor].
+    - There is a `.T0400,07FF,2C00` [monitor] command [in the code][c64_burnin_rubber_monitor_cmd]. Which means "
+      Transfer the bytes from $0400-$07FF to $2C00". Funny thing, that command is at `$2C00`, which makes sense. The
+      programmer might have typed it at the top-left of the screen.
     - Functions that are split in multiple places, using `JMP` to connect them.
-    - Three `NOP` opcodes padding at the beginning of some functions. Possibly to remove a possible `JSR` to a debug routine.
-    - Some ZP variables are accessed using the three-byte variant of `LDA`. E.g.: `LDA $F2` translates to `AD F2 00` instead of `A5 F2`
+    - Three `NOP` opcodes padding at the beginning of some functions. Possibly to remove a possible `JSR` to a debug
+      routine.
+    - Some ZP variables are accessed using the three-byte variant of `LDA`. E.g.: `LDA $F2` translates to `AD F2 00`
+      instead of `A5 F2`
     - Lack of a "clean" high level architecture: for example the main loop is split in multiple places.
-- Good place to learn how early C64 games were programmed using a [monitor], but not a good place to learn modern best practices.
-    - Trivia: It is not possible to add comments when using a [monitor], so, the developers might have used other tools, like a notebook, to document the code ([that's what I used to do when I was a kid!][chardef_scan]).
+- Good place to learn how early C64 games were programmed using a [monitor], but not a good place to learn modern best
+  practices.
+    - Trivia: It is not possible to add comments when using a [monitor], so, the developers might have used other tools,
+      like a notebook, to document the code ([that's what I used to do when I was a kid!][chardef_scan]).
 
 Source:
 
@@ -159,7 +169,11 @@ Source:
 - Run it with: `SYS 4752`
 
 [burnin_rubber_tap]: https://archive.org/download/Ultimate_Tape_Archive_V5/Ultimate_Tape_Archive_V5.zip/Ultimate_Tape_Archive_V5.0%2FBurnin%27_Rubber_%281983_Audiogenic_Ltd.%29_%5B5346%5D%2FBurnin%27_Rubber.tap
+
 [burnin_rubber_info]: https://www.c64-wiki.com/wiki/Burnin_Rubber>
+
 [monitor]: https://www.c64-wiki.com/wiki/Machine_Code_Monitor
+
 [c64_burnin_rubber_monitor_cmd]: examples/c64_burnin_rubber.html#L2BE0
+
 [chardef_scan]: https://github.com/ricardoquesada/c64-c128-erasoft/blob/master/scans/chardef.pdf

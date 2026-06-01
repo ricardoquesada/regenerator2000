@@ -14,29 +14,29 @@ You can select the target system in **File → Document Settings** (++ctrl+d++) 
 
 These systems are visible in the System selector out of the box:
 
-| System | Label Groups | Comments | Excludes |
-| :--- | :--- | :---: | :---: |
-| **Commodore 64** | BASIC, KERNAL, Lower Page | ✅ | ✅ |
-| **Commodore 128** | KERNAL | ✅ | ✅ |
-| **Commodore VIC-20** | BASIC, KERNAL, Lower Page | ✅ | ✅ |
-| **Commodore Plus4** | KERNAL, Lower Page | ✅ | ✅ |
-| **Commodore PET 2.0** | BASIC, KERNAL, Lower Page | ✅ | ✅ |
-| **Commodore PET 4.0** | BASIC, KERNAL, Lower Page | ✅ | ✅ |
-| **Commodore 1541** | — | ❌ | ❌ |
+| System                | Label Groups              | Comments | Excludes |
+|:----------------------|:--------------------------|:--------:|:--------:|
+| **Commodore 64**      | BASIC, KERNAL, Lower Page |    ✅     |    ✅     |
+| **Commodore 128**     | KERNAL                    |    ✅     |    ✅     |
+| **Commodore VIC-20**  | BASIC, KERNAL, Lower Page |    ✅     |    ✅     |
+| **Commodore Plus4**   | KERNAL, Lower Page        |    ✅     |    ✅     |
+| **Commodore PET 2.0** | BASIC, KERNAL, Lower Page |    ✅     |    ✅     |
+| **Commodore PET 4.0** | BASIC, KERNAL, Lower Page |    ✅     |    ✅     |
+| **Commodore 1541**    | —                         |    ❌     |    ❌     |
 
 ### Experimental (disabled by default)
 
 These systems are included but disabled (`enabled = false`). To use them, dump the built-in
 configs and set `enabled = true` (see [Custom Systems](#custom-systems) below):
 
-| System | Label Groups | Comments | Excludes |
-| :--- | :--- | :---: | :---: |
-| **NES** | SYSTEM | ✅ | ❌ |
-| **Apple II** | — | ✅ | ✅ |
-| **Atari 8bit** | SYSTEM | ✅ | ✅ |
-| **BBC Micro** | SYSTEM | ✅ | ✅ |
-| **Oric 1.0** | SYSTEM | ✅ | ✅ |
-| **Oric 1.1** | SYSTEM | ✅ | ✅ |
+| System         | Label Groups | Comments | Excludes |
+|:---------------|:-------------|:--------:|:--------:|
+| **NES**        | SYSTEM       |    ✅     |    ❌     |
+| **Apple II**   | —            |    ✅     |    ✅     |
+| **Atari 8bit** | SYSTEM       |    ✅     |    ✅     |
+| **BBC Micro**  | SYSTEM       |    ✅     |    ✅     |
+| **Oric 1.0**   | SYSTEM       |    ✅     |    ✅     |
+| **Oric 1.1**   | SYSTEM       |    ✅     |    ✅     |
 
 ## Label Groups
 
@@ -58,11 +58,11 @@ You can **override** any built-in system or **add entirely new systems** by plac
 
 ### Config directory location
 
-| OS          | Config directory                                              |
-| :---------- | :------------------------------------------------------------ |
-| **macOS**   | `~/Library/Application Support/regenerator2000/`             |
-| **Linux**   | `~/.config/regenerator2000/`                                  |
-| **Windows** | `C:\Users\<User>\AppData\Roaming\regenerator2000\config\`     |
+| OS          | Config directory                                          |
+|:------------|:----------------------------------------------------------|
+| **macOS**   | `~/Library/Application Support/regenerator2000/`          |
+| **Linux**   | `~/.config/regenerator2000/`                              |
+| **Windows** | `C:\Users\<User>\AppData\Roaming\regenerator2000\config\` |
 
 > [!TIP]
 > You can verify the path on your machine by running `regenerator2000 --help` — the config
@@ -85,7 +85,7 @@ The easiest way to create a custom config is to start from the built-in files:
     regenerator2000.exe --dump-system-config-files $env:APPDATA\regenerator2000\config\
     ```
 
-    This writes every `system-*.toml` to the destination folder and exits.
+   This writes every `system-*.toml` to the destination folder and exits.
 
 2. **Edit** the file(s) you want to customise with any text editor.
 
@@ -115,14 +115,14 @@ excluded = ["9000-900F"]
 "ADDR_HEX" = "Side comment text"
 ```
 
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `system_name` | string | Display name shown in the Document Settings **System** selector. Must be unique across all configs. |
-| `enabled` | bool | If `false`, the system is hidden from the selector. Useful for WIP configs. |
-| `labels` | table | Groups of address → label mappings. Each key is a **group name** (e.g. `"KERNAL"`, `"I/O"`) that appears as a toggle in Document Settings → **System Labels**. |
-| `labels.GROUP_NAME` | table | Map of hex address strings to label names. Addresses use uppercase hex **without** the `$` prefix or `0x` prefix (e.g. `"D020"` not `"$D020"`). |
-| `comments` | table | Map of hex addresses to side-comment strings. When enabled via **Show system comments** in Document Settings, these appear as side comments in the disassembly. |
-| `excluded` | array of strings | Address ranges the analyzer should skip (e.g. `"D000-D031"`). Ranges use `START-END` notation in uppercase hex. Enables the **Exclude well-known addresses** checkbox in Document Settings. |
+| Field               | Type             | Description                                                                                                                                                                                 |
+|:--------------------|:-----------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `system_name`       | string           | Display name shown in the Document Settings **System** selector. Must be unique across all configs.                                                                                         |
+| `enabled`           | bool             | If `false`, the system is hidden from the selector. Useful for WIP configs.                                                                                                                 |
+| `labels`            | table            | Groups of address → label mappings. Each key is a **group name** (e.g. `"KERNAL"`, `"I/O"`) that appears as a toggle in Document Settings → **System Labels**.                              |
+| `labels.GROUP_NAME` | table            | Map of hex address strings to label names. Addresses use uppercase hex **without** the `$` prefix or `0x` prefix (e.g. `"D020"` not `"$D020"`).                                             |
+| `comments`          | table            | Map of hex addresses to side-comment strings. When enabled via **Show system comments** in Document Settings, these appear as side comments in the disassembly.                             |
+| `excluded`          | array of strings | Address ranges the analyzer should skip (e.g. `"D000-D031"`). Ranges use `START-END` notation in uppercase hex. Enables the **Exclude well-known addresses** checkbox in Document Settings. |
 
 > [!NOTE]
 > `labels`, `comments`, and `excluded` are all optional — you can omit any section you don't need.

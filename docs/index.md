@@ -6,10 +6,14 @@
 
 # The Modern 6502 Disassembler
 
-**Regenerator 2000** is a modern, interactive disassembler for the Commodore 64 and other 6502-based systems. It combines the retro feel of Turbo Debugger with the power of modern tools like IDA Pro, offering two powerful workflows:
+**Regenerator 2000** is a modern, interactive disassembler for the Commodore 64 and other 6502-based systems. It
+combines the retro feel of Turbo Debugger with the power of modern tools like IDA Pro, offering two powerful workflows:
 
-- **🕹️ Manual Analysis** — A fast, keyboard-centric terminal interface for hands-on exploration. Navigate code, define data regions, label subroutines, add comments, and iteratively refine your disassembly at your own pace.
-- **🤖 Automated Analysis** — A built-in [MCP Server](mcp.md) lets AI assistants drive the disassembler programmatically. Paired with purpose-built [skills](https://github.com/ricardoquesada/regenerator2000/tree/main/.agent/skills), it can analyze entire programs — classifying blocks, tracing routines, and naming symbols — with minimal human intervention.
+- **🕹️ Manual Analysis** — A fast, keyboard-centric terminal interface for hands-on exploration. Navigate code, define
+  data regions, label subroutines, add comments, and iteratively refine your disassembly at your own pace.
+- **🤖 Automated Analysis** — A built-in [MCP Server](mcp.md) lets AI assistants drive the disassembler programmatically.
+  Paired with purpose-built [skills](https://github.com/ricardoquesada/regenerator2000/tree/main/.agent/skills), it can
+  analyze entire programs — classifying blocks, tracing routines, and naming symbols — with minimal human intervention.
 
 Use either workflow on its own, or combine them: let the AI do a first pass, then refine the results interactively.
 
@@ -71,31 +75,35 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 - **⏪ Undo/Redo**: Experiment without fear.
 - **🏷️ Labels & Comments**: Rename subroutines and variables for readability.
 - **📂 Scopes**: Organize code with namespaces.
-- **🔢 Enums**: Define and apply three-tiered value-to-name mappings (System, Global, Project-specific) to replace magic numbers in disassembly and data with semantic names.
-- **📦 Binary Unpacker**: Cycle-accurate, background 6502 emulated sandbox to automatically unpack compressed C64 programs.
+- **🔢 Enums**: Define and apply three-tiered value-to-name mappings (System, Global, Project-specific) to replace magic
+  numbers in disassembly and data with semantic names.
+- **📦 Binary Unpacker**: Cycle-accurate, background 6502 emulated sandbox to automatically unpack compressed C64
+  programs.
 - **🎨 Custom Themes**: Personalize your experience with TOML-based theme files.
-- **🐛 VICE Debugger Integration**: Connect to a running VICE emulator for live debugging — step through code, inspect registers, set breakpoints and watchpoints.
+- **🐛 VICE Debugger Integration**: Connect to a running VICE emulator for live debugging — step through code, inspect
+  registers, set breakpoints and watchpoints.
 - **🤖 MCP Integration**: Collaborate with AI assistants for deeper analysis.
 - **💾 Project Saving**: Save your work and resume later.
-- **📤 Export**: Generate compilable assembly code for multiple assemblers, or HTML files for sharing. Exported HTML files include clickable cross-references for labels.
+- **📤 Export**: Generate compilable assembly code for multiple assemblers, or HTML files for sharing. Exported HTML
+  files include clickable cross-references for labels.
 
 ## Quick Start
 
-1.  **Install**:
+1. **Install**:
 
-    ```bash
-    cargo install regenerator2000
-    ```
+   ```bash
+   cargo install regenerator2000
+   ```
 
-2.  **Run**:
+2. **Run**:
 
-    ```bash
-    regenerator2000 my_game.prg
-    ```
+   ```bash
+   regenerator2000 my_game.prg
+   ```
 
-    When importing a new binary, use the **Import Context** dialog to configure the System, Origin, and Entry Point.
+   When importing a new binary, use the **Import Context** dialog to configure the System, Origin, and Entry Point.
 
-3.  **Explore**:
+3. **Explore**:
     - **Move**: Arrow keys, map, or jumps.
     - **Disassemble**: Press ++d++ to start disassembling.
     - **Define Data**: Press ++b++
@@ -119,7 +127,8 @@ Explore the regenerative power of Regenerator 2000 through its various views:
 
 ## Tutorial
 
-A typical workflow involves loading a file, identifying code and data regions, labeling them, and iteratively refining the disassembly.
+A typical workflow involves loading a file, identifying code and data regions, labeling them, and iteratively refining
+the disassembly.
 
 ```mermaid
 flowchart TD

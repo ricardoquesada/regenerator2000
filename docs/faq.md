@@ -16,7 +16,7 @@ regenerator2000 my_game.prg
 Regenerator 2000 supports the following formats:
 
 | Format           | Description                                                      |
-| :--------------- | :--------------------------------------------------------------- |
+|:-----------------|:-----------------------------------------------------------------|
 | `.prg`           | Standard Commodore program (first 2 bytes = load address)        |
 | `.crt`           | C64 cartridge image with bank selection                          |
 | `.d64`           | 35/40/42-track disk image (pick a PRG from within)               |
@@ -43,7 +43,8 @@ You can set the system in **Document Settings** (++alt+d++ or ++ctrl+shift+d++).
 
 ### How do I save my work?
 
-Press ++ctrl+s++ to save as a `.regen2000proj` file. This preserves all your labels, comments, block types and bookmarks.
+Press ++ctrl+s++ to save as a `.regen2000proj` file. This preserves all your labels, comments, block types and
+bookmarks.
 Use ++alt+s++ (or ++ctrl+shift+s++) to **Save As** with a different filename.
 
 ### Does it run on Windows, macOS, and Linux?
@@ -67,7 +68,7 @@ Place the cursor on the desired line (or select a range with ++shift+v++ for Vis
 key:
 
 | Key               | Block Type          |
-| :---------------- | :------------------ |
+|:------------------|:--------------------|
 | ++c++             | Code                |
 | ++b++             | Byte                |
 | ++w++             | Word                |
@@ -105,11 +106,14 @@ analyzer decides which prefix to assign.
 ### What is the difference between a local and a global label?
 
 - **Global Labels**: Top-level symbols accessible from anywhere in the program.
-- **Local Labels** (e.g., `_loop`, `.skip` depending on the assembler): Belong to the nearest **Global Label** above them
-  and are only visible between that global label and the next one. They are useful for loop targets or temporary variables
+- **Local Labels** (e.g., `_loop`, `.skip` depending on the assembler): Belong to the nearest **Global Label** above
+  them
+  and are only visible between that global label and the next one. They are useful for loop targets or temporary
+  variables
   to avoid name collisions between different subroutines.
 - **Scope Labels**: When a global label is used _inside_ a custom scope block (such as an explicit procedure or block),
-  it becomes a scope label and must be accessed via `scope_name.label_name` from the outside, rather than being a truly global one.
+  it becomes a scope label and must be accessed via `scope_name.label_name` from the outside, rather than being a truly
+  global one.
 
 In the TUI, you can toggle between local and global scope when creating a label or editing an existing one.
 Press ++l++ to open the label dialog, and then use ++tab++ to focus the checkbox and ++space++ to toggle it.
@@ -117,7 +121,7 @@ Press ++l++ to open the label dialog, and then use ++tab++ to focus the checkbox
 ### How do I navigate the disassembly?
 
 | Action                | Shortcut                |
-| :-------------------- | :---------------------- |
+|:----------------------|:------------------------|
 | Jump to address       | ++ctrl+g++ or ++alt+g++ |
 | Jump to line number   | ++ctrl+shift+g++        |
 | Follow a jump/branch  | ++enter++               |
@@ -194,12 +198,13 @@ A default label is created at the scope's start address if one doesn't already e
 
 Place the cursor on the first or last line of the scope and press ++delete++.
 
-The ++delete++ key also serves a second purpose: it excludes external addresses from analysis when the cursor is on an external label.
+The ++delete++ key also serves a second purpose: it excludes external addresses from analysis when the cursor is on an
+external label.
 
 ### Which assemblers support scopes?
 
 | Assembler     | Scope Syntax            |
-| :------------ | :---------------------- |
+|:--------------|:------------------------|
 | 64tass        | `.block` / `.bend`      |
 | KickAssembler | `{` / `}`               |
 | ca65          | `.proc` / `.endproc`    |
@@ -217,7 +222,7 @@ Use ++tab++ to switch focus between the Disassembly View (left) and the right pa
 right pane using:
 
 | Shortcut                | View     |
-| :---------------------- | :------- |
+|:------------------------|:---------|
 | ++alt+1++ or ++ctrl+1++ | Blocks   |
 | ++alt+2++ or ++ctrl+2++ | Hex Dump |
 | ++alt+3++ or ++ctrl+3++ | Sprites  |
@@ -227,7 +232,8 @@ right pane using:
 
 ### How do I sync the right pane with the disassembly?
 
-By default, the [Hex Dump](views.md#hexdump-view) and Blocks views sync with the Disassembly cursor. You can enable or disable syncing for each
+By default, the [Hex Dump](views.md#hexdump-view) and Blocks views sync with the Disassembly cursor. You can enable or
+disable syncing for each
 view independently in **File → Settings** (++alt+p++ or ++ctrl+comma++).
 
 ---
@@ -290,7 +296,7 @@ and emits a `.binary "filename.bin"` (or equivalent) directive in the ASM output
 ### What debugging operations are supported?
 
 | Action               | Shortcut     |
-| :------------------- | :----------- |
+|:---------------------|:-------------|
 | Toggle Breakpoint    | ++f2++       |
 | Toggle Breakpoint... | ++shift+f2++ |
 | Run to Cursor        | ++f4++       |

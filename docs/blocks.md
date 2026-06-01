@@ -99,7 +99,6 @@ The available Block Types are:
         .byte $80, $40, $a2, $ff
         ```
 
-
 !!! note "Fill Run Threshold"
 
     When a contiguous run of identical bytes exceeds the **Fill run threshold** (configurable in settings), they are grouped and exported using fill directives:
@@ -553,13 +552,14 @@ The available Block Types are:
 ### Cycle Data Types for immediate mode instructions
 
 - **Shortcut**: ++i++ / ++shift+i++
-- **Description**: Cycles the current immediate mode instruction through the available representations (Hex, Decimal, Binary):
-  - **++i++**: Cycles forward.
-  - **++shift+i++**: Cycles backward.
+- **Description**: Cycles the current immediate mode instruction through the available representations (Hex, Decimal,
+  Binary):
+    - **++i++**: Cycles forward.
+    - **++shift+i++**: Cycles backward.
 - **Use Case**: Sometimes a decimal, or binary representation makes more sense than an hexadecimal one.
 
 | Representation    | Name                |
-| :---------------- | :------------------ |
+|:------------------|:--------------------|
 | `lda #$d2`        | Hexadecimal         |
 | `lda #~$2d`       | Inverse Hexadecimal |
 | `lda #210`        | Decimal             |
@@ -571,8 +571,8 @@ The available Block Types are:
 
 - **Shortcut**: ++bracket-left++ / ++bracket-right++
 - **Description**: Quickly assigns a "lo/hi" or "hi/lo" address to the selection.
-  - **++bracket-left++**: For **Lo/Hi Address**.
-  - **++bracket-right++**: For **Hi/Lo Address**.
+    - **++bracket-left++**: For **Lo/Hi Address**.
+    - **++bracket-right++**: For **Hi/Lo Address**.
 - **Use Case**: When manually setting 16-bit pointers. See exmaple.
 
 Example:
@@ -637,9 +637,12 @@ You can add comments to any line to annotate your disassembly.
 
     **Scopes** are not a different type of block. Instead they "encapsulate" existing blocks within a scope (AKA "namespace", "proc", etc).
 
-Scopes allow you to group instructions and data into logical blocks, typically representing routines or functions. The primary purpose of scopes is to restrict the visibility of local labels, preventing naming conflicts between different parts of the code.
+Scopes allow you to group instructions and data into logical blocks, typically representing routines or functions. The
+primary purpose of scopes is to restrict the visibility of local labels, preventing naming conflicts between different
+parts of the code.
 
-When you export your disassembly, scopes are directly translated into the corresponding directives of your chosen assembler.
+When you export your disassembly, scopes are directly translated into the corresponding directives of your chosen
+assembler.
 
 !!! example
 
@@ -713,7 +716,8 @@ When you export your disassembly, scopes are directly translated into the corres
 
 - **Shortcut**: ++pipe++
 
-In Regenerator 2000, adjacent blocks of the same type are **automatically merged** into a single contiguous block. This feature keeps the disassembly clean (e.g., combining adjacent Byte blocks into single Byte block).
+In Regenerator 2000, adjacent blocks of the same type are **automatically merged** into a single contiguous block. This
+feature keeps the disassembly clean (e.g., combining adjacent Byte blocks into single Byte block).
 
 !!! note
 
@@ -727,11 +731,12 @@ graph LR
 
 **Splitters** (and **Line Comments**) are used to prevent this behavior when needed. They serve two purposes:
 
-1.  **Visual Separation**: Inserts a visual separator (newline) in the disassembly view.
-2.  **Logical Separation**: Acts as a barrier that **stops the auto-merger**.
+1. **Visual Separation**: Inserts a visual separator (newline) in the disassembly view.
+2. **Logical Separation**: Acts as a barrier that **stops the auto-merger**.
 
 **Example**:
-Imagine you have a Lo/Hi table right after another. Without a splitter, they become one. With a splitter, they remain separate.
+Imagine you have a Lo/Hi table right after another. Without a splitter, they become one. With a splitter, they remain
+separate.
 
 ```mermaid
 graph TD
@@ -784,7 +789,8 @@ graph TD
       $1010-$11FF [Code]
     ```
 
-- **Use Case**: Use this to hide large tables, long text strings, or finished subroutines to keep your workspace clean and focus on the code you are currently analyzing.
+- **Use Case**: Use this to hide large tables, long text strings, or finished subroutines to keep your workspace clean
+  and focus on the code you are currently analyzing.
 - **Scope**: This is a **visual-only** feature for the Disassembly View. It does **not** affect:
-  - The exported assembly code (all code is always exported).
-  - Other views (e.g., Hex Dump, Character Set).
+    - The exported assembly code (all code is always exported).
+    - Other views (e.g., Hex Dump, Character Set).

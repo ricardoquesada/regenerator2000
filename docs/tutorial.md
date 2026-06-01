@@ -48,7 +48,9 @@ regenerator2000 my_game.prg
 You are now in the **Disassembly View**. The interface might look overwhelming at first, but it's simpler than it
 appears.
 
-When loading a raw binary (not a `.regen2000proj` file), the **Import Context** dialog will appear. This allows you to specify the target **System** (e.g., C64, VIC20), the **Origin** address, and the main **Entry Point** of the program before analysis begins.
+When loading a raw binary (not a `.regen2000proj` file), the **Import Context** dialog will appear. This allows you to
+specify the target **System** (e.g., C64, VIC20), the **Origin** address, and the main **Entry Point** of the program
+before analysis begins.
 
 - **Grey text**: Bytes that are "unknown" (not yet analyzed).
 - **White text**: Valid 6502 instructions.
@@ -90,9 +92,11 @@ $C000  A9 00 85 D0 ...
 
 If you suspect this is code, place your cursor on the line and press: ++d++.
 
-Regenerator 2000 will disassemble the bytes starting from that location using **Flow Analysis**. It follows all relative branches and absolute jumps, automatically discovering all execution paths until it hits an invalid opcode or a return.
+Regenerator 2000 will disassemble the bytes starting from that location using **Flow Analysis**. It follows all relative
+branches and absolute jumps, automatically discovering all execution paths until it hits an invalid opcode or a return.
 
-It is highly recommended to use ++d++ when you find a new subroutine entry point! It will skip data tables hidden between routines, making your disassembly process much faster and cleaner.
+It is highly recommended to use ++d++ when you find a new subroutine entry point! It will skip data tables hidden
+between routines, making your disassembly process much faster and cleaner.
 
 ### Converting to Data
 
@@ -101,10 +105,10 @@ Sometimes, the disassembler might misinterpret data as code (creating "illegal o
 
 To mark a region as raw bytes:
 
-1.  **Select the region**:
+1. **Select the region**:
     - Press ++shift+v++ to enter **Visual Mode**.
     - Use `Arrow Keys` to highlight the rows.
-2.  **Convert**:
+2. **Convert**:
     - Press ++b++ to convert to **Bytes** (`.byte $00, $01...`).
     - Press ++w++ to convert to **Words** (`.word $1000...`).
 
@@ -133,9 +137,9 @@ As you analyze the code, you'll recognize patterns. For example, you might see a
 
 Instead of remembering `$C015` is "Main Loop", give it a name!
 
-1.  Move cursor to `$C015`.
-2.  Press ++l++.
-3.  Type `main_loop` and hit `Enter`.
+1. Move cursor to `$C015`.
+2. Press ++l++.
+3. Type `main_loop` and hit `Enter`.
 
 Now, every instruction that jumps to `$C015` will read `JMP main_loop` instead of `JMP $C015`.
 
@@ -157,7 +161,8 @@ calls this function.
 ### Go to Symbol
 
 When you have many labels, finding the right one can be tedious. Press ++ctrl+p++ to open the **Go to Symbol** dialog.
-Start typing a label name and the list will filter in real-time. Press ++enter++ to jump directly to the selected symbol.
+Start typing a label name and the list will filter in real-time. Press ++enter++ to jump directly to the selected
+symbol.
 
 ---
 
@@ -232,7 +237,8 @@ Use ++f3++ / ++shift+f3++ to jump to the next / previous match after closing the
 Some data isn't code or numbers—it's art.
 
 - **Hex Dump**: Press ++alt+2++ to view raw hex. Use ++m++ to cycle through text modes (PETSCII shifted/unshifted,
-  Screencode shifted/unshifted). The byte values are colored by value (0x00 is dimmed, 0xFF is bright, text characters are distinct) to help spot data patterns.
+  Screencode shifted/unshifted). The byte values are colored by value (0x00 is dimmed, 0xFF is bright, text characters
+  are distinct) to help spot data patterns.
 - **Sprites**: Press ++alt+3++ to open the **Sprite View**. If you see a Space Invader, you've found the sprite data!
   Select that memory range and mark it as bytes.
 - **Charset**: Press ++alt+4++ to check for custom charsets.
@@ -254,7 +260,8 @@ As your disassembly grows, keeping things tidy becomes important.
 
 ### Scopes
 
-Scopes provide namespace-like grouping for your code (similar to `.proc`/`.endproc` in ca65 or `.namespace` in other assemblers). They help keep local labels isolated and organize related routines together.
+Scopes provide namespace-like grouping for your code (similar to `.proc`/`.endproc` in ca65 or `.namespace` in other
+assemblers). They help keep local labels isolated and organize related routines together.
 
 - Press ++r++ to create a new scope starting at the current address.
 - Use the ++delete++ key to remove a scope boundary.
@@ -291,7 +298,9 @@ assemblers.
 - Press ++ctrl+e++ to export.
 - Choose the target assembler in **Document Settings** (++alt+d++) — supported options are **64tass**, **ACME**,
   **KickAssembler**, and **ca65**.
-- In Document Settings, you can also adjust the **Fill run threshold** (default 8). This setting determines how many identical consecutive bytes are grouped into a `.fill`, `!fill`, or `.res` directive, keeping your data sections clean.
+- In Document Settings, you can also adjust the **Fill run threshold** (default 8). This setting determines how many
+  identical consecutive bytes are grouped into a `.fill`, `!fill`, or `.res` directive, keeping your data sections
+  clean.
 
 ### Batch Processing (Headless Mode)
 
@@ -318,25 +327,25 @@ regenerator2000 --headless --import_lbl labels.lbl --export_asm output.asm my_ga
 The most powerful way to test your analysis is by connecting Regenerator 2000 directly to a running VICE instance for
 live debugging.
 
-1.  **Start VICE**: Start the emulator with the remote monitor enabled:
+1. **Start VICE**: Start the emulator with the remote monitor enabled:
 
-    ```bash
-    x64 -binarymonitor my_game.prg
-    ```
+   ```bash
+   x64 -binarymonitor my_game.prg
+   ```
 
-2.  **Connect**: In Regenerator 2000, go to **Debugger → Connect to VICE...** (`localhost:6502`).
+2. **Connect**: In Regenerator 2000, go to **Debugger → Connect to VICE...** (`localhost:6502`).
 
-    !!! tip "Auto-connect with `--vice`"
+   !!! tip "Auto-connect with `--vice`"
 
-        You can skip this step by launching Regenerator 2000 with `--vice localhost:6502`. It will connect
-        automatically at startup:
+       You can skip this step by launching Regenerator 2000 with `--vice localhost:6502`. It will connect
+       automatically at startup:
 
-        ```bash
-        regenerator2000 --vice localhost:6502 my_game.prg
-        ```
+       ```bash
+       regenerator2000 --vice localhost:6502 my_game.prg
+       ```
 
-3.  **View**: Open the **Debugger** panel with ++alt+6++ (or ++ctrl+6++) to see the current PC, registers, and
-    breakpoints.
+3. **View**: Open the **Debugger** panel with ++alt+6++ (or ++ctrl+6++) to see the current PC, registers, and
+   breakpoints.
 
 !!! warning
 

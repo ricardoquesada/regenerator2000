@@ -31,15 +31,19 @@ regenerator2000 [OPTIONS] [FILE]
 
 ### Supported file formats
 
-- `.prg`: the common Commodore 8-bit program. Files with BASIC stubs automatically have their SYS address parsed for the entry point.
+- `.prg`: the common Commodore 8-bit program. Files with BASIC stubs automatically have their SYS address parsed for the
+  entry point.
 - `.crt`: Commodore 64 cartridge files. It parses the CHIP packets and maps them into memory. Supports bank selection.
-- `.d64`: Commodore 64 disk image files (up to 42 tracks). It allows the user to pick a `.prg` file from the disk container.
-- `.d71`: Commodore 64 disk image files (80 tracks, double-sided). It allows the user to pick a `.prg` file from the disk container.
+- `.d64`: Commodore 64 disk image files (up to 42 tracks). It allows the user to pick a `.prg` file from the disk
+  container.
+- `.d71`: Commodore 64 disk image files (80 tracks, double-sided). It allows the user to pick a `.prg` file from the
+  disk container.
 - `.d81`: Commodore 64 disk image files (80 tracks). It allows the user to pick a `.prg` file from the disk container.
 - `.t64`: Commodore 64 tape image files. It allows the user to pick a `.prg` from the container.
 - `.vsf`: VICE snapshot files. It extracts the 64KB RAM and uses the Program Counter (PC) as the start address.
 - `.dis65`: 6502bench SourceGen project file.
-- `.bin` and `.raw`: pure binary files. The **Import Context** dialog handles setting the System, Origin, and Entry Point automatically.
+- `.bin` and `.raw`: pure binary files. The **Import Context** dialog handles setting the System, Origin, and Entry
+  Point automatically.
 - `.regen2000proj`: Regenerator 2000 project file
 
 ### Supported options
@@ -48,17 +52,29 @@ regenerator2000 [OPTIONS] [FILE]
 - `--version`: Displays the current version of Regenerator 2000.
 - `--import_lbl <PATH>`: Import VICE labels from the specified file.
 - `--export_lbl <PATH>`: Export labels to the specified file (after analysis/import).
-- `--export_asm <PATH>`: Export assembly to the specified file. Headless mode only accepts `.regen2000proj` project files.
+- `--export_asm <PATH>`: Export assembly to the specified file. Headless mode only accepts `.regen2000proj` project
+  files.
 - `--export_html <PATH>`: Export HTML to the specified file. Headless mode only accepts `.regen2000proj` project files.
-- `--assembler <NAME>`: Override the assembler format used for export. Valid values: `64tass`, `acme`, `ca65`, `kick`. If omitted, the project's saved setting is used.
-- `--headless`: Run in headless mode (no TUI). Only supports `.regen2000proj` project files. Mutually exclusive with `--mcp-server`.
-- `--verify`: Verify export roundtrip (export → assemble → diff) for all 4 assemblers. Requires `--headless` (implied automatically). See [Assemblers](assemblers.md) for details.
-- `--mcp-server`: Run MCP server (HTTP on port 3000). Only supports `.regen2000proj` project files in headless mode. Mutually exclusive with `--headless`. See [MCP Integration](mcp.md) for details.
+- `--assembler <NAME>`: Override the assembler format used for export. Valid values: `64tass`, `acme`, `ca65`, `kick`.
+  If omitted, the project's saved setting is used.
+- `--headless`: Run in headless mode (no TUI). Only supports `.regen2000proj` project files. Mutually exclusive with
+  `--mcp-server`.
+- `--verify`: Verify export roundtrip (export → assemble → diff) for all 4 assemblers. Requires `--headless` (implied
+  automatically). See [Assemblers](assemblers.md) for details.
+- `--mcp-server`: Run MCP server (HTTP on port 3000). Only supports `.regen2000proj` project files in headless mode.
+  Mutually exclusive with `--headless`. See [MCP Integration](mcp.md) for details.
 - `--mcp-server-stdio`: Run MCP server via stdio (headless mode).
-- `--vice <HOST:PORT>`: Auto-connect to the VICE binary monitor at startup (e.g. `--vice localhost:6502`). See [Debugger](debugger.md) for details.
-- `--dump-system-config-files <PATH>`: Dump all built-in system config files (`system-*.toml`) to the specified directory and exit. The files can then be edited and placed back in the [app config directory](#system-config-files) to override or extend system definitions.
-- `--dump-theme-files <PATH>`: Dump all built-in theme files (`theme-*.toml`) to the specified directory and exit. The files can be edited and placed in the [config directory](#config-directory-location) to create custom themes. See [Custom Themes](#custom-themes) for details.
-- `--dump-enum-files <PATH>`: Dump all built-in enum files (`enum-*.toml`) to the specified directory and exit. The files can be edited and placed in the [config directory](#config-directory-location) to create custom enums. See [Custom Enums](enums.md) for details.
+- `--vice <HOST:PORT>`: Auto-connect to the VICE binary monitor at startup (e.g. `--vice localhost:6502`).
+  See [Debugger](debugger.md) for details.
+- `--dump-system-config-files <PATH>`: Dump all built-in system config files (`system-*.toml`) to the specified
+  directory and exit. The files can then be edited and placed back in the [app config directory](#system-config-files)
+  to override or extend system definitions.
+- `--dump-theme-files <PATH>`: Dump all built-in theme files (`theme-*.toml`) to the specified directory and exit. The
+  files can be edited and placed in the [config directory](#config-directory-location) to create custom themes.
+  See [Custom Themes](#custom-themes) for details.
+- `--dump-enum-files <PATH>`: Dump all built-in enum files (`enum-*.toml`) to the specified directory and exit. The
+  files can be edited and placed in the [config directory](#config-directory-location) to create custom enums.
+  See [Custom Enums](enums.md) for details.
 
 ### Recommended Terminals
 
@@ -68,17 +84,23 @@ regenerator2000 [OPTIONS] [FILE]
     terminal.
 
 | Platform    | Recommended Terminals                                                                                                                |
-| :---------- | :----------------------------------------------------------------------------------------------------------------------------------- |
+|:------------|:-------------------------------------------------------------------------------------------------------------------------------------|
 | **Windows** | [Windows Terminal][windows_terminal_url], [Alacritty][alacritty_url], [WezTerm][wezterm_url]                                         |
 | **macOS**   | [iTerm2][iterm2_url], [Ghostty][ghostty_url], [Alacritty][alacritty_url], [kitty][kitty_url], [WezTerm][wezterm_url]                 |
 | **Linux**   | [Ghostty][ghostty_url], [Alacritty][alacritty_url], [kitty][kitty_url], [WezTerm][wezterm_url], [GNOME Terminal][gnome_terminal_url] |
 
 [alacritty_url]: https://alacritty.org/
+
 [ghostty_url]: https://ghostty.org/
+
 [gnome_terminal_url]: https://wiki.gnome.org/Apps/Terminal
+
 [iterm2_url]: https://iterm2.com/
+
 [kitty_url]: https://sw.kovidgoyal.net/kitty/
+
 [wezterm_url]: https://wezfurlong.org/wezterm/
+
 [windows_terminal_url]: https://github.com/microsoft/terminal
 
 ## System Config Files
@@ -86,7 +108,6 @@ regenerator2000 [OPTIONS] [FILE]
 Regenerator 2000 ships with built-in system definitions for 13 different 6502-based systems.
 See the [Systems](systems.md) page for the full list of supported systems and documentation
 on creating, overriding, and configuring custom system definitions.
-
 
 ## Custom Themes
 

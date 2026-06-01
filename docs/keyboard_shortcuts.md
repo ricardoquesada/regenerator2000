@@ -1,16 +1,21 @@
 # Keyboard Shortcuts
 
-Regenerator 2000 is designed to be a keyboard-centric application. While it features mouse support—which is handy for scrolling through different views—you'll find that the keyboard shortcuts are often a more efficient way to navigate and interact with the program.
+Regenerator 2000 is designed to be a keyboard-centric application. While it features mouse support—which is handy for
+scrolling through different views—you'll find that the keyboard shortcuts are often a more efficient way to navigate and
+interact with the program.
 
 The shortcut scheme follows a simple logic:
 
 - **Block Type Operations:** These are usually a single letter or `Shift` + letter (e.g., `c` for Code, `b` for Byte).
-- **Dialogs & Application Actions:** Operations that open a dialog or perform application-level tasks typically use `Ctrl` + letter or `Alt` + letter.
+- **Dialogs & Application Actions:** Operations that open a dialog or perform application-level tasks typically use
+  `Ctrl` + letter or `Alt` + letter.
 
-We've tested these shortcuts extensively across Windows, macOS, and Linux, and in various terminal environments (including inside `tmux`). Wherever a standard shortcut might conflict with a reserved key combination (like `Ctrl+2` in `tmux`), we've provided alternatives (e.g., `Alt+2`).
+We've tested these shortcuts extensively across Windows, macOS, and Linux, and in various terminal environments (
+including inside `tmux`). Wherever a standard shortcut might conflict with a reserved key combination (like `Ctrl+2` in
+`tmux`), we've provided alternatives (e.g., `Alt+2`).
 
 | Context                            | Action                                                                                  | Shortcut                                                      |
-| :--------------------------------- | :-------------------------------------------------------------------------------------- | :------------------------------------------------------------ |
+|:-----------------------------------|:----------------------------------------------------------------------------------------|:--------------------------------------------------------------|
 | **General**                        | **Activate Main Menu**                                                                  | ++f10++                                                       |
 |                                    | **Quit**                                                                                | ++ctrl+q++                                                    |
 | **General**                        | **Open File**                                                                           | ++ctrl+o++                                                    |
@@ -27,9 +32,9 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 |                                    | **Redo**                                                                                | ++ctrl+r++                                                    |
 |                                    | **Switch Pane (between Disasm and right pane)**                                         | ++tab++                                                       |
 | **Views**                          | **Toggle Blocks View**                                                                  | ++alt+1++ or ++ctrl+1++                                       |
-|                                    | **Cycle Hex Dump View** (16 columns → 8 columns → Off)                                 | ++alt+2++ or ++ctrl+2++                                       |
-|                                    | **Cycle Sprites View** (2 columns → 1 column → Off)                                    | ++alt+3++ or ++ctrl+3++                                       |
-|                                    | **Cycle Charset View** (8 columns → 4 columns → Off)                                   | ++alt+4++ or ++ctrl+4++                                       |
+|                                    | **Cycle Hex Dump View** (16 columns → 8 columns → Off)                                  | ++alt+2++ or ++ctrl+2++                                       |
+|                                    | **Cycle Sprites View** (2 columns → 1 column → Off)                                     | ++alt+3++ or ++ctrl+3++                                       |
+|                                    | **Cycle Charset View** (8 columns → 4 columns → Off)                                    | ++alt+4++ or ++ctrl+4++                                       |
 |                                    | **Toggle Bitmap View**                                                                  | ++alt+5++ or ++ctrl+5++                                       |
 |                                    | **Toggle Debugger Panel**                                                               | ++alt+6++ or ++ctrl+6++                                       |
 | **View: Disassembly** (editing)    | **Create Scope**                                                                        | ++r++                                                         |
@@ -100,13 +105,13 @@ We've tested these shortcuts extensively across Windows, macOS, and Linux, and i
 | **Menus**                          | **Navigate Menu**                                                                       | ++arrow-up++, ++arrow-down++, ++arrow-left++, ++arrow-right++ |
 |                                    | **Select Item**                                                                         | ++enter++                                                     |
 |                                    | **Close Menu**                                                                          | ++escape++                                                    |
-|                                    | **File Menu**                                                                           | ++alt+f++                                                    |
-|                                    | **Edit Menu**                                                                           | ++alt+t++                                                    |
-|                                    | **Jump Menu**                                                                           | ++alt+j++                                                    |
-|                                    | **Search Menu**                                                                         | ++alt+r++                                                    |
-|                                    | **View Menu**                                                                           | ++alt+v++                                                    |
-|                                    | **Debugger Menu**                                                                       | ++alt+u++                                                    |
-|                                    | **Help Menu**                                                                           | ++alt+h++                                                    |
+|                                    | **File Menu**                                                                           | ++alt+f++                                                     |
+|                                    | **Edit Menu**                                                                           | ++alt+t++                                                     |
+|                                    | **Jump Menu**                                                                           | ++alt+j++                                                     |
+|                                    | **Search Menu**                                                                         | ++alt+r++                                                     |
+|                                    | **View Menu**                                                                           | ++alt+v++                                                     |
+|                                    | **Debugger Menu**                                                                       | ++alt+u++                                                     |
+|                                    | **Help Menu**                                                                           | ++alt+h++                                                     |
 | **Search**                         | **Vim Search**                                                                          | ++slash++                                                     |
 |                                    | **Next / Previous Match**                                                               | ++n++ / ++shift+n++                                           |
 |                                    | **Search Dialog**                                                                       | ++ctrl+f++                                                    |
