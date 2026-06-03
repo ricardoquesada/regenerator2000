@@ -166,9 +166,9 @@ Line comments also act as **splitters** — they prevent adjacent blocks of the 
 Yes. In the line comment dialog, press ++ctrl+j++ (or ++shift+enter++) to insert a new line. You can also use shortcut
 keys for quick separators:
 
-- ++ctrl+minus++: Insert a dash separator (`---`)
-- ++ctrl+plus++: Insert an equals separator (`===`)
-- ++ctrl+backslash++: Insert a mixed separator (`-=-`)
+- ++alt+minus++: Insert a dash separator (`---`)
+- ++alt+equal++: Insert an equals separator (`===`)
+- ++alt+backslash++: Insert a mixed separator (`-=-`)
 
 ### What are bookmarks and how do I use them?
 

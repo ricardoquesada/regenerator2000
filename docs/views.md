@@ -1,6 +1,6 @@
 # Views
 
-Regenerator 2000 offers several specialized views to efficiently analyze and reverse engineer your C64 binaries.
+Regenerator 2000 offers several specialized views to efficiently analyze and reverse engineer your Commodore 8-bit binaries.
 
 ## Disassembly View
 
