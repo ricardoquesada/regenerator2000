@@ -52,7 +52,7 @@ Once the v2.0 architecture is in place, we will expand to other classic 6502 mac
 
 ---
 
-### 🚀 Phase 4 - Extending to 65xx Varaints
+### 🚀 Phase 4 - Extending to 65xx Variants
 
 Moving to processors that are similar to the 6502 but offer unique extensions:
 
