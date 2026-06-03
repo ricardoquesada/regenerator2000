@@ -4,6 +4,8 @@ version = "0.9.18"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/ricardoquesada/regenerator2000"
+homepage = "https://regenerator2000.readthedocs.io/"
+documentation = "https://regenerator2000.readthedocs.io/"
 description = "Terminal User Interface (TUI) for Regenerator 2000 using ratatui."
 
 [dependencies]
