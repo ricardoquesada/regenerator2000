@@ -543,10 +543,11 @@ fn detect_output_range(
     let boundaries: &[usize] = &[0x9FFF, 0xCFFF, 0xFFFF];
 
     for (i, &boundary) in boundaries.iter().enumerate() {
-        if let Some((start, end)) = scan_hybrid_range(mem, snapshot, written, scan_start, boundary)
+        if let Some((start, end, untrimmed_end)) =
+            scan_hybrid_range(mem, snapshot, written, scan_start, boundary)
         {
             let is_last = i == boundaries.len() - 1;
-            let near_ceiling = (end as usize) + 256 >= boundary;
+            let near_ceiling = (untrimmed_end as usize) + 256 >= boundary;
             if is_last || !near_ceiling {
                 return Some((start, end));
             }
@@ -556,7 +557,7 @@ fn detect_output_range(
 
     // Fallback: scan $E000-$FFFF for packers that decompress only into
     // the Kernal ROM area.
-    scan_hybrid_range(mem, snapshot, written, 0xE000, 0xFFFF)
+    scan_hybrid_range(mem, snapshot, written, 0xE000, 0xFFFF).map(|(s, e, _)| (s, e))
 }
 
 /// Scans a range using a hybrid of the `written` bitmap and snapshot diff.
@@ -572,7 +573,7 @@ fn scan_hybrid_range(
     written: &[bool],
     start: usize,
     end: usize,
-) -> Option<(u16, u16)> {
+) -> Option<(u16, u16, u16)> {
     let upper = end
         .min(written.len() - 1)
         .min(mem.len() - 1)
@@ -607,7 +608,7 @@ fn scan_hybrid_range(
                     last = addr;
                 }
             }
-            return Some((first as u16, last as u16));
+            return Some((first as u16, last as u16, last as u16));
         }
     };
 
@@ -633,7 +634,7 @@ fn scan_hybrid_range(
         }
     }
 
-    Some((first as u16, extended_end as u16))
+    Some((first as u16, extended_end as u16, diff_end as u16))
 }
 
 /// After the depacker transfers control to `ret_addr`, some packers execute
