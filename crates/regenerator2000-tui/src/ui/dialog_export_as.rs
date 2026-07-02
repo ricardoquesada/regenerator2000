@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 use crate::ui::widget::{Widget, WidgetResult};
 
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ExportAsFocus {
     Filename,
     DirectoryList,
@@ -26,6 +26,7 @@ pub struct ExportAsDialog {
     pub selected_index: usize,
     pub history: Vec<PathBuf>,
     pub focus: ExportAsFocus,
+    pub sub_dialog: Option<Box<dyn Widget>>,
 }
 
 impl Default for ExportAsDialog {
@@ -58,6 +59,7 @@ impl ExportAsDialog {
             selected_index: 0,
             history: Vec::new(),
             focus: ExportAsFocus::Filename,
+            sub_dialog: None,
         };
         dialog.refresh_files();
         dialog
@@ -108,7 +110,167 @@ impl ExportAsDialog {
 }
 
 impl Widget for ExportAsDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
+    fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
+        if let Some(sub) = &self.sub_dialog {
+            self.render_background(f, area, app_state, ui_state);
+            sub.render(f, area, app_state, ui_state);
+            return;
+        }
+        self.render_background(f, area, app_state, ui_state);
+    }
+
+    fn handle_input(
+        &mut self,
+        key: KeyEvent,
+        app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> WidgetResult {
+        if let Some(sub) = &mut self.sub_dialog {
+            let res = sub.handle_input(key, app_state, ui_state);
+            match res {
+                WidgetResult::Close => {
+                    self.sub_dialog = None;
+                    return WidgetResult::Handled;
+                }
+                WidgetResult::Action(action) => {
+                    self.sub_dialog = None;
+                    if let crate::state::actions::AppAction::Confirmed(inner) = &action {
+                        match **inner {
+                            crate::state::actions::AppAction::ExportAsmAs
+                            | crate::state::actions::AppAction::ExportHtmlAs => {
+                                return self.execute_export(app_state, ui_state);
+                            }
+                            _ => {}
+                        }
+                    }
+                    return WidgetResult::Action(action);
+                }
+                WidgetResult::Handled => return WidgetResult::Handled,
+                WidgetResult::Ignored => return WidgetResult::Ignored,
+            }
+        }
+        if key.code == KeyCode::Esc {
+            ui_state.set_status_message("Ready");
+            return WidgetResult::Close;
+        }
+
+        if key.code == KeyCode::Tab {
+            self.focus = match self.focus {
+                ExportAsFocus::Filename => ExportAsFocus::DirectoryList,
+                ExportAsFocus::DirectoryList => ExportAsFocus::Filename,
+            };
+            return WidgetResult::Handled;
+        }
+
+        match self.focus {
+            ExportAsFocus::DirectoryList => match key.code {
+                KeyCode::Down => {
+                    self.next();
+                    WidgetResult::Handled
+                }
+                KeyCode::Up => {
+                    self.previous();
+                    WidgetResult::Handled
+                }
+                KeyCode::PageUp => {
+                    self.page_up();
+                    WidgetResult::Handled
+                }
+                KeyCode::PageDown => {
+                    self.page_down();
+                    WidgetResult::Handled
+                }
+                KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
+                    self.page_up();
+                    WidgetResult::Handled
+                }
+                KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
+                    self.page_down();
+                    WidgetResult::Handled
+                }
+                KeyCode::Backspace => {
+                    if let Some(prev_dir) = self.history.pop() {
+                        self.current_dir = prev_dir;
+                        self.refresh_files();
+                        self.selected_index = 0;
+                    }
+                    WidgetResult::Handled
+                }
+                KeyCode::Enter => {
+                    if self.files.is_empty() {
+                        WidgetResult::Handled
+                    } else {
+                        let selected_path = self.files[self.selected_index].clone();
+                        if selected_path.is_dir() {
+                            self.history.push(self.current_dir.clone());
+                            self.current_dir = selected_path;
+                            self.refresh_files();
+                            self.selected_index = 0;
+                        } else if let Some(name) = selected_path.file_stem() {
+                            self.textarea = TextArea::default();
+                            self.textarea.insert_str(name.to_string_lossy());
+                            self.textarea.move_cursor(CursorMove::End);
+                            self.focus = ExportAsFocus::Filename;
+                        }
+                        WidgetResult::Handled
+                    }
+                }
+                _ => WidgetResult::Handled,
+            },
+            ExportAsFocus::Filename => match key.code {
+                KeyCode::Enter => {
+                    let filename = self.textarea.lines().join("").trim().to_string();
+                    if filename.is_empty() {
+                        WidgetResult::Handled
+                    } else {
+                        let mut path = self.current_dir.join(&filename);
+                        if path.extension().is_none() {
+                            let ext = match self.format {
+                                crate::event::ExportFormat::Asm => "asm",
+                                crate::event::ExportFormat::Html => "html",
+                            };
+                            path.set_extension(ext);
+                        }
+
+                        if path.exists() {
+                            let action = match self.format {
+                                crate::event::ExportFormat::Asm => {
+                                    crate::state::actions::AppAction::ExportAsmAs
+                                }
+                                crate::event::ExportFormat::Html => {
+                                    crate::state::actions::AppAction::ExportHtmlAs
+                                }
+                            };
+                            self.sub_dialog = Some(Box::new(
+                                crate::ui::dialog_confirmation::ConfirmationDialog::new(
+                                    "File Exists",
+                                    format!("Are you sure you want to overwrite '{}'?", filename),
+                                    action,
+                                ),
+                            ));
+                            WidgetResult::Handled
+                        } else {
+                            self.execute_export(app_state, ui_state)
+                        }
+                    }
+                }
+                _ => {
+                    self.textarea.input(key);
+                    WidgetResult::Handled
+                }
+            },
+        }
+    }
+}
+
+impl ExportAsDialog {
+    fn render_background(
+        &self,
+        f: &mut Frame,
+        area: Rect,
+        _app_state: &AppState,
+        ui_state: &mut UIState,
+    ) {
         let theme = &ui_state.theme;
         let block_title = match self.format {
             crate::event::ExportFormat::Asm => " Export to .asm as... (Tab to Switch Focus) ",
@@ -231,134 +393,110 @@ impl Widget for ExportAsDialog {
         f.render_widget(extension, input_layout[1]);
     }
 
-    fn handle_input(
-        &mut self,
-        key: KeyEvent,
-        app_state: &mut AppState,
-        ui_state: &mut UIState,
-    ) -> WidgetResult {
-        if key.code == KeyCode::Esc {
-            ui_state.set_status_message("Ready");
-            return WidgetResult::Close;
-        }
-
-        if key.code == KeyCode::Tab {
-            self.focus = match self.focus {
-                ExportAsFocus::Filename => ExportAsFocus::DirectoryList,
-                ExportAsFocus::DirectoryList => ExportAsFocus::Filename,
+    fn execute_export(&mut self, app_state: &mut AppState, ui_state: &mut UIState) -> WidgetResult {
+        let filename = self.textarea.lines().join("").trim().to_string();
+        let mut path = self.current_dir.join(&filename);
+        if path.extension().is_none() {
+            let ext = match self.format {
+                crate::event::ExportFormat::Asm => "asm",
+                crate::event::ExportFormat::Html => "html",
             };
-            return WidgetResult::Handled;
+            path.set_extension(ext);
         }
+        match self.format {
+            crate::event::ExportFormat::Asm => {
+                app_state.export_asm_path = Some(path.clone());
+            }
+            crate::event::ExportFormat::Html => {
+                app_state.export_html_path = Some(path.clone());
+            }
+        }
+        let res = match self.format {
+            crate::event::ExportFormat::Asm => crate::exporter::export_asm(app_state, &path),
+            crate::event::ExportFormat::Html => crate::exporter::export_html(app_state, &path),
+        };
+        if let Err(e) = res {
+            ui_state.set_status_message(format!("Error exporting: {e}"));
+            WidgetResult::Handled
+        } else {
+            match self.format {
+                crate::event::ExportFormat::Asm => {
+                    app_state.last_export_asm_filename = Some(filename.clone());
+                }
+                crate::event::ExportFormat::Html => {
+                    app_state.last_export_html_filename = Some(filename.clone());
+                }
+            }
+            let saved_filename = path.file_name().unwrap_or_default().to_string_lossy();
+            ui_state.set_status_message(format!("Exported: {saved_filename}"));
+            WidgetResult::Close
+        }
+    }
+}
 
-        match self.focus {
-            ExportAsFocus::DirectoryList => match key.code {
-                KeyCode::Down => {
-                    self.next();
-                    WidgetResult::Handled
-                }
-                KeyCode::Up => {
-                    self.previous();
-                    WidgetResult::Handled
-                }
-                KeyCode::PageUp => {
-                    self.page_up();
-                    WidgetResult::Handled
-                }
-                KeyCode::PageDown => {
-                    self.page_down();
-                    WidgetResult::Handled
-                }
-                KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
-                    self.page_up();
-                    WidgetResult::Handled
-                }
-                KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
-                    self.page_down();
-                    WidgetResult::Handled
-                }
-                KeyCode::Backspace => {
-                    if let Some(prev_dir) = self.history.pop() {
-                        self.current_dir = prev_dir;
-                        self.refresh_files();
-                        self.selected_index = 0;
-                    }
-                    WidgetResult::Handled
-                }
-                KeyCode::Enter => {
-                    if self.files.is_empty() {
-                        WidgetResult::Handled
-                    } else {
-                        let selected_path = self.files[self.selected_index].clone();
-                        if selected_path.is_dir() {
-                            self.history.push(self.current_dir.clone());
-                            self.current_dir = selected_path;
-                            self.refresh_files();
-                            self.selected_index = 0;
-                        } else if let Some(name) = selected_path.file_stem() {
-                            self.textarea = TextArea::default();
-                            self.textarea.insert_str(name.to_string_lossy());
-                            self.textarea.move_cursor(CursorMove::End);
-                            self.focus = ExportAsFocus::Filename;
-                        }
-                        WidgetResult::Handled
-                    }
-                }
-                _ => WidgetResult::Handled,
-            },
-            ExportAsFocus::Filename => match key.code {
-                KeyCode::Enter => {
-                    let filename = self.textarea.lines().join("").trim().to_string();
-                    if filename.is_empty() {
-                        WidgetResult::Handled
-                    } else {
-                        let mut path = self.current_dir.join(&filename);
-                        if path.extension().is_none() {
-                            let ext = match self.format {
-                                crate::event::ExportFormat::Asm => "asm",
-                                crate::event::ExportFormat::Html => "html",
-                            };
-                            path.set_extension(ext);
-                        }
-                        match self.format {
-                            crate::event::ExportFormat::Asm => {
-                                app_state.export_asm_path = Some(path.clone());
-                            }
-                            crate::event::ExportFormat::Html => {
-                                app_state.export_html_path = Some(path.clone());
-                            }
-                        }
-                        let res = match self.format {
-                            crate::event::ExportFormat::Asm => {
-                                crate::exporter::export_asm(app_state, &path)
-                            }
-                            crate::event::ExportFormat::Html => {
-                                crate::exporter::export_html(app_state, &path)
-                            }
-                        };
-                        if let Err(e) = res {
-                            ui_state.set_status_message(format!("Error exporting: {e}"));
-                            WidgetResult::Handled
-                        } else {
-                            match self.format {
-                                crate::event::ExportFormat::Asm => {
-                                    app_state.last_export_asm_filename = Some(filename.clone());
-                                }
-                                crate::event::ExportFormat::Html => {
-                                    app_state.last_export_html_filename = Some(filename.clone());
-                                }
-                            }
-                            let saved_filename =
-                                path.file_name().unwrap_or_default().to_string_lossy();
-                            ui_state.set_status_message(format!("Exported: {saved_filename}"));
-                            WidgetResult::Close
-                        }
-                    }
-                }
-                _ => {
-                    self.textarea.input(key);
-                    WidgetResult::Handled
-                }
-            },
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_initialization() {
+        let current_dir = std::env::current_dir().unwrap_or_default();
+        let dialog =
+            ExportAsDialog::new(None, crate::event::ExportFormat::Asm, current_dir.clone());
+        assert_eq!(dialog.current_dir, current_dir);
+        assert_eq!(dialog.focus, ExportAsFocus::Filename);
+        assert_eq!(dialog.selected_index, 0);
+        assert!(dialog.sub_dialog.is_none());
+        assert_eq!(dialog.history.len(), 0);
+    }
+
+    #[test]
+    fn test_next_previous() {
+        let mut dialog = ExportAsDialog::new(
+            None,
+            crate::event::ExportFormat::Asm,
+            std::env::current_dir().unwrap_or_default(),
+        );
+        dialog.files = vec![PathBuf::from("a"), PathBuf::from("b"), PathBuf::from("c")];
+        dialog.selected_index = 0;
+
+        dialog.next();
+        assert_eq!(dialog.selected_index, 1);
+        dialog.next();
+        assert_eq!(dialog.selected_index, 2);
+        dialog.next();
+        assert_eq!(dialog.selected_index, 0);
+
+        dialog.previous();
+        assert_eq!(dialog.selected_index, 2);
+        dialog.previous();
+        assert_eq!(dialog.selected_index, 1);
+    }
+
+    #[test]
+    fn test_page_up_down() {
+        let mut dialog = ExportAsDialog::new(
+            None,
+            crate::event::ExportFormat::Asm,
+            std::env::current_dir().unwrap_or_default(),
+        );
+        dialog.files = (0..25)
+            .map(|i| PathBuf::from(format!("file_{}", i)))
+            .collect();
+        dialog.selected_index = 0;
+
+        dialog.page_down();
+        assert_eq!(dialog.selected_index, 10);
+        dialog.page_down();
+        assert_eq!(dialog.selected_index, 20);
+        dialog.page_down();
+        assert_eq!(dialog.selected_index, 24);
+
+        dialog.page_up();
+        assert_eq!(dialog.selected_index, 14);
+        dialog.page_up();
+        assert_eq!(dialog.selected_index, 4);
+        dialog.page_up();
+        assert_eq!(dialog.selected_index, 0);
     }
 }

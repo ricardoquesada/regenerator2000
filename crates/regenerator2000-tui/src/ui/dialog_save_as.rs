@@ -1,4 +1,4 @@
-use crate::state::{AppState, ProjectSaveContext};
+use crate::state::AppState;
 use crate::ui_state::UIState;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
@@ -12,7 +12,7 @@ use std::path::PathBuf;
 
 use crate::ui::widget::{Widget, WidgetResult};
 
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum SaveAsFocus {
     Filename,
     DirectoryList,
@@ -25,6 +25,7 @@ pub struct SaveAsDialog {
     pub selected_index: usize,
     pub history: Vec<PathBuf>,
     pub focus: SaveAsFocus,
+    pub sub_dialog: Option<Box<dyn Widget>>,
 }
 
 impl Default for SaveAsDialog {
@@ -48,6 +49,7 @@ impl SaveAsDialog {
             selected_index: 0,
             history: Vec::new(),
             focus: SaveAsFocus::Filename,
+            sub_dialog: None,
         };
         dialog.refresh_files();
         dialog
@@ -94,7 +96,152 @@ impl SaveAsDialog {
 }
 
 impl Widget for SaveAsDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
+    fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
+        if let Some(sub) = &self.sub_dialog {
+            self.render_background(f, area, app_state, ui_state);
+            sub.render(f, area, app_state, ui_state);
+            return;
+        }
+        self.render_background(f, area, app_state, ui_state);
+    }
+
+    fn handle_input(
+        &mut self,
+        key: KeyEvent,
+        app_state: &mut AppState,
+        ui_state: &mut UIState,
+    ) -> WidgetResult {
+        if let Some(sub) = &mut self.sub_dialog {
+            let res = sub.handle_input(key, app_state, ui_state);
+            match res {
+                WidgetResult::Close => {
+                    self.sub_dialog = None;
+                    return WidgetResult::Handled;
+                }
+                WidgetResult::Action(action) => {
+                    self.sub_dialog = None;
+                    if let crate::state::actions::AppAction::Confirmed(inner) = &action
+                        && matches!(**inner, crate::state::actions::AppAction::SaveAs)
+                    {
+                        return self.execute_save(app_state, ui_state);
+                    }
+                    return WidgetResult::Action(action);
+                }
+                WidgetResult::Handled => return WidgetResult::Handled,
+                WidgetResult::Ignored => return WidgetResult::Ignored,
+            }
+        }
+        if key.code == KeyCode::Esc {
+            ui_state.set_status_message("Ready");
+            return WidgetResult::Close;
+        }
+
+        if key.code == KeyCode::Tab {
+            self.focus = match self.focus {
+                SaveAsFocus::Filename => SaveAsFocus::DirectoryList,
+                SaveAsFocus::DirectoryList => SaveAsFocus::Filename,
+            };
+            return WidgetResult::Handled;
+        }
+
+        match self.focus {
+            SaveAsFocus::DirectoryList => match key.code {
+                KeyCode::Down => {
+                    self.next();
+                    WidgetResult::Handled
+                }
+                KeyCode::Up => {
+                    self.previous();
+                    WidgetResult::Handled
+                }
+                KeyCode::PageUp => {
+                    self.page_up();
+                    WidgetResult::Handled
+                }
+                KeyCode::PageDown => {
+                    self.page_down();
+                    WidgetResult::Handled
+                }
+                KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
+                    self.page_up();
+                    WidgetResult::Handled
+                }
+                KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
+                    self.page_down();
+                    WidgetResult::Handled
+                }
+                KeyCode::Backspace => {
+                    if let Some(prev_dir) = self.history.pop() {
+                        self.current_dir = prev_dir;
+                        self.refresh_files();
+                        self.selected_index = 0;
+                    }
+                    WidgetResult::Handled
+                }
+                KeyCode::Enter => {
+                    if self.files.is_empty() {
+                        WidgetResult::Handled
+                    } else {
+                        let selected_path = self.files[self.selected_index].clone();
+                        if selected_path.is_dir() {
+                            self.history.push(self.current_dir.clone());
+                            self.current_dir = selected_path;
+                            self.refresh_files();
+                            self.selected_index = 0;
+                        } else if let Some(name) = selected_path.file_stem() {
+                            self.textarea = TextArea::default();
+                            self.textarea.insert_str(name.to_string_lossy());
+                            self.textarea.move_cursor(CursorMove::End);
+                            self.focus = SaveAsFocus::Filename;
+                        }
+                        WidgetResult::Handled
+                    }
+                }
+                _ => WidgetResult::Handled,
+            },
+            SaveAsFocus::Filename => match key.code {
+                KeyCode::Enter => {
+                    let filename = self.textarea.lines().join("").trim().to_string();
+                    if filename.is_empty() {
+                        WidgetResult::Handled
+                    } else {
+                        let mut path = self.current_dir.join(&filename);
+                        if path.extension().is_none() {
+                            path.set_extension("regen2000proj");
+                        }
+
+                        if path.exists() {
+                            let action = crate::state::actions::AppAction::SaveAs;
+                            self.sub_dialog = Some(Box::new(
+                                crate::ui::dialog_confirmation::ConfirmationDialog::new(
+                                    "File Exists",
+                                    format!("Are you sure you want to overwrite '{}'?", filename),
+                                    action,
+                                ),
+                            ));
+                            WidgetResult::Handled
+                        } else {
+                            self.execute_save(app_state, ui_state)
+                        }
+                    }
+                }
+                _ => {
+                    self.textarea.input(key);
+                    WidgetResult::Handled
+                }
+            },
+        }
+    }
+}
+
+impl SaveAsDialog {
+    fn render_background(
+        &self,
+        f: &mut Frame,
+        area: Rect,
+        _app_state: &AppState,
+        ui_state: &mut UIState,
+    ) {
         let theme = &ui_state.theme;
         let title = " Save Project As (Tab to Switch Focus, Esc to Cancel) ";
         let block = crate::ui::widget::create_dialog_block(title, theme);
@@ -206,179 +353,151 @@ impl Widget for SaveAsDialog {
         f.render_widget(extension, input_layout[1]);
     }
 
-    fn handle_input(
-        &mut self,
-        key: KeyEvent,
-        app_state: &mut AppState,
-        ui_state: &mut UIState,
-    ) -> WidgetResult {
-        if key.code == KeyCode::Esc {
-            ui_state.set_status_message("Ready");
-            return WidgetResult::Close;
+    fn execute_save(&mut self, app_state: &mut AppState, ui_state: &mut UIState) -> WidgetResult {
+        let filename = self.textarea.lines().join("").trim().to_string();
+        let mut path = self.current_dir.join(&filename);
+        if path.extension().is_none() {
+            path.set_extension("regen2000proj");
         }
 
-        if key.code == KeyCode::Tab {
-            self.focus = match self.focus {
-                SaveAsFocus::Filename => SaveAsFocus::DirectoryList,
-                SaveAsFocus::DirectoryList => SaveAsFocus::Filename,
-            };
-            return WidgetResult::Handled;
-        }
+        let saved_filename = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        app_state.project_path = Some(path);
 
-        match self.focus {
-            SaveAsFocus::DirectoryList => match key.code {
-                KeyCode::Down => {
-                    self.next();
-                    WidgetResult::Handled
-                }
-                KeyCode::Up => {
-                    self.previous();
-                    WidgetResult::Handled
-                }
-                KeyCode::PageUp => {
-                    self.page_up();
-                    WidgetResult::Handled
-                }
-                KeyCode::PageDown => {
-                    self.page_down();
-                    WidgetResult::Handled
-                }
-                KeyCode::Char('u') if key.modifiers == KeyModifiers::CONTROL => {
-                    self.page_up();
-                    WidgetResult::Handled
-                }
-                KeyCode::Char('d') if key.modifiers == KeyModifiers::CONTROL => {
-                    self.page_down();
-                    WidgetResult::Handled
-                }
-                KeyCode::Backspace => {
-                    if let Some(prev_dir) = self.history.pop() {
-                        self.current_dir = prev_dir;
-                        self.refresh_files();
-                        self.selected_index = 0;
-                    }
-                    WidgetResult::Handled
-                }
-                KeyCode::Enter => {
-                    if self.files.is_empty() {
-                        WidgetResult::Handled
-                    } else {
-                        let selected_path = self.files[self.selected_index].clone();
-                        if selected_path.is_dir() {
-                            self.history.push(self.current_dir.clone());
-                            self.current_dir = selected_path;
-                            self.refresh_files();
-                            self.selected_index = 0;
-                        } else if let Some(name) = selected_path.file_stem() {
-                            self.textarea = TextArea::default();
-                            self.textarea.insert_str(name.to_string_lossy());
-                            self.textarea.move_cursor(CursorMove::End);
-                            self.focus = SaveAsFocus::Filename;
-                        }
-                        WidgetResult::Handled
-                    }
-                }
-                _ => WidgetResult::Handled,
+        let cursor_addr = app_state
+            .disassembly
+            .get(ui_state.cursor_index)
+            .map(|l| l.address);
+
+        let hex_addr = if app_state.raw_data.is_empty() {
+            None
+        } else {
+            let origin = app_state.origin.0 as usize;
+            let alignment_padding = origin % 16;
+            let aligned_origin = origin - alignment_padding;
+            let row_start_offset = ui_state.hex_cursor_index * 16;
+            let addr = aligned_origin + row_start_offset;
+            Some(crate::state::Addr(addr as u16))
+        };
+
+        let sprites_addr = if app_state.raw_data.is_empty() {
+            None
+        } else {
+            let origin = app_state.origin.0 as usize;
+            let padding = (64 - (origin % 64)) % 64;
+            let sprite_offset = ui_state.sprites_cursor_index * 64;
+            let addr = origin + padding + sprite_offset;
+            Some(crate::state::Addr(addr as u16))
+        };
+
+        let charset_addr = if app_state.raw_data.is_empty() {
+            None
+        } else {
+            let origin = app_state.origin.0 as usize;
+            let base_alignment = 0x400;
+            let aligned_start_addr = (origin / base_alignment) * base_alignment;
+            let char_offset = ui_state.charset_cursor_index * 8;
+            let addr = aligned_start_addr + char_offset;
+            Some(crate::state::Addr(addr as u16))
+        };
+
+        let bitmap_addr = if app_state.raw_data.is_empty() {
+            None
+        } else {
+            let origin = app_state.origin.0 as usize;
+            let first_aligned_addr =
+                ((origin / 8192) * 8192) + if origin.is_multiple_of(8192) { 0 } else { 8192 };
+            let bitmap_addr = first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
+            Some(crate::state::Addr(bitmap_addr as u16))
+        };
+
+        let right_pane_str = format!("{:?}", ui_state.right_pane);
+
+        if let Err(e) = app_state.save_project(
+            crate::state::ProjectSaveContext {
+                cursor_address: cursor_addr,
+                hex_dump_cursor_address: hex_addr,
+                sprites_cursor_address: sprites_addr,
+                right_pane_visible: Some(right_pane_str),
+                charset_cursor_address: charset_addr,
+                bitmap_cursor_address: bitmap_addr,
+                sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
+                charset_multicolor_mode: ui_state.charset_multicolor_mode,
+                bitmap_multicolor_mode: ui_state.bitmap_multicolor_mode,
+                hexdump_view_mode: ui_state.hexdump_view_mode,
+                splitters: app_state.splitters.clone(),
+                blocks_view_cursor: ui_state.blocks_list_state.selected(),
+                bookmarks: app_state.bookmarks.clone(),
             },
-            SaveAsFocus::Filename => match key.code {
-                KeyCode::Enter => {
-                    let filename = self.textarea.lines().join("").trim().to_string();
-                    if filename.is_empty() {
-                        WidgetResult::Handled
-                    } else {
-                        let mut path = self.current_dir.join(&filename);
-                        if path.extension().is_none() {
-                            path.set_extension("regen2000proj");
-                        }
-                        let saved_filename = path
-                            .file_name()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .to_string();
-                        app_state.project_path = Some(path);
-
-                        let cursor_addr = app_state
-                            .disassembly
-                            .get(ui_state.cursor_index)
-                            .map(|l| l.address);
-
-                        let hex_addr = if app_state.raw_data.is_empty() {
-                            None
-                        } else {
-                            let origin = app_state.origin.0 as usize;
-                            let alignment_padding = origin % 16;
-                            let aligned_origin = origin - alignment_padding;
-                            let row_start_offset = ui_state.hex_cursor_index * 16;
-                            let addr = aligned_origin + row_start_offset;
-                            Some(crate::state::Addr(addr as u16))
-                        };
-
-                        let sprites_addr = if app_state.raw_data.is_empty() {
-                            None
-                        } else {
-                            let origin = app_state.origin.0 as usize;
-                            let padding = (64 - (origin % 64)) % 64;
-                            let sprite_offset = ui_state.sprites_cursor_index * 64;
-                            let addr = origin + padding + sprite_offset;
-                            Some(crate::state::Addr(addr as u16))
-                        };
-
-                        let charset_addr = if app_state.raw_data.is_empty() {
-                            None
-                        } else {
-                            let origin = app_state.origin.0 as usize;
-                            let base_alignment = 0x400;
-                            let aligned_start_addr = (origin / base_alignment) * base_alignment;
-                            let char_offset = ui_state.charset_cursor_index * 8;
-                            let addr = aligned_start_addr + char_offset;
-                            Some(crate::state::Addr(addr as u16))
-                        };
-
-                        let bitmap_addr = if app_state.raw_data.is_empty() {
-                            None
-                        } else {
-                            let origin = app_state.origin.0 as usize;
-                            let first_aligned_addr = ((origin / 8192) * 8192)
-                                + if origin.is_multiple_of(8192) { 0 } else { 8192 };
-                            let bitmap_addr =
-                                first_aligned_addr + (ui_state.bitmap_cursor_index * 8192);
-                            Some(crate::state::Addr(bitmap_addr as u16))
-                        };
-
-                        let right_pane_str = format!("{:?}", ui_state.right_pane);
-
-                        if let Err(e) = app_state.save_project(
-                            ProjectSaveContext {
-                                cursor_address: cursor_addr,
-                                hex_dump_cursor_address: hex_addr,
-                                sprites_cursor_address: sprites_addr,
-                                right_pane_visible: Some(right_pane_str),
-                                charset_cursor_address: charset_addr,
-                                bitmap_cursor_address: bitmap_addr,
-                                sprite_multicolor_mode: ui_state.sprite_multicolor_mode,
-                                charset_multicolor_mode: ui_state.charset_multicolor_mode,
-                                bitmap_multicolor_mode: ui_state.bitmap_multicolor_mode,
-                                hexdump_view_mode: ui_state.hexdump_view_mode,
-                                splitters: app_state.splitters.clone(),
-                                blocks_view_cursor: ui_state.blocks_list_state.selected(),
-                                bookmarks: app_state.bookmarks.clone(),
-                            },
-                            true,
-                        ) {
-                            ui_state.set_status_message(format!("Error saving: {e}"));
-                            WidgetResult::Handled
-                        } else {
-                            app_state.last_save_as_filename = Some(filename.clone());
-                            ui_state.set_status_message(format!("Project saved: {saved_filename}"));
-                            WidgetResult::Close
-                        }
-                    }
-                }
-                _ => {
-                    self.textarea.input(key);
-                    WidgetResult::Handled
-                }
-            },
+            true,
+        ) {
+            ui_state.set_status_message(format!("Error saving: {e}"));
+            WidgetResult::Handled
+        } else {
+            app_state.last_save_as_filename = Some(filename.clone());
+            ui_state.set_status_message(format!("Project saved: {saved_filename}"));
+            WidgetResult::Close
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_initialization() {
+        let current_dir = std::env::current_dir().unwrap_or_default();
+        let dialog = SaveAsDialog::new(None, current_dir.clone());
+        assert_eq!(dialog.current_dir, current_dir);
+        assert_eq!(dialog.focus, SaveAsFocus::Filename);
+        assert_eq!(dialog.selected_index, 0);
+        assert!(dialog.sub_dialog.is_none());
+        assert_eq!(dialog.history.len(), 0);
+    }
+
+    #[test]
+    fn test_next_previous() {
+        let mut dialog = SaveAsDialog::new(None, std::env::current_dir().unwrap_or_default());
+        dialog.files = vec![PathBuf::from("a"), PathBuf::from("b"), PathBuf::from("c")];
+        dialog.selected_index = 0;
+
+        dialog.next();
+        assert_eq!(dialog.selected_index, 1);
+        dialog.next();
+        assert_eq!(dialog.selected_index, 2);
+        dialog.next();
+        assert_eq!(dialog.selected_index, 0);
+
+        dialog.previous();
+        assert_eq!(dialog.selected_index, 2);
+        dialog.previous();
+        assert_eq!(dialog.selected_index, 1);
+    }
+
+    #[test]
+    fn test_page_up_down() {
+        let mut dialog = SaveAsDialog::new(None, std::env::current_dir().unwrap_or_default());
+        dialog.files = (0..25)
+            .map(|i| PathBuf::from(format!("file_{}", i)))
+            .collect();
+        dialog.selected_index = 0;
+
+        dialog.page_down();
+        assert_eq!(dialog.selected_index, 10);
+        dialog.page_down();
+        assert_eq!(dialog.selected_index, 20);
+        dialog.page_down();
+        assert_eq!(dialog.selected_index, 24);
+
+        dialog.page_up();
+        assert_eq!(dialog.selected_index, 14);
+        dialog.page_up();
+        assert_eq!(dialog.selected_index, 4);
+        dialog.page_up();
+        assert_eq!(dialog.selected_index, 0);
     }
 }
