@@ -127,3 +127,11 @@ To unpack the loaded binary:
   timeout error.
 * **Custom ROMs**: For extremely specialized packers that require actual KERNAL/BASIC ROM code execution, the underlying
   library supports loading custom `$A000` and `$E000` ROM images (configurable via the core configuration).
+
+## Differences with unp64
+
+While Regenerator 2000's unpacker uses `unp64` heuristics, its cycle-accurate emulation sometimes produces more accurate or slightly different bounding values than `unp64`'s static analysis or pointer-sniffing:
+
+* **TinyCrunch**: `unp64` intercepts a zero-page pointer mid-decompression to blindly calculate the maximum theoretical memory boundary (e.g. `$FFFD`). Regenerator 2000 tracks actual memory writes, which correctly identifies that the payload may only actually fill up to a lower address (e.g. `$7949`).
+* **Exomizer 3**: `unp64` checks differences against an empty buffer, missing cases where Exomizer explicitly zeroes out the first byte at `$0800`. Regenerator 2000 correctly tracks writes to `$0800`. Furthermore, our emulator traverses the execution stub to identify the true payload entry point (e.g. `$806A`) rather than just the exit routine jump (e.g. `$08A1`).
+* **ByteBoozer 2**: Similar to TinyCrunch, ByteBoozer zeroes out memory space up to `$FFFF` dynamically. `unp64` relies on a static override (e.g. `$E7FF`), while our memory heuristics correctly report that all memory up to `$FFFF` was actually modified.
