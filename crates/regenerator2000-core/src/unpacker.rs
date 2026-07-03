@@ -1128,7 +1128,10 @@ fn finish_unpack(
     // because the gap is > 25KB and hits the scan_floor safeguard.
     // We can reliably find the true end of the decompressed data by finding the largest
     // contiguous block of unwritten memory.
-    if mem.len() >= 0xED && mem[0xEA] == 0x4C && entry_point == u16::from_le_bytes([mem[0xEB], mem[0xEC]]) {
+    if mem.len() >= 0xED
+        && mem[0xEA] == 0x4C
+        && entry_point == u16::from_le_bytes([mem[0xEB], mem[0xEC]])
+    {
         let mut max_gap_len = 0;
         let mut max_gap_start = 0;
         let mut current_gap_len = 0;
