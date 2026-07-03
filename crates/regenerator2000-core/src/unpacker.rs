@@ -1119,8 +1119,20 @@ fn finish_unpack(
     _load_addr: u16,
     load_end: u16,
 ) -> Result<UnpackResult, UnpackError> {
-    let (mut start_addr, end_addr) =
+    let (mut start_addr, mut end_addr) =
         detect_output_range(mem, snapshot, written, ret_addr).ok_or(UnpackError::NothingWritten)?;
+
+    // unp64 compatibility for MC-Cracken Compressor:
+    // MC-Cracken's first pass depacker jumps to $1100 for the second pass,
+    // leaving the exclusive end address at zero page $AE-$AF. unp64 stops emulation
+    // at the jump to $1100 and uses that as the entry point, while reporting
+    // the unpacked range up to the value in $AE-$AF.
+    if entry_point == 0x1100 && mem.len() >= 0xB0 && mem[0xAB..=0xAD] == [0x4C, 0x72, 0x01] {
+        let reported_end = u16::from_le_bytes([mem[0xAE], mem[0xAF]]);
+        if reported_end > start_addr {
+            end_addr = reported_end.saturating_sub(1);
+        }
+    }
 
     // unp64 compatibility for Exomizer 3:
     // If we detect the Exomizer CLI; JMP signature near the end of the packed data,
@@ -1146,7 +1158,6 @@ fn finish_unpack(
     // ByteBoozer 2 places its workspace immediately after the unpacked data without a gap,
     // making our standard cluster trimming fail. However, like unp64, we can detect it
     // by signature and read the end address it deposits in zero page $77.
-    let mut end_addr = end_addr;
     if snapshot.len() >= 0x8C4 {
         let b0 = snapshot[0x80D..0x811] == [0x78, 0xA9, 0x34, 0x85]; // SEI; LDA #$34; STA $01
         let b1 = snapshot[0x813..0x817] == [0xB7, 0xBD, 0x1E, 0x08]; // LDX #$B7; LDA $081E,X
@@ -1600,7 +1611,7 @@ mod tests {
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
         assert_eq!(result.start_addr, 0x0800);
-        assert_eq!(result.end_addr, 0xFFFF);
+        assert_eq!(result.end_addr, 0x9D19);
         assert_eq!(result.entry_point, 0x1100);
     }
 
