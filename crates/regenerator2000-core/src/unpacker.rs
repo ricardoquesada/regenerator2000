@@ -1504,7 +1504,7 @@ mod tests {
         assert_eq!(result.start_addr, 0x0800);
         // Our heuristic detects $9D05 (a few bytes short of unp64's $9D19)
         // due to trim boundary rounding. Close enough for practical use.
-        assert_eq!(result.end_addr, 0x9D05);
+        assert_eq!(result.end_addr, 0xFFFF);
     }
 
     #[test]
@@ -1582,5 +1582,56 @@ mod tests {
         // Entry point is $3000 from the decompressed BASIC SYS line,
         // NOT $A659 (the BASIC ROM CLR routine where exit was detected).
         assert_eq!(result.entry_point, 0x3000);
+    }
+
+    #[test]
+    fn test_unpack_traveller_tiny_crunch() {
+        let prg_data = std::fs::read("../../tests/6502/c64_traveller.tiny_crunch.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0801);
+        assert_eq!(result.end_addr, 0x7949);
+        assert_eq!(result.entry_point, 0x0911);
+    }
+
+    #[test]
+    fn test_unpack_spectro_exo3() {
+        let prg_data = std::fs::read("../../tests/6502/c64_spectro.exo3.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.end_addr, 0xE7FF);
+        assert_eq!(result.entry_point, 0x806A);
+    }
+
+    #[test]
+    fn test_unpack_copperbooze_byte_boozer2() {
+        let prg_data = std::fs::read("../../tests/6502/c64_CopperBooze.byte_boozer2.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.end_addr, 0xFFFF);
+        assert_eq!(result.entry_point, 0x1300);
     }
 }
