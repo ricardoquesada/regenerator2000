@@ -864,6 +864,7 @@ pub fn unpack(
     // Exit when PC < ret_addr (depacker found) or exit vector hit.
     // -----------------------------------------------------------------------
     let dep_addr;
+    let load_end = load_addr.wrapping_add(data_len as u16);
     loop {
         if total_instructions >= config.max_instructions {
             return Err(UnpackError::Phase1Timeout);
@@ -897,6 +898,8 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
+                    load_addr,
+                    load_end,
                 );
             }
             RomAction::BasicRun => {
@@ -916,6 +919,8 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
+                    load_addr,
+                    load_end,
                 );
             }
         }
@@ -969,8 +974,8 @@ pub fn unpack(
         // $D000-$FFFF). Even though the RAM *underneath* these areas may have
         // been written by the depacker, the CPU is executing from ROM, not
         // from the decompressed data. Letting execution continue ensures the
-        // ROM interception handler fires and properly detects BasicRun/Exit.
         let in_rom_or_io = (0xA000..=0xBFFF).contains(&pc) || (0xD000..=0xFFFF).contains(&pc);
+
         if pc >= ret_addr && !in_rom_or_io && cpu.memory.written[pc as usize] {
             if pc == ret_addr {
                 // The depacker landed exactly at ret_addr ($0800). The original
@@ -987,6 +992,8 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
+                    load_addr,
+                    load_end,
                 );
             } else if (0x0800..=0x0810).contains(&pc) {
                 // Landed in BASIC area — re-parse SYS from freshly decompressed BASIC.
@@ -1010,6 +1017,8 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
+                    load_addr,
+                    load_end,
                 );
             } else {
                 return finish_unpack(
@@ -1020,6 +1029,8 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
+                    load_addr,
+                    load_end,
                 );
             }
         }
@@ -1039,7 +1050,7 @@ pub fn unpack(
                 .skip(ret_addr as usize)
                 .filter(|&&w| w)
                 .count();
-            if written_above > 256 {
+            if written_above > 64 {
                 let entry_point = pc;
                 return finish_unpack(
                     &cpu.memory.mem,
@@ -1049,6 +1060,8 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
+                    load_addr,
+                    load_end,
                 );
             }
         }
@@ -1077,6 +1090,8 @@ pub fn unpack(
                     dep_addr,
                     ret_addr,
                     total_instructions,
+                    load_addr,
+                    load_end,
                 );
             }
         }
@@ -1092,17 +1107,40 @@ pub fn unpack(
 }
 
 /// Extracts the unpacked result from memory after emulation completes.
+#[allow(clippy::too_many_arguments)]
 fn finish_unpack(
     mem: &[u8],
     snapshot: &[u8],
     written: &[bool],
-    entry_point: u16,
+    mut entry_point: u16,
     dep_addr: u16,
     ret_addr: u16,
     instructions_executed: u64,
+    _load_addr: u16,
+    load_end: u16,
 ) -> Result<UnpackResult, UnpackError> {
-    let (start_addr, end_addr) =
+    let (mut start_addr, end_addr) =
         detect_output_range(mem, snapshot, written, ret_addr).ok_or(UnpackError::NothingWritten)?;
+
+    // unp64 compatibility for Exomizer 3:
+    // If we detect the Exomizer CLI; JMP signature near the end of the packed data,
+    // unp64 takes that JMP target as the entry point, and skips $0800-$080C (the stub).
+    // The user explicitly requested to use unp64 output as the source of truth.
+    if start_addr == 0x0800 {
+        let scan_start = load_end.saturating_sub(64) as usize;
+        let scan_end = load_end.saturating_sub(3) as usize;
+        for i in (scan_start..scan_end).rev() {
+            // Check for CLI (0x58) followed by JMP (0x4C)
+            if snapshot[i] == 0x58 && snapshot[i + 1] == 0x4C {
+                let target = u16::from_le_bytes([snapshot[i + 2], snapshot[i + 3]]);
+                if target >= 0x0800 {
+                    entry_point = target;
+                    start_addr = 0x080D;
+                    break;
+                }
+            }
+        }
+    }
 
     let data = mem[start_addr as usize..=end_addr as usize].to_vec();
 
@@ -1681,9 +1719,9 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.start_addr, 0x080D);
         assert_eq!(result.end_addr, 0xE7FF);
-        assert_eq!(result.entry_point, 0x806A);
+        assert_eq!(result.entry_point, 0x08A1);
     }
 
     #[test]
