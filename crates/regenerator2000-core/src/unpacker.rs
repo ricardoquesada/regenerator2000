@@ -540,24 +540,51 @@ fn detect_output_range(
     // Level 1: $0800..$9FFF — typical program area
     // Level 2: $0800..$CFFF — includes BASIC ROM area (all-RAM mode)
     // Level 3: $0800..$FFFF — includes I/O + Kernal ROM area (full RAM)
+    //
+    // In-place depackers (e.g. TinyCrunch) write to two disjoint regions:
+    // a lower region (e.g. $0801-$7949) and a high region (e.g. $D000-$FFFD),
+    // leaving a gap of unchanged bytes in the middle.  The gap means
+    // `untrimmed_end` stops early and `near_ceiling` is false.  To handle
+    // this we also escalate when written+diffed bytes exist above the current
+    // boundary, and in that case we skip the trim heuristic for the final
+    // scan so legitimate high-region output is not misidentified as workspace.
     let boundaries: &[usize] = &[0x9FFF, 0xCFFF, 0xFFFF];
+    let mut skip_trim_next = false;
 
     for (i, &boundary) in boundaries.iter().enumerate() {
         if let Some((start, end, untrimmed_end)) =
-            scan_hybrid_range(mem, snapshot, written, scan_start, boundary)
+            scan_hybrid_range(mem, snapshot, written, scan_start, boundary, skip_trim_next)
         {
             let is_last = i == boundaries.len() - 1;
             let near_ceiling = (untrimmed_end as usize) + 256 >= boundary;
-            if is_last || !near_ceiling {
+
+            // Also escalate when there are written+diffed bytes above the
+            // current boundary — in-place depackers write to a disjoint high
+            // region while leaving unchanged data in between.
+            let has_output_above = !is_last
+                && (boundary + 1..=0xFFFF).any(|addr| {
+                    written.get(addr).copied().unwrap_or(false)
+                        && mem.get(addr).copied().unwrap_or(0)
+                            != snapshot.get(addr).copied().unwrap_or(0)
+                });
+
+            if is_last || (!near_ceiling && !has_output_above) {
                 return Some((start, end));
             }
-            // Output touches the ceiling — continue to the next wider scan
+
+            // If we're escalating due to an output gap (not a ceiling hit),
+            // skip the trim heuristic on the next scan — the trim is designed
+            // for depacker workspace at the end of a contiguous range and
+            // would falsely cut valid high-region decompressed output.
+            // Use |= so the flag persists across any subsequent ceiling-hit
+            // escalations that follow the initial gap-triggered escalation.
+            skip_trim_next |= !near_ceiling && has_output_above;
         }
     }
 
     // Fallback: scan $E000-$FFFF for packers that decompress only into
     // the Kernal ROM area.
-    scan_hybrid_range(mem, snapshot, written, 0xE000, 0xFFFF).map(|(s, e, _)| (s, e))
+    scan_hybrid_range(mem, snapshot, written, 0xE000, 0xFFFF, false).map(|(s, e, _)| (s, e))
 }
 
 /// Scans a range using a hybrid of the `written` bitmap and snapshot diff.
@@ -566,6 +593,10 @@ fn detect_output_range(
 /// - **End**: last byte where `mem != snapshot`, trimmed of any small trailing
 ///   diff clusters (depacker tables) separated by matching bytes, then extended
 ///   through written zero-fills (`mem == snapshot`).
+///
+/// If `skip_trim` is `true`, the `trim_trailing_clusters` heuristic is bypassed
+/// and the last diff byte (or last written byte if no diff) is used directly.
+/// This is used when escalating due to an in-place depacker output gap.
 #[must_use]
 fn scan_hybrid_range(
     mem: &[u8],
@@ -573,6 +604,7 @@ fn scan_hybrid_range(
     written: &[bool],
     start: usize,
     end: usize,
+    skip_trim: bool,
 ) -> Option<(u16, u16, u16)> {
     let upper = end
         .min(written.len() - 1)
@@ -617,7 +649,8 @@ fn scan_hybrid_range(
     // 128 bytes). A clean gap between diff_end and the boundary means the
     // output ends naturally with no depacker workspace to separate — trimming
     // would only produce false positives on natural gaps in program data.
-    let trimmed_end = if diff_end + 128 >= upper {
+    // Skip trimming entirely when the caller signals an in-place depacker gap.
+    let trimmed_end = if !skip_trim && diff_end + 128 >= upper {
         trim_trailing_clusters(mem, snapshot, first, diff_end)
     } else {
         diff_end
@@ -913,8 +946,13 @@ pub fn unpack(
     // depacker code below ret_addr (e.g., stack page) and depacker code
     // above ret_addr (e.g., $20B0) — those jumps back above ret_addr
     // are to the packer's own original code, not to unpacked data.
+    //
+    // Some 2-pass depackers (e.g. TinyCrunch) jump back to BASIC mid-unpack.
+    // We allow up to 3 BASIC-SYS redirects before treating the next one as
+    // a final exit, preventing both infinite loops and premature termination.
     // -----------------------------------------------------------------------
     let load_end = load_addr.wrapping_add(data_len as u16);
+    let mut basic_run_count: u8 = 0;
 
     loop {
         if total_instructions >= config.max_instructions {
@@ -952,6 +990,17 @@ pub fn unpack(
                 );
             } else if (0x0800..=0x0810).contains(&pc) {
                 // Landed in BASIC area — re-parse SYS from freshly decompressed BASIC.
+                // 2-pass depackers (e.g. TinyCrunch) may land here between passes.
+                // Redirect to the SYS address and continue Phase 2 unless we have
+                // already redirected the maximum number of times.
+                if basic_run_count < 3
+                    && let Some(new_entry) = find_sys_address(&cpu.memory.mem)
+                {
+                    basic_run_count += 1;
+                    cpu.registers.program_counter = new_entry;
+                    total_instructions += 1;
+                    continue;
+                }
                 let entry_point = find_sys_address(&cpu.memory.mem).unwrap_or(pc);
                 return finish_unpack(
                     &cpu.memory.mem,
@@ -1597,8 +1646,27 @@ mod tests {
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
         assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0x7949);
+        assert_eq!(result.end_addr, 0xfffd);
         assert_eq!(result.entry_point, 0x0911);
+    }
+
+    #[test]
+    fn test_debug_tiny_crunch() {
+        // Debug: manually run emulation to inspect written bitmap
+        let prg_data = std::fs::read("../../tests/6502/c64_traveller.tiny_crunch.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+        println!(
+            "TinyCrunch: start=${:04X} end=${:04X} entry=${:04X} instr={}",
+            result.start_addr, result.end_addr, result.entry_point, result.instructions_executed
+        );
+        println!("Unpacked data length: {}", result.data.len());
     }
 
     #[test]
