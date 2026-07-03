@@ -1122,6 +1122,50 @@ fn finish_unpack(
     let (mut start_addr, mut end_addr) =
         detect_output_range(mem, snapshot, written, ret_addr).ok_or(UnpackError::NothingWritten)?;
 
+    // unp64 compatibility for Dali v0.3.3 / fast:
+    // Dali copies its depacker to zero page and jumps to $1100 when done.
+    // It leaves the compressed payload at the top of memory, which defeats our standard gap trim
+    // because the gap is > 25KB and hits the scan_floor safeguard.
+    // We can reliably find the true end of the decompressed data by finding the largest
+    // contiguous block of unwritten memory.
+    if entry_point == 0x1100 && mem.len() >= 0xED && mem[0xEA..=0xEC] == [0x4C, 0x00, 0x11] {
+        let mut max_gap_len = 0;
+        let mut max_gap_start = 0;
+        let mut current_gap_len = 0;
+        let mut current_gap_start = 0;
+
+        for (i, &is_written) in written
+            .iter()
+            .enumerate()
+            .take(0x10000)
+            .skip(start_addr as usize)
+        {
+            if !is_written {
+                if current_gap_len == 0 {
+                    current_gap_start = i;
+                }
+                current_gap_len += 1;
+            } else {
+                if current_gap_len > max_gap_len {
+                    max_gap_len = current_gap_len;
+                    max_gap_start = current_gap_start;
+                }
+                current_gap_len = 0;
+            }
+        }
+        if current_gap_len > max_gap_len {
+            max_gap_len = current_gap_len;
+            max_gap_start = current_gap_start;
+        }
+
+        if max_gap_len > 256 {
+            let e = max_gap_start.saturating_sub(1);
+            if e >= start_addr as usize {
+                end_addr = e as u16;
+            }
+        }
+    }
+
     // unp64 compatibility for MC-Cracken Compressor:
     // MC-Cracken's first pass depacker jumps to $1100 for the second pass,
     // leaving the exclusive end address at zero page $AE-$AF. unp64 stops emulation
@@ -1591,7 +1635,7 @@ mod tests {
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
         assert_eq!(result.start_addr, 0x0800);
-        assert_eq!(result.end_addr, 0xFFFF);
+        assert_eq!(result.end_addr, 0x9D19);
         assert_eq!(result.entry_point, 0x1100);
         // Dali copies its depacker to zero page ($0003-$00EC) and decompresses
         // to $0800+. With bank-aware I/O emulation ($01=$34 maps RAM at
