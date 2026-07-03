@@ -1464,8 +1464,8 @@ mod tests {
         let result = unpack(&raw, 0x0801, &config, None).unwrap();
         assert_eq!(result.entry_point, 0x0900);
         assert_eq!(result.dep_addr, 0x0003);
-        // The output range should cover $0900
-        assert!(result.start_addr <= 0x0900);
+        assert_eq!(result.start_addr, 0x081C);
+        assert_eq!(result.end_addr, 0x0914);
     }
 
     // -----------------------------------------------------------------------
@@ -1489,12 +1489,8 @@ mod tests {
         assert_eq!(result.dep_addr, 0x0003, "Depacker address should be $0003");
         assert_eq!(result.entry_point, 0x2E00, "Entry point should be $2E00");
 
-        // Data range should start at $0800 (or close to it)
-        assert!(
-            result.start_addr <= 0x0801,
-            "Start address ${:04X} should be <= $0801",
-            result.start_addr
-        );
+        assert_eq!(result.start_addr, 0x0800, "Start address should be $0800");
+        assert_eq!(result.end_addr, 0xFFFF, "End address should be $FFFF");
 
         // Should have executed a reasonable number of instructions
         assert!(
@@ -1547,13 +1543,8 @@ mod tests {
             }
         }
         let result = result.unwrap();
-        // Exomizer should produce substantial output
-        assert!(
-            result.data.len() > 1000,
-            "Expected >1KB output, got {} bytes",
-            result.data.len()
-        );
-        // Entry point should be $2E00 (same as the Dali/LXT version)
+        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.end_addr, 0x31FF);
         assert_eq!(result.entry_point, 0x2E00, "Entry point should be $2E00");
     }
 
@@ -1589,6 +1580,7 @@ mod tests {
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
         assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.end_addr, 0xFFFF);
         assert_eq!(result.entry_point, 0x1100);
         // Dali copies its depacker to zero page ($0003-$00EC) and decompresses
         // to $0800+. With bank-aware I/O emulation ($01=$34 maps RAM at
@@ -1608,9 +1600,8 @@ mod tests {
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
         assert_eq!(result.start_addr, 0x0800);
-        // Our heuristic detects $9D05 (a few bytes short of unp64's $9D19)
-        // due to trim boundary rounding. Close enough for practical use.
         assert_eq!(result.end_addr, 0xFFFF);
+        assert_eq!(result.entry_point, 0x1100);
     }
 
     #[test]
@@ -1625,7 +1616,7 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.start_addr, 0x080D);
         assert_eq!(result.end_addr, 0xC8C5);
         assert_eq!(result.entry_point, 0x0820);
         assert_eq!(result.dep_addr, 0x0100);
@@ -1662,7 +1653,7 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.start_addr, 0x080D);
         assert_eq!(result.end_addr, 0xFEFF);
         assert_eq!(result.entry_point, 0x0810);
         assert_eq!(result.dep_addr, 0x0100);
@@ -1708,9 +1699,8 @@ mod tests {
     }
 
     #[test]
-    fn test_debug_tiny_crunch() {
-        // Debug: manually run emulation to inspect written bitmap
-        let prg_data = std::fs::read("../../tests/6502/c64_traveller.tiny_crunch.prg").unwrap();
+    fn test_unpack_spectro_exo3() {
+        let prg_data = std::fs::read("../../tests/6502/c64_spectro.exo3.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
@@ -1719,29 +1709,11 @@ mod tests {
             ..Default::default()
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
-        println!(
-            "TinyCrunch: start=${:04X} end=${:04X} entry=${:04X} instr={}",
-            result.start_addr, result.end_addr, result.entry_point, result.instructions_executed
-        );
-        println!("Unpacked data length: {}", result.data.len());
-    }
 
-    // #[test]
-    // fn test_unpack_spectro_exo3() {
-    //     let prg_data = std::fs::read("../../tests/6502/c64_spectro.exo3.prg").unwrap();
-    //     let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-    //     let raw_data = &prg_data[2..];
-    //
-    //     let config = UnpackConfig {
-    //         max_instructions: 50_000_000,
-    //         ..Default::default()
-    //     };
-    //     let result = unpack(raw_data, load_addr, &config, None).unwrap();
-    //
-    //     assert_eq!(result.start_addr, 0x080D);
-    //     assert_eq!(result.end_addr, 0xE7FF);
-    //     assert_eq!(result.entry_point, 0x08A1);
-    // }
+        assert_eq!(result.start_addr, 0x080D);
+        assert_eq!(result.end_addr, 0xE7FF);
+        assert_eq!(result.entry_point, 0x08A1);
+    }
 
     #[test]
     fn test_unpack_copperbooze_byte_boozer2() {
