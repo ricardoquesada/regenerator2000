@@ -241,6 +241,204 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Packer
         }
     }
 
+    // Cruel Cruncher (v2.2 / v2.5)
+    if mem.len() > 0x820 && load_addr <= 0x0801 {
+        let q = 0x080D;
+        if q >= load_addr as usize
+            && mem[q] == 0x78
+            && mem[q + 1] == 0xA9
+            && mem[q + 2] == 0x34
+            && mem[q + 3] == 0x85
+            && mem[q + 4] == 0x01
+            && (mem[q + 5] == 0xA2 || mem[q + 5] == 0xA0)
+            && (mem[q + 6] == 0x1A || mem[q + 6] == 0x1F || mem[q + 6] == 0x20)
+        {
+            return Some(PackerInfo {
+                name: "Cruel Cruncher",
+                dep_addr: Some(0x0100),
+                start_addr: Some(0x0801),
+                end_addr: None,
+                entry_point: None,
+                end_addr_ptr: None,
+            });
+        }
+    }
+
+    // Commodore Cruncher System (CCS)
+    if mem.len() > 0x81C && load_addr <= 0x0801 {
+        let q = 0x080D;
+        if q >= load_addr as usize
+            && mem[q] == 0x78
+            && mem[q + 1] == 0xA9
+            && mem[q + 2] == 0x34
+            && mem[q + 3] == 0x85
+            && mem[q + 4] == 0x01
+            && mem[q + 5] == 0xA2
+            && mem[q + 7] == 0xBD
+            && mem[q + 0x0A] == 0x9D
+            && mem[q + 0x0D] == 0xCA
+            && mem[q + 0x0E] == 0xD0
+        {
+            return Some(PackerInfo {
+                name: "Commodore Cruncher System",
+                dep_addr: Some(0x0100),
+                start_addr: Some(0x0801),
+                end_addr: None,
+                entry_point: None,
+                end_addr_ptr: None,
+            });
+        }
+    }
+
+    // Turbo Cruncher (TSK / Mr. Z)
+    if mem.len() > 0x818 && load_addr <= 0x0801 {
+        let q = 0x080D;
+        if q >= load_addr as usize
+            && mem[q] == 0x78
+            && mem[q + 1] == 0xA9
+            && mem[q + 2] == 0x34
+            && mem[q + 3] == 0x85
+            && mem[q + 4] == 0x01
+            && mem[q + 5] == 0x20
+            && mem[q + 8] == 0x4C
+        {
+            return Some(PackerInfo {
+                name: "Turbo Cruncher",
+                dep_addr: Some(0x0100),
+                start_addr: Some(0x0801),
+                end_addr: None,
+                entry_point: None,
+                end_addr_ptr: None,
+            });
+        }
+    }
+
+    // Action Replay Freezer / Packer
+    if mem.len() > 0x818 && load_addr <= 0x0801 {
+        let q = 0x080D;
+        if q >= load_addr as usize
+            && mem[q] == 0x78
+            && (mem[q + 1] == 0xA9 && (mem[q + 2] == 0x37 || mem[q + 2] == 0x34))
+            && mem[q + 3] == 0x85
+            && mem[q + 4] == 0x01
+            && mem[q + 5] == 0xA2
+            && mem[q + 6] == 0x00
+            && mem[q + 7] == 0x8E
+        {
+            return Some(PackerInfo {
+                name: "Action Replay",
+                dep_addr: Some(0x0100),
+                start_addr: Some(0x0801),
+                end_addr: None,
+                entry_point: None,
+                end_addr_ptr: None,
+            });
+        }
+    }
+
+    // Final Cartridge III Freezer / Packer
+    if mem.len() > 0x818 && load_addr <= 0x0801 {
+        let q = 0x080D;
+        if q >= load_addr as usize
+            && mem[q] == 0x78
+            && mem[q + 1] == 0xA9
+            && mem[q + 2] == 0x37
+            && mem[q + 3] == 0x85
+            && mem[q + 4] == 0x01
+            && mem[q + 5] == 0x8D
+            && mem[q + 6] == 0x00
+            && mem[q + 7] == 0xDD
+        {
+            return Some(PackerInfo {
+                name: "Final Cartridge III",
+                dep_addr: Some(0x0100),
+                start_addr: Some(0x0801),
+                end_addr: None,
+                entry_point: None,
+                end_addr_ptr: None,
+            });
+        }
+    }
+
+    // Triad / TC2000 Cruncher
+    if mem.len() > 0x818 && load_addr <= 0x0801 {
+        let q = 0x080D;
+        if q >= load_addr as usize
+            && mem[q] == 0x78
+            && mem[q + 1] == 0xA9
+            && mem[q + 2] == 0x34
+            && mem[q + 3] == 0x85
+            && mem[q + 4] == 0x01
+            && mem[q + 5] == 0xA0
+            && mem[q + 7] == 0xB9
+            && mem[q + 0x0A] == 0x99
+            && mem[q + 0x0D] == 0xC8
+            && mem[q + 0x0E] == 0xD0
+        {
+            return Some(PackerInfo {
+                name: "Triad Cruncher",
+                dep_addr: Some(0x0100),
+                start_addr: Some(0x0801),
+                end_addr: None,
+                entry_point: None,
+                end_addr_ptr: None,
+            });
+        }
+    }
+
+    // Eagle Cruncher
+    if mem.len() > 0x818 && load_addr <= 0x0801 {
+        let q = 0x080D;
+        if q >= load_addr as usize
+            && mem[q] == 0x78
+            && mem[q + 1] == 0xA2
+            && mem[q + 3] == 0xBD
+            && mem[q + 6] == 0x9D
+            && mem[q + 7] == 0x00
+            && mem[q + 8] == 0x01
+            && mem[q + 9] == 0xD0
+            && mem[q + 0x0A] == 0xFC
+            && mem[q + 0x0B] == 0x4C
+            && mem[q + 0x0C] == 0x00
+            && mem[q + 0x0D] == 0x01
+        {
+            return Some(PackerInfo {
+                name: "Eagle Cruncher",
+                dep_addr: Some(0x0100),
+                start_addr: Some(0x0801),
+                end_addr: None,
+                entry_point: None,
+                end_addr_ptr: None,
+            });
+        }
+    }
+
+    // Super Cruncher / Master Cruncher
+    if mem.len() > 0x818 && load_addr <= 0x0801 {
+        let q = 0x080D;
+        if q >= load_addr as usize
+            && mem[q] == 0x78
+            && mem[q + 1] == 0xA9
+            && mem[q + 2] == 0x34
+            && mem[q + 3] == 0x85
+            && mem[q + 4] == 0x01
+            && mem[q + 5] == 0xA2
+            && mem[q + 7] == 0xBD
+            && mem[q + 0x0D] == 0xC8
+            && mem[q + 0x0E] == 0xB9
+            && mem[q + 0x11] == 0x99
+        {
+            return Some(PackerInfo {
+                name: "Super Cruncher",
+                dep_addr: Some(0x0100),
+                start_addr: Some(0x0801),
+                end_addr: None,
+                entry_point: None,
+                end_addr_ptr: None,
+            });
+        }
+    }
+
     None
 }
 
@@ -492,5 +690,93 @@ mod tests {
         assert_eq!(info.dep_addr, Some(0x010E));
         assert_eq!(info.start_addr, Some(0x0801));
         assert_eq!(info.entry_point, Some(0x0911));
+    }
+
+    #[test]
+    fn test_detect_cruel_cruncher() {
+        let mut mem = vec![0; 0x1000];
+        let q = 0x080D;
+        mem[q] = 0x78;
+        mem[q + 1] = 0xA9;
+        mem[q + 2] = 0x34;
+        mem[q + 3] = 0x85;
+        mem[q + 4] = 0x01;
+        mem[q + 5] = 0xA2;
+        mem[q + 6] = 0x1A;
+
+        let info = detect_packer(&mem, 0x0801, 0x0950).unwrap();
+        assert_eq!(info.name, "Cruel Cruncher");
+    }
+
+    #[test]
+    fn test_detect_ccs() {
+        let mut mem = vec![0; 0x1000];
+        let q = 0x080D;
+        mem[q] = 0x78;
+        mem[q + 1] = 0xA9;
+        mem[q + 2] = 0x34;
+        mem[q + 3] = 0x85;
+        mem[q + 4] = 0x01;
+        mem[q + 5] = 0xA2;
+        mem[q + 7] = 0xBD;
+        mem[q + 0x0A] = 0x9D;
+        mem[q + 0x0D] = 0xCA;
+        mem[q + 0x0E] = 0xD0;
+
+        let info = detect_packer(&mem, 0x0801, 0x0950).unwrap();
+        assert_eq!(info.name, "Commodore Cruncher System");
+    }
+
+    #[test]
+    fn test_detect_action_replay() {
+        let mut mem = vec![0; 0x1000];
+        let q = 0x080D;
+        mem[q] = 0x78;
+        mem[q + 1] = 0xA9;
+        mem[q + 2] = 0x37;
+        mem[q + 3] = 0x85;
+        mem[q + 4] = 0x01;
+        mem[q + 5] = 0xA2;
+        mem[q + 6] = 0x00;
+        mem[q + 7] = 0x8E;
+
+        let info = detect_packer(&mem, 0x0801, 0x0950).unwrap();
+        assert_eq!(info.name, "Action Replay");
+    }
+
+    #[test]
+    fn test_detect_final_cartridge() {
+        let mut mem = vec![0; 0x1000];
+        let q = 0x080D;
+        mem[q] = 0x78;
+        mem[q + 1] = 0xA9;
+        mem[q + 2] = 0x37;
+        mem[q + 3] = 0x85;
+        mem[q + 4] = 0x01;
+        mem[q + 5] = 0x8D;
+        mem[q + 6] = 0x00;
+        mem[q + 7] = 0xDD;
+
+        let info = detect_packer(&mem, 0x0801, 0x0950).unwrap();
+        assert_eq!(info.name, "Final Cartridge III");
+    }
+
+    #[test]
+    fn test_detect_triad_cruncher() {
+        let mut mem = vec![0; 0x1000];
+        let q = 0x080D;
+        mem[q] = 0x78;
+        mem[q + 1] = 0xA9;
+        mem[q + 2] = 0x34;
+        mem[q + 3] = 0x85;
+        mem[q + 4] = 0x01;
+        mem[q + 5] = 0xA0;
+        mem[q + 7] = 0xB9;
+        mem[q + 0x0A] = 0x99;
+        mem[q + 0x0D] = 0xC8;
+        mem[q + 0x0E] = 0xD0;
+
+        let info = detect_packer(&mem, 0x0801, 0x0950).unwrap();
+        assert_eq!(info.name, "Triad Cruncher");
     }
 }

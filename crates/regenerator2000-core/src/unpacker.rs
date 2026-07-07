@@ -2014,40 +2014,104 @@ mod tests {
     }
 
     #[test]
-    fn test_debug_mule_dali_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/c64_mule.dali.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
+    fn test_unpack_mule_dali() {
+        let path = "../../tests/6502/c64_mule.dali.prg";
+        let data = std::fs::read(path).unwrap();
+        let load_addr = u16::from_le_bytes([data[0], data[1]]);
+        let config = UnpackConfig::default();
+        let res =
+            unpack(&data[2..], load_addr, &config, None).expect("Should unpack M.U.L.E. Dali");
 
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
-
-        assert_eq!(result.start_addr, 0x0801);
-        assert_eq!(result.end_addr, 0x9D19);
-        assert_eq!(result.entry_point, 0x1100);
-        // Dali copies its depacker to zero page ($0003-$00EC) and decompresses
-        // to $0800+. With bank-aware I/O emulation ($01=$34 maps RAM at
-        // $D000-$DFFF), the depacker runs to completion and exits via JMP $1100.
+        assert_eq!(res.start_addr, 0x0801);
+        assert_eq!(res.end_addr, 0x9D19);
+        assert_eq!(res.entry_point, 0x1100);
     }
 
     #[test]
-    fn test_debug_mule_mccracken_compressor_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/c64_mule.mccracken_compressor.prg").unwrap();
-        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
-        let raw_data = &prg_data[2..];
+    fn test_unpack_mule_exo3() {
+        let path = "../../tests/6502/c64_mule.exo3.prg";
+        let data = std::fs::read(path).unwrap();
+        let load_addr = u16::from_le_bytes([data[0], data[1]]);
+        let config = UnpackConfig::default();
+        let res =
+            unpack(&data[2..], load_addr, &config, None).expect("Should unpack M.U.L.E. Exo3");
 
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
-        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+        assert_eq!(res.start_addr, 0x0801);
+        assert_eq!(res.end_addr, 0x9D19);
+        assert_eq!(res.entry_point, 0x1100);
+    }
 
-        assert_eq!(result.start_addr, 0x0800);
-        assert_eq!(result.end_addr, 0x9D19);
-        assert_eq!(result.entry_point, 0x1100);
+    #[test]
+    fn test_unpack_mule_mccracken_compressor() {
+        let path = "../../tests/6502/c64_mule.mccracken_compressor.prg";
+        let data = std::fs::read(path).unwrap();
+        let load_addr = u16::from_le_bytes([data[0], data[1]]);
+        let config = UnpackConfig::default();
+        let res = unpack(&data[2..], load_addr, &config, None)
+            .expect("Should unpack M.U.L.E. MC-Cracken");
+
+        assert_eq!(res.start_addr, 0x0800);
+        assert_eq!(res.end_addr, 0x9D19);
+        assert_eq!(res.entry_point, 0x1100);
+    }
+
+    #[test]
+    fn test_unpack_mule_pucrunch() {
+        let path = "../../tests/6502/c64_mule.pucrunch.prg";
+        let data = std::fs::read(path).unwrap();
+        let load_addr = u16::from_le_bytes([data[0], data[1]]);
+        let config = UnpackConfig::default();
+        let res =
+            unpack(&data[2..], load_addr, &config, None).expect("Should unpack M.U.L.E. PUCrunch");
+
+        assert_eq!(res.start_addr, 0x0800);
+        assert_eq!(res.end_addr, 0x9D1A);
+        assert_eq!(res.entry_point, 0x1100);
+    }
+
+    #[test]
+    fn test_compare_mule_all_packers_with_unp64() {
+        use std::fs;
+        let cases = [
+            ("c64_mule.dali.prg", 0x0801, 0x9D19, 0x1100),
+            ("c64_mule.exo3.prg", 0x0801, 0x9D19, 0x1100),
+            ("c64_mule.mccracken_compressor.prg", 0x0800, 0x9D19, 0x1100),
+            ("c64_mule.pucrunch.prg", 0x0800, 0x9D1A, 0x1100),
+        ];
+
+        let ref_path = "../../tests/6502/c64_mule.mccracken_compressor.prg";
+        let ref_data = fs::read(ref_path).unwrap();
+        let ref_res = unpack(
+            &ref_data[2..],
+            u16::from_le_bytes([ref_data[0], ref_data[1]]),
+            &UnpackConfig::default(),
+            None,
+        )
+        .unwrap();
+
+        for (f, exp_start, exp_end, exp_entry) in cases {
+            let path = format!("../../tests/6502/{f}");
+            let data = fs::read(&path).unwrap();
+            let load_addr = u16::from_le_bytes([data[0], data[1]]);
+            let res = unpack(&data[2..], load_addr, &UnpackConfig::default(), None)
+                .unwrap_or_else(|e| panic!("Failed to unpack {f}: {e}"));
+
+            assert_eq!(res.start_addr, exp_start, "Start mismatch for {f}");
+            assert_eq!(res.end_addr, exp_end, "End mismatch for {f}");
+            assert_eq!(res.entry_point, exp_entry, "Entry point mismatch for {f}");
+
+            // Verify decompressed payload matches reference output
+            let offset = (res.start_addr - ref_res.start_addr) as usize;
+            let compare_len = res
+                .data
+                .len()
+                .min(ref_res.data.len().saturating_sub(offset));
+            assert_eq!(
+                &res.data[..compare_len],
+                &ref_res.data[offset..offset + compare_len],
+                "Decompressed data for {f} does not match reference"
+            );
+        }
     }
 
     #[test]
