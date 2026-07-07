@@ -1314,6 +1314,13 @@ mod tests {
             "c64_thats_the_way_scoop.time_cruncher.prg",
             "c64_traveller.tiny_crunch.prg",
             "c64_CopperBooze.byte_boozer2.prg",
+            "c64_Bit_by_Bits-BZ!.exo3.prg",
+            "c64_boilerplate.exo3.prg",
+            "c64_druid_too.exo3.prg",
+            "c64_endoskull.exo3.prg",
+            "c64_leftovers-pl.exo3.prg",
+            "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg",
+            "c64_sprite runners.exo3prg.prg",
         ];
         for f in files {
             let path = format!("../../tests/6502/{f}");
@@ -1515,6 +1522,108 @@ mod tests {
                         "D64 PRG unpacked data does not match reference"
                     );
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn test_unpack_untracked_prg_files_with_unp64_comparison() {
+        use std::fs;
+        let cases = [
+            (
+                "c64_Bit_by_Bits-BZ!.exo3.prg",
+                0x0801,
+                0xEF83,
+                0x083A,
+                "c64_Bit_by_Bits-BZ!.exo3.prg.083a",
+            ),
+            (
+                "c64_boilerplate.exo3.prg",
+                0x0801,
+                0xFEA4,
+                0x1000,
+                "c64_boilerplate.exo3.prg.1000",
+            ),
+            (
+                "c64_druid_too.exo3.prg",
+                0x0801,
+                0xCE1F,
+                0x4800,
+                "c64_druid_too.exo3.prg.4800",
+            ),
+            (
+                "c64_endoskull.exo3.prg",
+                0x0801,
+                0xFF29,
+                0x0810,
+                "c64_endoskull.exo3.prg.0810",
+            ),
+            (
+                "c64_leftovers-pl.exo3.prg",
+                0x0801,
+                0xF3F0,
+                0x080E,
+                "c64_leftovers-pl.exo3.prg.080e",
+            ),
+            (
+                "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg",
+                0x0801,
+                0x9FFF,
+                0x2800,
+                "c64_radiant-every_time_i_go_on_pouet.byte_boozer2prg.prg.2800",
+            ),
+            (
+                "c64_sprite runners.exo3prg.prg",
+                0x0801,
+                0x95BF,
+                0x6900,
+                "c64_sprite runners.exo3prg.prg.6900",
+            ),
+        ];
+
+        for (f, exp_start, exp_end, exp_entry, unp64_out_file) in cases {
+            let path = format!("../../tests/6502/{f}");
+            let data = match fs::read(&path) {
+                Ok(d) => d,
+                Err(_) => continue,
+            };
+            assert!(data.len() > 2);
+            let load_addr = u16::from_le_bytes([data[0], data[1]]);
+            let config = UnpackConfig::default();
+            let res = unpack(&data[2..], load_addr, &config, None)
+                .unwrap_or_else(|e| panic!("Failed to unpack {f}: {e}"));
+
+            assert_eq!(res.start_addr, exp_start, "Start addr mismatch for {f}");
+            assert_eq!(res.end_addr, exp_end, "End addr mismatch for {f}");
+            assert_eq!(res.entry_point, exp_entry, "Entry point mismatch for {f}");
+            assert!(
+                res.start_addr <= res.entry_point && res.entry_point <= res.end_addr,
+                "File {f}: entry ${:04X} outside range [${:04X}, ${:04X}]",
+                res.entry_point,
+                res.start_addr,
+                res.end_addr
+            );
+
+            // Compare with unp64 output file if it exists
+            let unp_path = format!("../../tests/6502/{unp64_out_file}");
+            if let Ok(unp_bytes) = fs::read(&unp_path) {
+                let unp_payload = if unp_bytes.len() >= 2 {
+                    &unp_bytes[2..]
+                } else {
+                    &unp_bytes[..]
+                };
+                let unp_start = if unp_bytes.len() >= 2 {
+                    u16::from_le_bytes([unp_bytes[0], unp_bytes[1]])
+                } else {
+                    exp_start
+                };
+                let offset = (res.start_addr - unp_start) as usize;
+                let compare_len = res.data.len().min(unp_payload.len().saturating_sub(offset));
+                assert_eq!(
+                    &res.data[..compare_len],
+                    &unp_payload[offset..offset + compare_len],
+                    "Decompressed data for {f} does not match unp64 output"
+                );
             }
         }
     }
