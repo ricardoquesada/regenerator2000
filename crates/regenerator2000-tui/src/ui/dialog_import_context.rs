@@ -365,6 +365,7 @@ impl Widget for ImportContextDialog {
 
                             // For prototype, we apply directly to see feedback
                             app_state.origin = Addr(new_origin);
+                            app_state.entry_point = Some(Addr(new_start));
 
                             // 3. Disassemble entry sequence if requested
                             if self.disassemble_sequence {

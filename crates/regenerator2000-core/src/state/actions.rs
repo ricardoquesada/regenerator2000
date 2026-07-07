@@ -48,6 +48,7 @@ pub enum AppAction {
     KeyboardShortcuts,
     Undefined,
     UnpackBinary,
+    FileInfo,
     SystemSettings,
     NextImmediateFormat,
     PreviousImmediateFormat,

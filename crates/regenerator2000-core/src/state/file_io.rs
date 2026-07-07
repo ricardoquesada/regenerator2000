@@ -121,6 +121,7 @@ impl AppState {
             ));
         }
 
+        self.entry_point = cursor_start.map(Addr);
         self.entropy = Some(crate::utils::calculate_entropy(&self.raw_data));
         let initial_block_type = if self.system_config.default_is_unexplored {
             BlockType::Undefined
@@ -235,6 +236,7 @@ impl AppState {
         &mut self,
         origin: Addr,
         data: Vec<u8>,
+        entry_point: Option<Addr>,
     ) -> anyhow::Result<LoadedProjectData> {
         let settings = self.settings.clone();
         let file_path = self.file_path.clone();
@@ -251,6 +253,7 @@ impl AppState {
         let last_export_html_filename = self.last_export_html_filename.clone();
 
         let mut loaded_data = self.load_binary(origin, data)?;
+        self.entry_point = entry_point.or(self.entry_point);
 
         self.settings = settings;
         self.file_path = file_path;
@@ -1008,7 +1011,7 @@ mod config_tests {
         let origin = Addr(0x2000);
         let data = vec![0xA9, 0x00, 0x60];
 
-        let res = app_state.load_unpacked_binary(origin, data);
+        let res = app_state.load_unpacked_binary(origin, data, Some(origin));
         assert!(res.is_ok());
 
         assert_eq!(

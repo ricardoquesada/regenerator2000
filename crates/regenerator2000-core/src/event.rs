@@ -52,6 +52,7 @@ pub enum DialogType {
         action: AppAction,
     },
     DocumentSettings,
+    FileInfo,
     ExportAs {
         initial_filename: Option<String>,
         format: ExportFormat,

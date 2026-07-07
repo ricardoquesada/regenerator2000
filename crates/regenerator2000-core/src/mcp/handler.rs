@@ -823,8 +823,9 @@ fn handle_tool_call_internal(
             match crate::unpacker::unpack(&raw_data, load_addr, &config, None) {
                 Ok(result) => {
                     let origin = Addr(result.start_addr);
+                    let entry = Addr(result.entry_point);
                     app_state
-                        .load_unpacked_binary(origin, result.data)
+                        .load_unpacked_binary(origin, result.data, Some(entry))
                         .map_err(|e| McpError {
                             code: -32603,
                             message: format!("Failed to load unpacked binary: {e}"),

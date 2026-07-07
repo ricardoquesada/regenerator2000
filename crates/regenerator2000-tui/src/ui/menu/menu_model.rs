@@ -48,6 +48,7 @@ impl MenuState {
                         ),
                         MenuItem::separator(),
                         MenuItem::new("Unpack Binary", None, Some(AppAction::UnpackBinary)),
+                        MenuItem::new("File Info...", None, Some(AppAction::FileInfo)),
                         MenuItem::separator(),
                         MenuItem::new("Settings", Some("Alt+P"), Some(AppAction::SystemSettings)),
                         MenuItem::separator(),

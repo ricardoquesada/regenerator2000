@@ -72,6 +72,10 @@ pub fn handle_menu_action(
                         crate::ui::dialog_document_settings::DocumentSettingsDialog::new(),
                     ));
                 }
+                DialogType::FileInfo => {
+                    ui_state.active_dialog =
+                        Some(Box::new(crate::ui::dialog_file_info::FileInfoDialog::new()));
+                }
                 DialogType::JumpToAddress => {
                     ui_state.active_dialog = Some(Box::new(
                         crate::ui::dialog_jump_to_address::JumpToAddressDialog::new(),

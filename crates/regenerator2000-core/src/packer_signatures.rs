@@ -15,7 +15,7 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Packer
     // Exomizer 3.x
     for p in ((load_addr as usize)..=(load_end as usize).saturating_sub(8)).rev() {
         if p >= 6 && mem.len() > p + 8 {
-            // Looking for Exomizer 3.0.2 pattern:
+            // Looking for Exomizer 3.x pattern:
             // 69 80 0A 10 0F 06 FD D0
             if mem[p] == 0x69
                 && mem[p + 1] == 0x80
@@ -49,8 +49,23 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Packer
                     }
                 }
 
+                // Differentiate Exomizer 3.0 from Exomizer 3.0.2+:
+                // Exomizer 3.0 uses 08 48 20 1A 01 after get_bits (69 80 0A 10 0F 06 FD D0).
+                let is_exo_30 = p + 12 < mem.len()
+                    && mem[p + 8] == 0x08
+                    && mem[p + 9] == 0x48
+                    && mem[p + 10] == 0x20
+                    && mem[p + 11] == 0x1A
+                    && mem[p + 12] == 0x01;
+
+                let name = if is_exo_30 {
+                    "Exomizer 3.0"
+                } else {
+                    "Exomizer v3.02+"
+                };
+
                 return Some(PackerInfo {
-                    name: "Exomizer v3.02+",
+                    name,
                     dep_addr: Some(0x0100 | (mem[p - 5] as u16)),
                     start_addr: Some(0x0801),
                     end_addr: None,
@@ -64,13 +79,17 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Packer
     // Exomizer 1.x / 2.x
     for p in ((load_addr as usize)..=(load_end as usize).saturating_sub(8)).rev() {
         if mem.len() > p + 7 {
-            // Look for C8 C0 34 D0 (INY, CPY #$34, BNE)
-            if mem[p] == 0xC8 && mem[p + 1] == 0xC0 && mem[p + 3] == 0xD0 {
-                let dep_low = mem[p + 2]; // 0x34
+            // Look for C8 C0 34 D0 or C8 C0 50 D0 (INY, CPY #$34 / CPY #$50, BNE)
+            if mem[p] == 0xC8
+                && mem[p + 1] == 0xC0
+                && (mem[p + 2] == 0x34 || mem[p + 2] == 0x50)
+                && mem[p + 3] == 0xD0
+            {
+                let dep_low = mem[p + 2];
                 // Typical Exomizer pattern follows
                 if mem[p + 7] == 0x4C {
                     return Some(PackerInfo {
-                        name: "Exomizer",
+                        name: "Exomizer 2.x",
                         dep_addr: Some(0x0100 | (dep_low as u16)),
                         start_addr: Some(0x0801), // Set to 0x0801 for f600
                         end_addr: None,
@@ -236,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn test_detect_exomizer_v3() {
+    fn test_detect_exomizer_v3_0() {
         let mut mem = vec![0; 0x1000];
         let p = 0x0900;
         // mem[p..p+8] = 69 80 0A 10 0F 06 FD D0
@@ -248,6 +267,13 @@ mod tests {
         mem[p + 5] = 0x06;
         mem[p + 6] = 0xFD;
         mem[p + 7] = 0xD0;
+
+        // Exomizer 3.0 marker (08 48 20 1A 01)
+        mem[p + 8] = 0x08;
+        mem[p + 9] = 0x48;
+        mem[p + 10] = 0x20;
+        mem[p + 11] = 0x1A;
+        mem[p + 12] = 0x01;
 
         // mem[p-6] = 0x4C, mem[p-4] = 0x01
         mem[p - 6] = 0x4C;
@@ -263,10 +289,34 @@ mod tests {
         mem[p + 0x17] = 0x08;
 
         let info = detect_packer(&mem, 0x0801, 0x0950).unwrap();
-        assert_eq!(info.name, "Exomizer v3.02+");
+        assert_eq!(info.name, "Exomizer 3.0");
         assert_eq!(info.dep_addr, Some(0x0134));
         assert_eq!(info.start_addr, Some(0x0801));
         assert_eq!(info.entry_point, Some(0x0820));
+    }
+
+    #[test]
+    fn test_detect_exomizer_v3_02() {
+        let mut mem = vec![0; 0x1000];
+        let p = 0x0900;
+        mem[p] = 0x69;
+        mem[p + 1] = 0x80;
+        mem[p + 2] = 0x0A;
+        mem[p + 3] = 0x10;
+        mem[p + 4] = 0x0F;
+        mem[p + 5] = 0x06;
+        mem[p + 6] = 0xFD;
+        mem[p + 7] = 0xD0;
+
+        // Not 08 48 20 1A 01 -> v3.02+
+        mem[p + 8] = 0x99;
+
+        mem[p - 6] = 0x4C;
+        mem[p - 5] = 0x34;
+        mem[p - 4] = 0x01;
+
+        let info = detect_packer(&mem, 0x0801, 0x0950).unwrap();
+        assert_eq!(info.name, "Exomizer v3.02+");
     }
 
     #[test]
@@ -280,9 +330,31 @@ mod tests {
         mem[p + 7] = 0x4C;
 
         let info = detect_packer(&mem, 0x0801, 0x0950).unwrap();
-        assert_eq!(info.name, "Exomizer");
+        assert_eq!(info.name, "Exomizer 2.x");
         assert_eq!(info.dep_addr, Some(0x0150));
         assert_eq!(info.start_addr, Some(0x0801));
+    }
+
+    #[test]
+    fn test_detect_exomizer_real_files() {
+        use std::fs;
+        if let Ok(data) = fs::read("../../tests/6502/c64_lft-rodents-in-the-attic.exo3.prg") {
+            let load_addr = u16::from_le_bytes([data[0], data[1]]);
+            let mut mem = vec![0u8; 0x10000];
+            let end = (load_addr as usize + data.len() - 2).min(0x10000);
+            mem[load_addr as usize..end].copy_from_slice(&data[2..2 + (end - load_addr as usize)]);
+            let info = detect_packer(&mem, load_addr, end as u16).unwrap();
+            assert_eq!(info.name, "Exomizer 3.0");
+        }
+
+        if let Ok(data) = fs::read("../../tests/6502/c64_f600.exo.prg") {
+            let load_addr = u16::from_le_bytes([data[0], data[1]]);
+            let mut mem = vec![0u8; 0x10000];
+            let end = (load_addr as usize + data.len() - 2).min(0x10000);
+            mem[load_addr as usize..end].copy_from_slice(&data[2..2 + (end - load_addr as usize)]);
+            let info = detect_packer(&mem, load_addr, end as u16).unwrap();
+            assert_eq!(info.name, "Exomizer 2.x");
+        }
     }
 
     #[test]

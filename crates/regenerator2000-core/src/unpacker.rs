@@ -79,6 +79,12 @@ pub enum UnpackError {
     Phase2Timeout,
     /// No memory was modified during decompression.
     NothingWritten,
+    /// The detected entry point is outside the unpacked memory range.
+    InvalidAddressRange {
+        start_addr: u16,
+        end_addr: u16,
+        entry_point: u16,
+    },
 }
 
 impl fmt::Display for UnpackError {
@@ -89,6 +95,15 @@ impl fmt::Display for UnpackError {
             Self::Phase1Timeout => write!(f, "Phase 1 timeout: depacker not found"),
             Self::Phase2Timeout => write!(f, "Phase 2 timeout: decompression did not finish"),
             Self::NothingWritten => write!(f, "No memory was modified during decompression"),
+            Self::InvalidAddressRange {
+                start_addr,
+                end_addr,
+                entry_point,
+            } => write!(
+                f,
+                "Invalid unpacked range (${:04X}-${:04X}): entry point ${:04X} is outside range",
+                start_addr, end_addr, entry_point
+            ),
         }
     }
 }
@@ -172,7 +187,7 @@ const TOKEN_DIVIDE: u8 = 0xAD;
 /// - With spaces/parens: `SYS (2061)` or `SYS  2061`
 /// - With arithmetic: `SYS 2048+16`, `SYS 2048*1+13`
 #[must_use]
-fn find_sys_address(mem: &[u8]) -> Option<u16> {
+pub(crate) fn find_sys_address(mem: &[u8]) -> Option<u16> {
     // BASIC program starts at $0801
     // Format: [link_lo] [link_hi] [line_lo] [line_hi] [tokens...] [0x00]
     if mem.len() < 0x0806 {
@@ -963,7 +978,6 @@ pub fn unpack(
     // a final exit, preventing both infinite loops and premature termination.
     // -----------------------------------------------------------------------
     let load_end = load_addr.wrapping_add(data_len as u16);
-    let mut basic_run_count: u8 = 0;
 
     loop {
         if total_instructions >= config.max_instructions {
@@ -1004,17 +1018,6 @@ pub fn unpack(
                 );
             } else if (0x0800..=0x0810).contains(&pc) {
                 // Landed in BASIC area — re-parse SYS from freshly decompressed BASIC.
-                // 2-pass depackers (e.g. TinyCrunch) may land here between passes.
-                // Redirect to the SYS address and continue Phase 2 unless we have
-                // already redirected the maximum number of times.
-                if basic_run_count < 3
-                    && let Some(new_entry) = find_sys_address(&cpu.memory.mem)
-                {
-                    basic_run_count += 1;
-                    cpu.registers.program_counter = new_entry;
-                    total_instructions += 1;
-                    continue;
-                }
                 let entry_point = find_sys_address(&cpu.memory.mem).unwrap_or(pc);
                 return finish_unpack(
                     &cpu.memory.mem,
@@ -1257,6 +1260,27 @@ fn finish_unpack(
         && let Some(sys_ep) = find_sys_address(mem)
     {
         entry_point = sys_ep;
+        // If a BASIC SYS stub was found, the unpacked program output must include the stub.
+        if start_addr > 0x0801 {
+            start_addr = 0x0801;
+        }
+    }
+
+    // Invariant validation / adjustment:
+    // Ensure start_addr <= entry_point and entry_point <= end_addr.
+    if entry_point < start_addr && entry_point >= 0x0200 {
+        start_addr = entry_point;
+    }
+    if entry_point > end_addr && (entry_point as usize) < mem.len() {
+        end_addr = entry_point;
+    }
+
+    if entry_point < start_addr || entry_point > end_addr {
+        return Err(UnpackError::InvalidAddressRange {
+            start_addr,
+            end_addr,
+            entry_point,
+        });
     }
 
     let data = mem[start_addr as usize..=end_addr as usize].to_vec();
@@ -1277,6 +1301,65 @@ fn finish_unpack(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_unpack_all_real_prg_files() {
+        use std::fs;
+        let files = [
+            "c64_8_bit_ball.meanteam_cruncher.prg",
+            "c64_lft-rodents-in-the-attic.exo3.prg",
+            "c64_connection-8580.pucrunch.prg",
+            "c64_f600.exo.prg",
+            "c64_moving_tubes_lxt.dali.prg",
+            "c64_thats_the_way_scoop.time_cruncher.prg",
+            "c64_traveller.tiny_crunch.prg",
+            "c64_CopperBooze.byte_boozer2.prg",
+        ];
+        for f in files {
+            let path = format!("../../tests/6502/{f}");
+            if let Ok(data) = fs::read(&path) {
+                if data.len() < 2 {
+                    continue;
+                }
+                let load_addr = u16::from_le_bytes([data[0], data[1]]);
+                let config = UnpackConfig::default();
+                if let Ok(res) = unpack(&data[2..], load_addr, &config, None) {
+                    println!(
+                        "File {:<40}: start=${:04X}, end=${:04X}, entry=${:04X}",
+                        f, res.start_addr, res.end_addr, res.entry_point
+                    );
+                    assert!(
+                        res.start_addr <= res.entry_point && res.entry_point <= res.end_addr,
+                        "File {f}: entry point ${:04X} outside range [${:04X}, ${:04X}]",
+                        res.entry_point,
+                        res.start_addr,
+                        res.end_addr
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_unpack_meanteam_cruncher_real_prg() {
+        use std::fs;
+        let path = "../../tests/6502/c64_8_bit_ball.meanteam_cruncher.prg";
+        let data = match fs::read(path) {
+            Ok(d) => d,
+            Err(_) => return,
+        };
+        assert!(data.len() > 2);
+        let load_addr = u16::from_le_bytes([data[0], data[1]]);
+        let config = UnpackConfig::default();
+        let res = unpack(&data[2..], load_addr, &config, None)
+            .expect("Should unpack Mean Team Cruncher binary");
+
+        assert_eq!(res.start_addr, 0x0801);
+        assert_eq!(res.end_addr, 0xFF9E);
+        assert_eq!(res.entry_point, 0x8100);
+        assert!(res.start_addr <= res.entry_point && res.entry_point <= res.end_addr);
+        assert!(res.data.len() > 30000);
+    }
 
     // -----------------------------------------------------------------------
     // SYS parser tests

@@ -1394,6 +1394,11 @@ impl Core {
                     load_addr,
                 });
             }
+            AppAction::FileInfo => {
+                events.push(CoreEvent::DialogRequested(
+                    crate::event::DialogType::FileInfo,
+                ));
+            }
             _ => {}
         }
 

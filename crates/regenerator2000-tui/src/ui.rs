@@ -14,6 +14,7 @@ pub mod dialog_document_settings;
 pub mod dialog_edit_enum;
 pub mod dialog_export_as;
 pub mod dialog_export_labels;
+pub mod dialog_file_info;
 pub mod dialog_find_references;
 pub mod dialog_go_to_symbol;
 pub mod dialog_import_context;

@@ -22,6 +22,25 @@ pub enum BlockItem {
     },
 }
 
+/// Information about the currently loaded binary file.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FileInfo {
+    /// Start address (origin) in memory.
+    pub start_addr: Addr,
+    /// End address in memory (inclusive).
+    pub end_addr: Addr,
+    /// Size of raw data in bytes.
+    pub size: usize,
+    /// Entry point address, if detected.
+    pub entry_point: Option<Addr>,
+    /// Calculated Shannon entropy (0.0 to 8.0).
+    pub entropy: f32,
+    /// Whether the file is detected as packed.
+    pub is_packed: bool,
+    /// Name of the detected packer, if any.
+    pub packer_name: Option<&'static str>,
+}
+
 pub struct AppState {
     pub file_path: Option<PathBuf>,
     pub project_path: Option<PathBuf>,
@@ -32,6 +51,7 @@ pub struct AppState {
     pub cached_arrows: Vec<CachedArrow>,
     pub disassembler: Disassembler,
     pub origin: Addr,
+    pub entry_point: Option<Addr>,
     pub entropy: Option<f32>,
 
     // Data Conversion State
@@ -102,6 +122,7 @@ impl AppState {
             cached_arrows: Vec::new(),
             disassembler: Disassembler::new(),
             origin: Addr::ZERO,
+            entry_point: None,
             entropy: None,
             block_types: Vec::new(),
             labels: BTreeMap::new(),
@@ -259,6 +280,57 @@ impl AppState {
     pub fn entropy(&self) -> f32 {
         self.entropy
             .unwrap_or_else(|| crate::utils::calculate_entropy(&self.raw_data))
+    }
+
+    /// Returns summary information and metadata about the loaded binary.
+    #[must_use]
+    pub fn file_info(&self) -> FileInfo {
+        let start_addr = self.origin;
+        let size = self.raw_data.len();
+        let end_addr = if size == 0 {
+            start_addr
+        } else {
+            Addr(start_addr.0.saturating_add(size as u16).saturating_sub(1))
+        };
+
+        let mut mem = vec![0u8; 0x10000];
+        let load_start = start_addr.0 as usize;
+        let load_end = load_start.saturating_add(size).min(0x10000);
+        if load_start < 0x10000 {
+            let copy_len = load_end - load_start;
+            mem[load_start..load_end].copy_from_slice(&self.raw_data[..copy_len]);
+        }
+
+        let packer = crate::packer_signatures::detect_packer(
+            &mem,
+            start_addr.0,
+            load_start.saturating_add(size) as u16,
+        );
+
+        let (is_packed, packer_name, entry_point) = if let Some(ref p) = packer {
+            (
+                true,
+                Some(p.name),
+                p.entry_point.map(Addr).or(self.entry_point),
+            )
+        } else {
+            let sys_ep = self
+                .entry_point
+                .or_else(|| crate::unpacker::find_sys_address(&mem).map(Addr));
+            (false, None, sys_ep)
+        };
+
+        let entropy = self.entropy();
+
+        FileInfo {
+            start_addr,
+            end_addr,
+            size,
+            entry_point,
+            entropy,
+            is_packed,
+            packer_name,
+        }
     }
 
     #[must_use]
@@ -490,5 +562,46 @@ mod tests {
             !app_state.labels.contains_key(&d020),
             "Label for D020 should be excluded"
         );
+    }
+
+    #[test]
+    fn test_file_info_empty() {
+        let app_state = AppState::new();
+        let info = app_state.file_info();
+        assert_eq!(info.start_addr, Addr(0x0801));
+        assert_eq!(info.end_addr, Addr(0x0801));
+        assert_eq!(info.size, 0);
+        assert_eq!(info.entry_point, None);
+        assert_eq!(info.is_packed, false);
+        assert_eq!(info.packer_name, None);
+    }
+
+    #[test]
+    fn test_file_info_unpacked_without_sys_stub() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0801);
+        app_state.entry_point = Some(Addr(0x8100));
+        app_state.raw_data = vec![0xEA; 100];
+        let info = app_state.file_info();
+        assert_eq!(info.start_addr, Addr(0x0801));
+        assert_eq!(info.entry_point, Some(Addr(0x8100)));
+        assert_eq!(info.is_packed, false);
+        assert_eq!(info.packer_name, None);
+    }
+
+    #[test]
+    fn test_file_info_with_sys_stub() {
+        let mut app_state = AppState::new();
+        app_state.origin = Addr(0x0801);
+        // 10 SYS 2061 (header: $0801: 0B 08 0A 00 9E 20 32 30 36 31 00 00 00)
+        app_state.raw_data = vec![
+            0x0B, 0x08, 0x0A, 0x00, 0x9E, 0x20, 0x32, 0x30, 0x36, 0x31, 0x00, 0x00, 0x00,
+        ];
+        let info = app_state.file_info();
+        assert_eq!(info.start_addr, Addr(0x0801));
+        assert_eq!(info.end_addr, Addr(0x080D));
+        assert_eq!(info.size, 13);
+        assert_eq!(info.entry_point, Some(Addr(2061)));
+        assert_eq!(info.is_packed, false);
     }
 }
