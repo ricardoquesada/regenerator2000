@@ -1250,6 +1250,15 @@ fn finish_unpack(
         }
     }
 
+    // Override entry point with SYS target if entry point landed in ROM or BASIC stub range ($0800..=$0810)
+    if ((0x0800..=0x0810).contains(&entry_point)
+        || (0xA000..=0xBFFF).contains(&entry_point)
+        || entry_point >= 0xE000)
+        && let Some(sys_ep) = find_sys_address(mem)
+    {
+        entry_point = sys_ep;
+    }
+
     let data = mem[start_addr as usize..=end_addr as usize].to_vec();
 
     Ok(UnpackResult {
@@ -1960,7 +1969,7 @@ mod tests {
 
         assert_eq!(result.start_addr, 0x0801);
         assert_eq!(result.end_addr, 0x98FF);
-        assert_eq!(result.entry_point, 0x080B);
+        assert_eq!(result.entry_point, 0x080D);
         assert_eq!(result.dep_addr, 0x01AB);
     }
 
