@@ -848,7 +848,9 @@ pub fn unpack(
         find_sys_address(&memory.mem).ok_or(UnpackError::NoEntryPoint)?
     };
 
-    let ret_addr = config.forced_ret_addr.unwrap_or(0x0800);
+    let ret_addr = config
+        .forced_ret_addr
+        .unwrap_or_else(|| load_addr.min(0x0800));
     let load_end = (load_addr as usize + data_len).min(0x10000) as u16;
     let packer_info = crate::packer_signatures::detect_packer(&memory.mem, load_addr, load_end);
 
@@ -1833,5 +1835,150 @@ mod tests {
         assert_eq!(result.end_addr, 0xEF2A);
         assert_eq!(result.entry_point, 0x080D);
         assert_eq!(result.dep_addr, 0x01B2);
+    }
+
+    #[test]
+    fn test_unpack_fpp_scroller() {
+        let prg_data = std::fs::read("../../tests/6502/c64_FppScroller.byte_boozer2.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0801);
+        assert_eq!(result.end_addr, 0xA057);
+        assert_eq!(result.entry_point, 0x080D);
+        assert_eq!(result.dep_addr, 0x0010);
+    }
+
+    #[test]
+    fn test_unpack_hbfs() {
+        let prg_data = std::fs::read("../../tests/6502/c64_HBFS.exo3.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 1_000_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0400);
+        assert_eq!(result.end_addr, 0xFEFF);
+        assert_eq!(result.entry_point, 0x080D);
+        assert_eq!(result.dep_addr, 0x01AB);
+    }
+
+    #[test]
+    fn test_unpack_layers() {
+        let prg_data = std::fs::read("../../tests/6502/c64_Layers.exo3.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 1_000_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0801);
+        assert_eq!(result.end_addr, 0xFBF1);
+        assert_eq!(result.entry_point, 0x0834);
+        assert_eq!(result.dep_addr, 0x01C4);
+    }
+
+    #[test]
+    fn test_unpack_connection_8580() {
+        let prg_data = std::fs::read("../../tests/6502/c64_connection-8580.pucrunch.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0810);
+        assert_eq!(result.end_addr, 0xFF40);
+        assert_eq!(result.entry_point, 0x0810);
+        assert_eq!(result.dep_addr, 0x0116);
+    }
+
+    #[test]
+    fn test_unpack_lft_nine() {
+        let prg_data = std::fs::read("../../tests/6502/c64_lft-nine.exo3.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0801);
+        assert_eq!(result.end_addr, 0x7CBC);
+        assert_eq!(result.entry_point, 0x080D);
+        assert_eq!(result.dep_addr, 0x0198);
+    }
+
+    #[test]
+    fn test_unpack_lft_rodents() {
+        let prg_data =
+            std::fs::read("../../tests/6502/c64_lft-rodents-in-the-attic.exo3.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0801);
+        assert_eq!(result.end_addr, 0xC56B);
+        assert_eq!(result.entry_point, 0x080D);
+        assert_eq!(result.dep_addr, 0x01A1);
+    }
+
+    #[test]
+    fn test_unpack_little_things() {
+        let prg_data = std::fs::read("../../tests/6502/c64_little_things.exo3.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0801);
+        assert_eq!(result.end_addr, 0x98FF);
+        assert_eq!(result.entry_point, 0x080B);
+        assert_eq!(result.dep_addr, 0x01AB);
+    }
+
+    #[test]
+    fn test_unpack_robot_not_human() {
+        let prg_data = std::fs::read("../../tests/6502/c64_robot - not human.exo3.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0801);
+        assert_eq!(result.end_addr, 0xCBE6);
+        assert_eq!(result.entry_point, 0x0810);
+        assert_eq!(result.dep_addr, 0x01AB);
     }
 }

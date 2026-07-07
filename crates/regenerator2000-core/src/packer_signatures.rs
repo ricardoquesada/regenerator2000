@@ -34,7 +34,10 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Packer
                         for j in (k + 3)..mem.len().saturating_sub(2) {
                             if mem[j] == 0x4C {
                                 let target = u16::from_le_bytes([mem[j + 1], mem[j + 2]]);
-                                if target >= 0x0200 {
+                                if target >= 0x0200
+                                    && !(0xA000..=0xBFFF).contains(&target)
+                                    && !(0xE000..=0xFFFF).contains(&target)
+                                {
                                     entry_point = Some(target);
                                     break;
                                 }
