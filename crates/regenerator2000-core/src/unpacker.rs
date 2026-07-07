@@ -1862,7 +1862,7 @@ mod tests {
         let raw_data = &prg_data[2..];
 
         let config = UnpackConfig {
-            max_instructions: 1_000_000_000,
+            max_instructions: 50_000_000,
             ..Default::default()
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
@@ -1880,7 +1880,7 @@ mod tests {
         let raw_data = &prg_data[2..];
 
         let config = UnpackConfig {
-            max_instructions: 1_000_000_000,
+            max_instructions: 50_000_000,
             ..Default::default()
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
