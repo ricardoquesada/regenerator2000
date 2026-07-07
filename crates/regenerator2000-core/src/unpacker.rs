@@ -1691,7 +1691,7 @@ mod tests {
 
     #[test]
     fn test_debug_roma_unpack() {
-        let prg_data = std::fs::read("../../tests/6502/c64_roma.exo3.prg").unwrap();
+        let prg_data = std::fs::read("../../tests/6502/c64_roma.exe.exo3.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
