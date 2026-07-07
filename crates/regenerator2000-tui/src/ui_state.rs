@@ -296,6 +296,10 @@ impl UIState {
             .unwrap_or("");
 
         if ext != "regen2000proj" {
+            let detected_packer = loaded_data
+                .detected_packer
+                .as_deref()
+                .or_else(|| app_state.file_info().packer_name);
             self.push_dialog(Box::new(
                 crate::ui::dialog_import_context::ImportContextDialog::new(
                     &app_state.settings.system.to_string(),
@@ -303,6 +307,7 @@ impl UIState {
                     loaded_data.suggested_entry_point,
                     loaded_data.suggested_system.clone(),
                     loaded_data.entropy_warning,
+                    detected_packer,
                 ),
             ));
         }

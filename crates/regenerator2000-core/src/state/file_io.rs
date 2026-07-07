@@ -156,6 +156,7 @@ impl AppState {
             entropy_warning: self.check_entropy(),
             suggested_entry_point: cursor_start.map(Addr),
             suggested_system,
+            detected_packer: self.file_info().packer_name.map(String::from),
         })
     }
 
@@ -224,6 +225,7 @@ impl AppState {
             entropy_warning: self.check_entropy(),
             suggested_entry_point: None,
             suggested_system: None,
+            detected_packer: self.file_info().packer_name.map(String::from),
         })
     }
 
@@ -398,6 +400,7 @@ impl AppState {
             entropy_warning: None,
             suggested_entry_point: None,
             suggested_system: None,
+            detected_packer: None,
         })
     }
 
@@ -568,6 +571,7 @@ impl AppState {
             entropy_warning: self.check_entropy(),
             suggested_entry_point: None,
             suggested_system: None,
+            detected_packer: self.file_info().packer_name.map(String::from),
         })
     }
 

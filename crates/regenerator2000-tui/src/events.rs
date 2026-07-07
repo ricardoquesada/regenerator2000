@@ -207,6 +207,7 @@ fn handle_unpack_complete(
                             Some(entry),
                             None,
                             None,
+                            Option::<String>::None,
                         ),
                     ));
                 }

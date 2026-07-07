@@ -111,6 +111,7 @@ pub struct LoadedProjectData {
     pub entropy_warning: Option<f32>,
     pub suggested_entry_point: Option<Addr>,
     pub suggested_system: Option<System>,
+    pub detected_packer: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

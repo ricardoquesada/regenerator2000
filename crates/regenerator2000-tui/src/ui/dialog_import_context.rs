@@ -19,6 +19,7 @@ pub struct ImportContextDialog {
     pub disassemble_sequence: bool,
     pub active_field: usize, // 0: System, 1: Origin, 2: Start, 3: Checkbox, 4: Confirm, 5: Cancel
     pub entropy: Option<f32>,
+    pub packer_name: Option<String>,
     pub is_selecting_system: bool,
 }
 
@@ -30,10 +31,15 @@ impl ImportContextDialog {
         suggested_entry: Option<Addr>,
         suggested_system: Option<System>,
         entropy: Option<f32>,
+        packer_name: Option<impl Into<String>>,
     ) -> Self {
         let systems = crate::assets::get_available_systems();
         let target_system = suggested_system.as_deref().unwrap_or(current_system);
         let selected_system_idx = systems.iter().position(|p| p == target_system).unwrap_or(0);
+
+        let packer_str: Option<String> = packer_name.map(Into::into);
+        let show_unpack = entropy.is_some() || packer_str.is_some();
+        let active_field = if show_unpack { 5 } else { 4 };
 
         Self {
             systems,
@@ -41,21 +47,51 @@ impl ImportContextDialog {
             origin_input: format!("{:04X}", current_origin.0),
             start_input: format!("{:04X}", suggested_entry.unwrap_or(current_origin).0),
             disassemble_sequence: true,
-            active_field: 4, // Default to Confirm button
+            active_field,
             entropy,
+            packer_name: packer_str,
             is_selecting_system: false,
         }
+    }
+
+    fn show_unpack(&self, app_state: &AppState) -> bool {
+        self.entropy.is_some() || self.packer_name.is_some() || app_state.file_info().is_packed
+    }
+
+    fn cancel_field_index(&self, app_state: &AppState) -> usize {
+        if self.show_unpack(app_state) { 6 } else { 5 }
+    }
+
+    fn max_fields(&self, app_state: &AppState) -> usize {
+        if self.show_unpack(app_state) { 7 } else { 6 }
     }
 }
 
 impl Widget for ImportContextDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
+    fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let block = crate::ui::widget::create_dialog_block(" Import Context Setup ", theme);
 
-        // Dialog fits content: 10 lines + 2 borders (+3 for entropy warning)
-        let has_entropy = self.entropy.is_some();
-        let min_height = if has_entropy { 15 } else { 12 };
+        let packer = self
+            .packer_name
+            .as_deref()
+            .or_else(|| app_state.file_info().packer_name);
+
+        let warn_msg = match (self.entropy, packer) {
+            (Some(ent), Some(packer)) => {
+                Some(format!("⚠️ High Entropy ({ent:.2}). Packed with {packer}."))
+            }
+            (Some(ent), None) => Some(format!(
+                "⚠️ High Entropy ({ent:.2}). Possibly packed or compressed."
+            )),
+            (None, Some(packer)) => Some(format!("⚠️ Packed with {packer}.")),
+            (None, None) => None,
+        };
+
+        let show_unpack = warn_msg.is_some() || self.show_unpack(app_state);
+
+        // Dialog fits content: 10 lines + 2 borders (+1 for entropy/packer warning)
+        let min_height = if show_unpack { 13 } else { 12 };
         let area = crate::utils::centered_rect_adaptive(50, 45, 0, min_height, area);
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
@@ -75,7 +111,7 @@ impl Widget for ImportContextDialog {
                 Constraint::Length(1), // Checkbox
                 Constraint::Length(1), // Spacer
                 Constraint::Length(1), // Buttons
-                Constraint::Min(1),    // Warning (multi-line when entropy is high)
+                Constraint::Min(1), // Warning (1-line when entropy is high or packer is detected)
             ])
             .split(inner);
 
@@ -158,9 +194,21 @@ impl Widget for ImportContextDialog {
 
         // --- Buttons ---
         let confirm_selected = self.active_field == 4;
-        let cancel_selected = self.active_field == 5;
+        let unpack_selected = show_unpack && self.active_field == 5;
+        let cancel_selected = if show_unpack {
+            self.active_field == 6
+        } else {
+            self.active_field == 5
+        };
 
         let confirm_style = if confirm_selected {
+            Style::default()
+                .fg(theme.highlight_fg)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(theme.dialog_fg)
+        };
+        let unpack_style = if unpack_selected {
             Style::default()
                 .fg(theme.highlight_fg)
                 .add_modifier(Modifier::BOLD)
@@ -175,34 +223,37 @@ impl Widget for ImportContextDialog {
             Style::default().fg(theme.dialog_fg)
         };
 
-        let buttons_text = Line::from(vec![
-            Span::styled("  < Confirm >  ", confirm_style),
-            Span::raw("    "),
-            Span::styled("  < Cancel >  ", cancel_style),
-        ]);
+        let confirm_label = if show_unpack {
+            " < Disassemble > "
+        } else {
+            "  < Confirm >  "
+        };
+
+        let buttons_text = if show_unpack {
+            Line::from(vec![
+                Span::styled(confirm_label, confirm_style),
+                Span::raw("  "),
+                Span::styled(" < Unpack > ", unpack_style),
+                Span::raw("  "),
+                Span::styled(" < Cancel > ", cancel_style),
+            ])
+        } else {
+            Line::from(vec![
+                Span::styled("  < Confirm >  ", confirm_style),
+                Span::raw("    "),
+                Span::styled("  < Cancel >  ", cancel_style),
+            ])
+        };
         f.render_widget(Paragraph::new(buttons_text), layout[8]);
 
-        // --- High Entropy Warning ---
-        if let Some(ent) = self.entropy {
+        // --- High Entropy / Packer Warning ---
+        if let Some(msg) = warn_msg {
             use ratatui::text::Text;
             use ratatui::widgets::Paragraph;
             let warn_style = Style::default()
                 .fg(ratatui::style::Color::Yellow)
                 .add_modifier(Modifier::BOLD);
-            let warn_text = Text::from(vec![
-                Line::from(Span::styled(
-                    format!("⚠️ High Entropy ({ent:.2}). Possibly packed or compressed."),
-                    warn_style,
-                )),
-                Line::from(Span::styled(
-                    "Unpack from Main Menu -> File -> Unpack Binary,",
-                    warn_style,
-                )),
-                Line::from(Span::styled(
-                    "or use external tools like unp64.",
-                    warn_style,
-                )),
-            ]);
+            let warn_text = Text::from(vec![Line::from(Span::styled(msg, warn_style))]);
             f.render_widget(
                 Paragraph::new(warn_text).alignment(ratatui::layout::Alignment::Center),
                 layout[9],
@@ -288,18 +339,22 @@ impl Widget for ImportContextDialog {
             }
         }
 
+        let show_unpack = self.show_unpack(app_state);
+        let max_fields = self.max_fields(app_state);
+        let cancel_field = self.cancel_field_index(app_state);
+
         match key.code {
             KeyCode::Esc => {
                 ui_state.set_status_message("Ready");
                 WidgetResult::Close
             }
             KeyCode::Tab | KeyCode::Down => {
-                self.active_field = (self.active_field + 1) % 6;
+                self.active_field = (self.active_field + 1) % max_fields;
                 WidgetResult::Handled
             }
             KeyCode::BackTab | KeyCode::Up => {
                 if self.active_field == 0 {
-                    self.active_field = 5;
+                    self.active_field = max_fields - 1;
                 } else {
                     self.active_field -= 1;
                 }
@@ -312,17 +367,26 @@ impl Widget for ImportContextDialog {
                     } else {
                         self.selected_system_idx -= 1;
                     }
-                } else if self.active_field == 4 || self.active_field == 5 {
-                    // Toggle confirmation buttons
-                    if self.active_field == 5 {
+                } else if show_unpack {
+                    if self.active_field == 6 {
+                        self.active_field = 5;
+                    } else if self.active_field == 5 {
                         self.active_field = 4;
                     }
+                } else if self.active_field == 5 {
+                    self.active_field = 4;
                 }
                 WidgetResult::Handled
             }
             KeyCode::Right => {
                 if self.active_field == 0 && !self.systems.is_empty() {
                     self.selected_system_idx = (self.selected_system_idx + 1) % self.systems.len();
+                } else if show_unpack {
+                    if self.active_field == 4 {
+                        self.active_field = 5;
+                    } else if self.active_field == 5 {
+                        self.active_field = 6;
+                    }
                 } else if self.active_field == 4 {
                     self.active_field = 5;
                 }
@@ -343,10 +407,21 @@ impl Widget for ImportContextDialog {
                 } else if self.active_field == 0 {
                     self.is_selecting_system = true;
                     WidgetResult::Handled
-                } else if self.active_field == 4
-                    || (key.code == KeyCode::Enter && self.active_field != 5)
-                {
-                    // Apply changes
+                } else if show_unpack && self.active_field == 5 {
+                    // < Unpack > button
+                    if let Ok(new_origin) = u16::from_str_radix(&self.origin_input, 16) {
+                        app_state.origin = Addr(new_origin);
+                    }
+                    if let Ok(new_start) = u16::from_str_radix(&self.start_input, 16) {
+                        app_state.entry_point = Some(Addr(new_start));
+                    }
+                    ui_state.set_status_message("Unpacking...");
+                    WidgetResult::Action(crate::state::actions::AppAction::UnpackBinary)
+                } else if self.active_field == cancel_field {
+                    // < Cancel > button
+                    WidgetResult::Close
+                } else {
+                    // < Confirm > or < Disassemble > or Enter on input fields (1, 2)
                     if let Ok(new_origin) = u16::from_str_radix(&self.origin_input, 16) {
                         if let Ok(new_start) = u16::from_str_radix(&self.start_input, 16) {
                             let system_name = self
@@ -359,11 +434,7 @@ impl Widget for ImportContextDialog {
                             app_state.settings.system = crate::state::System::from(system_name);
                             app_state.load_system_assets();
 
-                            // 2. Apply Origin (Trigger command so it's undoable)
-                            // Note: Origin application might require a core command update or UIAction.
-                            // We can use the existing ApplyOrigin action if available or implement it.
-
-                            // For prototype, we apply directly to see feedback
+                            // 2. Apply Origin & Entry
                             app_state.origin = Addr(new_origin);
                             app_state.entry_point = Some(Addr(new_start));
 
@@ -412,10 +483,6 @@ impl Widget for ImportContextDialog {
                         ui_state.set_status_message("Invalid Origin Address");
                         WidgetResult::Handled
                     }
-                } else if self.active_field == 5 {
-                    WidgetResult::Close
-                } else {
-                    WidgetResult::Handled
                 }
             }
             KeyCode::Char(c) => {
@@ -430,5 +497,106 @@ impl Widget for ImportContextDialog {
             }
             _ => WidgetResult::Handled,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+    #[test]
+    fn test_import_context_dialog_new_packed_default_focus() {
+        let dialog = ImportContextDialog::new(
+            "C64",
+            Addr(0x0801),
+            Some(Addr(0x080d)),
+            None,
+            Some(7.55),
+            Some("Exomizer 3.x"),
+        );
+        assert_eq!(dialog.entropy, Some(7.55));
+        assert_eq!(dialog.packer_name.as_deref(), Some("Exomizer 3.x"));
+        // Primary button should focus < Unpack > (index 5)
+        assert_eq!(dialog.active_field, 5);
+    }
+
+    #[test]
+    fn test_import_context_dialog_new_unpacked_default_focus() {
+        let dialog = ImportContextDialog::new(
+            "C64",
+            Addr(0x0801),
+            Some(Addr(0x080d)),
+            None,
+            None,
+            Option::<String>::None,
+        );
+        assert_eq!(dialog.entropy, None);
+        assert_eq!(dialog.packer_name, None);
+        // Primary button should focus < Confirm > (index 4)
+        assert_eq!(dialog.active_field, 4);
+    }
+
+    #[test]
+    fn test_import_context_dialog_unpack_action() {
+        let mut dialog = ImportContextDialog::new(
+            "C64",
+            Addr(0x0801),
+            Some(Addr(0x080d)),
+            None,
+            Some(7.55),
+            Some("Exomizer 3.x"),
+        );
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new();
+
+        // Focused on Unpack (index 5). Pressing Enter should trigger AppAction::UnpackBinary.
+        let key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
+        let res = dialog.handle_input(key, &mut app_state, &mut ui_state);
+
+        assert_eq!(
+            res,
+            WidgetResult::Action(crate::state::actions::AppAction::UnpackBinary)
+        );
+    }
+
+    #[test]
+    fn test_import_context_dialog_button_navigation() {
+        let mut dialog = ImportContextDialog::new(
+            "C64",
+            Addr(0x0801),
+            Some(Addr(0x080d)),
+            None,
+            Some(7.55),
+            Some("Exomizer 3.x"),
+        );
+        let mut app_state = AppState::new();
+        let mut ui_state = UIState::new();
+
+        assert_eq!(dialog.active_field, 5); // Unpack
+
+        // Left -> Disassemble (4)
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Left, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.active_field, 4);
+
+        // Right -> Unpack (5)
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.active_field, 5);
+
+        // Right -> Cancel (6)
+        dialog.handle_input(
+            KeyEvent::new(KeyCode::Right, KeyModifiers::NONE),
+            &mut app_state,
+            &mut ui_state,
+        );
+        assert_eq!(dialog.active_field, 6);
     }
 }
