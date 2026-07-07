@@ -48,9 +48,9 @@ algorithm:
 
 Many packers start with a BASIC bootstrap stub (`10 SYS 2061`) which jumps into a loader.
 
-* The emulator begins executing instructions starting at the parsed `SYS` address.
-* It emulates instructions sequentially, looking for where the decompressed unpacking loop is located.
-* The emulator detects this because the depacker typically runs in high memory or inside a zero-page workspace, and once
+- The emulator begins executing instructions starting at the parsed `SYS` address.
+- It emulates instructions sequentially, looking for where the decompressed unpacking loop is located.
+- The emulator detects this because the depacker typically runs in high memory or inside a zero-page workspace, and once
   the bootstrap finishes setting up, the program counter (`PC`) drops below the return address boundary (default:
   `$0800`).
 
@@ -58,10 +58,10 @@ Many packers start with a BASIC bootstrap stub (`10 SYS 2061`) which jumps into 
 
 Once the decompression routine begins:
 
-* The emulator continues execution, but it now turns on a **write-tracking bitmap** covering the entire 64 KB RAM
+- The emulator continues execution, but it now turns on a **write-tracking bitmap** covering the entire 64 KB RAM
   address space.
-* Every time the emulated CPU writes a byte to memory, the corresponding bit is set to `true`.
-* Decompression continues until the `PC` jumps back above the return address boundary (returning to normal RAM space,
+- Every time the emulated CPU writes a byte to memory, the corresponding bit is set to `true`.
+- Decompression continues until the `PC` jumps back above the return address boundary (returning to normal RAM space,
   usually around `$0800` or the game's start address), signaling that the packer has completed decompression and is
   about to jump to the main game loop.
 
@@ -69,11 +69,27 @@ Once the decompression routine begins:
 
 Once the emulation stops:
 
-* The unpacker analyzes the write-tracking bitmap to locate the lowest and highest modified RAM memory addresses.
-* It compares the final memory state with a pre-emulation snapshot to trim out temporary depacker workspaces (which are
+- The unpacker analyzes the write-tracking bitmap to locate the lowest and highest modified RAM memory addresses.
+- It compares the final memory state with a pre-emulation snapshot to trim out temporary depacker workspaces (which are
   often written near the very end of RAM).
-* The modified range is extracted as a fresh, clean binary payload, and the final `PC` is captured to automatically
+- The modified range is extracted as a fresh, clean binary payload, and the final `PC` is captured to automatically
   suggest the correct decompressed **Entry Point** for your disassembly session.
+
+---
+
+## Packer Signature Database
+
+To ensure reliable decompression across diverse packer variants, Regenerator 2000 includes an automated **Packer Signature Database** that inspects the binary before emulation begins.
+
+When a signature match is found, the unpacker automatically tunes its emulation parameters:
+
+- **Exomizer (v1.x, 2.x, 3.0, 3.02+)**: Identifies `get_bits` or decruncher loops, extracts entry points, and handles zero-page pointer overrides.
+- **Dali (v0.3.3+)**: Dynamically resolves entry points and extracts end-address pointers from zero-page decruncher tables.
+- **ByteBoozer (v1.0 & v2.0)**: Detects zero-page workspace locations (`$10`) and landing entry points.
+- **PUCrunch**: Intercepts zero-page end-address pointer (`$FA`) and start address headers.
+- **TinyCrunch (v1 & v2)**: Handles 2-pass in-place decrunchers and calculates accurate memory boundaries.
+- **MC-Cracken**: Extracted end-address pointers (`$77`) and entry point targets.
+- **Other Supported Packers**: Cruel Cruncher, Time Cruncher (Scoop), Commodore Cruncher System (CCS), Turbo Cruncher / Action Cruncher, HBFS, Layers, and more.
 
 ---
 
@@ -82,13 +98,13 @@ Once the emulation stops:
 To ensure high compatibility with packers that utilize sophisticated hardware configurations, the unpacker implements
 advanced system-level sandboxing features:
 
-* **PLA Bank Switching**: Simulates C64 Processor Port (`$01`) banking logic. It correctly handles cases where packers
+- **PLA Bank Switching**: Simulates C64 Processor Port (`$01`) banking logic. It correctly handles cases where packers
   decompress data into RAM hidden underneath the `$D000`–`$DFFF` I/O area, or mapping BASIC and Kernal ROMs in and out.
-* **ROM Interception Stubs**: Rather than loading actual C64 Kernal and BASIC ROMs (which are copyrighted), the emulator
+- **ROM Interception Stubs**: Rather than loading actual C64 Kernal and BASIC ROMs (which are copyrighted), the emulator
   intercepts standard Commodore ROM entry vectors (such as the KERNAL `GETIN` vector at `$FFE4`, `CHROUT` at `$FFD2`, or
   screen clear `CINT` at `$FF5B`). It feeds simulated keystrokes, completes screen operations, and forces simulated
   subroutine returns (`RTS`) to prevent the emulated CPU from looping forever on missing hardware components.
-* **PLA-visible RAM Writes**: Suppresses writes to the `$D000` I/O chip registers unless the PLA configuration maps RAM
+- **PLA-visible RAM Writes**: Suppresses writes to the `$D000` I/O chip registers unless the PLA configuration maps RAM
   underneath, preventing hardware registers from acting as dead-ends during emulation.
 
 ---
@@ -122,16 +138,18 @@ To unpack the loaded binary:
 
 ## Troubleshooting / Configuration Limits
 
-* **Timeout limits**: To prevent bad stubs or infinite loops from freezing the application, the unpacker has a safety
+- **Timeout limits**: To prevent bad stubs or infinite loops from freezing the application, the unpacker has a safety
   limit of **50 million instructions**. If a packer exceeds this without exiting Phase 2, the operation aborts with a
   timeout error.
-* **Custom ROMs**: For extremely specialized packers that require actual KERNAL/BASIC ROM code execution, the underlying
+- **Custom ROMs**: For extremely specialized packers that require actual KERNAL/BASIC ROM code execution, the underlying
   library supports loading custom `$A000` and `$E000` ROM images (configurable via the core configuration).
 
 ## Differences with unp64
 
 While Regenerator 2000's unpacker uses `unp64` heuristics, its cycle-accurate emulation sometimes produces more accurate or slightly different bounding values than `unp64`'s static analysis or pointer-sniffing:
 
-* **TinyCrunch**: `unp64` intercepts a zero-page pointer mid-decompression to blindly calculate the maximum theoretical memory boundary (e.g. `$FFFD`). Regenerator 2000 tracks actual memory writes, which correctly identifies that the payload may only actually fill up to a lower address (e.g. `$7949`).
-* **Exomizer 3**: `unp64` checks differences against an empty buffer, missing cases where Exomizer explicitly zeroes out the first byte at `$0800`. Regenerator 2000 correctly tracks writes to `$0800`. Furthermore, our emulator traverses the execution stub to identify the true payload entry point (e.g. `$806A`) rather than just the exit routine jump (e.g. `$08A1`).
-* **ByteBoozer 2**: Similar to TinyCrunch, ByteBoozer zeroes out memory space up to `$FFFF` dynamically. `unp64` relies on a static override (e.g. `$E7FF`), while our memory heuristics correctly report that all memory up to `$FFFF` was actually modified.
+- **TinyCrunch**: `unp64` intercepts a zero-page pointer mid-decompression to blindly calculate the maximum theoretical memory boundary (e.g. `$FFFD`). Regenerator 2000 tracks actual memory writes, which correctly identifies that the payload may only actually fill up to a lower address (e.g. `$7949`).
+- **Exomizer 3**: `unp64` checks differences against an empty buffer, missing cases where Exomizer explicitly zeroes out the first byte at `$0800`. Regenerator 2000 correctly tracks writes to `$0800`. Furthermore, our emulator traverses the execution stub to identify the true payload entry point (e.g. `$806A`) rather than just the exit routine jump (e.g. `$08A1`).
+- **ByteBoozer 2**: Similar to TinyCrunch, ByteBoozer zeroes out memory space up to `$FFFF` dynamically. `unp64` relies on a static override (e.g. `$E7FF`), while our memory heuristics correctly report that all memory up to `$FFFF` was actually modified.
+- **Dali**: Extracted zero-page end-address pointers and dynamic entry point resolution prevent truncation on non-standard payload sizes.
+- **MC-Cracken**: End-address pointer (`$77`) sniffing and entry point resolution match `unp64` behavior for MC-Cracken compressed executables.

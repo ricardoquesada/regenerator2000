@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.19] - 2026-07-06
+
+### Features
+
+- **Unpacker**: Add classic and demoscene packer signature database detection (Dali, TinyCrunch, Exomizer, ByteBoozer, etc.).
+- **UI**: Add File Info dialog to display binary information, origin address, and entropy.
+- **UI**: Add overwrite confirmation dialog for save and export operations.
+- **CI**: Add crates.io release workflow pipeline.
+
+### Fixes
+
+- **Unpacker**: Fix entry point resolution for BASIC stub and ROM landing addresses.
+- **Unpacker**: Fix MC-Cracken Compressor, ByteBoozer 2, Exomizer v3, and in-place 2-pass depackers (TinyCrunch) to match unp64 output.
+- **Unpacker**: Support dynamic entry points and end address detection in Dali depacker.
+- **Unpacker**: Fix unpacking errors on longer programs by expanding max instruction bounds.
+
+### Refactor / Internal
+
+- **Crate Manifests**: Add homepage and documentation links to crate manifests.
+- **Dependencies**: Upgrade cargo dependencies.
+
+### Documentation
+
+- **Unpacker**: Document unpacker edge cases against unp64.
+- **MCP**: Update MCP documentation with Claude Code setup and CLI examples.
+- **Docs**: Fix formatting in architecture documentation, views, keyboard shortcuts, and terminology.
+
 ## [0.9.18] - 2026-05-31
 
 ### Features
