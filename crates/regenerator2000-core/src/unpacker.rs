@@ -1361,6 +1361,164 @@ mod tests {
         assert!(res.data.len() > 30000);
     }
 
+    #[test]
+    fn test_unpack_moving_tubes_dali() {
+        use std::fs;
+        let path = "../../tests/6502/c64_moving_tubes_lxt.dali.prg";
+        let data = match fs::read(path) {
+            Ok(d) => d,
+            Err(_) => return,
+        };
+        assert!(data.len() > 2);
+        let load_addr = u16::from_le_bytes([data[0], data[1]]);
+        let config = UnpackConfig::default();
+        let res = unpack(&data[2..], load_addr, &config, None).expect("Should unpack Dali binary");
+
+        assert_eq!(res.start_addr, 0x0801);
+        assert_eq!(res.end_addr, 0x31FF);
+        assert_eq!(res.entry_point, 0x2E00);
+        assert!(res.start_addr <= res.entry_point && res.entry_point <= res.end_addr);
+        assert!(res.data.len() > 10000);
+    }
+
+    #[test]
+    fn test_unpack_moving_tubes_exo3() {
+        use std::fs;
+        let path = "../../tests/6502/c64_moving_tubes_lxt.exo3.prg";
+        let data = match fs::read(path) {
+            Ok(d) => d,
+            Err(_) => return,
+        };
+        assert!(data.len() > 2);
+        let load_addr = u16::from_le_bytes([data[0], data[1]]);
+        let config = UnpackConfig::default();
+        let res =
+            unpack(&data[2..], load_addr, &config, None).expect("Should unpack Exomizer 3 binary");
+
+        assert_eq!(res.start_addr, 0x0801);
+        assert_eq!(res.end_addr, 0x31FF);
+        assert_eq!(res.entry_point, 0x2E00);
+        assert!(res.start_addr <= res.entry_point && res.entry_point <= res.end_addr);
+        assert!(res.data.len() > 10000);
+    }
+
+    #[test]
+    fn test_unpack_moving_tubes_pucrunch() {
+        use std::fs;
+        let path = "../../tests/6502/c64_moving_tubes_lxt.pucrunch.prg";
+        let data = match fs::read(path) {
+            Ok(d) => d,
+            Err(_) => return,
+        };
+        assert!(data.len() > 2);
+        let load_addr = u16::from_le_bytes([data[0], data[1]]);
+        let config = UnpackConfig::default();
+        let res =
+            unpack(&data[2..], load_addr, &config, None).expect("Should unpack PUCrunch binary");
+
+        assert_eq!(res.start_addr, 0x0800);
+        assert_eq!(res.end_addr, 0x3200);
+        assert_eq!(res.entry_point, 0x2E00);
+        assert!(res.start_addr <= res.entry_point && res.entry_point <= res.end_addr);
+        assert!(res.data.len() > 10000);
+    }
+
+    #[test]
+    fn test_unpack_moving_tubes_d64() {
+        use std::fs;
+        let path = "../../tests/6502/c64_moving_tubes_lxt.d64";
+        let data = match fs::read(path) {
+            Ok(d) => d,
+            Err(_) => return,
+        };
+        let entries = crate::parser::d64::parse_d64_directory(&data).expect("Should parse D64");
+        let prg_entries: Vec<_> = entries
+            .into_iter()
+            .filter(|e| e.file_type == crate::parser::d64::FileType::PRG)
+            .collect();
+        assert!(!prg_entries.is_empty(), "D64 should contain PRG files");
+
+        let mut unpacked_count = 0;
+        for entry in &prg_entries {
+            if let Ok(prg_bytes) = crate::parser::d64::extract_file(&data, entry) {
+                if prg_bytes.len() > 2 {
+                    let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
+                    let config = UnpackConfig::default();
+                    if let Ok(res) = unpack(&prg_bytes[2..], load_addr, &config, None) {
+                        assert!(
+                            res.start_addr <= res.entry_point && res.entry_point <= res.end_addr
+                        );
+                        assert!(!res.data.is_empty());
+                        unpacked_count += 1;
+                    }
+                }
+            }
+        }
+        assert!(
+            unpacked_count > 0,
+            "At least one PRG in D64 should be unpacked"
+        );
+    }
+
+    #[test]
+    fn test_compare_moving_tubes_with_unp64_and_reference() {
+        use std::fs;
+        let ref_path = "../../tests/6502/c64_moving_tubes_lxt_2e00.prg";
+        let ref_bytes = match fs::read(ref_path) {
+            Ok(b) => b,
+            Err(_) => return,
+        };
+        assert!(ref_bytes.len() > 2);
+        let ref_load = u16::from_le_bytes([ref_bytes[0], ref_bytes[1]]);
+        let ref_payload = &ref_bytes[2..];
+
+        let test_files = [
+            "c64_moving_tubes_lxt.dali.prg",
+            "c64_moving_tubes_lxt.exo3.prg",
+            "c64_moving_tubes_lxt.pucrunch.prg",
+        ];
+
+        for f in test_files {
+            let path = format!("../../tests/6502/{f}");
+            let data = fs::read(&path).unwrap();
+            let load_addr = u16::from_le_bytes([data[0], data[1]]);
+            let config = UnpackConfig::default();
+            let res = unpack(&data[2..], load_addr, &config, None)
+                .unwrap_or_else(|e| panic!("Failed to unpack {f}: {e}"));
+
+            assert_eq!(res.entry_point, 0x2E00, "Entry point mismatch for {f}");
+
+            let offset = (res.start_addr - ref_load) as usize;
+            let compare_len = res.data.len().min(ref_payload.len().saturating_sub(offset));
+            assert_eq!(
+                &res.data[..compare_len],
+                &ref_payload[offset..offset + compare_len],
+                "Decompressed data for {f} does not match reference"
+            );
+        }
+
+        let d64_path = "../../tests/6502/c64_moving_tubes_lxt.d64";
+        let d64_data = fs::read(d64_path).unwrap();
+        let entries = crate::parser::d64::parse_d64_directory(&d64_data).unwrap();
+        for entry in &entries {
+            if entry.file_type == crate::parser::d64::FileType::PRG {
+                let prg_bytes = crate::parser::d64::extract_file(&d64_data, entry).unwrap();
+                let load_addr = u16::from_le_bytes([prg_bytes[0], prg_bytes[1]]);
+                let config = UnpackConfig::default();
+                if let Ok(res) = unpack(&prg_bytes[2..], load_addr, &config, None) {
+                    assert_eq!(res.entry_point, 0x2E00);
+                    let offset = (res.start_addr - ref_load) as usize;
+                    let compare_len = res.data.len().min(ref_payload.len().saturating_sub(offset));
+                    assert_eq!(
+                        &res.data[..compare_len],
+                        &ref_payload[offset..offset + compare_len],
+                        "D64 PRG unpacked data does not match reference"
+                    );
+                }
+            }
+        }
+    }
+
     // -----------------------------------------------------------------------
     // SYS parser tests
     // -----------------------------------------------------------------------
