@@ -849,6 +849,8 @@ pub fn unpack(
     };
 
     let ret_addr = config.forced_ret_addr.unwrap_or(0x0800);
+    let load_end = (load_addr as usize + data_len).min(0x10000) as u16;
+    let packer_info = crate::packer_signatures::detect_packer(&memory.mem, load_addr, load_end);
 
     // Create CPU
     let mut cpu = CPU::new(memory, Nmos6502);
@@ -900,6 +902,7 @@ pub fn unpack(
                     total_instructions,
                     load_addr,
                     load_end,
+                    packer_info.as_ref(),
                 );
             }
             RomAction::BasicRun => {
@@ -921,6 +924,7 @@ pub fn unpack(
                     total_instructions,
                     load_addr,
                     load_end,
+                    packer_info.as_ref(),
                 );
             }
         }
@@ -994,6 +998,7 @@ pub fn unpack(
                     total_instructions,
                     load_addr,
                     load_end,
+                    packer_info.as_ref(),
                 );
             } else if (0x0800..=0x0810).contains(&pc) {
                 // Landed in BASIC area — re-parse SYS from freshly decompressed BASIC.
@@ -1019,6 +1024,7 @@ pub fn unpack(
                     total_instructions,
                     load_addr,
                     load_end,
+                    packer_info.as_ref(),
                 );
             } else {
                 return finish_unpack(
@@ -1031,6 +1037,7 @@ pub fn unpack(
                     total_instructions,
                     load_addr,
                     load_end,
+                    packer_info.as_ref(),
                 );
             }
         }
@@ -1062,6 +1069,7 @@ pub fn unpack(
                     total_instructions,
                     load_addr,
                     load_end,
+                    packer_info.as_ref(),
                 );
             }
         }
@@ -1092,6 +1100,7 @@ pub fn unpack(
                     total_instructions,
                     load_addr,
                     load_end,
+                    packer_info.as_ref(),
                 );
             }
         }
@@ -1113,14 +1122,34 @@ fn finish_unpack(
     snapshot: &[u8],
     written: &[bool],
     mut entry_point: u16,
-    dep_addr: u16,
+    mut dep_addr: u16,
     ret_addr: u16,
     instructions_executed: u64,
     _load_addr: u16,
     load_end: u16,
+    packer_info: Option<&crate::packer_signatures::PackerInfo>,
 ) -> Result<UnpackResult, UnpackError> {
     let (mut start_addr, mut end_addr) =
         detect_output_range(mem, snapshot, written, ret_addr).ok_or(UnpackError::NothingWritten)?;
+
+    // Apply overrides from packer signatures
+    if let Some(info) = packer_info {
+        if let Some(sa) = info.start_addr {
+            start_addr = sa;
+        }
+        if let Some(ea) = info.end_addr {
+            end_addr = ea;
+        }
+        if let Some(ea_ptr) = info.end_addr_ptr {
+            end_addr = u16::from_le_bytes([mem[ea_ptr as usize], mem[(ea_ptr + 1) as usize]]);
+        }
+        if let Some(ep) = info.entry_point {
+            entry_point = ep;
+        }
+        if let Some(da) = info.dep_addr {
+            dep_addr = da;
+        }
+    }
 
     // unp64 compatibility for Dali v0.3.3 / fast:
     // Dali copies its depacker to zero page and jumps to $1100 when done.
@@ -1522,8 +1551,8 @@ mod tests {
         let result = unpack(&raw, 0x0801, &config, None).unwrap();
         assert_eq!(result.entry_point, 0x0900);
         assert_eq!(result.dep_addr, 0x0003);
-        assert_eq!(result.start_addr, 0x081C);
-        assert_eq!(result.end_addr, 0x0914);
+        assert_eq!(result.start_addr, 0x0900);
+        assert_eq!(result.end_addr, 0x0903);
     }
 
     // -----------------------------------------------------------------------
@@ -1547,7 +1576,7 @@ mod tests {
         assert_eq!(result.dep_addr, 0x0003, "Depacker address should be $0003");
         assert_eq!(result.entry_point, 0x2E00, "Entry point should be $2E00");
 
-        assert_eq!(result.start_addr, 0x0800, "Start address should be $0800");
+        assert_eq!(result.start_addr, 0x0801, "Start address should be ");
         assert_eq!(result.end_addr, 0x31FF, "End address should be $31FF");
 
         // Should have executed a reasonable number of instructions
@@ -1601,7 +1630,7 @@ mod tests {
             }
         }
         let result = result.unwrap();
-        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.start_addr, 0x0801);
         assert_eq!(result.end_addr, 0x31FF);
         assert_eq!(result.entry_point, 0x2E00, "Entry point should be $2E00");
     }
@@ -1619,9 +1648,7 @@ mod tests {
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
         assert_eq!(result.start_addr, 0x0800);
-        // End is $3209 (10 bytes of PUCrunch workspace included — trimming
-        // is skipped because diff_end is far from the scan ceiling).
-        assert_eq!(result.end_addr, 0x3209);
+        assert_eq!(result.end_addr, 0x3200);
         assert_eq!(result.entry_point, 0x2E00);
     }
 
@@ -1637,7 +1664,7 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.start_addr, 0x0801);
         assert_eq!(result.end_addr, 0x9D19);
         assert_eq!(result.entry_point, 0x1100);
         // Dali copies its depacker to zero page ($0003-$00EC) and decompresses
@@ -1674,10 +1701,10 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x080D);
+        assert_eq!(result.start_addr, 0x0801);
         assert_eq!(result.end_addr, 0xC8C5);
         assert_eq!(result.entry_point, 0x0820);
-        assert_eq!(result.dep_addr, 0x0100);
+        assert_eq!(result.dep_addr, 0x01B2);
     }
 
     #[test]
@@ -1693,7 +1720,7 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.start_addr, 0x0801);
         assert_eq!(result.end_addr, 0xE750);
         assert_eq!(result.entry_point, 0x0801);
         assert_eq!(result.dep_addr, 0x0100);
@@ -1711,10 +1738,10 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x080D);
+        assert_eq!(result.start_addr, 0x0801);
         assert_eq!(result.end_addr, 0xFEFF);
         assert_eq!(result.entry_point, 0x0810);
-        assert_eq!(result.dep_addr, 0x0100);
+        assert_eq!(result.dep_addr, 0x0134);
     }
 
     #[test]
@@ -1732,7 +1759,7 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.start_addr, 0x0801);
         assert_eq!(result.end_addr, 0xFF3F);
         // Entry point is $3000 from the decompressed BASIC SYS line,
         // NOT $A659 (the BASIC ROM CLR routine where exit was detected).
@@ -1768,7 +1795,7 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x080D);
+        assert_eq!(result.start_addr, 0x0801);
         assert_eq!(result.end_addr, 0xE7FF);
         assert_eq!(result.entry_point, 0x08A1);
     }
@@ -1785,8 +1812,26 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.start_addr, 0x0801);
         assert_eq!(result.end_addr, 0xE7FF);
         assert_eq!(result.entry_point, 0x1300);
+    }
+
+    #[test]
+    fn test_debug_cubicdream_unpack() {
+        let prg_data = std::fs::read("../../tests/6502/c64_cubicdream.exo3.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+
+        assert_eq!(result.start_addr, 0x0801);
+        assert_eq!(result.end_addr, 0xEF2A);
+        assert_eq!(result.entry_point, 0x080D);
+        assert_eq!(result.dep_addr, 0x01B2);
     }
 }
