@@ -1392,7 +1392,20 @@ impl Core {
                 events.push(CoreEvent::UnpackStarted {
                     raw_data,
                     load_addr,
+                    config: crate::unpacker::UnpackConfig::default(),
                 });
+            }
+            AppAction::UnpackBinaryWithConfig(config) => {
+                let load_addr = self.state.origin.0;
+                let raw_data = self.state.raw_data.clone();
+                events.push(CoreEvent::UnpackStarted {
+                    raw_data,
+                    load_addr,
+                    config,
+                });
+            }
+            AppAction::UnpackDialog => {
+                events.push(CoreEvent::DialogRequested(crate::event::DialogType::Unpack));
             }
             AppAction::FileInfo => {
                 events.push(CoreEvent::DialogRequested(

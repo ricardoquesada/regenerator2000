@@ -133,7 +133,12 @@ If a newly imported file matches this signature (or a known packer is detected):
 To unpack the loaded binary from the terminal UI:
 
 1. Open the **File** menu by pressing **++alt+f++** (or clicking **File**).
-2. Select **Unpack Binary**.
+2. Select **Unpack Binary** for automatic unpacking, or **Advanced Unpack...** to configure custom unpacking parameters.
+   - **Advanced Unpack** allows manually overriding:
+     - **Entry Point (Hex)** (e.g. `0810`, equivalent to `unp64 -e`): Forcing Phase 1 start.
+     - **Return Address (Hex)** (e.g. `0800`, equivalent to `unp64 -r`): Return address boundary for Phase 1.
+     - **Depacker Address (Hex)** (e.g. `033C`, equivalent to `unp64 -d`): Forcing Phase 2 decruncher loop.
+     - **Max Instructions** (e.g. `50000000`, equivalent to `unp64 -m`): Timeout limit.
 3. The unpacker will spawn a background thread to run the 6502 emulation without blocking the UI.
 4. The status bar will display a real-time progress counter showing instructions executed (e.g., `Unpacking... $0002F8A0`).
 5. Once complete, the disassembler automatically reloads the project with the fully decompressed binary data, correctly
@@ -141,12 +146,17 @@ To unpack the loaded binary from the terminal UI:
 
 ### 3. Programmatic Unpacking via MCP
 
-If you are using the Model Context Protocol (MCP) server or an AI agent, you can unpack the currently loaded binary using the `r2000_unpack_binary` tool:
+If you are using the Model Context Protocol (MCP) server or an AI agent, you can unpack the currently loaded binary using the `r2000_unpack_binary` tool. You can optionally supply custom parameters matching the `unp64` CLI flags:
 
 ```json
 {
   "name": "r2000_unpack_binary",
-  "arguments": {}
+  "arguments": {
+    "entry_point": "0810",
+    "return_address": "0800",
+    "depacker_address": "033C",
+    "max_instructions": 100000000
+  }
 }
 ```
 

@@ -48,6 +48,8 @@ pub enum AppAction {
     KeyboardShortcuts,
     Undefined,
     UnpackBinary,
+    UnpackBinaryWithConfig(crate::unpacker::UnpackConfig),
+    UnpackDialog,
     FileInfo,
     SystemSettings,
     NextImmediateFormat,
@@ -183,7 +185,11 @@ impl AppAction {
 
         matches!(
             self,
-            AppAction::Exit | AppAction::Open | AppAction::OpenRecent | AppAction::UnpackBinary
+            AppAction::Exit
+                | AppAction::Open
+                | AppAction::OpenRecent
+                | AppAction::UnpackBinary
+                | AppAction::UnpackBinaryWithConfig(_)
         )
     }
 
@@ -219,6 +225,7 @@ impl AppAction {
                 | AppAction::Open
                 | AppAction::OpenRecent
                 | AppAction::UnpackBinary
+                | AppAction::UnpackBinaryWithConfig(_)
                 | AppAction::ApplyEnumDefinition { .. }
                 | AppAction::ApplyGlobalEnumDefinition { .. }
         )

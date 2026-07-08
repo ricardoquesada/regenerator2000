@@ -432,8 +432,16 @@ fn list_tools(system_config: &crate::config::SystemConfig) -> Result<Value, McpE
             },
             {
                 "name": "r2000_unpack_binary",
-                "description": "Unpacks the currently loaded binary. WARNING: This is a DESTRUCTIVE action! All existing comments, labels, and blocks will be completely deleted, as the project starts from scratch with the new unpacked binary. Unpacking may take up to 10 seconds or more.",
-                "inputSchema": { "type": "object", "properties": {} }
+                "description": "Unpacks the currently loaded binary. WARNING: This is a DESTRUCTIVE action! All existing comments, labels, and blocks will be completely deleted, as the project starts from scratch with the new unpacked binary.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "entry_point": { "type": "integer", "description": "Optional forced start entry point address (decimal or hex string, e.g. 2064 or '$0810') for Phase 1." },
+                        "return_address": { "type": "integer", "description": "Optional forced return address boundary (decimal or hex string, e.g. 2048 or '$0800') for Phase 1." },
+                        "depacker_address": { "type": "integer", "description": "Optional forced depacker loop start address (decimal or hex string, e.g. '$033C') for Phase 2." },
+                        "max_instructions": { "type": "integer", "description": "Optional maximum instruction limit before timeout (default: 50000000)." }
+                    }
+                }
             },
             {
                 "name": "r2000_disassemble",
@@ -818,7 +826,20 @@ fn handle_tool_call_internal(
         "r2000_unpack_binary" => {
             let load_addr = app_state.origin.0;
             let raw_data = app_state.raw_data.clone();
-            let config = crate::unpacker::UnpackConfig::default();
+            let mut config = crate::unpacker::UnpackConfig::default();
+
+            if args.get("entry_point").is_some() {
+                config.forced_entry = Some(get_address(&args, "entry_point")?.0);
+            }
+            if args.get("return_address").is_some() {
+                config.forced_ret_addr = Some(get_address(&args, "return_address")?.0);
+            }
+            if args.get("depacker_address").is_some() {
+                config.forced_dep_addr = Some(get_address(&args, "depacker_address")?.0);
+            }
+            if let Some(max_inst) = args.get("max_instructions").and_then(|v| v.as_u64()) {
+                config.max_instructions = max_inst;
+            }
 
             match crate::unpacker::unpack(&raw_data, load_addr, &config, None) {
                 Ok(result) => {
@@ -2454,5 +2475,27 @@ mod tests {
             app_state.immediate_value_formats.get(&Addr(0x1007)),
             Some(&ImmediateFormat::LowByte(Addr(0xEA31)))
         );
+    }
+
+    #[test]
+    fn test_unpack_binary_mcp_custom_parameters() {
+        let mut app_state = make_app_state(0x0801, 100);
+        let mut view_state = make_view_state();
+
+        let args = json!({
+            "entry_point": "0810",
+            "return_address": "0800",
+            "max_instructions": 1000
+        });
+
+        // The test binary is dummy data, so unpacking will return an error (Phase1Timeout or NothingWritten),
+        // but it proves that parameter parsing and UnpackConfig construction succeed without panics.
+        let result =
+            handle_tool_call_internal("r2000_unpack_binary", args, &mut app_state, &mut view_state);
+
+        assert!(result.is_err());
+        if let Err(err) = result {
+            assert!(err.message.contains("Unpack failed:"));
+        }
     }
 }

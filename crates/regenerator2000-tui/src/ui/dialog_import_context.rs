@@ -548,7 +548,7 @@ mod tests {
             Some("Exomizer 3.x"),
         );
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
 
         // Focused on Unpack (index 5). Pressing Enter should trigger AppAction::UnpackBinary.
         let key = KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE);
@@ -571,7 +571,7 @@ mod tests {
             Some("Exomizer 3.x"),
         );
         let mut app_state = AppState::new();
-        let mut ui_state = UIState::new();
+        let mut ui_state = UIState::new(crate::theme::Theme::default());
 
         assert_eq!(dialog.active_field, 5); // Unpack
 

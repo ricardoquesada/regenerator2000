@@ -229,6 +229,10 @@ pub fn handle_menu_action(
                         crate::ui::dialog_manage_enums::ManageEnumsDialog::new(&core.state),
                     ));
                 }
+                DialogType::Unpack => {
+                    ui_state.active_dialog =
+                        Some(Box::new(crate::ui::dialog_unpack::UnpackDialog::new()));
+                }
             },
             CoreEvent::DialogDismissalRequested => {
                 ui_state.active_dialog = None;
@@ -241,11 +245,11 @@ pub fn handle_menu_action(
             CoreEvent::UnpackStarted {
                 raw_data,
                 load_addr,
+                config,
             } => {
                 ui_state.set_status_message("Unpacking... $00000000");
                 let tx = event_tx.clone();
                 std::thread::spawn(move || {
-                    let config = regenerator2000_core::unpacker::UnpackConfig::default();
                     let progress_tx = tx.clone();
                     let progress_cb = move |count: u64| {
                         let _ = progress_tx.send(crate::events::AppEvent::UnpackProgress(count));

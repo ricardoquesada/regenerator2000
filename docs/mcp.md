@@ -580,7 +580,14 @@ Unpacks the currently loaded binary. WARNING: This is a DESTRUCTIVE action! All 
 will be completely deleted, as the project starts from scratch with the new unpacked binary. Unpacking may take up to 10
 seconds or more.
 
-_No arguments._
+**Arguments:**
+
+| Name               | Type                | Description                                                                                          | Required |
+| :----------------- | :------------------ | :--------------------------------------------------------------------------------------------------- | :------: |
+| `depacker_address` | `integer` / `string`| Optional forced depacker loop start address (decimal or hex string, e.g. `828` or `"$033C"`).      |    No    |
+| `entry_point`      | `integer` / `string`| Optional forced start entry point address (decimal or hex string, e.g. `2064` or `"$0810"`).         |    No    |
+| `max_instructions` | `integer`           | Optional maximum instruction limit before timeout (defaults to 50000000).                           |    No    |
+| `return_address`   | `integer` / `string`| Optional forced return address boundary (decimal or hex string, e.g. `2048` or `"$0800"`).          |    No    |
 
 ### `r2000_update_project_enum`
 

@@ -31,6 +31,7 @@ pub mod dialog_save_as;
 pub mod dialog_search;
 pub mod dialog_settings;
 pub mod dialog_t64_picker;
+pub mod dialog_unpack;
 pub mod dialog_vice_connect;
 pub mod dialog_warning;
 pub mod dialog_watchpoint_address;

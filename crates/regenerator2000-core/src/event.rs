@@ -27,6 +27,8 @@ pub enum CoreEvent {
         raw_data: Vec<u8>,
         /// Load address of the binary.
         load_addr: u16,
+        /// Unpacker configuration.
+        config: crate::unpacker::UnpackConfig,
     },
 }
 
@@ -100,4 +102,5 @@ pub enum DialogType {
         value: u16,
     },
     ManageEnums,
+    Unpack,
 }

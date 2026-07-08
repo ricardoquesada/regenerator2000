@@ -285,7 +285,11 @@ impl AppState {
     /// Returns summary information and metadata about the loaded binary.
     #[must_use]
     pub fn file_info(&self) -> FileInfo {
-        let start_addr = self.origin;
+        let start_addr = if self.origin == Addr::ZERO && self.raw_data.is_empty() {
+            Addr(0x0801)
+        } else {
+            self.origin
+        };
         let size = self.raw_data.len();
         let end_addr = if size == 0 {
             start_addr

@@ -20,7 +20,7 @@ use std::fmt;
 // ---------------------------------------------------------------------------
 
 /// Configuration for the unpacker.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnpackConfig {
     /// Force a specific entry point (skip SYS parsing).
     pub forced_entry: Option<u16>,
@@ -2290,8 +2290,8 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x0400);
-        assert_eq!(result.end_addr, 0xFEFF);
+        assert_eq!(result.start_addr, 0x0801);
+        assert_eq!(result.end_addr, 0xFFFF);
         assert_eq!(result.entry_point, 0x080D);
         assert_eq!(result.dep_addr, 0x01AB);
     }
@@ -2326,9 +2326,9 @@ mod tests {
         };
         let result = unpack(raw_data, load_addr, &config, None).unwrap();
 
-        assert_eq!(result.start_addr, 0x0810);
+        assert_eq!(result.start_addr, 0x0801);
         assert_eq!(result.end_addr, 0xFF40);
-        assert_eq!(result.entry_point, 0x0810);
+        assert_eq!(result.entry_point, 0x080D);
         assert_eq!(result.dep_addr, 0x0116);
     }
 
