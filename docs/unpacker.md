@@ -4,7 +4,7 @@ Regenerator 2000 features a built-in, CPU-emulated **Binary Unpacker** designed 
 Commodore 64 binaries (`.prg`).
 
 Many C64 programs and games are distributed in compressed forms using packers like Dali, Exomizer, PUCrunch, or
-ByteBuster. These programs contain a small decompression loop (the depacker stub) at the start, followed by compressed
+ByteBoozer. These programs contain a small decompression loop (the depacker stub) at the start, followed by compressed
 data. Analyzing a packed binary directly is impossible because the real code and data are scrambled until executed.
 
 Instead of requiring you to exit the program and run command-line utilities like `unp64`, Regenerator 2000 can emulate
@@ -16,7 +16,7 @@ for disassembly!
 ## How It Works: The Two-Phase Emulation
 
 The unpacker runs a cycle-accurate MOS 6502 emulation sandbox with custom system memory mappings. It uses a robust
-two-phase execution heuristic based on the classic [**unp64**](https://csdb.dk/release/?id=260619&show=summary)
+two-phase execution heuristic based on the classic [**unp64**](http://iancoog.altervista.org/)
 algorithm:
 
 ```
@@ -83,13 +83,13 @@ To ensure reliable decompression across diverse packer variants, Regenerator 200
 
 When a signature match is found, the unpacker automatically tunes its emulation parameters:
 
-- **Exomizer (v1.x, 2.x, 3.0, 3.02+)**: Identifies `get_bits` or decruncher loops, extracts entry points, and handles zero-page pointer overrides.
+- **Exomizer (v1.x, 2.x, 3.0, 3.02+)**: Identifies decruncher loops, extracts entry points, and handles zero-page pointer overrides.
 - **Dali (v0.3.3+)**: Dynamically resolves entry points and extracts end-address pointers from zero-page decruncher tables.
 - **ByteBoozer (v1.0 & v2.0)**: Detects zero-page workspace locations (`$10`) and landing entry points.
 - **PUCrunch**: Intercepts zero-page end-address pointer (`$FA`) and start address headers.
 - **TinyCrunch (v1 & v2)**: Handles 2-pass in-place decrunchers and calculates accurate memory boundaries.
-- **MC-Cracken**: Extracted end-address pointers (`$77`) and entry point targets.
-- **Other Supported Packers**: Cruel Cruncher, Time Cruncher (Scoop), Commodore Cruncher System (CCS), Turbo Cruncher / Action Cruncher, HBFS, Layers, and more.
+- **MC-Cracken**: Extracted end-address pointers (`$AE-$AF`) and entry point targets (`$1100`).
+- **Other Supported Packers**: Cruel Cruncher, Time Cruncher (Scoop), Commodore Cruncher System (CCS), Turbo Cruncher, Action Replay, Final Cartridge III, Triad Cruncher, Eagle Cruncher, Super Cruncher, and more.
 
 ---
 
@@ -109,47 +109,67 @@ advanced system-level sandboxing features:
 
 ---
 
-## Using the Unpacker in the TUI
+## Using the Unpacker
 
 ### 1. Automatic Entropy Detection
 
 When you load a binary file into Regenerator 2000, it calculates the **Shannon Entropy** of the data. Compressed or
 encrypted binaries have extremely high entropy (>= 7.5).
 
-If a newly imported file matches this signature, Regenerator 2000 will display a helpful warning dialog:
+If a newly imported file matches this signature (or a known packer is detected):
 
-> **The loaded file has high entropy.**
+1. **Import Context Setup Dialog**: A warning is displayed at the bottom of the dialog (e.g. `⚠️ High Entropy (7.82). Packed with Exomizer 3.x.`) and the primary focused button is automatically set to **`< Unpack >`** so you can unpack immediately with a single press of **++enter++**.
+2. **High Entropy Warning Dialog**: Standalone warnings also notify you of packed binaries:
+
+> **High Entropy Detected**
+> The loaded file has high entropy (e.g. 7.82).
 > It is likely compressed or packed.
-> You can unpack it from Menu -> File -> Unpack Binary.
+>
+> You can unpack it from Menu -> File -> Unpack Binary,
+> or use external tools like unp64, and reload the unpacked file.
 
-### 2. Executing the Unpack
+### 2. Executing the Unpack in the TUI
 
-To unpack the loaded binary:
+To unpack the loaded binary from the terminal UI:
 
-1. Press **++f10++** (or **++alt+f++**) to open the **File** menu.
+1. Open the **File** menu by pressing **++alt+f++** (or clicking **File**).
 2. Select **Unpack Binary**.
-3. The unpacker will spawn a background thread to run the 6502 emulation.
-4. The status bar will display a real-time execution progress counter representing instructions executed (e.g.
-   `Unpacking... $0002F8A0`).
+3. The unpacker will spawn a background thread to run the 6502 emulation without blocking the UI.
+4. The status bar will display a real-time progress counter showing instructions executed (e.g., `Unpacking... $0002F8A0`).
 5. Once complete, the disassembler automatically reloads the project with the fully decompressed binary data, correctly
    aligned to its new start address, and updates the disassembly cursor directly to the decompressed entry point!
 
+### 3. Programmatic Unpacking via MCP
+
+If you are using the Model Context Protocol (MCP) server or an AI agent, you can unpack the currently loaded binary using the `r2000_unpack_binary` tool:
+
+```json
+{
+  "name": "r2000_unpack_binary",
+  "arguments": {}
+}
+```
+
+The MCP handler runs the 6502 emulation, reloads the unpacked binary payload into the project state, performs control-flow disassembly from the detected entry point, and returns a summary containing the unpacked memory range (`${start_addr}-${end_addr}`), entry point, depacker address, and total executed instructions.
+
 ---
 
-## Troubleshooting / Configuration Limits
+## Troubleshooting & Configuration Limits
 
 - **Timeout limits**: To prevent bad stubs or infinite loops from freezing the application, the unpacker has a safety
-  limit of **50 million instructions**. If a packer exceeds this without exiting Phase 2, the operation aborts with a
+  limit of **50 million instructions** (`max_instructions`). If a packer exceeds this without exiting Phase 2, the operation aborts with a
   timeout error.
 - **Custom ROMs**: For extremely specialized packers that require actual KERNAL/BASIC ROM code execution, the underlying
-  library supports loading custom `$A000` and `$E000` ROM images (configurable via the core configuration).
+  library supports loading custom `$A000` and `$E000` ROM images (configurable via `UnpackConfig`).
 
-## Differences with unp64
+---
 
-While Regenerator 2000's unpacker uses `unp64` heuristics, its cycle-accurate emulation sometimes produces more accurate or slightly different bounding values than `unp64`'s static analysis or pointer-sniffing:
+## unp64 Compatibility & Parity
 
-- **TinyCrunch**: `unp64` intercepts a zero-page pointer mid-decompression to blindly calculate the maximum theoretical memory boundary (e.g. `$FFFD`). Regenerator 2000 tracks actual memory writes, which correctly identifies that the payload may only actually fill up to a lower address (e.g. `$7949`).
-- **Exomizer 3**: `unp64` checks differences against an empty buffer, missing cases where Exomizer explicitly zeroes out the first byte at `$0800`. Regenerator 2000 correctly tracks writes to `$0800`. Furthermore, our emulator traverses the execution stub to identify the true payload entry point (e.g. `$806A`) rather than just the exit routine jump (e.g. `$08A1`).
-- **ByteBoozer 2**: Similar to TinyCrunch, ByteBoozer zeroes out memory space up to `$FFFF` dynamically. `unp64` relies on a static override (e.g. `$E7FF`), while our memory heuristics correctly report that all memory up to `$FFFF` was actually modified.
-- **Dali**: Extracted zero-page end-address pointers and dynamic entry point resolution prevent truncation on non-standard payload sizes.
-- **MC-Cracken**: End-address pointer (`$77`) sniffing and entry point resolution match `unp64` behavior for MC-Cracken compressed executables.
+Regenerator 2000's unpacker uses `unp64` as its reference standard and includes specific compatibility handlers and signature-based overrides to ensure 1:1 parity with `unp64` output across all supported packer families:
+
+- **Exomizer 3**: Intercepts the `CLI; JMP` decruncher signature near the end of packed data to extract the true payload entry point and strip the `$0800`–`$080C` BASIC stub (`start_addr: $080D`), matching `unp64` reference output.
+- **ByteBoozer 2**: Extracts zero-page `$77`–`$78` end-address pointers deposited by the decruncher to accurately bound the unpacked payload (e.g., `$E7FF`) and exclude trailing workspace bytes.
+- **TinyCrunch**: Correctly handles 2-pass in-place decrunchers that write to disjoint memory regions, ensuring high-memory payload bytes (e.g., `$FFFD`) are preserved in parity with `unp64`.
+- **Dali (v0.3.3+)**: Inspects zero-page decruncher end pointers and dynamic JMP targets (e.g., `$1100`), ensuring complete payload extraction without truncation.
+- **MC-Cracken**: Sniffs zero-page `$AE`–`$AF` end-address pointers and `$1100` pass-2 entry points to match `unp64` decompressed boundaries.
