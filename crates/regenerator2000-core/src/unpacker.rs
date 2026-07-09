@@ -520,6 +520,54 @@ fn force_rts(cpu: &mut CPU<UnpackerMemory, Nmos6502>) {
     cpu.registers.program_counter = 0x0000;
 }
 
+/// Emulates illegal opcodes that are not supported or have incorrect PC advancement in the base emulator.
+/// Returns true if the opcode was handled (in which case PC and registers were updated).
+fn emulate_illegal_opcode(cpu: &mut CPU<UnpackerMemory, Nmos6502>) -> bool {
+    let pc = cpu.registers.program_counter;
+    let opcode = cpu.memory.mem[pc as usize];
+    match opcode {
+        0xAB => {
+            let imm = cpu.memory.mem[pc.wrapping_add(1) as usize];
+            let val = (cpu.registers.accumulator | 0xEE) & imm;
+            cpu.registers.accumulator = val;
+            cpu.registers.index_x = val;
+            cpu.registers
+                .status
+                .set(mos6502::registers::Status::PS_ZERO, val == 0);
+            cpu.registers
+                .status
+                .set(mos6502::registers::Status::PS_NEGATIVE, (val & 0x80) != 0);
+            cpu.registers.program_counter = pc.wrapping_add(2);
+            true
+        }
+        0x9E => {
+            // SHX
+            let addr_low = cpu.memory.mem[pc.wrapping_add(1) as usize];
+            let addr_high = cpu.memory.mem[pc.wrapping_add(2) as usize];
+            let val = cpu.registers.index_x & addr_high.wrapping_add(1);
+            let target_addr = u16::from_le_bytes([addr_low, addr_high])
+                .wrapping_add(cpu.registers.index_y as u16);
+            cpu.memory.mem[target_addr as usize] = val;
+            cpu.memory.written[target_addr as usize] = true;
+            cpu.registers.program_counter = pc.wrapping_add(3);
+            true
+        }
+        0x9C => {
+            // SHY
+            let addr_low = cpu.memory.mem[pc.wrapping_add(1) as usize];
+            let addr_high = cpu.memory.mem[pc.wrapping_add(2) as usize];
+            let val = cpu.registers.index_y & addr_high.wrapping_add(1);
+            let target_addr = u16::from_le_bytes([addr_low, addr_high])
+                .wrapping_add(cpu.registers.index_x as u16);
+            cpu.memory.mem[target_addr as usize] = val;
+            cpu.memory.written[target_addr as usize] = true;
+            cpu.registers.program_counter = pc.wrapping_add(3);
+            true
+        }
+        _ => false,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Output range detection
 // ---------------------------------------------------------------------------
@@ -869,6 +917,13 @@ pub fn unpack(
     let load_end = (load_addr as usize + data_len).min(0x10000) as u16;
     let packer_info = crate::packer_signatures::detect_packer(&memory.mem, load_addr, load_end);
 
+    // Apply patches for specific packers
+    if let Some(ref info) = packer_info
+        && info.name == "ALZ64/Kabuto"
+    {
+        memory.mem[0x080b] = 0xA2;
+    }
+
     // Create CPU
     let mut cpu = CPU::new(memory, Nmos6502);
     cpu.registers.program_counter = entry;
@@ -892,7 +947,13 @@ pub fn unpack(
         let pc = cpu.registers.program_counter;
 
         // Exit condition: PC dropped below ret_addr
-        if pc < ret_addr {
+        if pc < ret_addr && pc != 0x0000 {
+            if load_addr == 0x0801 {
+                println!(
+                    "DEBUG Phase 1 finished after {} steps, PC = {:#06X}",
+                    total_instructions, pc
+                );
+            }
             dep_addr = config.forced_dep_addr.unwrap_or(pc);
             break;
         }
@@ -946,6 +1007,11 @@ pub fn unpack(
             }
         }
 
+        if emulate_illegal_opcode(&mut cpu) {
+            total_instructions += 1;
+            continue;
+        }
+
         cpu.single_step();
         total_instructions += 1;
         if total_instructions.is_multiple_of(10_000)
@@ -994,7 +1060,14 @@ pub fn unpack(
         // $D000-$FFFF). Even though the RAM *underneath* these areas may have
         // been written by the depacker, the CPU is executing from ROM, not
         // from the decompressed data. Letting execution continue ensures the
-        let in_rom_or_io = (0xA000..=0xBFFF).contains(&pc) || (0xD000..=0xFFFF).contains(&pc);
+        let bank = cpu.memory.mem[0x01] & 0x07;
+        let basic_mapped = bank & 0x01 != 0;
+        let kernal_mapped = bank & 0x02 != 0;
+        let io_mapped = bank & 0x04 != 0;
+
+        let in_rom_or_io = ((0xA000..=0xBFFF).contains(&pc) && basic_mapped)
+            || ((0xD000..=0xDFFF).contains(&pc) && io_mapped)
+            || (pc >= 0xE000 && kernal_mapped);
 
         if pc >= ret_addr && !in_rom_or_io && cpu.memory.written[pc as usize] {
             if pc == ret_addr {
@@ -1108,6 +1181,11 @@ pub fn unpack(
                     packer_info.as_ref(),
                 );
             }
+        }
+
+        if emulate_illegal_opcode(&mut cpu) {
+            total_instructions += 1;
+            continue;
         }
 
         cpu.single_step();
@@ -1254,9 +1332,13 @@ fn finish_unpack(
     }
 
     // Override entry point with SYS target if entry point landed in ROM or BASIC stub range ($0800..=$0810)
-    if ((0x0800..=0x0810).contains(&entry_point)
-        || (0xA000..=0xBFFF).contains(&entry_point)
-        || entry_point >= 0xE000)
+    let bank = mem[0x01] & 0x07;
+    let basic_mapped = bank & 0x01 != 0;
+    let kernal_mapped = bank & 0x02 != 0;
+    let is_rom_entry = ((0xA000..=0xBFFF).contains(&entry_point) && basic_mapped)
+        || (entry_point >= 0xE000 && kernal_mapped);
+
+    if ((0x0800..=0x0810).contains(&entry_point) || is_rom_entry)
         && let Some(sys_ep) = find_sys_address(mem)
     {
         entry_point = sys_ep;
@@ -2403,5 +2485,53 @@ mod tests {
         assert_eq!(result.end_addr, 0xCBE6);
         assert_eq!(result.entry_point, 0x0810);
         assert_eq!(result.dep_addr, 0x01AB);
+    }
+
+    #[test]
+    fn test_unpack_bluemarble4k() {
+        let prg_data = std::fs::read("../../tests/6502/c64_bluemarble4k_unk.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.end_addr, 0xFFFF);
+        assert_eq!(result.entry_point, 0x0911);
+        assert_eq!(result.dep_addr, 0x07E8);
+    }
+
+    #[test]
+    fn test_unpack_boo_alz64() {
+        let prg_data = std::fs::read("../../tests/6502/c64_boo_alz64.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+        assert_eq!(result.start_addr, 0x2A78);
+        assert_eq!(result.end_addr, 0x4D3D);
+        assert_eq!(result.entry_point, 0x2A78);
+        assert_eq!(result.dep_addr, 0x005E);
+    }
+
+    #[test]
+    fn test_unpack_soul_on_fire() {
+        let prg_data = std::fs::read("../../tests/6502/c64_soul_on_fire_unk.prg").unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+        assert_eq!(result.start_addr, 0x082B);
+        assert_eq!(result.end_addr, 0xF732);
+        assert_eq!(result.entry_point, 0xE000);
+        assert_eq!(result.dep_addr, 0x005E);
     }
 }

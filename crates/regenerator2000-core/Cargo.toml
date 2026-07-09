@@ -26,7 +26,6 @@ tokio = { version = "1.52", features = ["rt-multi-thread", "sync", "net", "macro
 rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server"], optional = true }
 axum = { version = "0.8.9", optional = true }
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "json"], optional = true }
-env_logger = "0.11.11"
 
 [features]
 default = []

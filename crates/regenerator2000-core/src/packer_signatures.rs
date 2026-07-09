@@ -439,6 +439,85 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Packer
         }
     }
 
+    // ALZ64/Quiss
+    if mem.len() > 0x82f
+        && load_addr <= 0x080b
+        && mem[0x80b] == 0xA2
+        && mem[0x80c] == 0x00
+        && mem[0x80d] == 0x78
+        && mem[0x80e] == 0xB5
+        && mem[0x819] == 0xD0
+        && mem[0x81a] == 0xF3
+        && mem[0x81b] == 0xA2
+        && mem[0x81c] == 0x03
+        && mem[0x824] == 0xA2
+        && mem[0x825] == 0x10
+        && mem[0x826] == 0x89
+        && mem[0x827] == 0x38
+        && mem[0x82c] == 0xF1
+        && mem[0x82d] == 0x4C
+        && mem[0x82e] == 0x5E
+        && mem[0x82f] == 0x00
+    {
+        let p = u16::from_le_bytes([mem[0x814], mem[0x815]]) as usize;
+        if p + 0xf3 < mem.len() && mem[p + 0xf1] == 0x4C {
+            let mut start_addr = Some(0x080b);
+            for q in (p + 0xcb)..=(p + 0xf0) {
+                if q + 5 < mem.len() && mem[q..q + 4] == [0x02, 0xE6, 0xC7, 0x8D] {
+                    start_addr = Some(u16::from_le_bytes([mem[q + 4], mem[q + 5]]));
+                    break;
+                }
+            }
+            return Some(PackerInfo {
+                name: "ALZ64/Quiss",
+                dep_addr: Some(0x005E),
+                start_addr,
+                end_addr: None,
+                entry_point: Some(u16::from_le_bytes([mem[p + 0xf2], mem[p + 0xf3]])),
+                end_addr_ptr: Some(0x00CF),
+            });
+        }
+    }
+
+    // ALZ64/Kabuto
+    if mem.len() > 0x838
+        && load_addr <= 0x080b
+        && mem[0x80c] == 0x00
+        && mem[0x80d] == 0x78
+        && mem[0x80e] == 0x86
+        && mem[0x818] == 0xCA
+        && mem[0x819] == 0xD0
+        && mem[0x81a] == 0xF7
+        && mem[0x81b] == 0xCE
+        && mem[0x822] == 0xD0
+        && mem[0x823] == 0xEE
+        && mem[0x824] == 0xA2
+        && mem[0x825] == 0x03
+        && mem[0x835] == 0xF1
+        && mem[0x836] == 0x4C
+        && mem[0x837] == 0x5E
+        && mem[0x838] == 0x00
+    {
+        let p = u16::from_le_bytes([mem[0x813], mem[0x814]]) as usize;
+        if p + 0xff < mem.len() && mem[p + 0xfd] == 0x4C {
+            let mut start_addr = Some(0x080b);
+            for q in (p + 0xe6)..=(p + 0xf0) {
+                if q + 5 < mem.len() && mem[q..q + 4] == [0x02, 0xE6, 0xC7, 0x8D] {
+                    start_addr = Some(u16::from_le_bytes([mem[q + 4], mem[q + 5]]));
+                    break;
+                }
+            }
+            return Some(PackerInfo {
+                name: "ALZ64/Kabuto",
+                dep_addr: Some(0x005E),
+                start_addr,
+                end_addr: None,
+                entry_point: Some(u16::from_le_bytes([mem[p + 0xfe], mem[p + 0xff]])),
+                end_addr_ptr: Some(0x00CF),
+            });
+        }
+    }
+
     None
 }
 
@@ -778,5 +857,74 @@ mod tests {
 
         let info = detect_packer(&mem, 0x0801, 0x0950).unwrap();
         assert_eq!(info.name, "Triad Cruncher");
+    }
+
+    #[test]
+    fn test_detect_alz64_quiss() {
+        let mut mem = vec![0; 0x1000];
+        mem[0x80b] = 0xA2;
+        mem[0x80c] = 0x00;
+        mem[0x80d] = 0x78;
+        mem[0x80e] = 0xB5;
+        mem[0x814] = 0x00; // p = 0x0900
+        mem[0x815] = 0x09;
+        mem[0x819] = 0xD0;
+        mem[0x81a] = 0xF3;
+        mem[0x81b] = 0xA2;
+        mem[0x81c] = 0x03;
+        mem[0x824] = 0xA2;
+        mem[0x825] = 0x10;
+        mem[0x826] = 0x89;
+        mem[0x827] = 0x38;
+        mem[0x82c] = 0xF1;
+        mem[0x82d] = 0x4C;
+        mem[0x82e] = 0x5E;
+        mem[0x82f] = 0x00;
+
+        let p = 0x0900;
+        mem[p + 0xf1] = 0x4C;
+        mem[p + 0xf2] = 0x00; // RetAdr = 0x2000
+        mem[p + 0xf3] = 0x20;
+
+        let info = detect_packer(&mem, 0x0801, 0x0950).unwrap();
+        assert_eq!(info.name, "ALZ64/Quiss");
+        assert_eq!(info.dep_addr, Some(0x005E));
+        assert_eq!(info.start_addr, Some(0x080b));
+        assert_eq!(info.entry_point, Some(0x2000));
+        assert_eq!(info.end_addr_ptr, Some(0x00CF));
+    }
+
+    #[test]
+    fn test_detect_alz64_kabuto() {
+        let mut mem = vec![0; 0x1000];
+        mem[0x80c] = 0x00;
+        mem[0x80d] = 0x78;
+        mem[0x80e] = 0x86;
+        mem[0x813] = 0x00; // p = 0x0900
+        mem[0x814] = 0x09;
+        mem[0x818] = 0xCA;
+        mem[0x819] = 0xD0;
+        mem[0x81a] = 0xF7;
+        mem[0x81b] = 0xCE;
+        mem[0x822] = 0xD0;
+        mem[0x823] = 0xEE;
+        mem[0x824] = 0xA2;
+        mem[0x825] = 0x03;
+        mem[0x835] = 0xF1;
+        mem[0x836] = 0x4C;
+        mem[0x837] = 0x5E;
+        mem[0x838] = 0x00;
+
+        let p = 0x0900;
+        mem[p + 0xfd] = 0x4C;
+        mem[p + 0xfe] = 0x00; // RetAdr = 0x2000
+        mem[p + 0xff] = 0x20;
+
+        let info = detect_packer(&mem, 0x0801, 0x0950).unwrap();
+        assert_eq!(info.name, "ALZ64/Kabuto");
+        assert_eq!(info.dep_addr, Some(0x005E));
+        assert_eq!(info.start_addr, Some(0x080b));
+        assert_eq!(info.entry_point, Some(0x2000));
+        assert_eq!(info.end_addr_ptr, Some(0x00CF));
     }
 }
