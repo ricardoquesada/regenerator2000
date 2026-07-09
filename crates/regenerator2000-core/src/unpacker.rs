@@ -2040,7 +2040,10 @@ mod tests {
         let prg_data = std::fs::read("../../tests/6502/c64_moving_tubes_lxt.exo3.prg").unwrap();
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
-
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
         let result = unpack(raw_data, load_addr, &config, None);
         if let Ok(r) = &result {
             assert!(r.start_addr <= r.entry_point && r.entry_point <= r.end_addr);
