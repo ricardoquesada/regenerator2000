@@ -1217,7 +1217,11 @@ fn finish_unpack(
             end_addr = ea;
         }
         if let Some(ea_ptr) = info.end_addr_ptr {
-            end_addr = u16::from_le_bytes([mem[ea_ptr as usize], mem[(ea_ptr + 1) as usize]]);
+            let reported_end =
+                u16::from_le_bytes([mem[ea_ptr as usize], mem[(ea_ptr + 1) as usize]]);
+            if reported_end > start_addr {
+                end_addr = reported_end.saturating_sub(1);
+            }
         }
         if let Some(ep) = info.entry_point {
             entry_point = ep;
@@ -1406,10 +1410,6 @@ mod tests {
                 let load_addr = u16::from_le_bytes([data[0], data[1]]);
                 let config = UnpackConfig::default();
                 if let Ok(res) = unpack(&data[2..], load_addr, &config, None) {
-                    println!(
-                        "File {:<40}: start=${:04X}, end=${:04X}, entry=${:04X}",
-                        f, res.start_addr, res.end_addr, res.entry_point
-                    );
                     assert!(
                         res.start_addr <= res.entry_point && res.entry_point <= res.end_addr,
                         "File {f}: entry point ${:04X} outside range [${:04X}, ${:04X}]",
@@ -2041,29 +2041,9 @@ mod tests {
         let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
         let raw_data = &prg_data[2..];
 
-        println!(
-            "EXO: {} bytes, load=${:04X}, data={} bytes",
-            prg_data.len(),
-            load_addr,
-            raw_data.len()
-        );
-
-        let config = UnpackConfig {
-            max_instructions: 50_000_000,
-            ..Default::default()
-        };
         let result = unpack(raw_data, load_addr, &config, None);
-        match &result {
-            Ok(r) => {
-                println!(
-                    "SUCCESS: ${:04X}-${:04X}, entry=${:04X}, dep=${:04X}, instr={}",
-                    r.start_addr, r.end_addr, r.entry_point, r.dep_addr, r.instructions_executed
-                );
-                println!("Unpacked data length: {}", r.data.len());
-            }
-            Err(e) => {
-                println!("FAILED: {e:?}");
-            }
+        if let Ok(r) = &result {
+            assert!(r.start_addr <= r.entry_point && r.entry_point <= r.end_addr);
         }
         let result = result.unwrap();
         assert_eq!(result.start_addr, 0x0801);
@@ -2526,5 +2506,100 @@ mod tests {
         assert_eq!(result.end_addr, 0xF732);
         assert_eq!(result.entry_point, 0xE000);
         assert_eq!(result.dep_addr, 0x005E);
+    }
+
+    fn find_unp64_bin() -> Option<std::path::PathBuf> {
+        if let Ok(path) = std::env::var("UNP64_PATH").or_else(|_| std::env::var("UNP64_BIN")) {
+            let p = std::path::PathBuf::from(path);
+            if p.exists() {
+                return Some(p);
+            }
+        }
+        if let Ok(out) = std::process::Command::new("unp64").arg("-h").output() {
+            if out.status.success() || !out.stdout.is_empty() || !out.stderr.is_empty() {
+                return Some(std::path::PathBuf::from("unp64"));
+            }
+        }
+        None
+    }
+
+    #[test]
+    fn test_unpack_gianna_sister_remix() {
+        let prg_path = "../../tests/6502/c64_gianna_sister_remix_badboy.tbc_multicompactor.prg";
+        let prg_data = std::fs::read(prg_path).unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+        assert_eq!(result.start_addr, 0x0801);
+        assert_eq!(result.end_addr, 0xC947);
+        assert_eq!(result.entry_point, 0x0810);
+        assert_eq!(result.dep_addr, 0x0100);
+
+        if let Some(unp64_bin) = find_unp64_bin() {
+            let tmp_out = std::env::temp_dir().join("gianna_sister_remix_unp64.prg");
+            let status = std::process::Command::new(&unp64_bin)
+                .arg(prg_path)
+                .arg(&tmp_out)
+                .status()
+                .unwrap();
+            if status.success() {
+                let actual_out = if tmp_out.exists() {
+                    tmp_out.clone()
+                } else {
+                    std::path::PathBuf::from(format!("{}.0810", tmp_out.display()))
+                };
+                if actual_out.exists() {
+                    let unp64_bytes = std::fs::read(&actual_out).unwrap();
+                    let unp64_load_addr = u16::from_le_bytes([unp64_bytes[0], unp64_bytes[1]]);
+                    assert_eq!(result.start_addr, unp64_load_addr);
+                    assert_eq!(result.data, &unp64_bytes[2..]);
+                    let _ = std::fs::remove_file(actual_out);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_unpack_fantasy_intro() {
+        let prg_path = "../../tests/6502/c64_fantasy_intro.eca_compactor.prg";
+        let prg_data = std::fs::read(prg_path).unwrap();
+        let load_addr = u16::from_le_bytes([prg_data[0], prg_data[1]]);
+        let raw_data = &prg_data[2..];
+        let config = UnpackConfig {
+            max_instructions: 50_000_000,
+            ..Default::default()
+        };
+        let result = unpack(raw_data, load_addr, &config, None).unwrap();
+        assert_eq!(result.start_addr, 0x0800);
+        assert_eq!(result.end_addr, 0x37FF);
+        assert_eq!(result.entry_point, 0x3000);
+        assert_eq!(result.dep_addr, 0x0100);
+
+        if let Some(unp64_bin) = find_unp64_bin() {
+            let tmp_out = std::env::temp_dir().join("fantasy_intro_unp64.prg");
+            let status = std::process::Command::new(&unp64_bin)
+                .arg(prg_path)
+                .arg(&tmp_out)
+                .status()
+                .unwrap();
+            if status.success() {
+                let actual_out = if tmp_out.exists() {
+                    tmp_out.clone()
+                } else {
+                    std::path::PathBuf::from(format!("{}.3000", tmp_out.display()))
+                };
+                if actual_out.exists() {
+                    let unp64_bytes = std::fs::read(&actual_out).unwrap();
+                    let unp64_load_addr = u16::from_le_bytes([unp64_bytes[0], unp64_bytes[1]]);
+                    assert_eq!(result.start_addr, unp64_load_addr);
+                    assert_eq!(result.data, &unp64_bytes[2..]);
+                    let _ = std::fs::remove_file(actual_out);
+                }
+            }
+        }
     }
 }

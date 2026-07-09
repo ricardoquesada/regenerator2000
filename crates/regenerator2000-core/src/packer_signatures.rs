@@ -518,6 +518,116 @@ pub fn detect_packer(mem: &[u8], load_addr: u16, load_end: u16) -> Option<Packer
         }
     }
 
+    // TBC Multicompactor
+    if mem.len() >= 0x08F0
+        && (mem[0x82C] & 0xFD) == 0x84
+        && mem[0x82D] == 0x01
+        && mem[0x82E] == 0xCA
+        && mem[0x82F] == 0x9A
+        && mem[0x830] == 0x4C
+        && mem[0x831] == 0x00
+        && mem[0x832] == 0x01
+        && mem[0x833] == 0xA0
+        && mem[0x834] == 0x00
+        && mem[0x835] == 0x84
+        && mem[0x836] == 0xFD
+        && mem[0x837] == 0x84
+        && mem[0x8A2] == 0x01
+        && mem[0x8A3] == 0x4C
+        && mem[0x8A4] == 0x49
+        && mem[0x8A5] == 0x01
+    {
+        let is_normal = mem.get(0x84A) == Some(&0x81);
+        let is_firelord = mem.get(0x84A) == Some(&0x7B);
+
+        if (is_normal && mem.len() >= 0x8B4 && mem[0x820..0x824] == [0xA2, 0xE9, 0xBD, 0x32])
+            || (is_firelord && mem.len() >= 0x8AE && mem[0x81D..0x821] == [0xA2, 0xE9, 0xBD, 0x32])
+        {
+            let ret_ptr = if is_normal { 0x8B2 } else { 0x8AC };
+            let entry_point = u16::from_le_bytes([mem[ret_ptr], mem[ret_ptr + 1]]);
+
+            let p = 0x8EB;
+            let start_addr = u16::from_le_bytes([mem[p + 1], mem[p + 2]]);
+
+            let tbl_len = mem[p] as usize;
+            let mut q = p + tbl_len;
+            let mut max_end: u32 = 0;
+            while q > p && q + 1 < mem.len() {
+                let strtmp = u16::from_le_bytes([mem[q - 1], mem[q]]) as u32;
+                let val = if strtmp == 0 { 0x10000 } else { strtmp };
+                if val > max_end {
+                    max_end = val;
+                }
+                if q < 4 {
+                    break;
+                }
+                q -= 4;
+            }
+
+            let end_addr = if max_end > 0 {
+                Some((max_end as u16).wrapping_sub(1))
+            } else {
+                None
+            };
+
+            return Some(PackerInfo {
+                name: "TBC Multicompactor",
+                dep_addr: Some(0x0100),
+                start_addr: Some(start_addr),
+                end_addr,
+                entry_point: Some(entry_point),
+                end_addr_ptr: None,
+            });
+        }
+    }
+
+    // ECA Compactor/Linker
+    if mem.len() >= 0x0950 {
+        for p in 0x080D..=0x0830 {
+            if p + 0x3E <= mem.len() && mem[p + 0x3A..p + 0x3E] == [0x2A, 0x2A, 0x2A, 0x2A] {
+                let mut entry_point = None;
+                for q in 0xD6..0xDE {
+                    if p + q + 2 < mem.len() && (mem[p + q] == 0x20 || mem[p + q] == 0x4C) {
+                        let target = u16::from_le_bytes([mem[p + q + 1], mem[p + q + 2]]);
+                        if !matches!(target, 0xA659 | 0xFF81 | 0xE3BF | 0xE5A0 | 0xE518) {
+                            entry_point = Some(target);
+                            break;
+                        }
+                    }
+                }
+
+                let dep_addr = if p + 0x31 < mem.len() {
+                    Some(u16::from_le_bytes([mem[p + 0x30], mem[p + 0x31]]))
+                } else {
+                    Some(0x0100)
+                };
+
+                let start_addr = if p + 0x33 < mem.len() {
+                    Some(u16::from_le_bytes([mem[p + 0x32], mem[p + 0x33]]))
+                } else {
+                    Some(0x0800)
+                };
+
+                let mut end_addr_ptr = None;
+                for q in 0xED..0x108 {
+                    if p + q + 4 < mem.len() && mem[p + q..p + q + 4] == [0xD0, 0xF7, 0x18, 0xA5] {
+                        end_addr_ptr = Some(mem[p + q + 4] as u16);
+                        break;
+                    }
+                }
+
+                return Some(PackerInfo {
+                    name: "ECA Compactor",
+                    dep_addr,
+                    start_addr,
+                    end_addr: None,
+                    entry_point,
+                    end_addr_ptr,
+                });
+            }
+        }
+    }
+
     None
 }
 
