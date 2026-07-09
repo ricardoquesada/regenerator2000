@@ -939,12 +939,10 @@ impl Disassembler {
     ) -> (usize, Vec<DisassemblyLine>) {
         let HandleArgs {
             pc,
-            address: _,
             formatter,
             label_name,
             side_comment,
             line_comment,
-            local_label_names: _,
             ..
         } = args;
         let data = ctx.data;
@@ -1139,7 +1137,6 @@ impl Disassembler {
             label_name,
             side_comment,
             line_comment,
-            local_label_names: _,
             ..
         } = args;
         let data = ctx.data;
@@ -1248,12 +1245,10 @@ impl Disassembler {
     ) -> (usize, Vec<DisassemblyLine>) {
         let HandleArgs {
             pc,
-            address: _,
             formatter,
             label_name,
             side_comment,
             line_comment,
-            local_label_names: _,
             ..
         } = args;
         let data = ctx.data;
@@ -1461,7 +1456,6 @@ impl Disassembler {
             label_name,
             side_comment,
             line_comment,
-            local_label_names: _,
             ..
         } = args;
         let data = ctx.data;
@@ -1613,7 +1607,6 @@ impl Disassembler {
             label_name,
             side_comment,
             line_comment,
-            local_label_names: _,
             ..
         } = args;
         let data = ctx.data;
