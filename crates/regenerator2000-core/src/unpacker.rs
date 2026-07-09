@@ -946,14 +946,7 @@ pub fn unpack(
 
         let pc = cpu.registers.program_counter;
 
-        // Exit condition: PC dropped below ret_addr
         if pc < ret_addr && pc != 0x0000 {
-            if load_addr == 0x0801 {
-                println!(
-                    "DEBUG Phase 1 finished after {} steps, PC = {:#06X}",
-                    total_instructions, pc
-                );
-            }
             dep_addr = config.forced_dep_addr.unwrap_or(pc);
             break;
         }
