@@ -80,11 +80,11 @@ impl UnpackDialog {
 }
 
 impl Widget for UnpackDialog {
-    fn render(&self, f: &mut Frame, area: Rect, _app_state: &AppState, ui_state: &mut UIState) {
+    fn render(&self, f: &mut Frame, area: Rect, app_state: &AppState, ui_state: &mut UIState) {
         let theme = &ui_state.theme;
         let block = crate::ui::widget::create_dialog_block(" Unpack Binary Options ", theme);
 
-        let area = crate::utils::centered_rect_adaptive(55, 50, 0, 13, area);
+        let area = crate::utils::centered_rect_adaptive(55, 50, 0, 14, area);
         ui_state.active_dialog_area = area;
         f.render_widget(Clear, area);
         f.render_widget(block.clone(), area);
@@ -100,6 +100,8 @@ impl Widget for UnpackDialog {
                 Constraint::Length(1), // Max Instructions
                 Constraint::Length(1), // Spacer
                 Constraint::Length(1), // Buttons
+                Constraint::Length(1), // Spacer
+                Constraint::Length(1), // Entropy & Packer Info
                 Constraint::Min(1),    // Help text
             ])
             .split(inner);
@@ -202,11 +204,37 @@ impl Widget for UnpackDialog {
         ]);
         f.render_widget(Paragraph::new(buttons_text), layout[5]);
 
+        // --- Entropy & Packer Info (Bottom) ---
+        let file_info = app_state.file_info();
+        let status_str = if let Some(name) = file_info.packer_name {
+            format!("Packed with {name}")
+        } else if file_info.entropy >= 7.5 {
+            "High Entropy (likely compressed)".to_string()
+        } else {
+            "Normal Entropy".to_string()
+        };
+        let info_line = Line::from(vec![
+            Span::raw("Entropy: "),
+            Span::styled(
+                format!("{:.2} / 8.00", file_info.entropy),
+                if file_info.entropy >= 7.5 {
+                    Style::default().fg(theme.error_fg)
+                } else {
+                    Style::default().fg(theme.dialog_fg)
+                },
+            ),
+            Span::styled(
+                format!(" ({status_str})"),
+                Style::default().fg(theme.comment),
+            ),
+        ]);
+        f.render_widget(Paragraph::new(info_line), layout[7]);
+
         // --- Help text ---
         let help =
             Paragraph::new("Press Tab/Shift+Tab to navigate, Enter to submit, Esc to cancel.")
                 .style(Style::default().fg(theme.comment));
-        f.render_widget(help, layout[6]);
+        f.render_widget(help, layout[8]);
 
         // Set cursor position
         if entry_selected {

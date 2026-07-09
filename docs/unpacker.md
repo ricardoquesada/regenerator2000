@@ -133,8 +133,9 @@ If a newly imported file matches this signature (or a known packer is detected):
 To unpack the loaded binary from the terminal UI:
 
 1. Open the **File** menu by pressing **++alt+f++** (or clicking **File**).
-2. Select **Unpack Binary** for automatic unpacking, or **Advanced Unpack...** to configure custom unpacking parameters.
-   - **Advanced Unpack** allows manually overriding:
+2. Select **Unpack Binary...** to open the Unpack Options dialog.
+   - Pressing **++enter++** immediately runs with default auto-detection.
+   - Alternatively, you can manually override:
      - **Entry Point (Hex)** (e.g. `0810`, equivalent to `unp64 -e`): Forcing Phase 1 start.
      - **Return Address (Hex)** (e.g. `0800`, equivalent to `unp64 -r`): Return address boundary for Phase 1.
      - **Depacker Address (Hex)** (e.g. `033C`, equivalent to `unp64 -d`): Forcing Phase 2 decruncher loop.
