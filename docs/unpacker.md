@@ -125,7 +125,7 @@ If a newly imported file matches this signature (or a known packer is detected):
 > The loaded file has high entropy (e.g. 7.82).
 > It is likely compressed or packed.
 >
-> You can unpack it from Menu -> File -> Unpack Binary,
+> You can unpack it from Menu -> File -> Unpack Binary...,
 > or use external tools like unp64, and reload the unpacked file.
 
 ### 2. Executing the Unpack in the TUI
