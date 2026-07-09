@@ -22,6 +22,7 @@ anyhow = "1.0"
 directories = "6"
 log = "0.4"
 include_dir = "0.7"
+tokio = { version = "1.52", features = ["rt-multi-thread", "sync"] }
 
 [lints]
 workspace = true

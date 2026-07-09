@@ -30,6 +30,10 @@ pub enum CoreEvent {
         /// Unpacker configuration.
         config: crate::unpacker::UnpackConfig,
     },
+    /// The core requests to start the MCP server.
+    StartMcpServerRequested,
+    /// The core requests to stop the MCP server.
+    StopMcpServerRequested,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

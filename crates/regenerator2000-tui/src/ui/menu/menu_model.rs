@@ -50,6 +50,9 @@ impl MenuState {
                         MenuItem::new("Unpack Binary...", None, Some(AppAction::UnpackDialog)),
                         MenuItem::new("File Info...", None, Some(AppAction::FileInfo)),
                         MenuItem::separator(),
+                        MenuItem::new("Start MCP Server", None, Some(AppAction::StartMcpServer)),
+                        MenuItem::new("Stop MCP Server", None, Some(AppAction::StopMcpServer)),
+                        MenuItem::separator(),
                         MenuItem::new("Settings", Some("Alt+P"), Some(AppAction::SystemSettings)),
                         MenuItem::separator(),
                         MenuItem::new("Exit", Some("Ctrl+Q"), Some(AppAction::Exit)),
@@ -459,6 +462,12 @@ impl MenuState {
                             }
                             AppAction::ViceConnect => {
                                 item.disabled = app_state.vice_client.is_some();
+                            }
+                            AppAction::StartMcpServer => {
+                                item.disabled = app_state.mcp_server_running;
+                            }
+                            AppAction::StopMcpServer => {
+                                item.disabled = !app_state.mcp_server_running;
                             }
                             AppAction::ViceDisconnect
                             | AppAction::ViceToggleBreakpoint

@@ -566,36 +566,6 @@ fn spawn_update_check(event_tx: &std::sync::mpsc::Sender<events::AppEvent>) {
     });
 }
 
-/// Spawn the MCP HTTP server thread and bridge its requests into the main
-/// event channel.
-fn spawn_mcp_server(event_tx: &std::sync::mpsc::Sender<events::AppEvent>) {
-    let (mcp_req_tx, mut mcp_req_rx) = tokio::sync::mpsc::channel(100);
-    let mcp_bridge_tx = event_tx.clone();
-
-    std::thread::spawn(move || {
-        let Ok(rt) = tokio::runtime::Runtime::new() else {
-            return;
-        };
-        rt.block_on(async {
-            // Spawn the actual server
-            let server_tx = mcp_req_tx.clone();
-            let error_tx = mcp_bridge_tx.clone();
-            tokio::spawn(async move {
-                if let Err(e) = regenerator2000_core::mcp::http::run_server(3000, server_tx).await {
-                    let _ = error_tx.send(events::AppEvent::McpError(e.to_string()));
-                }
-            });
-
-            // Bridge MCP requests to Main Thread
-            while let Some(req) = mcp_req_rx.recv().await {
-                if mcp_bridge_tx.send(events::AppEvent::Mcp(req)).is_err() {
-                    break;
-                }
-            }
-        });
-    });
-}
-
 /// Auto-connect to the VICE binary monitor at the given address.
 fn connect_vice(
     app_state: &mut AppState,
@@ -880,7 +850,7 @@ fn main() -> Result<()> {
     }
 
     if mcp_server {
-        spawn_mcp_server(&event_tx);
+        let _ = event_tx.send(events::AppEvent::McpStartRequested);
     }
 
     // Auto-connect to VICE if --vice flag provided

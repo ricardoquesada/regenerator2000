@@ -52,6 +52,8 @@ pub enum AppAction {
     UnpackDialog,
     FileInfo,
     SystemSettings,
+    StartMcpServer,
+    StopMcpServer,
     NextImmediateFormat,
     PreviousImmediateFormat,
     Search,
@@ -161,6 +163,8 @@ impl AppAction {
                 | AppAction::OpenDocumentation
                 | AppAction::KeyboardShortcuts
                 | AppAction::SystemSettings
+                | AppAction::StartMcpServer
+                | AppAction::StopMcpServer
                 | AppAction::Search
                 | AppAction::ToggleDebuggerView
                 | AppAction::ViceContinue

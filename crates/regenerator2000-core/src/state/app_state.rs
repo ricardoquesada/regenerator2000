@@ -89,6 +89,7 @@ pub struct AppState {
     pub last_export_html_filename: Option<String>,
     pub vice_state: crate::vice::ViceState,
     pub vice_client: Option<crate::vice::ViceClient>,
+    pub mcp_server_running: bool,
 }
 
 impl Default for AppState {
@@ -152,6 +153,7 @@ impl AppState {
             last_export_html_filename: None,
             vice_state: crate::vice::ViceState::new(),
             vice_client: None,
+            mcp_server_running: false,
         }
     }
 

@@ -146,11 +146,24 @@ impl ServerHandler for RegeneratorOps {
     }
 }
 
-/// Runs the MCP HTTP server on the given port.
+/// Runs the MCP HTTP server on the specified port.
 ///
 /// # Errors
 /// Returns an error if the server fails to bind to the port or encounters an error while serving.
 pub async fn run_server(port: u16, sender: Sender<McpRequest>) -> std::io::Result<()> {
+    let (_tx, rx) = tokio::sync::oneshot::channel();
+    run_server_with_shutdown(port, sender, rx).await
+}
+
+/// Runs the MCP HTTP server on the specified port with graceful shutdown support.
+///
+/// # Errors
+/// Returns an error if the server fails to bind to the port or encounters an error while serving.
+pub async fn run_server_with_shutdown(
+    port: u16,
+    sender: Sender<McpRequest>,
+    shutdown_rx: tokio::sync::oneshot::Receiver<()>,
+) -> std::io::Result<()> {
     let handler = RegeneratorOps::new(sender);
     let handler_clone = handler.clone();
 
@@ -184,7 +197,11 @@ pub async fn run_server(port: u16, sender: Sender<McpRequest>) -> std::io::Resul
     let listener = tokio::net::TcpListener::bind(addr).await?;
     log::info!("MCP Live Server active on http://127.0.0.1:{port}/mcp");
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async move {
+            let _ = shutdown_rx.await;
+        })
+        .await?;
 
     Ok(())
 }

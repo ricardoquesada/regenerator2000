@@ -263,6 +263,12 @@ pub fn handle_menu_action(
                     let _ = tx.send(crate::events::AppEvent::UnpackComplete(result));
                 });
             }
+            CoreEvent::StartMcpServerRequested => {
+                let _ = event_tx.send(crate::events::AppEvent::McpStartRequested);
+            }
+            CoreEvent::StopMcpServerRequested => {
+                let _ = event_tx.send(crate::events::AppEvent::McpStopRequested);
+            }
         }
     }
 }

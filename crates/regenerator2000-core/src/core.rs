@@ -108,6 +108,24 @@ impl Core {
                 ));
                 events.push(CoreEvent::StatusMessage("System Settings".to_string()));
             }
+            AppAction::StartMcpServer => {
+                if self.state.mcp_server_running {
+                    events.push(CoreEvent::StatusMessage(
+                        "MCP server is already running.".to_string(),
+                    ));
+                } else {
+                    events.push(CoreEvent::StartMcpServerRequested);
+                }
+            }
+            AppAction::StopMcpServer => {
+                if !self.state.mcp_server_running {
+                    events.push(CoreEvent::StatusMessage(
+                        "MCP server is not running.".to_string(),
+                    ));
+                } else {
+                    events.push(CoreEvent::StopMcpServerRequested);
+                }
+            }
             AppAction::DocumentSettings => {
                 events.push(CoreEvent::DialogRequested(
                     crate::event::DialogType::DocumentSettings,

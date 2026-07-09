@@ -2490,6 +2490,7 @@ dependencies = [
  "ratatui-textarea",
  "regenerator2000-core",
  "serde",
+ "tokio",
  "toml",
 ]
 

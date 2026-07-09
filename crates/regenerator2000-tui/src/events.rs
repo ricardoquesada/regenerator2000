@@ -14,6 +14,12 @@ pub enum AppEvent {
     Crossterm(Event),
     Mcp(crate::mcp::types::McpRequest),
     McpError(String),
+    McpStartRequested,
+    McpStopRequested,
+    McpServerStarted {
+        port: u16,
+    },
+    McpServerStopped,
     Vice(crate::vice::ViceEvent),
     Tick,
     UpdateAvailable(String),
@@ -58,12 +64,13 @@ pub fn run_app<B: Backend>(
         .map_err(|e| io::Error::other(e.to_string()))?;
 
     let mut should_render = false;
+    let mut mcp_shutdown_tx: Option<tokio::sync::oneshot::Sender<()>> = None;
 
     loop {
         // Wait for event (blocking)
         let event = match event_rx.recv() {
             Ok(e) => e,
-            Err(_) => return Ok(()), // Channel closed
+            Err(_) => break, // Channel closed
         };
 
         match event {
@@ -73,7 +80,41 @@ pub fn run_app<B: Backend>(
                 let _ = req.response_sender.send(response);
                 should_render = true;
             }
+            AppEvent::McpStartRequested => {
+                if mcp_shutdown_tx.is_some() || core.state.mcp_server_running {
+                    ui_state.set_status_message("MCP Server is already running.".to_string());
+                } else {
+                    ui_state.set_status_message("Starting MCP Server...".to_string());
+                    mcp_shutdown_tx = spawn_mcp_server_thread(&event_tx);
+                }
+                should_render = true;
+            }
+            AppEvent::McpStopRequested => {
+                core.state.mcp_server_running = false;
+                if let Some(tx) = mcp_shutdown_tx.take() {
+                    let _ = tx.send(());
+                    ui_state.set_status_message("Stopping MCP Server...".to_string());
+                } else {
+                    ui_state.set_status_message("MCP Server is not running.".to_string());
+                }
+                should_render = true;
+            }
+            AppEvent::McpServerStarted { port } => {
+                core.state.mcp_server_running = true;
+                ui_state.set_status_message(format!(
+                    "MCP Server active on http://127.0.0.1:{port}/mcp"
+                ));
+                should_render = true;
+            }
+            AppEvent::McpServerStopped => {
+                mcp_shutdown_tx = None;
+                core.state.mcp_server_running = false;
+                ui_state.set_status_message("MCP Server stopped.".to_string());
+                should_render = true;
+            }
             AppEvent::McpError(err_msg) => {
+                mcp_shutdown_tx = None;
+                core.state.mcp_server_running = false;
                 ui_state.set_status_message(format!("MCP Error: {err_msg}"));
                 should_render = true;
             }
@@ -118,7 +159,7 @@ pub fn run_app<B: Backend>(
                         &event_tx,
                         &mut should_render,
                     ) {
-                        EventOutcome::Quit => return Ok(()),
+                        EventOutcome::Quit => break,
                         EventOutcome::Skip => continue,
                         EventOutcome::Continue => {}
                     }
@@ -160,6 +201,57 @@ pub fn run_app<B: Backend>(
             should_render = false;
         }
     }
+
+    if let Some(tx) = mcp_shutdown_tx.take() {
+        let _ = tx.send(());
+    }
+
+    Ok(())
+}
+
+/// Spawns the MCP HTTP server thread and returns a shutdown sender handle.
+#[must_use]
+pub fn spawn_mcp_server_thread(
+    event_tx: &std::sync::mpsc::Sender<AppEvent>,
+) -> Option<tokio::sync::oneshot::Sender<()>> {
+    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+    let (mcp_req_tx, mut mcp_req_rx) = tokio::sync::mpsc::channel(100);
+    let mcp_bridge_tx = event_tx.clone();
+    let started_tx = event_tx.clone();
+    let stopped_tx = event_tx.clone();
+    let port = 3000;
+
+    std::thread::spawn(move || {
+        let Ok(rt) = tokio::runtime::Runtime::new() else {
+            return;
+        };
+        rt.block_on(async {
+            let error_tx = mcp_bridge_tx.clone();
+            tokio::spawn(async move {
+                if let Err(e) = regenerator2000_core::mcp::http::run_server_with_shutdown(
+                    port,
+                    mcp_req_tx,
+                    shutdown_rx,
+                )
+                .await
+                {
+                    let _ = error_tx.send(AppEvent::McpError(e.to_string()));
+                }
+            });
+
+            let _ = started_tx.send(AppEvent::McpServerStarted { port });
+
+            while let Some(req) = mcp_req_rx.recv().await {
+                if mcp_bridge_tx.send(AppEvent::Mcp(req)).is_err() {
+                    break;
+                }
+            }
+
+            let _ = stopped_tx.send(AppEvent::McpServerStopped);
+        });
+    });
+
+    Some(shutdown_tx)
 }
 
 // ---------------------------------------------------------------------------
