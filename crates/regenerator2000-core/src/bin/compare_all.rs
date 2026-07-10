@@ -3,7 +3,9 @@ use std::fs;
 use std::process::Command;
 
 fn main() {
-    let unp64_bin = "/Users/ricardoq/bin/unp64";
+    let unp64_bin = std::env::var("UNP64")
+        .or_else(|_| std::env::var("UNP64_PATH"))
+        .unwrap_or_else(|_| "/Users/ricardoq/bin/unp64".to_string());
     let test_dir = "tests/6502";
 
     println!("============================================================");
@@ -66,7 +68,7 @@ fn main() {
 
         // Run unp64
         let tmp_out = std::env::temp_dir().join(format!("{}_unp64.tmp", file_name));
-        let unp64_status = Command::new(unp64_bin)
+        let unp64_status = Command::new(&unp64_bin)
             .arg(&file_path)
             .arg("-o")
             .arg(&tmp_out)
